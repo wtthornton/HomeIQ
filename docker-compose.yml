@@ -795,7 +795,7 @@ services:
     container_name: homeiq-openvino-service
     restart: unless-stopped
     ports:
-      - "8022:8019"
+      - "8026:8019"  # Fixed port conflict with ner-service
     networks:
       - homeiq-network
     deploy:
@@ -825,7 +825,7 @@ services:
     container_name: homeiq-ml-service
     restart: unless-stopped
     ports:
-      - "8021:8020"  # Port 8020 already used by openai-service
+      - "8025:8020"  # Fixed port conflict with openai-service
     networks:
       - homeiq-network
     deploy:
@@ -900,7 +900,7 @@ services:
     container_name: ai-automation-service
     restart: unless-stopped
     ports:
-      - "8017:8018"  # Port 8018 now used by ai-core-service
+      - "8024:8018"  # Fixed port conflict with energy-correlator
     env_file:
       - infrastructure/env.ai-automation
     environment:
@@ -988,7 +988,7 @@ services:
     container_name: automation-miner
     restart: unless-stopped
     ports:
-      - "8019:8019"
+      - "8028:8019"  # Fixed port conflict with ner-service
     env_file:
       - infrastructure/env.automation-miner
     environment:
@@ -1097,7 +1097,7 @@ services:
     container_name: homeiq-device-intelligence
     restart: unless-stopped
     ports:
-      - "8021:8019"
+      - "8027:8019"  # Fixed port conflict with ner-service
     extra_hosts:
       - "homeassistant:192.168.1.86"
     env_file:
