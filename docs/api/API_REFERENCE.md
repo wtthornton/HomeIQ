@@ -428,18 +428,90 @@ Unregister a webhook.
 ## AI Automation Service
 
 **Base URL:** `http://localhost:8018`  
-**Purpose:** Intelligent automation suggestions with conversational refinement
+**Purpose:** AI-powered Home Assistant automation discovery and recommendation system  
+**Version:** 2.0.0  
+**Status:** ✅ Production Ready
 
-### Analysis Endpoints
+### Overview
+
+The AI Automation Service provides intelligent automation suggestions through multiple approaches:
+
+- **Pattern Detection:** Analyzes historical usage to detect automation opportunities
+- **Device Intelligence:** Discovers device capabilities and suggests unused features  
+- **Natural Language:** Create automations from plain English descriptions
+- **Conversational Refinement:** Refine suggestions through natural language interaction
+- **Ask AI:** Natural language query interface for automation discovery
+
+### Core Features
+
+**Epic AI-1: Pattern Automation**
+- Time-of-day patterns (consistent usage times)
+- Device co-occurrence (frequently used together)
+- Anomaly detection (repeated manual interventions)
+- AI-generated automation suggestions
+
+**Epic AI-2: Device Intelligence**
+- Universal device capability discovery (6,000+ Zigbee models)
+- Utilization analysis (how much of device features you use)
+- Feature suggestions (LED notifications, power monitoring, etc.)
+- Smart recommendations based on manufacturer specs
+
+**Epic AI-3: N-Level Synergy Detection**
+- Multi-hop device relationship discovery
+- Device embedding generation for similarity matching
+- Advanced synergy pattern detection
+
+### Health & System Endpoints
 
 #### GET /health
-Service health check.
+Service health check with device intelligence stats.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "ai-automation-service",
+  "version": "2.0.0",
+  "timestamp": "2025-10-20T12:00:00Z",
+  "device_intelligence": {
+    "devices_discovered": 45,
+    "devices_processed": 42,
+    "devices_skipped": 3,
+    "errors": 0
+  }
+}
+```
+
+#### GET /event-rate
+Get standardized event rate metrics.
+
+### Analysis & Pattern Detection
 
 #### GET /api/analysis/status
 Current analysis status and pattern statistics.
 
+**Response:**
+```json
+{
+  "status": "ready",
+  "patterns": {
+    "total_patterns": 1227,
+    "by_type": {
+      "co_occurrence": 1217,
+      "time_of_day": 10
+    },
+    "unique_devices": 1227,
+    "avg_confidence": 0.987
+  },
+  "suggestions": {
+    "pending_count": 0,
+    "recent": []
+  }
+}
+```
+
 #### POST /api/analysis/analyze-and-suggest
-Run complete analysis pipeline.
+Run complete analysis pipeline: Fetch events → Detect patterns → Generate suggestions.
 
 **Request:**
 ```json
@@ -452,10 +524,103 @@ Run complete analysis pipeline.
 }
 ```
 
-### Conversational Flow Endpoints
+**Response:**
+```json
+{
+  "success": true,
+  "analysis_id": "analysis-123",
+  "patterns_detected": 15,
+  "suggestions_generated": 8,
+  "duration_seconds": 127.5,
+  "openai_usage": {
+    "total_tokens": 2847,
+    "cost_usd": 0.0042
+  }
+}
+```
+
+#### POST /api/analysis/trigger
+Manually trigger daily analysis job (for testing or on-demand execution).
+
+#### GET /api/analysis/schedule
+Get information about the analysis schedule.
+
+### Pattern Detection Endpoints
+
+#### POST /api/patterns/detect/time-of-day
+Detect time-of-day patterns in device usage.
+
+**Query Parameters:**
+- `days` (default: 30): Number of days of history to analyze
+- `min_occurrences` (default: 3): Minimum pattern occurrences
+
+#### POST /api/patterns/detect/co-occurrence
+Detect co-occurrence patterns between devices.
+
+**Query Parameters:**
+- `days` (default: 30): Number of days of history to analyze
+- `window_minutes` (default: 5): Time window for co-occurrence
+
+#### GET /api/patterns/list
+List detected patterns with filtering.
+
+**Query Parameters:**
+- `pattern_type`: Filter by pattern type
+- `device_id`: Filter by device ID
+- `min_confidence`: Minimum confidence threshold
+
+#### GET /api/patterns/stats
+Get pattern detection statistics.
+
+### Suggestion Management
+
+#### POST /api/suggestions/generate
+Generate automation suggestions from detected patterns using OpenAI.
+
+**Query Parameters:**
+- `pattern_type`: Generate suggestions for specific pattern type
+- `min_confidence` (default: 0.7): Minimum pattern confidence
+- `max_suggestions` (default: 10): Maximum suggestions to generate
+
+#### GET /api/suggestions/list
+List suggestions with status filtering.
+
+**Query Parameters:**
+- `status_filter`: Filter by status (draft, refining, yaml_generated, deployed, rejected)
+- `limit` (default: 50): Maximum suggestions to return
+
+#### GET /api/suggestions/usage-stats
+Get OpenAI API usage statistics and cost estimates.
+
+#### POST /api/suggestions/usage-stats/reset
+Reset OpenAI API usage statistics (for monthly reset).
+
+### Conversational Automation Flow
 
 #### POST /api/v1/suggestions/generate
-Generate new automation suggestion.
+Generate description-only automation suggestion (no YAML yet).
+
+**Request:**
+```json
+{
+  "pattern_id": 123,
+  "user_preferences": {
+    "style": "simple",
+    "include_conditions": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "suggestion_id": "suggestion-456",
+  "status": "draft",
+  "description_only": "Turn on kitchen light at 7 AM on weekdays",
+  "conversation_history": [],
+  "refinement_count": 0
+}
+```
 
 #### POST /api/v1/suggestions/{suggestion_id}/refine
 Refine suggestion based on user input.
@@ -463,32 +628,251 @@ Refine suggestion based on user input.
 **Request:**
 ```json
 {
-  "user_input": "Make it blue and only on weekdays",
+  "user_input": "Make it 6:30 AM instead and only on weekdays",
   "conversation_context": true
+}
+```
+
+**Response:**
+```json
+{
+  "suggestion_id": "suggestion-456",
+  "status": "refining",
+  "description_only": "Turn on kitchen light at 6:30 AM on weekdays",
+  "conversation_history": [
+    {
+      "timestamp": "2025-10-20T12:00:00Z",
+      "user_input": "Make it 6:30 AM instead and only on weekdays",
+      "ai_response": "Updated timing to 6:30 AM and restricted to weekdays only."
+    }
+  ],
+  "refinement_count": 1
 }
 ```
 
 #### POST /api/v1/suggestions/{suggestion_id}/approve
 Approve suggestion and generate Home Assistant YAML.
 
+**Request:**
+```json
+{
+  "force_generate": false
+}
+```
+
 **Response:**
 ```json
 {
-  "suggestion_id": "suggestion-1",
+  "suggestion_id": "suggestion-456",
   "status": "yaml_generated",
-  "automation_yaml": "alias: 'Living Room Light'\ntrigger:\n  - platform: time\n    at: '18:00:00'",
-  "ready_to_deploy": true
+  "automation_yaml": "alias: 'Kitchen Light Morning'\ntrigger:\n  - platform: time\n    at: '06:30:00'\ncondition:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.kitchen",
+  "ready_to_deploy": true,
+  "yaml_generated_at": "2025-10-20T12:05:00Z"
 }
 ```
 
 #### GET /api/v1/suggestions/devices/{device_id}/capabilities
-Get device capabilities.
+Get device capabilities for suggestion generation.
+
+#### GET /api/v1/suggestions/{suggestion_id}
+Get detailed suggestion information.
+
+### Natural Language Generation
+
+#### POST /api/nl/generate
+Generate automation from natural language request.
+
+**Request:**
+```json
+{
+  "request_text": "Turn on kitchen light at 7 AM on weekdays",
+  "user_id": "default"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "suggestion_id": "nl-suggestion-789",
+  "automation": {
+    "title": "Kitchen Light Morning Routine",
+    "yaml": "alias: 'Kitchen Light Morning'...",
+    "description": "Turns on kitchen light at 7 AM on weekdays"
+  },
+  "safety": {
+    "score": 85,
+    "warnings": [],
+    "passed_checks": 6
+  }
+}
+```
+
+#### POST /api/nl/clarify/{suggestion_id}
+Clarify automation request with additional context.
+
+**Request:**
+```json
+{
+  "clarification_text": "Only if someone is home"
+}
+```
+
+#### GET /api/nl/examples
+Get example natural language requests for user guidance.
+
+#### GET /api/nl/stats
+Get statistics about NL generation usage.
+
+### Ask AI - Natural Language Query Interface
+
+#### POST /api/v1/ask-ai/query
+Process natural language query about Home Assistant devices and automations.
+
+**Request:**
+```json
+{
+  "query_text": "What lights can I control in the kitchen?",
+  "user_id": "default"
+}
+```
+
+**Response:**
+```json
+{
+  "query_id": "query-abc123",
+  "status": "processed",
+  "suggestions": [
+    {
+      "suggestion_id": "suggestion-xyz789",
+      "title": "Kitchen Light Control",
+      "description": "Control kitchen lights with motion detection",
+      "confidence": 0.92
+    }
+  ],
+  "entities_found": [
+    "light.kitchen_main",
+    "light.kitchen_island"
+  ]
+}
+```
+
+#### POST /api/v1/ask-ai/query/{query_id}/refine
+Refine query results based on user feedback.
+
+#### GET /api/v1/ask-ai/query/{query_id}/suggestions
+Get all suggestions for a specific query.
+
+#### POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/test
+Test a suggestion from a query.
+
+#### POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/approve
+Approve specific suggestion from a query.
+
+### Deployment & Management
+
+#### POST /api/deploy/{suggestion_id}
+Deploy an approved suggestion to Home Assistant.
+
+**Request:**
+```json
+{
+  "force_deploy": false
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "automation_id": "automation-123",
+    "safety_score": 85,
+    "safety_warnings": [],
+    "deployed_at": "2025-10-20T12:10:00Z"
+  }
+}
+```
+
+#### POST /api/deploy/batch
+Deploy multiple approved suggestions at once.
+
+#### GET /api/deploy/automations
+List all automations currently in Home Assistant.
+
+#### GET /api/deploy/automations/{automation_id}
+Get status of a specific automation in Home Assistant.
+
+#### POST /api/deploy/automations/{automation_id}/enable
+Enable/turn on an automation in Home Assistant.
+
+#### POST /api/deploy/automations/{automation_id}/disable
+Disable/turn off an automation in Home Assistant.
+
+#### POST /api/deploy/automations/{automation_id}/trigger
+Manually trigger an automation in Home Assistant.
+
+#### POST /api/deploy/{automation_id}/rollback
+Rollback automation to previous version.
+
+#### GET /api/deploy/{automation_id}/versions
+Get version history for automation (last 3 versions).
+
+#### GET /api/deploy/test-connection
+Test connection to Home Assistant.
+
+### Suggestion Management Operations
+
+#### DELETE /api/suggestions/{suggestion_id}
+Delete a suggestion.
+
+#### POST /api/suggestions/batch/approve
+Approve multiple suggestions at once.
+
+#### POST /api/suggestions/batch/reject
+Reject multiple suggestions at once.
+
+### Synergy Detection (Epic AI-3)
+
+#### GET /api/synergies
+List detected device synergies.
+
+**Query Parameters:**
+- `synergy_type`: Filter by synergy type
+- `min_confidence` (default: 0.7): Minimum confidence
+
+#### GET /api/synergies/stats
+Get synergy detection statistics.
+
+#### GET /api/synergies/{synergy_id}
+Get detailed synergy information.
+
+### Data Access Endpoints
+
+#### GET /api/data/health
+Check Data API health status.
+
+#### GET /api/data/events
+Get events from Data API with filtering.
+
+**Query Parameters:**
+- `days` (default: 7): Number of days of history
+- `entity_id`: Filter by entity ID
+
+#### GET /api/data/devices
+Get devices from Data API.
+
+#### GET /api/data/entities
+Get entities from Data API.
 
 ### Performance Metrics
 
 - **Small datasets** (< 50k events): 1-2 minutes
 - **Large datasets** (50k+ events): 2-3 minutes
 - **API response times:** 50-5000ms depending on operation
+- **OpenAI cost:** ~$0.50/year for daily analysis
+- **Memory usage:** 200-400MB peak
+- **Daily job duration:** 2-4 minutes typical
 
 ---
 

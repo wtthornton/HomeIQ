@@ -5,7 +5,9 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 ## Overview
 
 **Epic AI-1: Pattern Automation** - Analyzes historical usage to detect patterns and suggest automations  
-**Epic AI-2: Device Intelligence** - Discovers device capabilities and suggests unused features
+**Epic AI-2: Device Intelligence** - Discovers device capabilities and suggests unused features  
+**Epic AI-3: N-Level Synergy Detection** - Multi-hop device relationship discovery  
+**Epic AI-4: Advanced Synergy Analysis** - Device embedding generation and similarity matching
 
 ### Features
 
@@ -21,6 +23,12 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 💎 Feature suggestions (LED notifications, power monitoring, etc.)
 - 🎯 Smart recommendations based on manufacturer specs
 
+**N-Level Synergy Detection (Epic AI-3):**
+- 🔗 Multi-hop device relationship discovery
+- 🧠 Device embedding generation for similarity matching
+- 📈 Advanced synergy pattern detection
+- 🎯 Smart device pairing recommendations
+
 **Conversational Automation System (Story AI1.23-24):**
 - 🤖 Unified daily batch job (3 AM)
 - 💡 8-10 suggestions per day (mixed pattern + feature)
@@ -28,6 +36,18 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - ✏️ **Conversational refinement** - Say "make it 6:30am instead" to edit
 - ✅ **Approve to generate YAML** - Code only created after you approve
 - 🚀 One-click deploy to Home Assistant
+
+**Natural Language Generation (Story AI1.21):**
+- 🗣️ Create automations from plain English
+- 🔍 Entity extraction from Home Assistant
+- 🛡️ Safety validation (6-rule engine)
+- 📝 YAML generation with OpenAI GPT-4o-mini
+
+**Ask AI Interface:**
+- ❓ Natural language queries about devices and automations
+- 🔍 Entity discovery and capability analysis
+- 💡 Intelligent suggestion generation
+- 🎯 Context-aware recommendations
 
 ## Quick Start
 
@@ -55,7 +75,7 @@ pip install -r requirements.txt
 alembic upgrade head
 
 # Start service
-python -m uvicorn src.main:app --host 0.0.0.0 --port 8011 --reload
+python -m uvicorn src.main:app --host 0.0.0.0 --port 8018 --reload
 ```
 
 ### Running with Docker
@@ -67,26 +87,75 @@ docker-compose up -d ai-automation-service
 
 ## API Endpoints
 
-### Conversational Automation (Story AI1.23-24)
-- `GET /api/suggestions/list` - List suggestions by status (draft, refining, yaml_generated, deployed)
-- `POST /api/v1/suggestions/{id}/refine` - Refine description with natural language
+### Health & System
+- `GET /health` - Service health check with device intelligence stats
+- `GET /event-rate` - Standardized event rate metrics
+
+### Analysis & Pattern Detection
+- `GET /api/analysis/status` - Current analysis status and pattern statistics
+- `POST /api/analysis/analyze-and-suggest` - Run complete analysis pipeline
+- `POST /api/analysis/trigger` - Manually trigger daily analysis job
+- `GET /api/analysis/schedule` - Get analysis schedule information
+
+### Pattern Detection
+- `POST /api/patterns/detect/time-of-day` - Detect time-of-day patterns
+- `POST /api/patterns/detect/co-occurrence` - Detect co-occurrence patterns
+- `GET /api/patterns/list` - List detected patterns with filtering
+- `GET /api/patterns/stats` - Get pattern detection statistics
+
+### Suggestion Management
+- `POST /api/suggestions/generate` - Generate automation suggestions from patterns
+- `GET /api/suggestions/list` - List suggestions with status filtering
+- `GET /api/suggestions/usage-stats` - Get OpenAI API usage statistics
+- `POST /api/suggestions/usage-stats/reset` - Reset usage statistics
+
+### Conversational Automation Flow
+- `POST /api/v1/suggestions/generate` - Generate description-only suggestion
+- `POST /api/v1/suggestions/{id}/refine` - Refine suggestion with natural language
 - `POST /api/v1/suggestions/{id}/approve` - Approve and generate YAML
-- `POST /api/deploy/{id}` - Deploy automation to Home Assistant
-- `GET /api/suggestions/{id}` - Get specific suggestion
+- `GET /api/v1/suggestions/devices/{device_id}/capabilities` - Get device capabilities
+- `GET /api/v1/suggestions/{id}` - Get detailed suggestion information
 
-### Analysis & Patterns
-- `POST /api/analysis/trigger` - Manually trigger analysis run
-- `GET /api/analysis/status` - Check last analysis status
-- `GET /api/patterns` - List detected patterns
+### Natural Language Generation
+- `POST /api/nl/generate` - Generate automation from natural language
+- `POST /api/nl/clarify/{id}` - Clarify automation request
+- `GET /api/nl/examples` - Get example requests
+- `GET /api/nl/stats` - Get NL generation statistics
 
-### Device Intelligence
-- `GET /api/device-intelligence/utilization` - Device utilization metrics
-- `GET /api/device-intelligence/opportunities` - Unused feature opportunities
-- `POST /api/device-intelligence/capabilities/refresh` - Refresh device capabilities
+### Ask AI - Natural Language Query Interface
+- `POST /api/v1/ask-ai/query` - Process natural language query
+- `POST /api/v1/ask-ai/query/{id}/refine` - Refine query results
+- `GET /api/v1/ask-ai/query/{id}/suggestions` - Get query suggestions
+- `POST /api/v1/ask-ai/query/{id}/suggestions/{id}/test` - Test suggestion
+- `POST /api/v1/ask-ai/query/{id}/suggestions/{id}/approve` - Approve suggestion
 
-### System
-- `GET /health` - Health check (includes device intelligence stats)
-- `GET /docs` - OpenAPI documentation
+### Deployment & Management
+- `POST /api/deploy/{id}` - Deploy approved suggestion to Home Assistant
+- `POST /api/deploy/batch` - Deploy multiple suggestions
+- `GET /api/deploy/automations` - List deployed automations
+- `GET /api/deploy/automations/{id}` - Get automation status
+- `POST /api/deploy/automations/{id}/enable` - Enable automation
+- `POST /api/deploy/automations/{id}/disable` - Disable automation
+- `POST /api/deploy/automations/{id}/trigger` - Trigger automation
+- `POST /api/deploy/{id}/rollback` - Rollback automation
+- `GET /api/deploy/{id}/versions` - Get version history
+- `GET /api/deploy/test-connection` - Test Home Assistant connection
+
+### Suggestion Management Operations
+- `DELETE /api/suggestions/{id}` - Delete suggestion
+- `POST /api/suggestions/batch/approve` - Approve multiple suggestions
+- `POST /api/suggestions/batch/reject` - Reject multiple suggestions
+
+### Synergy Detection (Epic AI-3)
+- `GET /api/synergies` - List detected device synergies
+- `GET /api/synergies/stats` - Get synergy statistics
+- `GET /api/synergies/{id}` - Get detailed synergy information
+
+### Data Access
+- `GET /api/data/health` - Check Data API health
+- `GET /api/data/events` - Get events with filtering
+- `GET /api/data/devices` - Get devices
+- `GET /api/data/entities` - Get entities
 
 ## Architecture
 
@@ -118,9 +187,11 @@ The complete call tree documentation provides exhaustive detail on every phase:
 - [Device Discovery Process](../../implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md#2-phase-1-device-capability-discovery) - Zigbee2MQTT integration
 
 **Additional Documentation:**
-- PRD: `docs/prd.md` (Stories AI1.*, AI2.*)
+- PRD: `docs/prd.md` (Stories AI1.*, AI2.*, AI3.*, AI4.*)
 - Epic AI-1 Stories: `docs/stories/story-ai1-*.md`
 - Epic AI-2 Stories: `docs/stories/story-ai2-*.md`
+- Epic AI-3 Stories: `docs/stories/story-ai3-*.md`
+- Epic AI-4 Stories: `docs/stories/story-ai4-*.md`
 - Architecture: `docs/architecture-device-intelligence.md`
 
 ## Development
@@ -135,8 +206,18 @@ The complete call tree documentation provides exhaustive detail on every phase:
 - Components: `src/device_intelligence/`
 - Tests: `tests/test_feature_*.py`, `tests/test_database_models.py`
 
+### Epic AI-3 (N-Level Synergy Detection)
+- Stories: `docs/stories/story-ai3-*.md`
+- Components: `src/synergy_detection/`
+- Tests: `tests/test_synergy_*.py`
+
+### Epic AI-4 (Advanced Synergy Analysis)
+- Stories: `docs/stories/story-ai4-*.md`
+- Components: `src/nlevel_synergy/`
+- Tests: `tests/test_nlevel_*.py`
+
 ### Database
-- **SQLite**: Patterns, suggestions, device capabilities, feature usage
+- **SQLite**: Patterns, suggestions, device capabilities, feature usage, synergies, embeddings
 - **Alembic migrations**: `alembic/versions/`
 - **Models**: `src/database/models.py`
 
@@ -172,6 +253,8 @@ See [Call Tree Index](../../implementation/analysis/AI_AUTOMATION_CALL_TREE_INDE
 ### Developer Documentation
 - **Epic AI-1 Stories:** `docs/stories/story-ai1-*.md` (Pattern detection)
 - **Epic AI-2 Stories:** `docs/stories/story-ai2-*.md` (Device intelligence)
+- **Epic AI-3 Stories:** `docs/stories/story-ai3-*.md` (Synergy detection)
+- **Epic AI-4 Stories:** `docs/stories/story-ai4-*.md` (Advanced synergy analysis)
 - **MQTT Setup:** `docs/stories/MQTT_SETUP_GUIDE.md`
 - **Implementation Guides:** `implementation/`
 
@@ -185,5 +268,7 @@ See [Call Tree Index](../../implementation/analysis/AI_AUTOMATION_CALL_TREE_INDE
 **Version:** 2.0.0  
 **Epic AI-1:** Complete (Pattern Detection)  
 **Epic AI-2:** Complete (Device Intelligence - Stories 2.1-2.5)  
+**Epic AI-3:** Complete (N-Level Synergy Detection)  
+**Epic AI-4:** In Progress (Advanced Synergy Analysis)  
 **Status:** Production Ready ✅
 
