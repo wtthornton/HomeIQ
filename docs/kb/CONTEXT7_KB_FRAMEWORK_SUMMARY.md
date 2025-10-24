@@ -11,6 +11,8 @@ The **Context7 Knowledge Base (KB) Framework** is an intelligent caching and doc
 
 **Core Value Proposition:** Reduce Context7 API calls by 87%+ while improving documentation response times from 2-3 seconds to 0.15 seconds average.
 
+**Recent Addition:** BMAD methodology best practices for epic and story creation, including story sizing guidelines, vertical slicing requirements, and AI agent execution optimization.
+
 ---
 
 ## ✅ What It DOES
@@ -48,6 +50,10 @@ The **Context7 Knowledge Base (KB) Framework** is an intelligent caching and doc
   │   ├── react/
   │   │   ├── meta.yaml         # Library metadata
   │   │   ├── hooks.md          # Cached documentation
+  │   ├── bmad-method/
+  │   │   ├── epic-story-best-practices.md
+  │   │   ├── story-creation-process.md
+  │   │   └── lessons-learned-epic-ai5.md
   │   │   └── components.md
   │   ├── vitest/
   │   │   ├── meta.yaml

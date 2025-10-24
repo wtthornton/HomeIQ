@@ -20,12 +20,15 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install runtime dependencies
-# Added: libgomp1 for OpenVINO threading
+# Added: libgomp1 for OpenVINO threading, spaCy model download
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Download spaCy English model for NER fallback
+RUN python -m spacy download en_core_web_sm || echo "spaCy model download failed, will retry on startup"
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local

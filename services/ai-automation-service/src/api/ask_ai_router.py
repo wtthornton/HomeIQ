@@ -30,11 +30,39 @@ import yaml as yaml_lib
 from ..database import get_db
 from ..config import settings
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.device_intelligence_client import DeviceIntelligenceClient
+from ..entity_extraction import extract_entities_from_query, EnhancedEntityExtractor, MultiModelEntityExtractor
+from ..model_services.orchestrator import ModelOrchestrator
 from ..llm.openai_client import OpenAIClient
 from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel
 from sqlalchemy import select, update
 
 logger = logging.getLogger(__name__)
+
+# Global device intelligence client and extractors
+_device_intelligence_client: Optional[DeviceIntelligenceClient] = None
+_enhanced_extractor: Optional[EnhancedEntityExtractor] = None
+_multi_model_extractor: Optional[MultiModelEntityExtractor] = None
+_model_orchestrator: Optional[ModelOrchestrator] = None
+
+def set_device_intelligence_client(client: DeviceIntelligenceClient):
+    """Set device intelligence client for enhanced extraction"""
+    global _device_intelligence_client, _enhanced_extractor, _multi_model_extractor, _model_orchestrator
+    _device_intelligence_client = client
+    if client:
+        _enhanced_extractor = EnhancedEntityExtractor(client)
+        _multi_model_extractor = MultiModelEntityExtractor(
+            openai_api_key=settings.openai_api_key,
+            device_intelligence_client=client,
+            ner_model=settings.ner_model,
+            openai_model=settings.openai_model
+        )
+        # Initialize model orchestrator for containerized approach
+        _model_orchestrator = ModelOrchestrator(
+            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8019"),
+            openai_service_url=os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
+        )
+    logger.info("Device Intelligence client set for Ask AI router")
 
 # Create router
 router = APIRouter(prefix="/api/v1/ask-ai", tags=["Ask AI"])
@@ -344,74 +372,38 @@ def get_ha_client() -> HomeAssistantClient:
 
 async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
     """
-    Extract entities from query using pattern matching.
+    Extract entities from query using multi-model approach.
+    
+    Strategy:
+    1. Multi-Model Extractor (NER → OpenAI → Pattern) - 90% of queries
+    2. Enhanced Extractor (Device Intelligence) - Fallback
+    3. Basic Pattern Matching - Emergency fallback
     
     CRITICAL: We DO NOT use HA Conversation API here because it EXECUTES commands immediately!
-    Instead, we use regex patterns to extract entities without side effects.
+    Instead, we use intelligent entity extraction with device intelligence for rich context.
     
-    Example: "Turn on the office lights" extracts {"name": "office", "domain": "light"}
+    Example: "Turn on the office lights" extracts rich device data including capabilities
     without actually turning on the lights.
     """
-    # ALWAYS use pattern matching instead of HA Conversation API
-    # to avoid executing commands during entity extraction
-    logger.info("🔍 Extracting entities using pattern matching (not HA Conversation API)")
+    # Try multi-model extraction first (if configured)
+    if settings.entity_extraction_method == "multi_model" and _multi_model_extractor:
+        try:
+            logger.info("🔍 Using multi-model entity extraction (NER → OpenAI → Pattern)")
+            return await _multi_model_extractor.extract_entities(query)
+        except Exception as e:
+            logger.error(f"Multi-model extraction failed, falling back to enhanced: {e}")
+    
+    # Try enhanced extraction (device intelligence)
+    if _enhanced_extractor:
+        try:
+            logger.info("🔍 Using enhanced entity extraction with device intelligence")
+            return await _enhanced_extractor.extract_entities_with_intelligence(query)
+        except Exception as e:
+            logger.error(f"Enhanced extraction failed, falling back to basic: {e}")
+    
+    # Fallback to basic pattern matching
+    logger.info("🔍 Using basic pattern matching fallback")
     return extract_entities_from_query(query)
-
-
-def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
-    """
-    Extract entities from query using regex patterns (PRIMARY method).
-    
-    This is the safe way to extract entities without triggering any actions in Home Assistant.
-    Uses pattern matching to identify devices, rooms, and entity types from natural language.
-    """
-    import re
-    
-    entities = []
-    query_lower = query.lower()
-    
-    # Extract common device patterns from the query - be more selective
-    device_patterns = [
-        r'(office|living room|bedroom|kitchen|garage|front|back)\s+(?:light|lights|sensor|sensors|switch|switches|door|doors|window|windows)',
-        r'(?:turn on|turn off|flash|dim|control)\s+(office|living room|bedroom|kitchen|garage|front|back)\s+(?:light|lights)',
-        r'(front|back|garage|office)\s+(?:door|doors)',
-        r'(?:light|lights)\s+(?:in|of)\s+(office|living room|bedroom|kitchen|garage)'
-    ]
-    
-    for pattern in device_patterns:
-        matches = re.findall(pattern, query, re.IGNORECASE)
-        for match in matches:
-            if isinstance(match, tuple):
-                # Handle multiple groups
-                for group in match:
-                    if group and len(group) > 1:  # Avoid single letters
-                        entities.append({
-                            'name': group,
-                            'domain': 'unknown',
-                            'state': 'unknown'
-                        })
-            elif match and len(match) > 1:  # Avoid single letters
-                entities.append({
-                    'name': match,
-                    'domain': 'unknown',
-                    'state': 'unknown'
-                })
-    
-    # If still no entities, add some generic ones based on common terms
-    if not entities:
-        if 'office' in query_lower:
-            entities.append({'name': 'office', 'domain': 'room', 'state': 'unknown'})
-        if 'light' in query_lower or 'lights' in query_lower:
-            entities.append({'name': 'lights', 'domain': 'light', 'state': 'unknown'})
-        if 'door' in query_lower or 'doors' in query_lower:
-            entities.append({'name': 'door', 'domain': 'binary_sensor', 'state': 'unknown'})
-        if 'front' in query_lower:
-            entities.append({'name': 'front door', 'domain': 'binary_sensor', 'state': 'unknown'})
-        if 'garage' in query_lower:
-            entities.append({'name': 'garage door', 'domain': 'binary_sensor', 'state': 'unknown'})
-    
-    logger.info(f"Extracted {len(entities)} entities from query using fallback method")
-    return entities
 
 
 async def generate_suggestions_from_query(
@@ -424,19 +416,44 @@ async def generate_suggestions_from_query(
         raise ValueError("OpenAI client not available - cannot generate suggestions")
     
     try:
-        # Build context for OpenAI
-        entities_summary = "\n".join([
-            f"- {entity['name']} ({entity['domain']}): {entity['state']}"
-            for entity in entities[:5]  # Limit context
-        ])
+        # Build enhanced context for OpenAI based on entity type
+        entities_summary = []
+        capabilities_available = set()
+        
+        for entity in entities[:5]:  # Limit context
+            if entity.get('extraction_method') == 'device_intelligence':
+                # Enhanced entity with rich data
+                capabilities = entity.get('capabilities', [])
+                capability_list = [cap['feature'] for cap in capabilities if cap.get('supported')]
+                capabilities_available.update(capability_list)
+                
+                entities_summary.append(f"""
+- {entity['name']} ({entity.get('manufacturer', 'Unknown')} {entity.get('model', 'Unknown')})
+  Entity ID: {entity.get('entity_id', 'N/A')}
+  Area: {entity.get('area', 'N/A')}
+  Current State: {entity.get('state', 'unknown')}
+  Health Score: {entity.get('health_score', 'N/A')}
+  Available Capabilities: {', '.join(capability_list) if capability_list else 'Basic on/off'}""")
+            else:
+                # Basic entity (fallback)
+                entities_summary.append(f"- {entity['name']} ({entity.get('domain', 'unknown')}): {entity.get('state', 'unknown')}")
+        
+        entities_text = "\n".join(entities_summary)
         
         prompt = f"""
-You are a HIGHLY CREATIVE and experienced Home Assistant automation expert. Your goal is to generate 3-4 DISTINCT, DIVERSE, and IMAGINATIVE automation suggestions based on the user's query. Think beyond literal interpretations and propose creative scenarios, combining devices, varying actions, and considering different conditions.
+You are a HIGHLY CREATIVE and experienced Home Assistant automation expert with access to detailed device capabilities and health data. Your goal is to generate 3-4 DISTINCT, DIVERSE, and IMAGINATIVE automation suggestions that leverage the SPECIFIC capabilities of the available devices.
 
 Query: "{query}"
 
-Available devices:
-{entities_summary}
+Available Devices with FULL Capabilities:
+{entities_text}
+
+CREATIVE EXAMPLES USING DEVICE CAPABILITIES:
+- Instead of basic "flash lights", consider: "Use LED notifications to flash red-blue pattern when door opens"
+- Instead of simple on/off, think: "Use smart bulb mode to create sunrise effect over 30 seconds"
+- Instead of basic control, consider: "Use auto-off timer to turn lights off after 10 minutes"
+- Combine capabilities: "Use LED notifications + smart bulb mode for color-coded door alerts"
+- Health-aware: "Prioritize devices with health_score > 80 for reliable automations"
 
 CREATIVE EXAMPLES TO INSPIRE YOU:
 - Instead of just "flash lights when door opens", consider: "Flash all four office lights in sequence (left, right, back, front) when front door opens"
@@ -446,44 +463,26 @@ CREATIVE EXAMPLES TO INSPIRE YOU:
 - Use different patterns: "Strobe lights rapidly for 3 seconds, then steady blue for 10 seconds"
 - Consider device combinations: "Flash lights AND play door chime when front door opens"
 
-Generate 3-4 CREATIVE and DISTINCT automation suggestions. Each suggestion must be UNIQUE and offer a different perspective. Be imaginative and think of creative ways to use the available devices.
+Generate 3-4 CREATIVE and DISTINCT automation suggestions. Each suggestion must be UNIQUE and offer a different perspective. Be imaginative and think of creative ways to use the available devices and their capabilities.
 
 Each suggestion should:
-1. Have a creative, detailed description with specific details about patterns, colors, sequences
-2. Specify the trigger (when it happens) - be specific about conditions
-3. Specify the action (what it does) - include patterns, colors, timing details
-4. List the devices involved - think of creative combinations
-5. Have a confidence score (0.0-1.0)
+1. Use actual device capabilities when available (LED notifications, smart bulb mode, auto-timers, etc.)
+2. Have a creative, detailed description with specific details about patterns, colors, sequences
+3. Specify the trigger (when it happens) - be specific about conditions
+4. Specify the action (what it does) - include patterns, colors, timing details
+5. List the devices involved - think of creative combinations
+6. Consider device health scores (avoid devices with health_score < 50)
+7. Have a confidence score (0.0-1.0) based on available capabilities
 
 Return as JSON array with this structure:
 [
   {{
-    "description": "Creative, detailed description with specific patterns/colors/sequences",
+    "description": "Creative, detailed description using specific device capabilities",
     "trigger_summary": "Specific trigger conditions",
-    "action_summary": "Detailed action with patterns/colors/timing",
+    "action_summary": "Detailed action using device capabilities (LED patterns, smart modes, etc.)",
     "devices_involved": ["Device1", "Device2", "Device3"],
+    "capabilities_used": ["led_notifications", "smart_bulb_mode", "auto_off_timer"],
     "confidence": 0.85
-  }},
-  {{
-    "description": "Another creative variation with different approach",
-    "trigger_summary": "Different trigger conditions",
-    "action_summary": "Different action pattern",
-    "devices_involved": ["Device1", "Device4"],
-    "confidence": 0.80
-  }},
-  {{
-    "description": "Third creative suggestion with unique combination",
-    "trigger_summary": "Unique trigger setup",
-    "action_summary": "Unique action pattern",
-    "devices_involved": ["Device2", "Device3", "Device5"],
-    "confidence": 0.75
-  }},
-  {{
-    "description": "Fourth creative suggestion with advanced features",
-    "trigger_summary": "Advanced trigger conditions",
-    "action_summary": "Advanced action with multiple steps",
-    "devices_involved": ["Device1", "Device2", "Device3", "Device4"],
-    "confidence": 0.70
   }}
 ]
 """
@@ -549,6 +548,7 @@ Return as JSON array with this structure:
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
                     'devices_involved': suggestion['devices_involved'],
+                    'capabilities_used': suggestion.get('capabilities_used', []),
                     'confidence': suggestion['confidence'],
                     'status': 'draft',
                     'created_at': datetime.now().isoformat()

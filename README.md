@@ -135,7 +135,7 @@ docker-compose up -d
 
 ## 🏗️ Architecture
 
-### System Overview
+### System Overview (Epic 31 Architecture)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -147,19 +147,24 @@ docker-compose up -d
 ├─────────────────────────────────────────────────────────────┤
 │  API Layer                                                   │
 │  ├─ WebSocket Ingestion                 :8001               │
-│  ├─ Enrichment Pipeline                 :8002               │
 │  ├─ Admin API                           :8003               │
 │  ├─ Data API                            :8006               │
 │  ├─ AI Automation Service               :8018               │
+│  ├─ Device Intelligence Service         :8021               │
 │  └─ HA Setup Service                    :8020               │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Layer                                                  │
 │  ├─ InfluxDB (Time-series)              :8086               │
 │  └─ SQLite (Metadata)                    Files              │
 ├─────────────────────────────────────────────────────────────┤
-│  Integration Layer                                           │
-│  ├─ Sports Data, Weather, Energy, Air Quality               │
-│  └─ Calendar, Carbon Intensity, Smart Meter                 │
+│  Integration Layer (Epic 31 - Direct Writes)                │
+│  ├─ Weather API              :8009 → InfluxDB               │
+│  ├─ Carbon Intensity         :8010 → InfluxDB               │
+│  ├─ Electricity Pricing      :8011 → InfluxDB               │
+│  ├─ Air Quality              :8012 → InfluxDB               │
+│  ├─ Calendar Service         :8013 → InfluxDB               │
+│  ├─ Smart Meter              :8014 → InfluxDB               │
+│  └─ Sports Data              :8005 → InfluxDB               │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
@@ -167,18 +172,24 @@ docker-compose up -d
                    │ Home Assistant  │
                    │  :8123 / :1883  │
                    └─────────────────┘
+
+❌ DEPRECATED: Enrichment Pipeline (port 8002) - Epic 31
 ```
 
 ### Key Components
 
-| Service | Purpose | Port | Tech Stack |
-|---------|---------|------|------------|
-| **Health Dashboard** | System monitoring & management | 3000 | React, TypeScript, Vite |
-| **AI Automation UI** | Conversational automation | 3001 | React, TypeScript |
-| **WebSocket Ingestion** | Real-time HA event capture | 8001 | Python, FastAPI, WebSocket |
-| **AI Automation Service** | Pattern detection & AI | 8018 | Python, OpenVINO, Transformers |
-| **Data API** | Historical data queries | 8006 | Python, FastAPI |
-| **Admin API** | System control & config | 8003 | Python, FastAPI |
+| Service | Purpose | Port | Tech Stack | Status |
+|---------|---------|------|------------|--------|
+| **Health Dashboard** | System monitoring & management | 3000 | React, TypeScript, Vite | ✅ Active |
+| **AI Automation UI** | Conversational automation | 3001 | React, TypeScript | ✅ Active |
+| **WebSocket Ingestion** | Real-time HA event capture | 8001 | Python, aiohttp, WebSocket | ✅ Active |
+| **AI Automation Service** | Pattern detection & AI | 8018 | Python, FastAPI, OpenAI | ✅ Active |
+| **Data API** | Historical data queries | 8006 | Python, FastAPI | ✅ Active |
+| **Admin API** | System control & config | 8003 | Python, FastAPI | ✅ Active |
+| **Device Intelligence** | Device capability discovery | 8021 | Python, FastAPI, MQTT | ✅ Active |
+| **Weather API** | Standalone weather service | 8009 | Python, FastAPI | ✅ Active |
+| **Sports Data** | NFL/NHL game data | 8005 | Python, FastAPI | ✅ Active |
+| **❌ Enrichment Pipeline** | **DEPRECATED** (Epic 31) | 8002 | Python, FastAPI | ❌ Deprecated |
 
 ---
 

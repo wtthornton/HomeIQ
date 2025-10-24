@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     data_api_url: str = "http://data-api:8006"
     
     # Device Intelligence Service (Story DI-2.1)
-    device_intelligence_url: str = "http://device-intelligence-service:8019"
+    device_intelligence_url: str = "http://device-intelligence-service:8021"
+    device_intelligence_enabled: bool = True
     
     # InfluxDB (for direct event queries)
     influxdb_url: str = "http://influxdb:8086"
@@ -34,6 +35,14 @@ class Settings(BaseSettings):
     
     # OpenAI
     openai_api_key: str
+    
+    # Multi-Model Entity Extraction
+    entity_extraction_method: str = "multi_model"  # multi_model, enhanced, pattern
+    ner_model: str = "dslim/bert-base-NER"  # Hugging Face NER model
+    openai_model: str = "gpt-4o-mini"  # OpenAI model for complex queries
+    ner_confidence_threshold: float = 0.8  # Minimum confidence for NER results
+    enable_entity_caching: bool = True  # Enable LRU cache for NER
+    max_cache_size: int = 1000  # Maximum cache size
     
     # Scheduling
     analysis_schedule: str = "0 3 * * *"  # 3 AM daily (cron format)

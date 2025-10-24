@@ -725,6 +725,174 @@ services:
       retries: 3
       start_period: 30s
 
+  # NER Model Service - Pre-built container with dslim/bert-base-NER
+  ner-service:
+    build:
+      context: .
+      dockerfile: services/ai-automation-service/docker/ner-service.Dockerfile
+    container_name: homeiq-ner-service
+    restart: unless-stopped
+    ports:
+      - "8019:8019"
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G  # NER model + inference
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Longer startup for model loading
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ner-model,environment=production"
+
+  # OpenAI Client Service - Lightweight OpenAI API client
+  openai-service:
+    build:
+      context: .
+      dockerfile: services/ai-automation-service/docker/openai-service.Dockerfile
+    container_name: homeiq-openai-service
+    restart: unless-stopped
+    ports:
+      - "8020:8020"
+    env_file:
+      - infrastructure/env.ai-automation
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M  # Minimal memory for API client
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=openai-client,environment=production"
+
+  # OpenVINO Service - Optimized Model Inference (Phase 1)
+  openvino-service:
+    build:
+      context: .
+      dockerfile: services/openvino-service/Dockerfile
+    container_name: homeiq-openvino-service
+    restart: unless-stopped
+    ports:
+      - "8022:8019"
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G  # 3 OpenVINO models + runtime
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8019/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Longer startup for model loading
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=openvino-models,environment=production"
+
+  # ML Service - Classical Machine Learning (Phase 1)
+  ml-service:
+    build:
+      context: .
+      dockerfile: services/ml-service/Dockerfile
+    container_name: homeiq-ml-service
+    restart: unless-stopped
+    ports:
+      - "8021:8020"  # Port 8020 already used by openai-service
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # scikit-learn + pandas + numpy
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ml-algorithms,environment=production"
+
+  # AI Core Service - Orchestrator (Phase 1)
+  ai-core-service:
+    build:
+      context: .
+      dockerfile: services/ai-core-service/Dockerfile
+    container_name: homeiq-ai-core-service
+    restart: unless-stopped
+    ports:
+      - "8018:8018"
+    env_file:
+      - infrastructure/env.ai-automation
+    environment:
+      - OPENVINO_SERVICE_URL=http://openvino-service:8019
+      - ML_SERVICE_URL=http://ml-service:8020
+      - NER_SERVICE_URL=http://ner-service:8019
+      - OPENAI_SERVICE_URL=http://openai-service:8020
+    depends_on:
+      openvino-service:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+      ner-service:
+        condition: service_healthy
+      openai-service:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Orchestrator + business logic
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8018/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-orchestrator,environment=production"
+
   ai-automation-service:
     build:
       context: .
@@ -732,13 +900,28 @@ services:
     container_name: ai-automation-service
     restart: unless-stopped
     ports:
-      - "8018:8018"
+      - "8017:8018"  # Port 8018 now used by ai-core-service
     env_file:
       - infrastructure/env.ai-automation
     environment:
       - DATA_API_URL=http://data-api:8006
+      - NER_SERVICE_URL=http://ner-service:8019
+      - OPENAI_SERVICE_URL=http://openai-service:8020
+      - OPENVINO_SERVICE_URL=http://openvino-service:8019
+      - ML_SERVICE_URL=http://ml-service:8020
+      - AI_CORE_SERVICE_URL=http://ai-core-service:8018
     depends_on:
       data-api:
+        condition: service_healthy
+      ner-service:
+        condition: service_healthy
+      openai-service:
+        condition: service_healthy
+      openvino-service:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+      ai-core-service:
         condition: service_healthy
     volumes:
       - ai_automation_data:/app/data
@@ -748,9 +931,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G  # Increased for model loading (was 1G)
+          memory: 512M  # Reduced since models are in separate containers
         reservations:
-          memory: 1G  # Increased for model inference (was 512M)
+          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -773,6 +956,8 @@ services:
     ports:
       - "3001:80"
     depends_on:
+      ai-core-service:
+        condition: service_healthy
       ai-automation-service:
         condition: service_healthy
     networks:

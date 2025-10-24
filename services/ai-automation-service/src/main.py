@@ -35,6 +35,9 @@ from .scheduler import DailyAnalysisScheduler
 from .clients.mqtt_client import MQTTNotificationClient
 from .device_intelligence import CapabilityParser, MQTTCapabilityListener
 
+# Phase 1: Containerized AI Models
+from .models.model_manager import get_model_manager
+
 # Create FastAPI application
 app = FastAPI(
     title="AI Automation Service",
@@ -112,6 +115,10 @@ data_api_client = DataAPIClient(base_url=settings.data_api_url)
 # Initialize Device Intelligence Service client (Story DI-2.1)
 device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
 
+# Make device intelligence client available to routers
+from .api.ask_ai_router import set_device_intelligence_client
+set_device_intelligence_client(device_intelligence_client)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -185,6 +192,15 @@ async def startup_event():
         logger.error(f"❌ Scheduler startup failed: {e}")
         # Don't raise - service can still run without scheduler
     
+    # Initialize containerized AI models (Phase 1)
+    try:
+        model_manager = get_model_manager()
+        await model_manager.initialize()
+        logger.info("✅ Containerized AI models initialized")
+    except Exception as e:
+        logger.error(f"❌ AI models initialization failed: {e}")
+        # Continue without models - service can still run with fallbacks
+    
     logger.info("✅ AI Automation Service ready")
 
 
@@ -207,6 +223,14 @@ async def shutdown_event():
             logger.info("✅ MQTT client disconnected")
         except Exception as e:
             logger.error(f"❌ MQTT disconnect failed: {e}")
+    
+    # Cleanup AI models (Phase 1)
+    try:
+        model_manager = get_model_manager()
+        await model_manager.cleanup()
+        logger.info("✅ AI models cleaned up")
+    except Exception as e:
+        logger.error(f"❌ AI models cleanup failed: {e}")
 
 
 if __name__ == "__main__":
