@@ -22,6 +22,7 @@
 12. [Common Performance Anti-Patterns](#common-performance-anti-patterns)
 13. [Performance Testing](#performance-testing)
 14. [Optimization Checklist](#optimization-checklist)
+15. [BMad Development Methodology](#bmad-development-methodology)
 
 ---
 
@@ -1568,6 +1569,630 @@ jobs:
 
 ---
 
+## BMad Development Methodology
+
+### Overview
+
+HomeIQ is developed using the **BMad Method** - a comprehensive AI-driven agile planning and development methodology. BMad provides structured workflows, specialized AI agents, and quality gates to ensure consistent, high-quality software development.
+
+### Core Philosophy
+
+**BMad = Better Methods for Agile Development**
+
+The methodology combines:
+- **Structured Workflows** - Greenfield (new projects) and Brownfield (existing projects)
+- **Specialized AI Agents** - Each agent is an expert in their domain (PM, Architect, Dev, QA, etc.)
+- **Quality Gates** - Test Architect (QA) provides advisory quality assessments
+- **Context7 Integration** - KB-first approach for library documentation and best practices
+- **Definition of Done** - Clear checklists ensure completeness before marking work complete
+
+### Key Principles
+
+1. **Agent Specialization** - Different agents for different roles (don't use Dev agent for planning)
+2. **Document-Driven Development** - PRD → Architecture → Stories → Implementation
+3. **Quality First** - Test Architect involved early and throughout development
+4. **KB-First Approach** - Always check Context7 KB cache before making technology decisions
+5. **Iterative Refinement** - Stories evolve through Draft → Review → Done states
+
+---
+
+### BMad Agents
+
+#### Planning Agents (Web UI or Powerful IDE)
+
+**Analyst** (`@analyst`)
+- **When to use:** Project inception, requirements gathering, market research
+- **Delivers:** Project briefs, brainstorming sessions, competitor analysis
+- **Key tasks:** `*brainstorm`, `*market-research`, `*create-doc`
+
+**Product Manager** (`@pm`)
+- **When to use:** Creating PRDs, defining features, managing epics/stories
+- **Delivers:** Product Requirements Documents (PRD), epics, user stories
+- **Key tasks:** `*create-doc prd-tmpl`, `*brownfield-create-epic`, `*brownfield-create-story`
+- **MANDATORY:** Must use Context7 KB for technology decisions
+
+**Architect** (`@architect`)
+- **When to use:** System design, technology selection, architecture documentation
+- **Delivers:** Architecture documents, tech stack recommendations, design patterns
+- **Key tasks:** `*create-doc architecture-tmpl`, `*document-project`
+- **MANDATORY:** Must use Context7 KB for library/framework decisions
+- **FORBIDDEN:** Cannot make technology choices without KB-first approach
+
+**UX Expert** (`@ux-expert`)
+- **When to use:** Frontend applications requiring UI/UX design
+- **Delivers:** Front-end specifications, UI/UX patterns, AI generation prompts
+- **Key tasks:** `*create-doc front-end-spec-tmpl`, `*generate-ai-frontend-prompt`
+
+**Product Owner** (`@po`)
+- **When to use:** Validating artifacts, sharding documents, ensuring alignment
+- **Delivers:** Validated documents, sharded epics/stories
+- **Key tasks:** `*po-master-checklist`, `*shard-doc`, `*validate`
+
+#### Development Agents (IDE)
+
+**Scrum Master** (`@sm`)
+- **When to use:** Creating stories from epics, drafting implementation plans
+- **Delivers:** Story documents with tasks, acceptance criteria
+- **Key tasks:** `*create-next-story`, `*create-brownfield-story`
+- **Files to load:** Sharded epics, architecture coding standards
+
+**Developer** (`@dev`)
+- **When to use:** Implementing stories, writing code and tests
+- **Delivers:** Working code, tests, documentation
+- **Key tasks:** Story implementation, test writing, code documentation
+- **Always loads:** `docs/architecture/coding-standards.md`, `docs/architecture/tech-stack.md`
+- **MANDATORY:** Must use Context7 KB when implementing library-specific features
+
+**QA / Test Architect** (`@qa`)
+- **When to use:** Quality assessment, test strategy, code review
+- **Delivers:** Risk profiles, test designs, quality gates, code improvements
+- **Key tasks:** `*risk`, `*design`, `*trace`, `*nfr`, `*review`, `*gate`
+- **Authority:** Advisory quality authority, can actively refactor code when safe
+- **MANDATORY:** Must use Context7 KB for library risk assessments
+
+**BMad Master** (`@bmad-master`)
+- **When to use:** Multi-purpose agent when you don't want to switch agents
+- **Delivers:** Can execute any task from any agent (except story implementation)
+- **Key tasks:** All tasks available, `*help`, `*kb-mode`, `*context7-docs`
+- **Trade-off:** Larger context = slower performance, compact conversations often
+
+---
+
+### BMad Workflows
+
+#### Greenfield Workflow (New Projects)
+
+```mermaid
+graph LR
+    A[Analyst: Project Brief] --> B[PM: PRD]
+    B --> C[UX: Frontend Spec]
+    C --> D[Architect: Architecture]
+    D --> E[PO: Validate All]
+    E --> F[PO: Shard Documents]
+    F --> G[SM: Create Stories]
+    G --> H[Dev: Implement]
+    H --> I{QA Review?}
+    I -->|Yes| J[QA: Review]
+    I -->|No| K[Done]
+    J --> L{Issues?}
+    L -->|Yes| H
+    L -->|No| K
+```
+
+**Key Steps:**
+1. **Analyst:** Create project brief (optional: brainstorming, market research)
+2. **PM:** Create PRD from brief with FRs, NFRs, epics, stories
+3. **UX Expert:** Create front-end spec (optional: generate AI UI prompt for v0/Lovable)
+4. **Architect:** Create fullstack architecture (may suggest PRD updates)
+5. **PM:** Update PRD if architect suggests changes
+6. **PO:** Validate all artifacts with master checklist
+7. **PO:** Shard documents into `docs/epics/` and `docs/stories/`
+8. **SM:** Create stories from sharded epics (status: Draft)
+9. **PM/Analyst:** Optional story review (Draft → Approved)
+10. **Dev:** Implement story (Approved → Review)
+11. **QA:** Optional review (Review → Done or back to Review)
+12. Repeat steps 8-11 for all stories
+
+**File Locations:**
+```
+docs/
+├── prd.md                    # Product Requirements Document
+├── architecture.md           # System Architecture
+├── front-end-spec.md        # UI/UX Specification (if applicable)
+├── epics/                   # Sharded from PRD
+│   ├── epic-1-name.md
+│   └── epic-2-name.md
+├── stories/                 # Sharded from epics
+│   ├── story-1.1-name.md
+│   └── story-1.2-name.md
+└── qa/
+    ├── assessments/         # Risk, design, trace, NFR docs
+    └── gates/               # Quality gate decisions
+```
+
+#### Brownfield Workflow (Existing Projects)
+
+```mermaid
+graph LR
+    A[Classify Enhancement] --> B{Scope?}
+    B -->|Single Story| C[PM: Create Story]
+    B -->|1-3 Stories| D[PM: Create Epic]
+    B -->|Major| E[Analyst: Check Docs]
+    E --> F{Docs OK?}
+    F -->|No| G[Architect: Document Project]
+    F -->|Yes| H[PM: Brownfield PRD]
+    G --> H
+    H --> I{Architecture Needed?}
+    I -->|Yes| J[Architect: Architecture Doc]
+    I -->|No| K[Continue to Stories]
+    J --> K
+```
+
+**Key Differences from Greenfield:**
+- **Classification First:** Determine if it's a single story, small epic, or major enhancement
+- **Fast Track Options:** Single stories and small epics skip full PRD workflow
+- **Documentation Check:** Assess if existing docs are adequate before document-project
+- **Architecture Optional:** Only create architecture doc if architectural changes needed
+- **Brownfield Tasks:** Use `*brownfield-create-story` or `*brownfield-create-epic`
+
+---
+
+### Test Architect (QA Agent) Deep Dive
+
+The QA agent in BMad is a **Test Architect** with deep expertise in test strategy, quality gates, and risk-based testing. This is not just a code reviewer - it's a quality authority that actively improves code.
+
+#### QA Commands (Early to Late in Lifecycle)
+
+**`*risk` (Risk Profiling)**
+- **When:** After story draft, before development
+- **Purpose:** Identify implementation risks early
+- **Output:** `docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md`
+- **Categories:** Technical, Security, Performance, Data, Business, Operational
+- **Scoring:** Probability × Impact (1-9 scale)
+  - ≥9 → FAIL gate
+  - ≥6 → CONCERNS gate
+  - <6 → Normal risk
+
+**`*design` (Test Design)**
+- **When:** After story draft, before development
+- **Purpose:** Create comprehensive test strategy
+- **Output:** `docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md`
+- **Includes:**
+  - Test scenarios for each acceptance criterion
+  - Test level recommendations (unit/integration/E2E)
+  - Risk-based prioritization (P0/P1/P2)
+  - Test data requirements
+  - CI/CD execution strategies
+
+**`*trace` (Requirements Tracing)**
+- **When:** During development (mid-implementation checkpoint)
+- **Purpose:** Verify test coverage maps to requirements
+- **Output:** `docs/qa/assessments/{epic}.{story}-trace-{YYYYMMDD}.md`
+- **Includes:**
+  - Traceability matrix (requirement → tests)
+  - Coverage gap analysis
+  - Given-When-Then documentation
+
+**`*nfr` (NFR Assessment)**
+- **When:** During development or early review
+- **Purpose:** Validate non-functional requirements
+- **Output:** `docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md`
+- **Core Four:** Security, Performance, Reliability, Maintainability
+- **Evidence-Based:** Looks for actual implementation proof
+
+**`*review` (Comprehensive Review)**
+- **When:** After development complete, story marked "Ready for Review"
+- **Purpose:** Full quality assessment with active refactoring
+- **Output:** QA Results section in story + gate file reference
+- **Performs:**
+  - Requirements traceability mapping
+  - Test level analysis
+  - Coverage assessment
+  - **Active refactoring** (improves code directly when safe)
+  - Quality gate decision
+
+**`*gate` (Quality Gate Management)**
+- **When:** After review fixes or when gate status needs updating
+- **Purpose:** Manage quality gate decisions
+- **Output:** `docs/qa/gates/{epic}.{story}-{slug}.yml`
+- **Statuses:**
+  - **PASS:** All critical requirements met, no blocking issues
+  - **CONCERNS:** Non-critical issues, team should review
+  - **FAIL:** Critical issues must be addressed
+  - **WAIVED:** Issues acknowledged and explicitly accepted (requires reason, approver, expiry)
+
+#### QA Integration in Workflow
+
+| Stage | Command | When to Use | Value |
+|-------|---------|-------------|-------|
+| **Story Drafting** | `*risk` | After SM drafts story | Identify pitfalls early |
+| | `*design` | After risk assessment | Guide dev on test strategy |
+| **Development** | `*trace` | Mid-implementation | Verify test coverage |
+| | `*nfr` | While building features | Catch quality issues early |
+| **Review** | `*review` | Story marked complete | Full quality assessment |
+| **Post-Review** | `*gate` | After fixing issues | Update quality decision |
+
+#### QA Quality Standards
+
+Quinn (the QA agent) enforces these principles:
+- **No Flaky Tests:** Proper async handling, no race conditions
+- **No Hard Waits:** Dynamic waiting strategies only (e.g., `waitFor`, not `sleep(5)`)
+- **Stateless & Parallel-Safe:** Tests run independently, no shared state
+- **Self-Cleaning:** Tests manage their own test data
+- **Appropriate Test Levels:** Unit for logic, integration for interactions, E2E for journeys
+- **Explicit Assertions:** Keep assertions in tests, not helpers
+
+---
+
+### Context7 Knowledge Base Integration
+
+BMad includes Context7 MCP (Model Context Protocol) integration for intelligent library documentation caching.
+
+#### Why Context7 KB?
+
+**Problem:** AI agents often rely on outdated training data or generic knowledge when making technology decisions.
+
+**Solution:** Context7 provides current, accurate documentation for 30,000+ libraries, cached locally for performance.
+
+**Performance:**
+- 87%+ cache hit rate
+- 0.15s average response time (cached)
+- Eliminates 2-5s Context7 API calls on cache hits
+
+#### Context7 Commands (BMad Master)
+
+```bash
+# Resolve library name to Context7 ID
+*context7-resolve react
+
+# Get documentation (KB-first, then Context7 if miss)
+*context7-docs react hooks
+
+# Get topic-specific documentation
+*context7-docs fastapi performance
+
+# Show KB statistics and performance
+*context7-kb-status
+
+# Search local knowledge base
+*context7-kb-search react hooks
+
+# Clean up old/unused cached docs
+*context7-kb-cleanup
+
+# Rebuild KB index
+*context7-kb-rebuild
+
+# Show detailed analytics
+*context7-kb-analytics
+```
+
+#### MANDATORY Context7 Rules
+
+**FORBIDDEN ACTIONS:**
+- ❌ Making technology decisions without KB-first lookup
+- ❌ Bypassing KB cache to directly call Context7 API
+- ❌ Using generic AI knowledge for library-specific implementations
+- ❌ Recommending libraries without checking current documentation
+
+**REQUIRED ACTIONS:**
+- ✅ MUST check KB cache before Context7 API calls
+- ✅ MUST use KB-first approach for all technology decisions
+- ✅ MUST specify relevant topics to limit documentation scope
+- ✅ MUST use fuzzy matching for better cache hits
+- ✅ MUST monitor hit rates with `*context7-kb-status`
+- ✅ MUST use `*context7-kb-cleanup` for regular maintenance
+- ✅ MUST use KB graceful error handling and fallbacks
+
+#### Agent Context7 Integration
+
+**Architect Agent:** MANDATORY KB-first for technology decisions
+- Before recommending libraries: Check KB cache
+- Before designing patterns: Reference current best practices
+- Before making stack decisions: Validate library compatibility
+
+**Developer Agent:** MANDATORY KB-first for implementations
+- Before using library features: Check KB for current API
+- Before following patterns: Verify current best practices
+- When debugging library issues: Search KB first
+
+**QA Agent:** MANDATORY KB-first for risk assessments
+- Before assessing library risks: Check KB for known issues
+- Before recommending test strategies: Reference library testing docs
+- When evaluating NFRs: Use KB for performance benchmarks
+
+---
+
+### Story Definition of Done
+
+Before marking a story as "Review", the developer agent must complete this checklist:
+
+#### Requirements
+- [ ] All functional requirements implemented
+- [ ] All acceptance criteria met
+
+#### Code Quality
+- [ ] Adheres to coding standards (`.bmad-core/core-config.yaml` → devLoadAlwaysFiles)
+- [ ] Follows project structure conventions
+- [ ] Aligns with tech stack (versions, patterns)
+- [ ] Follows API reference and data models
+- [ ] Security best practices applied (input validation, error handling, no secrets)
+- [ ] No new linter errors or warnings
+- [ ] Well-commented (complex logic explained)
+
+#### Testing
+- [ ] All required unit tests implemented
+- [ ] All required integration tests implemented (if applicable)
+- [ ] All tests pass (unit, integration, E2E)
+- [ ] Test coverage meets project standards
+
+#### Verification
+- [ ] Functionality manually verified (ran app, tested endpoints, checked UI)
+- [ ] Edge cases and error conditions handled gracefully
+
+#### Documentation
+- [ ] Story tasks marked complete
+- [ ] Decisions and clarifications documented in story
+- [ ] Story wrap-up section completed (changes, model used, changelog)
+
+#### Dependencies & Build
+- [ ] Project builds successfully
+- [ ] Linting passes
+- [ ] New dependencies pre-approved or explicitly approved during development
+- [ ] Dependencies recorded in project files with justification
+- [ ] No security vulnerabilities in new dependencies
+- [ ] Environment variables documented and handled securely
+
+#### Documentation (If Applicable)
+- [ ] Inline code documentation complete (JSDoc, TSDoc, docstrings)
+- [ ] User-facing documentation updated
+- [ ] Technical documentation updated for architectural changes
+
+#### Final Confirmation
+- [ ] Developer agent confirms all applicable items addressed
+- [ ] Story ready for QA review (if applicable) or final approval
+
+---
+
+### Core Configuration
+
+BMad is configured via `.bmad-core/core-config.yaml`:
+
+```yaml
+# Example configuration
+devLoadAlwaysFiles:
+  - docs/architecture/coding-standards.md
+  - docs/architecture/tech-stack.md
+  - docs/architecture/project-structure.md
+
+agentLoadAlwaysFiles:
+  bmad-master:
+    - docs/architecture/key-concepts.md
+    - docs/architecture/source-tree.md
+  architect:
+    - docs/architecture/patterns.md
+  qa:
+    - docs/qa/testing-strategy.md
+```
+
+**Purpose:**
+- Define which files each agent should always load into context
+- Keep files lean and focused (only include what agents need)
+- Update as project evolves (remove obvious patterns agents have learned)
+
+---
+
+### Best Practices
+
+#### Agent Selection
+- **Use specialized agents** - Don't ask Dev agent to write PRDs
+- **Keep context lean** - Only load relevant files
+- **Compact conversations** - Especially with BMad Master (large context)
+- **New chats for new stories** - Prevents context pollution
+
+#### Document Management
+- **Shard before development** - Keeps story context focused
+- **Keep documents current** - Update as architecture evolves
+- **Lean coding standards** - Remove obvious patterns as project matures
+
+#### Quality Integration
+- **Early QA engagement** - Run `*risk` and `*design` before development
+- **Risk-based focus** - Let risk scores drive test prioritization
+- **Iterative improvement** - Use QA feedback to improve future stories
+
+#### Context7 Usage
+- **KB-first always** - Check cache before making decisions
+- **Topic-specific queries** - Don't fetch entire library docs
+- **Monitor hit rates** - Use `*context7-kb-status` regularly
+- **Regular cleanup** - Use `*context7-kb-cleanup` to maintain performance
+
+#### Performance Considerations
+- **Agent context size matters** - Larger context = slower responses
+- **Use right agent for task** - Specialized agents are faster
+- **Batch similar tasks** - Don't switch agents unnecessarily
+- **Monitor conversation length** - Compact and restart when needed
+
+---
+
+### Common Patterns
+
+#### Creating a New Feature (Brownfield)
+
+```bash
+# 1. Classify enhancement scope
+@analyst "Classify enhancement: Add user authentication with OAuth2"
+
+# If major enhancement:
+# 2. Check if project documentation exists
+@analyst "Check existing documentation quality"
+
+# 3. Document project if needed
+@architect "*document-project"
+
+# 4. Create PRD
+@pm "*create-doc brownfield-prd-tmpl"
+
+# 5. Create architecture (if needed)
+@architect "*create-doc brownfield-architecture-tmpl"
+
+# 6. Validate artifacts
+@po "*po-master-checklist"
+
+# 7. Shard documents
+@po "*shard-doc docs/prd.md docs/epics/"
+
+# 8. Create story
+@sm "*create-next-story"
+
+# 9. Optional: Risk assessment
+@qa "*risk {story}"
+
+# 10. Optional: Test design
+@qa "*design {story}"
+
+# 11. Implement story
+@dev "Implement story-1.1-oauth-integration.md"
+
+# 12. Optional: Requirements trace
+@qa "*trace {story}"
+
+# 13. Optional: NFR assessment
+@qa "*nfr {story}"
+
+# 14. Mark story complete and review
+@dev "Complete DoD checklist and mark as Review"
+
+# 15. QA review
+@qa "*review {story}"
+
+# 16. Fix issues if needed
+@dev "Address QA feedback"
+
+# 17. Update gate
+@qa "*gate {story}"
+```
+
+#### Using Context7 for Technology Decisions
+
+```bash
+# Research library before using
+@architect "*context7-docs fastapi performance"
+
+# Check current API documentation
+@dev "*context7-docs react hooks"
+
+# Assess library risks
+@qa "*context7-docs pytest best-practices"
+
+# Monitor KB performance
+@bmad-master "*context7-kb-status"
+
+# Clean up old cached docs
+@bmad-master "*context7-kb-cleanup"
+```
+
+---
+
+### BMad + Performance Optimization
+
+The BMad methodology directly supports the performance optimization goals in this document:
+
+**1. Architecture Decisions (Architect Agent + Context7)**
+- MANDATORY use of Context7 KB for library performance characteristics
+- Document performance requirements in architecture
+- Reference this CLAUDE.md performance guide in architecture decisions
+
+**2. Quality Gates (QA Agent)**
+- NFR assessments MUST include performance validation
+- Performance tests are P0 (must-have) for performance-critical features
+- Quality gates can FAIL on performance regressions
+
+**3. Story Implementation (Dev Agent)**
+- devLoadAlwaysFiles MUST include this CLAUDE.md (or key sections)
+- DoD checklist includes performance verification
+- Tests must include performance benchmarks for hot paths
+
+**4. Continuous Monitoring (All Agents)**
+- Use `shared/metrics_collector.py` for performance instrumentation
+- Document performance characteristics in story wrap-up
+- Update performance targets in this guide as system evolves
+
+**Example Performance-Focused Story:**
+
+```markdown
+# Story: Optimize Device Query Performance
+
+## Performance Requirements (from Architecture)
+- Target: <10ms response time (P95)
+- Use: SQLite with WAL mode (not InfluxDB)
+- Cache: Not needed (direct DB query is fast enough)
+
+## QA Assessment
+- Risk Score: 6 (Performance risk if using InfluxDB)
+- Test Design: P0 performance tests required
+- NFR: Performance benchmarks mandatory
+
+## Implementation
+- Used SQLite with indexes on filter columns
+- Added performance test: `tests/performance/test_device_queries.py`
+- Metrics: P95 = 8ms (target <10ms) ✓
+
+## DoD
+- [x] Performance test passes (<10ms P95)
+- [x] Metrics collector instrumentation added
+- [x] Performance characteristics documented
+```
+
+---
+
+### Quick Reference
+
+**Agent Activation:**
+```bash
+# IDE (Cursor, Windsurf, etc.)
+@agent-name
+
+# Claude Code
+/agent-name
+
+# Commands (all agents)
+*help                    # Show available commands
+*task {task-name}       # Execute task
+*exit                   # Exit agent mode
+```
+
+**Key Agent Combinations:**
+- **Planning:** Analyst → PM → Architect → PO
+- **Development:** SM → Dev → QA
+- **Quality:** QA (*risk → *design → *trace → *nfr → *review → *gate)
+- **Multi-purpose:** BMad Master (can do all tasks except story implementation)
+
+**Critical Files:**
+- `.bmad-core/core-config.yaml` - Agent configuration
+- `.bmad-core/user-guide.md` - Full BMad documentation
+- `docs/epics/` - Sharded epics from PRD
+- `docs/stories/` - Story files (Draft → Review → Done)
+- `docs/qa/assessments/` - QA assessments (risk, design, trace, NFR)
+- `docs/qa/gates/` - Quality gate decisions
+
+**Context7 KB Cache:**
+- Location: `docs/kb/context7-cache/`
+- Index: `docs/kb/context7-cache/index.json`
+- Performance: 87%+ hit rate, 0.15s response time
+- Maintenance: Run `*context7-kb-cleanup` monthly
+
+**Remember:**
+- ✅ Use specialized agents for their expertise
+- ✅ KB-first approach for all technology decisions (MANDATORY)
+- ✅ Early QA engagement (risk + design before implementation)
+- ✅ Complete DoD checklist before marking story complete
+- ✅ Compact conversations to maintain performance
+- ❌ Don't bypass KB cache for technology decisions (FORBIDDEN)
+- ❌ Don't skip quality gates for convenience
+- ❌ Don't use generic agents (Dev) for specialized tasks (Architecture)
+
+---
+
 ## Quick Reference - Performance Commands
 
 ### Monitoring Active Performance
@@ -1636,6 +2261,19 @@ For questions or updates, refer to:
 
 **Document Metadata:**
 - **Created:** October 23, 2025
+- **Last Updated:** October 24, 2025
 - **Author:** Claude (Anthropic AI Assistant)
 - **Reviewed:** Automated codebase analysis
+- **Version:** 3.0.0 (Added comprehensive BMad methodology documentation)
 - **Next Review:** Quarterly or after major architectural changes
+
+**Changelog:**
+- **v3.0.0 (Oct 24, 2025):** Added comprehensive BMad Development Methodology section (Section 15)
+  - BMad agent descriptions and usage patterns
+  - Greenfield and Brownfield workflow documentation
+  - Test Architect (QA) deep dive with quality gates
+  - Context7 KB integration and MANDATORY KB-first rules
+  - Story Definition of Done checklist
+  - BMad + Performance optimization integration
+- **v2.0.0 (Oct 23, 2025):** Initial comprehensive performance optimization guide
+- **v1.0.0:** Original CLAUDE.md creation
