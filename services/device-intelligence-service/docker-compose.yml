@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  device-intelligence-service:
+    build: .
+    ports:
+      - "8021:8019"
+    environment:
+      - DEVICE_INTELLIGENCE_PORT=8019
+      - DEVICE_INTELLIGENCE_HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+      - SQLITE_DATABASE_URL=sqlite:///./data/device_intelligence.db
+      - HA_URL=http://homeassistant:8123
+      - NABU_CASA_URL=${NABU_CASA_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - MQTT_BROKER=mqtt://mosquitto:1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - ZIGBEE2MQTT_BASE_TOPIC=zigbee2mqtt
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8019/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    command: mosquitto -c /mosquitto/config/mosquitto.conf

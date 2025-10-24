@@ -15,6 +15,7 @@ import asyncio
 
 # Epic AI-1 imports (Pattern Detection)
 from ..clients.data_api_client import DataAPIClient
+from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..api.suggestion_router import _build_device_context
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
@@ -410,8 +411,13 @@ class DailyAnalysisScheduler:
             logger.info("🧠 Phase 4/7: Feature Analysis (Epic AI-2)...")
             
             try:
+                # Initialize Device Intelligence Service client
+                device_intelligence_client = DeviceIntelligenceClient(
+                    base_url=settings.device_intelligence_url
+                )
+                
                 feature_analyzer = FeatureAnalyzer(
-                    data_api_client=data_client,
+                    device_intelligence_client=device_intelligence_client,
                     db_session=get_db_session,
                     influxdb_client=data_client.influxdb_client
                 )

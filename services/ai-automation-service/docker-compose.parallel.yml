@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Device Intelligence Service (NEW)
+  device-intelligence-service:
+    build: 
+      context: ../device-intelligence-service
+      dockerfile: Dockerfile
+    ports:
+      - "8021:8019"
+    environment:
+      - DEVICE_INTELLIGENCE_PORT=8019
+      - DEVICE_INTELLIGENCE_HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+      - SQLITE_DATABASE_URL=sqlite:///./data/device_intelligence.db
+      - HA_URL=http://homeassistant:8123
+      - HA_TOKEN=${HA_TOKEN}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - ZIGBEE2MQTT_BROKER=mosquitto
+      - ZIGBEE2MQTT_PORT=1883
+      - ZIGBEE2MQTT_USERNAME=${MQTT_USERNAME}
+      - ZIGBEE2MQTT_PASSWORD=${MQTT_PASSWORD}
+    volumes:
+      - device_intelligence_data:/app/data
+    depends_on:
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8019/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # AI Automation Service (UPDATED to use Device Intelligence Service)
+  ai-automation-service:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8018:8018"
+    environment:
+      - AI_AUTOMATION_PORT=8018
+      - AI_AUTOMATION_HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=sqlite+aiosqlite:///data/ai_automation.db
+      - DATA_API_URL=http://data-api:8006
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+      - HA_URL=http://homeassistant:8123
+      - HA_TOKEN=${HA_TOKEN}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ai_automation_data:/app/data
+    depends_on:
+      - device-intelligence-service
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # MQTT Broker (shared by both services)
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  device_intelligence_data:
+  ai_automation_data:

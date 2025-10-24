@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel, Field
 
 from .influxdb_client import AdminAPIInfluxDBClient
+from .device_intelligence_client import get_device_intelligence_client
 
 logger = logging.getLogger(__name__)
 
@@ -85,47 +86,45 @@ async def list_devices(
     area_id: Optional[str] = Query(default=None, description="Filter by area/room")
 ):
     """
-    List all discovered devices from Home Assistant
+    List all discovered devices from Device Intelligence Service
     
     Returns devices with their metadata, optionally filtered by manufacturer, model, or area.
     """
     try:
-        # Build filters
-        filters = {}
-        if manufacturer:
-            filters["manufacturer"] = manufacturer
-        if model:
-            filters["model"] = model
-        if area_id:
-            filters["area_id"] = area_id
+        # Get Device Intelligence Service client
+        device_intelligence_client = get_device_intelligence_client()
         
-        # Query devices from InfluxDB
-        query = _build_devices_query(filters, limit)
-        results = await influxdb_client.query(query)
+        # Query devices from Device Intelligence Service
+        response = await device_intelligence_client.get_devices(
+            limit=limit,
+            manufacturer=manufacturer,
+            model=model,
+            area_id=area_id
+        )
         
-        # Convert results to response models
-        devices = []
-        for record in results:
-            device = DeviceResponse(
-                device_id=record.get("device_id", ""),
-                name=record.get("name", "Unknown"),
-                manufacturer=record.get("manufacturer", "Unknown"),
-                model=record.get("model", "Unknown"),
-                sw_version=record.get("sw_version"),
-                area_id=record.get("area_id"),
-                entity_count=int(record.get("entity_count", 0)),
-                timestamp=record.get("time", datetime.now().isoformat())
+        # Convert to response models (Device Intelligence Service already returns compatible format)
+        devices = [
+            DeviceResponse(
+                device_id=device.get("device_id", ""),
+                name=device.get("name", "Unknown"),
+                manufacturer=device.get("manufacturer", "Unknown"),
+                model=device.get("model", "Unknown"),
+                sw_version=device.get("sw_version"),
+                area_id=device.get("area_id"),
+                entity_count=device.get("entity_count", 0),
+                timestamp=device.get("timestamp", datetime.now().isoformat())
             )
-            devices.append(device)
+            for device in response.get("devices", [])
+        ]
         
         return DevicesListResponse(
             devices=devices,
-            count=len(devices),
-            limit=limit
+            count=response.get("count", len(devices)),
+            limit=response.get("limit", limit)
         )
         
     except Exception as e:
-        logger.error(f"Error listing devices: {e}")
+        logger.error(f"Error listing devices from Device Intelligence Service: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve devices: {str(e)}"
@@ -135,7 +134,7 @@ async def list_devices(
 @router.get("/api/devices/{device_id}", response_model=DeviceResponse)
 async def get_device(device_id: str):
     """
-    Get details for a specific device
+    Get details for a specific device from Device Intelligence Service
     
     Args:
         device_id: Device identifier
@@ -144,33 +143,27 @@ async def get_device(device_id: str):
         Device details
     """
     try:
-        # Query specific device
-        query = f'''
-            from(bucket: "devices")
-                |> range(start: -90d)
-                |> filter(fn: (r) => r["_measurement"] == "devices")
-                |> filter(fn: (r) => r["device_id"] == "{device_id}")
-                |> last()
-        '''
+        # Get Device Intelligence Service client
+        device_intelligence_client = get_device_intelligence_client()
         
-        results = await influxdb_client.query(query)
+        # Query specific device from Device Intelligence Service
+        device_data = await device_intelligence_client.get_device_by_id(device_id)
         
-        if not results:
+        if not device_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Device {device_id} not found"
             )
         
-        record = results[0]
         device = DeviceResponse(
-            device_id=record.get("device_id", device_id),
-            name=record.get("name", "Unknown"),
-            manufacturer=record.get("manufacturer", "Unknown"),
-            model=record.get("model", "Unknown"),
-            sw_version=record.get("sw_version"),
-            area_id=record.get("area_id"),
-            entity_count=int(record.get("entity_count", 0)),
-            timestamp=record.get("time", datetime.now().isoformat())
+            device_id=device_data.get("device_id", device_id),
+            name=device_data.get("name", "Unknown"),
+            manufacturer=device_data.get("manufacturer", "Unknown"),
+            model=device_data.get("model", "Unknown"),
+            sw_version=device_data.get("sw_version"),
+            area_id=device_data.get("area_id"),
+            entity_count=device_data.get("entity_count", 0),
+            timestamp=device_data.get("timestamp", datetime.now().isoformat())
         )
         
         return device
@@ -178,7 +171,7 @@ async def get_device(device_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting device {device_id}: {e}")
+        logger.error(f"Error getting device {device_id} from Device Intelligence Service: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve device: {str(e)}"

@@ -110,6 +110,7 @@ devLoadAlwaysFiles:
   - docs/architecture/coding-standards.md
   - docs/architecture/tech-stack.md
   - docs/architecture/source-tree.md
+  - docs/architecture/performance-patterns.md
 devDebugLog: .ai/debug-log.md
 devStoryLocation: docs/stories
 slashPrefix: BMad
@@ -176,11 +177,13 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
     - docs/architecture/coding-standards.md
+    - docs/architecture/performance-patterns.md
   dev:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
     - docs/architecture/coding-standards.md
-    - CLAUDE.md
+    - docs/architecture/performance-patterns.md
+    - docs/architecture/performance-checklist.md
   pm:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
@@ -188,7 +191,8 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/coding-standards.md
     - docs/architecture/testing-strategy.md
-    - CLAUDE.md
+    - docs/architecture/performance-patterns.md
+    - docs/architecture/performance-anti-patterns.md
   bmad-master:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md

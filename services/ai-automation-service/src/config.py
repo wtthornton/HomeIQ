@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Data API
     data_api_url: str = "http://data-api:8006"
     
+    # Device Intelligence Service (Story DI-2.1)
+    device_intelligence_url: str = "http://device-intelligence-service:8019"
+    
     # InfluxDB (for direct event queries)
     influxdb_url: str = "http://influxdb:8086"
     influxdb_token: str = "homeiq-token"

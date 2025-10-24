@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,9 @@ router = APIRouter(prefix="/api/data", tags=["Data"])
 
 # Initialize Data API client (will be shared across requests)
 data_api_client = DataAPIClient(base_url=settings.data_api_url)
+
+# Initialize Device Intelligence Service client (Story DI-2.1)
+device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
 
 
 @router.get("/health")
@@ -122,17 +126,21 @@ async def get_devices(
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices")
 ) -> Dict[str, Any]:
     """
-    Fetch devices from Data API.
+    Fetch devices from Device Intelligence Service.
     """
     try:
         logger.info(f"Fetching devices: manufacturer={manufacturer}, model={model}, area_id={area_id}, limit={limit}")
         
-        devices = await data_api_client.fetch_devices(
-            manufacturer=manufacturer,
-            model=model,
-            area_id=area_id,
-            limit=limit
+        devices = await device_intelligence_client.get_devices(
+            limit=limit,
+            area_id=area_id
         )
+        
+        # Filter by manufacturer and model if specified
+        if manufacturer:
+            devices = [d for d in devices if d.get('manufacturer', '').lower() == manufacturer.lower()]
+        if model:
+            devices = [d for d in devices if d.get('model', '').lower() == model.lower()]
         
         return {
             "success": True,

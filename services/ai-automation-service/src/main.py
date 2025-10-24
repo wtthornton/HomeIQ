@@ -25,6 +25,7 @@ from .config import settings
 from .database.models import init_db
 from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router
 from .clients.data_api_client import DataAPIClient
+from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
 from .api.analysis_router import set_scheduler
 from .api.health import set_capability_listener
@@ -79,16 +80,16 @@ app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interfac
 # Add direct devices endpoint for frontend compatibility
 @app.get("/api/devices")
 async def get_devices():
-    """Get devices from Home Assistant via Data API"""
+    """Get devices from Device Intelligence Service"""
     try:
-        devices = await data_api_client.fetch_devices(limit=1000)
+        devices = await device_intelligence_client.get_devices(limit=1000)
         return {
             "success": True,
             "devices": devices,
             "count": len(devices)
         }
     except Exception as e:
-        logger.error(f"Failed to fetch devices: {e}")
+        logger.error(f"Failed to fetch devices from Device Intelligence Service: {e}")
         return {
             "success": False,
             "devices": [],
@@ -108,6 +109,9 @@ capability_listener = None
 # Initialize Data API client for devices endpoint
 data_api_client = DataAPIClient(base_url=settings.data_api_url)
 
+# Initialize Device Intelligence Service client (Story DI-2.1)
+device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -118,6 +122,7 @@ async def startup_event():
     logger.info("AI Automation Service Starting Up")
     logger.info("=" * 60)
     logger.info(f"Data API: {settings.data_api_url}")
+    logger.info(f"Device Intelligence Service: {settings.device_intelligence_url}")
     logger.info(f"Home Assistant: {settings.ha_url}")
     logger.info(f"MQTT Broker: {settings.mqtt_broker}:{settings.mqtt_port}")
     logger.info(f"Analysis Schedule: {settings.analysis_schedule}")

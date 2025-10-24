@@ -32,17 +32,17 @@ class FeatureAnalyzer:
         print(f"Overall utilization: {analysis['overall_utilization']}%")
     """
     
-    def __init__(self, data_api_client, db_session, influxdb_client=None, capability_lookup_func=None):
+    def __init__(self, device_intelligence_client, db_session, influxdb_client=None, capability_lookup_func=None):
         """
         Initialize feature analyzer.
         
         Args:
-            data_api_client: Client for querying devices from data-api
+            device_intelligence_client: Client for querying devices from Device Intelligence Service
             db_session: SQLAlchemy async session factory
             influxdb_client: Optional InfluxDB client for historical data (Story 2.4)
             capability_lookup_func: Optional function to get capabilities (for testing)
         """
-        self.data_api = data_api_client
+        self.device_intelligence = device_intelligence_client
         self.db = db_session
         self.influxdb = influxdb_client
         self._capability_lookup = capability_lookup_func
@@ -102,12 +102,12 @@ class FeatureAnalyzer:
         logger.info("🔍 Starting device utilization analysis...")
         start_time = datetime.utcnow()
         
-        # Get all devices from data-api
-        devices = await self._get_devices_from_data_api()
-        logger.info(f"📊 Found {len(devices)} devices from data-api")
+        # Get all devices from Device Intelligence Service
+        devices = await self._get_devices_from_device_intelligence()
+        logger.info(f"📊 Found {len(devices)} devices from Device Intelligence Service")
         
         if not devices:
-            logger.warning("⚠️ No devices found from data-api")
+            logger.warning("⚠️ No devices found from Device Intelligence Service")
             return {
                 "overall_utilization": 0.0,
                 "total_devices": 0,
@@ -279,36 +279,37 @@ class FeatureAnalyzer:
             "opportunities": opportunities
         }
     
-    async def _get_devices_from_data_api(self) -> List[Dict]:
+    async def _get_devices_from_device_intelligence(self) -> List[Dict]:
         """
-        Query all devices from data-api service.
+        Query all devices from Device Intelligence Service.
         
         Returns:
-            List of device dictionaries from data-api
+            List of device dictionaries from Device Intelligence Service
             
         Example Response:
             [
                 {
-                    "device_id": "light.kitchen_switch",
+                    "id": "light.kitchen_switch",
                     "name": "Kitchen Switch",
                     "model": "VZM31-SN",
                     "manufacturer": "Inovelli",
-                    "entity_id": "light.kitchen_switch"
+                    "area_id": "kitchen",
+                    "integration": "zigbee2mqtt"
                 },
                 ...
             ]
         """
         try:
-            devices = await self.data_api.get_all_devices()
-            logger.debug(f"Retrieved {len(devices)} devices from data-api")
+            devices = await self.device_intelligence.get_devices()
+            logger.debug(f"Retrieved {len(devices)} devices from Device Intelligence Service")
             return devices
         except Exception as e:
-            logger.error(f"❌ Failed to get devices from data-api: {e}")
+            logger.error(f"❌ Failed to get devices from Device Intelligence Service: {e}")
             return []
     
     async def _get_device_metadata(self, device_id: str) -> Optional[Dict]:
         """
-        Get device metadata from data-api.
+        Get device metadata from Device Intelligence Service.
         
         Args:
             device_id: Device entity ID
@@ -317,12 +318,12 @@ class FeatureAnalyzer:
             Device metadata dict or None if not found
         """
         try:
-            device = await self.data_api.get_device_metadata(device_id)
+            device = await self.device_intelligence.get_device_by_id(device_id)
             if device:
                 logger.debug(f"Retrieved metadata for {device_id}")
             return device
         except Exception as e:
-            logger.debug(f"Device {device_id} not found in data-api: {e}")
+            logger.debug(f"Device {device_id} not found in Device Intelligence Service: {e}")
             return None
     
     async def _get_capabilities_by_model(self, model: str):
