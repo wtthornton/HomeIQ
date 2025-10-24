@@ -10,13 +10,13 @@ This document serves as the main entry point for the Home Assistant Ingestor arc
 
 ## Quick Summary
 
-**System Type:** Microservices-based real-time data ingestion system  
-**Tech Stack:** Python 3.11, React 18.2, FastAPI, aiohttp, InfluxDB 2.7, SQLite 3.45+, Docker  
+**System Type:** Microservices-based real-time data ingestion system with containerized AI services  
+**Tech Stack:** Python 3.11, React 18.2, FastAPI, aiohttp, InfluxDB 2.7, SQLite 3.45+, Docker, Containerized AI Models  
 **Database:** Hybrid architecture (InfluxDB for time-series, SQLite for metadata)  
-**Deployment:** Docker Compose with optimized Alpine images  
-**Purpose:** Capture Home Assistant events, enrich with weather context, store in time-series database  
-**Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration  
-**Last Updated:** October 18, 2025
+**Deployment:** Docker Compose with optimized Alpine images and containerized AI microservices  
+**Purpose:** Capture Home Assistant events, enrich with weather context, store in time-series database, provide AI-powered automation  
+**Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration, Phase 1 AI containerization complete  
+**Last Updated:** October 24, 2025
 
 ## Interactive Dependency Visualization
 
@@ -48,6 +48,34 @@ The Health Dashboard includes a **Sports tab** for monitoring NFL and NHL games:
 - ✅ Improved error handling and debugging
 
 **Access:** Navigate to the "Sports" tab in the Health Dashboard for team monitoring.
+
+## Phase 1 AI Services Containerization
+
+The system now includes **containerized AI microservices** for advanced automation and analysis:
+
+### 🤖 AI Services Architecture
+
+**Containerized AI Models:**
+- **OpenVINO Service** (Port 8022): Embeddings, re-ranking, classification using all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small
+- **ML Service** (Port 8021): Classical machine learning with K-Means clustering and Isolation Forest anomaly detection
+- **NER Service** (Port 8019): Named Entity Recognition using BERT (dslim/bert-base-NER)
+- **OpenAI Service** (Port 8020): GPT-4o-mini API client for advanced language processing
+- **AI Core Service** (Port 8018): Orchestrator for complex AI workflows and multi-model coordination
+
+**Key Benefits:**
+- **Distributed Models**: Each AI model runs in its own container for better resource management
+- **Service Discovery**: HTTP-based communication between AI services
+- **Health Monitoring**: Comprehensive health checks for all AI services
+- **Fault Tolerance**: Independent service restarts and updates
+- **Scalability**: Individual services can be scaled based on demand
+
+**Integration:**
+- AI services communicate via HTTP APIs
+- Service orchestration through AI Core Service
+- Comprehensive testing framework with health validation
+- Context7 knowledge base integration for troubleshooting
+
+**Status:** ✅ Phase 1 Complete - All AI services containerized, tested, and operational
 
 ## Architecture Diagram (Epic 31 - Current)
 

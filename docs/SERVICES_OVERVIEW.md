@@ -722,6 +722,118 @@ External Integration Services (Internal Only, 8010-8014, 8017-8018):
 
 ---
 
+## 🤖 Phase 1 AI Services (Containerized)
+
+### AI Services Overview
+
+The system now includes **5 containerized AI microservices** for advanced automation and analysis:
+
+| Service | External Port | Internal Port | Status | Purpose |
+|---------|---------------|---------------|--------|---------|
+| openvino-service | 8022 | 8019 | ✅ Running | Embeddings, re-ranking, classification |
+| ml-service | 8021 | 8020 | ✅ Running | K-Means clustering, anomaly detection |
+| ner-service | 8019 | 8019 | ✅ Running | Named Entity Recognition (BERT) |
+| openai-service | 8020 | 8020 | ✅ Running | GPT-4o-mini API client |
+| ai-core-service | 8018 | 8018 | ✅ Running | AI orchestration and coordination |
+
+### 1. OpenVINO Service
+**Port:** 8022 (external) → 8019 (internal)  
+**Technology:** Python 3.11, FastAPI, sentence-transformers, transformers  
+**Purpose:** Optimized AI model inference for embeddings, re-ranking, and classification
+
+**Models:**
+- **all-MiniLM-L6-v2**: Text embeddings (384 dimensions)
+- **bge-reranker-base**: Candidate re-ranking
+- **flan-t5-small**: Pattern classification
+
+**Endpoints:**
+- `POST /embeddings` - Generate text embeddings
+- `POST /rerank` - Re-rank candidates by relevance
+- `POST /classify` - Classify patterns by category and priority
+- `GET /health` - Service health status
+
+### 2. ML Service
+**Port:** 8021 (external) → 8020 (internal)  
+**Technology:** Python 3.11, FastAPI, scikit-learn, pandas, numpy  
+**Purpose:** Classical machine learning algorithms for data analysis
+
+**Algorithms:**
+- **K-Means Clustering**: Data clustering and pattern discovery
+- **Isolation Forest**: Anomaly detection in time-series data
+
+**Endpoints:**
+- `POST /cluster` - Perform K-Means clustering
+- `POST /anomaly_detect` - Detect anomalies using Isolation Forest
+- `GET /health` - Service health status
+
+### 3. NER Service
+**Port:** 8019 (external) → 8019 (internal)  
+**Technology:** Python 3.11, FastAPI, transformers, BERT  
+**Purpose:** Named Entity Recognition for extracting entities from text
+
+**Model:**
+- **dslim/bert-base-NER**: BERT-based entity recognition
+
+**Endpoints:**
+- `POST /extract` - Extract entities from text
+- `GET /health` - Service health status
+
+### 4. OpenAI Service
+**Port:** 8020 (external) → 8020 (internal)  
+**Technology:** Python 3.11, FastAPI, OpenAI API client  
+**Purpose:** GPT-4o-mini API client for advanced language processing
+
+**Features:**
+- **GPT-4o-mini Integration**: Cost-effective language model access
+- **Configurable Parameters**: Temperature, max tokens, model selection
+- **Error Handling**: Robust retry logic and error management
+
+**Endpoints:**
+- `POST /chat/completions` - Generate text completions
+- `GET /health` - Service health status
+
+### 5. AI Core Service
+**Port:** 8018 (external) → 8018 (internal)  
+**Technology:** Python 3.11, FastAPI, httpx  
+**Purpose:** Orchestrator for complex AI workflows and multi-model coordination
+
+**Features:**
+- **Service Orchestration**: Coordinates calls to other AI services
+- **Complex Analysis**: Multi-step AI workflows
+- **Health Monitoring**: Monitors dependent AI services
+- **Error Handling**: Graceful degradation when services are unavailable
+
+**Endpoints:**
+- `POST /orchestrate` - Execute complex AI analysis workflows
+- `GET /health` - Service health status
+
+### AI Services Integration
+
+**Communication Pattern:**
+```
+AI Automation Service (Port 8017)
+    ↓ HTTP API calls
+AI Core Service (Port 8018)
+    ├─ OpenVINO Service (Port 8019) - Embeddings, re-ranking
+    ├─ ML Service (Port 8020) - Clustering, anomaly detection
+    ├─ NER Service (Port 8019) - Entity extraction
+    └─ OpenAI Service (Port 8020) - Language processing
+```
+
+**Health Monitoring:**
+- All services include comprehensive health checks
+- Docker Compose health checks use Python urllib
+- Service dependencies with health-based startup conditions
+- Circuit breaker pattern for fault tolerance
+
+**Testing:**
+- Comprehensive test suite for all AI services
+- Integration tests for service communication
+- Performance monitoring and metrics collection
+- Context7 knowledge base integration for troubleshooting
+
+---
+
 ## 🗄️ Database Architecture
 
 ### InfluxDB (Time-Series Data)

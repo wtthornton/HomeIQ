@@ -26,6 +26,7 @@ HomeIQ is an **enterprise-grade intelligence layer** for Home Assistant that add
 - 🔌 **Multi-Source Enrichment** - Combines weather, energy pricing, air quality, sports, and more
 - 🎨 **Beautiful Dashboards** - Real-time system health and interactive dependency visualization
 - 🚀 **RESTful APIs** - Comprehensive API access to all data and AI capabilities
+- 🐳 **Containerized AI Services** - Distributed AI models with microservices architecture
 
 ### Why HomeIQ?
 
@@ -175,6 +176,30 @@ docker-compose up -d
 
 ❌ DEPRECATED: Enrichment Pipeline (port 8002) - Epic 31
 ```
+
+### 🤖 Phase 1 AI Services (Containerized)
+
+**New in Phase 1:** Distributed AI microservices architecture with containerized models:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Services Layer                        │
+├─────────────────────────────────────────────────────────────┤
+│  AI Core Service (Orchestrator)           :8018             │
+│  ├─ OpenVINO Service (Embeddings)         :8022             │
+│  ├─ ML Service (Clustering)               :8021             │
+│  ├─ NER Service (Entity Recognition)      :8019             │
+│  └─ OpenAI Service (GPT-4o-mini)          :8020             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| AI Service | Purpose | Port | Models | Status |
+|------------|---------|------|--------|--------|
+| **OpenVINO Service** | Embeddings, re-ranking, classification | 8022 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
+| **ML Service** | K-Means clustering, anomaly detection | 8021 | scikit-learn algorithms | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8019 | dslim/bert-base-NER | ✅ Active |
+| **OpenAI Service** | GPT-4o-mini API client | 8020 | GPT-4o-mini | ✅ Active |
+| **AI Core Service** | Multi-model orchestration | 8018 | Service coordinator | ✅ Active |
 
 ### Key Components
 
