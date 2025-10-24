@@ -1,6 +1,99 @@
 markdownExploder: true
 qa:
   qaLocation: docs/qa
+
+  # Progressive code review configuration (task-level reviews during development)
+  progressive_review:
+    enabled: true
+    review_location: docs/qa/progressive
+    auto_trigger: true
+    severity_blocks: [high]
+
+    ai_config:
+      model: "claude-sonnet-4-5"
+      max_tokens: 4000
+      temperature: 0.0
+
+    review_focus:
+      - security
+      - performance
+      - testing
+      - standards
+
+    skip_for_tasks:
+      - documentation
+      - configuration
+
+  # Background continuous review (optional - for stories with 8+ tasks)
+  background_review:
+    enabled: false
+    log_location: docs/qa/background
+
+    auto_start_conditions:
+      min_tasks: 8
+      estimated_hours: 4
+
+    file_patterns:
+      - "services/**/*.py"
+      - "services/**/*.ts"
+      - "services/**/*.tsx"
+
+    exclude_patterns:
+      - "**/tests/**"
+      - "**/migrations/**"
+      - "**/__pycache__/**"
+      - "**/node_modules/**"
+
+    debounce_seconds: 5
+    notify_severity: [high]
+
+    ai_config:
+      model: "claude-sonnet-4-5"
+      max_tokens: 2000
+      temperature: 0.0
+      batch_files: true
+
+    cost_controls:
+      max_reviews_per_hour: 20
+      cache_ttl: 3600
+      skip_minor_changes: true
+      batch_threshold: 3
+
+  # Performance-specific review settings (HomeIQ)
+  performance_checks:
+    enabled: true
+    reference_doc: "CLAUDE.md"
+
+    patterns:
+      async_blocking:
+        enabled: true
+        severity: high
+        message: "Blocking operation in async function violates 'Async Everything' principle"
+
+      database_n_plus_1:
+        enabled: true
+        severity: high
+        message: "N+1 query pattern detected - should use eager loading"
+
+      unbatched_writes:
+        enabled: true
+        severity: medium
+        message: "Individual writes detected - should batch (100-1000 points)"
+
+      missing_cache:
+        enabled: true
+        severity: medium
+        message: "Expensive operation without caching"
+
+      unbounded_query:
+        enabled: true
+        severity: high
+        message: "Database query without LIMIT clause"
+
+      sync_http_in_async:
+        enabled: true
+        severity: high
+        message: "Synchronous HTTP client (requests) in async code - use aiohttp"
 prd:
   prdFile: docs/prd.md
   prdVersion: v4
@@ -87,6 +180,7 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
     - docs/architecture/coding-standards.md
+    - CLAUDE.md
   pm:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
@@ -94,6 +188,7 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/coding-standards.md
     - docs/architecture/testing-strategy.md
+    - CLAUDE.md
   bmad-master:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
