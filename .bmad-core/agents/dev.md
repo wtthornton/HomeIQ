@@ -88,7 +88,7 @@ context7_workflow:
 commands:
   - help: Show numbered list of the following commands to allow selection
   - develop-story:
-      - order-of-execution: 'Read (first or next) task→Implement Task and its subtasks→Write tests→Execute validations→Only if ALL pass, then update the task checkbox with [x]→Update story section File List to ensure it lists and new or modified or deleted source file→repeat order-of-execution until complete'
+      - order-of-execution: 'Read (first or next) task→Implement Task and its subtasks→Write tests→Execute validations→IF progressive_review enabled: Run progressive review (BLOCK on HIGH, prompt for CONCERNS)→Only if ALL pass AND review PASS/CONCERNS resolved, then update the task checkbox with [x]→Update story section File List to ensure it lists and new or modified or deleted source file→repeat order-of-execution until complete'
       - story-file-updates-ONLY:
           - CRITICAL: ONLY UPDATE THE STORY FILE WITH UPDATES TO SECTIONS INDICATED BELOW. DO NOT MODIFY ANY OTHER SECTIONS.
           - CRITICAL: You are ONLY authorized to edit these specific sections of story files - Tasks / Subtasks Checkboxes, Dev Agent Record section and all its subsections, Agent Model Used, Debug Log References, Completion Notes List, File List, Change Log, Status
@@ -97,6 +97,7 @@ commands:
       - ready-for-review: 'Code matches requirements + All validations pass + Follows standards + File List complete'
       - completion: "All Tasks and Subtasks marked [x] and have tests→Validations and full regression passes (DON'T BE LAZY, EXECUTE ALL TESTS and CONFIRM)→Ensure File List is Complete→run the task execute-checklist for the checklist story-dod-checklist→set story status: 'Ready for Review'→HALT"
   - explain: teach me what and why you did whatever you just did in detail so I can learn. Explain to me as if you were training a junior engineer.
+  - review-task {task_number}: Manually trigger progressive code review for specific task (calls progressive-code-review task)
   - review-qa: run task `apply-qa-fixes.md'
   - run-tests: Execute linting and tests
   - context7-docs {library} {topic}: Get KB-first documentation for external libraries
@@ -111,6 +112,7 @@ dependencies:
   tasks:
     - apply-qa-fixes.md
     - execute-checklist.md
+    - progressive-code-review.md
     - validate-next-story.md
     - context7-kb-lookup.md
     - context7-kb-refresh.md

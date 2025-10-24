@@ -78,10 +78,15 @@ commands:
   - gate {story}: Execute qa-gate task to write/update quality gate decision in directory from qa.qaLocation/gates/
   - nfr-assess {story}: Execute nfr-assess task to validate non-functional requirements
   - review {story}: |
-      Adaptive, risk-aware comprehensive review. 
+      Adaptive, risk-aware comprehensive review.
       Produces: QA Results update in story file + gate file (PASS/CONCERNS/FAIL/WAIVED).
       Gate file location: qa.qaLocation/gates/{epic}.{story}-{slug}.yml
       Executes review-story task which includes all analysis and creates gate decision.
+  - review-task {story} {task_number}: |
+      Progressive task-level code review (executed after each task during development).
+      Reviews specific task changes, provides immediate feedback (PASS/CONCERNS/BLOCK).
+      Executes progressive-code-review task for early issue detection.
+      Results saved to: qa.progressive_review.review_location/{epic}.{story}-task-{n}.yml
   - risk-profile {story}: Execute risk-profile task to generate risk assessment matrix
   - test-design {story}: Execute test-design task to create comprehensive test scenarios
   - trace {story}: Execute trace-requirements task to map requirements to tests using Given-When-Then
@@ -97,6 +102,7 @@ dependencies:
     - nfr-assess.md
     - qa-gate.md
     - review-story.md
+    - progressive-code-review.md
     - risk-profile.md
     - test-design.md
     - trace-requirements.md
