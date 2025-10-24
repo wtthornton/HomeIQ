@@ -1,0 +1,190 @@
+# Code Review Integration Configuration
+# Add this to your .bmad-core/core-config.yaml file
+
+qa:
+  # Existing qa configuration
+  qaLocation: docs/qa
+
+  # NEW: Progressive task-level reviews
+  progressive_review:
+    enabled: true                    # Set to false to disable
+    review_location: docs/qa/progressive
+
+    # Auto-trigger after each task completion
+    auto_trigger: true
+
+    # Which severities block task completion
+    # Options: high, medium, low
+    severity_blocks:
+      - high                         # Only HIGH severity blocks by default
+
+    # AI configuration for reviews
+    ai_config:
+      model: "claude-sonnet-4-5"     # Fast, cost-effective
+      max_tokens: 4000               # Sufficient for task-level reviews
+      temperature: 0.0               # Deterministic reviews
+
+    # What to focus reviews on
+    review_focus:
+      - security                     # Security vulnerabilities
+      - performance                  # Performance issues (references CLAUDE.md)
+      - testing                      # Test coverage gaps
+      - standards                    # Coding standards compliance
+
+    # Task types that skip automatic review (optional)
+    skip_for_tasks:
+      - documentation
+      - configuration
+      - minor-refactoring
+
+  # NEW: Background continuous reviews (OPTIONAL - only for long builds)
+  background_review:
+    enabled: false                   # Set to true to enable
+    log_location: docs/qa/background
+
+    # When to auto-start background reviewer
+    auto_start_conditions:
+      min_tasks: 8                   # Only for stories with 8+ tasks
+      estimated_hours: 4             # Or estimated >4 hours
+
+    # File patterns to monitor
+    file_patterns:
+      - "services/**/*.py"           # Python backend
+      - "services/**/*.ts"            # TypeScript
+      # Add more patterns as needed
+
+    # Patterns to exclude
+    exclude_patterns:
+      - "**/tests/**"                # Don't review test files in background
+      - "**/migrations/**"
+      - "**/__pycache__/**"
+      - "**/node_modules/**"
+      - "**/.venv/**"
+
+    # Debouncing (wait N seconds after last file change)
+    debounce_seconds: 5
+
+    # Notification thresholds
+    notify_severity:
+      - high                         # Immediately notify on HIGH only
+
+    # AI configuration (lighter weight for background)
+    ai_config:
+      model: "claude-sonnet-4-5"
+      max_tokens: 2000               # Shorter for file-level reviews
+      temperature: 0.0
+      batch_files: true              # Batch multiple files if queued
+
+    # Performance and cost controls
+    cost_controls:
+      max_reviews_per_hour: 20       # Rate limit to control API costs
+      cache_ttl: 3600                # Cache reviews for 1 hour (seconds)
+      skip_minor_changes: true       # Skip if <10 lines changed
+      batch_threshold: 3             # Batch if 3+ files queued
+
+  # Performance-specific review settings (HomeIQ)
+  performance_checks:
+    enabled: true
+    reference_doc: "CLAUDE.md"       # Performance guide to reference
+
+    # Critical performance patterns to check
+    patterns:
+      async_blocking:
+        enabled: true
+        severity: high
+        message: "Blocking operation in async function violates 'Async Everything' principle"
+
+      database_n_plus_1:
+        enabled: true
+        severity: high
+        message: "N+1 query pattern detected - should use eager loading"
+
+      unbatched_writes:
+        enabled: true
+        severity: medium
+        message: "Individual writes detected - should batch (100-1000 points)"
+
+      missing_cache:
+        enabled: true
+        severity: medium
+        message: "Expensive operation without caching"
+
+      unbounded_query:
+        enabled: true
+        severity: high
+        message: "Database query without LIMIT clause"
+
+      sync_http_in_async:
+        enabled: true
+        severity: high
+        message: "Synchronous HTTP client (requests) in async code - use aiohttp"
+
+# Agent-specific review configuration
+agentLoadAlwaysFiles:
+  dev:
+    - docs/architecture/tech-stack.md
+    - docs/architecture/source-tree.md
+    - docs/architecture/coding-standards.md
+    - CLAUDE.md                      # NEW: Load performance guide for dev
+
+  qa:
+    - docs/architecture/tech-stack.md
+    - docs/architecture/coding-standards.md
+    - docs/architecture/testing-strategy.md
+    - CLAUDE.md                      # NEW: Load performance guide for QA
+
+# Review metrics tracking (optional)
+review_metrics:
+  enabled: true
+  metrics_location: docs/qa/metrics
+
+  # What to track
+  track:
+    - issues_found_per_task
+    - issues_fixed_immediately
+    - issues_deferred
+    - severity_distribution
+    - time_saved_estimate
+    - false_positive_rate
+
+  # Generate reports after N stories
+  report_frequency: 5
+
+# Example configurations for different scenarios:
+
+# SCENARIO 1: Simple projects (3-5 tasks per story)
+# qa:
+#   progressive_review:
+#     enabled: true
+#     severity_blocks: [high]
+#   background_review:
+#     enabled: false
+
+# SCENARIO 2: Medium projects (5-10 tasks, 4-8 hours)
+# qa:
+#   progressive_review:
+#     enabled: true
+#     severity_blocks: [high]
+#   background_review:
+#     enabled: true
+#     auto_start_conditions:
+#       min_tasks: 8
+
+# SCENARIO 3: Large/Critical projects (10+ tasks, security-sensitive)
+# qa:
+#   progressive_review:
+#     enabled: true
+#     severity_blocks: [high, medium]  # Stricter
+#   background_review:
+#     enabled: true
+#     auto_start_conditions:
+#       min_tasks: 5                   # Start earlier
+#     notify_severity: [high, medium]  # More notifications
+
+# SCENARIO 4: Prototype/Experimental (fast iteration, less review)
+# qa:
+#   progressive_review:
+#     enabled: false
+#   background_review:
+#     enabled: false
+#   # Use only pre-commit hook or final QA
