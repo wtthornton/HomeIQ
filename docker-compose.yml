@@ -52,9 +52,9 @@ services:
       - infrastructure/.env.influxdb
     environment:
       # Home Assistant Configuration (consolidated)
-      - HA_HTTP_URL=${HA_HTTP_URL:-}
-      - HA_WS_URL=${HA_WS_URL:-}
-      - HA_TOKEN=${HA_TOKEN:-}
+      - HA_HTTP_URL=
+      - HA_WS_URL=
+      - HA_TOKEN=
       # Nabu Casa Fallback Configuration
       - NABU_CASA_URL=${NABU_CASA_URL:-https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa}
       - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}

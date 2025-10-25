@@ -47,7 +47,7 @@ export interface APIKeyTestResponse {
 
 // Epic 13 Story 13.2: Separated API clients for admin vs data APIs
 const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003';
-const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '/api';  // Will use nginx routing
+const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
 
 /**
  * Base API client with error handling
