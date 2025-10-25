@@ -277,17 +277,18 @@ class DailyAnalysisScheduler:
             all_patterns.extend(sequence_patterns)
             logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns (daily aggregates stored)")
             
-            # Contextual patterns (No incremental processing yet - Group B detector)
-            logger.info("    → Running contextual detector...")
+            # Contextual patterns (Story AI5.8: Monthly aggregation enabled)
+            logger.info("    → Running contextual detector (monthly aggregates)...")
             contextual_detector = ContextualDetector(
                 weather_weight=0.3,
                 presence_weight=0.4,
                 time_weight=0.3,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
             contextual_patterns = contextual_detector.detect_patterns(events_df)
             all_patterns.extend(contextual_patterns)
-            logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns")
+            logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns (monthly aggregates stored)")
             
             # Room-based patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running room-based detector (incremental)...")
@@ -300,17 +301,18 @@ class DailyAnalysisScheduler:
             all_patterns.extend(room_patterns)
             logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns (daily aggregates stored)")
             
-            # Session patterns (No incremental processing yet - Group B detector)
-            logger.info("    → Running session detector...")
+            # Session patterns (Story AI5.6: Weekly aggregation enabled)
+            logger.info("    → Running session detector (weekly aggregates)...")
             session_detector = SessionDetector(
                 session_timeout_minutes=60,
                 min_session_events=3,
                 min_session_occurrences=3,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
             session_patterns = session_detector.detect_patterns(events_df)
             all_patterns.extend(session_patterns)
-            logger.info(f"    ✅ Found {len(session_patterns)} session patterns")
+            logger.info(f"    ✅ Found {len(session_patterns)} session patterns (weekly aggregates stored)")
             
             # Duration patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running duration detector (incremental)...")
@@ -325,28 +327,30 @@ class DailyAnalysisScheduler:
             all_patterns.extend(duration_patterns)
             logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns (daily aggregates stored)")
             
-            # Day-type patterns (No incremental processing yet - Group B detector)
-            logger.info("    → Running day-type detector...")
+            # Day-type patterns (Story AI5.6: Weekly aggregation enabled)
+            logger.info("    → Running day-type detector (weekly aggregates)...")
             day_type_detector = DayTypeDetector(
                 min_weekday_occurrences=5,
                 min_weekend_occurrences=3,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
             day_type_patterns = day_type_detector.detect_patterns(events_df)
             all_patterns.extend(day_type_patterns)
-            logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns")
+            logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns (weekly aggregates stored)")
             
-            # Seasonal patterns (No incremental processing yet - Group C detector)
-            logger.info("    → Running seasonal detector...")
+            # Seasonal patterns (Story AI5.8: Monthly aggregation enabled)
+            logger.info("    → Running seasonal detector (monthly aggregates)...")
             seasonal_detector = SeasonalDetector(
                 min_seasonal_occurrences=10,
                 seasonal_window_days=30,
                 weather_integration=True,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
             seasonal_patterns = seasonal_detector.detect_patterns(events_df)
             all_patterns.extend(seasonal_patterns)
-            logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns")
+            logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns (monthly aggregates stored)")
             
             # Anomaly patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running anomaly detector (incremental)...")
@@ -365,7 +369,7 @@ class DailyAnalysisScheduler:
             logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns (daily aggregates stored)")
             
             logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
-            logger.info(f"   📦 Daily aggregates stored for 6 Group A detectors (Time-of-Day, Co-occurrence, Sequence, Room-Based, Duration, Anomaly)")
+            logger.info(f"   📦 Aggregates stored: 6 Group A (daily), 2 Group B (weekly), 2 Group C (monthly)")
             job_result['patterns_detected'] = len(all_patterns)
             
             # Store patterns (don't fail if no patterns)
