@@ -5,6 +5,7 @@ Unit tests for Data API Client
 import pytest
 import httpx
 import pandas as pd
+import os
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 from src.clients.data_api_client import DataAPIClient
@@ -20,19 +21,22 @@ def mock_response():
 
 
 @pytest.fixture
-def data_api_client():
-    """Create a DataAPIClient instance"""
-    return DataAPIClient(base_url="http://test-data-api:8006")
+def data_api_client(test_config):
+    """Create a DataAPIClient instance using test configuration"""
+    return DataAPIClient(base_url=test_config.get('data_api_url', 'http://localhost:8006'))
 
 
 class TestDataAPIClient:
     """Test Data API Client"""
     
     @pytest.mark.asyncio
-    async def test_init(self):
-        """Test client initialization"""
-        client = DataAPIClient(base_url="http://test:8006")
-        assert client.base_url == "http://test:8006"
+    async def test_init_with_monkeypatch(self, monkeypatch):
+        """Test client initialization using Context7 monkeypatch pattern"""
+        # Context7 pattern: Use monkeypatch for isolated environment testing
+        monkeypatch.setenv("DATA_API_URL", "http://test-override:8006")
+        
+        client = DataAPIClient(base_url=os.getenv('DATA_API_URL', 'http://localhost:8006'))
+        assert client.base_url == "http://test-override:8006"
         assert client.client is not None
         await client.close()
     

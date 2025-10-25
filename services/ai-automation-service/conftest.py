@@ -172,23 +172,58 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.unit)
 
 
-# Environment variable validation
+# Environment variable validation - Context7 recommended approach
 def pytest_sessionstart(session):
-    """Validate test environment before running tests"""
-    required_env_vars = ['HA_URL', 'HA_TOKEN', 'MQTT_BROKER', 'OPENAI_API_KEY']
-    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    """Load test environment - Context7 recommended approach"""
+    # Try loading .env.test from multiple locations
+    env_files = [
+        Path('.env.test'),
+        Path(__file__).parent / '.env.test',
+        Path(__file__).parent.parent / '.env.test'
+    ]
     
-    if missing_vars:
-        print(f"\n⚠️  Warning: Missing environment variables: {', '.join(missing_vars)}")
-        print("   Loading from .env.test file...")
-        
-        # Try to load .env.test
-        env_file = Path(__file__).parent / '.env.test'
+    loaded_from = None
+    for env_file in env_files:
         if env_file.exists():
             from dotenv import load_dotenv
             load_dotenv(env_file)
-            print("   ✅ Loaded .env.test successfully")
-        else:
-            print(f"   ❌ .env.test not found at {env_file}")
-            print("   Tests may fail due to missing configuration")
+            loaded_from = env_file
+            break
+    
+    if loaded_from:
+        print(f"[OK] Loaded test environment from {loaded_from}")
+    else:
+        print("[WARN] No .env.test file found - using system environment")
+    
+    # Validate required test variables
+    required_vars = {
+        'HA_URL': 'Home Assistant test URL',
+        'HA_TOKEN': 'Home Assistant test token', 
+        'MQTT_BROKER': 'MQTT test broker',
+        'OPENAI_API_KEY': 'OpenAI test API key'
+    }
+    
+    missing_vars = []
+    for var, description in required_vars.items():
+        if not os.getenv(var):
+            missing_vars.append(f"{var} ({description})")
+    
+    if missing_vars:
+        print(f"[ERROR] Missing required test variables: {', '.join(missing_vars)}")
+        print("   Create a .env.test file with test values")
+    else:
+        print("[OK] All required test environment variables present")
+
+
+@pytest.fixture
+def test_config():
+    """Simple test configuration fixture - Context7 pattern"""
+    return {
+        'ha_url': os.getenv('HA_URL', 'http://localhost:8123'),
+        'ha_token': os.getenv('HA_TOKEN', 'test_token'),
+        'mqtt_broker': os.getenv('MQTT_BROKER', 'localhost:1883'),
+        'openai_api_key': os.getenv('OPENAI_API_KEY', 'test_key'),
+        'influxdb_url': os.getenv('INFLUXDB_URL', 'http://localhost:8086'),
+        'influxdb_token': os.getenv('INFLUXDB_TOKEN', 'test_token'),
+    }
 
