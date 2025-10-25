@@ -9,7 +9,9 @@ test.describe('Integration Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Wait for system to be fully deployed
     await page.goto('http://localhost:3000');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle
+    // Additional wait for React to hydrate
+    await page.waitForTimeout(2000);
   });
 
   test('Complete data flow from Home Assistant to dashboard', async ({ page }) => {
