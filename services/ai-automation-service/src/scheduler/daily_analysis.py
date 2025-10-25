@@ -16,6 +16,7 @@ import asyncio
 # Epic AI-1 imports (Pattern Detection)
 from ..clients.data_api_client import DataAPIClient
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
+from ..clients.pattern_aggregate_client import PatternAggregateClient  # Story AI5.4: Incremental processing
 from ..api.suggestion_router import _build_device_context
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
@@ -208,31 +209,48 @@ class DailyAnalysisScheduler:
             job_result['events_count'] = len(events_df)
             
             # ================================================================
-            # Phase 3: Pattern Detection (Epic AI-1)
+            # Initialize Pattern Aggregate Client (Story AI5.4)
             # ================================================================
-            logger.info("🔍 Phase 3/6: Pattern Detection (Epic AI-1)...")
+            logger.info("📦 Initializing Pattern Aggregate Client for incremental processing...")
+            
+            aggregate_client = PatternAggregateClient(
+                url=settings.influxdb_url,
+                token=settings.influxdb_token,
+                org=settings.influxdb_org,
+                bucket_daily="pattern_aggregates_daily",
+                bucket_weekly="pattern_aggregates_weekly"
+            )
+            
+            logger.info("✅ Pattern Aggregate Client initialized")
+            
+            # ================================================================
+            # Phase 3: Pattern Detection (Epic AI-1) - Incremental Processing (Story AI5.4)
+            # ================================================================
+            logger.info("🔍 Phase 3/6: Pattern Detection (Epic AI-1) - Incremental Processing (Story AI5.4)...")
             
             all_patterns = []
             
-            # Time-of-day patterns
-            logger.info("  → Running time-of-day detector...")
+            # Time-of-day patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("  → Running time-of-day detector (incremental)...")
             tod_detector = TimeOfDayPatternDetector(
                 min_occurrences=5,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             
             # Time-of-day detector doesn't have optimized version
             tod_patterns = tod_detector.detect_patterns(events_df)
             
             all_patterns.extend(tod_patterns)
-            logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns")
+            logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns (daily aggregates stored)")
             
-            # Co-occurrence patterns
-            logger.info("  → Running co-occurrence detector...")
+            # Co-occurrence patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("  → Running co-occurrence detector (incremental)...")
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
                 min_support=5,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             
             if len(events_df) > 50000:
@@ -241,24 +259,25 @@ class DailyAnalysisScheduler:
                 co_patterns = co_detector.detect_patterns(events_df)
             
             all_patterns.extend(co_patterns)
-            logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns")
+            logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns (daily aggregates stored)")
             
-            # ML-Enhanced Pattern Detection (NEW)
-            logger.info("  → Running ML-enhanced pattern detectors...")
+            # ML-Enhanced Pattern Detection (Story AI5.3: Incremental processing enabled)
+            logger.info("  → Running ML-enhanced pattern detectors (incremental)...")
             
-            # Sequence patterns
-            logger.info("    → Running sequence detector...")
+            # Sequence patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("    → Running sequence detector (incremental)...")
             sequence_detector = SequenceDetector(
                 window_minutes=30,
                 min_sequence_length=2,
                 min_sequence_occurrences=3,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             sequence_patterns = sequence_detector.detect_patterns(events_df)
             all_patterns.extend(sequence_patterns)
-            logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns")
+            logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns (daily aggregates stored)")
             
-            # Contextual patterns
+            # Contextual patterns (No incremental processing yet - Group B detector)
             logger.info("    → Running contextual detector...")
             contextual_detector = ContextualDetector(
                 weather_weight=0.3,
@@ -270,17 +289,18 @@ class DailyAnalysisScheduler:
             all_patterns.extend(contextual_patterns)
             logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns")
             
-            # Room-based patterns
-            logger.info("    → Running room-based detector...")
+            # Room-based patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("    → Running room-based detector (incremental)...")
             room_detector = RoomBasedDetector(
                 min_room_activity_events=5,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             room_patterns = room_detector.detect_patterns(events_df)
             all_patterns.extend(room_patterns)
-            logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns")
+            logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns (daily aggregates stored)")
             
-            # Session patterns
+            # Session patterns (No incremental processing yet - Group B detector)
             logger.info("    → Running session detector...")
             session_detector = SessionDetector(
                 session_timeout_minutes=60,
@@ -292,19 +312,20 @@ class DailyAnalysisScheduler:
             all_patterns.extend(session_patterns)
             logger.info(f"    ✅ Found {len(session_patterns)} session patterns")
             
-            # Duration patterns
-            logger.info("    → Running duration detector...")
+            # Duration patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("    → Running duration detector (incremental)...")
             duration_detector = DurationDetector(
                 min_duration_minutes=5,
                 max_duration_hours=24,
                 min_occurrences=3,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             duration_patterns = duration_detector.detect_patterns(events_df)
             all_patterns.extend(duration_patterns)
-            logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns")
+            logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns (daily aggregates stored)")
             
-            # Day-type patterns
+            # Day-type patterns (No incremental processing yet - Group B detector)
             logger.info("    → Running day-type detector...")
             day_type_detector = DayTypeDetector(
                 min_weekday_occurrences=5,
@@ -315,7 +336,7 @@ class DailyAnalysisScheduler:
             all_patterns.extend(day_type_patterns)
             logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns")
             
-            # Seasonal patterns
+            # Seasonal patterns (No incremental processing yet - Group C detector)
             logger.info("    → Running seasonal detector...")
             seasonal_detector = SeasonalDetector(
                 min_seasonal_occurrences=10,
@@ -327,8 +348,8 @@ class DailyAnalysisScheduler:
             all_patterns.extend(seasonal_patterns)
             logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns")
             
-            # Anomaly patterns
-            logger.info("    → Running anomaly detector...")
+            # Anomaly patterns (Story AI5.3: Incremental processing enabled)
+            logger.info("    → Running anomaly detector (incremental)...")
             anomaly_detector = AnomalyDetector(
                 contamination=0.1,
                 min_anomaly_occurrences=3,
@@ -336,13 +357,15 @@ class DailyAnalysisScheduler:
                 enable_timing_analysis=True,
                 enable_behavioral_analysis=True,
                 enable_device_analysis=True,
-                min_confidence=0.7
+                min_confidence=0.7,
+                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             anomaly_patterns = anomaly_detector.detect_patterns(events_df)
             all_patterns.extend(anomaly_patterns)
-            logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns")
+            logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns (daily aggregates stored)")
             
             logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
+            logger.info(f"   📦 Daily aggregates stored for 6 Group A detectors (Time-of-Day, Co-occurrence, Sequence, Room-Based, Duration, Anomaly)")
             job_result['patterns_detected'] = len(all_patterns)
             
             # Store patterns (don't fail if no patterns)
