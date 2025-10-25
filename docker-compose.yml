@@ -55,6 +55,9 @@ services:
       - HA_HTTP_URL=${HA_HTTP_URL:-}
       - HA_WS_URL=${HA_WS_URL:-}
       - HA_TOKEN=${HA_TOKEN:-}
+      # Nabu Casa Fallback Configuration
+      - NABU_CASA_URL=${NABU_CASA_URL:-https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa}
+      - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
       - DATA_API_URL=http://homeiq-data-api:8006
       - WEBSOCKET_INGESTION_PORT=8001
       - ENABLE_HOME_ASSISTANT=true

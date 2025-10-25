@@ -75,6 +75,11 @@ class WebSocketIngestionService:
         # Prioritize HA_WS_URL, then fall back to HA_URL (for backward compatibility with .env.websocket)
         self.home_assistant_ws_url = os.getenv('HA_WS_URL') or os.getenv('HA_URL')
         self.home_assistant_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+        
+        # Nabu Casa fallback configuration
+        self.nabu_casa_url = os.getenv('NABU_CASA_URL')
+        self.nabu_casa_token = os.getenv('NABU_CASA_TOKEN')
+        
         self.home_assistant_enabled = os.getenv('ENABLE_HOME_ASSISTANT', 'true').lower() == 'true'
         
         # High-volume processing configuration
@@ -227,20 +232,38 @@ class WebSocketIngestionService:
             
             # Initialize connection manager (only if Home Assistant is enabled)
             if self.home_assistant_enabled:
-                # Use WebSocket URL if available, otherwise derive from HTTP URL
+                # Try primary connection first
+                primary_ws_url = None
+                primary_token = None
+                
                 if self.home_assistant_ws_url:
-                    ws_url = self.home_assistant_ws_url
-                else:
+                    primary_ws_url = self.home_assistant_ws_url
+                elif self.home_assistant_url:
                     # Derive WebSocket URL from HTTP URL
-                    ws_url = self.home_assistant_url.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket'
+                    primary_ws_url = self.home_assistant_url.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket'
                 
-                logger.info(f"Connecting to Home Assistant WebSocket: {ws_url}", extra={'correlation_id': corr_id})
+                primary_token = self.home_assistant_token
                 
-                self.connection_manager = ConnectionManager(
-                    ws_url,
-                    self.home_assistant_token,
-                    influxdb_manager=self.influxdb_manager
-                )
+                # If primary connection is configured, try it first
+                if primary_ws_url and primary_token:
+                    logger.info(f"Connecting to Home Assistant WebSocket (Primary): {primary_ws_url}", extra={'correlation_id': corr_id})
+                    self.connection_manager = ConnectionManager(
+                        primary_ws_url,
+                        primary_token,
+                        influxdb_manager=self.influxdb_manager
+                    )
+                # Fallback to Nabu Casa if configured
+                elif self.nabu_casa_url and self.nabu_casa_token:
+                    # Construct Nabu Casa WebSocket URL
+                    nabu_ws_url = self.nabu_casa_url.replace('https://', 'wss://').replace('http://', 'ws://') + '/api/websocket'
+                    logger.info(f"Connecting to Nabu Casa fallback: {nabu_ws_url}", extra={'correlation_id': corr_id})
+                    self.connection_manager = ConnectionManager(
+                        nabu_ws_url,
+                        self.nabu_casa_token,
+                        influxdb_manager=self.influxdb_manager
+                    )
+                else:
+                    raise ValueError("No Home Assistant connection configured. Set HA_HTTP_URL/HA_WS_URL or NABU_CASA_URL")
                 
                 # Set up event handlers - don't override connection manager's callbacks
                 # The connection manager handles subscription, we'll add discovery in a separate callback
@@ -251,12 +274,47 @@ class WebSocketIngestionService:
                 
                 # Start connection manager
                 await self.connection_manager.start()
-                log_with_context(
-                    logger, "INFO", "Home Assistant connection manager started",
-                    operation="ha_connection_startup",
-                    correlation_id=corr_id,
-                    url=self.home_assistant_url
-                )
+                
+                # Wait a moment for connection attempt
+                await asyncio.sleep(2)
+                
+                # Check if connection is actually established
+                connected = await self._check_connection_status()
+                
+                # If primary connection fails, try Nabu Casa fallback
+                if not connected and primary_ws_url and self.nabu_casa_url and self.nabu_casa_token:
+                    logger.warning(f"Primary connection failed, falling back to Nabu Casa", extra={'correlation_id': corr_id})
+                    # Construct Nabu Casa WebSocket URL
+                    nabu_ws_url = self.nabu_casa_url.replace('https://', 'wss://').replace('http://', 'ws://') + '/api/websocket'
+                    
+                    # Create new connection manager for Nabu Casa
+                    self.connection_manager = ConnectionManager(
+                        nabu_ws_url,
+                        self.nabu_casa_token,
+                        influxdb_manager=self.influxdb_manager
+                    )
+                    
+                    # Re-attach event handlers
+                    self.connection_manager.on_disconnect = self._on_disconnect
+                    self.connection_manager.on_message = self._on_message
+                    self.connection_manager.on_error = self._on_error
+                    self.connection_manager.on_event = self._on_event
+                    
+                    # Try Nabu Casa connection
+                    await self.connection_manager.start()
+                    log_with_context(
+                        logger, "INFO", "Connected to Nabu Casa fallback",
+                        operation="ha_connection_startup",
+                        correlation_id=corr_id,
+                        url=self.nabu_casa_url
+                    )
+                else:
+                    log_with_context(
+                        logger, "INFO", "Home Assistant connection manager started",
+                        operation="ha_connection_startup",
+                        correlation_id=corr_id,
+                        url=primary_ws_url
+                    )
             else:
                 log_with_context(
                     logger, "INFO", "Home Assistant connection disabled - running in standalone mode",
@@ -316,6 +374,17 @@ class WebSocketIngestionService:
             await self.connection_manager.stop()
         
         logger.info("WebSocket Ingestion Service stopped")
+    
+    async def _check_connection_status(self) -> bool:
+        """Check if WebSocket connection is actually established"""
+        if not self.connection_manager or not self.connection_manager.client:
+            return False
+        
+        # Check if websocket exists and is connected
+        if hasattr(self.connection_manager.client, 'websocket') and self.connection_manager.client.websocket:
+            return not self.connection_manager.client.websocket.closed
+        
+        return False
     
     async def _on_connect(self):
         """Handle successful connection and trigger discovery"""
