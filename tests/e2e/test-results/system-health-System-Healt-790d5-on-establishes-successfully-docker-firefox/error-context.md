@@ -22,7 +22,7 @@
           - generic [ref=e16] [cursor=pointer]: AI Automations
         - generic [ref=e17]:
           - paragraph [ref=e18]: Last updated
-          - paragraph [ref=e19]: 01:09:55 AM
+          - paragraph [ref=e19]: 01:33:09 AM
     - generic [ref=e21]:
       - button "📊 Overview" [ref=e22] [cursor=pointer]:
         - generic [ref=e23] [cursor=pointer]: 📊 Overview
@@ -58,13 +58,13 @@
             - generic [ref=e55]: 🟢
             - generic [ref=e57]:
               - heading "ALL SYSTEMS OPERATIONAL" [level=2] [ref=e58]
-              - paragraph [ref=e59]: "Last updated: 01:10:27 AM"
+              - paragraph [ref=e59]: "Last updated: 01:33:20 AM"
         - complementary "Key performance indicators" [ref=e61]:
           - heading "KEY PERFORMANCE INDICATORS" [level=3] [ref=e62]
           - generic [ref=e63]:
             - generic [ref=e64]:
               - generic [ref=e65]: Uptime
-              - generic [ref=e66]: 0h 27m 47s
+              - generic [ref=e66]: 0h 50m 31s
             - generic [ref=e67]:
               - generic [ref=e68]: Throughput
               - generic [ref=e69]:
@@ -110,7 +110,7 @@
                 - generic [ref=e106] [cursor=pointer]: events
           - generic [ref=e107] [cursor=pointer]:
             - generic [ref=e108] [cursor=pointer]: Uptime
-            - generic [ref=e109] [cursor=pointer]: 0h 27m 47s
+            - generic [ref=e109] [cursor=pointer]: 0h 50m 31s
         - button "STORAGE system component - healthy. Click for details." [ref=e110] [cursor=pointer]:
           - generic [ref=e111] [cursor=pointer]:
             - generic [ref=e112] [cursor=pointer]:
@@ -134,63 +134,45 @@
                 - generic [ref=e128] [cursor=pointer]: "%"
           - generic [ref=e129] [cursor=pointer]:
             - generic [ref=e130] [cursor=pointer]: Uptime
-            - generic [ref=e131] [cursor=pointer]: 0h 27m 47s
+            - generic [ref=e131] [cursor=pointer]: 0h 50m 31s
     - generic [ref=e132]:
       - heading "🔗 Active Data Sources" [level=2] [ref=e133]
-      - generic [ref=e135]:
-        - button "Weather ❌" [ref=e136] [cursor=pointer]:
-          - generic [ref=e137] [cursor=pointer]: Weather
-          - generic "error" [ref=e138] [cursor=pointer]: ❌
-        - button "CarbonIntensity ❌" [ref=e139] [cursor=pointer]:
-          - generic [ref=e140] [cursor=pointer]: CarbonIntensity
-          - generic "error" [ref=e141] [cursor=pointer]: ❌
-        - button "ElectricityPricing ❌" [ref=e142] [cursor=pointer]:
-          - generic [ref=e143] [cursor=pointer]: ElectricityPricing
-          - generic "error" [ref=e144] [cursor=pointer]: ❌
-        - button "AirQuality ❌" [ref=e145] [cursor=pointer]:
-          - generic [ref=e146] [cursor=pointer]: AirQuality
-          - generic "error" [ref=e147] [cursor=pointer]: ❌
-        - button "Calendar ❌" [ref=e148] [cursor=pointer]:
-          - generic [ref=e149] [cursor=pointer]: Calendar
-          - generic "error" [ref=e150] [cursor=pointer]: ❌
-        - button "SmartMeter ❌" [ref=e151] [cursor=pointer]:
-          - generic [ref=e152] [cursor=pointer]: SmartMeter
-          - generic "error" [ref=e153] [cursor=pointer]: ❌
-    - generic [ref=e154]:
-      - heading "🏠 Home Assistant Integration" [level=2] [ref=e155]
-      - generic [ref=e156]:
-        - generic [ref=e158]:
-          - generic [ref=e159]:
-            - paragraph [ref=e160]: Devices
-            - paragraph [ref=e161]: "0"
-          - generic [ref=e162]: 📱
-        - generic [ref=e164]:
-          - generic [ref=e165]:
-            - paragraph [ref=e166]: Entities
-            - paragraph [ref=e167]: "0"
-          - generic [ref=e168]: 🔌
+      - paragraph [ref=e136]: No active data sources configured
+    - generic [ref=e137]:
+      - heading "🏠 Home Assistant Integration" [level=2] [ref=e138]
+      - generic [ref=e139]:
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - paragraph [ref=e143]: Devices
+            - paragraph [ref=e144]: "0"
+          - generic [ref=e145]: 📱
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - paragraph [ref=e149]: Entities
+            - paragraph [ref=e150]: "0"
+          - generic [ref=e151]: 🔌
+        - generic [ref=e153]:
+          - generic [ref=e154]:
+            - paragraph [ref=e155]: Active Services
+            - paragraph [ref=e156]: "9"
+          - generic [ref=e157]: 🔧
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - paragraph [ref=e161]: System Health
+            - paragraph [ref=e162]: 100%
+          - generic [ref=e163]: ✅
+      - generic [ref=e164]:
+        - generic [ref=e165]: 🏠
+        - paragraph [ref=e166]: No Home Assistant devices discovered yet
+        - paragraph [ref=e167]: Waiting for Home Assistant connection and device discovery...
+      - generic [ref=e169]:
         - generic [ref=e170]:
-          - generic [ref=e171]:
-            - paragraph [ref=e172]: Active Services
-            - paragraph [ref=e173]: "9"
-          - generic [ref=e174]: 🔧
-        - generic [ref=e176]:
-          - generic [ref=e177]:
-            - paragraph [ref=e178]: System Health
-            - paragraph [ref=e179]: 100%
-          - generic [ref=e180]: ✅
-      - generic [ref=e181]:
-        - generic [ref=e182]: 🏠
-        - paragraph [ref=e183]: No Home Assistant devices discovered yet
-        - paragraph [ref=e184]: Waiting for Home Assistant connection and device discovery...
-      - generic [ref=e186]:
-        - generic [ref=e187]:
-          - generic [ref=e188]: ⚠️
-          - generic [ref=e189]:
-            - paragraph [ref=e190]: HA Devices API Status
-            - paragraph [ref=e191]: Connected - Awaiting device discovery
-        - button "View Details →" [ref=e192] [cursor=pointer]
-    - generic [ref=e193]:
-      - paragraph [ref=e194]: 🏠 HA Ingestor Dashboard - Real-time System Health Monitoring
-      - paragraph [ref=e195]: 0 Devices • 0 Entities • 0 Integrations • 0/6 Data Sources Healthy • 9 Services Running • Built with React & TypeScript
+          - generic [ref=e171]: ⚠️
+          - generic [ref=e172]:
+            - paragraph [ref=e173]: HA Devices API Status
+            - paragraph [ref=e174]: Connected - Awaiting device discovery
+        - button "View Details →" [ref=e175] [cursor=pointer]
+    - generic [ref=e176]:
+      - paragraph [ref=e177]: 🏠 HA Ingestor Dashboard - Real-time System Health Monitoring
+      - paragraph [ref=e178]: 0 Devices • 0 Entities • 0 Integrations • 0/0 Data Sources Healthy • 9 Services Running • Built with React & TypeScript
 ```

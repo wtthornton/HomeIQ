@@ -54,13 +54,13 @@
             - generic [ref=e51]: 🟢
             - generic [ref=e53]:
               - heading "ALL SYSTEMS OPERATIONAL" [level=2] [ref=e54]
-              - paragraph [ref=e55]: "Last updated: 01:11:31 AM"
+              - paragraph [ref=e55]: "Last updated: 01:33:34 AM"
         - complementary "Key performance indicators" [ref=e57]:
           - heading "KEY PERFORMANCE INDICATORS" [level=3] [ref=e58]
           - generic [ref=e59]:
             - generic [ref=e60]:
               - generic [ref=e61]: Uptime
-              - generic [ref=e62]: 0h 28m 52s
+              - generic [ref=e62]: 0h 50m 42s
             - generic [ref=e63]:
               - generic [ref=e64]: Throughput
               - generic [ref=e65]:
@@ -106,7 +106,7 @@
                 - generic [ref=e102] [cursor=pointer]: events
           - generic [ref=e103] [cursor=pointer]:
             - generic [ref=e104] [cursor=pointer]: Uptime
-            - generic [ref=e105] [cursor=pointer]: 0h 28m 52s
+            - generic [ref=e105] [cursor=pointer]: 0h 50m 42s
         - button "STORAGE system component - healthy. Click for details." [ref=e106] [cursor=pointer]:
           - generic [ref=e107] [cursor=pointer]:
             - generic [ref=e108] [cursor=pointer]:
@@ -130,63 +130,45 @@
                 - generic [ref=e124] [cursor=pointer]: "%"
           - generic [ref=e125] [cursor=pointer]:
             - generic [ref=e126] [cursor=pointer]: Uptime
-            - generic [ref=e127] [cursor=pointer]: 0h 28m 52s
+            - generic [ref=e127] [cursor=pointer]: 0h 50m 42s
     - generic [ref=e128]:
       - heading "🔗 Active Data Sources" [level=2] [ref=e129]
-      - generic [ref=e131]:
-        - button "Weather ❌" [ref=e132] [cursor=pointer]:
-          - generic [ref=e133] [cursor=pointer]: Weather
-          - generic "error" [ref=e134] [cursor=pointer]: ❌
-        - button "CarbonIntensity ❌" [ref=e135] [cursor=pointer]:
-          - generic [ref=e136] [cursor=pointer]: CarbonIntensity
-          - generic "error" [ref=e137] [cursor=pointer]: ❌
-        - button "ElectricityPricing ❌" [ref=e138] [cursor=pointer]:
-          - generic [ref=e139] [cursor=pointer]: ElectricityPricing
-          - generic "error" [ref=e140] [cursor=pointer]: ❌
-        - button "AirQuality ❌" [ref=e141] [cursor=pointer]:
-          - generic [ref=e142] [cursor=pointer]: AirQuality
-          - generic "error" [ref=e143] [cursor=pointer]: ❌
-        - button "Calendar ❌" [ref=e144] [cursor=pointer]:
-          - generic [ref=e145] [cursor=pointer]: Calendar
-          - generic "error" [ref=e146] [cursor=pointer]: ❌
-        - button "SmartMeter ❌" [ref=e147] [cursor=pointer]:
-          - generic [ref=e148] [cursor=pointer]: SmartMeter
-          - generic "error" [ref=e149] [cursor=pointer]: ❌
-    - generic [ref=e150]:
-      - heading "🏠 Home Assistant Integration" [level=2] [ref=e151]
-      - generic [ref=e152]:
-        - generic [ref=e154]:
-          - generic [ref=e155]:
-            - paragraph [ref=e156]: Devices
-            - paragraph [ref=e157]: "0"
-          - generic [ref=e158]: 📱
-        - generic [ref=e160]:
-          - generic [ref=e161]:
-            - paragraph [ref=e162]: Entities
-            - paragraph [ref=e163]: "0"
-          - generic [ref=e164]: 🔌
+      - paragraph [ref=e132]: No active data sources configured
+    - generic [ref=e133]:
+      - heading "🏠 Home Assistant Integration" [level=2] [ref=e134]
+      - generic [ref=e135]:
+        - generic [ref=e137]:
+          - generic [ref=e138]:
+            - paragraph [ref=e139]: Devices
+            - paragraph [ref=e140]: "0"
+          - generic [ref=e141]: 📱
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - paragraph [ref=e145]: Entities
+            - paragraph [ref=e146]: "0"
+          - generic [ref=e147]: 🔌
+        - generic [ref=e149]:
+          - generic [ref=e150]:
+            - paragraph [ref=e151]: Active Services
+            - paragraph [ref=e152]: "9"
+          - generic [ref=e153]: 🔧
+        - generic [ref=e155]:
+          - generic [ref=e156]:
+            - paragraph [ref=e157]: System Health
+            - paragraph [ref=e158]: 100%
+          - generic [ref=e159]: ✅
+      - generic [ref=e160]:
+        - generic [ref=e161]: 🏠
+        - paragraph [ref=e162]: No Home Assistant devices discovered yet
+        - paragraph [ref=e163]: Waiting for Home Assistant connection and device discovery...
+      - generic [ref=e165]:
         - generic [ref=e166]:
-          - generic [ref=e167]:
-            - paragraph [ref=e168]: Active Services
-            - paragraph [ref=e169]: "9"
-          - generic [ref=e170]: 🔧
-        - generic [ref=e172]:
-          - generic [ref=e173]:
-            - paragraph [ref=e174]: System Health
-            - paragraph [ref=e175]: 100%
-          - generic [ref=e176]: ✅
-      - generic [ref=e177]:
-        - generic [ref=e178]: 🏠
-        - paragraph [ref=e179]: No Home Assistant devices discovered yet
-        - paragraph [ref=e180]: Waiting for Home Assistant connection and device discovery...
-      - generic [ref=e182]:
-        - generic [ref=e183]:
-          - generic [ref=e184]: ⚠️
-          - generic [ref=e185]:
-            - paragraph [ref=e186]: HA Devices API Status
-            - paragraph [ref=e187]: Connected - Awaiting device discovery
-        - button "View Details →" [ref=e188] [cursor=pointer]
-    - generic [ref=e189]:
-      - paragraph [ref=e190]: 🏠 HA Ingestor Dashboard - Real-time System Health Monitoring
-      - paragraph [ref=e191]: 0 Devices • 0 Entities • 0 Integrations • 0/6 Data Sources Healthy • 9 Services Running • Built with React & TypeScript
+          - generic [ref=e167]: ⚠️
+          - generic [ref=e168]:
+            - paragraph [ref=e169]: HA Devices API Status
+            - paragraph [ref=e170]: Connected - Awaiting device discovery
+        - button "View Details →" [ref=e171] [cursor=pointer]
+    - generic [ref=e172]:
+      - paragraph [ref=e173]: 🏠 HA Ingestor Dashboard - Real-time System Health Monitoring
+      - paragraph [ref=e174]: 0 Devices • 0 Entities • 0 Integrations • 0/0 Data Sources Healthy • 9 Services Running • Built with React & TypeScript
 ```

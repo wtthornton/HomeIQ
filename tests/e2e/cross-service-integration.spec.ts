@@ -7,11 +7,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Cross-Service Integration Tests', () => {
   
   test.beforeEach(async ({ page }) => {
-    // Ensure all services are healthy before testing
+    // Ensure all services are healthy before testing (Epic 31)
     const services = [
       'http://localhost:8086/health',  // InfluxDB
-      'http://localhost:8001/health',  // WebSocket Ingestion
-      'http://localhost:8002/health',  // Enrichment Pipeline
+      'http://localhost:8001/health',  // WebSocket Ingestion (direct InfluxDB writes)
       'http://localhost:8003/api/v1/health',  // Admin API
       'http://localhost:8080/health'   // Data Retention
     ];
@@ -77,13 +76,7 @@ test.describe('Cross-Service Integration Tests', () => {
       const wsData = await wsResponse.json();
       expect(wsData.status).toBe('healthy');
       
-      // 3. Enrichment pipeline depends on InfluxDB
-      const enrichResponse = await page.request.get('http://localhost:8002/health');
-      expect(enrichResponse.status()).toBe(200);
-      const enrichData = await enrichResponse.json();
-      expect(enrichData.status).toBe('healthy');
-      
-      // 4. Admin API aggregates all service health
+      // 3. Admin API aggregates all service health (Epic 31: enrichment-pipeline removed)
       const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
