@@ -1,0 +1,239 @@
+{
+  "config": {
+    "configFile": "C:\\cursor\\ha-ingestor\\tests\\e2e\\docker-deployment.config.ts",
+    "rootDir": "C:/cursor/ha-ingestor/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "C:\\cursor\\ha-ingestor\\tests\\e2e\\docker-global-setup.ts",
+    "globalTeardown": "C:\\cursor\\ha-ingestor\\tests\\e2e\\docker-global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "../../test-results/e2e-html-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "../../test-results/e2e-results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "../../test-results/e2e-results.xml"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "github",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/cursor/ha-ingestor/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "docker-chromium",
+        "name": "docker-chromium",
+        "testDir": "C:/cursor/ha-ingestor/tests/e2e",
+        "testIgnore": [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/coverage/**"
+        ],
+        "testMatch": [
+          "**/system-health.spec.ts",
+          "**/dashboard-functionality.spec.ts",
+          "**/monitoring-screen.spec.ts",
+          "**/settings-screen.spec.ts",
+          "**/visual-regression.spec.ts",
+          "**/integration.spec.ts",
+          "**/performance.spec.ts",
+          "**/api-endpoints.spec.ts",
+          "**/frontend-ui-comprehensive.spec.ts",
+          "**/integration-performance-enhanced.spec.ts",
+          "**/dashboard-data-loading.spec.ts",
+          "**/error-handling-comprehensive.spec.ts",
+          "**/user-journey-complete.spec.ts",
+          "**/cross-service-integration.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/cursor/ha-ingestor/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "docker-firefox",
+        "name": "docker-firefox",
+        "testDir": "C:/cursor/ha-ingestor/tests/e2e",
+        "testIgnore": [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/coverage/**"
+        ],
+        "testMatch": [
+          "**/system-health.spec.ts",
+          "**/dashboard-functionality.spec.ts",
+          "**/monitoring-screen.spec.ts",
+          "**/settings-screen.spec.ts",
+          "**/visual-regression.spec.ts",
+          "**/integration.spec.ts",
+          "**/performance.spec.ts",
+          "**/api-endpoints.spec.ts",
+          "**/frontend-ui-comprehensive.spec.ts",
+          "**/integration-performance-enhanced.spec.ts",
+          "**/dashboard-data-loading.spec.ts",
+          "**/error-handling-comprehensive.spec.ts",
+          "**/user-journey-complete.spec.ts",
+          "**/cross-service-integration.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/cursor/ha-ingestor/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "docker-webkit",
+        "name": "docker-webkit",
+        "testDir": "C:/cursor/ha-ingestor/tests/e2e",
+        "testIgnore": [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/coverage/**"
+        ],
+        "testMatch": [
+          "**/system-health.spec.ts",
+          "**/dashboard-functionality.spec.ts",
+          "**/monitoring-screen.spec.ts",
+          "**/settings-screen.spec.ts",
+          "**/visual-regression.spec.ts",
+          "**/integration.spec.ts",
+          "**/performance.spec.ts",
+          "**/api-endpoints.spec.ts",
+          "**/frontend-ui-comprehensive.spec.ts",
+          "**/integration-performance-enhanced.spec.ts",
+          "**/dashboard-data-loading.spec.ts",
+          "**/error-handling-comprehensive.spec.ts",
+          "**/user-journey-complete.spec.ts",
+          "**/cross-service-integration.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/cursor/ha-ingestor/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "docker-mobile-chrome",
+        "name": "docker-mobile-chrome",
+        "testDir": "C:/cursor/ha-ingestor/tests/e2e",
+        "testIgnore": [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/coverage/**"
+        ],
+        "testMatch": [
+          "**/system-health.spec.ts",
+          "**/dashboard-functionality.spec.ts",
+          "**/monitoring-screen.spec.ts",
+          "**/settings-screen.spec.ts",
+          "**/visual-regression.spec.ts",
+          "**/integration.spec.ts",
+          "**/performance.spec.ts",
+          "**/api-endpoints.spec.ts",
+          "**/frontend-ui-comprehensive.spec.ts",
+          "**/integration-performance-enhanced.spec.ts",
+          "**/dashboard-data-loading.spec.ts",
+          "**/error-handling-comprehensive.spec.ts",
+          "**/user-journey-complete.spec.ts",
+          "**/cross-service-integration.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/cursor/ha-ingestor/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "docker-mobile-safari",
+        "name": "docker-mobile-safari",
+        "testDir": "C:/cursor/ha-ingestor/tests/e2e",
+        "testIgnore": [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/coverage/**"
+        ],
+        "testMatch": [
+          "**/system-health.spec.ts",
+          "**/dashboard-functionality.spec.ts",
+          "**/monitoring-screen.spec.ts",
+          "**/settings-screen.spec.ts",
+          "**/visual-regression.spec.ts",
+          "**/integration.spec.ts",
+          "**/performance.spec.ts",
+          "**/api-endpoints.spec.ts",
+          "**/frontend-ui-comprehensive.spec.ts",
+          "**/integration-performance-enhanced.spec.ts",
+          "**/dashboard-data-loading.spec.ts",
+          "**/error-handling-comprehensive.spec.ts",
+          "**/user-journey-complete.spec.ts",
+          "**/cross-service-integration.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 10,
+    "webServer": {
+      "command": "echo \"Using existing Docker deployment at http://localhost:3000\"",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "ignoreHTTPSErrors": true
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: WebSocket Ingestion is not healthy after 30 seconds. Please check the Docker deployment.",
+      "stack": "Error: WebSocket Ingestion is not healthy after 30 seconds. Please check the Docker deployment.\n    at globalSetup (C:\\cursor\\ha-ingestor\\tests\\e2e\\docker-global-setup.ts:76:15)",
+      "location": {
+        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\docker-global-setup.ts",
+        "column": 15,
+        "line": 76
+      },
+      "snippet": "   at docker-global-setup.ts:76\n\n  74 |       \n  75 |       if (!isHealthy) {\n> 76 |         throw new Error(`${service.name} is not healthy after 30 seconds. Please check the Docker deployment.`);\n     |               ^\n  77 |       }\n  78 |     }\n  79 |     "
+    }
+  ],
+  "stats": {
+    "startTime": "2025-10-25T07:32:42.971Z",
+    "duration": 31064.417,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

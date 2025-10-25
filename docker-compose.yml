@@ -431,51 +431,51 @@ services:
       retries: 3
       start_period: 40s
 
-  calendar:
-    build:
-      context: .
-      dockerfile: services/calendar-service/Dockerfile
-    container_name: homeiq-calendar
-    restart: unless-stopped
-    ports:
-      - "8013:8013"
-    environment:
-      # Home Assistant Configuration (consolidated)
-      - HA_HTTP_URL=${HA_HTTP_URL}
-      - HA_TOKEN=${HA_TOKEN}
-      - CALENDAR_ENTITIES=${CALENDAR_ENTITIES:-calendar.primary}
-      - CALENDAR_FETCH_INTERVAL=${CALENDAR_FETCH_INTERVAL:-900}
-      # InfluxDB Configuration
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      # Service Configuration
-      - SERVICE_PORT=8013
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    depends_on:
-      influxdb:
-        condition: service_healthy
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 192M  # Increased from 128M (was at 54% usage)
-        reservations:
-          memory: 96M   # Increased from 64M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=calendar,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8013/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+  # calendar:
+  #   build:
+  #     context: .
+  #     dockerfile: services/calendar-service/Dockerfile
+  #   container_name: homeiq-calendar
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8013:8013"
+  #   environment:
+  #     # Home Assistant Configuration (consolidated)
+  #     - HA_HTTP_URL=${HA_HTTP_URL}
+  #     - HA_TOKEN=${HA_TOKEN}
+  #     - CALENDAR_ENTITIES=${CALENDAR_ENTITIES:-calendar.primary}
+  #     - CALENDAR_FETCH_INTERVAL=${CALENDAR_FETCH_INTERVAL:-900}
+  #     # InfluxDB Configuration
+  #     - INFLUXDB_URL=http://influxdb:8086
+  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+  #     - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+  #     - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+  #     # Service Configuration
+  #     - SERVICE_PORT=8013
+  #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
+  #   depends_on:
+  #     influxdb:
+  #       condition: service_healthy
+  #   networks:
+  #     - homeiq-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 192M  # Increased from 128M (was at 54% usage)
+  #       reservations:
+  #         memory: 96M   # Increased from 64M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       labels: "service=calendar,environment=production"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8013/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
 
   smart-meter:
     build:
