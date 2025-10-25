@@ -3,13 +3,15 @@ Sequence Pattern Detector
 
 Detects multi-step behavior patterns using ML clustering and pandas optimizations.
 Example: "Coffee maker → Kitchen light → Music" sequences.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 
 from .ml_pattern_detector import MLPatternDetector
@@ -35,6 +37,7 @@ class SequenceDetector(MLPatternDetector):
         max_sequence_length: int = 5,
         min_sequence_occurrences: int = 3,
         sequence_gap_seconds: int = 300,  # 5 minutes max gap between sequence steps
+        aggregate_client=None,
         **kwargs
     ):
         """
@@ -46,6 +49,7 @@ class SequenceDetector(MLPatternDetector):
             max_sequence_length: Maximum devices in sequence
             min_sequence_occurrences: Minimum occurrences for valid sequence
             sequence_gap_seconds: Maximum gap between sequence steps
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -54,6 +58,7 @@ class SequenceDetector(MLPatternDetector):
         self.max_sequence_length = max_sequence_length
         self.min_sequence_occurrences = min_sequence_occurrences
         self.sequence_gap_seconds = sequence_gap_seconds
+        self.aggregate_client = aggregate_client
         
         logger.info(f"SequenceDetector initialized: window={window_minutes}min, min_length={min_sequence_length}")
     
@@ -100,7 +105,71 @@ class SequenceDetector(MLPatternDetector):
         self.detection_stats['processing_time'] += processing_time
         
         logger.info(f"Detected {len(patterns)} sequence patterns in {processing_time:.2f}s")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events_df)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = pd.to_datetime(events_df['time'].min()).date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            for pattern in patterns:
+                # Get sequence signature and metadata
+                sequence_signature = pattern.get('sequence_signature', '')
+                sequence_length = pattern.get('metadata', {}).get('sequence_length', 0)
+                duration_seconds = pattern.get('metadata', {}).get('duration_seconds', 0)
+                avg_gap_seconds = pattern.get('metadata', {}).get('avg_gap_seconds', 0)
+                
+                # Extract first device as entity_id
+                devices = pattern.get('devices', [])
+                entity_id = devices[0] if devices else 'unknown'
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                confidence = pattern.get('confidence', 0.0)
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_sequence_daily(
+                        date=date_str,
+                        entity_id=sequence_signature or entity_id,
+                        domain=domain,
+                        sequence_length=sequence_length,
+                        occurrences=occurrences,
+                        confidence=confidence,
+                        duration_seconds=duration_seconds,
+                        avg_gap_seconds=avg_gap_seconds,
+                        devices=devices
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def _filter_state_changes(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
