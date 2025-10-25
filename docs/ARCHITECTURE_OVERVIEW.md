@@ -1,13 +1,13 @@
-# Architecture Overview: HA-Ingestor
+# Architecture Overview: HomeIQ
 
-**Last Updated:** 2025-10-16  
-**Version:** 2.0.0
+**Last Updated:** 2025-10-25
+**Version:** 3.0.0 (Phase 1 AI Containerization)
 
 ---
 
 ## System Architecture
 
-HA-Ingestor is an enterprise-grade data ingestion platform and API hub for single-home automation systems with AI-powered automation discovery.
+HomeIQ is an enterprise-grade intelligence layer for Home Assistant with AI-powered automation, pattern detection, advanced analytics, and distributed AI services.
 
 ### Core Components
 

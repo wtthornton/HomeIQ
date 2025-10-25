@@ -1,22 +1,22 @@
-# 🏠 Home Assistant Ingestor
+# 🏠 HomeIQ Documentation
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](https://github.com/your-repo/homeiq)
-[![Data Flow](https://img.shields.io/badge/Data%20Flow-100%25%20Success-brightgreen.svg)](https://github.com/your-repo/homeiq)
-[![Error Rate](https://img.shields.io/badge/Error%20Rate-0%25-brightgreen.svg)](https://github.com/your-repo/homeiq)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-ISC-blue?style=for-the-badge)](../LICENSE)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-41BDF5?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
 
-A comprehensive, production-ready system for capturing, enriching, and analyzing Home Assistant events with weather context, real-time monitoring, and advanced data management capabilities.
+**AI-Powered Home Automation Intelligence Platform**
 
-## 🎯 **What is Home Assistant Ingestor?**
+Comprehensive documentation for HomeIQ - an enterprise-grade intelligence layer for Home Assistant with conversational AI, pattern detection, and advanced analytics.
 
-Home Assistant Ingestor is a complete data pipeline that:
-- **Captures** real-time events from Home Assistant via WebSocket
-- **Enriches** data with weather context and validation
-- **Stores** time-series data in InfluxDB for analysis
-- **Monitors** system health with configurable alerts
-- **Provides** a modern web interface for administration
-- **Exports** data in multiple formats (CSV, JSON, PDF, Excel)
+## 🎯 **What is HomeIQ?**
+
+HomeIQ is an enterprise-grade intelligence layer for Home Assistant that provides:
+- 🤖 **Conversational AI Automation** - Create automations by chatting, no YAML required
+- 🔍 **Smart Pattern Detection** - AI discovers automation opportunities from your usage patterns
+- 📊 **Advanced Analytics** - Deep insights with hybrid database architecture (5-10x faster queries)
+- 🔌 **Multi-Source Enrichment** - Combines weather, energy pricing, air quality, sports, and more
+- 🎨 **Beautiful Dashboards** - Real-time system health and interactive dependency visualization
+- 🚀 **RESTful APIs** - Comprehensive API access to all data and AI capabilities
 
 ## ✨ **Key Features**
 
@@ -24,17 +24,17 @@ Home Assistant Ingestor is a complete data pipeline that:
 - Direct WebSocket connection to Home Assistant
 - Event normalization and validation
 - Multi-source data enrichment (weather, carbon, pricing, air quality)
-- Calendar-based automation triggers
+- Sports data integration (NFL/NHL)
 - Smart meter integration
-- High-performance data processing
+- High-performance batch processing (5-10x faster)
 
-### 🔧 **Configuration Management** ⭐ NEW
-- Web-based service configuration interface
-- Secure credential management with masked values
-- Real-time configuration editing and validation
-- Support for Home Assistant, Weather API, and InfluxDB
-- Command-line configuration scripts for automation
-- Service status monitoring and control
+### 🤖 **AI & Machine Learning**
+- Containerized AI services (OpenVINO, NER, ML models)
+- Pattern detection and automation mining
+- Device intelligence and recommendations
+- Conversational automation creation
+- Natural language processing
+- Real-time model inference
 
 ### 📊 **Advanced Analytics**
 - Time-series data storage in InfluxDB with tiered retention
@@ -66,20 +66,24 @@ Home Assistant Ingestor is a complete data pipeline that:
 
 ## ✅ **Recent Updates (October 2025)**
 
-### 🔧 **Data Flow Optimization**
-- **Fixed HTTP 500 errors** in service communication
-- **Resolved InfluxDB schema conflicts** causing data drops
-- **Enhanced error handling** across all services
-- **Achieved 100% success rate** for event processing
-- **Eliminated data loss** - now 0% error rate
-- **Real-time data flow visualization** working perfectly
+### 🤖 **AI Containerization (Phase 1)**
+- Distributed AI microservices architecture
+- OpenVINO service for embeddings and re-ranking
+- Named Entity Recognition (NER) service
+- ML clustering and anomaly detection service
+- Improved AI response times (2-3x faster)
 
-### 📊 **Current Performance Metrics**
-- ✅ **0% error rate** across the system
-- ✅ **100% success rate** for event processing
-- ✅ **18.72 events/min** flowing successfully
-- ✅ **All services healthy** and communicating properly
-- ✅ **Real-time dashboard** showing live data flow
+### 🧪 **Comprehensive Testing Framework**
+- 272+ unit tests across all services
+- E2E testing with Playwright
+- Automated test coverage reports
+- Python and TypeScript testing integration
+
+### 🏗️ **Architecture Improvements (Epic 31)**
+- Direct InfluxDB writes from integration services
+- Hybrid database architecture (InfluxDB + SQLite)
+- 5-10x faster metadata queries
+- Improved system reliability and performance
 
 ## 🚀 **Quick Start**
 
@@ -116,45 +120,82 @@ docker-compose ps
 ## 📋 **System Architecture**
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Home Assistant│───▶│ WebSocket        │───▶│ Enrichment      │
-│                 │    │ Ingestion        │    │ Pipeline        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Weather API   │───▶│ Data Validation  │    │   InfluxDB      │
-│                 │    │ & Enrichment     │───▶│   Storage       │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Health         │◀───│   Admin API      │◀───│ Data Retention  │
-│  Dashboard      │    │                  │    │ & Management    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        HomeIQ Stack                          │
+├─────────────────────────────────────────────────────────────┤
+│  Web Layer                                                   │
+│  ├─ Health Dashboard (React)            :3000               │
+│  └─ AI Automation UI (React)            :3001               │
+├─────────────────────────────────────────────────────────────┤
+│  API Layer                                                   │
+│  ├─ WebSocket Ingestion                 :8001               │
+│  ├─ Admin API                           :8003               │
+│  ├─ Data API                            :8006               │
+│  ├─ AI Automation Service               :8018               │
+│  └─ Device Intelligence Service         :8028               │
+├─────────────────────────────────────────────────────────────┤
+│  Data Layer                                                  │
+│  ├─ InfluxDB (Time-series)              :8086               │
+│  └─ SQLite (Metadata)                    Files              │
+├─────────────────────────────────────────────────────────────┤
+│  Integration Layer (Epic 31 - Direct Writes)                │
+│  ├─ Weather API              :8009 → InfluxDB               │
+│  ├─ Carbon Intensity         :8010 → InfluxDB               │
+│  ├─ Electricity Pricing      :8011 → InfluxDB               │
+│  ├─ Air Quality              :8012 → InfluxDB               │
+│  ├─ Smart Meter              :8014 → InfluxDB               │
+│  └─ Sports Data              :8005 → InfluxDB               │
+└─────────────────────────────────────────────────────────────┘
+                            ▲
+                            │
+                   ┌────────┴────────┐
+                   │ Home Assistant  │
+                   │  :8123 / :1883  │
+                   └─────────────────┘
 ```
 
 ## 🏗️ **Services**
 
 ### Core Services
 
+| Service | Purpose | Port | Tech Stack | Status |
+|---------|---------|------|------------|--------|
+| **Health Dashboard** | System monitoring & management | 3000 | React, TypeScript, Vite | ✅ Active |
+| **AI Automation UI** | Conversational automation | 3001 | React, TypeScript | ✅ Active |
+| **WebSocket Ingestion** | Real-time HA event capture | 8001 | Python, aiohttp, WebSocket | ✅ Active |
+| **AI Automation Service** | Pattern detection & AI orchestration | 8018 | Python, FastAPI, OpenAI | ✅ Active |
+| **Data API** | Historical data queries | 8006 | Python, FastAPI | ✅ Active |
+| **Admin API** | System control & config | 8003 | Python, FastAPI | ✅ Active |
+| **Device Intelligence** | Device capability discovery | 8028 | Python, FastAPI, MQTT | ✅ Active |
+| **InfluxDB** | Time-series database | 8086 | InfluxDB 2.7 | ✅ Active |
+
+### AI Services (Phase 1)
+
+| AI Service | Purpose | Port | Models | Status |
+|------------|---------|------|--------|--------|
+| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | all-MiniLM-L6-v2, bge-reranker-base | ✅ Active |
+| **ML Service** | K-Means clustering, anomaly detection | 8025 | scikit-learn algorithms | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8019 | dslim/bert-base-NER | ✅ Active |
+| **OpenAI Service** | GPT-4o-mini API client | 8020 | GPT-4o-mini | ✅ Active |
+
+### Integration Services
+
 | Service | Description | Port | Status |
 |---------|-------------|------|--------|
-| **websocket-ingestion** | Home Assistant event capture | 8001 | ✅ Production Ready |
-| **enrichment-pipeline** | Data enrichment and validation | 8002 | ✅ Production Ready |
-| **data-retention** | Enhanced data lifecycle management | 8080 | ✅ Production Ready |
-| **admin-api** | System administration API + Integration Management ⭐ | 8003 | ✅ Production Ready |
-| **health-dashboard** | Web-based administration + Configuration UI ⭐ | 3000 | ✅ Production Ready |
-| **influxdb** | Time-series database | 8086 | ✅ Production Ready |
+| **Weather API** | Standalone weather service | 8009 | ✅ Active |
+| **Carbon Intensity** | Grid carbon footprint data | 8010 | ✅ Active |
+| **Electricity Pricing** | Real-time electricity costs | 8011 | ✅ Active |
+| **Air Quality** | AQI monitoring and alerts | 8012 | ✅ Active |
+| **Smart Meter** | Smart meter data integration | 8014 | ✅ Active |
+| **Sports Data** | NFL/NHL game data | 8005 | ✅ Active |
 
-### External Data Services (New)
+### Deprecated Services
 
-| Service | Description | Port | Status |
-|---------|-------------|------|--------|
-| **carbon-intensity-service** | Carbon intensity data from National Grid | 8010 | ✅ Production Ready |
-| **electricity-pricing-service** | Real-time electricity pricing | 8011 | ✅ Production Ready |
-| **air-quality-service** | Air quality index and pollutants | 8012 | ✅ Production Ready |
-| **calendar-service** | Calendar integration (Google, Outlook, iCal) | 8013 | ✅ Production Ready |
-| **smart-meter-service** | Smart meter data integration | 8014 | ✅ Production Ready |
-| **weather-api** | Weather data integration | Internal | ✅ Production Ready |
+| Service | Reason | Deprecated | Migration Path |
+|---------|--------|------------|----------------|
+| **enrichment-pipeline** | Epic 31 - Direct writes to InfluxDB | Oct 2025 | Integration services write directly |
+| **calendar-service** | Low usage, complexity | Oct 2025 | Removed |
+| **sports-api** | Epic 11 - Replaced by sports-data | Sep 2025 | Use sports-data service (port 8005) |
 
 ## 📊 **Project Status**
 
@@ -178,21 +219,22 @@ docker-compose ps
 ## 📚 **Documentation**
 
 ### **📖 User Guides**
-- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions
-- **[User Manual](docs/USER_MANUAL.md)** - Comprehensive user guide
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - Command-line tools and commands
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING_GUIDE.md)** - Common issues and solutions
+- **[Quick Start Guide](QUICK_START.md)** - Get up and running quickly
+- **[User Manual](USER_MANUAL.md)** - Comprehensive user guide
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Complete deployment instructions
+- **[Troubleshooting Guide](TROUBLESHOOTING_GUIDE.md)** - Common issues and solutions
 
 ### **🔧 Technical Documentation**
-- **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference
-- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Production setup guide
-- **[Architecture Documentation](docs/architecture.md)** - System architecture details
-- **[Project Requirements](docs/REQUIREMENTS.md)** - Detailed requirements
+- **[API Documentation](API_DOCUMENTATION.md)** - Complete API reference
+- **[Services Overview](SERVICES_OVERVIEW.md)** - All services and their roles
+- **[Architecture Documentation](architecture/)** - System architecture details
+- **[Development Environment Setup](development-environment-setup.md)** - Development guide
+- **[Unit Testing Framework](UNIT_TESTING_FRAMEWORK.md)** - Testing guide
 
-### **📋 Project Documentation**
-- **[Project Completion Summary](docs/archive/summaries/PROJECT_COMPLETION_SUMMARY.md)** - Complete project overview
-- **[Final Project Status](../implementation/FINAL_PROJECT_STATUS.md)** - Final status report
-- **[Implementation Roadmap](docs/archive/planning/implementation-roadmap.md)** - Development roadmap
+### **🏗️ Architecture**
+- **[Architecture Overview](architecture/)** - System design and patterns
+- **[Performance Patterns](../CLAUDE.md)** - Performance best practices
+- **[Hybrid Database Architecture](HYBRID_DATABASE_ARCHITECTURE.md)** - InfluxDB + SQLite design
 
 ## 🔧 **Configuration**
 
@@ -343,24 +385,32 @@ docker-compose build
 
 ## 📄 **License**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the ISC License - see the [LICENSE](../LICENSE) file for details.
 
 ## 🙏 **Acknowledgments**
 
-- **Home Assistant** - For the excellent home automation platform
-- **InfluxDB** - For time-series database capabilities
-- **Docker** - For containerization and deployment
-- **React** - For the modern web interface
-- **OpenWeatherMap** - For weather data integration
+- [Home Assistant](https://www.home-assistant.io/) - Amazing home automation platform
+- [OpenVINO](https://github.com/openvinotoolkit/openvino) - AI inference optimization
+- [HuggingFace](https://huggingface.co/) - ML models and transformers
+- [InfluxDB](https://www.influxdata.com/) - Time-series database
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [React](https://react.dev/) - UI library
 
 ---
 
 ## 🎉 **Ready for Production!**
 
-**Home Assistant Ingestor is a complete, production-ready system for capturing, enriching, and analyzing Home Assistant events. With comprehensive monitoring, modern web interface, and enterprise-grade features, it's ready to handle your home automation data at scale.**
+**HomeIQ is an enterprise-grade intelligence layer for Home Assistant, providing AI-powered automation, pattern detection, and advanced analytics. With distributed AI services, comprehensive testing, and beautiful dashboards, it transforms your home automation experience.**
 
-**🚀 Deploy with confidence and start analyzing your home automation data today!**
+**🚀 Deploy today and unlock the full potential of your smart home!**
 
 ---
 
-**⭐ If you find this project useful, please consider giving it a star on GitHub!**
+**⭐ Star this repo if you find it helpful!**
+
+[Report Bug](https://github.com/wtthornton/HomeIQ/issues) · [Request Feature](https://github.com/wtthornton/HomeIQ/issues) · [Documentation](./)
+
+---
+
+**Last Updated:** October 25, 2025
+**For the main project README, see:** [../README.md](../README.md)
