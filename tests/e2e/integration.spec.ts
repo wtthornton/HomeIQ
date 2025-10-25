@@ -96,6 +96,7 @@ test.describe('Integration Tests', () => {
   });
 
   test('Weather data enrichment integration works', async ({ page }) => {
+    // Epic 31: Weather enrichment is now done inline in websocket-ingestion
     // Test weather API integration if enabled
     const weatherApiResponse = await page.request.get('http://localhost:8001/health');
     expect(weatherApiResponse.status()).toBe(200);
@@ -107,14 +108,8 @@ test.describe('Integration Tests', () => {
       const weatherHealthData = await weatherHealthResponse.json();
       expect(weatherHealthData.status).toBe('healthy');
       
-      // Verify weather data is being used in enrichment
-      const enrichHealthResponse = await page.request.get('http://localhost:8002/health');
-      const enrichHealthData = await enrichHealthResponse.json();
-      
-      // Check if weather enrichment is working
-      if (enrichHealthData.weather_enabled) {
-        expect(enrichHealthData.weather_status).toBe('healthy');
-      }
+      // Note: enrichment-pipeline is deprecated in Epic 31
+      // Weather enrichment is now done directly in websocket-ingestion
     }
   });
 
@@ -187,12 +182,7 @@ test.describe('Integration Tests', () => {
       expect(wsHealthData.dependencies?.influxdb).toBe('unhealthy');
     }
     
-    const enrichHealthResponse = await page.request.get('http://localhost:8002/health');
-    if (enrichHealthResponse.status() === 200) {
-      const enrichHealthData = await enrichHealthResponse.json();
-      // Service should report InfluxDB as unhealthy
-      expect(enrichHealthData.dependencies?.influxdb).toBe('unhealthy');
-    }
+    // Note: enrichment-pipeline is deprecated in Epic 31 (direct InfluxDB writes)
     
     // Check that admin API reports the error
     const adminHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
