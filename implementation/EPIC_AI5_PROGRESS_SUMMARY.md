@@ -138,14 +138,45 @@
 
 ---
 
+### 8. Story AI5.6: Convert Group B Detectors ✅
+**Files Modified:**
+- `services/ai-automation-service/src/pattern_detection/session_detector.py`
+- `services/ai-automation-service/src/pattern_detection/day_type_detector.py`
+
+**Changes:**
+- ✅ Added `aggregate_client` parameter to both detectors
+- ✅ Implemented `_store_weekly_aggregates()` method in both detectors
+- ✅ ISO week format (YYYY-WW) for weekly aggregates
+- ✅ Error handling and logging
+- ✅ Backward compatible
+
+---
+
+### 9. Story AI5.8: Convert Group C Detectors ✅
+**Files Modified:**
+- `services/ai-automation-service/src/pattern_detection/contextual_detector.py`
+- `services/ai-automation-service/src/pattern_detection/seasonal_detector.py`
+
+**Changes:**
+- ✅ Added `aggregate_client` parameter to both detectors
+- ✅ Implemented `_store_monthly_aggregates()` method in both detectors
+- ✅ YYYY-MM format for monthly aggregates
+- ✅ Error handling and logging
+- ✅ Backward compatible
+
+---
+
 ## 📊 Progress Metrics
 
-### Stories Completed: 5.0 / 11
+### Stories Completed: 8.0 / 11
 - ✅ AI5.1: Multi-Layer Storage Design
 - ✅ AI5.2: InfluxDB Daily Aggregates
 - ✅ AI5.3: Convert Group A Detectors (6/6 complete)
 - ✅ AI5.4: Daily Batch Job Refactoring
 - ✅ AI5.5: Weekly/Monthly Aggregation Layer
+- ✅ AI5.6: Convert Group B Detectors
+- ✅ AI5.7: ~~Monthly Aggregation Layer~~ (Included in AI5.5)
+- ✅ AI5.8: Convert Group C Detectors
 
 ### Files Created: 4
 - `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
@@ -153,13 +184,17 @@
 - `docs/deployment/AI5_INFLUXDB_BUCKETS_SETUP.md`
 - `implementation/EPIC_AI5_EXECUTION_READINESS.md`
 
-### Files Modified: 10
+### Files Modified: 16
 - `services/ai-automation-service/src/pattern_analyzer/time_of_day.py`
 - `services/ai-automation-service/src/pattern_analyzer/co_occurrence.py`
 - `services/ai-automation-service/src/pattern_detection/sequence_detector.py`
 - `services/ai-automation-service/src/pattern_detection/room_based_detector.py`
 - `services/ai-automation-service/src/pattern_detection/duration_detector.py`
 - `services/ai-automation-service/src/pattern_detection/anomaly_detector.py`
+- `services/ai-automation-service/src/pattern_detection/session_detector.py`
+- `services/ai-automation-service/src/pattern_detection/day_type_detector.py`
+- `services/ai-automation-service/src/pattern_detection/contextual_detector.py`
+- `services/ai-automation-service/src/pattern_detection/seasonal_detector.py`
 - `services/ai-automation-service/src/scheduler/daily_analysis.py`
 - `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
 - `implementation/EPIC_AI5_PROGRESS_SUMMARY.md`
@@ -168,6 +203,34 @@
 - ✅ 2 InfluxDB buckets created
 - ✅ Retention policies configured
 - ✅ Ready for aggregate storage
+
+---
+
+### Stories AI5.6-5.8: Detector Conversions
+**Still Pending:**
+- AI5.6: Convert Group B Detectors to Weekly (Session, Day-type)
+- AI5.7: ~~Monthly Aggregation Layer~~ (Included in AI5.5)
+- AI5.8: Convert Group C Detectors to Monthly (Contextual, Seasonal)
+
+---
+
+### Story AI5.6: Group B Detectors ✅ COMPLETE
+**Session and Day-type detectors now use weekly aggregation**
+
+---
+
+### Story AI5.8: Group C Detectors ✅ COMPLETE
+**Contextual and Seasonal detectors now use monthly aggregation**
+
+---
+
+### Stories AI5.9-5.11: Cleanup & Migration
+**Remaining Work:**
+- AI5.9: Data Retention Policies & Cleanup (infrastructure exists, needs integration)
+- AI5.10: Performance Testing & Validation
+- AI5.11: Migration Script & Backward Compatibility
+
+**Note:** The `data-retention` service already exists and implements retention policies. Stories AI5.9-5.11 would integrate with this service and add performance testing and migration support.
 
 ---
 
@@ -197,10 +260,12 @@
 ---
 
 ### Stories AI5.9-5.11: Cleanup & Migration
-**Still Pending:**
-- AI5.9: Data Retention Policies & Cleanup
+**Remaining Work:**
+- AI5.9: Data Retention Policies & Cleanup (infrastructure exists, needs integration)
 - AI5.10: Performance Testing & Validation
 - AI5.11: Migration Script & Backward Compatibility
+
+**Note:** The `data-retention` service already exists and implements retention policies. Stories AI5.9-5.11 would integrate with this service and add performance testing and migration support.
 
 ---
 
@@ -314,4 +379,4 @@
 
 **Document Status:** Progress Tracking  
 **Last Updated:** October 24, 2025  
-**Next Update:** After Story AI5.6 (Group B Detectors)
+**Epic Status:** 73% Complete (8/11 stories) - Core functionality complete, testing/migration remaining
