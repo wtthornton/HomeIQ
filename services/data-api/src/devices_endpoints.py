@@ -305,7 +305,7 @@ async def get_device_reliability(
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
 async def list_entities(
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities to return"),
+    limit: int = Query(default=100, ge=1, le=10000, description="Maximum number of entities to return"),
     domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: Optional[str] = Query(default=None, description="Filter by platform"),
     device_id: Optional[str] = Query(default=None, description="Filter by device ID"),

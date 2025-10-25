@@ -7,9 +7,9 @@ scikit-learn and pandas optimizations to identify recurring behaviors
 in Home Assistant events.
 """
 
-# Existing detectors
-from .time_of_day import TimeOfDayPatternDetector
-from .co_occurrence import CoOccurrencePatternDetector
+# Existing detectors (imported from pattern_analyzer)
+from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 
 # New ML-enhanced detectors
 from .ml_pattern_detector import MLPatternDetector

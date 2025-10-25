@@ -31,19 +31,35 @@ class Settings(BaseSettings):
     # Home Assistant Configuration
     HA_URL: str = Field(
         default="http://homeassistant:8123",
-        description="Home Assistant URL"
+        description="Home Assistant URL (primary)"
     )
     HA_WS_URL: Optional[str] = Field(
         default=None,
-        description="Home Assistant WebSocket URL"
-    )
-    NABU_CASA_URL: Optional[str] = Field(
-        default=None,
-        description="Nabu Casa URL for remote access"
+        description="Home Assistant WebSocket URL (primary)"
     )
     HA_TOKEN: Optional[str] = Field(
         default=None,
-        description="Home Assistant long-lived access token"
+        description="Home Assistant long-lived access token (primary)"
+    )
+    
+    # Nabu Casa Fallback Configuration
+    NABU_CASA_URL: Optional[str] = Field(
+        default=None,
+        description="Nabu Casa URL for remote access fallback"
+    )
+    NABU_CASA_TOKEN: Optional[str] = Field(
+        default=None,
+        description="Nabu Casa long-lived access token for fallback"
+    )
+    
+    # Local HA Fallback Configuration (Optional)
+    LOCAL_HA_URL: Optional[str] = Field(
+        default=None,
+        description="Local Home Assistant URL for additional fallback"
+    )
+    LOCAL_HA_TOKEN: Optional[str] = Field(
+        default=None,
+        description="Local Home Assistant token for additional fallback"
     )
     
     # MQTT Configuration

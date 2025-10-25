@@ -4,3 +4,4 @@ python-dotenv==1.0.0
 pydantic==2.5.2
 psutil==5.9.6
 influxdb-client==1.38.0
+websockets==12.0

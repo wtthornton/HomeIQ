@@ -13,7 +13,7 @@ from datetime import datetime
 
 # revision identifiers, used by Alembic.
 revision = '20251019_nlevel'
-down_revision = '20251018_add_synergy_opportunities'  # Previous migration
+down_revision = '20251018_synergy'  # Previous migration
 branch_labels = None
 depends_on = None
 

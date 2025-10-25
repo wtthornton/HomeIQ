@@ -16,6 +16,7 @@ from influxdb_client_3 import InfluxDBClient3, Point
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from shared.logging_config import setup_logging, log_with_context, log_error_with_context
+from shared.ha_connection_manager import ha_connection_manager
 
 from health_check import HealthCheckHandler
 from ha_client import HomeAssistantCalendarClient
@@ -30,9 +31,7 @@ class CalendarService:
     """Home Assistant Calendar integration for occupancy prediction"""
     
     def __init__(self):
-        # Home Assistant configuration (support both new and old variable names)
-        self.ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
-        self.ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+        # Calendar configuration
         self.calendar_entities = os.getenv('CALENDAR_ENTITIES', 'calendar.primary').split(',')
         
         # InfluxDB configuration
@@ -50,9 +49,7 @@ class CalendarService:
         self.influxdb_client: Optional[InfluxDBClient3] = None
         self.health_handler = HealthCheckHandler()
         
-        # Validate
-        if not self.ha_url or not self.ha_token:
-            raise ValueError("HA_HTTP_URL and HA_TOKEN required")
+        # Validate InfluxDB configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN required")
         
@@ -64,10 +61,25 @@ class CalendarService:
         """Initialize service"""
         logger.info("Initializing Calendar Service (Home Assistant Integration)...")
         
+        # Get HA connection using the connection manager with fallback
+        connection_config = await ha_connection_manager.get_connection()
+        
+        if not connection_config:
+            logger.error("No Home Assistant connections available")
+            self.health_handler.ha_connected = False
+            raise ConnectionError("No Home Assistant connections available. Configure HA_HTTP_URL/HA_WS_URL + HA_TOKEN or NABU_CASA_URL + NABU_CASA_TOKEN")
+        
+        logger.info(f"Using HA connection: {connection_config.name} ({connection_config.url})")
+        
+        # Convert WebSocket URL to HTTP URL for calendar client
+        http_url = connection_config.url.replace('ws://', 'http://').replace('wss://', 'https://')
+        if http_url.endswith('/api/websocket'):
+            http_url = http_url.replace('/api/websocket', '')
+        
         # Initialize Home Assistant client
         self.ha_client = HomeAssistantCalendarClient(
-            base_url=self.ha_url,
-            token=self.ha_token
+            base_url=http_url,
+            token=connection_config.token
         )
         
         await self.ha_client.connect()
@@ -77,7 +89,7 @@ class CalendarService:
         if not connection_ok:
             logger.error("Failed to connect to Home Assistant")
             self.health_handler.ha_connected = False
-            raise ConnectionError(f"Cannot connect to Home Assistant at {self.ha_url}")
+            raise ConnectionError(f"Cannot connect to Home Assistant at {http_url}")
         
         self.health_handler.ha_connected = True
         
