@@ -114,7 +114,7 @@ async function globalSetup(config: FullConfig) {
     }
     
     try {
-      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events/recent?limit=10', { timeout: 10000 });
+      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10', { timeout: 10000 });
       if (eventsResponse.status() === 200) {
         console.log('✓ Admin API events endpoint is working');
       }

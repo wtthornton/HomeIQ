@@ -61,7 +61,7 @@ test.describe('System Health Tests', () => {
   });
 
   test('Recent events endpoint returns data', async ({ page }) => {
-    const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events/recent?limit=10');
+    const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10');
     expect(eventsResponse.status()).toBe(200);
     
     const eventsData = await eventsResponse.json();
