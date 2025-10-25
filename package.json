@@ -8,7 +8,13 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "python scripts/simple-unit-tests.py",
+    "test:unit": "python scripts/simple-unit-tests.py",
+    "test:unit:python": "python scripts/simple-unit-tests.py --python-only",
+    "test:unit:typescript": "python scripts/simple-unit-tests.py --typescript-only",
+    "test:e2e": "cd tests/e2e && npx playwright test",
+    "test:coverage": "python scripts/simple-unit-tests.py && echo 'Coverage reports available in test-results/coverage/'",
+    "validate": "node validate-deployment.js"
   },
   "repository": {
     "type": "git",

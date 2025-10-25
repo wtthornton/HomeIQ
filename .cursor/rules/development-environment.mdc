@@ -80,6 +80,14 @@ description: Development environment setup and configuration
 - Mock external dependencies appropriately
 - Run tests in CI/CD pipeline
 
+### Unit Testing Framework
+- Use the project's unified unit testing framework: `python scripts/simple-unit-tests.py`
+- Run unit tests before committing changes
+- Check coverage reports in `test-results/coverage/`
+- Use cross-platform scripts: `./run-unit-tests.sh` (Linux/Mac) or `.\run-unit-tests.ps1` (Windows)
+- Current coverage: 272+ unit tests across all services
+- Framework automatically excludes integration/e2e/visual tests
+
 ### Documentation
 - Use Markdown for documentation
 - Include README files for all projects

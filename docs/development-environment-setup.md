@@ -171,6 +171,30 @@ export default defineConfig({
 }
 ```
 
+### **Unit Testing Framework**
+
+The project includes a comprehensive unit testing framework that runs all unit tests with coverage:
+
+```bash
+# Run all unit tests (recommended)
+python scripts/simple-unit-tests.py
+
+# Run with options
+python scripts/simple-unit-tests.py --python-only
+python scripts/simple-unit-tests.py --typescript-only
+
+# Cross-platform scripts
+./run-unit-tests.sh                    # Linux/Mac
+.\run-unit-tests.ps1                    # Windows
+```
+
+**Coverage Reports:**
+- **Python Coverage**: `test-results/coverage/python/index.html`
+- **TypeScript Coverage**: `test-results/coverage/typescript/index.html`
+- **Summary Report**: `test-results/unit-test-report.html`
+
+**Current Coverage**: 272+ unit tests across all services
+
 ## 🐳 **Docker Development**
 
 ### **Development Docker Compose**
@@ -335,9 +359,9 @@ docker-compose -f docker-compose.dev.yml down
 ### **Daily Development Process**
 1. **Pull latest changes**: `git pull origin main`
 2. **Start development server**: `npm run dev`
-3. **Run tests**: `npm test`
+3. **Run unit tests**: `python scripts/simple-unit-tests.py`
 4. **Make changes** following the implementation guides
-5. **Test changes**: `npm run test:e2e`
+5. **Test changes**: `python scripts/simple-unit-tests.py` and `npm run test:e2e`
 6. **Commit changes**: `git add . && git commit -m "feat: description"`
 7. **Push changes**: `git push origin feature-branch`
 
@@ -399,13 +423,15 @@ Before starting development, verify:
 
 - [ ] Node.js 18+ installed
 - [ ] npm 8+ installed
+- [ ] Python 3.10+ installed
 - [ ] Git configured
 - [ ] VS Code with recommended extensions
 - [ ] Repository cloned
 - [ ] Dependencies installed
 - [ ] Environment variables configured
 - [ ] Development server starts successfully
-- [ ] Tests run without errors
+- [ ] Unit tests run without errors (`python scripts/simple-unit-tests.py`)
+- [ ] E2E tests run without errors
 - [ ] Playwright browsers installed
 
 ## 🎯 **Next Steps**

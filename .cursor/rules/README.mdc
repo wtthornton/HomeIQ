@@ -46,11 +46,12 @@ Use `@agent-name` to activate specific BMAD agents:
 @analyst       # Business analysis
 ```
 
-### Agent Commands
-All BMAD agents use `*` prefix for commands:
-- `*help` - Show available commands
-- `*exit` - Exit agent persona
-- `*yolo` - Toggle Yolo mode (skip confirmations)
+### QA Agent Commands
+- `*unit-tests` - Run the project's unified unit testing framework
+- `*gate {story}` - Execute quality gate decision
+- `*review {story}` - Comprehensive story review
+- `*test-design {story}` - Create test scenarios
+- `*trace {story}` - Map requirements to tests
 
 ### Context7 KB Integration Commands (BMad Master)
 - `*context7-resolve {library}` - Resolve library name to Context7-compatible library ID
@@ -94,8 +95,9 @@ Rules with `description` can be manually invoked:
 3. **Security First**: Always consider security implications
 4. **Document Everything**: Keep documentation up-to-date
 5. **Test Thoroughly**: Write tests for all new functionality
-6. **Leverage Context7 KB**: Use Context7 KB cache for up-to-date library documentation with intelligent caching
-7. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
+6. **Run Unit Tests**: Use `python scripts/simple-unit-tests.py` before committing changes
+7. **Leverage Context7 KB**: Use Context7 KB cache for up-to-date library documentation with intelligent caching
+8. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
 
 ## Getting Help
 

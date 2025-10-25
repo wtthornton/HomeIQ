@@ -79,6 +79,7 @@ commands:
   - context7-docs {library} {topic}: Get focused documentation (KB-first, then Context7)
   - context7-kb-search {query}: Search local knowledge base
   - context7-kb-status: Show knowledge base statistics and hit rates
+  - unit-tests: Run the project's unified unit testing framework
   - exit: Say goodbye as the Test Architect, and then abandon inhabiting this persona
 dependencies:
   data:

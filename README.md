@@ -231,6 +231,8 @@ docker-compose up -d
 - [Architecture Documentation](docs/architecture/)
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 - [Docker Optimization](docs/DOCKER_OPTIMIZATION_PLAN.md)
+- [Unit Testing Framework](docs/UNIT_TESTING_FRAMEWORK.md)
+- [Unit Testing Quick Start](docs/UNIT_TESTING_QUICK_START.md)
 
 ### Implementation Notes
 - [AI Pattern Detection Plan](implementation/AI_PATTERN_DETECTION_IMPLEMENTATION_PLAN.md)
@@ -292,18 +294,43 @@ npm run dev
 ### Running Tests
 
 ```bash
-# E2E Tests
-cd tests/e2e
-npm install
-npx playwright test
+# Unit Tests (Recommended) - Runs all unit tests with coverage
+python scripts/simple-unit-tests.py
 
-# Python Unit Tests
+# Using npm scripts
+npm test                           # Run all unit tests
+npm run test:unit:python          # Python tests only
+npm run test:unit:typescript      # TypeScript tests only
+npm run test:coverage             # Run tests and show coverage info
+
+# Unit Tests with options
+python scripts/simple-unit-tests.py --python-only
+python scripts/simple-unit-tests.py --typescript-only
+
+# Cross-platform scripts
+./run-unit-tests.sh                    # Linux/Mac
+.\run-unit-tests.ps1                    # Windows
+
+# E2E Tests
+npm run test:e2e
+
+# Individual service tests
 cd services/ai-automation-service
 pytest tests/
 
 # Deployment Validation
-./scripts/verify-deployment.sh
+npm run validate
 ```
+
+### Test Coverage
+
+The unit testing framework provides comprehensive coverage reports:
+
+- **Python Coverage**: `test-results/coverage/python/index.html`
+- **TypeScript Coverage**: `test-results/coverage/typescript/index.html`
+- **Summary Report**: `test-results/unit-test-report.html`
+
+**Current Coverage**: 272+ unit tests across all services
 
 ---
 
@@ -355,6 +382,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **APIs**: RESTful, WebSocket, MQTT
 - **UI Frameworks**: React, Vite
 - **AI/ML**: OpenVINO, Transformers, Sentence-BERT
+- **Testing**: 272+ unit tests with comprehensive coverage
 - **Lines of Code**: 50,000+
 
 ---
