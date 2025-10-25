@@ -102,6 +102,8 @@ export const CoreSystemCard: React.FC<CoreSystemCardProps> = ({
       role={onExpand ? 'button' : 'article'}
       tabIndex={onExpand ? 0 : undefined}
       aria-label={`${title} system component - ${status}. Click for details.`}
+      data-testid="health-card"
+      data-status={status}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

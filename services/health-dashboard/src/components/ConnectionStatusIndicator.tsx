@@ -74,6 +74,8 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
     <div 
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${config.bgColor} ${config.borderColor} ${config.textColor} transition-all duration-200`}
       title={`Connection status: ${connectionState}`}
+      data-testid="websocket-status"
+      data-connected={connectionState === 'connected'}
     >
       <span className={`text-sm ${config.pulse ? 'live-pulse-dot' : ''}`}>
         {config.icon}
