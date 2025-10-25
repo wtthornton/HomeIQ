@@ -22,7 +22,7 @@ from shared.logging_config import (
     set_correlation_id, get_correlation_id
 )
 from shared.correlation_middleware import create_correlation_middleware
-from shared.ha_connection_manager import ha_connection_manager
+from shared.enhanced_ha_connection_manager import ha_connection_manager
 
 from health_check import HealthCheckHandler
 from connection_manager import ConnectionManager
@@ -233,8 +233,8 @@ class WebSocketIngestionService:
             
             # Initialize connection manager (only if Home Assistant is enabled)
             if self.home_assistant_enabled:
-                # Use the new HA connection manager with automatic fallback
-                connection_config = await ha_connection_manager.get_connection()
+                # Use the enhanced HA connection manager with circuit breaker protection
+                connection_config = await ha_connection_manager.get_connection_with_circuit_breaker()
                 
                 if not connection_config:
                     raise ValueError("No Home Assistant connections available. Configure HA_HTTP_URL/HA_WS_URL + HA_TOKEN or NABU_CASA_URL + NABU_CASA_TOKEN")

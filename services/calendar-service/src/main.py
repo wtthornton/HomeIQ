@@ -16,7 +16,7 @@ from influxdb_client_3 import InfluxDBClient3, Point
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from shared.logging_config import setup_logging, log_with_context, log_error_with_context
-from shared.ha_connection_manager import ha_connection_manager
+from shared.enhanced_ha_connection_manager import ha_connection_manager
 
 from health_check import HealthCheckHandler
 from ha_client import HomeAssistantCalendarClient
@@ -61,8 +61,8 @@ class CalendarService:
         """Initialize service"""
         logger.info("Initializing Calendar Service (Home Assistant Integration)...")
         
-        # Get HA connection using the connection manager with fallback
-        connection_config = await ha_connection_manager.get_connection()
+        # Get HA connection using the enhanced connection manager with circuit breaker protection
+        connection_config = await ha_connection_manager.get_connection_with_circuit_breaker()
         
         if not connection_config:
             logger.error("No Home Assistant connections available")

@@ -10,12 +10,18 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from ..clients.ha_client import HomeAssistantClient, HADevice, HAEntity, HAArea
+from ..clients.ha_client import HADevice, HAEntity, HAArea
 from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
 from .device_parser import DeviceParser, UnifiedDevice
 from ..services.device_service import DeviceService
 from ..core.database import get_db_session
 from ..config import Settings
+
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
+
+from shared.enhanced_ha_connection_manager import ha_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +44,8 @@ class DiscoveryService:
     def __init__(self, settings: Settings):
         self.settings = settings
         
-        # Clients
-        self.ha_client = HomeAssistantClient(
-            settings.get_ha_ws_url(), 
-            settings.get_nabu_casa_ws_url(),
-            settings.HA_TOKEN
-        )
+        # Clients - HA client will be initialized with unified connection manager
+        self.ha_client = None  # Will be initialized in start() method
         self.mqtt_client = MQTTClient(
             settings.MQTT_BROKER,
             settings.MQTT_USERNAME,
@@ -71,6 +73,23 @@ class DiscoveryService:
         """Start the discovery service."""
         try:
             logger.info("🚀 Starting Device Intelligence Discovery Service")
+            
+            # Get HA connection using the enhanced connection manager with circuit breaker protection
+            connection_config = await ha_connection_manager.get_connection_with_circuit_breaker()
+            
+            if not connection_config:
+                logger.error("❌ No Home Assistant connections available")
+                return False
+            
+            logger.info(f"✅ Using HA connection: {connection_config.name} ({connection_config.url})")
+            
+            # Initialize HA client with the connection from unified manager
+            from ..clients.ha_client import HomeAssistantClient
+            self.ha_client = HomeAssistantClient(
+                connection_config.url, 
+                None,  # No fallback needed - unified manager handles this
+                connection_config.token
+            )
             
             # Connect to Home Assistant
             if not await self.ha_client.connect():
@@ -116,7 +135,8 @@ class DiscoveryService:
                 pass
         
         # Disconnect clients
-        await self.ha_client.disconnect()
+        if self.ha_client:
+            await self.ha_client.disconnect()
         await self.mqtt_client.disconnect()
         
         logger.info("✅ Discovery service stopped")
@@ -327,7 +347,7 @@ class DiscoveryService:
         """Get discovery service status."""
         return DiscoveryStatus(
             service_running=self.running,
-            ha_connected=self.ha_client.is_connected(),
+            ha_connected=self.ha_client.is_connected() if self.ha_client else False,
             mqtt_connected=self.mqtt_client.is_connected(),
             last_discovery=self.last_discovery,
             devices_count=len(self.unified_devices),

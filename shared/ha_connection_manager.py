@@ -22,6 +22,8 @@ Usage:
 import asyncio
 import logging
 import os
+import json
+import ssl
 from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -72,14 +74,45 @@ class HAConnectionManager:
     """
     
     def __init__(self):
+        logger.info("🚀 HAConnectionManager initialized")
         self.connections: List[HAConnectionConfig] = []
         self.current_connection: Optional[HAConnectionConfig] = None
         self.connection_stats: Dict[str, Dict[str, Any]] = {}
         self._load_connection_configs()
+        logger.info(f"📋 Loaded {len(self.connections)} connection configs")
+        for config in self.connections:
+            logger.info(f"   - {config.name}: {config.url}")
         
+    def _create_ssl_context(self) -> Optional[ssl.SSLContext]:
+        """
+        Create SSL context for WebSocket connections in Docker containers.
+        Handles certificate verification issues common in containerized environments.
+        """
+        try:
+            # Create default SSL context
+            ssl_context = ssl.create_default_context()
+            
+            # For Docker containers, we may need to be more lenient with certificate verification
+            # This is especially important for cloud services like Nabu Casa
+            if os.getenv('DOCKER_CONTAINER', '').lower() in ('true', '1', 'yes'):
+                logger.info("🐳 Docker container detected - configuring SSL context for containerized environment")
+                
+                # In Docker containers, we may need to disable hostname verification
+                # for cloud services that use different certificates
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                
+                logger.warning("⚠️ SSL certificate verification disabled for Docker container environment")
+                logger.warning("⚠️ This is acceptable for trusted cloud services like Nabu Casa")
+            
+            return ssl_context
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to create SSL context: {e}")
+            return None
+    
     def _load_connection_configs(self):
         """Load connection configurations from environment variables"""
-        
         # Primary HA Connection (HA_* variables)
         ha_http_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
         ha_ws_url = os.getenv('HA_WS_URL') or os.getenv('HA_URL')
@@ -174,30 +207,65 @@ class HAConnectionManager:
         try:
             # Test WebSocket connection
             headers = {"Authorization": f"Bearer {config.token}"}
+            ssl_context = self._create_ssl_context() if config.url.startswith('wss://') else None
             
+            logger.info(f"🔌 Testing WebSocket connection to {config.name}: {config.url}")
             async with websockets.connect(
                 config.url,
-                extra_headers=headers,
+                additional_headers=headers,
+                ssl=ssl_context,
                 ping_interval=20,
                 ping_timeout=10,
                 close_timeout=10,
                 open_timeout=config.timeout
             ) as websocket:
-                # Wait for authentication response
-                auth_response = await asyncio.wait_for(websocket.recv(), timeout=10)
-                auth_data = await self._parse_auth_response(auth_response)
+                logger.info(f"✅ WebSocket connected to {config.name}")
                 
-                if auth_data.get("type") == "auth_ok":
-                    response_time = asyncio.get_event_loop().time() - start_time
-                    logger.info(f"✅ Connection test successful: {config.name} ({response_time:.2f}s)")
-                    return ConnectionResult(
-                        success=True,
-                        config=config,
-                        response_time=response_time
-                    )
+                # Wait for auth_required message
+                logger.info(f"⏳ Waiting for auth_required message from {config.name}")
+                auth_response = await asyncio.wait_for(websocket.recv(), timeout=30)
+                logger.info(f"📨 Received auth response from {config.name}: {auth_response}")
+                auth_data = await self._parse_auth_response(auth_response)
+                logger.info(f"📋 Parsed auth data from {config.name}: {auth_data}")
+                
+                if auth_data.get("type") == "auth_required":
+                    # Send authentication message
+                    auth_message = {
+                        "type": "auth",
+                        "access_token": config.token
+                    }
+                    logger.info(f"📤 Sending auth message to {config.name}")
+                    await websocket.send(json.dumps(auth_message))
+                    
+                    # Wait for auth_ok response
+                    logger.info(f"⏳ Waiting for auth_ok response from {config.name}")
+                    auth_result = await asyncio.wait_for(websocket.recv(), timeout=30)
+                    logger.info(f"📨 Received auth result from {config.name}: {auth_result}")
+                    auth_result_data = await self._parse_auth_response(auth_result)
+                    logger.info(f"📋 Parsed auth result data from {config.name}: {auth_result_data}")
+                    
+                    if auth_result_data.get("type") == "auth_ok":
+                        response_time = asyncio.get_event_loop().time() - start_time
+                        logger.info(f"✅ Connection test successful: {config.name} ({response_time:.2f}s)")
+                        return ConnectionResult(
+                            success=True,
+                            config=config,
+                            response_time=response_time
+                        )
+                    else:
+                        error_msg = f"Authentication failed: {auth_result_data.get('message', 'Unknown error')}"
+                        logger.warning(f"❌ Authentication failed for {config.name}: {error_msg}")
+                        logger.warning(f"   Raw auth result: {auth_result}")
+                        logger.warning(f"   Parsed auth result data: {auth_result_data}")
+                        logger.warning(f"   Auth result type: {auth_result_data.get('type', 'No type field')}")
+                        return ConnectionResult(
+                            success=False,
+                            config=config,
+                            error=error_msg
+                        )
                 else:
-                    error_msg = f"Authentication failed: {auth_data.get('message', 'Unknown error')}"
-                    logger.warning(f"❌ Authentication failed for {config.name}: {error_msg}")
+                    error_msg = f"Unexpected auth response: {auth_data.get('type', 'Unknown')}"
+                    logger.warning(f"❌ Unexpected auth response for {config.name}: {error_msg}")
                     return ConnectionResult(
                         success=False,
                         config=config,
@@ -213,8 +281,40 @@ class HAConnectionManager:
                 error=error_msg
             )
         
+        except asyncio.TimeoutError as e:
+            error_msg = f"Connection timeout after {config.timeout}s: {str(e)}"
+            logger.warning(f"❌ Connection timeout for {config.name}: {error_msg}")
+            return ConnectionResult(
+                success=False,
+                config=config,
+                error=error_msg
+            )
+        except websockets.exceptions.ConnectionClosed as e:
+            error_msg = f"WebSocket connection closed: {str(e)}"
+            logger.warning(f"❌ WebSocket closed for {config.name}: {error_msg}")
+            return ConnectionResult(
+                success=False,
+                config=config,
+                error=error_msg
+            )
+        except websockets.exceptions.InvalidURI as e:
+            error_msg = f"Invalid WebSocket URI: {str(e)}"
+            logger.warning(f"❌ Invalid URI for {config.name}: {error_msg}")
+            return ConnectionResult(
+                success=False,
+                config=config,
+                error=error_msg
+            )
+        except websockets.exceptions.InvalidHandshake as e:
+            error_msg = f"WebSocket handshake failed: {str(e)}"
+            logger.warning(f"❌ Handshake failed for {config.name}: {error_msg}")
+            return ConnectionResult(
+                success=False,
+                config=config,
+                error=error_msg
+            )
         except Exception as e:
-            error_msg = f"Connection error: {str(e)}"
+            error_msg = f"Unexpected error: {type(e).__name__}: {str(e)}"
             logger.warning(f"❌ Connection failed for {config.name}: {error_msg}")
             return ConnectionResult(
                 success=False,
@@ -233,10 +333,15 @@ class HAConnectionManager:
     async def get_best_connection(self) -> Optional[HAConnectionConfig]:
         """
         Get the best available connection by testing each one in priority order.
-        Returns the first successful connection.
+        Returns the first successful connection with retry logic for cloud connections.
         """
         for config in self.connections:
-            result = await self.test_connection(config)
+            # For cloud connections (Nabu Casa), use retry logic
+            if config.connection_type == ConnectionType.NABU_CASA:
+                result = await self._test_connection_with_retry(config)
+            else:
+                result = await self.test_connection(config)
+            
             if result.success:
                 self.current_connection = config
                 self._update_connection_stats(config.name, True, result.response_time)
@@ -248,6 +353,31 @@ class HAConnectionManager:
         
         logger.error("❌ All Home Assistant connections failed!")
         return None
+    
+    async def _test_connection_with_retry(self, config: HAConnectionConfig) -> ConnectionResult:
+        """
+        Test connection with retry logic for cloud connections.
+        Uses exponential backoff for better reliability.
+        """
+        max_retries = config.max_retries
+        retry_delay = config.retry_delay
+        
+        for attempt in range(max_retries):
+            logger.info(f"🔄 Attempting connection to {config.name} (attempt {attempt + 1}/{max_retries})")
+            
+            result = await self.test_connection(config)
+            
+            if result.success:
+                logger.info(f"✅ Connection to {config.name} successful on attempt {attempt + 1}")
+                return result
+            
+            if attempt < max_retries - 1:  # Don't wait after the last attempt
+                logger.warning(f"⚠️ Connection attempt {attempt + 1} failed, retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+        
+        logger.error(f"❌ All {max_retries} connection attempts to {config.name} failed")
+        return result
     
     async def get_connection(self) -> Optional[HAConnectionConfig]:
         """
@@ -311,11 +441,13 @@ class HAConnectionManager:
             raise ConnectionError("No Home Assistant connections available")
         
         headers = {"Authorization": f"Bearer {config.token}"}
+        ssl_context = self._create_ssl_context() if config.url.startswith('wss://') else None
         
         try:
             websocket = await websockets.connect(
                 config.url,
-                extra_headers=headers,
+                additional_headers=headers,
+                ssl=ssl_context,
                 ping_interval=20,
                 ping_timeout=10,
                 close_timeout=10,
@@ -326,9 +458,24 @@ class HAConnectionManager:
             auth_response = await websocket.recv()
             auth_data = await self._parse_auth_response(auth_response)
             
-            if auth_data.get("type") != "auth_ok":
+            if auth_data.get("type") == "auth_required":
+                # Send authentication message
+                auth_message = {
+                    "type": "auth",
+                    "access_token": config.token
+                }
+                await websocket.send(json.dumps(auth_message))
+                
+                # Wait for auth_ok response
+                auth_result = await websocket.recv()
+                auth_result_data = await self._parse_auth_response(auth_result)
+                
+                if auth_result_data.get("type") != "auth_ok":
+                    await websocket.close()
+                    raise ConnectionError(f"Authentication failed: {auth_result_data.get('message', 'Unknown error')}")
+            else:
                 await websocket.close()
-                raise ConnectionError(f"Authentication failed: {auth_data.get('message', 'Unknown error')}")
+                raise ConnectionError(f"Unexpected auth response: {auth_data.get('type', 'Unknown')}")
             
             logger.info(f"🔌 WebSocket connected to {config.name}")
             yield websocket

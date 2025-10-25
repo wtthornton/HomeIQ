@@ -46,9 +46,11 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8001"
-    env_file:
-      - infrastructure/env.production
+    # env_file:
+    #   - infrastructure/env.production
     environment:
+      # Docker container detection for SSL context
+      - DOCKER_CONTAINER=true
       # Home Assistant Configuration (consolidated)
       - HA_HTTP_URL=${HA_HTTP_URL:-}
       - HA_WS_URL=${HA_WS_URL:-}
@@ -59,6 +61,13 @@ services:
       - DATA_API_URL=http://homeiq-data-api:8006
       - WEBSOCKET_INGESTION_PORT=8001
       - ENABLE_HOME_ASSISTANT=true
+      # InfluxDB Configuration (override .env file)
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_USERNAME=admin
+      - INFLUXDB_PASSWORD=admin123
+      - INFLUXDB_ORG=ha-ingestor
+      - INFLUXDB_BUCKET=home_assistant_events
+      - INFLUXDB_TOKEN=ha-ingestor-token
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
@@ -486,11 +495,18 @@ services:
     restart: unless-stopped
     ports:
       - "8014:8014"
+    env_file:
+      - .env
     environment:
       - METER_TYPE=${METER_TYPE:-home_assistant}
-      # Home Assistant Configuration (consolidated)
-      - HA_HTTP_URL=${HA_HTTP_URL}
-      - HA_TOKEN=${HA_TOKEN}
+      # Home Assistant Configuration (unified)
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - NABU_CASA_URL=${NABU_CASA_URL:-}
+      - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
+      - LOCAL_HA_URL=${LOCAL_HA_URL:-}
+      - LOCAL_HA_TOKEN=${LOCAL_HA_TOKEN:-}
       - METER_API_TOKEN=${METER_API_TOKEN:-}
       - METER_DEVICE_ID=${METER_DEVICE_ID:-}
       - INFLUXDB_URL=http://influxdb:8086

@@ -65,8 +65,7 @@ class SimpleUnitTestRunner:
         
         # Use the updated pytest configuration
         cmd = [
-            "python", "-m", "pytest",
-            "--config=pytest-unit.ini",
+            "python", "-m", "pytest", "-c", "pytest-unit.ini",
             "--verbose",
             "--tb=short",
             "--cov-report=html:test-results/coverage/python",

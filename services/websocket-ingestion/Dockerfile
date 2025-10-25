@@ -18,8 +18,8 @@ FROM python:3.12-alpine AS production
 # Set working directory
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache curl
+# Install runtime dependencies including CA certificates
+RUN apk add --no-cache curl ca-certificates
 
 # Create non-root user first
 RUN addgroup -g 1001 -S appgroup && \
