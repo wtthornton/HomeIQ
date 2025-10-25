@@ -3,12 +3,15 @@ Co-Occurrence Pattern Detector
 
 Detects devices that are frequently used together within a time window.
 Uses simple sliding window approach with association rule mining concepts.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import pandas as pd
 import numpy as np
 from collections import defaultdict
 from typing import List, Dict, Tuple, Optional
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +32,8 @@ class CoOccurrencePatternDetector:
         self,
         window_minutes: int = 5,
         min_support: int = 5,
-        min_confidence: float = 0.7
+        min_confidence: float = 0.7,
+        aggregate_client=None
     ):
         """
         Initialize co-occurrence detector.
@@ -38,10 +42,12 @@ class CoOccurrencePatternDetector:
             window_minutes: Time window for co-occurrence (default: 5 minutes)
             min_support: Minimum number of co-occurrences (default: 5)
             min_confidence: Minimum confidence threshold 0.0-1.0 (default: 0.7)
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
         """
         self.window_minutes = window_minutes
         self.min_support = min_support
         self.min_confidence = min_confidence
+        self.aggregate_client = aggregate_client
         logger.info(
             f"CoOccurrencePatternDetector initialized: "
             f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}"
@@ -172,7 +178,74 @@ class CoOccurrencePatternDetector:
                 )
         
         logger.info(f"✅ Detected {len(patterns)} co-occurrence patterns")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events.empty or 'timestamp' not in events.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = events['timestamp'].min().date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            for pattern in patterns:
+                device1 = pattern.get('device1')
+                device2 = pattern.get('device2')
+                combined_id = pattern.get('device_id', f"{device1}+{device2}")
+                
+                if not device1 or not device2:
+                    continue
+                
+                # Extract domains
+                domain1 = device1.split('.')[0] if '.' in device1 else 'unknown'
+                domain2 = device2.split('.')[0] if '.' in device2 else 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                confidence = pattern.get('confidence', 0.0)
+                support = pattern.get('metadata', {}).get('support', 0.0)
+                avg_time_delta = pattern.get('metadata', {}).get('avg_time_delta_seconds')
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_co_occurrence_daily(
+                        date=date_str,
+                        entity_id=combined_id,
+                        domain=f"{domain1}_{domain2}",
+                        device1=device1,
+                        device2=device2,
+                        occurrences=occurrences,
+                        confidence=confidence,
+                        support=support,
+                        avg_time_delta_seconds=avg_time_delta,
+                        window_minutes=self.window_minutes
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {combined_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def detect_patterns_optimized(self, events: pd.DataFrame) -> List[Dict]:
         """

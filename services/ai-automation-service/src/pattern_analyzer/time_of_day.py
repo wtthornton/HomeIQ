@@ -3,12 +3,15 @@ Time-of-Day Pattern Detector
 
 Detects when devices are consistently used at specific times of day using KMeans clustering.
 Simple, proven algorithm with low resource usage.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
 from typing import List, Dict, Optional
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,16 +28,23 @@ class TimeOfDayPatternDetector:
         - Coffee maker starts at 6:30 AM weekdays
     """
     
-    def __init__(self, min_occurrences: int = 3, min_confidence: float = 0.7):
+    def __init__(
+        self, 
+        min_occurrences: int = 3, 
+        min_confidence: float = 0.7,
+        aggregate_client=None
+    ):
         """
         Initialize pattern detector.
         
         Args:
             min_occurrences: Minimum number of occurrences for a pattern (default: 3)
             min_confidence: Minimum confidence threshold (0.0-1.0, default: 0.7)
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
         """
         self.min_occurrences = min_occurrences
         self.min_confidence = min_confidence
+        self.aggregate_client = aggregate_client
         logger.info(f"TimeOfDayPatternDetector initialized: min_occurrences={min_occurrences}, min_confidence={min_confidence}")
     
     def detect_patterns(self, events: pd.DataFrame) -> List[Dict]:
@@ -151,7 +161,82 @@ class TimeOfDayPatternDetector:
                 continue
         
         logger.info(f"✅ Detected {len(patterns)} time-of-day patterns across {len(unique_devices)} devices")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events.empty or 'timestamp' not in events.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = events['timestamp'].min().date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            # Calculate hourly distribution for each device
+            events['hour'] = events['timestamp'].dt.hour
+            
+            for pattern in patterns:
+                device_id = pattern['device_id']
+                domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
+                
+                # Get device events for this date
+                device_events = events[events['device_id'] == device_id]
+                
+                if device_events.empty:
+                    continue
+                
+                # Calculate hourly distribution (24 values)
+                hourly_distribution = [0] * 24
+                for hour in range(24):
+                    hourly_distribution[hour] = len(device_events[device_events['hour'] == hour])
+                
+                # Get peak hours (top 25% of hours)
+                sorted_hours = sorted(range(24), key=lambda h: hourly_distribution[h], reverse=True)
+                top_count = max(1, len([h for h in sorted_hours if hourly_distribution[h] > 0]) // 4)
+                peak_hours = sorted_hours[:top_count] if top_count > 0 else sorted_hours[:6]
+                
+                # Calculate metrics
+                frequency = sum(hourly_distribution) / 24.0
+                confidence = pattern.get('confidence', 0.0)
+                occurrences = pattern.get('occurrences', len(device_events))
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_time_based_daily(
+                        date=date_str,
+                        entity_id=device_id,
+                        domain=domain,
+                        hourly_distribution=hourly_distribution,
+                        peak_hours=peak_hours,
+                        frequency=frequency,
+                        confidence=confidence,
+                        occurrences=occurrences
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {device_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def get_pattern_summary(self, patterns: List[Dict]) -> Dict:
         """

@@ -35,6 +35,7 @@ class SessionDetector(MLPatternDetector):
         max_session_duration_hours: int = 8,
         min_session_occurrences: int = 3,
         routine_window_days: int = 7,
+        aggregate_client=None,  # Story AI5.6: Weekly aggregation
         **kwargs
     ):
         """
@@ -46,6 +47,7 @@ class SessionDetector(MLPatternDetector):
             max_session_duration_hours: Maximum session duration
             min_session_occurrences: Minimum occurrences for valid session pattern
             routine_window_days: Window for routine pattern detection
+            aggregate_client: PatternAggregateClient for storing weekly aggregates (Story AI5.6)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -54,6 +56,7 @@ class SessionDetector(MLPatternDetector):
         self.max_session_duration_hours = max_session_duration_hours
         self.min_session_occurrences = min_session_occurrences
         self.routine_window_days = routine_window_days
+        self.aggregate_client = aggregate_client  # Story AI5.6
         
         logger.info(f"SessionDetector initialized: gap={session_gap_minutes}min, min_duration={min_session_duration_minutes}min")
     
@@ -97,6 +100,10 @@ class SessionDetector(MLPatternDetector):
         # Cluster similar session patterns using ML
         if self.enable_ml and len(patterns) > 2:
             patterns = self._cluster_session_patterns(patterns)
+        
+        # Story AI5.6: Store weekly aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_weekly_aggregates(patterns, events_df)
         
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -874,3 +881,63 @@ class SessionDetector(MLPatternDetector):
             features.append(feature_vector)
         
         return np.array(features)
+
+    def _store_weekly_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store weekly aggregates to InfluxDB.
+        
+        Story AI5.6: Incremental pattern processing with weekly aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get week identifier from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine week from events for aggregate storage")
+                return
+            
+            # Use ISO week format (YYYY-WW)
+            first_date = pd.to_datetime(events_df['time'].min())
+            week_str = first_date.strftime('%Y-W%V')
+            
+            logger.info(f"Storing weekly aggregates for {week_str}")
+            
+            for pattern in patterns:
+                session_type = pattern.get('metadata', {}).get('session_type', 'general')
+                avg_duration = pattern.get('metadata', {}).get('session_duration_minutes', 0) * 60  # Convert to seconds
+                session_count = pattern.get('occurrences', 0)
+                devices_used = pattern.get('devices', [])
+                
+                # Calculate typical start times from pattern metadata
+                start_time_str = pattern.get('metadata', {}).get('session_start', '')
+                if start_time_str:
+                    try:
+                        start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                        typical_start_times = [start_time.hour]
+                    except:
+                        typical_start_times = []
+                else:
+                    typical_start_times = []
+                
+                confidence = pattern.get('confidence', 0.0)
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_session_weekly(
+                        week=week_str,
+                        session_type=session_type,
+                        avg_session_duration=avg_duration,
+                        session_count=session_count,
+                        typical_start_times=typical_start_times,
+                        devices_used=devices_used,
+                        confidence=confidence
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {session_type}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} weekly aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing weekly aggregates: {e}", exc_info=True)

@@ -33,6 +33,7 @@ class DayTypeDetector(MLPatternDetector):
         min_day_type_occurrences: int = 5,
         holiday_detection: bool = True,
         work_hours: Tuple[int, int] = (9, 17),
+        aggregate_client=None,  # Story AI5.6: Weekly aggregation
         **kwargs
     ):
         """
@@ -42,12 +43,14 @@ class DayTypeDetector(MLPatternDetector):
             min_day_type_occurrences: Minimum occurrences for valid day type patterns
             holiday_detection: Whether to detect holiday patterns
             work_hours: Work hours tuple (start, end)
+            aggregate_client: PatternAggregateClient for storing weekly aggregates (Story AI5.6)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
         self.min_day_type_occurrences = min_day_type_occurrences
         self.holiday_detection = holiday_detection
         self.work_hours = work_hours
+        self.aggregate_client = aggregate_client  # Story AI5.6
         
         logger.info(f"DayTypeDetector initialized: min_occurrences={min_day_type_occurrences}, work_hours={work_hours}")
     
@@ -96,6 +99,10 @@ class DayTypeDetector(MLPatternDetector):
         if self.enable_ml and len(patterns) > 2:
             patterns = self._cluster_day_type_patterns(patterns)
         
+        # Story AI5.6: Store weekly aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_weekly_aggregates(patterns, events_df)
+        
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
         self.detection_stats['total_patterns'] += len(patterns)
@@ -103,6 +110,69 @@ class DayTypeDetector(MLPatternDetector):
         
         logger.info(f"Detected {len(patterns)} day type patterns in {processing_time:.2f}s")
         return patterns
+    
+    def _store_weekly_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store weekly aggregates to InfluxDB.
+        
+        Story AI5.6: Incremental pattern processing with weekly aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get week identifier from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine week from events for aggregate storage")
+                return
+            
+            # Use ISO week format (YYYY-WW)
+            first_date = pd.to_datetime(events_df['time'].min())
+            week_str = first_date.strftime('%Y-W%V')
+            
+            logger.info(f"Storing weekly aggregates for {week_str}")
+            
+            for pattern in patterns:
+                # Extract day type from pattern
+                day_type = pattern.get('metadata', {}).get('day_type', 'unknown')
+                if 'weekday' in str(day_type).lower():
+                    day_type = 'weekday'
+                elif 'weekend' in str(day_type).lower():
+                    day_type = 'weekend'
+                else:
+                    day_type = 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                avg_events = occurrences / 7.0  # Average per day
+                
+                # Extract typical hours from pattern metadata
+                typical_hours = pattern.get('metadata', {}).get('typical_hours', list(range(9, 17)))
+                
+                # Device usage statistics
+                devices = pattern.get('devices', [])
+                device_usage = {device: 1 for device in devices}  # Simple count
+                
+                confidence = pattern.get('confidence', 0.0)
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_day_type_weekly(
+                        week=week_str,
+                        day_type=day_type,
+                        avg_events=avg_events,
+                        typical_hours=typical_hours,
+                        device_usage=device_usage,
+                        confidence=confidence
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {day_type}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} weekly aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing weekly aggregates: {e}", exc_info=True)
     
     def _add_day_type_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """

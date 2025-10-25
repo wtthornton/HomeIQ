@@ -33,6 +33,7 @@ class SeasonalDetector(MLPatternDetector):
         min_seasonal_occurrences: int = 10,
         seasonal_window_days: int = 30,
         weather_integration: bool = True,
+        aggregate_client=None,  # Story AI5.8: Monthly aggregation
         **kwargs
     ):
         """
@@ -42,12 +43,14 @@ class SeasonalDetector(MLPatternDetector):
             min_seasonal_occurrences: Minimum occurrences for valid seasonal patterns
             seasonal_window_days: Window for seasonal analysis
             weather_integration: Whether to integrate weather data
+            aggregate_client: PatternAggregateClient for storing monthly aggregates (Story AI5.8)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
         self.min_seasonal_occurrences = min_seasonal_occurrences
         self.seasonal_window_days = seasonal_window_days
         self.weather_integration = weather_integration
+        self.aggregate_client = aggregate_client  # Story AI5.8
         
         logger.info(f"SeasonalDetector initialized: min_occurrences={min_seasonal_occurrences}, window={seasonal_window_days}days")
     
@@ -95,6 +98,10 @@ class SeasonalDetector(MLPatternDetector):
         # Cluster similar seasonal patterns using ML
         if self.enable_ml and len(patterns) > 2:
             patterns = self._cluster_seasonal_patterns(patterns)
+        
+        # Story AI5.8: Store monthly aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_monthly_aggregates(patterns, events_df)
         
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -710,3 +717,61 @@ class SeasonalDetector(MLPatternDetector):
             features.append(feature_vector)
         
         return np.array(features)
+
+    def _store_monthly_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store monthly aggregates to InfluxDB.
+        
+        Story AI5.8: Incremental pattern processing with monthly aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get month identifier from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine month from events for aggregate storage")
+                return
+            
+            # Use YYYY-MM format
+            first_date = pd.to_datetime(events_df['time'].min())
+            month_str = first_date.strftime('%Y-%m')
+            
+            logger.info(f"Storing monthly aggregates for {month_str}")
+            
+            for pattern in patterns:
+                # Extract season information
+                metadata = pattern.get('metadata', {})
+                season = metadata.get('season', 'unknown')
+                
+                # Seasonal patterns from metadata
+                seasonal_patterns = metadata.get('seasonal_patterns', {})
+                if not seasonal_patterns:
+                    seasonal_patterns = {'trend': 'stable'}
+                
+                # Determine trend direction from confidence changes
+                confidence = pattern.get('confidence', 0.0)
+                if confidence > 0.8:
+                    trend_direction = 'increasing'
+                elif confidence < 0.5:
+                    trend_direction = 'decreasing'
+                else:
+                    trend_direction = 'stable'
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_seasonal_monthly(
+                        month=month_str,
+                        season=season,
+                        seasonal_patterns=seasonal_patterns,
+                        trend_direction=trend_direction,
+                        confidence=confidence
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {season}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} monthly aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing monthly aggregates: {e}", exc_info=True)

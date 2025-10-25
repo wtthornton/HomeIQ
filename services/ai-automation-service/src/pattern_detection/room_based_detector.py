@@ -3,13 +3,15 @@ Room-Based Pattern Detector
 
 Detects room-specific behavior patterns using spatial analysis and ML clustering.
 Analyzes device interactions within and between rooms to identify spatial patterns.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 
 from .ml_pattern_detector import MLPatternDetector
@@ -36,6 +38,7 @@ class RoomBasedDetector(MLPatternDetector):
         spatial_weight: float = 0.4,
         temporal_weight: float = 0.3,
         device_weight: float = 0.3,
+        aggregate_client=None,
         **kwargs
     ):
         """
@@ -48,6 +51,7 @@ class RoomBasedDetector(MLPatternDetector):
             spatial_weight: Weight for spatial features in clustering
             temporal_weight: Weight for temporal features in clustering
             device_weight: Weight for device features in clustering
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -57,6 +61,7 @@ class RoomBasedDetector(MLPatternDetector):
         self.spatial_weight = spatial_weight
         self.temporal_weight = temporal_weight
         self.device_weight = device_weight
+        self.aggregate_client = aggregate_client
         
         # Feature weights for clustering
         self.feature_weights = {
@@ -119,7 +124,63 @@ class RoomBasedDetector(MLPatternDetector):
         self.detection_stats['processing_time'] += processing_time
         
         logger.info(f"Detected {len(patterns)} room-based patterns in {processing_time:.2f}s")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events_df)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = pd.to_datetime(events_df['time'].min()).date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            for pattern in patterns:
+                entity_id = pattern.get('entity_id', 'unknown')
+                room = pattern.get('metadata', {}).get('room', pattern.get('room', 'unknown'))
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                confidence = pattern.get('confidence', 0.0)
+                device_count = len(pattern.get('devices', []))
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_room_based_daily(
+                        date=date_str,
+                        entity_id=entity_id,
+                        domain=domain,
+                        room=room,
+                        occurrences=occurrences,
+                        confidence=confidence,
+                        device_count=device_count
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def _detect_room_device_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
         """
