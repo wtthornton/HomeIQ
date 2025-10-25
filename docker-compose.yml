@@ -808,8 +808,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8019/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s  # Longer startup for model loading
+      retries: 5  # More retries for model loading
+      start_period: 300s  # Extended startup for model loading (5 minutes)
     logging:
       driver: "json-file"
       options:

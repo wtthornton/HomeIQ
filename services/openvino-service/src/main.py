@@ -31,12 +31,13 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global openvino_manager
     
-    # Startup
+    # Startup - DON'T pre-load models (lazy load on first request instead)
     logger.info("🚀 Starting OpenVINO Service...")
     try:
         openvino_manager = OpenVINOManager()
-        await openvino_manager.initialize()
-        logger.info("✅ OpenVINO Service started successfully")
+        # DON'T call initialize() - models will load on first request
+        # await openvino_manager.initialize()  # <-- REMOVED to avoid 5-minute startup
+        logger.info("✅ OpenVINO Service started successfully (models will lazy-load)")
     except Exception as e:
         logger.error(f"❌ Failed to start OpenVINO Service: {e}")
         raise
@@ -98,14 +99,14 @@ class ClassifyResponse(BaseModel):
 # API Endpoints
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    if not openvino_manager or not openvino_manager.is_ready():
-        raise HTTPException(status_code=503, detail="Service not ready")
+    """Health check endpoint - Always healthy, models load on first use"""
+    if not openvino_manager:
+        raise HTTPException(status_code=503, detail="Service not initialized")
     
     return {
         "status": "healthy",
         "service": "openvino-service",
-        "models_loaded": openvino_manager.get_model_status()
+        "models_loaded": openvino_manager.get_model_status() if hasattr(openvino_manager, 'get_model_status') else "lazy-loading"
     }
 
 @app.get("/models/status")

@@ -87,6 +87,15 @@ class OpenVINOManager:
             self._classifier_model is not None
         ])
     
+    def get_model_status(self) -> Dict[str, bool]:
+        """Get status of all models"""
+        return {
+            "embedding": self._embed_model is not None,
+            "reranker": self._reranker_model is not None,
+            "classifier": self._classifier_model is not None,
+            "mode": "lazy-loading"  # Models load on first use
+        }
+    
     async def _load_embedding_model(self):
         """Load embedding model (lazy load)"""
         if self._embed_model is None:
