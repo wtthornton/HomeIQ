@@ -9,8 +9,10 @@ WORKDIR /app
 # Copy requirements from service directory
 COPY services/ai-automation-service/requirements.txt .
 
-# Install Python dependencies (pre-built wheels available for Debian)
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install Python dependencies with cache mount for faster rebuilds
+# Cache mount speeds up pip install significantly on subsequent builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # ============================================================================
 # Final stage

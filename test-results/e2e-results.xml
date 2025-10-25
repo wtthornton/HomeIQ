@@ -1,2 +1,1019 @@
-<testsuites id="" name="" tests="0" failures="0" skipped="0" errors="0" time="31.064417000000002">
+<testsuites id="" name="" tests="30" failures="30" skipped="0" errors="0" time="121.584997">
+<testsuite name="system-health.spec.ts" timestamp="2025-10-25T08:09:43.654Z" hostname="docker-chromium" tests="6" failures="6" skipped="0" time="8.017" errors="0">
+<testcase name="System Health Tests › All services are healthy and responding" classname="system-health.spec.ts" time="1.405">
+<failure message="system-health.spec.ts:15:7 All services are healthy and responding" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:15:7 › System Health Tests › All services are healthy and responding 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+<testcase name="System Health Tests › Health dashboard displays system status correctly" classname="system-health.spec.ts" time="1.375">
+<failure message="system-health.spec.ts:37:7 Health dashboard displays system status correctly" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:37:7 › System Health Tests › Health dashboard displays system status correctly 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+<testcase name="System Health Tests › Statistics endpoint returns valid data" classname="system-health.spec.ts" time="1.385">
+<failure message="system-health.spec.ts:53:7 Statistics endpoint returns valid data" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:53:7 › System Health Tests › Statistics endpoint returns valid data 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+<testcase name="System Health Tests › Recent events endpoint returns data" classname="system-health.spec.ts" time="1.149">
+<failure message="system-health.spec.ts:64:7 Recent events endpoint returns data" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:64:7 › System Health Tests › Recent events endpoint returns data 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+<testcase name="System Health Tests › WebSocket connection establishes successfully" classname="system-health.spec.ts" time="1.26">
+<failure message="system-health.spec.ts:80:7 WebSocket connection establishes successfully" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:80:7 › System Health Tests › WebSocket connection establishes successfully 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+<testcase name="System Health Tests › Error handling works correctly when services are down" classname="system-health.spec.ts" time="1.443">
+<failure message="system-health.spec.ts:91:7 Error handling works correctly when services are down" type="FAILURE">
+<![CDATA[  [docker-chromium] › system-health.spec.ts:91:7 › System Health Tests › Error handling works correctly when services are down 
+
+    Error: page.waitForLoadState: Target page, context or browser has been closed
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    Error: browserContext.close: Target page, context or browser has been closed
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="system-health.spec.ts" timestamp="2025-10-25T08:09:43.654Z" hostname="docker-firefox" tests="6" failures="6" skipped="0" time="197.891" errors="0">
+<testcase name="System Health Tests › All services are healthy and responding" classname="system-health.spec.ts" time="33.885">
+<failure message="system-health.spec.ts:15:7 All services are healthy and responding" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:15:7 › System Health Tests › All services are healthy and responding 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Health dashboard displays system status correctly" classname="system-health.spec.ts" time="22.134">
+<failure message="system-health.spec.ts:37:7 Health dashboard displays system status correctly" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:37:7 › System Health Tests › Health dashboard displays system status correctly 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('[data-testid="health-card"]') to be visible
+
+
+      40 |     
+      41 |     // Wait for health data to load
+    > 42 |     await page.waitForSelector('[data-testid="health-card"]', { timeout: 10000 });
+         |                ^
+      43 |     
+      44 |     // Verify health indicators are present
+      45 |     const healthCards = page.locator('[data-testid="health-card"]');
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:42:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Statistics endpoint returns valid data" classname="system-health.spec.ts" time="33.815">
+<failure message="system-health.spec.ts:53:7 Statistics endpoint returns valid data" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:53:7 › System Health Tests › Statistics endpoint returns valid data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Recent events endpoint returns data" classname="system-health.spec.ts" time="34.369">
+<failure message="system-health.spec.ts:64:7 Recent events endpoint returns data" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:64:7 › System Health Tests › Recent events endpoint returns data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › WebSocket connection establishes successfully" classname="system-health.spec.ts" time="36.926">
+<failure message="system-health.spec.ts:80:7 WebSocket connection establishes successfully" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:80:7 › System Health Tests › WebSocket connection establishes successfully 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Error handling works correctly when services are down" classname="system-health.spec.ts" time="36.762">
+<failure message="system-health.spec.ts:91:7 Error handling works correctly when services are down" type="FAILURE">
+<![CDATA[  [docker-firefox] › system-health.spec.ts:91:7 › System Health Tests › Error handling works correctly when services are down 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="system-health.spec.ts" timestamp="2025-10-25T08:09:43.654Z" hostname="docker-webkit" tests="6" failures="6" skipped="0" time="157.015" errors="0">
+<testcase name="System Health Tests › All services are healthy and responding" classname="system-health.spec.ts" time="6.127">
+<failure message="system-health.spec.ts:15:7 All services are healthy and responding" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:15:7 › System Health Tests › All services are healthy and responding 
+
+    Error: apiRequestContext.get: connect ECONNREFUSED ::1:8002
+    Call log:
+      - → GET http://localhost:8002/health
+        - user-agent: Playwright-E2E-Tests
+        - accept: application/json, text/plain, */*
+        - accept-encoding: gzip,deflate,br
+
+        at apiRequestContext.get: connect ECONNREFUSED ::1:8002
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:25:47
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Health dashboard displays system status correctly" classname="system-health.spec.ts" time="34.44">
+<failure message="system-health.spec.ts:37:7 Health dashboard displays system status correctly" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:37:7 › System Health Tests › Health dashboard displays system status correctly 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Statistics endpoint returns valid data" classname="system-health.spec.ts" time="34.681">
+<failure message="system-health.spec.ts:53:7 Statistics endpoint returns valid data" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:53:7 › System Health Tests › Statistics endpoint returns valid data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Recent events endpoint returns data" classname="system-health.spec.ts" time="34.486">
+<failure message="system-health.spec.ts:64:7 Recent events endpoint returns data" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:64:7 › System Health Tests › Recent events endpoint returns data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › WebSocket connection establishes successfully" classname="system-health.spec.ts" time="14.974">
+<failure message="system-health.spec.ts:80:7 WebSocket connection establishes successfully" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:80:7 › System Health Tests › WebSocket connection establishes successfully 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('[data-testid="websocket-status"]') to be visible
+
+
+      82 |     
+      83 |     // Wait for WebSocket connection indicator
+    > 84 |     await page.waitForSelector('[data-testid="websocket-status"]', { timeout: 10000 });
+         |                ^
+      85 |     
+      86 |     // Check connection status
+      87 |     const connectionStatus = page.locator('[data-testid="websocket-status"]');
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:84:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Error handling works correctly when services are down" classname="system-health.spec.ts" time="32.307">
+<failure message="system-health.spec.ts:91:7 Error handling works correctly when services are down" type="FAILURE">
+<![CDATA[  [docker-webkit] › system-health.spec.ts:91:7 › System Health Tests › Error handling works correctly when services are down 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="system-health.spec.ts" timestamp="2025-10-25T08:09:43.654Z" hostname="docker-mobile-chrome" tests="6" failures="6" skipped="0" time="187.808" errors="0">
+<testcase name="System Health Tests › All services are healthy and responding" classname="system-health.spec.ts" time="31.378">
+<failure message="system-health.spec.ts:15:7 All services are healthy and responding" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:15:7 › System Health Tests › All services are healthy and responding 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Health dashboard displays system status correctly" classname="system-health.spec.ts" time="31.091">
+<failure message="system-health.spec.ts:37:7 Health dashboard displays system status correctly" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:37:7 › System Health Tests › Health dashboard displays system status correctly 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Statistics endpoint returns valid data" classname="system-health.spec.ts" time="31.331">
+<failure message="system-health.spec.ts:53:7 Statistics endpoint returns valid data" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:53:7 › System Health Tests › Statistics endpoint returns valid data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Recent events endpoint returns data" classname="system-health.spec.ts" time="31.229">
+<failure message="system-health.spec.ts:64:7 Recent events endpoint returns data" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:64:7 › System Health Tests › Recent events endpoint returns data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › WebSocket connection establishes successfully" classname="system-health.spec.ts" time="31.429">
+<failure message="system-health.spec.ts:80:7 WebSocket connection establishes successfully" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:80:7 › System Health Tests › WebSocket connection establishes successfully 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Error handling works correctly when services are down" classname="system-health.spec.ts" time="31.35">
+<failure message="system-health.spec.ts:91:7 Error handling works correctly when services are down" type="FAILURE">
+<![CDATA[  [docker-mobile-chrome] › system-health.spec.ts:91:7 › System Health Tests › Error handling works correctly when services are down 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-chrome\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="system-health.spec.ts" timestamp="2025-10-25T08:09:43.654Z" hostname="docker-mobile-safari" tests="6" failures="6" skipped="0" time="190.393" errors="0">
+<testcase name="System Health Tests › All services are healthy and responding" classname="system-health.spec.ts" time="32.228">
+<failure message="system-health.spec.ts:15:7 All services are healthy and responding" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:15:7 › System Health Tests › All services are healthy and responding 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Health dashboard displays system status correctly" classname="system-health.spec.ts" time="31.646">
+<failure message="system-health.spec.ts:37:7 Health dashboard displays system status correctly" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:37:7 › System Health Tests › Health dashboard displays system status correctly 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-ff84d-ays-system-status-correctly-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Statistics endpoint returns valid data" classname="system-health.spec.ts" time="31.65">
+<failure message="system-health.spec.ts:53:7 Statistics endpoint returns valid data" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:53:7 › System Health Tests › Statistics endpoint returns valid data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-b23d8-endpoint-returns-valid-data-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Recent events endpoint returns data" classname="system-health.spec.ts" time="31.817">
+<failure message="system-health.spec.ts:64:7 Recent events endpoint returns data" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:64:7 › System Health Tests › Recent events endpoint returns data 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › WebSocket connection establishes successfully" classname="system-health.spec.ts" time="31.831">
+<failure message="system-health.spec.ts:80:7 WebSocket connection establishes successfully" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:80:7 › System Health Tests › WebSocket connection establishes successfully 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-790d5-on-establishes-successfully-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="System Health Tests › Error handling works correctly when services are down" classname="system-health.spec.ts" time="31.221">
+<failure message="system-health.spec.ts:91:7 Error handling works correctly when services are down" type="FAILURE">
+<![CDATA[  [docker-mobile-safari] › system-health.spec.ts:91:7 › System Health Tests › Error handling works correctly when services are down 
+
+    TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.
+    =========================== logs ===========================
+      "domcontentloaded" event fired
+    ============================================================
+
+      10 |     // Wait for system to be fully deployed
+      11 |     await page.goto('http://localhost:3000');
+    > 12 |     await page.waitForLoadState('networkidle');
+         |                ^
+      13 |   });
+      14 |
+      15 |   test('All services are healthy and responding', async ({ page }) => {
+        at C:\cursor\ha-ingestor\tests\e2e\system-health.spec.ts:12:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\test-failed-1.png]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\video.webm]]
+
+[[ATTACHMENT|..\tests\e2e\test-results\system-health-System-Healt-8031a-ctly-when-services-are-down-docker-mobile-safari\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
 </testsuites>

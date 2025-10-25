@@ -55,6 +55,7 @@ apscheduler==3.10.4
 python-dotenv==1.0.0
 tenacity==8.2.3
 pyyaml==6.0.1
+deprecated==1.2.14
 
 # Testing
 pytest==7.4.3

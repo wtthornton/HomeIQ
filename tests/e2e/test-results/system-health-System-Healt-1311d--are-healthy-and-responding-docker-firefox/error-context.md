@@ -1,0 +1,196 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - heading "🏠 HA Ingestor Dashboard" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Enhanced Home Assistant Event Ingestion & Data Enrichment Monitor
+      - generic [ref=e10]:
+        - button "Switch to Dark Mode" [ref=e11] [cursor=pointer]: 🌙
+        - 'button "Auto Refresh: ON" [ref=e12] [cursor=pointer]': 🔄
+        - combobox "Select time range" [ref=e13]:
+          - option "15m"
+          - option "1h" [selected]
+          - option "6h"
+          - option "24h"
+          - option "7d"
+        - link "🤖 AI Automations" [ref=e14] [cursor=pointer]:
+          - /url: http://localhost:3001
+          - generic [ref=e15] [cursor=pointer]: 🤖
+          - generic [ref=e16] [cursor=pointer]: AI Automations
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: Last updated
+          - paragraph [ref=e19]: 01:09:50 AM
+    - generic [ref=e21]:
+      - button "📊 Overview" [ref=e22] [cursor=pointer]:
+        - generic [ref=e23] [cursor=pointer]: 📊 Overview
+      - button "🏥 Setup & Health" [ref=e24] [cursor=pointer]:
+        - generic [ref=e25] [cursor=pointer]: 🏥 Setup & Health
+      - button "🔧 Services" [ref=e26] [cursor=pointer]:
+        - generic [ref=e27] [cursor=pointer]: 🔧 Services
+      - button "🔗 Dependencies" [ref=e28] [cursor=pointer]:
+        - generic [ref=e29] [cursor=pointer]: 🔗 Dependencies
+      - button "📱 Devices" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31] [cursor=pointer]: 📱 Devices
+      - button "📡 Events" [ref=e32] [cursor=pointer]:
+        - generic [ref=e33] [cursor=pointer]: 📡 Events
+      - button "📜 Logs" [ref=e34] [cursor=pointer]:
+        - generic [ref=e35] [cursor=pointer]: 📜 Logs
+      - button "🏈 Sports" [ref=e36] [cursor=pointer]:
+        - generic [ref=e37] [cursor=pointer]: 🏈 Sports
+      - button "🌐 Data Sources" [ref=e38] [cursor=pointer]:
+        - generic [ref=e39] [cursor=pointer]: 🌐 Data Sources
+      - button "⚡ Energy" [ref=e40] [cursor=pointer]:
+        - generic [ref=e41] [cursor=pointer]: ⚡ Energy
+      - button "📈 Analytics" [ref=e42] [cursor=pointer]:
+        - generic [ref=e43] [cursor=pointer]: 📈 Analytics
+      - button "🚨 Alerts" [ref=e44] [cursor=pointer]:
+        - generic [ref=e45] [cursor=pointer]: 🚨 Alerts
+      - button "⚙️ Configuration" [ref=e46] [cursor=pointer]:
+        - generic [ref=e47] [cursor=pointer]: ⚙️ Configuration
+  - main [ref=e48]:
+    - region "System status overview" [ref=e49]:
+      - generic [ref=e50]:
+        - 'status "System status: ALL SYSTEMS OPERATIONAL" [ref=e52]':
+          - generic [ref=e53]:
+            - generic [ref=e55]: 🟢
+            - generic [ref=e57]:
+              - heading "ALL SYSTEMS OPERATIONAL" [level=2] [ref=e58]
+              - paragraph [ref=e59]: "Last updated: 01:10:20 AM"
+        - complementary "Key performance indicators" [ref=e61]:
+          - heading "KEY PERFORMANCE INDICATORS" [level=3] [ref=e62]
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - generic [ref=e65]: Uptime
+              - generic [ref=e66]: 0h 27m 41s
+            - generic [ref=e67]:
+              - generic [ref=e68]: Throughput
+              - generic [ref=e69]:
+                - generic [ref=e70]:
+                  - text: "0"
+                  - generic [ref=e71]: evt/min
+                - generic [ref=e73]: ➡️
+            - generic [ref=e74]:
+              - generic [ref=e75]: Latency
+              - generic [ref=e76]:
+                - generic [ref=e77]:
+                  - text: "8.7"
+                  - generic [ref=e78]: ms avg
+                - generic [ref=e80]: ➡️
+            - generic [ref=e81]:
+              - generic [ref=e82]: Error Rate
+              - generic [ref=e83]:
+                - text: "0.00"
+                - generic [ref=e84]: "%"
+    - generic [ref=e85]:
+      - heading "📊 Core System Components" [level=2] [ref=e86]
+      - group "Core system components" [ref=e87]:
+        - button "INGESTION system component - healthy. Click for details." [ref=e88] [cursor=pointer]:
+          - generic [ref=e89] [cursor=pointer]:
+            - generic [ref=e90] [cursor=pointer]:
+              - generic [ref=e91] [cursor=pointer]: 🔌
+              - generic [ref=e92] [cursor=pointer]:
+                - heading "INGESTION" [level=3] [ref=e93] [cursor=pointer]
+                - paragraph [ref=e94] [cursor=pointer]: WebSocket Connection
+            - generic [ref=e95] [cursor=pointer]:
+              - generic [ref=e96] [cursor=pointer]: ✅
+              - generic [ref=e97] [cursor=pointer]: Healthy
+          - generic [ref=e98] [cursor=pointer]:
+            - generic [ref=e99] [cursor=pointer]:
+              - generic [ref=e100] [cursor=pointer]: Events per Hour
+              - generic [ref=e101] [cursor=pointer]:
+                - text: "0"
+                - generic [ref=e102] [cursor=pointer]: evt/h
+            - generic [ref=e103] [cursor=pointer]:
+              - generic [ref=e104] [cursor=pointer]: Total Events
+              - generic [ref=e105] [cursor=pointer]:
+                - text: "0"
+                - generic [ref=e106] [cursor=pointer]: events
+          - generic [ref=e107] [cursor=pointer]:
+            - generic [ref=e108] [cursor=pointer]: Uptime
+            - generic [ref=e109] [cursor=pointer]: 0h 27m 41s
+        - button "STORAGE system component - healthy. Click for details." [ref=e110] [cursor=pointer]:
+          - generic [ref=e111] [cursor=pointer]:
+            - generic [ref=e112] [cursor=pointer]:
+              - generic [ref=e113] [cursor=pointer]: 🗄️
+              - generic [ref=e114] [cursor=pointer]:
+                - heading "STORAGE" [level=3] [ref=e115] [cursor=pointer]
+                - paragraph [ref=e116] [cursor=pointer]: InfluxDB Database
+            - generic [ref=e117] [cursor=pointer]:
+              - generic [ref=e118] [cursor=pointer]: ✅
+              - generic [ref=e119] [cursor=pointer]: Healthy
+          - generic [ref=e120] [cursor=pointer]:
+            - generic [ref=e121] [cursor=pointer]:
+              - generic [ref=e122] [cursor=pointer]: Response Time
+              - generic [ref=e123] [cursor=pointer]:
+                - text: "5.2"
+                - generic [ref=e124] [cursor=pointer]: ms
+            - generic [ref=e125] [cursor=pointer]:
+              - generic [ref=e126] [cursor=pointer]: Availability
+              - generic [ref=e127] [cursor=pointer]:
+                - text: "100.00"
+                - generic [ref=e128] [cursor=pointer]: "%"
+          - generic [ref=e129] [cursor=pointer]:
+            - generic [ref=e130] [cursor=pointer]: Uptime
+            - generic [ref=e131] [cursor=pointer]: 0h 27m 41s
+    - generic [ref=e132]:
+      - heading "🔗 Active Data Sources" [level=2] [ref=e133]
+      - generic [ref=e135]:
+        - button "Weather ❌" [ref=e136] [cursor=pointer]:
+          - generic [ref=e137] [cursor=pointer]: Weather
+          - generic "error" [ref=e138] [cursor=pointer]: ❌
+        - button "CarbonIntensity ❌" [ref=e139] [cursor=pointer]:
+          - generic [ref=e140] [cursor=pointer]: CarbonIntensity
+          - generic "error" [ref=e141] [cursor=pointer]: ❌
+        - button "ElectricityPricing ❌" [ref=e142] [cursor=pointer]:
+          - generic [ref=e143] [cursor=pointer]: ElectricityPricing
+          - generic "error" [ref=e144] [cursor=pointer]: ❌
+        - button "AirQuality ❌" [ref=e145] [cursor=pointer]:
+          - generic [ref=e146] [cursor=pointer]: AirQuality
+          - generic "error" [ref=e147] [cursor=pointer]: ❌
+        - button "Calendar ❌" [ref=e148] [cursor=pointer]:
+          - generic [ref=e149] [cursor=pointer]: Calendar
+          - generic "error" [ref=e150] [cursor=pointer]: ❌
+        - button "SmartMeter ❌" [ref=e151] [cursor=pointer]:
+          - generic [ref=e152] [cursor=pointer]: SmartMeter
+          - generic "error" [ref=e153] [cursor=pointer]: ❌
+    - generic [ref=e154]:
+      - heading "🏠 Home Assistant Integration" [level=2] [ref=e155]
+      - generic [ref=e156]:
+        - generic [ref=e158]:
+          - generic [ref=e159]:
+            - paragraph [ref=e160]: Devices
+            - paragraph [ref=e161]: "0"
+          - generic [ref=e162]: 📱
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - paragraph [ref=e166]: Entities
+            - paragraph [ref=e167]: "0"
+          - generic [ref=e168]: 🔌
+        - generic [ref=e170]:
+          - generic [ref=e171]:
+            - paragraph [ref=e172]: Active Services
+            - paragraph [ref=e173]: "9"
+          - generic [ref=e174]: 🔧
+        - generic [ref=e176]:
+          - generic [ref=e177]:
+            - paragraph [ref=e178]: System Health
+            - paragraph [ref=e179]: 100%
+          - generic [ref=e180]: ✅
+      - generic [ref=e181]:
+        - generic [ref=e182]: 🏠
+        - paragraph [ref=e183]: No Home Assistant devices discovered yet
+        - paragraph [ref=e184]: Waiting for Home Assistant connection and device discovery...
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]: ⚠️
+          - generic [ref=e189]:
+            - paragraph [ref=e190]: HA Devices API Status
+            - paragraph [ref=e191]: Connected - Awaiting device discovery
+        - button "View Details →" [ref=e192] [cursor=pointer]
+    - generic [ref=e193]:
+      - paragraph [ref=e194]: 🏠 HA Ingestor Dashboard - Real-time System Health Monitoring
+      - paragraph [ref=e195]: 0 Devices • 0 Entities • 0 Integrations • 0/6 Data Sources Healthy • 9 Services Running • Built with React & TypeScript
+```

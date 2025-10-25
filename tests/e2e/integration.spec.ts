@@ -13,8 +13,8 @@ test.describe('Integration Tests', () => {
   });
 
   test('Complete data flow from Home Assistant to dashboard', async ({ page }) => {
-    // This test simulates the complete data flow:
-    // Home Assistant -> WebSocket -> Enrichment -> InfluxDB -> Dashboard
+    // This test simulates the complete data flow (Epic 31):
+    // Home Assistant -> WebSocket -> InfluxDB (direct) -> Dashboard
     
     // Step 1: Verify WebSocket ingestion service is connected
     const wsHealthResponse = await page.request.get('http://localhost:8001/health');
@@ -23,25 +23,18 @@ test.describe('Integration Tests', () => {
     const wsHealthData = await wsHealthResponse.json();
     expect(wsHealthData.status).toBe('healthy');
     
-    // Step 2: Verify enrichment pipeline is processing data
-    const enrichHealthResponse = await page.request.get('http://localhost:8002/health');
-    expect(enrichHealthResponse.status()).toBe(200);
-    
-    const enrichHealthData = await enrichHealthResponse.json();
-    expect(enrichHealthData.status).toBe('healthy');
-    
-    // Step 3: Verify InfluxDB is accessible
+    // Step 2: Verify InfluxDB is accessible (direct writes in Epic 31)
     const influxHealthResponse = await page.request.get('http://localhost:8086/health');
     expect(influxHealthResponse.status()).toBe(200);
     
-    // Step 4: Verify admin API can retrieve data
+    // Step 3: Verify admin API can retrieve data
     const adminStatsResponse = await page.request.get('http://localhost:8003/api/v1/stats');
     expect(adminStatsResponse.status()).toBe(200);
     
     const statsData = await adminStatsResponse.json();
     expect(statsData).toHaveProperty('total_events');
     
-    // Step 5: Verify dashboard displays the data
+    // Step 4: Verify dashboard displays the data
     await page.goto('http://localhost:3000');
     await page.waitForSelector('[data-testid="dashboard"]', { timeout: 15000 });
     
@@ -68,14 +61,7 @@ test.describe('Integration Tests', () => {
     const wsHealthData = await wsHealthResponse.json();
     expect(wsHealthData.dependencies?.influxdb).toBe('healthy');
     
-    // Step 3: Verify enrichment pipeline depends on InfluxDB
-    const enrichHealthResponse = await page.request.get('http://localhost:8002/health');
-    expect(enrichHealthResponse.status()).toBe(200);
-    
-    const enrichHealthData = await enrichHealthResponse.json();
-    expect(enrichHealthData.dependencies?.influxdb).toBe('healthy');
-    
-    // Step 4: Verify admin API depends on all services
+    // Step 3: Verify admin API depends on all services
     const adminHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
     expect(adminHealthResponse.status()).toBe(200);
     

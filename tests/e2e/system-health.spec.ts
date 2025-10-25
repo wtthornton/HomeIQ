@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 /**
  * System Health E2E Tests
  * Tests the health and connectivity of all backend services
+ * Updated for Epic 31: Direct InfluxDB writes (enrichment-pipeline deprecated)
  */
 test.describe('System Health Tests', () => {
   
@@ -17,13 +18,9 @@ test.describe('System Health Tests', () => {
     const influxResponse = await page.request.get('http://localhost:8086/health');
     expect(influxResponse.status()).toBe(200);
     
-    // Test WebSocket ingestion service
+    // Test WebSocket ingestion service (Epic 31: direct InfluxDB writes)
     const wsResponse = await page.request.get('http://localhost:8001/health');
     expect(wsResponse.status()).toBe(200);
-    
-    // Test Enrichment pipeline service
-    const enrichResponse = await page.request.get('http://localhost:8002/health');
-    expect(enrichResponse.status()).toBe(200);
     
     // Test Admin API service
     const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
