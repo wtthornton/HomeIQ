@@ -1,8 +1,10 @@
-# Services Overview - Home Assistant Ingestor
+# Services Overview - HomeIQ
 
 ## 📋 Complete Service Reference
 
-This document provides a comprehensive overview of all services in the Home Assistant Ingestor system with complete data flows and integrations.
+This document provides a comprehensive overview of all services in the HomeIQ system with complete data flows and integrations.
+
+**Last Updated:** October 25, 2025
 
 **Reference:** See [COMPLETE_DATA_FLOW_CALL_TREE.md](../implementation/analysis/COMPLETE_DATA_FLOW_CALL_TREE.md) for detailed call trees.
 
@@ -50,46 +52,19 @@ WebSocket Ingestion Service
 
 ---
 
-### 2. Enrichment Pipeline Service
-**Port:** 8002 (external)  
-**Technology:** Python 3.11, FastAPI, InfluxDB Client  
-**Purpose:** Data validation, normalization, and InfluxDB storage
+### 2. ⚠️ DEPRECATED: Enrichment Pipeline Service
+**Port:** 8002 (REMOVED)
+**Status:** ❌ Deprecated (Epic 31 - October 2025)
 
-**Data Flow:**
-```
-WebSocket Ingestion (HTTP POST /events)
-    ↓ enriched event data
-Enrichment Pipeline Service
-    ├─ DataValidationEngine: Validate event structure
-    ├─ DataNormalizer: Convert to standard format
-    ├─ Generate InfluxDB Line Protocol
-    └─ InfluxDB Write → home_assistant_events bucket
-```
+**Reason for Deprecation:**
+Epic 31 modernized the architecture by enabling integration services to write directly to InfluxDB, eliminating the need for a centralized enrichment pipeline.
 
-**Key Features:**
-- Event validation and normalization
-- InfluxDB Line Protocol conversion
-- Quality metrics and alerting
-- Non-blocking async writes
-- Batch write optimization
+**Migration Path:**
+- Integration services (weather-api, carbon-intensity, etc.) now write directly to InfluxDB
+- Event validation happens at the source service
+- WebSocket ingestion service handles Home Assistant events directly
 
-**InfluxDB Schema:**
-```
-Measurement: state_changed
-Tags: entity_id, domain, event_type, device_id, area_id, context_id
-Fields: state, attributes, duration_in_state, weather_*, device_*
-```
-
-**Endpoints:**
-- `POST /events` - Receive events from WebSocket service
-- `POST /process-event` - Process single event
-- `POST /process-events` - Batch event processing
-- `GET /health` - Service health status
-- `GET /status` - Service statistics
-
-**Health Check:** `http://localhost:8002/health`
-
-**README:** [services/enrichment-pipeline/README.md](../services/enrichment-pipeline/README.md)
+**Replaced By:** Direct writes from integration services to InfluxDB
 
 ---
 
@@ -333,9 +308,10 @@ Health Dashboard (React SPA)
 
 ---
 
-### 10. Calendar Service
-**Port:** 8013 (internal only)  
-**Technology:** Python 3.12, aiohttp  
+### 10. ⚠️ DEPRECATED: Calendar Service
+**Port:** 8013 (REMOVED)
+**Status:** ❌ Deprecated (October 2025)
+**Technology:** Python 3.12, aiohttp
 **Purpose:** Home Assistant calendar integration for occupancy prediction
 
 **Data Flow:**
@@ -547,8 +523,8 @@ TABLE webhook_deliveries (
 ---
 
 ### 15. HA Simulator Service
-**Port:** N/A (test utility)  
-**Technology:** Python 3.11  
+**Port:** N/A (test utility)
+**Technology:** Python 3.11
 **Purpose:** Test event generator
 
 **Key Features:**
@@ -561,13 +537,161 @@ TABLE webhook_deliveries (
 
 ---
 
+## 🤖 AI & Machine Learning Services (Phase 1)
+
+### 16. AI Core Service
+**Port:** 8018 (external)
+**Technology:** Python 3.11, FastAPI
+**Purpose:** AI orchestration and coordination
+
+**Key Features:**
+- Multi-model orchestration
+- Pattern detection coordination
+- Automation mining
+- Service coordinator for all AI models
+
+**Endpoints:**
+- `GET /health` - Service health status
+- `POST /api/v1/analyze` - Analyze patterns
+
+**Health Check:** `http://localhost:8018/health`
+
+**README:** [services/ai-core-service/README.md](../services/ai-core-service/README.md)
+
+---
+
+### 17. OpenVINO Service
+**Port:** 8026 (external)
+**Technology:** Python 3.11, OpenVINO, FastAPI
+**Purpose:** Embeddings, re-ranking, and classification
+
+**Key Features:**
+- Text embeddings (all-MiniLM-L6-v2)
+- Document re-ranking (bge-reranker-base)
+- Text classification (flan-t5-small)
+- Optimized inference with OpenVINO
+- Model caching for performance
+
+**Models:**
+- `sentence-transformers/all-MiniLM-L6-v2` - Embeddings
+- `BAAI/bge-reranker-base` - Re-ranking
+- `google/flan-t5-small` - Classification
+
+**Endpoints:**
+- `POST /embed` - Generate text embeddings
+- `POST /rerank` - Re-rank documents
+- `POST /classify` - Classify text
+
+**Health Check:** `http://localhost:8026/health`
+
+**README:** [services/openvino-service/README.md](../services/openvino-service/README.md)
+
+---
+
+### 18. ML Service
+**Port:** 8025 (external)
+**Technology:** Python 3.11, scikit-learn, FastAPI
+**Purpose:** Clustering and anomaly detection
+
+**Key Features:**
+- K-Means clustering
+- Anomaly detection
+- Pattern grouping
+- Statistical analysis
+
+**Algorithms:**
+- K-Means clustering
+- DBSCAN
+- Isolation Forest (anomaly detection)
+
+**Endpoints:**
+- `POST /cluster` - Perform clustering
+- `POST /detect-anomalies` - Detect anomalies
+
+**Health Check:** `http://localhost:8025/health`
+
+**README:** [services/ml-service/README.md](../services/ml-service/README.md)
+
+---
+
+### 19. NER Service
+**Port:** 8019 (external)
+**Technology:** Python 3.11, Transformers, FastAPI
+**Purpose:** Named Entity Recognition
+
+**Key Features:**
+- Entity extraction from text
+- Person, location, organization detection
+- Device and entity name extraction
+- BERT-based NER model
+
+**Model:** `dslim/bert-base-NER`
+
+**Endpoints:**
+- `POST /extract` - Extract named entities
+
+**Health Check:** `http://localhost:8019/health`
+
+**README:** [services/ner-service/README.md](../services/ner-service/README.md)
+
+---
+
+### 20. OpenAI Service
+**Port:** 8020 (external)
+**Technology:** Python 3.11, OpenAI SDK, FastAPI
+**Purpose:** GPT-4o-mini API client
+
+**Key Features:**
+- Natural language processing
+- Conversational AI
+- Automation generation from text
+- GPT-4o-mini integration
+
+**Model:** `gpt-4o-mini`
+
+**Endpoints:**
+- `POST /chat` - Chat completion
+- `POST /generate-automation` - Generate automations
+
+**Health Check:** `http://localhost:8020/health`
+
+---
+
+### 21. Device Intelligence Service
+**Port:** 8028 (external)
+**Technology:** Python 3.11, FastAPI, MQTT
+**Purpose:** Device capability discovery
+
+**Key Features:**
+- MQTT integration
+- Device capability analysis
+- Smart recommendations
+- Compatibility checking
+
+**Endpoints:**
+- `GET /devices` - List devices
+- `POST /analyze` - Analyze device capabilities
+
+**Health Check:** `http://localhost:8028/health`
+
+**README:** [services/device-intelligence-service/README.md](../services/device-intelligence-service/README.md)
+
+---
+
 ## 📊 Service Statistics
 
 ### Core Data Processing Services
-- **Total:** 5 services
-- **Ports:** 8001 (websocket), 8002 (enrichment), 8003 (admin), 8006 (data-api), 3000 (dashboard)
+- **Total:** 4 active services
+- **Ports:** 8001 (websocket), 8003 (admin), 8006 (data-api), 3000 (dashboard), 3001 (ai-ui)
 - **Technology:** Python/FastAPI, React/TypeScript
 - **Container Size:** 40-80MB (Alpine-based)
+
+### AI & ML Services (Phase 1)
+- **Total:** 6 services
+- **Services:** AI Core, OpenVINO, ML, NER, OpenAI, Device Intelligence
+- **Ports:** 8018, 8019, 8020, 8025, 8026, 8028
+- **Models:** 4 containerized AI models
+- **Technology:** Python/FastAPI, OpenVINO, Transformers, scikit-learn
 
 ### Data Services
 - **Sports Data:** 8005 (Epic 12 complete with webhooks)
@@ -575,22 +699,28 @@ TABLE webhook_deliveries (
 - **Log Aggregator:** 8015
 
 ### External Integration Services
-- **Total:** 7 services (all internal-only)
-- **Services:** Weather, Carbon, Electricity, Air Quality, Calendar, Smart Meter, Energy Correlator, AI Automation
-- **Ports:** 8010-8014, 8017-8018
+- **Total:** 5 active services
+- **Services:** Weather, Carbon, Electricity, Air Quality, Smart Meter, Energy Correlator
+- **Ports:** 8009, 8010, 8011, 8012, 8014, 8017
 - **Technology:** Python/FastAPI
 - **Container Size:** 40-45MB (Alpine-based)
 
 ### Infrastructure
 - **InfluxDB:** 8086 (time-series database)
 - **SQLite:** Embedded (devices/entities in data-api, webhooks in sports-data)
+- **Mosquitto:** 1883 (MQTT broker)
+
+### Deprecated Services (October 2025)
+- ❌ **Enrichment Pipeline** (8002) - Epic 31: Direct writes to InfluxDB
+- ❌ **Calendar Service** (8013) - Low usage, removed
+- ❌ **Sports API** (8015) - Epic 11: Replaced by sports-data
 
 ### Overall System
-- **Total Services:** 17 (16 microservices + InfluxDB)
-- **Microservices:** 16 custom services
-- **External Ports:** 9 (8001, 8002, 8003, 8005, 8006, 8015, 8080, 8086, 3000)
-- **Internal Ports:** 8 (8010-8014, 8017-8018)
-- **Total Container Size:** ~650MB (70% reduction with Alpine)
+- **Total Active Services:** 25 (24 microservices + InfluxDB)
+- **Microservices:** 24 custom services
+- **Frontend Apps:** 2 (Health Dashboard, AI Automation UI)
+- **AI Services:** 6 (Phase 1 containerization complete)
+- **Total Container Size:** ~1.2GB (includes AI models)
 - **Architecture:** Event-driven microservices with hybrid database (InfluxDB + SQLite)
 
 ---
@@ -608,65 +738,61 @@ TABLE webhook_deliveries (
 │ ├─ Event Processing             │
 │ ├─ Weather Enrichment            │
 │ ├─ Device/Entity Discovery       │
-│ └─ Batch Processing              │
-└────────┬────────────────────────┘
-         │ HTTP POST /events
-         ↓
-┌─────────────────────────────────┐
-│ Enrichment Pipeline (8002)       │
-│ ├─ Data Validation               │
-│ ├─ Data Normalization            │
-│ └─ Quality Metrics               │
+│ ├─ Batch Processing              │
+│ └─ Direct InfluxDB Writes        │  ← Epic 31
 └────────┬────────────────────────┘
          │ InfluxDB Line Protocol
          ↓
 ┌─────────────────────────────────┐      ┌──────────────────┐
 │ InfluxDB (8086)                  │◄─────┤ Data Retention   │
 │ Bucket: home_assistant_events    │      │ (8080)           │
-│ ├─ Events (time-series)          │      │ ├─ Downsampling  │
-│ ├─ Sports scores                 │      │ ├─ Archival      │
-│ └─ Analytics data                │      │ └─ S3/Glacier    │
-└────────┬────────────────────────┘      └──────────────────┘
-         │ Flux Queries
-         ↓
-┌─────────────────────────────────┐      ┌──────────────────┐
-│ Data API (8006)                  │◄─────┤ SQLite           │
-│ ├─ Event queries (InfluxDB)      │      │ (Embedded)       │
-│ ├─ Device queries (SQLite)       │      │ ├─ Devices       │
-│ ├─ Sports queries                │      │ └─ Entities      │
-│ ├─ Analytics                     │      └──────────────────┘
-│ └─ Energy correlation            │
-└────────┬────────────────────────┘
-         │
-         │
-┌─────────────────────────────────┐
+│ ├─ Events (time-series)          │◄─┐   │ ├─ Downsampling  │
+│ ├─ Sports scores                 │  │   │ ├─ Archival      │
+│ ├─ Integration data              │  │   │ └─ S3/Glacier    │
+│ └─ Analytics data                │  │   └──────────────────┘
+└────────┬────────────────────────┘  │
+         │ Flux Queries              │
+         ↓                           │
+┌─────────────────────────────────┐  │   ┌──────────────────┐
+│ Data API (8006)                  │  │   │ SQLite           │
+│ ├─ Event queries (InfluxDB)      │◄─┼───┤ (Embedded)       │
+│ ├─ Device queries (SQLite)       │  │   │ ├─ Devices       │
+│ ├─ Sports queries                │  │   │ └─ Entities      │
+│ ├─ Analytics                     │  │   └──────────────────┘
+│ └─ Energy correlation            │  │
+└────────┬────────────────────────┘  │
+         │                           │
+         │  ┌────────────────────────┘
+         │  │
+┌────────┴──┴─────────────────────┐
 │ Admin API (8003)                 │
 │ ├─ Health monitoring             │
 │ ├─ Docker management             │
 │ └─ System statistics             │
 └────────┬────────────────────────┘
          │
-         ├─────────────────────────┐
-         │                         │
-         ↓                         ↓
-┌─────────────────────────────────┐      ┌──────────────────┐
-│ Health Dashboard (3000)          │      │ Sports Data      │
-│ ├─ 12 Interactive Tabs           │◄─────┤ (8005)           │
-│ ├─ HTTP Polling                  │      │ ├─ ESPN API      │
-│ ├─ Real-time Charts              │      │ ├─ InfluxDB      │
-│ └─ Device/Sports Management      │      │ ├─ Webhooks      │
-└──────────────────────────────────┘      │ └─ HA Integration│
-                                          └──────────────────┘
+         ├─────────────────────────┬──────────────────┐
+         │                         │                  │
+         ↓                         ↓                  ↓
+┌──────────────────┐      ┌──────────────────┐  ┌─────────────┐
+│ Health Dashboard │      │ AI Automation UI │  │ Sports Data │
+│ (3000)           │      │ (3001)           │  │ (8005)      │
+│ ├─ System Health │      │ ├─ Ask AI Tab    │  │ ├─ ESPN API │
+│ ├─ Dependencies  │      │ ├─ Pattern Mine  │  │ ├─ InfluxDB │
+│ └─ Real-time     │      │ └─ Automations   │  │ └─ Webhooks │
+└──────────────────┘      └──────────────────┘  └─────────────┘
 
-External Integration Services (Internal Only, 8010-8014, 8017-8018):
-├─ Weather API (integrated in websocket-ingestion)
-├─ Carbon Intensity (8010)
-├─ Electricity Pricing (8011)
-├─ Air Quality (8012)
-├─ Calendar (8013)
-├─ Smart Meter (8014)
-├─ Energy Correlator (8017)
-└─ AI Automation (8018)
+AI Services (8018-8028):                Integration Services (8009-8014):
+├─ AI Core (8018)                       ├─ Weather API (8009)      → InfluxDB
+├─ NER Service (8019)                   ├─ Carbon Intensity (8010) → InfluxDB
+├─ OpenAI Service (8020)                ├─ Electricity Pricing (8011) → InfluxDB
+├─ ML Service (8025)                    ├─ Air Quality (8012)      → InfluxDB
+├─ OpenVINO Service (8026)              ├─ Smart Meter (8014)      → InfluxDB
+└─ Device Intelligence (8028)           └─ Energy Correlator (8017) → InfluxDB
+
+❌ DEPRECATED (Epic 31):
+   - Enrichment Pipeline (8002) - Direct writes eliminated middleman
+   - Calendar Service (8013) - Removed
 ```
 
 ---
