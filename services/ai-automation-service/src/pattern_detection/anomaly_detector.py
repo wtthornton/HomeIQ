@@ -3,13 +3,15 @@ Anomaly Pattern Detector
 
 Detects unusual behavior patterns using statistical analysis and ML-based anomaly detection.
 Identifies outliers, unusual timing, and unexpected device behavior.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
@@ -39,6 +41,7 @@ class AnomalyDetector(MLPatternDetector):
         enable_timing_analysis: bool = True,
         enable_behavioral_analysis: bool = True,
         enable_device_analysis: bool = True,
+        aggregate_client=None,
         **kwargs
     ):
         """
@@ -51,6 +54,7 @@ class AnomalyDetector(MLPatternDetector):
             enable_timing_analysis: Whether to analyze timing anomalies
             enable_behavioral_analysis: Whether to analyze behavioral anomalies
             enable_device_analysis: Whether to analyze device anomalies
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -60,6 +64,7 @@ class AnomalyDetector(MLPatternDetector):
         self.enable_timing_analysis = enable_timing_analysis
         self.enable_behavioral_analysis = enable_behavioral_analysis
         self.enable_device_analysis = enable_device_analysis
+        self.aggregate_client = aggregate_client
         
         logger.info(f"AnomalyDetector initialized: contamination={contamination}, min_occurrences={min_anomaly_occurrences}")
     
@@ -121,7 +126,61 @@ class AnomalyDetector(MLPatternDetector):
         self.detection_stats['processing_time'] += processing_time
         
         logger.info(f"Detected {len(patterns)} anomaly patterns in {processing_time:.2f}s")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events_df)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = pd.to_datetime(events_df['time'].min()).date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            for pattern in patterns:
+                entity_id = pattern.get('entity_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                confidence = pattern.get('confidence', 0.0)
+                anomaly_score = pattern.get('metadata', {}).get('anomaly_score', 0.0)
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_anomaly_daily(
+                        date=date_str,
+                        entity_id=entity_id,
+                        domain=domain,
+                        occurrences=occurrences,
+                        confidence=confidence,
+                        anomaly_score=anomaly_score
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def _add_anomaly_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """

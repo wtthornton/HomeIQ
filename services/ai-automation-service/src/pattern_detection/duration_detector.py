@@ -3,13 +3,15 @@ Duration Pattern Detector
 
 Detects duration-based patterns using statistical analysis and ML clustering.
 Identifies patterns in device usage duration, auto-off timers, and efficiency patterns.
+
+Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
 import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 from scipy import stats
 
@@ -36,6 +38,7 @@ class DurationDetector(MLPatternDetector):
         duration_bins: int = 10,
         efficiency_threshold: float = 0.8,
         auto_off_tolerance_minutes: int = 5,
+        aggregate_client=None,
         **kwargs
     ):
         """
@@ -47,6 +50,7 @@ class DurationDetector(MLPatternDetector):
             duration_bins: Number of bins for duration analysis
             efficiency_threshold: Threshold for efficiency patterns
             auto_off_tolerance_minutes: Tolerance for auto-off detection
+            aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -55,6 +59,7 @@ class DurationDetector(MLPatternDetector):
         self.duration_bins = duration_bins
         self.efficiency_threshold = efficiency_threshold
         self.auto_off_tolerance_minutes = auto_off_tolerance_minutes
+        self.aggregate_client = aggregate_client
         
         logger.info(f"DurationDetector initialized: min_duration={min_duration_seconds}s, max_duration={max_duration_hours}h")
     
@@ -109,7 +114,61 @@ class DurationDetector(MLPatternDetector):
         self.detection_stats['processing_time'] += processing_time
         
         logger.info(f"Detected {len(patterns)} duration patterns in {processing_time:.2f}s")
+        
+        # Story AI5.3: Store daily aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_daily_aggregates(patterns, events_df)
+        
         return patterns
+    
+    def _store_daily_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store daily aggregates to InfluxDB.
+        
+        Story AI5.3: Incremental pattern processing with aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get date from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine date from events for aggregate storage")
+                return
+            
+            # Use the date of the first event (assuming 24h window)
+            date = pd.to_datetime(events_df['time'].min()).date()
+            date_str = date.strftime("%Y-%m-%d")
+            
+            logger.info(f"Storing daily aggregates for {date_str}")
+            
+            for pattern in patterns:
+                entity_id = pattern.get('entity_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                
+                # Calculate metrics
+                occurrences = pattern.get('occurrences', 0)
+                confidence = pattern.get('confidence', 0.0)
+                avg_duration = pattern.get('metadata', {}).get('avg_duration_seconds', 0)
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_duration_daily(
+                        date=date_str,
+                        entity_id=entity_id,
+                        domain=domain,
+                        occurrences=occurrences,
+                        confidence=confidence,
+                        avg_duration_seconds=avg_duration
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
     
     def _detect_usage_duration_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
         """
