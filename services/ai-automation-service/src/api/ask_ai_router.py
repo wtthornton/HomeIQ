@@ -416,103 +416,33 @@ async def generate_suggestions_from_query(
         raise ValueError("OpenAI client not available - cannot generate suggestions")
     
     try:
-        # Build enhanced context for OpenAI based on entity type
-        entities_summary = []
-        capabilities_available = set()
+        # Use unified prompt builder for consistent prompt generation
+        from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
         
-        for entity in entities[:5]:  # Limit context
-            if entity.get('extraction_method') == 'device_intelligence':
-                # Enhanced entity with rich data
-                capabilities = entity.get('capabilities', [])
-                capability_list = [cap['feature'] for cap in capabilities if cap.get('supported')]
-                capabilities_available.update(capability_list)
-                
-                entities_summary.append(f"""
-- {entity['name']} ({entity.get('manufacturer', 'Unknown')} {entity.get('model', 'Unknown')})
-  Entity ID: {entity.get('entity_id', 'N/A')}
-  Area: {entity.get('area', 'N/A')}
-  Current State: {entity.get('state', 'unknown')}
-  Health Score: {entity.get('health_score', 'N/A')}
-  Available Capabilities: {', '.join(capability_list) if capability_list else 'Basic on/off'}""")
-            else:
-                # Basic entity (fallback)
-                entities_summary.append(f"- {entity['name']} ({entity.get('domain', 'unknown')}): {entity.get('state', 'unknown')}")
+        unified_builder = UnifiedPromptBuilder(device_intelligence_client=_device_intelligence_client)
         
-        entities_text = "\n".join(entities_summary)
+        # Build unified prompt with device intelligence
+        prompt_dict = await unified_builder.build_query_prompt(
+            query=query,
+            entities=entities,
+            output_mode="suggestions"
+        )
         
-        prompt = f"""
-You are a HIGHLY CREATIVE and experienced Home Assistant automation expert with access to detailed device capabilities and health data. Your goal is to generate 3-4 DISTINCT, DIVERSE, and IMAGINATIVE automation suggestions that leverage the SPECIFIC capabilities of the available devices.
-
-Query: "{query}"
-
-Available Devices with FULL Capabilities:
-{entities_text}
-
-CREATIVE EXAMPLES USING DEVICE CAPABILITIES:
-- Instead of basic "flash lights", consider: "Use LED notifications to flash red-blue pattern when door opens"
-- Instead of simple on/off, think: "Use smart bulb mode to create sunrise effect over 30 seconds"
-- Instead of basic control, consider: "Use auto-off timer to turn lights off after 10 minutes"
-- Combine capabilities: "Use LED notifications + smart bulb mode for color-coded door alerts"
-- Health-aware: "Prioritize devices with health_score > 80 for reliable automations"
-
-CREATIVE EXAMPLES TO INSPIRE YOU:
-- Instead of just "flash lights when door opens", consider: "Flash all four office lights in sequence (left, right, back, front) when front door opens"
-- Instead of simple on/off, think: "Flash red for front door opening and blue for back door opening"
-- Combine multiple triggers: "Flash lights when BOTH front and garage doors open"
-- Add conditions: "Flash lights when door opens, but only after sunset"
-- Use different patterns: "Strobe lights rapidly for 3 seconds, then steady blue for 10 seconds"
-- Consider device combinations: "Flash lights AND play door chime when front door opens"
-
-Generate 3-4 CREATIVE and DISTINCT automation suggestions. Each suggestion must be UNIQUE and offer a different perspective. Be imaginative and think of creative ways to use the available devices and their capabilities.
-
-Each suggestion should:
-1. Use actual device capabilities when available (LED notifications, smart bulb mode, auto-timers, etc.)
-2. Have a creative, detailed description with specific details about patterns, colors, sequences
-3. Specify the trigger (when it happens) - be specific about conditions
-4. Specify the action (what it does) - include patterns, colors, timing details
-5. List the devices involved - think of creative combinations
-6. Consider device health scores (avoid devices with health_score < 50)
-7. Have a confidence score (0.0-1.0) based on available capabilities
-
-Return as JSON array with this structure:
-[
-  {{
-    "description": "Creative, detailed description using specific device capabilities",
-    "trigger_summary": "Specific trigger conditions",
-    "action_summary": "Detailed action using device capabilities (LED patterns, smart modes, etc.)",
-    "devices_involved": ["Device1", "Device2", "Device3"],
-    "capabilities_used": ["led_notifications", "smart_bulb_mode", "auto_off_timer"],
-    "confidence": 0.85
-  }}
-]
-"""
-
-        # Call OpenAI API directly for Ask AI queries
-        logger.info(f"Calling OpenAI with prompt length: {len(prompt)}")
+        # Generate suggestions with unified prompt
+        logger.info(f"Generating suggestions for query: {query}")
         logger.info(f"OpenAI client available: {openai_client is not None}")
         logger.info(f"OpenAI model: {openai_client.model if openai_client else 'None'}")
         
         try:
-            response = await openai_client.client.chat.completions.create(
-                model=openai_client.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a HIGHLY CREATIVE Home Assistant automation expert. Generate 3-4 DISTINCT, DIVERSE, and IMAGINATIVE automation suggestions based on user queries. Think beyond literal interpretations and propose creative scenarios with patterns, colors, sequences, and device combinations. Return as JSON array with description, trigger_summary, action_summary, devices_involved, and confidence fields."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.9,
-                max_tokens=1200
+            suggestions_data = await openai_client.generate_with_unified_prompt(
+                prompt_dict=prompt_dict,
+                temperature=settings.creative_temperature,
+                max_tokens=1200,
+                output_format="json"
             )
             
-            logger.info(f"OpenAI response received: {response}")
-            logger.info(f"Response choices count: {len(response.choices) if response.choices else 0}")
-            if response.choices:
-                logger.info(f"First choice content length: {len(response.choices[0].message.content) if response.choices[0].message.content else 0}")
+            logger.info(f"OpenAI response received: {suggestions_data}")
+            
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             raise
@@ -520,27 +450,15 @@ Return as JSON array with this structure:
         # Parse OpenAI response
         suggestions = []
         try:
-            import json
-            content = response.choices[0].message.content.strip()
-            logger.info(f"OpenAI response content: {content[:200]}...")
-            
-            if not content:
+            # suggestions_data is already parsed JSON from unified prompt method
+            if not suggestions_data:
                 logger.warning("OpenAI returned empty response")
                 raise ValueError("Empty response from OpenAI")
             
-            # Remove markdown code blocks if present
-            if content.startswith('```json'):
-                content = content[7:]  # Remove ```json
-            elif content.startswith('```'):
-                content = content[3:]  # Remove ```
+            logger.info(f"OpenAI response content: {str(suggestions_data)[:200]}...")
             
-            if content.endswith('```'):
-                content = content[:-3]  # Remove closing ```
-            
-            content = content.strip()
-            logger.info(f"Cleaned content: {content[:200]}...")
-                
-            parsed = json.loads(content)
+            # suggestions_data is already parsed JSON from unified prompt method
+            parsed = suggestions_data
             for i, suggestion in enumerate(parsed):
                 suggestions.append({
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',

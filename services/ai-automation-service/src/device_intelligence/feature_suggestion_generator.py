@@ -124,45 +124,38 @@ class FeatureSuggestionGenerator:
         Returns:
             Suggestion dict or None if generation fails
         """
-        # Build prompt for feature discovery
-        prompt = self._build_feature_prompt(opportunity)
-        
         try:
-            # Use existing OpenAI client (Epic-AI-1)
-            response = await self.llm.client.chat.completions.create(
-                model=self.llm.model,  # gpt-4o-mini (cost-effective)
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a smart home expert helping users discover unused device features. "
-                            "Create concise, actionable suggestions for enabling device capabilities. "
-                            "Focus on practical benefits and simple configuration steps. "
-                            "Be encouraging and educational."
-                        )
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.8,  # Creative but consistent
-                max_tokens=300  # Keep suggestions concise
+            # Use unified prompt builder for consistent prompt generation
+            from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+            
+            unified_builder = UnifiedPromptBuilder(device_intelligence_client=None)
+            
+            # Build device context from opportunity
+            device_context = {
+                'device_id': opportunity['device_id'],
+                'friendly_name': opportunity['device_name'],
+                'manufacturer': opportunity['manufacturer'],
+                'model': opportunity['model'],
+                'capabilities': [opportunity['feature_name']]
+            }
+            
+            # Build unified prompt for feature suggestion
+            prompt_dict = await unified_builder.build_feature_prompt(
+                opportunity=opportunity,
+                device_context=device_context,
+                output_mode="description"
             )
             
-            # Track token usage (existing client tracks this)
-            usage = response.usage
-            self.llm.total_input_tokens += usage.prompt_tokens
-            self.llm.total_output_tokens += usage.completion_tokens
-            self.llm.total_tokens_used += usage.total_tokens
-            
-            logger.debug(
-                f"OpenAI tokens: {usage.total_tokens} "
-                f"(in: {usage.prompt_tokens}, out: {usage.completion_tokens})"
+            # Generate suggestion with unified prompt
+            suggestion_data = await self.llm.generate_with_unified_prompt(
+                prompt_dict=prompt_dict,
+                temperature=0.8,  # Creative but consistent
+                max_tokens=300,  # Keep suggestions concise
+                output_format="description"
             )
             
             # Extract suggestion content
-            content = response.choices[0].message.content.strip()
+            content = suggestion_data.get('description', '').strip()
             
             # Create suggestion dict
             suggestion = {

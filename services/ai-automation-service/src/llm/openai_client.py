@@ -28,6 +28,7 @@ from typing import Dict, Optional
 import logging
 import re
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from deprecated import deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ class OpenAIClient:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((Exception,)),
         reraise=True
+    )
+    @deprecated(
+        "Use generate_with_unified_prompt() instead. "
+        "This method will be removed in version 3.0.0"
     )
     async def generate_automation_suggestion(
         self,
@@ -147,6 +152,10 @@ class OpenAIClient:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((Exception,)),
         reraise=True
+    )
+    @deprecated(
+        "Use generate_with_unified_prompt() instead. "
+        "This method will be removed in version 3.0.0"
     )
     async def generate_description_only(
         self,
@@ -825,4 +834,80 @@ PRIORITY: medium
                 'priority': 'medium',
                 'confidence': pattern.get('confidence', 0.8)
             }
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        reraise=True
+    )
+    async def generate_with_unified_prompt(
+        self,
+        prompt_dict: Dict[str, str],
+        temperature: float = 0.7,
+        max_tokens: int = 600,
+        output_format: str = "yaml"  # "yaml" | "description" | "json"
+    ) -> Dict:
+        """
+        Generate automation suggestion using unified prompt format.
+        
+        Args:
+            prompt_dict: {"system_prompt": ..., "user_prompt": ...} from UnifiedPromptBuilder
+            temperature: Creativity level
+            max_tokens: Response limit
+            output_format: Expected output format
+        
+        Returns:
+            Parsed suggestion based on output_format
+        
+        Best Practices (from Context7):
+        - Use AsyncOpenAI client for async/await patterns
+        - Track token usage via response.usage
+        - Handle streaming with async context managers if needed
+        - Parse responses based on expected format
+        """
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": prompt_dict["system_prompt"]},
+                    {"role": "user", "content": prompt_dict["user_prompt"]}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            # Track token usage (OpenAI best practice)
+            usage = response.usage
+            self.total_input_tokens += usage.prompt_tokens
+            self.total_output_tokens += usage.completion_tokens
+            self.total_tokens_used += usage.total_tokens
+            
+            logger.info(
+                f"✅ Unified prompt generation successful: {usage.total_tokens} tokens "
+                f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
+            )
+            
+            # Parse based on output_format
+            content = response.choices[0].message.content
+            
+            if output_format == "json":
+                import json
+                # Handle markdown code blocks
+                if content.startswith('```json'):
+                    content = content[7:]
+                elif content.startswith('```'):
+                    content = content[3:]
+                if content.endswith('```'):
+                    content = content[:-3]
+                return json.loads(content.strip())
+            elif output_format == "yaml":
+                # Parse as full automation suggestion
+                return self._parse_automation_response(content, {})
+            else:  # description
+                return {"description": content.strip()}
+                
+        except Exception as e:
+            logger.error(f"❌ Unified prompt generation error: {e}")
+            raise
     

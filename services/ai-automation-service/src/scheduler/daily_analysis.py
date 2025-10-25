@@ -20,6 +20,17 @@ from ..api.suggestion_router import _build_device_context
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+
+# New ML-enhanced pattern detectors
+from ..pattern_detection.sequence_detector import SequenceDetector
+from ..pattern_detection.contextual_detector import ContextualDetector
+from ..pattern_detection.room_based_detector import RoomBasedDetector
+from ..pattern_detection.session_detector import SessionDetector
+from ..pattern_detection.duration_detector import DurationDetector
+from ..pattern_detection.day_type_detector import DayTypeDetector
+from ..pattern_detection.seasonal_detector import SeasonalDetector
+from ..pattern_detection.anomaly_detector import AnomalyDetector
+
 from ..llm.openai_client import OpenAIClient
 from ..database.crud import store_patterns, store_suggestion
 from ..database.models import get_db, get_db_session
@@ -231,6 +242,106 @@ class DailyAnalysisScheduler:
             
             all_patterns.extend(co_patterns)
             logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns")
+            
+            # ML-Enhanced Pattern Detection (NEW)
+            logger.info("  → Running ML-enhanced pattern detectors...")
+            
+            # Sequence patterns
+            logger.info("    → Running sequence detector...")
+            sequence_detector = SequenceDetector(
+                window_minutes=30,
+                min_sequence_length=2,
+                min_sequence_occurrences=3,
+                min_confidence=0.7
+            )
+            sequence_patterns = sequence_detector.detect_patterns(events_df)
+            all_patterns.extend(sequence_patterns)
+            logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns")
+            
+            # Contextual patterns
+            logger.info("    → Running contextual detector...")
+            contextual_detector = ContextualDetector(
+                weather_weight=0.3,
+                presence_weight=0.4,
+                time_weight=0.3,
+                min_confidence=0.7
+            )
+            contextual_patterns = contextual_detector.detect_patterns(events_df)
+            all_patterns.extend(contextual_patterns)
+            logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns")
+            
+            # Room-based patterns
+            logger.info("    → Running room-based detector...")
+            room_detector = RoomBasedDetector(
+                min_room_activity_events=5,
+                min_confidence=0.7
+            )
+            room_patterns = room_detector.detect_patterns(events_df)
+            all_patterns.extend(room_patterns)
+            logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns")
+            
+            # Session patterns
+            logger.info("    → Running session detector...")
+            session_detector = SessionDetector(
+                session_timeout_minutes=60,
+                min_session_events=3,
+                min_session_occurrences=3,
+                min_confidence=0.7
+            )
+            session_patterns = session_detector.detect_patterns(events_df)
+            all_patterns.extend(session_patterns)
+            logger.info(f"    ✅ Found {len(session_patterns)} session patterns")
+            
+            # Duration patterns
+            logger.info("    → Running duration detector...")
+            duration_detector = DurationDetector(
+                min_duration_minutes=5,
+                max_duration_hours=24,
+                min_occurrences=3,
+                min_confidence=0.7
+            )
+            duration_patterns = duration_detector.detect_patterns(events_df)
+            all_patterns.extend(duration_patterns)
+            logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns")
+            
+            # Day-type patterns
+            logger.info("    → Running day-type detector...")
+            day_type_detector = DayTypeDetector(
+                min_weekday_occurrences=5,
+                min_weekend_occurrences=3,
+                min_confidence=0.7
+            )
+            day_type_patterns = day_type_detector.detect_patterns(events_df)
+            all_patterns.extend(day_type_patterns)
+            logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns")
+            
+            # Seasonal patterns
+            logger.info("    → Running seasonal detector...")
+            seasonal_detector = SeasonalDetector(
+                min_seasonal_occurrences=10,
+                seasonal_window_days=30,
+                weather_integration=True,
+                min_confidence=0.7
+            )
+            seasonal_patterns = seasonal_detector.detect_patterns(events_df)
+            all_patterns.extend(seasonal_patterns)
+            logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns")
+            
+            # Anomaly patterns
+            logger.info("    → Running anomaly detector...")
+            anomaly_detector = AnomalyDetector(
+                contamination=0.1,
+                min_anomaly_occurrences=3,
+                anomaly_window_hours=24,
+                enable_timing_analysis=True,
+                enable_behavioral_analysis=True,
+                enable_device_analysis=True,
+                min_confidence=0.7
+            )
+            anomaly_patterns = anomaly_detector.detect_patterns(events_df)
+            all_patterns.extend(anomaly_patterns)
+            logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns")
+            
             logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
             job_result['patterns_detected'] = len(all_patterns)
             
@@ -446,6 +557,12 @@ class DailyAnalysisScheduler:
             # ================================================================
             logger.info("💡 Phase 5/7: Combined Suggestion Generation (AI-1 + AI-2)...")
             
+            # Initialize unified prompt builder with device intelligence
+            from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+            
+            device_intel_client = DeviceIntelligenceClient(settings.device_intelligence_url)
+            unified_builder = UnifiedPromptBuilder(device_intelligence_client=device_intel_client)
+            
             # Initialize OpenAI client
             openai_client = OpenAIClient(api_key=settings.openai_api_key)
             
@@ -464,31 +581,55 @@ class DailyAnalysisScheduler:
                 
                 for i, pattern in enumerate(top_patterns, 1):
                     try:
-                        # Build device context for friendly names
-                        device_context = await _build_device_context(pattern)
+                        # Get enhanced device context with device intelligence
+                        enhanced_context = await unified_builder.get_enhanced_device_context(pattern)
                         
-                        # Story AI1.24: Generate DESCRIPTION ONLY (no YAML until user approves)
-                        description_data = await openai_client.generate_description_only(
-                            pattern,
-                            device_context=device_context,
-                            community_enhancements=community_enhancements if community_enhancements else None
+                        # Build unified prompt with device intelligence
+                        prompt_dict = await unified_builder.build_pattern_prompt(
+                            pattern=pattern,
+                            device_context=enhanced_context,
+                            output_mode="description"  # Use description-only for Story AI1.23
                         )
+                        
+                        # Generate suggestion with unified prompt
+                        description_data = await openai_client.generate_with_unified_prompt(
+                            prompt_dict=prompt_dict,
+                            temperature=settings.default_temperature,
+                            max_tokens=settings.description_max_tokens,
+                            output_format="description"
+                        )
+                        
+                        # Handle both old and new response formats
+                        if 'title' in description_data:
+                            # Old format from generate_description_only
+                            title = description_data['title']
+                            description = description_data['description']
+                            rationale = description_data['rationale']
+                            category = description_data['category']
+                            priority = description_data['priority']
+                        else:
+                            # New format from unified prompt
+                            title = f"Automation for {pattern.get('device_id', 'device')}"
+                            description = description_data.get('description', '')
+                            rationale = "Based on detected usage pattern"
+                            category = "convenience"
+                            priority = "medium"
                         
                         pattern_suggestions.append({
                             'type': 'pattern_automation',
                             'source': 'Epic-AI-1',
                             'pattern_id': pattern.get('id'),
                             'pattern_type': pattern.get('pattern_type'),
-                            'title': description_data['title'],
-                            'description': description_data['description'],
+                            'title': title,
+                            'description': description,
                             'automation_yaml': None,  # Story AI1.24: No YAML until approved
                             'confidence': pattern['confidence'],
-                            'category': description_data['category'],
-                            'priority': description_data['priority'],
-                            'rationale': description_data['rationale']
+                            'category': category,
+                            'priority': priority,
+                            'rationale': rationale
                         })
                         
-                        logger.debug(f"     [{i}/{len(top_patterns)}] ✅ {description_data['title']}")
+                        logger.debug(f"     [{i}/{len(top_patterns)}] ✅ {title}")
                         
                     except Exception as e:
                         logger.error(f"     [{i}/{len(top_patterns)}] ❌ Failed: {e}")

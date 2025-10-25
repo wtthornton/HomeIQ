@@ -71,6 +71,16 @@ class Settings(BaseSettings):
     miner_query_timeout_ms: int = 100
     miner_cache_ttl_days: int = 7
     
+    # Unified Prompt System
+    enable_device_intelligence_prompts: bool = True
+    device_intelligence_timeout: int = 5
+    
+    # Prompt Configuration
+    default_temperature: float = 0.7
+    creative_temperature: float = 0.9  # For Ask AI
+    description_max_tokens: int = 300
+    yaml_max_tokens: int = 600
+    
     class Config:
         env_file = "infrastructure/env.ai-automation"
         case_sensitive = False
