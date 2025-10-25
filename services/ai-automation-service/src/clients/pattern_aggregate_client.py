@@ -198,6 +198,138 @@ class PatternAggregateClient:
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote anomaly_daily aggregate: {entity_id} on {date}")
     
+    # ==================== GROUP B DETECTORS - WEEKLY AGGREGATES ====================
+    
+    def write_session_weekly(
+        self,
+        week: str,
+        session_type: str,
+        avg_session_duration: float,
+        session_count: int,
+        typical_start_times: List[int],
+        devices_used: List[str],
+        confidence: float = 1.0
+    ) -> None:
+        """
+        Write session weekly aggregate to InfluxDB.
+        
+        Args:
+            week: Week identifier (YYYY-WW format, e.g., '2025-W03')
+            session_type: Type of session
+            avg_session_duration: Average session duration in seconds
+            session_count: Number of sessions
+            typical_start_times: Typical session start times (hours)
+            devices_used: List of devices used in sessions
+            confidence: Pattern confidence score
+        """
+        point = Point("session_weekly") \
+            .tag("week", week) \
+            .tag("session_type", session_type) \
+            .field("avg_session_duration", avg_session_duration) \
+            .field("session_count", session_count) \
+            .field("typical_start_times", json.dumps(typical_start_times)) \
+            .field("devices_used", json.dumps(devices_used)) \
+            .field("confidence", confidence) \
+            .time(datetime.now(), WritePrecision.NS)
+        
+        self.write_api.write(bucket=self.bucket_weekly, record=point)
+        logger.debug(f"Wrote session_weekly aggregate: {session_type} for {week}")
+    
+    def write_day_type_weekly(
+        self,
+        week: str,
+        day_type: str,
+        avg_events: float,
+        typical_hours: List[int],
+        device_usage: Dict[str, Any],
+        confidence: float = 1.0
+    ) -> None:
+        """
+        Write day-type weekly aggregate to InfluxDB.
+        
+        Args:
+            week: Week identifier (YYYY-WW format)
+            day_type: 'weekday' or 'weekend'
+            avg_events: Average number of events
+            typical_hours: Typical activity hours
+            device_usage: Device usage statistics
+            confidence: Pattern confidence score
+        """
+        point = Point("day_type_weekly") \
+            .tag("week", week) \
+            .tag("day_type", day_type) \
+            .field("avg_events", avg_events) \
+            .field("typical_hours", json.dumps(typical_hours)) \
+            .field("device_usage", json.dumps(device_usage)) \
+            .field("confidence", confidence) \
+            .time(datetime.now(), WritePrecision.NS)
+        
+        self.write_api.write(bucket=self.bucket_weekly, record=point)
+        logger.debug(f"Wrote day_type_weekly aggregate: {day_type} for {week}")
+    
+    # ==================== GROUP C DETECTORS - MONTHLY AGGREGATES ====================
+    
+    def write_contextual_monthly(
+        self,
+        month: str,
+        weather_context: str,
+        device_activity: Dict[str, Any],
+        correlation_score: float,
+        occurrences: int,
+        confidence: float = 1.0
+    ) -> None:
+        """
+        Write contextual monthly aggregate to InfluxDB.
+        
+        Args:
+            month: Month identifier (YYYY-MM format, e.g., '2025-01')
+            weather_context: Weather context classification
+            device_activity: Device activity patterns
+            correlation_score: Weather-device correlation score
+            occurrences: Number of occurrences
+            confidence: Pattern confidence score
+        """
+        point = Point("contextual_monthly") \
+            .tag("month", month) \
+            .tag("weather_context", weather_context) \
+            .field("device_activity", json.dumps(device_activity)) \
+            .field("correlation_score", correlation_score) \
+            .field("occurrences", occurrences) \
+            .field("confidence", confidence) \
+            .time(datetime.now(), WritePrecision.NS)
+        
+        self.write_api.write(bucket=self.bucket_weekly, record=point)  # Store in weekly bucket
+        logger.debug(f"Wrote contextual_monthly aggregate: {weather_context} for {month}")
+    
+    def write_seasonal_monthly(
+        self,
+        month: str,
+        season: str,
+        seasonal_patterns: Dict[str, Any],
+        trend_direction: str,
+        confidence: float = 1.0
+    ) -> None:
+        """
+        Write seasonal monthly aggregate to InfluxDB.
+        
+        Args:
+            month: Month identifier (YYYY-MM format)
+            season: Season identifier
+            seasonal_patterns: Seasonal activity patterns
+            trend_direction: Trend direction ('increasing', 'decreasing', 'stable')
+            confidence: Pattern confidence score
+        """
+        point = Point("seasonal_monthly") \
+            .tag("month", month) \
+            .tag("season", season) \
+            .field("seasonal_patterns", json.dumps(seasonal_patterns)) \
+            .field("trend_direction", trend_direction) \
+            .field("confidence", confidence) \
+            .time(datetime.now(), WritePrecision.NS)
+        
+        self.write_api.write(bucket=self.bucket_weekly, record=point)  # Store in weekly bucket
+        logger.debug(f"Wrote seasonal_monthly aggregate: {season} for {month}")
+    
     # ==================== QUERY METHODS ====================
     
     def query_daily_aggregates_by_date_range(
