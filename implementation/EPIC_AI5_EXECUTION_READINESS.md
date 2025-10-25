@@ -358,7 +358,8 @@ Epic AI-5 is **READY FOR EXECUTION**. All design work is complete, all dependenc
 - ✅ Branch created: `epic-ai5-incremental-processing`
 - ✅ Story AI5.2 completed: PatternAggregateClient implemented
 - ✅ Story AI5.1 completed: Bucket setup script and documentation
-- 📋 Next: Create InfluxDB buckets (run setup script) and begin Story AI5.3
+- ✅ InfluxDB buckets created: pattern_aggregates_daily (90d), pattern_aggregates_weekly (365d)
+- 🚧 Story AI5.3 in progress: Converting detectors to incremental processing
 
 ---
 
