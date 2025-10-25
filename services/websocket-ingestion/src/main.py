@@ -109,8 +109,8 @@ class WebSocketIngestionService:
         # Historical event counter for persistent totals
         self.historical_counter = None
         
-        if self.home_assistant_enabled and (not self.home_assistant_url or not self.home_assistant_token):
-            raise ValueError("HA_HTTP_URL/HA_WS_URL and HA_TOKEN must be set when ENABLE_HOME_ASSISTANT=true")
+        # Note: HA connection validation is now handled by ha_connection_manager
+        # The service will check for available connections during startup
     
     @performance_monitor("service_startup")
     async def start(self):
