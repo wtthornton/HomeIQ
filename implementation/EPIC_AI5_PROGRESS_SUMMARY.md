@@ -119,13 +119,33 @@
 
 ---
 
+### 7. Story AI5.5: Weekly/Monthly Aggregation Layer ✅
+**File:** `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
+
+**Changes:**
+- ✅ Added `write_session_weekly()` method (Group B detector)
+- ✅ Added `write_day_type_weekly()` method (Group B detector)
+- ✅ Added `write_contextual_monthly()` method (Group C detector)
+- ✅ Added `write_seasonal_monthly()` method (Group C detector)
+- ✅ All methods write to `bucket_weekly` with proper schema
+- ✅ JSON serialization for complex fields
+
+**Behavior:**
+- Weekly aggregates for Session and Day-type detectors
+- Monthly aggregates for Contextual and Seasonal detectors
+- Ready for Group B and C detector conversion
+- Consistent with daily aggregate patterns
+
+---
+
 ## 📊 Progress Metrics
 
-### Stories Completed: 4.0 / 11
+### Stories Completed: 5.0 / 11
 - ✅ AI5.1: Multi-Layer Storage Design
 - ✅ AI5.2: InfluxDB Daily Aggregates
 - ✅ AI5.3: Convert Group A Detectors (6/6 complete)
 - ✅ AI5.4: Daily Batch Job Refactoring
+- ✅ AI5.5: Weekly/Monthly Aggregation Layer
 
 ### Files Created: 4
 - `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
@@ -133,7 +153,7 @@
 - `docs/deployment/AI5_INFLUXDB_BUCKETS_SETUP.md`
 - `implementation/EPIC_AI5_EXECUTION_READINESS.md`
 
-### Files Modified: 9
+### Files Modified: 10
 - `services/ai-automation-service/src/pattern_analyzer/time_of_day.py`
 - `services/ai-automation-service/src/pattern_analyzer/co_occurrence.py`
 - `services/ai-automation-service/src/pattern_detection/sequence_detector.py`
@@ -141,6 +161,7 @@
 - `services/ai-automation-service/src/pattern_detection/duration_detector.py`
 - `services/ai-automation-service/src/pattern_detection/anomaly_detector.py`
 - `services/ai-automation-service/src/scheduler/daily_analysis.py`
+- `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
 - `implementation/EPIC_AI5_PROGRESS_SUMMARY.md`
 
 ### Infrastructure:
@@ -162,12 +183,16 @@
 
 ---
 
-### Stories AI5.5-5.8: Weekly/Monthly Processing
+### Story AI5.5: Weekly/Monthly Aggregation Layer ✅ COMPLETE
+**Weekly and monthly aggregation methods implemented**
+
+---
+
+### Stories AI5.6-5.8: Detector Conversions
 **Still Pending:**
-- AI5.5: Weekly Aggregation Layer Implementation
-- AI5.6: Convert Group B Detectors to Weekly
-- AI5.7: Monthly Aggregation Layer Implementation
-- AI5.8: Convert Group C Detectors to Monthly
+- AI5.6: Convert Group B Detectors to Weekly (Session, Day-type)
+- AI5.7: ~~Monthly Aggregation Layer~~ (Included in AI5.5)
+- AI5.8: Convert Group C Detectors to Monthly (Contextual, Seasonal)
 
 ---
 
@@ -289,4 +314,4 @@
 
 **Document Status:** Progress Tracking  
 **Last Updated:** October 24, 2025  
-**Next Update:** After Story AI5.5 (Weekly Aggregation)
+**Next Update:** After Story AI5.6 (Group B Detectors)
