@@ -238,7 +238,7 @@
         {
           "title": "System Health Tests",
           "file": "system-health.spec.ts",
-          "line": 7,
+          "line": 8,
           "column": 6,
           "specs": [
             {
@@ -257,40 +257,37 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 1405,
+                      "duration": 1052,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.139Z",
+                      "startTime": "2025-10-25T08:46:19.384Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -306,58 +303,18 @@
                     {
                       "workerIndex": 6,
                       "parallelIndex": 6,
-                      "status": "failed",
-                      "duration": 33885,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 11782,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.207Z",
+                      "startTime": "2025-10-25T08:46:19.514Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-firefox\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -368,58 +325,19 @@
                   "results": [
                     {
                       "workerIndex": 12,
-                      "parallelIndex": 2,
-                      "status": "failed",
-                      "duration": 6127,
-                      "error": {
-                        "message": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:8002\nCall log:\n\u001b[2m  - → GET http://localhost:8002/health\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
-                        "stack": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:8002\nCall log:\n\u001b[2m  - → GET http://localhost:8002/health\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at apiRequestContext.get: connect ECONNREFUSED ::1:8002\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:25:47",
-                        "location": {
-                          "file": "apiRequestContext.get: connect ECONNREFUSED :",
-                          "column": 8002,
-                          "line": 1
-                        }
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "apiRequestContext.get: connect ECONNREFUSED :",
-                            "column": 8002,
-                            "line": 1
-                          },
-                          "message": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:8002\nCall log:\n\u001b[2m  - → GET http://localhost:8002/health\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at apiRequestContext.get: connect ECONNREFUSED ::1:8002\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:25:47"
-                        }
-                      ],
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3714,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.140Z",
+                      "startTime": "2025-10-25T08:46:22.697Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-webkit\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "apiRequestContext.get: connect ECONNREFUSED :",
-                        "column": 8002,
-                        "line": 1
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -430,59 +348,19 @@
                   "results": [
                     {
                       "workerIndex": 18,
-                      "parallelIndex": 7,
-                      "status": "failed",
-                      "duration": 31378,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "parallelIndex": 6,
+                      "status": "passed",
+                      "duration": 3185,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:24.591Z",
+                      "startTime": "2025-10-25T08:46:43.542Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-chrome\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -492,65 +370,25 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 32228,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "workerIndex": 21,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 3946,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:29.552Z",
+                      "startTime": "2025-10-25T08:46:45.461Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-1311d--are-healthy-and-responding-docker-mobile-safari\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
               "id": "827b7e891744f7029d77-7ae5fc67247027b379f1",
               "file": "system-health.spec.ts",
-              "line": 15,
+              "line": 18,
               "column": 7
             },
             {
@@ -569,40 +407,37 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 1375,
+                      "duration": 844,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.147Z",
+                      "startTime": "2025-10-25T08:46:19.456Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -619,31 +454,31 @@
                       "workerIndex": 7,
                       "parallelIndex": 7,
                       "status": "failed",
-                      "duration": 22134,
+                      "duration": 18806,
                       "error": {
                         "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n",
-                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:42:16",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 42
+                          "line": 41
                         },
-                        "snippet": "  40 |     \n  41 |     // Wait for health data to load\n> 42 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  43 |     \n  44 |     // Verify health indicators are present\n  45 |     const healthCards = page.locator('[data-testid=\"health-card\"]');"
+                        "snippet": "  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 42
+                            "line": 41
                           },
-                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n\n  40 |     \n  41 |     // Wait for health data to load\n> 42 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  43 |     \n  44 |     // Verify health indicators are present\n  45 |     const healthCards = page.locator('[data-testid=\"health-card\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:42:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n\n  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.182Z",
+                      "startTime": "2025-10-25T08:46:19.472Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -665,7 +500,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 42
+                        "line": 41
                       }
                     }
                   ],
@@ -679,34 +514,34 @@
                   "projectName": "docker-webkit",
                   "results": [
                     {
-                      "workerIndex": 10,
-                      "parallelIndex": 1,
+                      "workerIndex": 14,
+                      "parallelIndex": 4,
                       "status": "failed",
-                      "duration": 34440,
+                      "duration": 13911,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 41
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 41
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n\n  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.004Z",
+                      "startTime": "2025-10-25T08:46:22.732Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -728,7 +563,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 41
                       }
                     }
                   ],
@@ -742,34 +577,34 @@
                   "projectName": "docker-mobile-chrome",
                   "results": [
                     {
-                      "workerIndex": 19,
-                      "parallelIndex": 6,
+                      "workerIndex": 17,
+                      "parallelIndex": 9,
                       "status": "failed",
-                      "duration": 31091,
+                      "duration": 13094,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 41
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 41
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n\n  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:27.088Z",
+                      "startTime": "2025-10-25T08:46:42.745Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -791,7 +626,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 41
                       }
                     }
                   ],
@@ -805,34 +640,34 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 25,
-                      "parallelIndex": 3,
+                      "workerIndex": 23,
+                      "parallelIndex": 8,
                       "status": "failed",
-                      "duration": 31646,
+                      "duration": 14175,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 41
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 41
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"health-card\"]') to be visible\u001b[22m\n\n\n  39 |     \n  40 |     // Wait for health data to load\n> 41 |     await page.waitForSelector('[data-testid=\"health-card\"]', { timeout: 10000 });\n     |                ^\n  42 |     \n  43 |     // Verify health indicators are present\n  44 |     const healthCards = page.locator('[data-testid=\"health-card\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:41:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:33.117Z",
+                      "startTime": "2025-10-25T08:46:45.621Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -854,7 +689,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 41
                       }
                     }
                   ],
@@ -863,7 +698,7 @@
               ],
               "id": "827b7e891744f7029d77-a24e6bbee1e4aa22c814",
               "file": "system-health.spec.ts",
-              "line": 37,
+              "line": 36,
               "column": 7
             },
             {
@@ -882,40 +717,37 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "failed",
-                      "duration": 1385,
+                      "duration": 823,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.144Z",
+                      "startTime": "2025-10-25T08:46:19.452Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -932,31 +764,31 @@
                       "workerIndex": 8,
                       "parallelIndex": 8,
                       "status": "failed",
-                      "duration": 33815,
+                      "duration": 19986,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
+                        "stack": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
+                          "column": 46,
+                          "line": 53
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
+                            "column": 46,
+                            "line": 53
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n\n  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.169Z",
+                      "startTime": "2025-10-25T08:46:19.482Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -977,8 +809,8 @@
                       ],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
+                        "column": 46,
+                        "line": 53
                       }
                     }
                   ],
@@ -993,33 +825,33 @@
                   "results": [
                     {
                       "workerIndex": 13,
-                      "parallelIndex": 0,
+                      "parallelIndex": 3,
                       "status": "failed",
-                      "duration": 34681,
+                      "duration": 18796,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
+                        "stack": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
+                          "column": 46,
+                          "line": 53
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
+                            "column": 46,
+                            "line": 53
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n\n  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.202Z",
+                      "startTime": "2025-10-25T08:46:22.670Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1040,8 +872,8 @@
                       ],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
+                        "column": 46,
+                        "line": 53
                       }
                     }
                   ],
@@ -1055,34 +887,34 @@
                   "projectName": "docker-mobile-chrome",
                   "results": [
                     {
-                      "workerIndex": 20,
-                      "parallelIndex": 8,
+                      "workerIndex": 16,
+                      "parallelIndex": 4,
                       "status": "failed",
-                      "duration": 31331,
+                      "duration": 18020,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
+                        "stack": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
+                          "column": 46,
+                          "line": 53
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
+                            "column": 46,
+                            "line": 53
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n\n  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:27.136Z",
+                      "startTime": "2025-10-25T08:46:41.184Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1103,8 +935,8 @@
                       ],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
+                        "column": 46,
+                        "line": 53
                       }
                     }
                   ],
@@ -1118,34 +950,34 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 26,
-                      "parallelIndex": 4,
+                      "workerIndex": 24,
+                      "parallelIndex": 6,
                       "status": "failed",
-                      "duration": 31650,
+                      "duration": 18100,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
+                        "stack": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
+                          "column": 46,
+                          "line": 53
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
+                            "column": 46,
+                            "line": 53
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: apiRequestContext.get: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - → GET http://localhost:8003/api/v1/stats\u001b[22m\n\u001b[2m    - user-agent: Playwright-E2E-Tests\u001b[22m\n\u001b[2m    - accept: application/json, text/plain, */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n\n  51 |\n  52 |   test('Statistics endpoint returns valid data', async ({ page }) => {\n> 53 |     const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');\n     |                                              ^\n  54 |     expect(statsResponse.status()).toBe(200);\n  55 |     \n  56 |     const statsData = await statsResponse.json();\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:53:46"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:34.251Z",
+                      "startTime": "2025-10-25T08:46:51.067Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1166,8 +998,8 @@
                       ],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
+                        "column": 46,
+                        "line": 53
                       }
                     }
                   ],
@@ -1176,7 +1008,7 @@
               ],
               "id": "827b7e891744f7029d77-6f2362ff451fac5e1796",
               "file": "system-health.spec.ts",
-              "line": 53,
+              "line": 52,
               "column": 7
             },
             {
@@ -1195,40 +1027,37 @@
                       "workerIndex": 3,
                       "parallelIndex": 3,
                       "status": "failed",
-                      "duration": 1149,
+                      "duration": 989,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.171Z",
+                      "startTime": "2025-10-25T08:46:19.446Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -1244,58 +1073,18 @@
                     {
                       "workerIndex": 9,
                       "parallelIndex": 9,
-                      "status": "failed",
-                      "duration": 34369,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 11443,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.182Z",
+                      "startTime": "2025-10-25T08:46:19.547Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-firefox\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -1307,58 +1096,18 @@
                     {
                       "workerIndex": 15,
                       "parallelIndex": 5,
-                      "status": "failed",
-                      "duration": 34486,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 3702,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.288Z",
+                      "startTime": "2025-10-25T08:46:22.705Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-webkit\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -1368,60 +1117,20 @@
                   "projectName": "docker-mobile-chrome",
                   "results": [
                     {
-                      "workerIndex": 21,
-                      "parallelIndex": 9,
-                      "status": "failed",
-                      "duration": 31229,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "workerIndex": 19,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3700,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:28.900Z",
+                      "startTime": "2025-10-25T08:46:44.682Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-chrome\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 },
                 {
                   "timeout": 60000,
@@ -1431,65 +1140,25 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 27,
+                      "workerIndex": 25,
                       "parallelIndex": 2,
-                      "status": "failed",
-                      "duration": 31817,
-                      "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
-                        "location": {
-                          "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                          "column": 16,
-                          "line": 12
-                        },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                            "column": 16,
-                            "line": 12
-                          },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 3836,
+                      "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:59.474Z",
+                      "startTime": "2025-10-25T08:46:51.151Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "C:\\cursor\\ha-ingestor\\tests\\e2e\\test-results\\system-health-System-Healt-830cb-vents-endpoint-returns-data-docker-mobile-safari\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
-                        "column": 16,
-                        "line": 12
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
               "id": "827b7e891744f7029d77-899172bcaa8d1f4abe93",
               "file": "system-health.spec.ts",
-              "line": 64,
+              "line": 63,
               "column": 7
             },
             {
@@ -1508,40 +1177,37 @@
                       "workerIndex": 4,
                       "parallelIndex": 4,
                       "status": "failed",
-                      "duration": 1260,
+                      "duration": 1040,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.160Z",
+                      "startTime": "2025-10-25T08:46:19.403Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -1555,34 +1221,34 @@
                   "projectName": "docker-firefox",
                   "results": [
                     {
-                      "workerIndex": 14,
-                      "parallelIndex": 3,
+                      "workerIndex": 11,
+                      "parallelIndex": 2,
                       "status": "failed",
-                      "duration": 36926,
+                      "duration": 21381,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 83
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 83
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n\n  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.145Z",
+                      "startTime": "2025-10-25T08:46:22.634Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1604,7 +1270,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 83
                       }
                     }
                   ],
@@ -1618,34 +1284,34 @@
                   "projectName": "docker-webkit",
                   "results": [
                     {
-                      "workerIndex": 16,
-                      "parallelIndex": 2,
+                      "workerIndex": 12,
+                      "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 14974,
+                      "duration": 14772,
                       "error": {
                         "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n",
-                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:84:16",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 84
+                          "line": 83
                         },
-                        "snippet": "  82 |     \n  83 |     // Wait for WebSocket connection indicator\n> 84 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  85 |     \n  86 |     // Check connection status\n  87 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');"
+                        "snippet": "  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 84
+                            "line": 83
                           },
-                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n\n  82 |     \n  83 |     // Wait for WebSocket connection indicator\n> 84 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  85 |     \n  86 |     // Check connection status\n  87 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:84:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n\n  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:02.566Z",
+                      "startTime": "2025-10-25T08:46:26.560Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1667,7 +1333,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 84
+                        "line": 83
                       }
                     }
                   ],
@@ -1681,34 +1347,34 @@
                   "projectName": "docker-mobile-chrome",
                   "results": [
                     {
-                      "workerIndex": 22,
-                      "parallelIndex": 1,
+                      "workerIndex": 20,
+                      "parallelIndex": 7,
                       "status": "failed",
-                      "duration": 31429,
+                      "duration": 13611,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 83
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 83
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n\n  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:28.976Z",
+                      "startTime": "2025-10-25T08:46:44.887Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1730,7 +1396,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 83
                       }
                     }
                   ],
@@ -1744,34 +1410,34 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 28,
-                      "parallelIndex": 7,
+                      "workerIndex": 26,
+                      "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 31831,
+                      "duration": 13737,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 83
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 83
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"websocket-status\"]') to be visible\u001b[22m\n\n\n  81 |     \n  82 |     // Wait for WebSocket connection indicator\n> 83 |     await page.waitForSelector('[data-testid=\"websocket-status\"]', { timeout: 10000 });\n     |                ^\n  84 |     \n  85 |     // Check connection status\n  86 |     const connectionStatus = page.locator('[data-testid=\"websocket-status\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:83:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:59.668Z",
+                      "startTime": "2025-10-25T08:46:51.910Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1793,7 +1459,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 83
                       }
                     }
                   ],
@@ -1802,7 +1468,7 @@
               ],
               "id": "827b7e891744f7029d77-3c13fec49c53c32297eb",
               "file": "system-health.spec.ts",
-              "line": 80,
+              "line": 79,
               "column": 7
             },
             {
@@ -1821,40 +1487,37 @@
                       "workerIndex": 5,
                       "parallelIndex": 5,
                       "status": "failed",
-                      "duration": 1443,
+                      "duration": 1089,
                       "error": {
-                        "message": "Error: page.waitForLoadState: Target page, context or browser has been closed",
-                        "stack": "Error: page.waitForLoadState: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                        "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 15
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 15
                           },
-                          "message": "Error: page.waitForLoadState: Target page, context or browser has been closed\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
-                        },
-                        {
-                          "message": "Error: browserContext.close: Target page, context or browser has been closed"
+                          "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  13 |     await page.waitForLoadState('domcontentloaded'); // More reliable than networkidle\n  14 |     // Additional wait for React to hydrate\n> 15 |     await page.waitForTimeout(2000);\n     |                ^\n  16 |   });\n  17 |\n  18 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:15:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:45.161Z",
+                      "startTime": "2025-10-25T08:46:19.444Z",
                       "annotations": [],
                       "attachments": [],
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 15
                       }
                     }
                   ],
@@ -1868,34 +1531,34 @@
                   "projectName": "docker-firefox",
                   "results": [
                     {
-                      "workerIndex": 11,
-                      "parallelIndex": 4,
+                      "workerIndex": 10,
+                      "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 36762,
+                      "duration": 21147,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 100
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 100
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n\n   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:09:49.112Z",
+                      "startTime": "2025-10-25T08:46:22.384Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1917,7 +1580,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 100
                       }
                     }
                   ],
@@ -1931,34 +1594,34 @@
                   "projectName": "docker-webkit",
                   "results": [
                     {
-                      "workerIndex": 17,
-                      "parallelIndex": 2,
+                      "workerIndex": 15,
+                      "parallelIndex": 5,
                       "status": "failed",
-                      "duration": 32307,
+                      "duration": 15032,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 100
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 100
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n\n   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:23.279Z",
+                      "startTime": "2025-10-25T08:46:26.562Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1980,7 +1643,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 100
                       }
                     }
                   ],
@@ -1994,34 +1657,34 @@
                   "projectName": "docker-mobile-chrome",
                   "results": [
                     {
-                      "workerIndex": 23,
+                      "workerIndex": 22,
                       "parallelIndex": 5,
                       "status": "failed",
-                      "duration": 31350,
+                      "duration": 13564,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 100
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 100
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n\n   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:10:29.640Z",
+                      "startTime": "2025-10-25T08:46:45.042Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -2043,7 +1706,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 100
                       }
                     }
                   ],
@@ -2057,34 +1720,34 @@
                   "projectName": "docker-mobile-safari",
                   "results": [
                     {
-                      "workerIndex": 29,
-                      "parallelIndex": 6,
+                      "workerIndex": 27,
+                      "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 31221,
+                      "duration": 13935,
                       "error": {
-                        "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================",
-                        "stack": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16",
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16",
                         "location": {
                           "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                           "column": 16,
-                          "line": 12
+                          "line": 100
                         },
-                        "snippet": "  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {"
+                        "snippet": "   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                             "column": 16,
-                            "line": 12
+                            "line": 100
                           },
-                          "message": "TimeoutError: page.waitForLoadState: Timeout 30000ms exceeded.\n=========================== logs ===========================\n  \"domcontentloaded\" event fired\n============================================================\n\n  10 |     // Wait for system to be fully deployed\n  11 |     await page.goto('http://localhost:3000');\n> 12 |     await page.waitForLoadState('networkidle');\n     |                ^\n  13 |   });\n  14 |\n  15 |   test('All services are healthy and responding', async ({ page }) => {\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:12:16"
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"error-state\"]') to be visible\u001b[22m\n\n\n   98 |     \n   99 |     // Wait for error state to appear\n> 100 |     await page.waitForSelector('[data-testid=\"error-state\"]', { timeout: 10000 });\n      |                ^\n  101 |     \n  102 |     // Verify error message is displayed\n  103 |     const errorMessage = page.locator('[data-testid=\"error-message\"]');\n    at C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts:100:16"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-25T08:11:02.051Z",
+                      "startTime": "2025-10-25T08:46:52.063Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -2106,7 +1769,7 @@
                       "errorLocation": {
                         "file": "C:\\cursor\\ha-ingestor\\tests\\e2e\\system-health.spec.ts",
                         "column": 16,
-                        "line": 12
+                        "line": 100
                       }
                     }
                   ],
@@ -2115,7 +1778,7 @@
               ],
               "id": "827b7e891744f7029d77-a553ad58beecac9ee65e",
               "file": "system-health.spec.ts",
-              "line": 91,
+              "line": 90,
               "column": 7
             }
           ]
@@ -2125,11 +1788,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-25T08:09:31.914Z",
-    "duration": 121584.997,
-    "expected": 0,
+    "startTime": "2025-10-25T08:46:08.703Z",
+    "duration": 60712.659999999996,
+    "expected": 8,
     "skipped": 0,
-    "unexpected": 30,
+    "unexpected": 22,
     "flaky": 0
   }
 }
