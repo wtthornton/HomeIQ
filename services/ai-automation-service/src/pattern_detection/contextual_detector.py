@@ -35,6 +35,7 @@ class ContextualDetector(MLPatternDetector):
         time_weight: float = 0.3,
         context_window_hours: int = 24,
         min_context_occurrences: int = 5,
+        aggregate_client=None,  # Story AI5.8: Monthly aggregation
         **kwargs
     ):
         """
@@ -46,6 +47,7 @@ class ContextualDetector(MLPatternDetector):
             time_weight: Weight for time features in clustering
             context_window_hours: Time window for context analysis
             min_context_occurrences: Minimum occurrences for valid context pattern
+            aggregate_client: PatternAggregateClient for storing monthly aggregates (Story AI5.8)
             **kwargs: Additional MLPatternDetector parameters
         """
         super().__init__(**kwargs)
@@ -54,6 +56,7 @@ class ContextualDetector(MLPatternDetector):
         self.time_weight = time_weight
         self.context_window_hours = context_window_hours
         self.min_context_occurrences = min_context_occurrences
+        self.aggregate_client = aggregate_client  # Story AI5.8
         
         # Context feature weights
         self.feature_weights = {
@@ -106,6 +109,10 @@ class ContextualDetector(MLPatternDetector):
         # Cluster similar contextual patterns using ML
         if self.enable_ml and len(patterns) > 2:
             patterns = self._cluster_contextual_patterns(patterns)
+        
+        # Story AI5.8: Store monthly aggregates to InfluxDB
+        if self.aggregate_client and patterns:
+            self._store_monthly_aggregates(patterns, events_df)
         
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -607,3 +614,57 @@ class ContextualDetector(MLPatternDetector):
             features.append(feature_vector)
         
         return np.array(features)
+
+    def _store_monthly_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+        """
+        Store monthly aggregates to InfluxDB.
+        
+        Story AI5.8: Incremental pattern processing with monthly aggregate storage.
+        
+        Args:
+            patterns: List of detected patterns
+            events_df: Original events DataFrame
+        """
+        try:
+            # Get month identifier from events
+            if events_df.empty or 'time' not in events_df.columns:
+                logger.warning("Cannot determine month from events for aggregate storage")
+                return
+            
+            # Use YYYY-MM format
+            first_date = pd.to_datetime(events_df['time'].min())
+            month_str = first_date.strftime('%Y-%m')
+            
+            logger.info(f"Storing monthly aggregates for {month_str}")
+            
+            for pattern in patterns:
+                # Extract context information
+                metadata = pattern.get('metadata', {})
+                weather_context = metadata.get('weather_context', 'unknown')
+                
+                # Device activity from pattern
+                devices = pattern.get('devices', [])
+                device_activity = {device: 1 for device in devices}
+                
+                # Correlation score from confidence
+                correlation_score = pattern.get('confidence', 0.0)
+                occurrences = pattern.get('occurrences', 0)
+                confidence = correlation_score
+                
+                # Store aggregate
+                try:
+                    self.aggregate_client.write_contextual_monthly(
+                        month=month_str,
+                        weather_context=weather_context,
+                        device_activity=device_activity,
+                        correlation_score=correlation_score,
+                        occurrences=occurrences,
+                        confidence=confidence
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store aggregate for {weather_context}: {e}", exc_info=True)
+            
+            logger.info(f"✅ Stored {len(patterns)} monthly aggregates to InfluxDB")
+            
+        except Exception as e:
+            logger.error(f"Error storing monthly aggregates: {e}", exc_info=True)
