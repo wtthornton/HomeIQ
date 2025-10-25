@@ -78,10 +78,10 @@
 
 ## 📊 Progress Metrics
 
-### Stories Completed: 2.5 / 11
+### Stories Completed: 2.67 / 11
 - ✅ AI5.1: Multi-Layer Storage Design
 - ✅ AI5.2: InfluxDB Daily Aggregates
-- 🚧 AI5.3: Convert Group A Detectors (1/6 complete)
+- 🚧 AI5.3: Convert Group A Detectors (2/6 complete - TimeOfDay, CoOccurrence)
 
 ### Files Created: 4
 - `services/ai-automation-service/src/clients/pattern_aggregate_client.py`
@@ -103,8 +103,8 @@
 ## 🚧 Remaining Work
 
 ### Story AI5.3: Convert Detectors (Continuing)
-**Remaining Detectors (5 of 6):**
-1. ⚪ CoOccurrencePatternDetector
+**Remaining Detectors (4 of 6):**
+1. ✅ CoOccurrencePatternDetector
 2. ⚪ SequenceDetector
 3. ⚪ RoomBasedDetector
 4. ⚪ DurationDetector
