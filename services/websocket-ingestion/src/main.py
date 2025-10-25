@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 from aiohttp import web
 import aiohttp
 from dotenv import load_dotenv
@@ -144,6 +144,9 @@ class WebSocketIngestionService:
                 components=["memory_manager", "event_queue", "batch_processor", "async_event_processor"]
             )
             
+            # Register InfluxDB write handler (will be registered after InfluxDB batch writer is initialized)
+            # This will be done later in the start() method after InfluxDB components are ready
+            
             # Initialize weather enrichment service
             if self.weather_api_key and self.weather_enrichment_enabled:
                 self.weather_enrichment = WeatherEnrichmentService(
@@ -200,6 +203,28 @@ class WebSocketIngestionService:
                 total_events=historical_totals.get('total_events_received', 0)
             )
             
+            # Initialize InfluxDB batch writer for event storage
+            from influxdb_batch_writer import InfluxDBBatchWriter
+            self.influxdb_batch_writer = InfluxDBBatchWriter(
+                connection_manager=self.influxdb_manager,
+                batch_size=1000,
+                batch_timeout=5.0
+            )
+            await self.influxdb_batch_writer.start()
+            log_with_context(
+                logger, "INFO", "InfluxDB batch writer started",
+                operation="influxdb_batch_writer_startup",
+                correlation_id=corr_id
+            )
+            
+            # Register InfluxDB write handler with async event processor
+            self.async_event_processor.add_event_handler(self._write_event_to_influxdb)
+            log_with_context(
+                logger, "INFO", "Registered InfluxDB write handler",
+                operation="handler_registration",
+                correlation_id=corr_id
+            )
+            
             # Initialize connection manager (only if Home Assistant is enabled)
             if self.home_assistant_enabled:
                 # Use WebSocket URL if available, otherwise derive from HTTP URL
@@ -217,8 +242,8 @@ class WebSocketIngestionService:
                     influxdb_manager=self.influxdb_manager
                 )
                 
-                # Set up event handlers
-                self.connection_manager.on_connect = self._on_connect
+                # Set up event handlers - don't override connection manager's callbacks
+                # The connection manager handles subscription, we'll add discovery in a separate callback
                 self.connection_manager.on_disconnect = self._on_disconnect
                 self.connection_manager.on_message = self._on_message
                 self.connection_manager.on_error = self._on_error
@@ -272,6 +297,10 @@ class WebSocketIngestionService:
         if self.memory_manager:
             await self.memory_manager.stop()
         
+        # Stop InfluxDB batch writer
+        if hasattr(self, 'influxdb_batch_writer') and self.influxdb_batch_writer:
+            await self.influxdb_batch_writer.stop()
+        
         # Stop weather enrichment service
         # DEPRECATED (Epic 31, Story 31.4): Weather enrichment removed
         # if self.weather_enrichment:
@@ -298,6 +327,28 @@ class WebSocketIngestionService:
             status="connected",
             url=self.home_assistant_url
         )
+        
+        # Call the connection manager's subscription logic
+        if self.connection_manager:
+            try:
+                log_with_context(
+                    logger, "INFO", "Calling connection manager subscription method",
+                    operation="subscription_trigger",
+                    correlation_id=corr_id
+                )
+                await self.connection_manager._subscribe_to_events()
+                log_with_context(
+                    logger, "INFO", "Subscription method completed",
+                    operation="subscription_complete",
+                    correlation_id=corr_id
+                )
+            except Exception as e:
+                log_with_context(
+                    logger, "ERROR", f"Failed to subscribe to events: {e}",
+                    operation="subscription_error",
+                    correlation_id=corr_id,
+                    error=str(e)
+                )
         
         # Trigger device and entity discovery
         if self.connection_manager and self.connection_manager.client:
@@ -381,6 +432,17 @@ class WebSocketIngestionService:
                 event_type=event_type,
                 entity_id=entity_id
             )
+    
+    async def _write_event_to_influxdb(self, event_data: Dict[str, Any]):
+        """Write event to InfluxDB"""
+        try:
+            if self.influxdb_batch_writer:
+                # Write event using the batch writer
+                success = await self.influxdb_batch_writer.write_event(event_data)
+                if not success:
+                    logger.warning(f"Failed to write event to InfluxDB: {event_data.get('event_type')}")
+        except Exception as e:
+            logger.error(f"Error writing event to InfluxDB: {e}")
     
     @performance_monitor("batch_processing")
     async def _process_batch(self, batch):

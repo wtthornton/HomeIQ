@@ -248,7 +248,6 @@ services:
     volumes:
       - ./services/ha-simulator/config:/app/config
       - ./services/ha-simulator/data:/app/data
-      - ./ha_events.log:/app/data/ha_events.log:ro
     networks:
       - homeiq-network-dev
     healthcheck:

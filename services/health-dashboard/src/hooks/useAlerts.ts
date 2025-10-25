@@ -27,7 +27,7 @@ interface UseAlertsReturn {
 
 export const useAlerts = ({
   filters = {},
-  pollInterval = 60000,
+  pollInterval = 120000, // Increased from 60s to 120s (2 minutes)
   autoRefresh = true
 }: UseAlertsProps = {}): UseAlertsReturn => {
   const [alerts, setAlerts] = useState<Alert[]>([]);

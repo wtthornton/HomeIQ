@@ -195,9 +195,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
         reservations:
-          memory: 256M
+          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -988,7 +988,7 @@ services:
     container_name: automation-miner
     restart: unless-stopped
     ports:
-      - "8028:8019"  # Fixed port conflict with ner-service
+      - "8029:8019"  # Fixed port conflict with ner-service
     env_file:
       - infrastructure/env.automation-miner
     environment:
@@ -1028,7 +1028,7 @@ services:
     container_name: homeiq-setup-service
     restart: unless-stopped
     ports:
-      - "8020:8020"
+      - "8027:8020"
     env_file:
       - infrastructure/.env.websocket
     environment:
@@ -1097,7 +1097,7 @@ services:
     container_name: homeiq-device-intelligence
     restart: unless-stopped
     ports:
-      - "8027:8019"  # Fixed port conflict with ner-service
+      - "8028:8019"  # Fixed port conflict with ner-service
     extra_hosts:
       - "homeassistant:192.168.1.86"
     env_file:

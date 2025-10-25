@@ -38,7 +38,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
     };
 
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 10000);
+    const interval = setInterval(fetchAlerts, 30000); // Reduced from 10s to 30s
     return () => clearInterval(interval);
   }, []);
 
