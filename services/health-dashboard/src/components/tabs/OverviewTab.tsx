@@ -109,11 +109,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   }, []);
 
   // Fetch critical alerts for banner (Story 21.6)
-  const { alerts, summary } = useAlerts({
-    filters: { severity: 'critical' },
-    pollInterval: 30000,
-    autoRefresh: true
-  });
+  // TEMPORARILY DISABLED due to resource exhaustion issue
+  // const { alerts, summary } = useAlerts({
+  //   filters: { severity: 'critical' },
+  //   pollInterval: 120000, // Increased to 2 minutes to reduce load
+  //   autoRefresh: true
+  // });
+  const alerts: any[] = [];
+  const summary = null;
 
   // HTTP polling for health and statistics (30s refresh)
   const { health, loading: healthLoading, error: healthError } = useHealth(30000);
@@ -339,6 +342,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}
                 darkMode={darkMode}
+                loading={statsLoading}
                 onExpand={() => setSelectedService({
                   title: 'INGESTION',
                   icon: '🔌',
@@ -379,6 +383,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}
                 darkMode={darkMode}
+                loading={statsLoading}
                 onExpand={() => setSelectedService({
                   title: 'STORAGE',
                   icon: '🗄️',

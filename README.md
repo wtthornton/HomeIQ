@@ -132,6 +132,36 @@ docker-compose up -d
    - Test endpoints
    - View real-time data
 
+### How to Run
+
+To run a specific service's `main.py` script:
+
+```bash
+# Navigate to the service directory
+cd services/[service-name]/src
+
+# Run the main script
+python main.py
+
+# Or with environment variables
+python -m dotenv run python main.py
+```
+
+### How to Test
+
+To run tests for a specific service:
+
+```bash
+# Navigate to the service directory
+cd services/[service-name]/tests
+
+# Run all tests in the directory
+pytest .
+
+# Or run a specific test file
+pytest test_[module_name].py
+```
+
 ---
 
 ## 🏗️ Architecture

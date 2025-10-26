@@ -242,7 +242,7 @@ class AdminApiClient extends BaseApiClient {
 
   // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
   async getRealTimeMetrics(): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/real-time-metrics`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/real-time-metrics`);
   }
 }
 
@@ -253,7 +253,9 @@ class AdminApiClient extends BaseApiClient {
  */
 class DataApiClient extends BaseApiClient {
   constructor() {
-    super(DATA_API_BASE_URL);
+    // Use relative URLs since nginx proxies /api/* to data-api service
+    // This allows the dashboard to work in both dev (direct) and prod (nginx) environments
+    super('');
   }
 
   // Events endpoints (Story 13.2)
@@ -273,17 +275,17 @@ class DataApiClient extends BaseApiClient {
     if (params.start_time) queryParams.append('start_time', params.start_time);
     if (params.end_time) queryParams.append('end_time', params.end_time);
 
-    const url = `${this.baseUrl}/api/v1/events${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `/api/v1/events${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any[]>(url);
   }
 
   async getEventById(eventId: string): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/events/${eventId}`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/events/${eventId}`);
   }
 
   async searchEvents(query: string, fields: string[] = ['entity_id', 'event_type'], limit: number = 100): Promise<any[]> {
     return this.fetchWithErrorHandling<any[]>(
-      `${this.baseUrl}/api/v1/events/search`,
+      `/api/v1/events/search`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,12 +295,12 @@ class DataApiClient extends BaseApiClient {
   }
 
   async getEventsStats(period: string = '1h'): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/events/stats?period=${period}`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/events/stats?period=${period}`);
   }
 
   // Energy Correlation endpoints (Phase 4)
   async getEnergyStatistics(hours: number = 24): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/energy/statistics?hours=${hours}`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/energy/statistics?hours=${hours}`);
   }
 
   async getEnergyCorrelations(
@@ -311,23 +313,23 @@ class DataApiClient extends BaseApiClient {
     const params = new URLSearchParams({ hours: hours.toString(), min_delta: min_delta.toString(), limit: limit.toString() });
     if (entity_id) params.append('entity_id', entity_id);
     if (domain) params.append('domain', domain);
-    return this.fetchWithErrorHandling<any[]>(`${this.baseUrl}/api/v1/energy/correlations?${params.toString()}`);
+    return this.fetchWithErrorHandling<any[]>(`/api/v1/energy/correlations?${params.toString()}`);
   }
 
   async getCurrentPower(): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/energy/current`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/energy/current`);
   }
 
   async getCircuitPower(hours: number = 1): Promise<any[]> {
-    return this.fetchWithErrorHandling<any[]>(`${this.baseUrl}/api/v1/energy/circuits?hours=${hours}`);
+    return this.fetchWithErrorHandling<any[]>(`/api/v1/energy/circuits?hours=${hours}`);
   }
 
   async getDeviceEnergyImpact(entity_id: string, days: number = 7): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/energy/device-impact/${entity_id}?days=${days}`);
+    return this.fetchWithErrorHandling<any>(`/api/v1/energy/device-impact/${entity_id}?days=${days}`);
   }
 
   async getTopEnergyConsumers(days: number = 7, limit: number = 10): Promise<any[]> {
-    return this.fetchWithErrorHandling<any[]>(`${this.baseUrl}/api/v1/energy/top-consumers?days=${days}&limit=${limit}`);
+    return this.fetchWithErrorHandling<any[]>(`/api/v1/energy/top-consumers?days=${days}&limit=${limit}`);
   }
 
   // Devices & Entities endpoints (Story 13.2)
@@ -343,12 +345,12 @@ class DataApiClient extends BaseApiClient {
     if (params.model) queryParams.append('model', params.model);
     if (params.area_id) queryParams.append('area_id', params.area_id);
 
-    const url = `${this.baseUrl}/devices${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `/api/devices${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any>(url);
   }
 
   async getDeviceById(deviceId: string): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/devices/${deviceId}`);
+    return this.fetchWithErrorHandling<any>(`/api/devices/${deviceId}`);
   }
 
   async getEntities(params: {
@@ -363,16 +365,16 @@ class DataApiClient extends BaseApiClient {
     if (params.platform) queryParams.append('platform', params.platform);
     if (params.device_id) queryParams.append('device_id', params.device_id);
 
-    const url = `${this.baseUrl}/entities${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `/api/entities${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any>(url);
   }
 
   async getEntityById(entityId: string): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/entities/${entityId}`);
+    return this.fetchWithErrorHandling<any>(`/api/entities/${entityId}`);
   }
 
   async getIntegrations(limit: number = 100): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/integrations?limit=${limit}`);
+    return this.fetchWithErrorHandling<any>(`/api/integrations?limit=${limit}`);
   }
 
   // Sports endpoints (Story 13.4 - Coming soon)
@@ -381,7 +383,7 @@ class DataApiClient extends BaseApiClient {
     if (teamIds) queryParams.append('team_ids', teamIds);
     if (league) queryParams.append('league', league);
     
-    const url = `${this.baseUrl}/api/v1/sports/games/live${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `/api/v1/sports/games/live${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any>(url);
   }
 
@@ -390,7 +392,7 @@ class DataApiClient extends BaseApiClient {
     queryParams.append('team', team);
     if (season) queryParams.append('season', season.toString());
 
-    const url = `${this.baseUrl}/api/v1/sports/games/history?${queryParams.toString()}`;
+    const url = `/api/v1/sports/games/history?${queryParams.toString()}`;
     return this.fetchWithErrorHandling<any>(url);
   }
 }

@@ -47,30 +47,47 @@ export const useAlerts = ({
       if (filters.service) params.append('service', filters.service);
       if (filters.status) params.append('status', filters.status);
       
-      // Fetch alerts
-      const alertsResponse = await fetch(`/api/v1/alerts?${params.toString()}`);
-      if (!alertsResponse.ok) {
-        throw new Error(`HTTP ${alertsResponse.status}: ${alertsResponse.statusText}`);
+      // Fetch alerts with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      try {
+        const alertsResponse = await fetch(`/api/v1/alerts?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        if (!alertsResponse.ok) {
+          throw new Error(`HTTP ${alertsResponse.status}: ${alertsResponse.statusText}`);
+        }
+        
+        const alertsData: Alert[] = await alertsResponse.json();
+        setAlerts(alertsData);
+        
+        // Fetch summary
+        const summaryResponse = await fetch('/api/v1/alerts/summary');
+        if (summaryResponse.ok) {
+          const summaryData: AlertSummary = await summaryResponse.json();
+          setSummary(summaryData);
+        }
+        
+        setLastUpdate(new Date());
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          throw new Error('Request timeout');
+        }
+        throw fetchErr;
       }
       
-      const alertsData: Alert[] = await alertsResponse.json();
-      setAlerts(alertsData);
-      
-      // Fetch summary
-      const summaryResponse = await fetch('/api/v1/alerts/summary');
-      if (summaryResponse.ok) {
-        const summaryData: AlertSummary = await summaryResponse.json();
-        setSummary(summaryData);
-      }
-      
-      setLastUpdate(new Date());
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch alerts';
+      setError(errorMessage);
       setLoading(false);
       console.error('Error fetching alerts:', err);
     }
-  }, [filters]);
+  }, [filters.severity, filters.service, filters.status]);
 
   // Acknowledge an alert
   const acknowledgeAlert = useCallback(async (alertId: string): Promise<boolean> => {
@@ -138,13 +155,29 @@ export const useAlerts = ({
 
   // Initial fetch and auto-refresh setup
   useEffect(() => {
-    fetchAlerts();
+    let mounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
 
-    if (autoRefresh) {
-      const interval = setInterval(fetchAlerts, pollInterval);
-      return () => clearInterval(interval);
-    }
-  }, [fetchAlerts, pollInterval, autoRefresh]);
+    const performFetch = async () => {
+      if (!mounted) return;
+      await fetchAlerts();
+      
+      if (autoRefresh && mounted) {
+        intervalId = setInterval(async () => {
+          if (mounted) {
+            await fetchAlerts();
+          }
+        }, pollInterval);
+      }
+    };
+
+    performFetch();
+
+    return () => {
+      mounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [filters.severity, filters.service, filters.status, autoRefresh, pollInterval]);
 
   return {
     alerts,

@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { LoadingSpinner } from './LoadingSpinner';
 
 export interface CoreSystemCardProps {
   title: string;
@@ -20,6 +21,7 @@ export interface CoreSystemCardProps {
   uptime: string;
   darkMode: boolean;
   onExpand?: () => void;
+  loading?: boolean;
 }
 
 const getStatusConfig = (status: string) => {
@@ -80,7 +82,8 @@ export const CoreSystemCard: React.FC<CoreSystemCardProps> = ({
   metrics,
   uptime,
   darkMode,
-  onExpand
+  onExpand,
+  loading = false
 }) => {
   const statusConfig = getStatusConfig(status);
 
@@ -133,14 +136,21 @@ export const CoreSystemCard: React.FC<CoreSystemCardProps> = ({
           <div className={`text-xs font-medium mb-1 ${statusConfig.textClass}`}>
             {metrics.primary.label}
           </div>
-          <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {typeof metrics.primary.value === 'number' 
-              ? metrics.primary.value.toLocaleString() 
-              : metrics.primary.value}
-            {metrics.primary.unit && (
-              <span className="text-sm font-normal ml-1">{metrics.primary.unit}</span>
-            )}
-          </div>
+          {loading ? (
+            <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} flex items-center space-x-2`}>
+              <LoadingSpinner variant="dots" size="md" color="default" />
+              <span className="text-sm font-normal">Loading...</span>
+            </div>
+          ) : (
+            <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              {typeof metrics.primary.value === 'number' 
+                ? metrics.primary.value.toLocaleString() 
+                : metrics.primary.value}
+              {metrics.primary.unit && (
+                <span className="text-sm font-normal ml-1">{metrics.primary.unit}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Secondary Metric */}
@@ -148,14 +158,21 @@ export const CoreSystemCard: React.FC<CoreSystemCardProps> = ({
           <div className={`text-xs font-medium mb-1 ${statusConfig.textClass}`}>
             {metrics.secondary.label}
           </div>
-          <div className={`text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-            {typeof metrics.secondary.value === 'number'
-              ? metrics.secondary.value.toLocaleString()
-              : metrics.secondary.value}
-            {metrics.secondary.unit && (
-              <span className="text-xs font-normal ml-1">{metrics.secondary.unit}</span>
-            )}
-          </div>
+          {loading ? (
+            <div className={`text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} flex items-center space-x-2`}>
+              <LoadingSpinner variant="dots" size="sm" color="default" />
+              <span className="text-xs font-normal">Loading...</span>
+            </div>
+          ) : (
+            <div className={`text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+              {typeof metrics.secondary.value === 'number'
+                ? metrics.secondary.value.toLocaleString()
+                : metrics.secondary.value}
+              {metrics.secondary.unit && (
+                <span className="text-xs font-normal ml-1">{metrics.secondary.unit}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
