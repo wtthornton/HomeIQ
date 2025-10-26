@@ -18,6 +18,41 @@ This document serves as the main entry point for the Home Assistant Ingestor arc
 **Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration, Phase 1 AI containerization complete  
 **Last Updated:** October 24, 2025
 
+## Enhanced HA Connection Management
+
+The system now includes an **enhanced Home Assistant connection manager** with circuit breaker pattern and automatic fallback:
+
+### 🔌 HA Connection Features
+
+**Circuit Breaker Pattern:**
+- **Failure Threshold**: 5 consecutive failures trigger circuit open
+- **Reset Timeout**: 60 seconds before attempting reconnection
+- **Success Threshold**: 3 consecutive successes close circuit
+- **State Management**: Tracks open/closed/half-open states
+
+**Automatic Fallback Chain:**
+1. **Primary HA** (http://192.168.1.86:8123) - Local Home Assistant instance
+2. **Nabu Casa** (cloud URL) - Remote access fallback
+3. **Local HA** (http://localhost:8123) - Emergency fallback
+
+**Connection Features:**
+- **Connection Pooling**: Reuses connections for better performance
+- **Health Monitoring**: Continuous connection health checks
+- **Automatic Recovery**: Self-healing connection management
+- **Comprehensive Metrics**: Tracks connection statistics and failures
+
+**Implementation:**
+- Shared connection manager in `shared/enhanced_ha_connection_manager.py`
+- Unified API for all services to connect to Home Assistant
+- Environment variable configuration for flexible setup
+- Comprehensive error handling and logging
+
+**Benefits:**
+- **Resilience**: Automatic recovery from connection failures
+- **Reliability**: Multiple fallback options ensure connectivity
+- **Performance**: Connection pooling reduces overhead
+- **Monitoring**: Detailed metrics for troubleshooting
+
 ## Interactive Dependency Visualization
 
 The Health Dashboard (localhost:3000) includes an **interactive dependency graph** that provides real-time visualization of the system architecture:
