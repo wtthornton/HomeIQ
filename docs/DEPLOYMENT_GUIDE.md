@@ -145,6 +145,34 @@ docker-compose -f docker-compose.prod.yml up -d
 .\scripts\validate-optimized-images.ps1  # Windows
 ```
 
+## ⚠️ **Critical: API Configuration**
+
+### **Health Dashboard API Configuration**
+
+The health dashboard requires proper configuration of two API clients:
+
+1. **Admin API** (port 8003) - System monitoring and container management
+2. **Data API** (port 8006) - Devices, entities, events, sports data
+
+**Required Environment Variables:**
+```yaml
+health-dashboard:
+  environment:
+    - VITE_API_BASE_URL=http://localhost:8003  # Admin API
+    - VITE_DATA_API_URL=http://localhost:8006   # Data API (CRITICAL)
+    - VITE_WS_URL=ws://localhost:8001/ws
+```
+
+**If dashboard shows "0 Devices":**
+1. Check `VITE_DATA_API_URL` is set to `http://localhost:8006`
+2. Verify data-api is running: `docker ps | grep data-api`
+3. Test API: `curl http://localhost:8006/api/devices?limit=5`
+4. Rebuild dashboard: `docker-compose up -d --build health-dashboard`
+
+See [`HEALTH_DASHBOARD_API_CONFIGURATION.md`](HEALTH_DASHBOARD_API_CONFIGURATION.md) for detailed troubleshooting.
+
+---
+
 ## 🏈 **Epic 12: Sports Data Configuration** (NEW)
 
 ### **Sports Data Service with InfluxDB Persistence**

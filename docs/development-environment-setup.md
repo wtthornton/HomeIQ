@@ -42,10 +42,17 @@ cp infrastructure/env.example .env.development
 
 # Edit environment variables
 # .env.local
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000    # Admin API for development
+VITE_DATA_API_URL=http://localhost:8006   # Data API (CRITICAL)
 VITE_WS_URL=ws://localhost:8000/ws
 VITE_APP_TITLE=Health Dashboard
 ```
+
+**⚠️ Important**: The dashboard uses TWO separate API clients:
+- `AdminApiClient` - System monitoring (uses `VITE_API_BASE_URL`)
+- `DataApiClient` - Feature data like devices/entities (uses `VITE_DATA_API_URL`)
+
+Both environment variables must be set correctly. See [`HEALTH_DASHBOARD_API_CONFIGURATION.md`](../HEALTH_DASHBOARD_API_CONFIGURATION.md) for details.
 
 ### **Step 4: Start Development Server**
 ```bash

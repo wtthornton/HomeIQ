@@ -248,14 +248,14 @@ class AdminApiClient extends BaseApiClient {
 
 /**
  * Data API Client - Feature Data Hub
- * Routes to data-api service (port 8006)
+ * Routes to data-api service (port 8006) - this is the correct service for devices/entities
  * Epic 13 Story 13.2: Events, Devices, Sports, Analytics, HA Automation
  */
 class DataApiClient extends BaseApiClient {
   constructor() {
-    // Use relative URLs since nginx proxies /api/* to data-api service
-    // This allows the dashboard to work in both dev (direct) and prod (nginx) environments
-    super('');
+    // Use data-api URL (port 8006) which has the /api/devices endpoint
+    const DATA_API_URL = import.meta.env.VITE_DATA_API_URL || 'http://localhost:8006';
+    super(DATA_API_URL);
   }
 
   // Events endpoints (Story 13.2)

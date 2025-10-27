@@ -674,6 +674,7 @@ services:
       - "3000:80"
     environment:
       - VITE_API_BASE_URL=http://localhost:8003
+      - VITE_DATA_API_URL=http://localhost:8006
       - VITE_WS_URL=ws://localhost:8001/ws
       - VITE_ENVIRONMENT=production
     depends_on:
@@ -927,6 +928,7 @@ services:
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
       - AI_CORE_SERVICE_URL=http://ai-core-service:8018
+      - DEVICE_INTELLIGENCE_URL=http://homeiq-device-intelligence:8019
     depends_on:
       data-api:
         condition: service_healthy
