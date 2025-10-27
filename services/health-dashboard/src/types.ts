@@ -48,6 +48,12 @@ export interface DataSourceMetrics {
   air_quality?: {
     aqi: number;
     category: string;
+    pm25: number;
+    pm10: number;
+    ozone: number;
+    co?: number;
+    no2?: number;
+    so2?: number;
   };
   occupancy?: {
     currently_home: boolean;

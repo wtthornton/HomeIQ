@@ -1,6 +1,6 @@
 """
 Air Quality Service Main Entry Point
-Fetches AQI data from AirNow API
+Fetches AQI data from OpenWeather API
 """
 
 import asyncio
@@ -26,13 +26,17 @@ logger = setup_logging("air-quality-service")
 
 
 class AirQualityService:
-    """Fetch and store air quality data from AirNow API"""
+    """Fetch and store air quality data from OpenWeather API"""
     
     def __init__(self):
-        self.api_key = os.getenv('AIRNOW_API_KEY')
+        self.api_key = os.getenv('WEATHER_API_KEY')
         self.latitude = os.getenv('LATITUDE', '36.1699')  # Las Vegas default
         self.longitude = os.getenv('LONGITUDE', '-115.1398')
-        self.base_url = "https://www.airnowapi.org/aq/observation/latLong/current/"
+        self.base_url = "https://api.openweathermap.org/data/2.5/air_pollution"
+        
+        # Home Assistant configuration (for automatic location detection)
+        self.ha_url = os.getenv('HOME_ASSISTANT_URL') or os.getenv('HA_HTTP_URL')
+        self.ha_token = os.getenv('HOME_ASSISTANT_TOKEN') or os.getenv('HA_TOKEN')
         
         # InfluxDB configuration
         self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
@@ -55,9 +59,39 @@ class AirQualityService:
         self.health_handler = HealthCheckHandler()
         
         if not self.api_key:
-            raise ValueError("AIRNOW_API_KEY environment variable is required")
+            raise ValueError("WEATHER_API_KEY environment variable is required")
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
+    
+    async def fetch_location_from_ha(self) -> Optional[Dict[str, float]]:
+        """Fetch location from Home Assistant configuration"""
+        if not self.ha_url or not self.ha_token:
+            logger.warning("Home Assistant URL or token not configured, using environment variables for location")
+            return None
+        
+        try:
+            headers = {"Authorization": f"Bearer {self.ha_token}"}
+            url = f"{self.ha_url}/api/config"
+            
+            async with self.session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    config = await response.json()
+                    lat = config.get('latitude')
+                    lon = config.get('longitude')
+                    
+                    if lat and lon:
+                        logger.info(f"Fetched location from Home Assistant: {lat},{lon}")
+                        return {'latitude': float(lat), 'longitude': float(lon)}
+                    else:
+                        logger.warning("Home Assistant config missing latitude/longitude")
+                        return None
+                else:
+                    logger.warning(f"Failed to fetch HA config: HTTP {response.status}")
+                    return None
+                    
+        except Exception as e:
+            logger.warning(f"Could not fetch location from Home Assistant: {e}")
+            return None
     
     async def startup(self):
         """Initialize service"""
@@ -66,6 +100,15 @@ class AirQualityService:
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=10)
         )
+        
+        # Try to get location from Home Assistant first
+        ha_location = await self.fetch_location_from_ha()
+        if ha_location:
+            self.latitude = str(ha_location['latitude'])
+            self.longitude = str(ha_location['longitude'])
+            logger.info(f"Using location from Home Assistant: {self.latitude}, {self.longitude}")
+        else:
+            logger.info(f"Using configured location: {self.latitude}, {self.longitude}")
         
         self.influxdb_client = InfluxDBClient3(
             host=self.influxdb_url,
@@ -87,14 +130,13 @@ class AirQualityService:
             self.influxdb_client.close()
     
     async def fetch_air_quality(self) -> Optional[Dict[str, Any]]:
-        """Fetch AQI from AirNow API"""
+        """Fetch AQI from OpenWeather API"""
         
         try:
             params = {
-                "latitude": self.latitude,
-                "longitude": self.longitude,
-                "format": "application/json",
-                "API_KEY": self.api_key
+                "lat": self.latitude,
+                "lon": self.longitude,
+                "appid": self.api_key
             }
             
             log_with_context(
@@ -107,37 +149,50 @@ class AirQualityService:
                 if response.status == 200:
                     raw_data = await response.json()
                     
-                    if not raw_data:
-                        logger.warning("AirNow API returned empty data")
+                    if not raw_data or 'list' not in raw_data or not raw_data['list']:
+                        logger.warning("OpenWeather API returned empty data")
                         return self.cached_data
                     
-                    # Parse response (multiple parameters returned)
-                    data = {
-                        'aqi': 0,
-                        'category': 'Unknown',
-                        'parameter': 'Combined',
-                        'pm25': 0,
-                        'pm10': 0,
-                        'ozone': 0,
-                        'timestamp': datetime.now()
-                    }
+                    # OpenWeather returns data in a list
+                    pollution_data = raw_data['list'][0]
+                    main_data = pollution_data.get('main', {})
+                    components = pollution_data.get('components', {})
                     
-                    # Find highest AQI (worst parameter)
-                    for param_data in raw_data:
-                        aqi = param_data.get('AQI', 0)
-                        if aqi > data['aqi']:
-                            data['aqi'] = aqi
-                            data['category'] = param_data.get('Category', {}).get('Name', 'Unknown')
-                            data['parameter'] = param_data.get('ParameterName', 'Unknown')
-                        
-                        # Store individual parameters
-                        param_name = param_data.get('ParameterName', '').lower()
-                        if 'pm2.5' in param_name:
-                            data['pm25'] = aqi
-                        elif 'pm10' in param_name:
-                            data['pm10'] = aqi
-                        elif 'ozone' in param_name:
-                            data['ozone'] = aqi
+                    # OpenWeather AQI is 1-5, convert to 0-500 scale
+                    # 1=Good (0-50), 2=Fair (51-100), 3=Moderate (101-150), 
+                    # 4=Poor (151-200), 5=Very Poor (201-500)
+                    ow_aqi = main_data.get('aqi', 1)
+                    
+                    # Convert to 0-500 scale
+                    aqi_map = {1: 25, 2: 75, 3: 125, 4: 175, 5: 250}
+                    aqi_value = aqi_map.get(ow_aqi, 25)
+                    
+                    # Category names
+                    category_map = {
+                        1: 'Good',
+                        2: 'Fair', 
+                        3: 'Moderate',
+                        4: 'Poor',
+                        5: 'Very Poor'
+                    }
+                    category = category_map.get(ow_aqi, 'Unknown')
+                    
+                    # Parse timestamp
+                    timestamp = datetime.fromtimestamp(pollution_data.get('dt', datetime.now().timestamp()))
+                    
+                    # Parse response
+                    data = {
+                        'aqi': aqi_value,
+                        'category': category,
+                        'parameter': 'Combined',
+                        'pm25': int(components.get('pm2_5', 0)),
+                        'pm10': int(components.get('pm10', 0)),
+                        'ozone': int(components.get('o3', 0)),
+                        'timestamp': timestamp,
+                        'co': float(components.get('co', 0)),
+                        'no2': float(components.get('no2', 0)),
+                        'so2': float(components.get('so2', 0))
+                    }
                     
                     # Log category changes
                     if self.last_category and self.last_category != data['category']:
@@ -155,7 +210,7 @@ class AirQualityService:
                     return data
                     
                 else:
-                    logger.error(f"AirNow API returned status {response.status}")
+                    logger.error(f"OpenWeather API returned status {response.status}")
                     self.health_handler.failed_fetches += 1
                     return self.cached_data
                     
@@ -184,6 +239,9 @@ class AirQualityService:
                 .field("pm25", int(data['pm25'])) \
                 .field("pm10", int(data['pm10'])) \
                 .field("ozone", int(data['ozone'])) \
+                .field("co", float(data.get('co', 0))) \
+                .field("no2", float(data.get('no2', 0))) \
+                .field("so2", float(data.get('so2', 0))) \
                 .time(data['timestamp'])
             
             self.influxdb_client.write(point)
@@ -205,6 +263,12 @@ class AirQualityService:
             return web.json_response({
                 'aqi': self.cached_data['aqi'],
                 'category': self.cached_data['category'],
+                'pm25': self.cached_data.get('pm25', 0),
+                'pm10': self.cached_data.get('pm10', 0),
+                'ozone': self.cached_data.get('ozone', 0),
+                'co': self.cached_data.get('co', 0),
+                'no2': self.cached_data.get('no2', 0),
+                'so2': self.cached_data.get('so2', 0),
                 'timestamp': self.last_fetch_time.isoformat() if self.last_fetch_time else None
             })
         else:

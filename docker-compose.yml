@@ -365,9 +365,11 @@ services:
     ports:
       - "8012:8012"
     environment:
-      - AIRNOW_API_KEY=${AIRNOW_API_KEY:-}
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
       - LATITUDE=${LATITUDE:-36.1699}
       - LONGITUDE=${LONGITUDE:--115.1398}
+      - HOME_ASSISTANT_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
+      - HOME_ASSISTANT_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
