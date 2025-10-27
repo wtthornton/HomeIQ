@@ -12,6 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from datetime import datetime, timedelta, timezone
 
 from .influxdb_client import InfluxDBEventClient
+from .capability_parsers import BitmaskCapabilityParser
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class DataAPIClient:
             org=influxdb_org,
             bucket=influxdb_bucket
         )
+        
+        # Initialize capability parser
+        self.capability_parser = BitmaskCapabilityParser()
         
         logger.info(f"Data API client initialized with base_url={self.base_url}")
         logger.info(f"InfluxDB client initialized with url={influxdb_url}")
@@ -487,10 +491,12 @@ class DataAPIClient:
         """
         Parse entity metadata into structured capabilities.
         
+        Uses the new bitmask parser to eliminate hardcoded elif chains.
+        
         Args:
             entity_id: Entity ID
             entity_data: Raw entity metadata from data-api
-        
+            
         Returns:
             Parsed capabilities dictionary
         """
@@ -508,139 +514,19 @@ class DataAPIClient:
             "cached": False
         }
         
-        # Parse domain-specific capabilities
-        if domain == 'light':
-            capabilities.update(self._parse_light_capabilities(attributes))
-        elif domain == 'climate':
-            capabilities.update(self._parse_climate_capabilities(attributes))
-        elif domain == 'cover':
-            capabilities.update(self._parse_cover_capabilities(attributes))
-        elif domain == 'fan':
-            capabilities.update(self._parse_fan_capabilities(attributes))
-        elif domain == 'switch':
-            capabilities.update(self._parse_switch_capabilities(attributes))
-        else:
-            # Generic capabilities for other domains
-            capabilities['supported_features'] = {'on_off': True}
-            capabilities['friendly_capabilities'] = ["Turn on/off"]
+        # Use new bitmask parser (replaces hardcoded elif chains)
+        supported_features_bitmask = attributes.get('supported_features', 0)
+        parsed_caps = self.capability_parser.parse_capabilities(
+            domain=domain,
+            supported_features=supported_features_bitmask,
+            attributes=attributes
+        )
+        
+        # Merge parsed capabilities
+        capabilities['supported_features'] = parsed_caps.get('supported_features', {})
+        capabilities['friendly_capabilities'] = parsed_caps.get('friendly_capabilities', [])
         
         return capabilities
-    
-    def _parse_light_capabilities(self, attributes: Dict) -> Dict:
-        """Parse light-specific capabilities"""
-        features = {}
-        friendly = []
-        
-        # Brightness
-        if 'brightness' in attributes or 'brightness_pct' in attributes:
-            features['brightness'] = True
-            friendly.append("Adjust brightness (0-100%)")
-        
-        # RGB Color
-        if 'rgb_color' in attributes or 'hs_color' in attributes:
-            features['rgb_color'] = True
-            friendly.append("Change color (RGB)")
-        
-        # Color Temperature
-        if 'color_temp' in attributes or 'color_temp_kelvin' in attributes:
-            features['color_temp'] = True
-            friendly.append("Set color temperature (warm to cool)")
-        
-        # Transition
-        if 'supported_color_modes' in attributes or 'transition' in attributes:
-            features['transition'] = True
-            friendly.append("Smooth transitions (fade in/out)")
-        
-        # Effects
-        if 'effect_list' in attributes and attributes.get('effect_list'):
-            features['effect'] = True
-            friendly.append(f"Light effects ({len(attributes['effect_list'])} available)")
-        
-        return {'supported_features': features, 'friendly_capabilities': friendly}
-    
-    def _parse_climate_capabilities(self, attributes: Dict) -> Dict:
-        """Parse climate/thermostat capabilities"""
-        features = {}
-        friendly = []
-        
-        # Temperature control
-        if 'temperature' in attributes:
-            features['temperature'] = True
-            min_temp = attributes.get('min_temp', 60)
-            max_temp = attributes.get('max_temp', 90)
-            friendly.append(f"Set temperature ({min_temp}°-{max_temp}°)")
-        
-        # HVAC modes
-        if 'hvac_modes' in attributes:
-            features['hvac_mode'] = True
-            modes = attributes['hvac_modes']
-            friendly.append(f"Change mode ({', '.join(modes)})")
-        
-        # Fan mode
-        if 'fan_modes' in attributes:
-            features['fan_mode'] = True
-            friendly.append("Adjust fan speed")
-        
-        # Presets
-        if 'preset_modes' in attributes:
-            features['preset'] = True
-            friendly.append("Use preset modes")
-        
-        return {'supported_features': features, 'friendly_capabilities': friendly}
-    
-    def _parse_cover_capabilities(self, attributes: Dict) -> Dict:
-        """Parse cover (blinds, garage door, etc.) capabilities"""
-        features = {
-            'open': True,
-            'close': True
-        }
-        friendly = ["Open/close"]
-        
-        # Position control
-        if 'current_position' in attributes:
-            features['position'] = True
-            friendly.append("Set position (0-100%)")
-        
-        # Tilt control
-        if 'current_tilt_position' in attributes:
-            features['tilt'] = True
-            friendly.append("Adjust tilt angle")
-        
-        return {'supported_features': features, 'friendly_capabilities': friendly}
-    
-    def _parse_fan_capabilities(self, attributes: Dict) -> Dict:
-        """Parse fan capabilities"""
-        features = {'on_off': True}
-        friendly = ["Turn on/off"]
-        
-        # Speed control
-        if 'percentage' in attributes or 'speed' in attributes:
-            features['speed'] = True
-            friendly.append("Adjust speed")
-        
-        # Direction
-        if 'direction' in attributes:
-            features['direction'] = True
-            friendly.append("Reverse direction")
-        
-        # Oscillation
-        if 'oscillating' in attributes:
-            features['oscillate'] = True
-            friendly.append("Enable oscillation")
-        
-        return {'supported_features': features, 'friendly_capabilities': friendly}
-    
-    def _parse_switch_capabilities(self, attributes: Dict) -> Dict:
-        """Parse switch capabilities"""
-        features = {'on_off': True}
-        friendly = ["Turn on/off"]
-        
-        # Power monitoring
-        if 'current_power_w' in attributes or 'power' in attributes:
-            features['power_monitoring'] = True
-            friendly.append("Monitor power usage")
-        
-        return {'supported_features': features, 'friendly_capabilities': friendly}
     
     def _empty_capabilities(self, entity_id: str) -> Dict:
         """Return empty capabilities structure for unknown/error cases"""
