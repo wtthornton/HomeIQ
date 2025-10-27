@@ -106,15 +106,15 @@ class EventProcessor:
                     return False, "entity_id must be a string in format 'domain.entity'"
                 
                 # Check new_state in data
+                # NOTE: In Home Assistant, new_state can be None when an entity is deleted
+                # This is a valid event structure
                 new_state = data.get("new_state")
-                if new_state is None:
-                    return False, "new_state is required in data field"
+                if new_state is not None and not isinstance(new_state, dict):
+                    return False, "new_state must be a dictionary or null"
                 
-                if not isinstance(new_state, dict):
-                    return False, "new_state must be a dictionary"
-                
-                # Check required fields in new_state
-                if "state" not in new_state:
+                # Check required fields in new_state (only if new_state exists)
+                # new_state can be None for deleted entities
+                if new_state is not None and "state" not in new_state:
                     return False, "state is required in new_state"
                 
                 # old_state is optional (can be None for new entities)
@@ -132,28 +132,29 @@ class EventProcessor:
                     return False, "old_state must be a dictionary or null"
                 
                 # Check new_state
+                # NOTE: In Home Assistant, new_state can be None when an entity is deleted
                 new_state = event_data.get("new_state")
-                if new_state is None:
-                    return False, "new_state is required for state_changed events"
+                if new_state is not None and not isinstance(new_state, dict):
+                    return False, "new_state must be a dictionary or null"
                 
-                if not isinstance(new_state, dict):
-                    return False, "new_state must be a dictionary"
+                # Check required fields in new_state (only if it exists)
+                if new_state is not None:
+                    required_new_state_fields = ["entity_id", "state"]
+                    for field in required_new_state_fields:
+                        if field not in new_state:
+                            return False, f"Missing required field in new_state: {field}"
                 
-                # Check required fields in new_state
-                required_new_state_fields = ["entity_id", "state"]
-                for field in required_new_state_fields:
-                    if field not in new_state:
-                        return False, f"Missing required field in new_state: {field}"
+                # Validate entity_id format (only if new_state exists)
+                if new_state is not None:
+                    entity_id = new_state.get("entity_id")
+                    if not isinstance(entity_id, str) or "." not in entity_id:
+                        return False, "entity_id must be a string in format 'domain.entity'"
                 
-                # Validate entity_id format
-                entity_id = new_state.get("entity_id")
-                if not isinstance(entity_id, str) or "." not in entity_id:
-                    return False, "entity_id must be a string in format 'domain.entity'"
-                
-                # Validate state value
-                state_value = new_state.get("state")
-                if not isinstance(state_value, str):
-                    return False, "state must be a string"
+                # Validate state value (only if new_state exists)
+                if new_state is not None:
+                    state_value = new_state.get("state")
+                    if not isinstance(state_value, str):
+                        return False, "state must be a string"
                 
                 return True, ""
             
@@ -214,7 +215,7 @@ class EventProcessor:
             data = event_data["data"]
             entity_id = data.get("entity_id")
             old_state = data.get("old_state")
-            new_state = data.get("new_state", {})
+            new_state = data.get("new_state")  # Can be None for deleted entities
             time_fired = event_data.get("time_fired")
             origin = event_data.get("origin")
             context = event_data.get("context", {})
@@ -222,7 +223,7 @@ class EventProcessor:
             # Fallback for legacy structure
             entity_id = event_data.get("entity_id")
             old_state = event_data.get("old_state")
-            new_state = event_data.get("new_state", {})
+            new_state = event_data.get("new_state")  # Can be None for deleted entities
             time_fired = event_data.get("time_fired")
             origin = event_data.get("origin")
             context = event_data.get("context", {})
@@ -253,7 +254,7 @@ class EventProcessor:
         
         # Epic 23.3: Calculate duration_in_state for time-based analytics
         duration_in_state = None
-        if old_state and "last_changed" in old_state and new_state and "last_changed" in new_state:
+        if old_state and isinstance(old_state, dict) and "last_changed" in old_state and new_state and isinstance(new_state, dict) and "last_changed" in new_state:
             try:
                 # Parse timestamps (handle both with and without 'Z' suffix)
                 old_time_str = old_state["last_changed"].replace("Z", "+00:00")

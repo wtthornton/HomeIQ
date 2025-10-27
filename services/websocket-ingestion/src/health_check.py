@@ -74,6 +74,7 @@ class HealthCheckHandler:
                     }
                     
                     # Calculate event rate (events per minute)
+                    event_rate = 0
                     if sub_status.get("last_event_time") and sub_status.get("subscription_start_time"):
                         try:
                             last_event = datetime.fromisoformat(sub_status["last_event_time"])
@@ -81,11 +82,17 @@ class HealthCheckHandler:
                             duration_minutes = (last_event - start_time).total_seconds() / 60
                             if duration_minutes > 0:
                                 event_rate = sub_status.get("total_events_received", 0) / duration_minutes
-                                health_data["subscription"]["event_rate_per_minute"] = round(event_rate, 2)
                         except Exception:
                             pass
+                    # Always set event_rate_per_minute, default to 0
+                    health_data["subscription"]["event_rate_per_minute"] = round(event_rate, 2)
                 else:
-                    health_data["subscription"] = {"status": "not_initialized"}
+                    health_data["subscription"] = {
+                        "status": "not_initialized",
+                        "is_subscribed": False,
+                        "total_events_received": 0,
+                        "event_rate_per_minute": 0
+                    }
                 
                 # Enhanced health determination
                 if not getattr(self.connection_manager, 'is_running', False):

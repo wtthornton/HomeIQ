@@ -376,22 +376,28 @@ class StatsEndpoints:
         service_url = self.service_urls[service_name]
         
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            # Use shorter timeout for websocket-ingestion (5s instead of 10s)
+            timeout = 5 if service_name == "websocket-ingestion" else 10
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
                 # Use /health endpoint for all services (most reliable)
                 stats_url = f"{service_url}/health"
                 
-                async with session.get(stats_url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # Transform service data to stats format
-                        if service_name == "websocket-ingestion":
-                            return await self._transform_websocket_health_to_stats(data, period)
+                try:
+                    async with session.get(stats_url) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            
+                            # Transform service data to stats format
+                            if service_name == "websocket-ingestion":
+                                return await self._transform_websocket_health_to_stats(data, period)
+                            else:
+                                # For other services, create basic stats from health data
+                                return self._transform_health_to_stats(data, service_name, period)
                         else:
-                            # For other services, create basic stats from health data
-                            return self._transform_health_to_stats(data, service_name, period)
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                            raise Exception(f"HTTP {response.status}")
+                except asyncio.TimeoutError:
+                    logger.warning(f"Timeout getting stats for {service_name}")
+                    raise Exception(f"Timeout after {timeout}s")
         except Exception as e:
             logger.error(f"Error getting stats for {service_name}: {e}")
             return {
@@ -403,6 +409,10 @@ class StatsEndpoints:
     async def _transform_websocket_health_to_stats(self, health_data: Dict[str, Any], period: str) -> Dict[str, Any]:
         """Transform websocket-ingestion health data to stats format"""
         try:
+            # Check if health_data has an error
+            if "error" in health_data and health_data["error"]:
+                raise Exception(health_data["error"])
+            
             # Get response time from tracker
             tracker = get_tracker()
             websocket_stats = await tracker.get_stats("websocket-ingestion")
@@ -416,7 +426,7 @@ class StatsEndpoints:
             }
             
             # Extract metrics from health data
-            if "subscription" in health_data:
+            if "subscription" in health_data and isinstance(health_data["subscription"], dict):
                 subscription = health_data["subscription"]
                 metrics["events_per_minute"] = subscription.get("event_rate_per_minute", 0)
                 metrics["total_events_received"] = subscription.get("total_events_received", 0)
