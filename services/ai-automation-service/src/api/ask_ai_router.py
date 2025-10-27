@@ -85,6 +85,8 @@ if settings.openai_api_key:
         logger.info("✅ OpenAI client initialized for Ask AI")
     except Exception as e:
         logger.error(f"❌ Failed to initialize OpenAI client: {e}")
+else:
+    logger.warning("❌ OpenAI API key not configured - Ask AI will not work")
 
 
 # ============================================================================
@@ -364,6 +366,119 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use adv
         raise
 
 
+async def simplify_query_for_test(suggestion: Dict[str, Any], openai_client) -> str:
+    """
+    Simplify automation description to test core behavior using AI.
+    
+    Uses OpenAI to intelligently extract just the core action without conditions.
+    
+    Examples:
+    - "Flash office lights every 30 seconds only after 5pm"
+      → "Flash the office lights"
+    
+    - "Turn on bedroom lights when door opens after sunset"
+      → "Turn on the bedroom lights when door opens"
+    
+    Why Use AI instead of Regex:
+    - Smarter: Understands context, not just pattern matching
+    - Robust: Handles edge cases and variations
+    - Consistent: Uses same AI model that generated the suggestions
+    - Simple: One API call with clear prompt
+    
+    Args:
+        suggestion: Suggestion dictionary with description, trigger, action
+        openai_client: OpenAI client instance
+             
+    Returns:
+        Simplified command string ready for HA Conversation API
+    """
+    if not openai_client:
+        # Fallback to regex if OpenAI not available
+        logger.warning("OpenAI not available, using fallback simplification")
+        return fallback_simplify(suggestion.get('description', ''))
+    
+    description = suggestion.get('description', '')
+    trigger = suggestion.get('trigger_summary', '')
+    action = suggestion.get('action_summary', '')
+    
+    # Research-Backed Prompt Design
+    # Based on Context7 best practices and codebase temperature analysis:
+    # - Extraction tasks: temperature 0.1-0.2 (very deterministic)
+    # - Provide clear examples (few-shot learning)
+    # - Structured prompt with task + examples + constraints
+    # - Keep output simple and constrained
+    
+    prompt = f"""Extract the core command from this automation description for quick testing.
+
+TASK: Remove all time constraints, intervals, and conditional logic. Keep only the essential trigger-action behavior.
+
+Automation: "{description}"
+Trigger: {trigger}
+Action: {action}
+
+EXAMPLES:
+Input: "Flash office lights every 30 seconds only after 5pm"
+Output: "Flash the office lights"
+
+Input: "Dim kitchen lights to 50% when door opens after sunset"
+Output: "Dim the kitchen lights when door opens"
+
+Input: "Turn on bedroom lights every weekday at 8am"
+Output: "Turn on the bedroom lights"
+
+Input: "Flash lights 3 times when motion detected, but only between 9pm and 11pm"
+Output: "Flash the lights when motion detected"
+
+REMOVE:
+- Time constraints (after 5pm, before sunset, between X and Y)
+- Interval patterns (every 30 seconds, every weekday)
+- Conditional logic (only if, but only when, etc.)
+
+KEEP:
+- Core action (flash, turn on, dim, etc.)
+- Essential trigger (when door opens, when motion detected)
+- Target devices (office lights, kitchen lights)
+
+CONSTRAINTS:
+- Return ONLY the simplified command
+- No explanations
+- Natural language (ready for HA Conversation API)
+- Maximum 20 words"""
+
+    try:
+        response = await openai_client.client.chat.completions.create(
+            model=openai_client.model,
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a command simplification expert. Extract core behaviors from automation descriptions. Return only the simplified command, no explanations."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,  # Research-backed: 0.1-0.2 for extraction tasks (deterministic, consistent)
+            max_tokens=60,     # Short output - just the command
+            top_p=0.9         # Nucleus sampling for slight creativity while staying focused
+        )
+        
+        simplified = response.choices[0].message.content.strip()
+        logger.info(f"Simplified '{description}' → '{simplified}'")
+        return simplified
+        
+    except Exception as e:
+        logger.error(f"Failed to simplify via AI: {e}, using fallback")
+        return fallback_simplify(description)
+
+
+def fallback_simplify(description: str) -> str:
+    """Fallback regex-based simplification if AI unavailable"""
+    import re
+    # Simple regex-based fallback
+    simplified = re.sub(r'every\s+\d+\s+(?:seconds?|minutes?|hours?)', '', description, flags=re.IGNORECASE)
+    simplified = re.sub(r'(?:only\s+)?(?:after|before|at|between)\s+.*?[;,]', '', simplified, flags=re.IGNORECASE)
+    simplified = re.sub(r'(?:only\s+on\s+)?(?:weekdays?|weekends?)', '', simplified, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', simplified).strip()
+
+
 def get_ha_client() -> HomeAssistantClient:
     """Dependency injection for Home Assistant client"""
     if not ha_client:
@@ -474,7 +589,6 @@ async def generate_suggestions_from_query(
                 })
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse OpenAI response: {e}")
-            logger.warning(f"Raw content that failed to parse: '{content}'")
             # Fallback if JSON parsing fails
             suggestions = [{
                 'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
@@ -641,22 +755,28 @@ async def test_suggestion_from_query(
     ha_client: HomeAssistantClient = Depends(get_ha_client)
 ) -> Dict[str, Any]:
     """
-    Test a suggestion by creating a temporary automation in HA and triggering it.
+    Test a suggestion by executing the core command via HA Conversation API (quick test).
     
-    This allows you to see the automation in action before approving it.
+    NEW BEHAVIOR:
+    - Simplifies the automation description to extract core command
+    - Executes the command immediately via HA Conversation API
+    - NO YAML generation (moved to approve endpoint)
+    - NO temporary automation creation
     
-    Steps:
-    1. Validate YAML syntax
-    2. Create temporary automation in Home Assistant (with "test_" prefix)
-    3. Trigger the automation immediately
-    4. Return results (automation stays in HA as disabled for review)
+    This is a "quick test" that runs the core behavior without creating automations.
+    
+    Args:
+        query_id: Query ID from the database
+        suggestion_id: Specific suggestion to test
+        db: Database session
+        ha_client: Home Assistant client
+    
+    Returns:
+        Execution result with status and message
     """
-    print(f"🧪 TEST ENDPOINT CALLED - suggestion_id: {suggestion_id}, query_id: {query_id}")
-    logger.info(f"🧪 Testing suggestion {suggestion_id} from query {query_id}")
+    logger.info(f"🧪 QUICK TEST - suggestion_id: {suggestion_id}, query_id: {query_id}")
     
     try:
-        print("🔍 TEST: Starting test endpoint execution")
-        logger.info("🔍 TEST: Starting test endpoint execution")
         # Get the query from database
         query = await db.get(AskAIQueryModel, query_id)
         if not query:
@@ -672,91 +792,44 @@ async def test_suggestion_from_query(
         if not suggestion:
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
-        logger.info("🔍 TEST: About to call generate_automation_yaml")
-        logger.info(f"🔍 TEST: Suggestion data: {suggestion}")
-        logger.info(f"🔍 TEST: Original query: {query.original_query}")
+        logger.info(f"🔍 Testing suggestion: {suggestion.get('description', 'N/A')}")
+        logger.info(f"🔍 Original query: {query.original_query}")
         
-        # Generate YAML for the suggestion
-        automation_yaml = await generate_automation_yaml(suggestion, query.original_query)
-        
-        logger.info("🔍 TEST: generate_automation_yaml completed")
-        
-        # Validate the YAML first
+        # Validate ha_client
         if not ha_client:
             raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
         
-        validation_result = await ha_client.validate_automation(automation_yaml)
+        # STEP 1: Simplify the suggestion to extract core command
+        logger.info("🔧 Simplifying suggestion for quick test...")
+        simplified_command = await simplify_query_for_test(suggestion, openai_client)
+        logger.info(f"✅ Simplified command: '{simplified_command}'")
         
-        if not validation_result.get('valid', False):
-            return {
-                "suggestion_id": suggestion_id,
-                "query_id": query_id,
-                "valid": False,
-                "executed": False,
-                "automation_yaml": automation_yaml,
-                "validation_details": {
-                    "error": validation_result.get('error'),
-                    "warnings": validation_result.get('warnings', []),
-                    "entity_count": validation_result.get('entity_count', 0)
-                },
-                "message": f"Validation failed: {validation_result.get('error')}"
-            }
+        # STEP 2: Execute the command via HA Conversation API
+        logger.info(f"⚡ Executing command via HA Conversation API: '{simplified_command}'")
+        conversation_result = await ha_client.conversation_process(simplified_command)
         
-        # Parse YAML and add test prefix to ID
-        automation_data = yaml_lib.safe_load(automation_yaml)
-        original_id = automation_data.get('id', 'ai_test_automation')
-        test_id = f"test_{original_id}_{suggestion_id.split('-')[-1]}"
-        automation_data['id'] = test_id
-        automation_data['alias'] = f"[TEST] {automation_data.get('alias', 'AI Test Automation')}"
+        # STEP 3: Parse the conversation result and return
+        # HA Conversation API returns: {response: str, language: str, entities: [], etc.}
+        response_text = conversation_result.get('response', 'No response from HA')
+        # If we got a response, the command was likely executed
+        executed = bool(response_text and response_text != 'No response from HA')
         
-        # Re-serialize to YAML
-        test_automation_yaml = yaml_lib.dump(automation_data, default_flow_style=False, sort_keys=False)
-        
-        # Create temporary automation in Home Assistant
-        logger.info(f"🚀 Creating test automation: {test_id}")
-        creation_result = await ha_client.create_automation(test_automation_yaml)
-        
-        if not creation_result.get('success'):
-            return {
-                "suggestion_id": suggestion_id,
-                "query_id": query_id,
-                "valid": True,
-                "executed": False,
-                "automation_yaml": automation_yaml,
-                "validation_details": validation_result,
-                "error": creation_result.get('error'),
-                "message": f"Failed to create test automation: {creation_result.get('error')}"
-            }
-        
-        automation_id = creation_result.get('automation_id', f"automation.{test_id}")
-        
-        # Trigger the automation immediately
-        logger.info(f"▶️ Triggering test automation: {automation_id}")
-        trigger_success = await ha_client.trigger_automation(automation_id)
-        
-        # Disable the automation after triggering (so it doesn't run again)
-        await ha_client.disable_automation(automation_id)
+        logger.info(f"🔍 Conversation result: {conversation_result}")
+        logger.info(f"{'✅' if executed else '⚠️'} Command executed: {executed}")
         
         return {
             "suggestion_id": suggestion_id,
             "query_id": query_id,
-            "valid": True,
-            "executed": trigger_success,
-            "automation_id": automation_id,
-            "automation_yaml": automation_yaml,
-            "test_automation_yaml": test_automation_yaml,
-            "validation_details": {
-                "error": validation_result.get('error'),
-                "warnings": validation_result.get('warnings', []),
-                "entity_count": validation_result.get('entity_count', 0)
-            },
+            "executed": executed,
+            "command": simplified_command,
+            "original_description": suggestion.get('description', ''),
+            "response": response_text,
             "message": (
-                f"✅ Test automation executed successfully! Check your Home Assistant devices. "
-                f"The test automation '{automation_id}' has been created and disabled. "
-                f"You can delete it manually or approve this suggestion to replace it."
-            ) if trigger_success else (
-                f"⚠️ Test automation created but failed to trigger. "
-                f"Check Home Assistant logs for details. Automation ID: {automation_id}"
+                f"✅ Quick test successful! Command '{simplified_command}' was executed. "
+                f"{response_text}"
+            ) if executed else (
+                f"⚠️ Quick test failed. Command '{simplified_command}' could not be executed. "
+                f"Error: {response_text}"
             )
         }
     

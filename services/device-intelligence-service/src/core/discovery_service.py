@@ -5,6 +5,7 @@ Main discovery service that orchestrates device discovery from multiple sources.
 """
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
@@ -16,12 +17,6 @@ from .device_parser import DeviceParser, UnifiedDevice
 from ..services.device_service import DeviceService
 from ..core.database import get_db_session
 from ..config import Settings
-
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-
-from shared.enhanced_ha_connection_manager import ha_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -74,21 +69,12 @@ class DiscoveryService:
         try:
             logger.info("🚀 Starting Device Intelligence Discovery Service")
             
-            # Get HA connection using the enhanced connection manager with circuit breaker protection
-            connection_config = await ha_connection_manager.get_connection_with_circuit_breaker()
-            
-            if not connection_config:
-                logger.error("❌ No Home Assistant connections available")
-                return False
-            
-            logger.info(f"✅ Using HA connection: {connection_config.name} ({connection_config.url})")
-            
-            # Initialize HA client with the connection from unified manager
+            # Initialize HA client with configured settings
             from ..clients.ha_client import HomeAssistantClient
             self.ha_client = HomeAssistantClient(
-                connection_config.url, 
-                None,  # No fallback needed - unified manager handles this
-                connection_config.token
+                self.settings.HA_URL,
+                None,  # No fallback URL for now
+                self.settings.HA_TOKEN
             )
             
             # Connect to Home Assistant
@@ -99,14 +85,14 @@ class DiscoveryService:
             # Start HA message handler
             await self.ha_client.start_message_handler()
             
-            # Connect to MQTT broker
-            if not await self.mqtt_client.connect():
-                logger.error("❌ Failed to connect to MQTT broker")
-                return False
-            
-            # Register MQTT message handlers
-            self.mqtt_client.register_message_handler("devices", self._on_zigbee_devices_update)
-            self.mqtt_client.register_message_handler("groups", self._on_zigbee_groups_update)
+            # Connect to MQTT broker (optional - can discover HA devices without Zigbee)
+            if await self.mqtt_client.connect():
+                logger.info("✅ Connected to MQTT broker")
+                # Register MQTT message handlers
+                self.mqtt_client.register_message_handler("devices", self._on_zigbee_devices_update)
+                self.mqtt_client.register_message_handler("groups", self._on_zigbee_groups_update)
+            else:
+                logger.warning("⚠️  MQTT broker connection failed - will continue without Zigbee devices")
             
             # Start discovery task
             self.running = True
@@ -256,7 +242,9 @@ class DiscoveryService:
                     "manufacturer": device.manufacturer,
                     "model": device.model,
                     "area_id": device.area_id,
-                    "integration": device.integration or "unknown",  # Provide default for NOT NULL constraint
+                    "area_name": device.area_name,  # Include area_name
+                    "integration": device.integration if device.integration else "unknown",  # Provide default for NOT NULL constraint
+                    "device_class": device.device_class,
                     "sw_version": device.sw_version,
                     "hw_version": device.hw_version,
                     "power_source": device.power_source,
@@ -264,9 +252,20 @@ class DiscoveryService:
                     "disabled_by": device.disabled_by,
                     "last_seen": device.last_seen,
                     "health_score": device.health_score,
+                    "is_battery_powered": device.power_source == "Battery" if device.power_source else False,
                     "created_at": device.created_at,
                     "updated_at": device.updated_at
                 }
+                
+                # Add additional fields if available
+                if device.ha_device:
+                    if device.ha_device.config_entries:
+                        device_data["config_entry_id"] = device.ha_device.config_entries[0] if device.ha_device.config_entries else None
+                    if device.ha_device.connections:
+                        device_data["connections_json"] = json.dumps(device.ha_device.connections)
+                    if device.ha_device.identifiers:
+                        device_data["identifiers_json"] = json.dumps(device.ha_device.identifiers)
+                
                 devices_data.append(device_data)
             
             # Store in database using DeviceService

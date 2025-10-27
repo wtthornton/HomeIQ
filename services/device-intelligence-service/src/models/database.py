@@ -34,6 +34,15 @@ class Device(Base):
     last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     health_score: Mapped[Optional[int]] = mapped_column(Integer, index=True)
     disabled_by: Mapped[Optional[str]] = mapped_column(String)
+    
+    # Device classification
+    device_class: Mapped[Optional[str]] = mapped_column(String, index=True)
+    config_entry_id: Mapped[Optional[str]] = mapped_column(String, index=True)
+    connections_json: Mapped[Optional[str]] = mapped_column(Text)  # Store as JSON string
+    identifiers_json: Mapped[Optional[str]] = mapped_column(Text)  # Store as JSON string
+    zigbee_ieee: Mapped[Optional[str]] = mapped_column(String, index=True)
+    is_battery_powered: Mapped[bool] = mapped_column(Boolean, default=False)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
     

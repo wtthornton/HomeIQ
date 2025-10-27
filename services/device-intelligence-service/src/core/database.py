@@ -72,3 +72,21 @@ async def close_database():
     if _engine:
         await _engine.dispose()
         logger.info("Database connection closed")
+
+async def recreate_tables():
+    """Drop all tables and recreate them with new schema."""
+    global _engine
+    if not _engine:
+        raise RuntimeError("Database not initialized")
+    
+    logger.info("🔄 Recreating database tables")
+    
+    # Drop all existing tables
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all, checkfirst=True)
+    
+    # Create all tables with updated schema
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    
+    logger.info("✅ Database tables recreated successfully")

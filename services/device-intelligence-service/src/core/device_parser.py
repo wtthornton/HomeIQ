@@ -25,32 +25,44 @@ class UnifiedDevice:
     model: str
     
     # Location and organization
-    area_id: Optional[str]
-    area_name: Optional[str]
-    integration: str
+    area_id: Optional[str] = None
+    area_name: Optional[str] = None
+    integration: str = "unknown"
+    device_class: Optional[str] = None  # Device type (light, sensor, etc.)
     
     # Device metadata
-    sw_version: Optional[str]
-    hw_version: Optional[str]
-    power_source: Optional[str]
-    via_device_id: Optional[str]
+    sw_version: Optional[str] = None
+    hw_version: Optional[str] = None
+    power_source: Optional[str] = None
+    via_device_id: Optional[str] = None
     
     # Capabilities and features
-    capabilities: List[Dict[str, Any]]
-    entities: List[Dict[str, Any]]
+    capabilities: List[Dict[str, Any]] = None
+    entities: List[Dict[str, Any]] = None
     
     # Source data references
-    ha_device: Optional[HADevice]
-    zigbee_device: Optional[ZigbeeDevice]
+    ha_device: Optional[HADevice] = None
+    zigbee_device: Optional[ZigbeeDevice] = None
     
     # Status and health
-    disabled_by: Optional[str]
-    last_seen: Optional[datetime]
-    health_score: Optional[int]
+    disabled_by: Optional[str] = None
+    last_seen: Optional[datetime] = None
+    health_score: Optional[int] = None
     
     # Timestamps
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = None
+    updated_at: datetime = None
+    
+    def __post_init__(self):
+        """Initialize mutable defaults after dataclass init."""
+        if self.capabilities is None:
+            object.__setattr__(self, 'capabilities', [])
+        if self.entities is None:
+            object.__setattr__(self, 'entities', [])
+        if self.created_at is None:
+            object.__setattr__(self, 'created_at', datetime.now(timezone.utc))
+        if self.updated_at is None:
+            object.__setattr__(self, 'updated_at', datetime.now(timezone.utc))
 
 
 class DeviceParser:
@@ -124,6 +136,9 @@ class DeviceParser:
         if ha_device.area_id and ha_device.area_id in self.areas:
             area_name = self.areas[ha_device.area_id].name
         
+        # Extract device class
+        device_class = self._extract_device_class(device_entities)
+        
         # Create unified device
         unified_device = UnifiedDevice(
             id=ha_device.id,
@@ -133,6 +148,7 @@ class DeviceParser:
             area_id=ha_device.area_id,
             area_name=area_name,
             integration=ha_device.integration,
+            device_class=device_class,
             sw_version=ha_device.sw_version or zigbee_device.software_build_id if zigbee_device else None,
             hw_version=ha_device.hw_version or zigbee_device.hardware_version if zigbee_device else None,
             power_source=zigbee_device.power_source if zigbee_device else None,
@@ -156,6 +172,9 @@ class DeviceParser:
         # Parse capabilities
         capabilities = self._parse_zigbee_capabilities(zigbee_device.exposes)
         
+        # Extract device class from capabilities/exposes
+        device_class = self._extract_device_class_from_zigbee(zigbee_device)
+        
         # Create unified device
         unified_device = UnifiedDevice(
             id=f"zigbee_{zigbee_device.ieee_address}",
@@ -165,6 +184,7 @@ class DeviceParser:
             area_id=None,
             area_name=None,
             integration="zigbee2mqtt",
+            device_class=device_class,
             sw_version=zigbee_device.software_build_id,
             hw_version=zigbee_device.hardware_version,
             power_source=zigbee_device.power_source,
@@ -251,6 +271,48 @@ class DeviceParser:
             "created_at": entity.created_at.isoformat(),
             "updated_at": entity.updated_at.isoformat()
         }
+    
+    def _extract_device_class(self, entities: List[HAEntity]) -> Optional[str]:
+        """Extract device class from entity domains."""
+        domain_priority = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover', 'lock', 'fan']
+        
+        # Try to find a device class from entity domains
+        for domain in domain_priority:
+            if any(e.domain == domain for e in entities):
+                return domain
+        
+        # Return first entity domain if available
+        return entities[0].domain if entities else None
+    
+    def _extract_device_class_from_zigbee(self, zigbee_device: ZigbeeDevice) -> Optional[str]:
+        """Extract device class from Zigbee device capabilities."""
+        if not zigbee_device.exposes:
+            return None
+        
+        # Map common Zigbee capability types to device classes
+        capability_to_class = {
+            'light': 'light',
+            'switch': 'switch',
+            'occupancy': 'sensor',
+            'temperature': 'sensor',
+            'humidity': 'sensor',
+            'battery': 'sensor',
+            'cover': 'cover',
+            'lock': 'lock',
+            'fan': 'fan',
+            'climate': 'climate'
+        }
+        
+        for expose in zigbee_device.exposes:
+            if isinstance(expose, dict):
+                expose_type = expose.get('type', '').lower()
+                if expose_type in capability_to_class:
+                    return capability_to_class[expose_type]
+                expose_name = expose.get('name', '').lower()
+                if expose_name in capability_to_class:
+                    return capability_to_class[expose_name]
+        
+        return None
     
     def _calculate_health_score(
         self,

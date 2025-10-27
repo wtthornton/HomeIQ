@@ -17,7 +17,7 @@ class DeviceIntelligenceClient:
     def __init__(self, base_url: str = "http://device-intelligence-service:8021"):
         self.base_url = base_url.rstrip('/')
         self.client = httpx.AsyncClient(
-            timeout=30.0,
+            timeout=5.0,  # Reduced timeout to 5 seconds
             follow_redirects=True,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
@@ -26,7 +26,7 @@ class DeviceIntelligenceClient:
     async def get_devices_by_area(self, area_name: str) -> List[Dict[str, Any]]:
         """Get all devices in a specific area"""
         try:
-            response = await self.client.get(f"{self.base_url}/api/discovery/devices")
+            response = await self.client.get(f"{self.base_url}/api/discovery/devices", timeout=5.0)
             if response.status_code == 200:
                 devices = response.json()
                 # Filter by area name (case insensitive)
@@ -40,7 +40,7 @@ class DeviceIntelligenceClient:
                 logger.error(f"Failed to get devices: {response.status_code}")
                 return []
         except Exception as e:
-            logger.error(f"Error getting devices by area {area_name}: {e}")
+            logger.warning(f"Device intelligence unavailable for area {area_name}: {e}")
             return []
     
     async def get_device_details(self, device_id: str) -> Optional[Dict[str, Any]]:

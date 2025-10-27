@@ -286,6 +286,9 @@ class HomeAssistantClient:
             
             devices = []
             for device_data in response.get("result", []):
+                # Debug logging to verify what HA actually returns
+                logger.debug(f"Device {device_data.get('name')}: manufacturer={device_data.get('manufacturer')}, integration={device_data.get('integration')}")
+                
                 device = HADevice(
                     id=device_data["id"],
                     name=device_data["name"],

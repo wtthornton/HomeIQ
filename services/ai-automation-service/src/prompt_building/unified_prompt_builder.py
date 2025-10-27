@@ -106,7 +106,11 @@ Guidelines:
             Dictionary with "system_prompt" and "user_prompt" keys
         """
         # Build entity context section
-        entity_section = await self._build_entity_context_section(entities)
+        try:
+            entity_section = await self._build_entity_context_section(entities)
+        except Exception as e:
+            logger.warning(f"Failed to build entity context section: {e}")
+            entity_section = "No device information available."
         
         # Build creative query prompt with enhanced examples
         user_prompt = f"""Based on this query: "{query}"
@@ -141,7 +145,27 @@ Generate {output_mode} that are:
 - Safe and user-friendly
 - Consider device health scores (avoid devices with health_score < 50)
 
-Focus on unique automation ideas that make the most of the device capabilities listed above."""
+Focus on unique automation ideas that make the most of the device capabilities listed above.
+
+IMPORTANT: Return your response as a JSON array of suggestion objects, each with these fields:
+- description: A creative, detailed description of the automation
+- trigger_summary: What triggers the automation
+- action_summary: What actions will be performed
+- devices_involved: Array of device names
+- capabilities_used: Array of device capabilities being used
+- confidence: A confidence score between 0 and 1
+
+Example JSON structure:
+[
+  {{
+    "description": "Flash all four office lights in sequence when front door opens",
+    "trigger_summary": "Front door state changes to open",
+    "action_summary": "Flash left, right, back, then front light in sequence over 4 seconds",
+    "devices_involved": ["Left office light", "Right office light", "Back office light", "Front office light"],
+    "capabilities_used": ["LED notifications", "Sequential control"],
+    "confidence": 0.9
+  }}
+]"""
 
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,

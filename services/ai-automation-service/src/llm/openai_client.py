@@ -887,13 +887,18 @@ PRIORITY: medium
                 f"✅ Unified prompt generation successful: {usage.total_tokens} tokens "
                 f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
             )
+            logger.info(f"OpenAI response has {len(response.choices)} choices")
+            logger.info(f"Response finish reason: {response.choices[0].finish_reason}")
             
             # Parse based on output_format
             content = response.choices[0].message.content
+            logger.info(f"OpenAI response content (length={len(content) if content else 0}): {content[:200] if content else 'None'}")
             
             if output_format == "json":
                 import json
                 # Handle markdown code blocks
+                if not content:
+                    raise ValueError("Empty content from OpenAI API")
                 if content.startswith('```json'):
                     content = content[7:]
                 elif content.startswith('```'):
@@ -909,5 +914,7 @@ PRIORITY: medium
                 
         except Exception as e:
             logger.error(f"❌ Unified prompt generation error: {e}")
+            import traceback
+            logger.error(f"Stack trace:\n{traceback.format_exc()}")
             raise
     

@@ -23,6 +23,7 @@ from .api.websocket_router import router as websocket_router
 from .api.health_router import router as health_api_router
 from .api.predictions_router import router as predictions_router
 from .api.recommendations_router import router as recommendations_router
+from .api.database_management import router as database_management_router
 from .core.database import initialize_database
 from .core.predictive_analytics import PredictiveAnalyticsEngine
 
@@ -132,6 +133,7 @@ app.include_router(websocket_router, tags=["WebSocket"])
 app.include_router(health_api_router, tags=["Health API"])
 app.include_router(predictions_router, tags=["Predictions"])
 app.include_router(recommendations_router, tags=["Recommendations"])
+app.include_router(database_management_router, prefix="/api", tags=["Database Management"])
 
 # Root endpoint
 @app.get("/")
