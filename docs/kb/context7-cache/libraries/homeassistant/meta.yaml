@@ -6,7 +6,7 @@ library_info:
   context7_id: "/home-assistant/developers.home-assistant"
   trust_score: 10
   snippet_count: 1824
-  last_updated: "2025-10-12T00:00:00Z"
+  last_updated: "2025-10-20T00:00:00Z"
   topics: 
     - "websocket-api"
     - "rest-api"
@@ -16,6 +16,8 @@ library_info:
     - "services"
     - "entities"
     - "integration-development"
+    - "automation-management"
+    - "automation-deletion"
   
 cache_entry:
   file_path: "libraries/homeassistant/docs.md"
@@ -23,7 +25,7 @@ cache_entry:
   hit_count: 1
   last_accessed: "2025-10-12T00:00:00Z"
   refresh_status: "current"
-  next_refresh: "2025-11-11T00:00:00Z"
+  next_refresh: "2025-11-19T00:00:00Z"
   
 documentation_summary:
   topics_covered:
@@ -32,10 +34,12 @@ documentation_summary:
     - "Trigger-based subscriptions"
     - "REST API states management"
     - "REST API services execution"
+    - "REST API automation deletion (VERIFIED Oct 2025)"
     - "Long-lived access tokens"
     - "Entity lifecycle and management"
     - "Event system and patterns"
     - "Integration development"
+    - "Automation management and deletion"
     - "Security best practices"
     - "HA-Ingestor specific patterns"
   
@@ -44,6 +48,7 @@ documentation_summary:
     - "State changed events structure"
     - "Event subscription patterns"
     - "REST API state vs service distinction"
+    - "REST API automation deletion using attributes.id"
     - "Long-lived access token generation"
     - "Entity state structure with context"
     - "Service registration and execution"
@@ -57,6 +62,7 @@ documentation_summary:
     - "Trigger subscription"
     - "Fire custom events"
     - "REST API state retrieval and updates"
+    - "REST API automation deletion (verified)"
     - "Service calls with response data"
     - "Python service registration"
     - "WebSocket security with @require_admin"

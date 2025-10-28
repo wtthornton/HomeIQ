@@ -233,36 +233,75 @@ class MultiModelEntityExtractor:
         if not self.device_intel_client:
             return entities
         
-        enhanced_entities = []
+        # Separate areas and devices
+        area_entities = [e for e in entities if e.get('type') == 'area']
+        device_entities = [e for e in entities if e.get('type') == 'device']
+        unknown_entities = [e for e in entities if e.get('type') not in ['area', 'device']]
         
-        for entity in entities:
-            if entity.get('type') == 'area':
-                # Get devices for this area
-                try:
-                    area_name = entity['name']
-                    devices = await self.device_intel_client.get_devices_by_area(area_name)
+        enhanced_entities = []
+        added_device_ids = set()  # Track to avoid duplicates
+        
+        # Process area entities (existing logic)
+        for entity in area_entities:
+            try:
+                area_name = entity['name']
+                devices = await self.device_intel_client.get_devices_by_area(area_name)
+                
+                for device in devices:
+                    device_id = device['id']
                     
-                    for device in devices:
-                        device_details = await self.device_intel_client.get_device_details(device['id'])
-                        if device_details:
-                            enhanced_entity = {
-                                'name': device_details['name'],
-                                'entity_id': device_details.get('entity_id'),
-                                'domain': device_details.get('domain', 'unknown'),
-                                'area': area_name,
-                                'manufacturer': device_details.get('manufacturer', 'Unknown'),
-                                'model': device_details.get('model', 'Unknown'),
-                                'health_score': device_details.get('health_score', 0),
-                                'capabilities': device_details.get('capabilities', []),
-                                'extraction_method': 'device_intelligence',
-                                'confidence': 0.9
-                            }
-                            enhanced_entities.append(enhanced_entity)
-                except Exception as e:
-                    logger.error(f"Failed to enhance area {entity['name']}: {e}")
-                    enhanced_entities.append(entity)
-            else:
+                    # Skip if already added from device entity lookup
+                    if device_id in added_device_ids:
+                        continue
+                        
+                    device_details = await self.device_intel_client.get_device_details(device_id)
+                    if device_details:
+                        enhanced_entity = self._build_enhanced_entity(device_details, area_name)
+                        enhanced_entities.append(enhanced_entity)
+                        added_device_ids.add(device_id)
+            except Exception as e:
+                logger.error(f"Failed to enhance area {entity['name']}: {e}")
                 enhanced_entities.append(entity)
+        
+        # Process device entities (NEW LOGIC)
+        if device_entities:
+            try:
+                # Fetch all devices once for searching
+                all_devices = await self.device_intel_client.get_all_devices(limit=200)
+                
+                for entity in device_entities:
+                    device_name = entity['name']
+                    
+                    # Search for device by name (fuzzy matching)
+                    matching_devices = self._find_matching_devices(device_name, all_devices)
+                    
+                    for device in matching_devices:
+                        device_id = device['id']
+                        
+                        # Skip if already added from area lookup
+                        if device_id in added_device_ids:
+                            continue
+                            
+                        device_details = await self.device_intel_client.get_device_details(device_id)
+                        if device_details:
+                            enhanced_entity = self._build_enhanced_entity(device_details)
+                            enhanced_entities.append(enhanced_entity)
+                            added_device_ids.add(device_id)
+                            
+                            # Break after first match to avoid duplicates
+                            break
+                        
+                    # If no match found, keep the original entity
+                    if not any(d['id'] in added_device_ids for d in matching_devices):
+                        enhanced_entities.append(entity)
+                        
+            except Exception as e:
+                logger.error(f"Failed to enhance device entities: {e}")
+                # Add unenhanced device entities as fallback
+                enhanced_entities.extend(device_entities)
+        
+        # Add unknown entities as-is
+        enhanced_entities.extend(unknown_entities)
         
         return enhanced_entities
     
@@ -361,6 +400,60 @@ class MultiModelEntityExtractor:
             'openai_success_rate': self.stats['openai_success'] / total,
             'pattern_fallback_rate': self.stats['pattern_fallback'] / total
         }
+    
+    def _build_enhanced_entity(
+        self, 
+        device_details: Dict[str, Any], 
+        area: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Build enhanced entity from device details."""
+        entities_list = device_details.get('entities', [])
+        entity_id = entities_list[0]['entity_id'] if entities_list else None
+        domain = entities_list[0]['domain'] if entities_list else 'unknown'
+        
+        return {
+            'name': device_details['name'],
+            'entity_id': entity_id,
+            'domain': domain,
+            'area': area or device_details.get('area_name', 'Unknown'),
+            'manufacturer': device_details.get('manufacturer', 'Unknown'),
+            'model': device_details.get('model', 'Unknown'),
+            'health_score': device_details.get('health_score', 0),
+            'capabilities': device_details.get('capabilities', []),
+            'extraction_method': 'device_intelligence',
+            'confidence': 0.9
+        }
+    
+    def _find_matching_devices(
+        self, 
+        search_name: str, 
+        all_devices: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Find devices matching search name (fuzzy, case-insensitive)."""
+        search_name_lower = search_name.lower().strip()
+        
+        matches = []
+        
+        for device in all_devices:
+            device_name = device.get('name', '').lower()
+            
+            # Exact match
+            if device_name == search_name_lower:
+                matches.append(device)
+                continue
+                
+            # Contains match
+            if search_name_lower in device_name or device_name in search_name_lower:
+                matches.append(device)
+                continue
+                
+            # Partial word match
+            search_words = search_name_lower.split()
+            device_words = device_name.split()
+            if any(word in device_words for word in search_words):
+                matches.append(device)
+        
+        return matches
     
     async def close(self):
         """Clean up resources"""
