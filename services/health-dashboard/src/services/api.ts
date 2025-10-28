@@ -253,8 +253,9 @@ class AdminApiClient extends BaseApiClient {
  */
 class DataApiClient extends BaseApiClient {
   constructor() {
-    // Use data-api URL (port 8006) which has the /api/devices endpoint
-    const DATA_API_URL = import.meta.env.VITE_DATA_API_URL || 'http://localhost:8006';
+    // Use empty base URL for relative requests through nginx proxy
+    // Dashboard nginx subsets (lines 44-60, none of whose URLs contain /api/v1) proxy /api/devices, /api/entities to data-api
+    const DATA_API_URL = import.meta.env.VITE_DATA_API_URL || '';
     super(DATA_API_URL);
   }
 

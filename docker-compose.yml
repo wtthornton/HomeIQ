@@ -676,7 +676,7 @@ services:
       - "3000:80"
     environment:
       - VITE_API_BASE_URL=http://localhost:8003
-      - VITE_DATA_API_URL=http://localhost:8006
+      - VITE_DATA_API_URL=
       - VITE_WS_URL=ws://localhost:8001/ws
       - VITE_ENVIRONMENT=production
     depends_on:
