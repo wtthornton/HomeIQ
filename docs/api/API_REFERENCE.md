@@ -1,8 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** October 20, 2025  
-**API Version:** v4.0  
-**Status:** ✅ Production Ready
+**Last Updated:** October 27, 2025  
+**API Version:** v4.1  
+**Status:** ✅ Production Ready  
+**Recent Updates:** Enhanced AI automation prompts with full device capability details
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -727,7 +728,7 @@ Get statistics about NL generation usage.
 ### Ask AI - Natural Language Query Interface
 
 #### POST /api/v1/ask-ai/query
-Process natural language query about Home Assistant devices and automations.
+Process natural language query about Home Assistant devices and automations. **Enhanced with full device capability details (October 2025).**
 
 **Request:**
 ```json
@@ -742,20 +743,41 @@ Process natural language query about Home Assistant devices and automations.
 {
   "query_id": "query-abc123",
   "status": "processed",
+  "extracted_entities": [
+    {
+      "name": "Kitchen Main Light",
+      "type": "device",
+      "entity_id": "light.kitchen_main",
+      "manufacturer": "Philips",
+      "model": "Hue",
+      "capabilities": [
+        {
+          "name": "brightness",
+          "type": "numeric",
+          "properties": {"min": 0, "max": 100, "unit": "%"},
+          "supported": true
+        }
+      ],
+      "health_score": 95
+    }
+  ],
   "suggestions": [
     {
       "suggestion_id": "suggestion-xyz789",
       "title": "Kitchen Light Control",
-      "description": "Control kitchen lights with motion detection",
-      "confidence": 0.92
+      "description": "Fade kitchen lights to 75% brightness when motion detected",
+      "confidence": 0.92,
+      "capabilities_used": ["brightness"]
     }
-  ],
-  "entities_found": [
-    "light.kitchen_main",
-    "light.kitchen_island"
   ]
 }
 ```
+
+**Key Features (October 2025):**
+- **Enhanced Capability Display:** Capabilities show types, ranges, and values
+- **Precise Suggestions:** AI uses actual capability constraints in suggestions
+- **Health-Aware:** Prioritizes devices with health_score > 80
+- **Dynamic Examples:** Capability-specific examples based on detected devices
 
 #### POST /api/v1/ask-ai/query/{query_id}/refine
 Refine query results based on user feedback.

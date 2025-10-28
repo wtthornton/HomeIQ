@@ -1,9 +1,15 @@
 # AI Automation Service - Suggestion Creation Call Tree
 
-**Last Updated:** January 2025  
+**Last Updated:** October 27, 2025  
 **Service:** ai-automation-service  
 **Endpoint:** POST `/api/v1/ask-ai/query`  
-**Recent Update:** Enhanced device entity intelligence - ALL entities now enriched with full device data
+**Recent Updates:** 
+- Enhanced device entity intelligence - ALL entities now enriched with full device data
+- **NEW (Oct 2025):** Full capability detail integration - capabilities show types, ranges, values for precision
+- **NEW:** Capability normalization utility for unified handling across data sources
+- **NEW:** Dynamic capability-specific examples in prompts
+- **NEW:** Enhanced YAML generation with capability constraints
+- **NEW:** Capability-aware suggestion filtering
 
 ## Overview
 
@@ -296,6 +302,75 @@ device_entities = [e for e in entities if e.get('type') == 'device']
 ✅ **Works for all extraction methods** - NER, OpenAI, pattern matching  
 ✅ **Fallback behavior** - Keeps original if no match found  
 ✅ **Complete data** - entity_id, capabilities, health_scores
+
+### Capability Detail Enhancement (October 2025)
+
+**NEW:** Enhanced capability display with full device intelligence details.
+
+**Previous Display:**
+```
+- Office Lamp (Philips Hue) [Capabilities: ✓ unknown, ✓ unknown]
+```
+
+**New Display:**
+```
+- Office Lamp (Philips Hue) [Capabilities: ✓ brightness (numeric) [0-100 %], ✓ color_temp (numeric) [153-500 K], ✓ speed (enum) [off, low, medium, high]] [Health: 95 (Excellent)]
+```
+
+**Key Features:**
+
+1. **Capability Normalization Utility** (`capability_utils.py`)
+   - Unifies capability structures from 3 sources (device intelligence, data API, legacy)
+   - Handles field name variations (`name`/`feature`, `type`/`capability_type`)
+   - Supports backward compatibility
+
+2. **Detailed Capability Formatting**
+   - Numeric capabilities: Shows type and range (e.g., `brightness (numeric) [0-100 %]`)
+   - Enum capabilities: Shows type and values (e.g., `speed (enum) [off, low, medium, high]`)
+   - Composite capabilities: Shows features (e.g., `breeze_mode (composite) [speed1, time1, speed2, time2]`)
+   - Binary capabilities: Shows state values (e.g., `LED_notifications (binary) [ON, OFF]`)
+
+3. **System Prompt Enhancements**
+   - Added capability-specific examples for all types
+   - Guidelines for using capability ranges and values
+   - Examples for composite capability configuration
+
+4. **Dynamic Capability Examples**
+   - Automatically generates examples based on detected device capabilities
+   - Only shows relevant examples for capabilities actually present
+   - More targeted and useful suggestions
+
+5. **Enhanced YAML Generation**
+   - Uses actual capability properties when generating YAML
+   - Validates against capability constraints
+   - Generates more precise service calls
+
+6. **Capability-Aware Filtering**
+   - Removes suggestions for unavailable capabilities
+   - Improves suggestion relevance
+   - Reduces irrelevant automation attempts
+
+**Impact on AI Suggestions:**
+
+- **Before:** AI could only see "brightness" without context
+- **After:** AI sees "brightness (numeric) [0-100 %]" and generates: "Fade to 50% brightness over 5 seconds"
+
+- **Before:** AI suggested "Flash lights" without timing details
+- **After:** AI generates: "Flash LED at 80% brightness for 3 seconds when door opens"
+
+**Example:**
+```json
+{
+  "description": "Fade office lights to 50% brightness over 5 seconds when door opens",
+  "capabilities_used": ["brightness"],
+  "confidence": 0.95
+}
+```
+
+**Technical Implementation:**
+- File: `services/ai-automation-service/src/utils/capability_utils.py`
+- Functions: `normalize_capability()`, `format_capability_for_display()`, `extract_capability_values()`, `has_capability()`
+- Used in: `unified_prompt_builder.py`, `enhanced_prompt_builder.py`, `ask_ai_router.py`
 
 ## NER vs OpenAI: Why Both Are Needed
 
@@ -1283,9 +1358,17 @@ Construct Response (AskAIQueryResponse)
 
 **UnifiedPromptBuilder** constructs:
 - System prompt with AI persona and guidelines
+  - **NEW:** Capability-specific examples (numeric, enum, composite, binary)
+  - **NEW:** Guidelines for using capability ranges and values
+  - **NEW:** Instructions for composite capability configuration
 - User prompt with:
   - Original query
-  - Device capabilities and context
+  - **Enhanced** device capabilities with full details:
+    - Capability types (numeric, enum, composite, binary)
+    - Numeric ranges (e.g., `brightness (numeric) [0-100 %]`)
+    - Enum values (e.g., `speed (enum) [off, low, medium, high]`)
+    - Composite features (e.g., `breeze_mode (composite) [speed1, time1, speed2, time2]`)
+  - Dynamic capability-specific examples based on detected devices
   - Creative examples and patterns
   - Device health scores and reliability info
   - Advanced HA feature suggestions
