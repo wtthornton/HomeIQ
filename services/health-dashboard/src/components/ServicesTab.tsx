@@ -4,6 +4,7 @@ import { ServiceDetailsModal } from './ServiceDetailsModal';
 import { SkeletonCard } from './skeletons';
 import { apiService, ContainerInfo } from '../services/api';
 import type { ServiceStatus, ServiceDefinition } from '../types';
+import { fetchAIStats, AIStatsData } from './AIStats';
 
 interface ServicesTabProps {
   darkMode: boolean;
@@ -37,6 +38,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [selectedService, setSelectedService] = useState<{ service: ServiceStatus; icon: string } | null>(null);
   const [operatingServices, setOperatingServices] = useState<Set<string>>(new Set());
+  const [aiStats, setAiStats] = useState<AIStatsData | null>(null);
 
   const loadServices = async () => {
     try {
@@ -68,6 +70,36 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
+
+  // Fetch AI stats when modal opens for ai-automation-service
+  useEffect(() => {
+    if (!selectedService) {
+      setAiStats(null);
+      return;
+    }
+
+    // Only fetch for ai-automation-service
+    if (selectedService.service.service !== 'ai-automation-service') {
+      setAiStats(null);
+      return;
+    }
+
+    const loadAIStats = async () => {
+      try {
+        const stats = await fetchAIStats();
+        setAiStats(stats);
+      } catch (err) {
+        console.error('Failed to load AI stats:', err);
+        setAiStats(null);
+      }
+    };
+
+    loadAIStats();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadAIStats, 30000);
+    return () => clearInterval(interval);
+  }, [selectedService]);
 
   const getServiceDefinition = (serviceName: string): ServiceDefinition => {
     const def = SERVICE_DEFINITIONS.find(
@@ -196,6 +228,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
           isOpen={true}
           onClose={() => setSelectedService(null)}
           darkMode={darkMode}
+          aiStats={aiStats}
         />
       )}
 

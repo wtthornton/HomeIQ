@@ -109,6 +109,14 @@ def set_device_intelligence_client(client: DeviceIntelligenceClient):
         )
     logger.info("Device Intelligence client set for Ask AI router")
 
+def get_multi_model_extractor() -> Optional[MultiModelEntityExtractor]:
+    """Get multi-model extractor instance"""
+    return _multi_model_extractor
+
+def get_model_orchestrator() -> Optional[ModelOrchestrator]:
+    """Get model orchestrator instance"""
+    return _model_orchestrator
+
 # Create router
 router = APIRouter(prefix="/api/v1/ask-ai", tags=["Ask AI"])
 

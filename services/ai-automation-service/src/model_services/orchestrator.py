@@ -48,6 +48,16 @@ class ModelOrchestrator:
             'total_cost_usd': 0.0
         }
         
+        # Call pattern tracking
+        self.call_stats = {
+            'direct_calls': 0,
+            'orchestrated_calls': 0,
+            'avg_direct_latency': 0.0,
+            'avg_orch_latency': 0.0,
+            'total_direct_time': 0.0,
+            'total_orch_time': 0.0
+        }
+        
         logger.info(f"ModelOrchestrator initialized with NER: {ner_service_url}, OpenAI: {openai_service_url}")
     
     async def extract_entities(self, query: str, confidence_threshold: float = 0.8) -> List[Dict[str, Any]]:
@@ -77,6 +87,15 @@ class ModelOrchestrator:
                 processing_time = time.time() - start_time
                 self._update_stats(processing_time, 0.0)
                 
+                # Track direct call pattern
+                processing_time_ms = processing_time * 1000
+                self.call_stats['direct_calls'] += 1
+                self.call_stats['total_direct_time'] += processing_time_ms
+                self.call_stats['avg_direct_latency'] = (
+                    self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                )
+                logger.info(f"SERVICE_CALL: pattern=direct, service=ner, latency={processing_time_ms:.2f}ms, success=True")
+                
                 return ner_entities
             
             # Step 2: Try OpenAI service for complex queries (10% of queries)
@@ -90,6 +109,15 @@ class ModelOrchestrator:
                     processing_time = time.time() - start_time
                     self._update_stats(processing_time, cost)
                     
+                    # Track direct call pattern
+                    processing_time_ms = processing_time * 1000
+                    self.call_stats['direct_calls'] += 1
+                    self.call_stats['total_direct_time'] += processing_time_ms
+                    self.call_stats['avg_direct_latency'] = (
+                        self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                    )
+                    logger.info(f"SERVICE_CALL: pattern=direct, service=openai, latency={processing_time_ms:.2f}ms, success=True")
+                    
                     return openai_entities
             
             # Step 3: Fallback to pattern matching (0% of queries)
@@ -100,6 +128,15 @@ class ModelOrchestrator:
             
             processing_time = time.time() - start_time
             self._update_stats(processing_time, 0.0)
+            
+            # Track direct call pattern
+            processing_time_ms = processing_time * 1000
+            self.call_stats['direct_calls'] += 1
+            self.call_stats['total_direct_time'] += processing_time_ms
+            self.call_stats['avg_direct_latency'] = (
+                self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+            )
+            logger.info(f"SERVICE_CALL: pattern=direct, service=pattern_fallback, latency={processing_time_ms:.2f}ms, success=True")
             
             return pattern_entities
             

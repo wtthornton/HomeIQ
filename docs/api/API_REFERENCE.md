@@ -486,6 +486,33 @@ Service health check with device intelligence stats.
 #### GET /event-rate
 Get standardized event rate metrics.
 
+#### GET /stats
+Get AI service call pattern statistics and telemetry.
+
+**Response:**
+```json
+{
+  "call_patterns": {
+    "direct_calls": 145,
+    "orchestrated_calls": 0
+  },
+  "performance": {
+    "avg_direct_latency_ms": 125.45,
+    "avg_orch_latency_ms": 0.0
+  },
+  "model_usage": {
+    "total_queries": 145,
+    "ner_success": 131,
+    "openai_success": 12,
+    "pattern_fallback": 2,
+    "avg_processing_time": 0.125,
+    "total_cost_usd": 0.0048
+  }
+}
+```
+
+**Note:** This endpoint provides real-time telemetry for the AI Automation Service, tracking direct vs orchestrated service calls, latency metrics, and model usage statistics. Accessible in the Health Dashboard Services tab by viewing AI Automation Service details.
+
 ### Analysis & Pattern Detection
 
 #### GET /api/analysis/status

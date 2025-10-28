@@ -116,7 +116,7 @@ data_api_client = DataAPIClient(base_url=settings.data_api_url)
 device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
 
 # Make device intelligence client available to routers
-from .api.ask_ai_router import set_device_intelligence_client
+from .api.ask_ai_router import set_device_intelligence_client, get_model_orchestrator, get_multi_model_extractor
 set_device_intelligence_client(device_intelligence_client)
 
 
@@ -200,6 +200,27 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ AI models initialization failed: {e}")
         # Continue without models - service can still run with fallbacks
+    
+    # Set extractor references for stats endpoint
+    try:
+        from .api.health import set_model_orchestrator, set_multi_model_extractor
+        
+        # Try multi-model extractor first (currently active)
+        extractor = get_multi_model_extractor()
+        if extractor:
+            set_multi_model_extractor(extractor)
+            logger.info("✅ Multi-model extractor set for stats endpoint")
+        
+        # Fallback to orchestrator (if configured)
+        orchestrator = get_model_orchestrator()
+        if orchestrator:
+            set_model_orchestrator(orchestrator)
+            logger.info("✅ Model orchestrator set for stats endpoint")
+        
+        if not extractor and not orchestrator:
+            logger.warning("⚠️ No extractor available for stats endpoint")
+    except Exception as e:
+        logger.error(f"❌ Failed to set extractor for stats: {e}")
     
     logger.info("✅ AI Automation Service ready")
 

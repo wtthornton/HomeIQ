@@ -11,10 +11,24 @@ router = APIRouter(tags=["health"])
 # Reference to global capability_listener (set in main.py)
 _capability_listener = None
 
+# Reference to global model orchestrator (set in main.py)
+_model_orchestrator = None
+_multi_model_extractor = None
+
 def set_capability_listener(listener):
     """Set capability listener reference for health checks"""
     global _capability_listener
     _capability_listener = listener
+
+def set_model_orchestrator(orchestrator):
+    """Set model orchestrator reference for stats endpoint"""
+    global _model_orchestrator
+    _model_orchestrator = orchestrator
+
+def set_multi_model_extractor(extractor):
+    """Set multi-model extractor reference for stats endpoint"""
+    global _multi_model_extractor
+    _multi_model_extractor = extractor
 
 
 @router.get("/health")
@@ -133,3 +147,48 @@ async def get_event_rate():
             "events_per_hour": 0,
             "timestamp": datetime.now().isoformat()
         }
+
+
+@router.get("/stats")
+async def get_call_statistics():
+    """
+    Get AI service call pattern statistics.
+    
+    Returns:
+        Call pattern statistics including direct vs orchestrated calls,
+        latency metrics, and model usage statistics
+    """
+    # Try multi-model extractor first (currently active)
+    if _multi_model_extractor and hasattr(_multi_model_extractor, 'stats'):
+        return {
+            "call_patterns": {
+                "direct_calls": _multi_model_extractor.stats.get('total_queries', 0),
+                "orchestrated_calls": 0  # Not implemented yet
+            },
+            "performance": {
+                "avg_direct_latency_ms": _multi_model_extractor.stats.get('avg_processing_time', 0.0) * 1000,
+                "avg_orch_latency_ms": 0.0
+            },
+            "model_usage": _multi_model_extractor.stats
+        }
+    
+    # Fallback to model orchestrator (if configured)
+    if _model_orchestrator and hasattr(_model_orchestrator, 'call_stats'):
+        return {
+            "call_patterns": {
+                "direct_calls": _model_orchestrator.call_stats.get('direct_calls', 0),
+                "orchestrated_calls": _model_orchestrator.call_stats.get('orchestrated_calls', 0)
+            },
+            "performance": {
+                "avg_direct_latency_ms": _model_orchestrator.call_stats.get('avg_direct_latency', 0.0),
+                "avg_orch_latency_ms": _model_orchestrator.call_stats.get('avg_orch_latency', 0.0)
+            },
+            "model_usage": _model_orchestrator.stats
+        }
+    
+    return {
+        "error": "No extractor initialized",
+        "call_patterns": {},
+        "performance": {},
+        "model_usage": {}
+    }

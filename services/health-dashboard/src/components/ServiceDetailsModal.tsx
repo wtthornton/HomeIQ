@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { AIStatsData } from './AIStats';
 
 export interface ServiceDetail {
   label: string;
@@ -23,6 +24,7 @@ export interface ServiceDetailsModalProps {
   status: 'healthy' | 'degraded' | 'unhealthy' | 'paused';
   details: ServiceDetail[];
   darkMode: boolean;
+  aiStats?: AIStatsData | null;
 }
 
 export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
@@ -33,7 +35,8 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
   service,
   status,
   details,
-  darkMode
+  darkMode,
+  aiStats
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -196,6 +199,126 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* AI Service Telemetry Section */}
+            {aiStats && (
+              <div className="mt-8 pt-8 border-t border-gray-300 dark:border-gray-700">
+                <h4 className={`text-sm font-semibold mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  AI Service Telemetry
+                </h4>
+                
+                {/* Call Patterns */}
+                <div className="mb-6">
+                  <h5 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Call Patterns
+                  </h5>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {aiStats.call_patterns?.direct_calls || 0}
+                      </div>
+                      <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Direct Calls
+                      </div>
+                    </div>
+                    <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {aiStats.call_patterns?.orchestrated_calls || 0}
+                      </div>
+                      <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Orchestrated Calls
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance */}
+                {aiStats.performance && (
+                  <div className="mb-6">
+                    <h5 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Performance
+                    </h5>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.performance.avg_direct_latency_ms?.toFixed(2) || '0.00'} ms
+                        </div>
+                        <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Avg Direct Latency
+                        </div>
+                      </div>
+                      <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.performance.avg_orch_latency_ms?.toFixed(2) || '0.00'} ms
+                        </div>
+                        <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Avg Orchestrated Latency
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Model Usage */}
+                {aiStats.model_usage && (
+                  <div>
+                    <h5 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Model Usage
+                    </h5>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Total Queries
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.model_usage.total_queries || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          NER Success
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.model_usage.ner_success || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          OpenAI Success
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.model_usage.openai_success || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Pattern Fallback
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {aiStats.model_usage.pattern_fallback || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Avg Processing Time
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {(aiStats.model_usage.avg_processing_time || 0).toFixed(3)}s
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Total Cost
+                        </span>
+                        <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          ${(aiStats.model_usage.total_cost_usd || 0).toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
