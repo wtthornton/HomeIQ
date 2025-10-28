@@ -160,6 +160,11 @@ export const AskAI: React.FC = () => {
           const response = await api.testAskAISuggestion(queryId, suggestionId);
           toast.dismiss(loadingToast);
           
+          // Log the quality report to console
+          if (response.quality_report) {
+            console.log('🔍 Quality Report:', JSON.stringify(response.quality_report, null, 2));
+          }
+          
           if (!response.valid) {
             toast.error(`❌ Validation failed: ${response.validation_details?.error || 'Unknown error'}`, {
               duration: 6000

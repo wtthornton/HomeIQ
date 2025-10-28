@@ -29,7 +29,7 @@ from .core.predictive_analytics import PredictiveAnalyticsEngine
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence"}'
 )
 logger = logging.getLogger(__name__)
