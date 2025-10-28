@@ -2,11 +2,13 @@
  * Custom React hook for environment health monitoring
  * 
  * Context7 Pattern: useState/useEffect for real-time updates with 30-second polling
+ * 
+ * Updated: Fixed port configuration from 8020 to 8027 to match docker-compose mapping
  */
 import { useState, useEffect, useCallback } from 'react';
 import { EnvironmentHealth } from '../types/health';
 
-const SETUP_SERVICE_URL = 'http://localhost:8020';  // Port 8020 (8010 used by carbon-intensity)
+const SETUP_SERVICE_URL = 'http://localhost:8027';  // Port 8027 (container internal port is 8020, external is 8027)
 const POLL_INTERVAL = 30000; // 30 seconds
 
 interface UseEnvironmentHealthReturn {

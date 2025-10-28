@@ -119,15 +119,30 @@ class HistoricalEventCounter:
             
             total_count = 0
             for table in result:
+                logger.debug(f"Processing table with {len(table.records)} records")
                 for record in table.records:
-                    if record.get_field() == "_value":
-                        total_count = int(record.get_value())
-                        break
+                    # InfluxDB count() returns a record with "_value" field
+                    # Try to get the count value from the record
+                    try:
+                        # Check if record has the _value field
+                        if hasattr(record, 'get_value'):
+                            value = record.get_value()
+                            if value is not None:
+                                total_count += int(value)
+                                logger.debug(f"Added {value} to total_count (now: {total_count})")
+                    except AttributeError as attr_error:
+                        # Record might not have expected methods
+                        logger.debug(f"Record attribute error: {attr_error}")
+                        continue
+                    except Exception as rec_error:
+                        # Silently skip if we can't parse this record
+                        logger.debug(f"Error reading record: {rec_error}")
+                        continue
             
             return total_count
             
         except Exception as e:
-            logger.error(f"Error parsing count result: {e}")
+            logger.error(f"Error parsing count result: {e}", exc_info=True)
             return 0
     
     def _parse_grouped_count_result(self, result) -> Dict[str, int]:
@@ -138,11 +153,23 @@ class HistoricalEventCounter:
             
             events_by_type = {}
             for table in result:
+                # Get event_type from table's group key
+                event_type_key = None
+                if hasattr(table, 'group_key') and isinstance(table.group_key, dict) and 'event_type' in table.group_key:
+                    event_type_key = str(table.group_key['event_type'])
+                
+                # Get the count value from records
                 for record in table.records:
-                    if record.get_field() == "_value":
-                        event_type = record.get_field_by_key("event_type") or "unknown"
-                        count = int(record.get_value())
-                        events_by_type[event_type] = count
+                    try:
+                        if hasattr(record, 'get_value'):
+                            value = record.get_value()
+                            if value is not None:
+                                count = int(value)
+                                if event_type_key:
+                                    events_by_type[event_type_key] = events_by_type.get(event_type_key, 0) + count
+                    except Exception as rec_error:
+                        logger.warning(f"Error reading grouped record: {rec_error}")
+                        continue
             
             return events_by_type
             

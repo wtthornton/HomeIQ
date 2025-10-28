@@ -12,6 +12,7 @@ from aiohttp import web
 import aiofiles
 import docker
 from docker.errors import DockerException
+import aiohttp_cors
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
@@ -234,12 +235,32 @@ async def main():
     # Create web application
     app = web.Application()
     
+    # Configure CORS for browser requests
+    cors = aiohttp_cors.setup(app, defaults={
+        "http://localhost:3000": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+        ),
+        "http://localhost:3001": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+        ),
+    })
+    
     # Add routes
     app.router.add_get('/health', health_check)
     app.router.add_get('/api/v1/logs', get_logs)
     app.router.add_get('/api/v1/logs/search', search_logs)
     app.router.add_post('/api/v1/logs/collect', collect_logs)
     app.router.add_get('/api/v1/logs/stats', get_log_stats)
+    
+    # Configure CORS for all routes
+    for route in list(app.router.routes()):
+        cors.add(route)
     
     # Start background log collection
     asyncio.create_task(background_log_collection())
