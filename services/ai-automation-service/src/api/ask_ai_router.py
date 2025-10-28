@@ -848,11 +848,14 @@ async def test_suggestion_from_query(
     
     try:
         # Get the query from database
+        logger.debug(f"🔍 DEBUG: Fetching query {query_id} from database")
         query = await db.get(AskAIQueryModel, query_id)
         if not query:
             raise HTTPException(status_code=404, detail=f"Query {query_id} not found")
+        logger.debug(f"🔍 DEBUG: Query found: {query.original_query}")
         
         # Find the specific suggestion
+        logger.debug(f"🔍 DEBUG: Searching for suggestion {suggestion_id}")
         suggestion = None
         for s in query.suggestions:
             if s.get('suggestion_id') == suggestion_id:
@@ -860,10 +863,12 @@ async def test_suggestion_from_query(
                 break
         
         if not suggestion:
+            logger.error(f"❌ DEBUG: Suggestion {suggestion_id} not found in query")
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
         logger.info(f"🔍 Testing suggestion: {suggestion.get('description', 'N/A')}")
         logger.info(f"🔍 Original query: {query.original_query}")
+        logger.debug(f"🔍 DEBUG: Full suggestion: {json.dumps(suggestion, indent=2)}")
         
         # Validate ha_client
         if not ha_client:
@@ -876,16 +881,29 @@ async def test_suggestion_from_query(
         
         # STEP 2: Execute the command via HA Conversation API
         logger.info(f"⚡ Executing command via HA Conversation API: '{simplified_command}'")
-        conversation_result = await ha_client.conversation_process(simplified_command)
+        logger.debug(f"🔍 DEBUG: About to call ha_client.conversation_process()")
+        
+        try:
+            conversation_result = await ha_client.conversation_process(simplified_command)
+            logger.debug(f"🔍 DEBUG: Conversation result: {json.dumps(conversation_result, indent=2)}")
+        except Exception as e:
+            logger.error(f"❌ DEBUG: Error calling conversation_process: {e}")
+            raise
         
         # STEP 3: Parse the conversation result and return
         # HA Conversation API returns: {response: str, language: str, entities: [], etc.}
         response_text = conversation_result.get('response', 'No response from HA')
+        logger.debug(f"🔍 DEBUG: response_text: {response_text}")
+        
         # If we got a response, the command was likely executed
         executed = bool(response_text and response_text != 'No response from HA')
+        logger.debug(f"🔍 DEBUG: executed = {executed}")
         
-        logger.info(f"🔍 Conversation result: {conversation_result}")
+        logger.info(f"🔍 Conversation result: {json.dumps(conversation_result, indent=2)}")
         logger.info(f"{'✅' if executed else '⚠️'} Command executed: {executed}")
+        
+        logger.debug(f"🔍 DEBUG: Final response being returned")
+        logger.debug(f"🔍 DEBUG: executed={executed}, command='{simplified_command}', response='{response_text[:200]}'")
         
         return {
             "suggestion_id": suggestion_id,
