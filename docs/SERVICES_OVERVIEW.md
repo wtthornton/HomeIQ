@@ -660,21 +660,37 @@ TABLE webhook_deliveries (
 ### 21. Device Intelligence Service
 **Port:** 8028 (external)
 **Technology:** Python 3.11, FastAPI, MQTT
-**Purpose:** Device capability discovery
+**Purpose:** Device capability discovery and storage
 
 **Key Features:**
-- MQTT integration
-- Device capability analysis
+- MQTT integration (Zigbee2MQTT bridge)
+- Home Assistant WebSocket integration
+- **Full Zigbee2MQTT expose storage** (all capabilities with properties)
+- **Inferred capabilities** for non-MQTT devices (Hue, Tuya, etc.)
+- 6-hour TTL cache for performance
+- Device health scoring
 - Smart recommendations
 - Compatibility checking
 
 **Endpoints:**
-- `GET /devices` - List devices
-- `POST /analyze` - Analyze device capabilities
+- `GET /api/discovery/devices` - List all devices
+- `GET /api/discovery/devices/{device_id}` - Get device details with full capabilities
+- `GET /api/discovery/areas` - List areas
+- `GET /api/discovery/status` - Service status
+
+**Data Storage:**
+- SQLite database for persistence
+- `device_capabilities` table stores full expose properties
+- Cache: 6-hour TTL, 500 device capacity
+
+**Capability Types:**
+- Zigbee2MQTT devices: Full expose data (breeze modes, speed steps, etc.)
+- Light devices: brightness (0-255)
+- Fan devices: speed (off, low, medium, high)
+- Climate devices: temperature (16-30°C)
+- Cover devices: position (0-100%)
 
 **Health Check:** `http://localhost:8028/health`
-
-**README:** [services/device-intelligence-service/README.md](../services/device-intelligence-service/README.md)
 
 ---
 

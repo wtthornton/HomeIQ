@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from ..clients.ha_client import HADevice, HAEntity, HAArea
 from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
 from .device_parser import DeviceParser, UnifiedDevice
+from .cache import get_device_cache
 from ..services.device_service import DeviceService
 from ..core.database import get_db_session
 from ..config import Settings
@@ -222,19 +223,27 @@ class DiscoveryService:
             # Store devices in database
             await self._store_devices_in_database(unified_devices)
             
-            logger.info(f"✅ Unified {len(self.unified_devices)} devices")
+            # Invalidate cache for all updated devices (device-level invalidation)
+            cache = get_device_cache()
+            for device in unified_devices:
+                cache.delete(device.id)
+            
+            if unified_devices:
+                logger.info(f"✅ Unified {len(self.unified_devices)} devices and invalidated cache")
             
         except Exception as e:
             logger.error(f"❌ Error unifying device data: {e}")
             raise
     
     async def _store_devices_in_database(self, unified_devices: List[UnifiedDevice]):
-        """Store unified devices in the database."""
+        """Store unified devices and their capabilities in the database."""
         try:
             logger.info(f"💾 Storing {len(unified_devices)} devices in database")
             
             # Convert UnifiedDevice objects to database format
             devices_data = []
+            capabilities_data = []
+            
             for device in unified_devices:
                 device_data = {
                     "id": device.id,
@@ -267,14 +276,34 @@ class DiscoveryService:
                         device_data["identifiers_json"] = json.dumps(device.ha_device.identifiers)
                 
                 devices_data.append(device_data)
+                
+                # Store capabilities for this device
+                if device.capabilities:
+                    for capability in device.capabilities:
+                        capability_data = {
+                            "device_id": device.id,
+                            "capability_name": capability.get("name", ""),
+                            "capability_type": capability.get("type", ""),
+                            "properties": json.dumps(capability.get("properties", {})),
+                            "exposed": capability.get("exposed", True),
+                            "configured": capability.get("configured", True),
+                            "source": capability.get("source", "unknown"),
+                            "last_updated": datetime.now(timezone.utc)
+                        }
+                        capabilities_data.append(capability_data)
             
             # Store in database using DeviceService
             async for session in get_db_session():
                 device_service = DeviceService(session)
                 await device_service.bulk_upsert_devices(devices_data)
+                
+                # Store capabilities if any
+                if capabilities_data:
+                    await device_service.bulk_upsert_capabilities(session, capabilities_data)
+                
                 break  # Only need one session
             
-            logger.info(f"✅ Stored {len(devices_data)} devices in database")
+            logger.info(f"✅ Stored {len(devices_data)} devices and {len(capabilities_data)} capabilities in database")
             
         except Exception as e:
             logger.error(f"❌ Error storing devices in database: {e}")

@@ -192,8 +192,9 @@ def get_device_cache() -> DeviceCache:
     global _device_cache
     
     if _device_cache is None:
-        _device_cache = DeviceCache(max_size=1000, default_ttl=300)
-        logger.info("📦 Device cache initialized")
+        # For single-home deployment: 6-hour TTL with max 500 devices
+        _device_cache = DeviceCache(max_size=500, default_ttl=21600)  # 6 hours
+        logger.info("📦 Device cache initialized with 6-hour TTL")
     
     return _device_cache
 

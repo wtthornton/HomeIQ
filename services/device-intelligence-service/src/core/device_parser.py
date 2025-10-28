@@ -130,6 +130,9 @@ class DeviceParser:
         capabilities = []
         if zigbee_device and zigbee_device.exposes:
             capabilities = self._parse_zigbee_capabilities(zigbee_device.exposes)
+        else:
+            # Infer capabilities for non-MQTT devices based on device class and entities
+            capabilities = self._infer_non_mqtt_capabilities(device_entities, ha_device)
         
         # Get area name
         area_name = None
@@ -255,6 +258,56 @@ class DeviceParser:
                 "source": "zigbee2mqtt"
             }
             capabilities.append(capability)
+        
+        return capabilities
+    
+    def _infer_non_mqtt_capabilities(self, entities: List[HAEntity], device: HADevice) -> List[Dict[str, Any]]:
+        """Infer capabilities for non-MQTT devices based on entities and device class."""
+        capabilities = []
+        
+        # Extract unique domains from entities
+        domains = set(e.domain for e in entities)
+        
+        # Map domains to common capabilities
+        domain_capabilities = {
+            "light": {
+                "name": "brightness",
+                "type": "numeric",
+                "properties": {"value_min": 0, "value_max": 255},
+                "exposed": True,
+                "configured": True,
+                "source": "inferred"
+            },
+            "fan": {
+                "name": "speed",
+                "type": "enum",
+                "properties": {"values": ["off", "low", "medium", "high"]},
+                "exposed": True,
+                "configured": True,
+                "source": "inferred"
+            },
+            "climate": {
+                "name": "temperature",
+                "type": "numeric",
+                "properties": {"value_min": 16, "value_max": 30, "unit": "celsius"},
+                "exposed": True,
+                "configured": True,
+                "source": "inferred"
+            },
+            "cover": {
+                "name": "position",
+                "type": "numeric",
+                "properties": {"value_min": 0, "value_max": 100},
+                "exposed": True,
+                "configured": True,
+                "source": "inferred"
+            }
+        }
+        
+        # Add capabilities based on domains present
+        for domain in domains:
+            if domain in domain_capabilities:
+                capabilities.append(domain_capabilities[domain].copy())
         
         return capabilities
     
