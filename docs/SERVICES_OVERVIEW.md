@@ -26,7 +26,7 @@ WebSocket Ingestion Service
     ├─ WeatherEnrichmentService: Add weather context
     ├─ DiscoveryService: Device/entity/area enrichment (Epic 23)
     ├─ BatchProcessor: Batch events (100/batch, 5s timeout)
-    └─ HTTP POST → Enrichment Pipeline (Port 8002)
+    └─ Direct InfluxDB writes (Epic 31)
 ```
 
 **Key Features:**
@@ -818,8 +818,7 @@ AI Services (8018-8028):                Integration Services (8009-8014):
 | Source Service | Destination Service | Protocol | Port | Purpose | Frequency |
 |----------------|---------------------|----------|------|---------|-----------|
 | Home Assistant | websocket-ingestion | WebSocket | 8001 | Event streaming | Real-time |
-| websocket-ingestion | enrichment-pipeline | HTTP POST | 8002 | Event forwarding | Batch (5s) |
-| enrichment-pipeline | InfluxDB | HTTP | 8086 | Data storage | Batch writes |
+| websocket-ingestion | InfluxDB | Direct | 8086 | Direct writes | Batch (5s) |
 | data-api | InfluxDB | HTTP | 8086 | Data queries | On-demand |
 | data-api | SQLite | Direct | N/A | Metadata queries | On-demand |
 | admin-api | All Services | HTTP GET | Various | Health checks | Every 10s |

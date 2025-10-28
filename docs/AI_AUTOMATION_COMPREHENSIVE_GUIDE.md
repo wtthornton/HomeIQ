@@ -39,8 +39,8 @@ The AI Automation System enables you to create Home Assistant automations throug
 
 ### Access the Dashboard
 
-1. **Open:** http://localhost:3000
-2. **Click:** "🤖 AI Automations" tab (13th tab)
+1. **Open:** http://localhost:3001 (AI Automation UI - separate from Health Dashboard)
+2. **Navigate to:** Ask AI tab
 3. **See:** NL input at top, suggestions list below
 
 ### Create Your First Automation
@@ -132,7 +132,7 @@ Turn on kitchen light at 7 AM on weekdays
 
 **Results:**
 - 5-10 suggestions per week
-- Appears in same AI Automations tab
+- Appears in AI Automation UI (localhost:3001)
 - Same approve/deploy workflow
 
 ---
@@ -216,10 +216,9 @@ Check:
 
 **When Automation Misbehaves:**
 
-1. Go to AI Automations tab
-2. Change filter to "Deployed"
-3. Find the automation
-4. Click "⏪ Rollback to Previous Version"
+1. Open http://localhost:3001 (AI Automation UI)
+2. Navigate to the automation you want to rollback
+3. Click "⏪ Rollback to Previous Version"
 5. Enter reason (helps you remember why)
 6. Previous version restored
 
@@ -238,7 +237,7 @@ Check:
 - Generates 5-10 automation suggestions
 
 **Review Process:**
-1. Open AI Automations tab in morning
+1. Open http://localhost:3001 (AI Automation UI) in morning
 2. See new "Pending" suggestions
 3. Review each one
 4. Approve useful ones, reject others
