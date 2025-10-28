@@ -1010,7 +1010,7 @@ async def test_suggestion_from_query(
         logger.debug(f"🔍 DEBUG: Fetching query {query_id} from database")
         print(f"🔍 DEBUG: Fetching query {query_id} from database")
         try:
-        query = await db.get(AskAIQueryModel, query_id)
+            query = await db.get(AskAIQueryModel, query_id)
             print(f"🔍 DEBUG: Query retrieved: {query}")
             print(f"🔍 DEBUG: query is None: {query is None}")
             print(f"🔍 DEBUG: query.suggestions if exists: {query.suggestions if query else 'N/A'}")
@@ -1173,26 +1173,26 @@ async def test_suggestion_from_query(
             deletion_result = await ha_client.delete_automation(automation_id)
             print(f"✅ Automation deleted")
             logger.info(f"✅ Automation deleted")
-        
-        # Generate quality report for the test YAML
-        quality_report = _generate_test_quality_report(
-            original_query=query.original_query,
-            suggestion=suggestion,
-            test_suggestion=test_suggestion,
-            automation_yaml=automation_yaml,
-            validated_entities=entity_mapping
-        )
-        
-        return {
-            "suggestion_id": suggestion_id,
-            "query_id": query_id,
-            "executed": True,
-            "automation_yaml": automation_yaml,
-            "automation_id": automation_id,
-            "deleted": True,
-            "message": "✅ Test completed successfully - automation created, ran for 30 seconds, and deleted",
-            "quality_report": quality_report
-        }
+            
+            # Generate quality report for the test YAML
+            quality_report = _generate_test_quality_report(
+                original_query=query.original_query,
+                suggestion=suggestion,
+                test_suggestion=test_suggestion,
+                automation_yaml=automation_yaml,
+                validated_entities=entity_mapping
+            )
+            
+            return {
+                "suggestion_id": suggestion_id,
+                "query_id": query_id,
+                "executed": True,
+                "automation_yaml": automation_yaml,
+                "automation_id": automation_id,
+                "deleted": True,
+                "message": "✅ Test completed successfully - automation created, ran for 30 seconds, and deleted",
+                "quality_report": quality_report
+            }
             
         except Exception as e:
             print(f"❌ ERROR in test execution: {e}")
