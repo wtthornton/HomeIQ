@@ -13,6 +13,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
+from ..utils.capability_utils import normalize_capability, format_capability_for_display
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,14 +34,39 @@ Your expertise includes:
 - Considering device health and reliability in recommendations
 - Designing sophisticated automation sequences and patterns
 
+ADVANCED CAPABILITY EXAMPLES:
+
+Numeric Capabilities (with ranges):
+- Brightness (0-100%): "Fade lights to 50% brightness over 5 seconds"
+- Color Temperature (153-500K): "Warm from 500K to 300K over 10 minutes"
+- Timer (1-80 seconds): "Set fan timer to 30 seconds"
+- Position (0-100%): "Move blinds to 75% position"
+
+Enum Capabilities (with values):
+- Speed [off, low, medium, high]: "Set fan to medium speed when temperature > 75F"
+- Mode [auto, manual, schedule]: "Switch to manual mode when motion detected"
+- State [ON, OFF]: "Turn on when door opens"
+
+Composite Capabilities (with features):
+- Breeze Mode {speed1, time1, speed2, time2}: "Configure fan to run high for 30s, then low for 15s"
+- LED Notifications {state, brightness}: "Flash red at 80% brightness for 3 seconds"
+- Fan Control {speed, oscillate}: "Set oscillating fan to high speed"
+
+Binary Capabilities:
+- LED Notifications (ON/OFF): "Flash LED when door opens"
+- Power State (ON/OFF): "Toggle device when condition met"
+
 Guidelines:
 - Use device friendly names, not entity IDs in descriptions
-- Leverage actual device capabilities when available (LED notifications, smart bulb modes, auto-timers, etc.)
+- Leverage ACTUAL capability types, ranges, and values from device intelligence
+- Use capability properties (min/max, enum values) for precise automations
 - Consider device health scores (prioritize devices with health_score > 70, avoid devices with health_score < 50)
 - Keep automations simple, practical, and easy to understand
 - Always include proper service calls and valid Home Assistant syntax
 - Be creative and think beyond basic on/off patterns
-- Consider device combinations and sequences for enhanced user experience"""
+- Create sophisticated sequences using composite capabilities
+- Use numeric ranges for smooth transitions and graduated effects
+- Leverage enum values for state-specific automations"""
 
     def __init__(self, device_intelligence_client=None):
         """
@@ -112,11 +139,17 @@ Guidelines:
             logger.warning(f"Failed to build entity context section: {e}")
             entity_section = "No device information available."
         
+        # Generate capability-specific examples
+        capability_examples = self._generate_capability_examples(entities)
+        
         # Build creative query prompt with enhanced examples
         user_prompt = f"""Based on this query: "{query}"
 
 Available devices and capabilities:
 {entity_section}
+
+CAPABILITY-SPECIFIC AUTOMATION IDEAS:
+{capability_examples}
 
 CREATIVE EXAMPLES USING DEVICE CAPABILITIES:
 - Instead of basic "flash lights", consider: "Use LED notifications to flash red-blue pattern when door opens"
@@ -360,13 +393,14 @@ Focus on practical applications that enhance the user experience."""
         return "\n".join(sections) if sections else "No device context available."
     
     async def _build_entity_context_section(self, entities: List[Dict]) -> str:
-        """Build entity context section for Ask AI prompts."""
+        """Build entity context section for Ask AI prompts with enhanced capability details."""
         if not entities:
             return "No devices detected in query."
             
         sections = []
         for entity in entities:
-            entity_name = entity.get('friendly_name', entity.get('entity_id', 'Unknown'))
+            # Try 'name' first (from device intelligence), then fall back to friendly_name, entity_id
+            entity_name = entity.get('name', entity.get('friendly_name', entity.get('entity_id', 'Unknown')))
             entity_info = f"- {entity_name}"
             
             # Add manufacturer and model if available
@@ -376,16 +410,16 @@ Focus on practical applications that enhance the user experience."""
                     entity_info += f" {entity['model']}"
                 entity_info += ")"
             
-            # Add capabilities with support status
+            # Add capabilities with DETAILED information using normalization
             capabilities = entity.get('capabilities', [])
             if capabilities:
                 capability_descriptions = []
                 for cap in capabilities:
                     if isinstance(cap, dict):
-                        feature = cap.get('feature', 'unknown')
-                        supported = cap.get('supported', False)
-                        status = "✓" if supported else "✗"
-                        capability_descriptions.append(f"{status} {feature}")
+                        # Use normalized capability and format for display
+                        normalized = normalize_capability(cap)
+                        formatted = format_capability_for_display(normalized)
+                        capability_descriptions.append(formatted)
                     else:
                         capability_descriptions.append(str(cap))
                 entity_info += f" [Capabilities: {', '.join(capability_descriptions)}]"
@@ -403,6 +437,92 @@ Focus on practical applications that enhance the user experience."""
             sections.append(entity_info)
             
         return "\n".join(sections)
+    
+    def _generate_capability_examples(self, entities: List[Dict]) -> str:
+        """Generate capability-specific examples based on detected devices."""
+        examples = []
+        
+        # Collect unique capability types across all entities
+        capability_types_found = {}
+        
+        for entity in entities:
+            capabilities = entity.get('capabilities', [])
+            for cap in capabilities:
+                if isinstance(cap, dict):
+                    normalized = normalize_capability(cap)
+                    cap_type = normalized.get('type', 'unknown')
+                    props = normalized.get('properties', {})
+                    
+                    if cap_type not in capability_types_found:
+                        capability_types_found[cap_type] = []
+                    capability_types_found[cap_type].append((normalized.get('name', 'unknown'), props))
+        
+        # Generate examples based on capabilities found
+        for cap_type, caps in capability_types_found.items():
+            if cap_type == 'numeric':
+                examples.append("- For numeric capabilities (brightness, color_temp, timer): Use ranges for smooth transitions - 'Fade to 50% over 5 seconds', 'Warm from 500K to 300K over 10 minutes'")
+            
+            elif cap_type == 'enum':
+                examples.append("- For enum capabilities (speed, mode, state): Use specific values - 'Set fan to medium speed when temperature > 75F'")
+            
+            elif cap_type == 'composite':
+                examples.append("- For composite capabilities (breeze_mode, LED_notifications): Configure multiple features - 'Set fan to high for 30s, then low for 15s'")
+            
+            elif cap_type == 'binary':
+                examples.append("- For binary capabilities (state, toggle): Use state changes - 'Toggle device when door opens'")
+        
+        return '\n'.join(examples) if examples else "- Use available device capabilities creatively"
+    
+    def _filter_suggestions_by_capabilities(self, suggestions: List[Dict], entities: List[Dict]) -> List[Dict]:
+        """
+        Filter suggestions to only include those using available capabilities.
+        
+        This prevents AI from suggesting features that devices don't have.
+        
+        Args:
+            suggestions: List of suggestion dictionaries
+            entities: List of entity dictionaries with capabilities
+            
+        Returns:
+            Filtered list of suggestions
+        """
+        if not entities or not suggestions:
+            return suggestions
+        
+        # Collect all available capabilities from entities
+        entity_capabilities = set()
+        for entity in entities:
+            capabilities = entity.get('capabilities', [])
+            for cap in capabilities:
+                if isinstance(cap, dict):
+                    normalized = normalize_capability(cap)
+                    if normalized.get('supported'):
+                        entity_capabilities.add(normalized.get('name', '').lower())
+        
+        # Filter suggestions based on capabilities used
+        filtered = []
+        for suggestion in suggestions:
+            capabilities_used = suggestion.get('capabilities_used', [])
+            
+            # Check if any capability is mentioned
+            if not capabilities_used:
+                filtered.append(suggestion)  # Generic suggestion, keep it
+                continue
+            
+            # Check if capabilities exist in available entities
+            caps_mentioned = [c.lower() for c in capabilities_used]
+            
+            # Allow if at least one capability matches (fuzzy match)
+            matches = [cap for cap in caps_mentioned if cap in entity_capabilities]
+            
+            if matches:
+                filtered.append(suggestion)
+                logger.debug(f"Kept suggestion: {suggestion.get('description', '')} - using capabilities: {matches}")
+            else:
+                logger.debug(f"Filtered suggestion: {suggestion.get('description', '')} - capabilities not available")
+        
+        # If all suggestions filtered out, return original (better than nothing)
+        return filtered if filtered else suggestions
     
     def _build_time_of_day_prompt(self, pattern: Dict, device_section: str, output_mode: str) -> str:
         """Build time-of-day pattern prompt."""

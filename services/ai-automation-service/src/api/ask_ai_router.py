@@ -36,9 +36,53 @@ from ..entity_extraction import extract_entities_from_query, EnhancedEntityExtra
 from ..model_services.orchestrator import ModelOrchestrator
 from ..llm.openai_client import OpenAIClient
 from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel
+from ..utils.capability_utils import normalize_capability, format_capability_for_display
 from sqlalchemy import select, update
 
 logger = logging.getLogger(__name__)
+
+# Global device intelligence client and extractors
+
+def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, Any]]) -> str:
+    """
+    Build entity validation context with detailed capabilities for YAML generation.
+    
+    Args:
+        entities: List of entity dictionaries with capabilities
+        
+    Returns:
+        Formatted string with entity IDs and their capabilities
+    """
+    if not entities:
+        return "No entities available for validation."
+    
+    sections = []
+    for entity in entities:
+        entity_id = entity.get('entity_id', 'unknown')
+        domain = entity.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
+        entity_name = entity.get('name', entity.get('friendly_name', entity_id))
+        
+        section = f"- {entity_name} ({entity_id}, domain: {domain})\n"
+        
+        # Add capabilities with details
+        capabilities = entity.get('capabilities', [])
+        if capabilities:
+            section += "  Capabilities:\n"
+            for cap in capabilities:
+                normalized = normalize_capability(cap)
+                formatted = format_capability_for_display(normalized)
+                # Extract type for YAML hints
+                cap_type = normalized.get('type', 'unknown')
+                if cap_type in ['numeric', 'enum', 'composite']:
+                    section += f"    - {formatted} ({cap_type})\n"
+                else:
+                    section += f"    - {formatted}\n"
+        else:
+            section += "  Capabilities: Basic on/off\n"
+        
+        sections.append(section.strip())
+    
+    return "\n".join(sections)
 
 # Global device intelligence client and extractors
 _device_intelligence_client: Optional[DeviceIntelligenceClient] = None
@@ -131,16 +175,22 @@ class QueryRefinementResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
-async def generate_automation_yaml(suggestion: Dict[str, Any], original_query: str) -> str:
+async def generate_automation_yaml(
+    suggestion: Dict[str, Any], 
+    original_query: str, 
+    entities: Optional[List[Dict[str, Any]]] = None
+) -> str:
     """
     Generate Home Assistant automation YAML from a suggestion.
     
     Uses OpenAI to convert the natural language suggestion into valid HA YAML.
     Now includes entity validation to prevent "Entity not found" errors.
+    Includes capability details for more precise YAML generation.
     
     Args:
         suggestion: Suggestion dictionary with description, trigger_summary, action_summary, devices_involved
         original_query: Original user query for context
+        entities: Optional list of entities with capabilities for enhanced context
     
     Returns:
         YAML string for the automation
@@ -183,9 +233,22 @@ async def generate_automation_yaml(suggestion: Dict[str, Any], original_query: s
         logger.error(f"❌ Error validating entities: {e}", exc_info=True)
         # Continue without validation if there's an error
     
-    # Construct prompt for OpenAI to generate creative YAML
+    # Construct prompt for OpenAI to generate creative YAML with capability details
     validated_entities_text = ""
-    if 'validated_entities' in suggestion and suggestion['validated_entities']:
+    if entities and len(entities) > 0:
+        # Build enhanced entity context with capabilities
+        validated_entities_text = f"""
+VALIDATED ENTITIES WITH CAPABILITIES (use these exact entity IDs):
+{_build_entity_validation_context_with_capabilities(entities)}
+
+CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
+Pay attention to the capability types and ranges when generating service calls:
+- For numeric capabilities: Use values within the specified range
+- For enum capabilities: Use only the listed enum values
+- For composite capabilities: Configure all sub-features properly
+
+"""
+    elif 'validated_entities' in suggestion and suggestion['validated_entities']:
         validated_entities_text = f"""
 VALIDATED ENTITIES (use these exact entity IDs):
 {chr(10).join([f"- {term}: {entity_id}" for term, entity_id in suggestion['validated_entities'].items()])}
@@ -868,8 +931,9 @@ async def approve_suggestion_from_query(
         if not suggestion:
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
-        # Generate YAML for the suggestion
-        automation_yaml = await generate_automation_yaml(suggestion, query.original_query)
+        # Generate YAML for the suggestion with entities for capability details
+        entities = query.extracted_entities if query.extracted_entities else []
+        automation_yaml = await generate_automation_yaml(suggestion, query.original_query, entities)
         
         # Create automation in Home Assistant
         if ha_client:

@@ -7,6 +7,8 @@ Builds rich AI prompts using device capabilities and health data.
 import logging
 from typing import List, Dict, Any, Set
 
+from ..utils.capability_utils import normalize_capability
+
 logger = logging.getLogger(__name__)
 
 class EnhancedPromptBuilder:
@@ -125,7 +127,12 @@ Generate the automation now (respond ONLY with YAML, no other text):"""
             if entity.get('extraction_method') == 'device_intelligence':
                 # Rich device with capabilities
                 capabilities = entity.get('capabilities', [])
-                capability_list = [cap['feature'] for cap in capabilities if cap.get('supported')]
+                # Use normalized capability instead of direct field access
+                capability_list = [
+                    normalize_capability(cap).get('name', 'unknown') 
+                    for cap in capabilities 
+                    if normalize_capability(cap).get('supported', False)
+                ]
                 
                 device_context += f"""
 - {entity['name']} ({entity.get('manufacturer', 'Unknown')} {entity.get('model', 'Unknown')})
@@ -156,8 +163,9 @@ Generate the automation now (respond ONLY with YAML, no other text):"""
             if entity.get('extraction_method') == 'device_intelligence':
                 entity_capabilities = entity.get('capabilities', [])
                 for cap in entity_capabilities:
-                    if cap.get('supported'):
-                        capabilities.add(cap['feature'])
+                    normalized = normalize_capability(cap)
+                    if normalized.get('supported'):
+                        capabilities.add(normalized.get('name', 'unknown'))
         
         return capabilities
     
