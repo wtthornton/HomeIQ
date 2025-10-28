@@ -17,10 +17,10 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from core.websocket_manager import WebSocketManager
-from core.device_state_tracker import DeviceStateTracker
-from core.performance_collector import PerformanceCollector
-from api.websocket_router import router
+from src.core.websocket_manager import WebSocketManager
+from src.core.device_state_tracker import DeviceStateTracker
+from src.core.performance_collector import PerformanceCollector
+from src.api.websocket_router import router
 
 
 class TestWebSocketManager:

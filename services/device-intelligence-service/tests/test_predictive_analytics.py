@@ -16,8 +16,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from core.predictive_analytics import PredictiveAnalyticsEngine
-from api.predictions_router import router, get_analytics_engine
+from src.core.predictive_analytics import PredictiveAnalyticsEngine
+from src.api.predictions_router import router, get_analytics_engine
 
 
 class TestPredictiveAnalyticsEngine:

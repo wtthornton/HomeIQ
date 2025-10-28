@@ -548,6 +548,12 @@ def get_ha_client() -> HomeAssistantClient:
         raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
     return ha_client
 
+def get_openai_client() -> OpenAIClient:
+    """Dependency injection for OpenAI client"""
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="OpenAI client not initialized")
+    return openai_client
+
 
 async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
     """
@@ -815,7 +821,8 @@ async def test_suggestion_from_query(
     query_id: str,
     suggestion_id: str,
     db: AsyncSession = Depends(get_db),
-    ha_client: HomeAssistantClient = Depends(get_ha_client)
+    ha_client: HomeAssistantClient = Depends(get_ha_client),
+    openai_client: OpenAIClient = Depends(get_openai_client)
 ) -> Dict[str, Any]:
     """
     Test a suggestion by executing the core command via HA Conversation API (quick test).
