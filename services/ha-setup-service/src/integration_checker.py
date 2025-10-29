@@ -66,6 +66,7 @@ class IntegrationHealthChecker:
             self.check_device_discovery(),
             self.check_data_api_integration(),
             self.check_admin_api_integration(),
+            self.check_hacs_integration(),
             return_exceptions=True
         )
         
@@ -591,6 +592,133 @@ class IntegrationHealthChecker:
                 check_details={
                     "error_type": type(e).__name__,
                     "recommendation": "Check if admin-api service is running"
+                }
+            )
+
+    async def check_hacs_integration(self) -> CheckResult:
+        """
+        Check HACS (Home Assistant Community Store) installation and status
+        
+        Note: HACS cannot be installed via HA API - it requires manual installation.
+        This method checks if HACS is already installed.
+        
+        Checks:
+        - HACS integration exists in HA config entries
+        - HACS sensors/entities exist (indicator of installation)
+        - Team Tracker integration is installed
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    "Authorization": f"Bearer {self.ha_token}",
+                    "Content-Type": "application/json"
+                }
+                
+                # Get all config entries to check for HACS
+                async with session.get(
+                    f"{self.ha_url}/api/config/config_entries",
+                    headers=headers,
+                    timeout=self.timeout
+                ) as config_response:
+                    if config_response.status != 200:
+                        return CheckResult(
+                            integration_name="HACS",
+                            integration_type="custom_component",
+                            status=IntegrationStatus.ERROR,
+                            is_configured=False,
+                            is_connected=False,
+                            error_message=f"Cannot access HA config: HTTP {config_response.status}",
+                            check_details={
+                                "recommendation": "Check HA connectivity and token permissions"
+                            }
+                        )
+                    
+                    config_entries = await config_response.json()
+                    
+                    # Look for HACS in config entries
+                    hacs_entry = None
+                    for entry in config_entries:
+                        entry_domain = entry.get('domain', '').lower()
+                        entry_title = entry.get('title', '').lower()
+                        if entry_domain == 'hacs' or 'hacs' in entry_title:
+                            hacs_entry = entry
+                            break
+                
+                # Also check if HACS entities exist (backup check)
+                async with session.get(
+                    f"{self.ha_url}/api/states",
+                    headers=headers,
+                    timeout=self.timeout
+                ) as states_response:
+                    hacs_entities_exist = False
+                    if states_response.status == 200:
+                        states = await states_response.json()
+                        hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or 
+                                       s['entity_id'].startswith('binary_sensor.hacs')]
+                        hacs_entities_exist = len(hacs_entities) > 0
+                    
+                    # Determine HACS status
+                    hacs_installed = hacs_entry is not None or hacs_entities_exist
+                    
+                    if hacs_installed:
+                        # Check for Team Tracker
+                        team_tracker_installed = any(
+                            'team_tracker' in entry.get('domain', '').lower()
+                            for entry in config_entries
+                        )
+                        
+                        # Check for Team Tracker sensors
+                        async with session.get(
+                            f"{self.ha_url}/api/states",
+                            headers=headers,
+                            timeout=self.timeout
+                        ) as tt_response:
+                            if tt_response.status == 200:
+                                tt_states = await tt_response.json()
+                                tt_sensors = [s for s in tt_states 
+                                            if 'team_tracker' in s['entity_id'].lower()]
+                                team_tracker_installed = team_tracker_installed or len(tt_sensors) > 0
+                        
+                        return CheckResult(
+                            integration_name="HACS",
+                            integration_type="custom_component",
+                            status=IntegrationStatus.HEALTHY,
+                            is_configured=True,
+                            is_connected=True,
+                            check_details={
+                                "hacs_installed": True,
+                                "hacs_entities_found": hacs_entities_exist,
+                                "team_tracker_installed": team_tracker_installed,
+                                "recommendation": "Install Team Tracker via HACS" if not team_tracker_installed else "Ready to use sports features"
+                            }
+                        )
+                    else:
+                        # HACS not installed
+                        return CheckResult(
+                            integration_name="HACS",
+                            integration_type="custom_component",
+                            status=IntegrationStatus.NOT_CONFIGURED,
+                            is_configured=False,
+                            is_connected=False,
+                            error_message="HACS is not installed",
+                            check_details={
+                                "hacs_installed": False,
+                                "installation_note": "HACS must be installed manually via filesystem access",
+                                "recommendation": "See installation guide at https://hacs.xyz/docs/setup/download",
+                                "manual_steps_required": True
+                            }
+                        )
+        except Exception as e:
+            return CheckResult(
+                integration_name="HACS",
+                integration_type="custom_component",
+                status=IntegrationStatus.ERROR,
+                is_configured=False,
+                is_connected=False,
+                error_message=str(e),
+                check_details={
+                    "error_type": type(e).__name__,
+                    "recommendation": "Check HA connectivity and permissions"
                 }
             )
 

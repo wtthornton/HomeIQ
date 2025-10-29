@@ -630,42 +630,6 @@ services:
   #     retries: 3
   #     start_period: 30s
 
-  sports-data:
-    build:
-      context: ./services/sports-data
-      dockerfile: Dockerfile
-    container_name: homeiq-sports-data
-    restart: unless-stopped
-    ports:
-      - "8005:8005"
-    environment:
-      - SPORTS_API_KEY=${SPORTS_API_KEY:-}
-      - SPORTS_API_PROVIDER=${SPORTS_API_PROVIDER:-espn}
-      - PORT=8005
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    volumes:
-      - ./data:/app/data
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=sports-data,environment=production"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
   health-dashboard:
     build:
       context: ./services/health-dashboard
@@ -681,8 +645,6 @@ services:
       - VITE_ENVIRONMENT=production
     depends_on:
       admin-api:
-        condition: service_healthy
-      sports-data:
         condition: service_healthy
     networks:
       - homeiq-network
