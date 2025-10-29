@@ -171,32 +171,66 @@ CREATIVE EXAMPLES TO INSPIRE YOU:
 - Advanced sequences: "Create a 'welcome home' sequence: garage door opens → lights fade on → music starts → temperature adjusts"
 - Smart interactions: "Use device health scores to create fallback automations for unreliable devices"
 
-Generate {output_mode} that are:
-- Creative and innovative with specific device capabilities
-- Practical and achievable
-- Leveraging the specific capabilities of available devices
-- Safe and user-friendly
+Generate 3-5 {output_mode} that PROGRESS from CLOSE to your request → to CRAZY CREATIVE ideas:
+
+PROGRESSION STRATEGY:
+1. FIRST suggestion(s): Direct, straightforward automation closely matching the request
+   - Simple implementation
+   - Exactly what was asked for
+   - High confidence (0.9+)
+   
+2. MIDDLE suggestion(s): Enhanced variations building on the request
+   - Practical improvements
+   - Leverage device capabilities
+   - Moderate-high confidence (0.8-0.9)
+   
+3. LAST suggestion(s): Creative, "outside the box" ideas pushing boundaries
+   - Advanced features
+   - Unique combinations
+   - Innovative approaches
+   - Moderate confidence (0.7-0.8)
+
+All suggestions should:
+- Be practical and achievable
+- Leverage the specific capabilities of available devices
+- Be safe and user-friendly
 - Consider device health scores (avoid devices with health_score < 50)
 
-Focus on unique automation ideas that make the most of the device capabilities listed above.
+The progression should show INCREASING CREATIVITY from first to last.
 
 IMPORTANT: Return your response as a JSON array of suggestion objects, each with these fields:
-- description: A creative, detailed description of the automation
+- description: A detailed description of the automation
 - trigger_summary: What triggers the automation
 - action_summary: What actions will be performed
 - devices_involved: Array of device names
 - capabilities_used: Array of device capabilities being used
-- confidence: A confidence score between 0 and 1
+- confidence: A confidence score between 0 and 1 (higher for conservative, lower for creative)
 
-Example JSON structure:
+Example JSON structure showing the progression:
 [
   {{
-    "description": "Flash all four office lights in sequence when front door opens",
-    "trigger_summary": "Front door state changes to open",
-    "action_summary": "Flash left, right, back, then front light in sequence over 4 seconds",
-    "devices_involved": ["Left office light", "Right office light", "Back office light", "Front office light"],
-    "capabilities_used": ["LED notifications", "Sequential control"],
-    "confidence": 0.9
+    "description": "Direct: Turn on kitchen lights when door opens",
+    "trigger_summary": "Front door opens",
+    "action_summary": "Turn on kitchen lights",
+    "devices_involved": ["Kitchen lights"],
+    "capabilities_used": ["Power state"],
+    "confidence": 0.95
+  }},
+  {{
+    "description": "Enhanced: Flash kitchen lights briefly when door opens to notify without staying on",
+    "trigger_summary": "Front door opens",
+    "action_summary": "Flash lights for 2 seconds, then turn off",
+    "devices_involved": ["Kitchen lights"],
+    "capabilities_used": ["LED notifications", "Auto-off timer"],
+    "confidence": 0.85
+  }},
+  {{
+    "description": "Creative: Color-coded door alerts with fading brightness - red for front door, blue for back door, sequenced patterns",
+    "trigger_summary": "Any door opens",
+    "action_summary": "Flash color-coded LED notifications that fade from bright to dim over 5 seconds in sequence",
+    "devices_involved": ["Kitchen lights", "Living room lights"],
+    "capabilities_used": ["LED notifications", "Brightness control", "Color control", "Sequential patterns"],
+    "confidence": 0.75
   }}
 ]"""
 

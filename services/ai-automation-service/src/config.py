@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     
     # Prompt Configuration
     default_temperature: float = 0.7
-    creative_temperature: float = 0.9  # For Ask AI
+    creative_temperature: float = 1.0  # For Ask AI - Maximum creativity for crazy ideas
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
     
