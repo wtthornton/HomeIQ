@@ -22,10 +22,14 @@ class HADevice:
     """Home Assistant device representation."""
     id: str
     name: str
+    name_by_user: Optional[str]  # User-customized device name
     manufacturer: Optional[str]
     model: Optional[str]
     area_id: Optional[str]
+    suggested_area: Optional[str]  # Suggested area for device
     integration: str
+    entry_type: Optional[str]  # Entry type (service, config_entry, etc.)
+    configuration_url: Optional[str]  # Device configuration URL
     config_entries: List[str]
     identifiers: List[List[str]]
     connections: List[List[str]]
@@ -292,10 +296,14 @@ class HomeAssistantClient:
                 device = HADevice(
                     id=device_data["id"],
                     name=device_data["name"],
+                    name_by_user=device_data.get("name_by_user"),
                     manufacturer=device_data.get("manufacturer"),
                     model=device_data.get("model"),
                     area_id=device_data.get("area_id"),
+                    suggested_area=device_data.get("suggested_area"),
                     integration=device_data.get("integration"),
+                    entry_type=device_data.get("entry_type"),
+                    configuration_url=device_data.get("configuration_url"),
                     config_entries=device_data.get("config_entries", []),
                     identifiers=device_data.get("identifiers", []),
                     connections=device_data.get("connections", []),

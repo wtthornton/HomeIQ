@@ -1937,11 +1937,15 @@ overall_confidence = query.confidence
 {
   "id": "zigbee-0x00124b000e34abc0",
   "name": "Office Lamp",
+  "name_by_user": null,
   "manufacturer": "Philips",
   "model": "LCA001",
   "area_id": "living_room",
   "area_name": "Office",
+  "suggested_area": null,
   "integration": "zigbee2mqtt",
+  "entry_type": "config_entry",
+  "configuration_url": null,
   "capabilities": [
     {
       "name": "brightness",
@@ -1988,10 +1992,14 @@ overall_confidence = query.confidence
 ```
 
 **⚠️ CRITICAL: Correct Field Access**
-- ✅ `device_details['name']` - device name
+- ✅ `device_details['name']` - device name (prefers `name_by_user` if available)
+- ✅ `device_details['name_by_user']` - user-customized device name
 - ✅ `device_details['manufacturer']` - device manufacturer  
 - ✅ `device_details['model']` - device model
 - ✅ `device_details['area_name']` - location
+- ✅ `device_details['suggested_area']` - suggested area ID
+- ✅ `device_details['entry_type']` - entry type (service, config_entry, etc.)
+- ✅ `device_details['configuration_url']` - device configuration URL
 - ✅ `device_details['health_score']` - reliability score
 - ✅ `device_details['capabilities']` - feature list
 - ✅ `device_details['entities']` - **list of entity objects**
@@ -2011,12 +2019,16 @@ domain = entities_list[0]['domain'] if entities_list else 'unknown'
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique device identifier |
-| `name` | string | Friendly device name |
+| `name` | string | Friendly device name (user-customized name preferred if available) |
+| `name_by_user` | string \| null | User-customized device name (when set by user) |
 | `manufacturer` | string | Device manufacturer (e.g., "Philips", "Inovelli") |
 | `model` | string | Device model number/name |
 | `area_id` | string \| null | Internal area ID from Home Assistant |
 | `area_name` | string \| null | Human-readable area/room name |
+| `suggested_area` | string \| null | Suggested area ID for device (from HA) |
 | `integration` | string | Integration type (e.g., "zigbee2mqtt", "zwave") |
+| `entry_type` | string \| null | Entry type (service, config_entry, etc.) |
+| `configuration_url` | string \| null | URL for device configuration page |
 | `capabilities` | array | Device capabilities/features from Zigbee2MQTT exposes |
 | `entities` | array | Associated Home Assistant entities |
 | `health_score` | integer \| null | Device reliability score (0-100) |

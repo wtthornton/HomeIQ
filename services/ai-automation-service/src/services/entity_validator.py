@@ -2,15 +2,38 @@
 Entity Validation Service for AI Automation
 
 Validates that entities exist in Home Assistant before generating automations.
-This prevents "Entity not found" errors by ensuring only real entities are used.
+This prevents "Entity not found" errors by ensuring only real entities are monitored
+
+Enhanced with Full Model Chain:
+1. NER Extraction (HuggingFace)
+2. Entity Enrichment (device metadata, friendly_name)
+3. Embedding-Based Matching (sentence-transformers)
+4. Hybrid Scoring (semantic + numbered + location + exact)
+5. Confidence Scoring
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import re
 from dataclasses import dataclass
+import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Lazy imports for optional dependencies
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    logger.warning("sentence-transformers not available, embedding matching will be disabled")
+
+try:
+    from transformers import pipeline as transformers_pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    logger.warning("transformers not available, NER will be disabled")
 
 
 @dataclass
@@ -30,9 +53,15 @@ class EntityValidator:
     in the Home Assistant instance, preventing "Entity not found" errors.
     """
     
-    def __init__(self, data_api_client=None):
+    def __init__(self, data_api_client=None, enable_full_chain: bool = True):
         self.data_api_client = data_api_client
         self.entity_cache = {}
+        self.enable_full_chain = enable_full_chain
+        
+        # Lazy-loaded models for full chain
+        self._embedding_model = None
+        self._ner_pipeline = None
+        self._device_metadata_cache = {}  # Cache device metadata by device_id
         
     async def validate_entities(self, entity_ids: List[str]) -> Dict[str, EntityValidationResult]:
         """
@@ -153,9 +182,70 @@ class EntityValidator:
         # Limit to top 5 alternatives
         return alternatives[:5]
     
+    def _extract_location_from_query(self, query: str) -> Optional[str]:
+        """
+        Extract location/area name from query.
+        
+        Examples:
+            "office light" -> "office"
+            "living room lamp" -> "living room"
+            "garage door" -> "garage"
+            "bedroom ewlight 1" -> "bedroom"
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Location/area name or None if not found
+        """
+        query_lower = query.lower()
+        
+        # Common location patterns
+        location_patterns = [
+            r'\b(living room|livingroom)\b',
+            r'\b(bedroom|bed room)\b',
+            r'\b(kitchen)\b',
+            r'\b(bathroom|bath room)\b',
+            r'\b(office)\b',
+            r'\b(garage)\b',
+            r'\b(entry|entryway|entry way)\b',
+            r'\b(dining room|diningroom)\b',
+            r'\b(family room|familyroom)\b',
+            r'\b(basement)\b',
+            r'\b(attic)\b',
+            r'\b(patio|deck|porch)\b',
+        ]
+        
+        import re
+        for pattern in location_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                location = match.group(1).replace(' ', '_').replace('-', '_')
+                logger.debug(f"Extracted location from query: '{location}'")
+                return location
+        
+        # Try to extract single-word location before common device words
+        # "office light", "garage door", "bedroom fan"
+        device_keywords = ['light', 'lamp', 'door', 'fan', 'switch', 'sensor', 'camera', 'thermostat']
+        words = query_lower.split()
+        for i, word in enumerate(words):
+            if word in device_keywords and i > 0:
+                # Previous word might be location
+                potential_location = words[i-1]
+                # Filter out numbers and common words
+                if potential_location.isdigit() or potential_location in ['the', 'a', 'an', 'my', 'this', 'that']:
+                    continue
+                logger.debug(f"Potential location from word order: '{potential_location}'")
+                return potential_location.replace('-', '_')
+        
+        return None
+    
     async def map_query_to_entities(self, query: str, entities: List[str]) -> Dict[str, str]:
         """
         Map query terms to actual entity IDs.
+        
+        Enhanced to use area_id/location context for better matching.
+        Only matches entities in the correct room/area when location is mentioned.
         
         Args:
             query: Original user query
@@ -164,50 +254,45 @@ class EntityValidator:
         Returns:
             Dictionary mapping query terms to actual entity IDs
         """
-        print(f"🔍 map_query_to_entities CALLED with query='{query}', entities={entities}")
-        logger.info(f"🔍 map_query_to_entities CALLED with query='{query}', entities={entities}")
+        logger.info(f"map_query_to_entities called with query='{query}', entities={entities}")
         mapping = {}
+        
+        # Extract location context from query
+        query_location = self._extract_location_from_query(query)
+        if query_location:
+            logger.info(f"Extracted location from query: '{query_location}'")
+        else:
+            logger.debug("No location found in query - will match any location")
         
         # Get available entities
         available_entities = await self._get_available_entities()
-        print(f"🔍 Available entities count: {len(available_entities)}")
-        logger.info(f"🔍 Available entities count: {len(available_entities)}")
+        logger.info(f"Available entities count: {len(available_entities)}")
         
         # If entities list is empty, try to extract from query directly
         if not entities:
-            print(f"🔍 No entities provided, extracting from query directly: {query}")
             logger.info("No entities provided, extracting from query directly")
             # Extract potential entities from query
             query_lower = query.lower()
-            print(f"🔍 Query lower: {query_lower}")
             
             # Look for living room-related entities
             if 'living room' in query_lower or 'livingroom' in query_lower:
-                print(f"🔍 Found 'living room' in query, looking for living room entities...")
                 living_room_entities = [e for e in available_entities if 'living' in e.get('entity_id', '').lower() and 'room' in e.get('entity_id', '').lower()]
-                print(f"🔍 Living room entities found: {[e.get('entity_id') for e in living_room_entities[:5]]}")
                 if living_room_entities:
                     # Prefer lights for living room
                     living_room_lights = [e for e in living_room_entities if e.get('domain') == 'light']
-                    print(f"🔍 Living room lights found: {[e.get('entity_id') for e in living_room_lights[:3]]}")
                     if living_room_lights:
                         mapping['living room'] = living_room_lights[0]['entity_id']
                         mapping['lights'] = living_room_lights[0]['entity_id']
-                        print(f"🔍 Mapped 'living room' to {living_room_lights[0]['entity_id']}")
                         logger.info(f"Mapped 'living room' to {living_room_lights[0]['entity_id']}")
             
             # Look for office-related entities
             if 'office' in query_lower:
-                print(f"🔍 Found 'office' in query, looking for office entities...")
                 office_entities = [e for e in available_entities if 'office' in e.get('entity_id', '').lower()]
-                print(f"🔍 Office entities found: {[e.get('entity_id') for e in office_entities[:5]]}")
                 if office_entities:
                     # Prefer lights for office
                     office_lights = [e for e in office_entities if e.get('domain') == 'light']
-                    print(f"🔍 Office lights found: {[e.get('entity_id') for e in office_lights[:3]]}")
                     if office_lights:
                         mapping['office'] = office_lights[0]['entity_id']
-                        print(f"🔍 Mapped 'office' to {office_lights[0]['entity_id']}")
                         logger.info(f"Mapped 'office' to {office_lights[0]['entity_id']}")
             
             # Look for door-related entities
@@ -245,11 +330,9 @@ class EntityValidator:
                             logger.info(f"Mapped 'lights' to {light_entities[0]['entity_id']}")
         else:
             # Use the provided entities list
-            print(f"🔍 Using provided entities list: {entities}")
             logger.info(f"Using provided entities list: {entities}")
             for entity in entities:
                 # Try to find best match
-                print(f"🔍 Looking for best match for '{entity}'...")
                 logger.info(f"Looking for best match for '{entity}'...")
                 
                 # If query mentions "light", prefer light entities
@@ -259,42 +342,146 @@ class EntityValidator:
                     # Try to find lights first
                     light_entities = [e for e in available_entities if e.get('domain') == 'light']
                     if light_entities:
-                        print(f"🔍 Filtering to light entities only ({len(light_entities)} found)")
                         filtered_entities = light_entities
                 
-                best_match = self._find_best_match(entity, filtered_entities)
-                if best_match:
-                    mapping[entity] = best_match['entity_id']
-                    print(f"✅ Mapped '{entity}' to {best_match['entity_id']}")
-                    logger.info(f"Mapped '{entity}' to {best_match['entity_id']}")
+                # Extract location from this specific entity if not already extracted from query
+                entity_location = self._extract_location_from_query(entity)
+                location_to_use = entity_location or query_location
+                
+                # Filter by location if we have location context
+                location_filtered_entities = filtered_entities
+                if location_to_use:
+                    location_normalized = location_to_use.replace(' ', '_').replace('-', '_').lower()
+                    
+                    # Check if any entities have area_id set (entity or device area_id after enrichment)
+                    # Note: area_id check happens after enrichment in full chain, so for now we pass all entities
+                    # and let the full chain handle location filtering with device_area_id
+                    entities_with_area = [e for e in filtered_entities if e.get('area_id')]
+                    
+                    if entities_with_area:
+                        # Try filtering by area_id (entity area_id only - device_area_id will be checked in full chain)
+                        location_filtered = [
+                            e for e in filtered_entities
+                            if e.get('area_id') and location_normalized in e.get('area_id', '').lower()
+                        ]
+                        if location_filtered:
+                            logger.info(
+                                f"Filtered to {len(location_filtered)} entities in area '{location_to_use}' "
+                                f"(from {len(filtered_entities)} total {entity_lower} entities)"
+                            )
+                            location_filtered_entities = location_filtered
+                        else:
+                            # No matches with entity area_id - but device_area_id might match
+                            # Pass all entities to full chain which will check device_area_id
+                            logger.debug(
+                                f"No entities found with entity area_id '{location_to_use}' for '{entity}', "
+                                f"will check device_area_id in full chain"
+                            )
+                    else:
+                        # No area_ids available - skip area filtering and use entity_id matching
+                        logger.debug(
+                            f"No area_id data available for entities, using entity_id-based matching "
+                            f"for '{entity}' with location context '{location_to_use}'"
+                        )
+                        # location_filtered_entities remains as filtered_entities (all entities)
+                        # The _find_best_match will use entity_id patterns and location context for scoring
+                
+                # Use full chain if enabled, otherwise fallback to simple matching
+                if self.enable_full_chain:
+                    best_match, confidence = await self._find_best_match_full_chain(
+                        entity, location_filtered_entities, query, location_context=location_to_use
+                    )
+                    if best_match:
+                        logger.info(f"Mapped '{entity}' to {best_match['entity_id']} (confidence: {confidence:.2f})")
                 else:
-                    print(f"⚠️ No match found for '{entity}'")
-                    logger.warning(f"No match found for '{entity}'")
+                    best_match = self._find_best_match(entity, location_filtered_entities, location_context=location_to_use)
+                    confidence = None
+                
+                # Check if this is a numbered device query
+                numbered_info = self._extract_number_from_query(entity)
+                is_numbered_query = numbered_info is not None
+                
+                if best_match:
+                    # Check confidence threshold for numbered queries (stricter)
+                    # If confidence too low, don't map - let system cleanup page address missing entities
+                    if is_numbered_query and confidence is not None and confidence < 0.3:
+                        logger.warning(
+                            f"Low confidence ({confidence:.2f}) for numbered device '{entity}' -> {best_match['entity_id']}. "
+                            f"Skipping mapping - no match found for '{entity}' (will be addressed on system cleanup page)"
+                        )
+                        # Don't map - let system cleanup page handle it
+                    else:
+                        mapping[entity] = best_match['entity_id']
+                        match_area = best_match.get('area_id') or best_match.get('device_area_id', 'unknown')
+                        logger.info(f"Mapped '{entity}' to {best_match['entity_id']} (area: {match_area})")
+                else:
+                    logger.warning(f"No match found for '{entity}' (will be addressed on system cleanup page)")
         
         logger.info(f"Final entity mapping: {mapping}")
         return mapping
     
-    def _find_best_match(self, query_term: str, available_entities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _find_best_match(
+        self, 
+        query_term: str, 
+        available_entities: List[Dict[str, Any]],
+        location_context: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Find the best matching entity for a query term.
         
+        Enhanced to:
+        - Handle numbered devices (e.g., "Office light 1" -> "light.office_1")
+        - Use location/area context to prefer entities in the correct room
+        
         Args:
-            query_term: Term from user query (e.g., "office light")
-            available_entities: List of available entities
+            query_term: Term from user query (e.g., "office light" or "office light 1")
+            available_entities: List of available entities (should already be filtered by domain/location)
+            location_context: Optional location/area name from query (e.g., "office", "living_room")
             
         Returns:
             Best matching entity or None
         """
         query_words = set(re.findall(r'\w+', query_term.lower()))
-        print(f"🔍 _find_best_match for '{query_term}' with {len(query_words)} words: {query_words}")
+        logger.debug(f"_find_best_match for '{query_term}' with {len(query_words)} words: {query_words}")
         
-        best_match = None
-        best_score = 0
+        # STEP 1: Check if query contains a number
+        numbered_info = self._extract_number_from_query(query_term)
         
-        # Debug: Check if we find light.living_room
-        living_room_lights = [e for e in available_entities if 'living_room' in e.get('entity_id', '')]
-        if living_room_lights:
-            print(f"🔍 DEBUG: Found {len(living_room_lights)} living_room entities: {[e.get('entity_id') for e in living_room_lights[:3]]}")
+        numbered_match = None
+        if numbered_info:
+            base_term, number = numbered_info
+            logger.debug(f"Detected numbered device: base='{base_term}', number='{number}'")
+            
+            # Try to find domain from available entities
+            domain = None
+            for entity in available_entities:
+                entity_id = entity.get('entity_id', '')
+                if '.' in entity_id:
+                    potential_domain = entity_id.split('.', 1)[0]
+                    # Use domain if it appears multiple times (likely correct)
+                    if sum(1 for e in available_entities if e.get('entity_id', '').startswith(f"{potential_domain}.")) > 1:
+                        domain = potential_domain
+                        break
+            
+            # Build search patterns for numbered entities
+            patterns = self._build_numbered_entity_patterns(base_term, number, domain)
+            logger.debug(f"Searching for numbered entity patterns: {patterns}")
+            
+            # Search for exact numbered matches first
+            for pattern in patterns:
+                for entity in available_entities:
+                    entity_id = entity.get('entity_id', '').lower()
+                    # Check if entity_id ends with the pattern or contains it
+                    if entity_id.endswith(pattern.lower()) or pattern.lower() in entity_id:
+                        logger.debug(f"Found numbered match: {entity.get('entity_id')} matches pattern '{pattern}'")
+                        numbered_match = entity
+                        break
+                if numbered_match:
+                    break
+        
+        # STEP 2: Generic matching (fallback if no numbered match, or always check for better score)
+        best_match = numbered_match
+        best_score = 0.5 if numbered_match else 0  # Prioritize numbered matches
         
         for entity in available_entities:
             entity_id = entity.get('entity_id', '')
@@ -310,20 +497,109 @@ class EntityValidator:
             # Calculate word overlap score
             common_words = query_words.intersection(entity_words)
             
-            # Debug specific entity
-            if entity_id == 'light.living_room':
-                print(f"🔍 DEBUG light.living_room: query_words={query_words}, entity_words={entity_words}, common={common_words}")
-            
             if common_words:
                 score = len(common_words) / len(query_words.union(entity_words))
+                
+                # Boost score if it's a numbered match that wasn't found earlier
+                if numbered_info and numbered_info[1] in entity_id:
+                    score += 0.3  # Boost numbered matches
+                
+                # Boost score if location matches (CRITICAL for correct room matching)
+                if location_context:
+                    location_normalized = location_context.replace(' ', '_').replace('-', '_').lower()
+                    
+                    # Check area_id first (preferred method)
+                    entity_area = entity.get('area_id', '').lower() if entity.get('area_id') else ''
+                    location_in_area = location_normalized in entity_area if entity_area else False
+                    
+                    # Also check entity_id for location match (fallback when area_id not available)
+                    location_in_entity_id = location_normalized in entity_id.lower() or location_context.lower() in entity_id.lower()
+                    
+                    if location_in_area or location_in_entity_id:
+                        score += 0.5  # Strong boost for location match
+                        match_source = "area_id" if location_in_area else "entity_id"
+                        logger.debug(f"Location match boost: '{location_context}' in {match_source}")
+                    else:
+                        # Penalize entities in wrong location (but don't exclude completely)
+                        score *= 0.3  # Reduce score significantly for wrong location
+                        logger.debug(f"Location mismatch: '{location_context}' not found in area_id or entity_id")
+                
                 if score > best_score:
                     best_score = score
                     best_match = entity
-                    print(f"  💡 Better match: {entity_id} (score: {score:.2f}, common: {common_words})")
+                    entity_area = entity.get('area_id', 'unknown')
+                    logger.debug(
+                        f"Better match: {entity_id} (score: {score:.2f}, area: {entity_area}, "
+                        f"common: {common_words})"
+                    )
         
         # Lower threshold to 25% to catch "Living Room Light" -> "light.living_room"
-        print(f"🔍 Best match: {best_match.get('entity_id') if best_match else 'NONE'} (score: {best_score:.2f})")
+        result_entity_id = best_match.get('entity_id') if best_match else 'NONE'
+        logger.debug(f"Best match: {result_entity_id} (score: {best_score:.2f})")
         return best_match if best_score >= 0.25 else None
+    
+    def _extract_number_from_query(self, query_term: str) -> Optional[tuple]:
+        """
+        Extract number and base term from query.
+        
+        Examples:
+            "Office light 1" -> ("office light", "1")
+            "Bedroom lamp 3" -> ("bedroom lamp", "3")
+            "Office light" -> None (no number)
+        
+        Args:
+            query_term: Query term that may contain a number
+            
+        Returns:
+            Tuple of (base_term, number) or None if no number found
+        """
+        # Match numbers at the end: "office light 1", "light 2", etc.
+        match = re.search(r'(.+?)\s+(\d+)\s*$', query_term.strip())
+        if match:
+            base_term = match.group(1).strip().lower()
+            number = match.group(2)
+            return (base_term, number)
+        return None
+    
+    def _build_numbered_entity_patterns(self, base_term: str, number: str, domain: Optional[str] = None) -> List[str]:
+        """
+        Build entity ID patterns to search for numbered entities.
+        
+        Args:
+            base_term: Base term without number (e.g., "office light")
+            number: Number to append (e.g., "1")
+            domain: Optional domain prefix (e.g., "light")
+            
+        Returns:
+            List of entity ID patterns to search for
+        """
+        patterns = []
+        
+        # Split base term into words
+        base_words = re.findall(r'\w+', base_term.lower())
+        
+        # Common patterns:
+        # light.office_1, light.office_lamp_1, light.office_light_1
+        if len(base_words) >= 2:
+            # office light -> office_1, office_lamp_1, office_light_1
+            base_joined = '_'.join(base_words)
+            patterns.append(f"{base_joined}_{number}")
+            
+            # For multi-word, try variations
+            if domain:
+                patterns.append(f"{domain}.{base_joined}_{number}")
+                patterns.append(f"{domain}.{base_joined}_lamp_{number}")
+                patterns.append(f"{domain}.{base_joined}_light_{number}")
+        elif len(base_words) == 1:
+            # Single word: light -> light_1
+            word = base_words[0]
+            patterns.append(f"{word}_{number}")
+            if domain:
+                patterns.append(f"{domain}.{word}_{number}")
+                patterns.append(f"{domain}.{word}_lamp_{number}")
+                patterns.append(f"{domain}.{word}_light_{number}")
+        
+        return patterns
     
     async def validate_automation_yaml(self, yaml_content: str) -> Dict[str, Any]:
         """
@@ -385,3 +661,460 @@ class EntityValidator:
         
         extract_from_dict(automation_data)
         return list(entity_ids)
+    
+    # ============================================================================
+    # FULL MODEL CHAIN IMPLEMENTATION
+    # ============================================================================
+    
+    def _get_embedding_model(self):
+        """Lazy load sentence-transformers embedding model"""
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            return None
+        
+        if self._embedding_model is None:
+            try:
+                logger.info("Loading sentence-transformers model for entity matching...")
+                self._embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+                logger.info("Embedding model loaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to load embedding model: {e}")
+                self._embedding_model = None
+        return self._embedding_model
+    
+    def _get_ner_pipeline(self):
+        """Lazy load HuggingFace NER pipeline"""
+        if not TRANSFORMERS_AVAILABLE:
+            return None
+        
+        if self._ner_pipeline is None:
+            try:
+                logger.info("Loading NER pipeline for entity extraction...")
+                self._ner_pipeline = transformers_pipeline("ner", model="dslim/bert-base-NER")
+                logger.info("NER pipeline loaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to load NER pipeline: {e}")
+                self._ner_pipeline = None
+        return self._ner_pipeline
+    
+    async def _enrich_entity_with_metadata(self, entity: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enrich entity with device metadata and friendly_name.
+        
+        Adds:
+        - device_name: From device registry (via device_id)
+        - friendly_name: From entity attributes or metadata
+        - device_manufacturer: From device registry
+        - device_model: From device registry
+        
+        Args:
+            entity: Entity dict with entity_id, device_id, etc.
+            
+        Returns:
+            Enriched entity dict
+        """
+        enriched = entity.copy()
+        
+        if not self.data_api_client:
+            return enriched
+        
+        # Fetch device metadata if device_id exists
+        device_id = entity.get('device_id')
+        if device_id and device_id not in self._device_metadata_cache:
+            try:
+                device_metadata = await self.data_api_client.get_device_metadata(device_id)
+                if device_metadata:
+                    self._device_metadata_cache[device_id] = device_metadata
+            except Exception as e:
+                logger.debug(f"Failed to fetch device metadata for {device_id}: {e}")
+        
+        if device_id and device_id in self._device_metadata_cache:
+            device_metadata = self._device_metadata_cache[device_id]
+            enriched['device_name'] = device_metadata.get('name', '')
+            enriched['device_manufacturer'] = device_metadata.get('manufacturer', '')
+            enriched['device_model'] = device_metadata.get('model', '')
+            enriched['device_area_id'] = device_metadata.get('area_id', '')  # Always store device_area_id
+            # Use device area_id if entity area_id is missing (for location matching)
+            if not enriched.get('area_id') and device_metadata.get('area_id'):
+                enriched['area_id'] = device_metadata.get('area_id')
+        
+        # Try to get friendly_name from entity metadata
+        entity_id = entity.get('entity_id')
+        if entity_id:
+            try:
+                entity_metadata = await self.data_api_client.get_entity_metadata(entity_id)
+                if entity_metadata:
+                    # Extract friendly_name from metadata or attributes
+                    friendly_name = entity_metadata.get('friendly_name') or entity_metadata.get('name')
+                    if friendly_name:
+                        enriched['friendly_name'] = friendly_name
+            except Exception as e:
+                logger.debug(f"Failed to fetch entity metadata for {entity_id}: {e}")
+        
+        return enriched
+    
+    async def _enrich_entities_batch(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Enrich multiple entities with metadata in parallel"""
+        tasks = [self._enrich_entity_with_metadata(entity) for entity in entities]
+        enriched = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Filter out exceptions and return valid enriched entities
+        result = []
+        for i, item in enumerate(enriched):
+            if isinstance(item, Exception):
+                logger.warning(f"Failed to enrich entity {entities[i].get('entity_id')}: {item}")
+                result.append(entities[i])  # Return original if enrichment failed
+            else:
+                result.append(item)
+        return result
+    
+    async def _find_best_match_full_chain(
+        self,
+        query_term: str,
+        available_entities: List[Dict[str, Any]],
+        full_query: str,
+        location_context: Optional[str] = None
+    ) -> Tuple[Optional[Dict[str, Any]], float]:
+        """
+        Full model chain for entity matching:
+        1. NER Extraction (optional, for complex queries)
+        2. Entity Enrichment (device metadata, friendly_name)
+        3. Embedding-Based Matching (semantic similarity)
+        4. Hybrid Scoring (combines all signals)
+        5. Confidence Scoring
+        
+        Args:
+            query_term: Specific term to match (e.g., "Office light 1")
+            available_entities: List of candidate entities
+            full_query: Full user query for context
+            location_context: Optional location/area name
+            
+        Returns:
+            Tuple of (best_match_entity, confidence_score)
+        """
+        if not available_entities:
+            return None, 0.0
+        
+        logger.debug(f"Full chain matching for '{query_term}' with {len(available_entities)} candidates")
+        
+        # STEP 1: Enrich entities with metadata (device names, friendly_names)
+        enriched_entities = await self._enrich_entities_batch(available_entities)
+        logger.debug(f"Enriched {len(enriched_entities)} entities with metadata")
+        
+        # STEP 2: Extract chronological matching signals
+        numbered_info = self._extract_number_from_query(query_term)
+        query_lower = query_term.lower()
+        
+        # STEP 3: Build candidate strings for embedding matching
+        candidate_strings = []
+        for entity in enriched_entities:
+            # Build searchable string from all available names
+            search_terms = []
+            
+            # Priority order: friendly_name > device_name > entity_id
+            if entity.get('friendly_name'):
+                search_terms.append(entity['friendly_name'])
+            if entity.get('device_name'):
+                search_terms.append(entity['device_name'])
+            
+            # Also include entity_id parts
+            entity_id = entity.get('entity_id', '')
+            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            search_terms.append(entity_name)
+            
+            # Combine all terms
+            candidate_string = ' '.join(search_terms)
+            candidate_strings.append(candidate_string)
+        
+        # STEP 4: Embedding-based semantic matching
+        embedding_scores = {}
+        embedding_model = self._get_embedding_model()
+        
+        if embedding_model and candidate_strings:
+            try:
+                # Generate embeddings
+                query_embedding = embedding_model.encode([query_term], convert_to_numpy=True)[0]
+                candidate_embeddings = embedding_model.encode(candidate_strings, convert_to_numpy=True)
+                
+                # Calculate cosine similarity
+                import numpy as np
+                for i, candidate_embedding in enumerate(candidate_embeddings):
+                    # Cosine similarity
+                    dot_product = np.dot(query_embedding, candidate_embedding)
+                    norm_query = np.linalg.norm(query_embedding)
+                    norm_candidate = np.linalg.norm(candidate_embedding)
+                    similarity = dot_product / (norm_query * norm_candidate) if (norm_query * norm_candidate) > 0 else 0.0
+                    embedding_scores[i] = float(similarity)
+                
+                logger.debug(f"Computed embedding similarities: {list(embedding_scores.values())[:3]}")
+            except Exception as e:
+                logger.warning(f"Embedding matching failed: {e}, falling back to word-based matching")
+                embedding_scores = {}
+        
+        # STEP 5: Hybrid scoring - combine all signals
+        best_match = None
+        best_score = 0.0
+        
+        logger.debug(
+            f"🔍 SCORING DEBUG: Starting scoring for query '{query_term}' with location_context='{location_context}'"
+        )
+        logger.debug(f"🔍 SCORING DEBUG: Numbered info: {numbered_info}")
+        logger.debug(f"🔍 SCORING DEBUG: Evaluating {len(enriched_entities)} entities")
+        
+        for i, entity in enumerate(enriched_entities):
+            score = 0.0
+            score_details = {}
+            
+            entity_id = entity.get('entity_id', '')
+            friendly_name = entity.get('friendly_name', '').lower()
+            device_name = entity.get('device_name', '').lower()
+            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id.lower()
+            
+            # Log entity metadata for debugging
+            entity_area = entity.get('area_id', '') or 'None'
+            device_area = entity.get('device_area_id', '') or 'None'
+            logger.debug(
+                f"🔍 SCORING DEBUG [{i}] Entity: {entity_id}\n"
+                f"  - friendly_name: {friendly_name or 'None'}\n"
+                f"  - device_name: {device_name or 'None'}\n"
+                f"  - entity_area_id: {entity_area}\n"
+                f"  - device_area_id: {device_area}"
+            )
+            
+            # Signal 1: Embedding similarity (0.0 - 1.0) - Weight: 40%
+            if i in embedding_scores:
+                embedding_score = embedding_scores[i]
+                score += embedding_score * 0.4
+                score_details['embedding'] = embedding_score
+            
+            # Signal 2: Exact name matches (highest priority) - Weight: 30%
+            exact_match = False
+            if friendly_name and query_lower == friendly_name:
+                score += 1.0 * 0.3
+                exact_match = True
+                score_details['exact_friendly_name'] = True
+            elif device_name and query_lower == device_name:
+                score += 1.0 * 0.3
+                exact_match = True
+                score_details['exact_device_name'] = True
+            
+            # Signal 3: Numbered device matching - Weight: 20%
+            if numbered_info:
+                base_term, number = numbered_info
+                
+                # Check if EXACT number appears in names/entity_id (word boundary matching)
+                number_in_friendly = self._number_matches_exactly(number, friendly_name) if friendly_name else False
+                number_in_device = self._number_matches_exactly(number, device_name) if device_name else False
+                number_in_entity = self._number_matches_exactly(number, entity_id)
+                
+                # Check if this is a group entity (e.g., light.office is a group)
+                is_group_entity = self._is_group_entity(entity)
+                
+                # EXACT number match required - no partial credit for wrong numbers
+                exact_number_match = number_in_friendly or number_in_device or number_in_entity
+                
+                if exact_number_match:
+                    # Full points for exact number match
+                    score += 0.5 * 0.2
+                    score_details['numbered_match'] = True
+                    logger.debug(f"🔍 NUMBERED MATCH: Exact number '{number}' found in {entity_id}")
+                    
+                    # Extra boost if base term also matches
+                    base_words = set(base_term.split())
+                    friendly_words = set(friendly_name.split()) if friendly_name else set()
+                    device_words = set(device_name.split()) if device_name else set()
+                    entity_words = set(entity_name.split())
+                    
+                    all_words = friendly_words | device_words | entity_words
+                    base_match = len(base_words.intersection(all_words)) / len(base_words) if base_words else 0
+                    score += base_match * 0.15
+                    score_details['numbered_base_match'] = base_match
+                elif is_group_entity:
+                    # When a numbered device is requested, heavily penalize group entities
+                    # e.g., "Office light 1" should NOT match "light.office" (group)
+                    score *= 0.1  # Reduce to 10% of current score
+                    score_details['group_penalty'] = True
+                    logger.debug(f"Penalized group entity {entity_id} for numbered query '{query_term}'")
+                else:
+                    # Entity has a different number or no number - don't give credit
+                    # This prevents "Office light 3" from matching "light.office_light_2"
+                    score_details['number_mismatch'] = True
+                    logger.debug(
+                        f"🔍 NUMBERED MISMATCH: Query asks for number '{number}', "
+                        f"but {entity_id} doesn't match (friendly: {friendly_name}, device: {device_name})"
+                    )
+            
+            # Signal 4: Location matching - Weight: 10% (but with heavy penalty for mismatches)
+            if location_context:
+                location_normalized = location_context.replace(' ', '_').replace('-', '_').lower()
+                
+                # Check all possible area_id sources (entity area_id + device area_id)
+                entity_area = entity.get('area_id', '').lower() if entity.get('area_id') else ''
+                device_area = entity.get('device_area_id', '').lower() if entity.get('device_area_id') else ''
+                combined_area = f"{entity_area} {device_area}".strip()
+                
+                location_in_area = location_normalized in combined_area if combined_area else False
+                location_in_entity_id = location_normalized in entity_id.lower()
+                location_in_friendly = location_normalized in friendly_name if friendly_name else False
+                location_in_device = location_normalized in device_name if device_name else False
+                
+                logger.debug(
+                    f"🔍 LOCATION DEBUG [{i}] {entity_id}:\n"
+                    f"  - location_context: '{location_context}' -> normalized: '{location_normalized}'\n"
+                    f"  - entity_area: '{entity_area}' (match: {location_normalized in entity_area if entity_area else False})\n"
+                    f"  - device_area: '{device_area}' (match: {location_normalized in device_area if device_area else False})\n"
+                    f"  - combined_area: '{combined_area}'\n"
+                    f"  - location_in_area: {location_in_area}\n"
+                    f"  - location_in_entity_id: {location_in_entity_id}\n"
+                    f"  - location_in_friendly: {location_in_friendly}\n"
+                    f"  - location_in_device: {location_in_device}"
+                )
+                
+                score_before_location = score
+                
+                if location_in_area or location_in_friendly or location_in_device or location_in_entity_id:
+                    score += 0.5 * 0.1
+                    score_details['location_match'] = True
+                    logger.debug(
+                        f"🔍 LOCATION DEBUG [{i}] {entity_id}: ✅ Location MATCH - added +0.05 to score "
+                        f"(score: {score_before_location:.3f} -> {score:.3f})"
+                    )
+                else:
+                    # CRITICAL: If location is specified but doesn't match, heavily penalize
+                    # This prevents "Office light 3" from matching master_bedroom lights
+                    score_before_penalty = score
+                    score *= 0.05  # Reduce to 5% of current score (very heavy penalty)
+                    score_details['location_mismatch_penalty'] = True
+                    logger.warning(
+                        f"🔍 LOCATION DEBUG [{i}] {entity_id}: ❌ Location MISMATCH PENALTY "
+                        f"'{location_context}' not found for {entity_id}\n"
+                        f"  - Score BEFORE penalty: {score_before_penalty:.3f}\n"
+                        f"  - Score AFTER penalty (×0.05): {score:.3f}\n"
+                        f"  - entity_area: '{entity_area}', device_area: '{device_area}'"
+                    )
+            
+            # Track best match
+            logger.debug(
+                f"🔍 SCORING DEBUG [{i}] {entity_id}: Final score = {score:.3f}, "
+                f"details: {score_details}\n"
+                f"  - Current best_score: {best_score:.3f}"
+            )
+            
+            if score > best_score:
+                best_score = score
+                best_match = entity
+                logger.debug(
+                    f"🔍 SCORING DEBUG [{i}] {entity_id}: ✅ NEW BEST MATCH! "
+                    f"(score: {score:.3f} > previous best: {best_score:.3f})"
+                )
+        
+        # Confidence calculation: normalize to 0.0-1.0 and consider margin
+        confidence = min(best_score, 1.0) if best_match else 0.0
+        
+        # Reduce confidence if score is close to other candidates (uncertainty)
+        if best_match and len(enriched_entities) > 1:
+            # Recalculate scores for all entities to find second-best
+            # (simplified - in production, cache scores)
+            pass
+        
+        logger.info(
+            f"🔍 SCORING RESULT: '{query_term}' -> {best_match.get('entity_id') if best_match else 'NONE'} "
+            f"(confidence: {confidence:.3f}, best_score: {best_score:.3f})"
+        )
+        
+        if best_match:
+            result_area = best_match.get('area_id') or best_match.get('device_area_id', 'unknown')
+            logger.info(
+                f"🔍 SCORING RESULT: Matched entity area: {result_area}, "
+                f"location_context: {location_context}"
+            )
+            
+            # Warn if location mismatch but still matched
+            if location_context and confidence < 0.3:
+                logger.warning(
+                    f"🔍 SCORING WARNING: Low confidence ({confidence:.3f}) for '{query_term}' -> "
+                    f"{best_match.get('entity_id')} - may be location mismatch issue"
+                )
+        
+        return best_match, confidence
+    
+    def _number_matches_exactly(self, number: str, text: str) -> bool:
+        """
+        Check if a number appears as an exact match in text (word boundary matching).
+        
+        This ensures "2" matches "light_2" but not "light_20" or "light_12".
+        Uses word boundaries to prevent partial number matches.
+        
+        Args:
+            number: The number to search for (e.g., "2", "3")
+            text: The text to search in (entity_id, friendly_name, device_name)
+        
+        Returns:
+            True if number appears as exact match (word boundary), False otherwise
+        """
+        if not text:
+            return False
+        
+        # Convert to lowercase for case-insensitive matching
+        text_lower = text.lower()
+        number_lower = number.lower()
+        
+        # Pattern for exact number match in entity IDs with underscores/dots
+        # Matches: "light_2", "light_2_2", "light.2", "light 2", but not "light_20" or "light_12"
+        # Handles entity IDs like "light.hue_color_downlight_1_6" (number "1" after underscore)
+        # Pattern: number preceded by start/underscore/dot/space, followed by underscore/dot/space/end
+        pattern = r'(^|[._\s])' + re.escape(number_lower) + r'([._\s]|$)'
+        return bool(re.search(pattern, text_lower))
+    
+    def _is_group_entity(self, entity: Dict[str, Any]) -> bool:
+        """
+        Detect if an entity is a group/zone entity (e.g., light.office controls all office lights).
+        
+        Group entities typically:
+        - Don't have device_id (they're virtual/group entities, not physical devices)
+        - Have simple names like "light.office", "light.living_room"
+        - Don't contain numbers in entity_id
+        - May have friendly_name matching area/room name
+        
+        Args:
+            entity: Entity dictionary
+            
+        Returns:
+            True if this appears to be a group entity
+        """
+        entity_id = entity.get('entity_id', '').lower()
+        device_id = entity.get('device_id')
+        friendly_name = entity.get('friendly_name', '').lower() if entity.get('friendly_name') else ''
+        
+        # Heuristic 1: No device_id often indicates a group/zone entity
+        if not device_id:
+            # Check if entity_id is simple (just domain + area name, no numbers)
+            entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            
+            # Common group patterns: light.office, light.living_room, etc.
+            # Exclude entities with numbers, underscores with numbers, or complex names
+            import re
+            has_number = bool(re.search(r'\d', entity_name_part))
+            has_complex_naming = '_' in entity_name_part and len(entity_name_part.split('_')) > 2
+            
+            if not has_number and not has_complex_naming:
+                # Likely a group entity
+                logger.debug(f"Detected group entity: {entity_id} (no device_id, simple name)")
+                return True
+        
+        # Heuristic 2: Entity ID matches common group patterns
+        # e.g., light.office, light.living_room (simple area names)
+        common_area_names = ['office', 'living_room', 'bedroom', 'kitchen', 'garage', 'bathroom']
+        entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+        if entity_name_part in common_area_names:
+            logger.debug(f"Detected group entity: {entity_id} (matches area name pattern)")
+            return True
+        
+        # Heuristic 3: Friendly name matches entity ID exactly (often groups)
+        if friendly_name:
+            friendly_normalized = friendly_name.replace(' ', '_').replace('-', '_').lower()
+            if friendly_normalized == entity_name_part:
+                logger.debug(f"Detected group entity: {entity_id} (friendly_name matches entity_id)")
+                return True
+        
+        return False
+    

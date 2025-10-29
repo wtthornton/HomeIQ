@@ -145,7 +145,7 @@ class DeviceParser:
         # Create unified device
         unified_device = UnifiedDevice(
             id=ha_device.id,
-            name=ha_device.name,
+            name=ha_device.name_by_user or ha_device.name,  # Prefer user-customized name
             manufacturer=ha_device.manufacturer or zigbee_device.manufacturer if zigbee_device else "Unknown",
             model=ha_device.model or zigbee_device.model if zigbee_device else "Unknown",
             area_id=ha_device.area_id,

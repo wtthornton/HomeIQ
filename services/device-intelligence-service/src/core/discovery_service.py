@@ -274,6 +274,11 @@ class DiscoveryService:
                         device_data["connections_json"] = json.dumps(device.ha_device.connections)
                     if device.ha_device.identifiers:
                         device_data["identifiers_json"] = json.dumps(device.ha_device.identifiers)
+                    # Add new HA device attributes
+                    device_data["name_by_user"] = device.ha_device.name_by_user
+                    device_data["suggested_area"] = device.ha_device.suggested_area
+                    device_data["entry_type"] = device.ha_device.entry_type
+                    device_data["configuration_url"] = device.ha_device.configuration_url
                 
                 devices_data.append(device_data)
                 

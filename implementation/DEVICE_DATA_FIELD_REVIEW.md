@@ -1,7 +1,7 @@
 # Device Data Field-Level Review
 
 **Purpose:** Complete reference for all device, entity, and event data fields captured from Home Assistant  
-**Last Updated:** October 18, 2025  
+**Last Updated:** January 20, 2025  
 **Status:** ✅ FULLY OPERATIONAL - All data collection active
 
 ---
@@ -31,12 +31,16 @@ The system captures three types of data from Home Assistant:
 | Field | Type | Required | Indexed | Description | Example |
 |-------|------|----------|---------|-------------|---------|
 | `device_id` | String | ✅ Yes | Primary Key | Unique device identifier from Home Assistant | `"a1b2c3d4e5f6"` |
-| `name` | String | ✅ Yes | No | Device name (user-assigned or default) | `"Living Room Motion Sensor"` |
+| `name` | String | ✅ Yes | No | Device name (default or user-customized) | `"Living Room Motion Sensor"` |
+| `name_by_user` | String | No | No | User-customized device name (preferred over `name` when available) | `"Main Motion Sensor"` |
 | `manufacturer` | String | No | ✅ Yes | Device manufacturer/brand | `"Philips"`, `"IKEA"`, `"Xiaomi"` |
 | `model` | String | No | ✅ Yes | Device model number/name | `"Hue Motion Sensor"`, `"TRADFRI"` |
 | `sw_version` | String | No | No | Software/firmware version | `"1.2.3"`, `"20250101"` |
 | `area_id` | String | No | ✅ Yes | Room/area assignment | `"living_room"`, `"bedroom_1"` |
+| `suggested_area` | String | No | No | Suggested area ID for device (from HA) | `"living_room"` |
 | `integration` | String | No | ✅ Yes | Home Assistant integration source | `"hue"`, `"mqtt"`, `"zwave"` |
+| `entry_type` | String | No | No | Entry type (service, config_entry, etc.) | `"config_entry"`, `"service"` |
+| `configuration_url` | String | No | No | URL for device configuration page | `"https://example.com/config"` |
 | `last_seen` | DateTime | No | No | Last time device was active | `"2025-10-18T14:30:00Z"` |
 | `created_at` | DateTime | No | No | When device was first discovered | `"2025-01-15T08:00:00Z"` |
 | `entities` | Relationship | - | - | List of entities belonging to this device | (see Entity Data) |
@@ -67,11 +71,15 @@ GET http://localhost:8006/api/devices/{device_id}
 {
   "device_id": "a1b2c3d4e5f6",
   "name": "Living Room Motion Sensor",
+  "name_by_user": "Main Motion Sensor",
   "manufacturer": "Philips",
   "model": "Hue Motion Sensor",
   "sw_version": "1.50.2_r30933",
   "area_id": "living_room",
+  "suggested_area": "living_room",
   "integration": "hue",
+  "entry_type": "config_entry",
+  "configuration_url": null,
   "last_seen": "2025-10-18T14:30:00Z",
   "created_at": "2025-01-15T08:00:00Z",
   "entity_count": 4

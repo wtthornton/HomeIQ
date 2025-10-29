@@ -265,7 +265,7 @@ CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
 If you need multiple lights, use the same entity ID multiple times or use the entity_id provided for 'lights'.
 """
         logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text}")
-        print(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text}")
+        logger.debug(f" VALIDATED ENTITIES TEXT: {validated_entities_text}")
     else:
         validated_entities_text = """
 CRITICAL: No validated entities found. Use generic placeholder entity IDs that clearly indicate they are placeholders:
@@ -473,20 +473,19 @@ async def simplify_query_for_test(suggestion: Dict[str, Any], openai_client) -> 
     Returns:
         Simplified command string ready for HA Conversation API
     """
-    print(f"🔍 simplify_query_for_test called with suggestion: {suggestion.get('suggestion_id', 'N/A')}")
+    logger.debug(f" simplify_query_for_test called with suggestion: {suggestion.get('suggestion_id', 'N/A')}")
     if not openai_client:
         # Fallback to regex if OpenAI not available
-        print(f"⚠️ OpenAI not available, using fallback")
         logger.warning("OpenAI not available, using fallback simplification")
         return fallback_simplify(suggestion.get('description', ''))
     
     description = suggestion.get('description', '')
     trigger = suggestion.get('trigger_summary', '')
     action = suggestion.get('action_summary', '')
-    print(f"🔍 Extracted description: {description[:100]}")
-    print(f"🔍 Extracted trigger: {trigger[:100]}")
-    print(f"🔍 Extracted action: {action[:100]}")
-    print(f"🔍 About to build prompt")
+    logger.debug(f" Extracted description: {description[:100]}")
+    logger.debug(f" Extracted trigger: {trigger[:100]}")
+    logger.debug(f" Extracted action: {action[:100]}")
+    logger.info(f" About to build prompt")
     
     # Research-Backed Prompt Design
     # Based on Context7 best practices and codebase temperature analysis:
@@ -533,7 +532,7 @@ CONSTRAINTS:
 - Maximum 20 words"""
 
     try:
-        print(f"🔍 About to call OpenAI API")
+        logger.info(f" About to call OpenAI API")
         response = await openai_client.client.chat.completions.create(
             model=openai_client.model,
             messages=[
@@ -547,10 +546,9 @@ CONSTRAINTS:
             max_tokens=60,     # Short output - just the command
             top_p=0.9         # Nucleus sampling for slight creativity while staying focused
         )
-        print(f"✅ Got OpenAI response")
+        logger.info(f" Got OpenAI response")
         
         simplified = response.choices[0].message.content.strip()
-        print(f"✅ Simplified command: '{simplified}'")
         logger.info(f"Simplified '{description}' → '{simplified}'")
         return simplified
         
@@ -843,6 +841,36 @@ async def get_query_suggestions(
     }
 
 
+def _detects_timing_requirement(query: str) -> bool:
+    """
+    Detect if the query explicitly requires timing components.
+    
+    Args:
+        query: Original user query
+        
+    Returns:
+        True if query mentions timing requirements (e.g., "for X seconds", "every", "repeat")
+    """
+    query_lower = query.lower()
+    timing_keywords = [
+        r'for \d+ (second|sec|secs|minute|min|mins)',  # "for 10 seconds", "for 10 secs"
+        r'every \d+',  # "every 30 seconds"
+        r'\d+ (second|sec|secs|minute|min|mins)',  # "10 seconds", "30 secs"
+        r'repeat',
+        r'duration',
+        r'flash for',
+        r'blink for',
+        r'cycle',
+        r'lasting',
+        r'for \d+ secs',  # Explicit match for common abbreviation
+    ]
+    import re
+    for keyword in timing_keywords:
+        if re.search(keyword, query_lower):
+            return True
+    return False
+
+
 def _generate_test_quality_report(
     original_query: str,
     suggestion: dict,
@@ -855,12 +883,15 @@ def _generate_test_quality_report(
     
     Checks if the generated YAML meets test requirements:
     - Uses validated entity IDs
-    - No delays or timing components
-    - No repeat loops
+    - No delays or timing components (unless required by query)
+    - No repeat loops (unless required by query)
     - Simple immediate execution
     """
     import yaml
     import re
+    
+    # Check if timing is expected based on query
+    timing_expected = _detects_timing_requirement(original_query)
     
     try:
         yaml_data = yaml.safe_load(automation_yaml)
@@ -894,21 +925,35 @@ def _generate_test_quality_report(
             "details": "No validated entities provided"
         })
     
-    # Check 2: No delays in YAML
+    # Check 2: No delays in YAML (unless timing is expected)
     has_delay = "delay" in automation_yaml.lower()
-    checks.append({
-        "check": "No delays or timing components",
-        "status": "✅ PASS" if not has_delay else "❌ FAIL",
-        "details": "Found 'delay' in YAML" if has_delay else "No delays found"
-    })
+    if timing_expected and has_delay:
+        checks.append({
+            "check": "No delays or timing components",
+            "status": "⚠️ WARNING (expected)",
+            "details": "Found 'delay' in YAML (expected based on query requirement)"
+        })
+    else:
+        checks.append({
+            "check": "No delays or timing components",
+            "status": "✅ PASS" if not has_delay else "❌ FAIL",
+            "details": "Found 'delay' in YAML" if has_delay else "No delays found"
+        })
     
-    # Check 3: No repeat loops
+    # Check 3: No repeat loops (unless timing is expected)
     has_repeat = "repeat:" in automation_yaml or "repeat " in automation_yaml
-    checks.append({
-        "check": "No repeat loops or sequences",
-        "status": "✅ PASS" if not has_repeat else "❌ FAIL",
-        "details": "Found 'repeat' in YAML" if has_repeat else "No repeat found"
-    })
+    if timing_expected and has_repeat:
+        checks.append({
+            "check": "No repeat loops or sequences",
+            "status": "⚠️ WARNING (expected)",
+            "details": "Found 'repeat' in YAML (expected based on query requirement)"
+        })
+    else:
+        checks.append({
+            "check": "No repeat loops or sequences",
+            "status": "✅ PASS" if not has_repeat else "❌ FAIL",
+            "details": "Found 'repeat' in YAML" if has_repeat else "No repeat found"
+        })
     
     # Check 4: Has trigger
     has_trigger = yaml_data and "trigger" in yaml_data
@@ -938,8 +983,12 @@ def _generate_test_quality_report(
     passed = sum(1 for c in checks if c["status"] == "✅ PASS")
     failed = sum(1 for c in checks if c["status"] == "❌ FAIL")
     skipped = sum(1 for c in checks if c["status"] == "⚠️ SKIP")
+    warnings = sum(1 for c in checks if "WARNING" in c["status"])
     
+    # Overall status: PASS if no failures (warnings from expected timing are OK)
     overall_status = "✅ PASS" if failed == 0 else "❌ FAIL"
+    if warnings > 0 and failed == 0:
+        overall_status = "✅ PASS (with expected warnings)"
     
     return {
         "overall_status": overall_status,
@@ -947,7 +996,8 @@ def _generate_test_quality_report(
             "total_checks": len(checks),
             "passed": passed,
             "failed": failed,
-            "skipped": skipped
+            "skipped": skipped,
+            "warnings": warnings
         },
         "checks": checks,
         "details": {
@@ -1002,109 +1052,90 @@ async def test_suggestion_from_query(
     Returns:
         Execution result with status and message
     """
-    logger.error(f"🧪 QUICK TEST START - suggestion_id: {suggestion_id}, query_id: {query_id}")
-    print(f"🧪 QUICK TEST START - suggestion_id: {suggestion_id}, query_id: {query_id}")
+    logger.info(f"QUICK TEST START - suggestion_id: {suggestion_id}, query_id: {query_id}")
+    start_time = time.time()
     
     try:
-        import sys
-        print(f"Python executable: {sys.executable}")
-        print(f"Current working directory: {os.getcwd()}")
-        print(f"Module file: {__file__}")
-        print(f"🔍 About to fetch query from database")
-        logger.error(f"🔍 About to fetch query from database")
-        print(f"🔍 query_id={query_id}, suggestion_id={suggestion_id}")
-        logger.error(f"🔍 query_id={query_id}, suggestion_id={suggestion_id}")
+        logger.debug(f"About to fetch query from database, query_id={query_id}, suggestion_id={suggestion_id}")
         # Get the query from database
-        logger.debug(f"🔍 DEBUG: Fetching query {query_id} from database")
-        print(f"🔍 DEBUG: Fetching query {query_id} from database")
+        logger.debug(f"Fetching query {query_id} from database")
         try:
             query = await db.get(AskAIQueryModel, query_id)
-            print(f"🔍 DEBUG: Query retrieved: {query}")
-            print(f"🔍 DEBUG: query is None: {query is None}")
-            print(f"🔍 DEBUG: query.suggestions if exists: {query.suggestions if query else 'N/A'}")
+            logger.debug(f"Query retrieved, is None: {query is None}")
+            if query:
+                logger.debug(f"Query has {len(query.suggestions)} suggestions")
         except Exception as e:
-            print(f"❌ ERROR fetching query: {e}")
-            logger.error(f"❌ ERROR fetching query: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"ERROR fetching query: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Database error: {e}")
         
         if not query:
-            print(f"❌ Query {query_id} not found in database")
-            logger.error(f"❌ Query {query_id} not found in database")
+            logger.error(f"Query {query_id} not found in database")
             raise HTTPException(status_code=404, detail=f"Query {query_id} not found")
-        else:
-            print(f"✅ Query found! original_query: {query.original_query}, suggestions count: {len(query.suggestions)}")
-        logger.debug(f"🔍 DEBUG: Query found: {query.original_query}")
-        print(f"🔍 DEBUG: About to search for suggestion {suggestion_id}")
+        
+        logger.info(f"Query found: {query.original_query}, suggestions count: {len(query.suggestions)}")
         
         # Find the specific suggestion
-        logger.debug(f"🔍 DEBUG: Searching for suggestion {suggestion_id}")
+        logger.debug(f"Searching for suggestion {suggestion_id}")
         suggestion = None
-        print(f"🔍 DEBUG: Iterating through {len(query.suggestions)} suggestions")
+        logger.debug(f"Iterating through {len(query.suggestions)} suggestions")
         for s in query.suggestions:
-            print(f"🔍 DEBUG: Checking suggestion {s.get('suggestion_id')}")
+            logger.debug(f"Checking suggestion {s.get('suggestion_id')}")
             if s.get('suggestion_id') == suggestion_id:
                 suggestion = s
-                print(f"✅ Found matching suggestion!")
+                logger.debug(f"Found matching suggestion!")
                 break
-        print(f"🔍 DEBUG: suggestion after loop: {suggestion}")
         
         if not suggestion:
-            print(f"❌ ERROR: Suggestion not found!")
-            logger.error(f"❌ DEBUG: Suggestion {suggestion_id} not found in query")
+            logger.error(f"Suggestion {suggestion_id} not found in query")
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
-        print(f"✅ About to log suggestion details")
-        logger.info(f"🔍 Testing suggestion: {suggestion.get('description', 'N/A')}")
-        print(f"✅ About to validate ha_client")
-        logger.info(f"🔍 Original query: {query.original_query}")
-        logger.debug(f"🔍 DEBUG: Full suggestion: {json.dumps(suggestion, indent=2)}")
-        print(f"✅ Logged suggestion details")
+        logger.info(f"Testing suggestion: {suggestion.get('description', 'N/A')}")
+        logger.info(f"Original query: {query.original_query}")
+        logger.debug(f"Full suggestion: {json.dumps(suggestion, indent=2)}")
         
         # Validate ha_client
-        print(f"🔍 DEBUG: Validating ha_client...")
+        logger.debug("Validating ha_client...")
         if not ha_client:
-            print(f"❌ ERROR: ha_client is None!")
+            logger.error("ha_client is None!")
             raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
-        print(f"✅ ha_client validated")
+        logger.debug("ha_client validated")
         
         # STEP 1: Simplify the suggestion to extract core command
-        print(f"✅ About to simplify command")
-        logger.info("🔧 Simplifying suggestion for quick test...")
+        entity_resolution_start = time.time()
+        logger.info("Simplifying suggestion for quick test...")
         simplified_command = await simplify_query_for_test(suggestion, openai_client)
-        print(f"✅ Got simplified command: '{simplified_command}'")
-        logger.info(f"✅ Simplified command: '{simplified_command}'")
+        logger.info(f"Simplified command: '{simplified_command}'")
         
         # STEP 2: Generate minimal YAML for testing (no triggers, just the action)
-        print(f"🔍 About to generate test YAML")
-        logger.info("📝 Generating test automation YAML...")
+        yaml_gen_start = time.time()
+        logger.info("Generating test automation YAML...")
         # For test mode, pass empty entities list so it uses validated_entities from test_suggestion
         entities = []
         
         # Use devices_involved from the suggestion (these are the actual device names to map)
         devices_involved = suggestion.get('devices_involved', [])
-        print(f"🔍 devices_involved from suggestion: {devices_involved}")
+        logger.debug(f" devices_involved from suggestion: {devices_involved}")
         
         # Map devices to entity_ids using the same logic as in generate_automation_yaml
-        print(f"🔍 Mapping devices to entity_ids...")
+        logger.debug(f" Mapping devices to entity_ids...")
         from ..services.entity_validator import EntityValidator
         from ..clients.data_api_client import DataAPIClient
         data_api_client = DataAPIClient()
         entity_validator = EntityValidator(data_api_client)
         resolved_entities = await entity_validator.map_query_to_entities(query.original_query, devices_involved)
-        print(f"🔍 resolved_entities result (type={type(resolved_entities)}): {resolved_entities}")
+        entity_resolution_time = (time.time() - entity_resolution_start) * 1000
+        logger.debug(f"resolved_entities result (type={type(resolved_entities)}): {resolved_entities}")
         
         # Build validated_entities mapping from resolved entities
         entity_mapping = {}
-        print(f"🔍 About to build entity_mapping from {len(devices_involved)} devices")
+        logger.info(f" About to build entity_mapping from {len(devices_involved)} devices")
         for device_name in devices_involved:
             if device_name in resolved_entities:
                 entity_id = resolved_entities[device_name]
                 entity_mapping[device_name] = entity_id
-                print(f"🔍 Mapped '{device_name}' to '{entity_id}'")
+                logger.debug(f" Mapped '{device_name}' to '{entity_id}'")
             else:
-                print(f"⚠️ Device '{device_name}' not found in resolved_entities")
+                logger.warning(f" Device '{device_name}' not found in resolved_entities")
         
         # Modify suggestion to strip timing/delay components for test
         test_suggestion = suggestion.copy()
@@ -1112,75 +1143,66 @@ async def test_suggestion_from_query(
         test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
         test_suggestion['action_summary'] = suggestion.get('action_summary', '').split('every')[0].split('Every')[0].strip()
         test_suggestion['validated_entities'] = entity_mapping
-        print(f"🔍 Added validated_entities: {entity_mapping}")
-        print(f"🔍 test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
-        print(f"🔍 test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
+        logger.debug(f" Added validated_entities: {entity_mapping}")
+        logger.debug(f" test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
+        logger.debug(f" test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
         
         automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities)
-        print(f"🔍 After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
-        print(f"✅ Generated test YAML")
-        print(f"🔍 Generated YAML preview: {str(automation_yaml)[:500]}")
-        logger.info(f"✅ Generated test automation YAML")
+        yaml_gen_time = (time.time() - yaml_gen_start) * 1000
+        logger.debug(f"After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
+        logger.info(f"Generated test automation YAML")
+        logger.debug(f"Generated YAML preview: {str(automation_yaml)[:500]}")
         
         # STEP 3: Create automation in HA
-        print(f"🔍 About to create automation in HA")
-        logger.info(f"⚡ Creating automation in Home Assistant...")
+        ha_create_start = time.time()
+        logger.info(f"Creating automation in Home Assistant...")
         
         # List existing automations for debugging
-        print(f"🔍 Listing existing automations in HA...")
-        logger.info(f"🔍 Listing existing automations in HA...")
+        logger.debug("Listing existing automations in HA...")
         try:
             existing_automations = await ha_client.list_automations()
-            print(f"🔍 Found {len(existing_automations)} existing automations")
-            logger.info(f"🔍 Found {len(existing_automations)} existing automations")
+            logger.debug(f"Found {len(existing_automations)} existing automations")
             if existing_automations:
-                print(f"🔍 Sample automation IDs: {[a.get('entity_id', 'unknown') for a in existing_automations[:5]]}")
+                logger.debug(f"Sample automation IDs: {[a.get('entity_id', 'unknown') for a in existing_automations[:5]]}")
         except Exception as list_error:
-            print(f"⚠️ Could not list automations: {list_error}")
-            logger.warning(f"⚠️ Could not list automations: {list_error}")
+            logger.warning(f"Could not list automations: {list_error}")
         
         try:
-            print(f"🔍 Calling ha_client.create_automation with YAML of length {len(str(automation_yaml))}")
+            logger.debug(f"Calling ha_client.create_automation with YAML of length {len(str(automation_yaml))}")
             creation_result = await ha_client.create_automation(automation_yaml)
-            print(f"✅ Automation created: {creation_result.get('automation_id', 'unknown')}")
-            print(f"🔍 Creation result: {creation_result}")
-            logger.info(f"✅ Automation created: {creation_result.get('automation_id')}")
+            ha_create_time = (time.time() - ha_create_start) * 1000
+            logger.info(f"Automation created: {creation_result.get('automation_id')}")
+            logger.debug(f"Creation result: {creation_result}")
             
             automation_id = creation_result.get('automation_id')
             if not automation_id:
                 raise Exception("Failed to create automation - no ID returned")
             
             # Verify the automation was created correctly by fetching it from HA
-            print(f"🔍 Verifying automation was created correctly...")
-            logger.info(f"🔍 Verifying automation {automation_id} was created correctly...")
+            logger.debug("Verifying automation was created correctly...")
             try:
                 verification = await ha_client.get_automation(automation_id)
-                print(f"✅ Verification result: {verification}")
-                logger.info(f"✅ Automation verification: {verification}")
+                logger.info(f"Automation verification: {verification}")
             except Exception as verify_error:
-                print(f"⚠️ Could not verify automation: {verify_error}")
-                logger.warning(f"⚠️ Could not verify automation: {verify_error}")
+                logger.warning(f"Could not verify automation: {verify_error}")
             
             # Trigger the automation immediately to test it
-            print(f"🔍 About to trigger automation {automation_id}")
-            logger.info(f"⚡ Triggering automation {automation_id} to test...")
+            ha_trigger_start = time.time()
+            logger.info(f"Triggering automation {automation_id} to test...")
             await ha_client.trigger_automation(automation_id)
-            print(f"✅ Automation triggered")
-            logger.info(f"✅ Automation triggered")
+            ha_trigger_time = (time.time() - ha_trigger_start) * 1000
+            logger.info(f"Automation triggered")
             
             # Wait 30 seconds
-            print(f"⏳ Waiting 30 seconds...")
-            logger.info("⏳ Waiting 30 seconds before deletion...")
+            logger.info("Waiting 30 seconds before deletion...")
             import asyncio
             await asyncio.sleep(30)
-            print(f"✅ Wait complete")
+            logger.debug("Wait complete")
             
             # Delete the automation
-            print(f"🔍 About to delete automation {automation_id}")
-            logger.info(f"🗑️ Deleting test automation {automation_id}...")
+            logger.info(f"Deleting test automation {automation_id}...")
             deletion_result = await ha_client.delete_automation(automation_id)
-            print(f"✅ Automation deleted")
-            logger.info(f"✅ Automation deleted")
+            logger.info(f"Automation deleted")
             
             # Generate quality report for the test YAML
             quality_report = _generate_test_quality_report(
@@ -1191,6 +1213,24 @@ async def test_suggestion_from_query(
                 validated_entities=entity_mapping
             )
             
+            # Calculate total time
+            total_time = (time.time() - start_time) * 1000
+            
+            # Calculate performance metrics
+            performance_metrics = {
+                "entity_resolution_ms": round(entity_resolution_time, 2),
+                "yaml_generation_ms": round(yaml_gen_time, 2),
+                "ha_creation_ms": round(ha_create_time, 2),
+                "ha_trigger_ms": round(ha_trigger_time, 2),
+                "total_ms": round(total_time, 2)
+            }
+            
+            # Log slow operations
+            if total_time > 5000:
+                logger.warning(f"Slow operation detected: total time {total_time:.2f}ms")
+            if ha_create_time > 5000:
+                logger.warning(f"Slow HA creation: {ha_create_time:.2f}ms")
+            
             return {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
@@ -1198,26 +1238,20 @@ async def test_suggestion_from_query(
                 "automation_yaml": automation_yaml,
                 "automation_id": automation_id,
                 "deleted": True,
-                "message": "✅ Test completed successfully - automation created, ran for 30 seconds, and deleted",
-                "quality_report": quality_report
+                "message": "Test completed successfully - automation created, ran for 30 seconds, and deleted",
+                "quality_report": quality_report,
+                "performance_metrics": performance_metrics
             }
             
         except Exception as e:
-            print(f"❌ ERROR in test execution: {e}")
             logger.error(f"❌ ERROR in test execution: {e}")
             raise
     
     except HTTPException as e:
-        logger.error(f"❌ HTTPException in test endpoint: {e.detail}")
-        print(f"❌ HTTPException in test endpoint: {e.detail}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"HTTPException in test endpoint: {e.detail}")
         raise
     except Exception as e:
-        logger.error(f"❌ Error testing suggestion: {e}")
-        print(f"❌ Error testing suggestion: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error testing suggestion: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

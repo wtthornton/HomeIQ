@@ -19,11 +19,15 @@ class Device(Base):
     
     # Device metadata
     name = Column(String, nullable=False)
+    name_by_user = Column(String)  # User-customized device name
     manufacturer = Column(String)
     model = Column(String)
     sw_version = Column(String)
     area_id = Column(String, index=True)  # Room/area location
     integration = Column(String, index=True)  # HA integration source
+    entry_type = Column(String)  # Entry type (service, config_entry, etc.)
+    configuration_url = Column(String)  # Device configuration URL
+    suggested_area = Column(String)  # Suggested area for device
     
     # Timestamps
     last_seen = Column(DateTime, default=datetime.utcnow)

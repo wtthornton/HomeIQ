@@ -268,12 +268,45 @@ class HomeAssistantClient:
         Returns:
             Automation data or None if not found
         """
-        try:
-            result = await self._retry_request('GET', f"/api/states/{automation_id}", return_json=True)
-            return result
-        except Exception as e:
-            logger.error(f"Error getting automation {automation_id}: {e}")
-            return None
+        session = await self._get_session()
+        url = f"{self.ha_url}/api/states/{automation_id}"
+        
+        # Retry logic specifically for 404 (HA indexing race condition)
+        # Exponential backoff: 1s, 2s, 4s (max 3 attempts)
+        max_retries = 3
+        retry_delays = [1.0, 2.0, 4.0]
+        
+        for attempt in range(max_retries):
+            try:
+                async with session.get(url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if attempt > 0:
+                            logger.info(f"Automation {automation_id} found after {attempt} retry(ies)")
+                        return data
+                    elif response.status == 404:
+                        # 404 might be due to HA not indexing yet - retry with backoff
+                        if attempt + 1 < max_retries:
+                            delay = retry_delays[attempt]
+                            logger.debug(
+                                f"Automation {automation_id} not found (404), "
+                                f"retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        else:
+                            # All retries exhausted - automation truly doesn't exist
+                            logger.debug(f"Automation {automation_id} not found after {max_retries} attempts")
+                            return None
+                    else:
+                        # Other errors - don't retry
+                        logger.error(f"Error getting automation {automation_id}: HTTP {response.status}")
+                        return None
+            except Exception as e:
+                logger.error(f"Error getting automation {automation_id}: {e}")
+                return None
+        
+        return None
     
     async def get_automations(self) -> List[Dict]:
         """

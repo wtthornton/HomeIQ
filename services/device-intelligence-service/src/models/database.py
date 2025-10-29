@@ -43,6 +43,12 @@ class Device(Base):
     zigbee_ieee: Mapped[Optional[str]] = mapped_column(String, index=True)
     is_battery_powered: Mapped[bool] = mapped_column(Boolean, default=False)
     
+    # Additional HA device attributes
+    name_by_user: Mapped[Optional[str]] = mapped_column(String)  # User-customized device name
+    suggested_area: Mapped[Optional[str]] = mapped_column(String)  # Suggested area for device
+    entry_type: Mapped[Optional[str]] = mapped_column(String)  # Entry type (service, config_entry, etc.)
+    configuration_url: Mapped[Optional[str]] = mapped_column(String)  # Device configuration URL
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
     

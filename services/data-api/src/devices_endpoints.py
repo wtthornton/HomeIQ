@@ -703,10 +703,14 @@ async def bulk_upsert_devices(
             device = Device(
                 device_id=device_id,
                 name=device_data.get('name_by_user') or device_data.get('name'),
+                name_by_user=device_data.get('name_by_user'),
                 manufacturer=device_data.get('manufacturer'),
                 model=device_data.get('model'),
                 sw_version=device_data.get('sw_version'),
                 area_id=device_data.get('area_id'),
+                entry_type=device_data.get('entry_type'),
+                configuration_url=device_data.get('configuration_url'),
+                suggested_area=device_data.get('suggested_area'),
                 last_seen=datetime.now()
             )
             
