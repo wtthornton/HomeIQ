@@ -584,52 +584,6 @@ services:
       retries: 3
       start_period: 30s
 
-  # ============================================================================
-  # sports-api: ARCHIVED - Epic 10 (API-SPORTS.io integration)
-  # ============================================================================
-  # This service was replaced by sports-data (Epic 11) which uses free ESPN API
-  # Archived on: 2025-10-12
-  # Reason: Frontend built for sports-data; API-SPORTS.io requires paid key
-  # To restore: Uncomment this section and add API_SPORTS_KEY to environment
-  # ============================================================================
-  # sports-api:
-  #   build:
-  #     context: .
-  #     dockerfile: services/sports-api/Dockerfile.dev
-  #   container_name: ha-sports-api
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8015:8015"
-  #   env_file:
-  #     - infrastructure/env.sports.template
-  #   environment:
-  #     - API_SPORTS_KEY=${API_SPORTS_KEY:-}
-  #     - SPORTS_API_PORT=8015
-  #     - NFL_ENABLED=${NFL_ENABLED:-true}
-  #     - NHL_ENABLED=${NHL_ENABLED:-true}
-  #     - INFLUXDB_URL=http://influxdb:8086
-  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-  #     - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
-  #     - INFLUXDB_BUCKET=sports_data
-  #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
-  #   depends_on:
-  #     influxdb:
-  #       condition: service_healthy
-  #   networks:
-  #     - homeiq-network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
-  #       reservations:
-  #         memory: 256M
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8015/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
-
   health-dashboard:
     build:
       context: ./services/health-dashboard
