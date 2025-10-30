@@ -32,7 +32,7 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 | **CI/CD** | GitHub Actions | - | Automated testing | Free CI/CD with Docker support |
 | **Monitoring** | Python logging | - | Application logging | Built-in logging with structured JSON format |
 | **Logging** | Python logging | - | Application logging | Standard logging with health check integration |
-| **Sports Data** | ESPN API + FastAPI | Free | NFL/NHL game data | Free API with team-based filtering for optimal usage |
+| **Sports Data** | Home Assistant Sensors | Free | NFL/NHL game data | Team Tracker + NHL HACS integrations via HA |
 
 ## Technology Rationale
 
@@ -69,10 +69,10 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 - **GitHub Actions**: Free CI/CD with Docker support for automated testing and deployment
 
 ### Sports Data Integration
-- **ESPN API**: Free public API for NFL and NHL game data (no API key required)
-- **FastAPI Service**: sports-data microservice (localhost:8005) with team-based filtering
-- **Caching Strategy**: 15-second TTL for live games, 5-minute TTL for upcoming games
-- **Architecture Choice**: Selected ESPN API over API-SPORTS.io to eliminate ongoing costs while meeting all current requirements
+- **Home Assistant Sensors**: Direct integration via Team Tracker and NHL HACS integrations
+- **Frontend Access**: health-dashboard reads sensor entities via HA REST API (/api/states)
+- **Polling Strategy**: 30-second polling interval for real-time game updates
+- **Architecture Choice**: Simplified to use HA sensors directly, eliminating intermediate microservices
 
 ### Home Assistant Integration
 - **API Endpoint**: http://192.168.1.86:8123 (REST API for device/entity queries)
@@ -81,7 +81,7 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 - **Authentication**: Long-lived access tokens for secure API access
 - **Status**: ✅ **FULLY OPERATIONAL** - All connections established and working
 
-**Note**: The sports-api service (Epic 10 - API-SPORTS.io integration) has been archived. It provided more comprehensive features (player stats, injuries, historical data) but required a paid API key. The implementation is preserved in the codebase for future restoration if advanced features become necessary.
+**Note**: Sports data integration is handled directly through Home Assistant sensor entities (Team Tracker and NHL HACS integrations) via the health-dashboard frontend. Previous services (sports-api for API-SPORTS.io and sports-data for ESPN API) have been removed as they are no longer needed with the simplified architecture.
 
 ## Version Management
 

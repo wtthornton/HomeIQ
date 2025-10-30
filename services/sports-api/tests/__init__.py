@@ -1,4 +1,0 @@
-"""
-Sports API Service Tests
-"""
-

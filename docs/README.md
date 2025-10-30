@@ -187,15 +187,14 @@ docker-compose ps
 | **Electricity Pricing** | Real-time electricity costs | 8011 | ✅ Active |
 | **Air Quality** | AQI monitoring and alerts | 8012 | ✅ Active |
 | **Smart Meter** | Smart meter data integration | 8014 | ✅ Active |
-| **Sports Data** | NFL/NHL game data | 8005 | ✅ Active |
-
 ### Deprecated Services
 
 | Service | Reason | Deprecated | Migration Path |
 |---------|--------|------------|----------------|
 | **enrichment-pipeline** | Epic 31 - Direct writes to InfluxDB | Oct 2025 | Integration services write directly |
 | **calendar-service** | Low usage, complexity | Oct 2025 | Removed |
-| **sports-api** | Epic 11 - Replaced by sports-data | Sep 2025 | Use sports-data service (port 8005) |
+| **sports-api** | Replaced by HA sensors | Oct 2025 | Team Tracker + NHL HACS integrations |
+| **sports-data** | Replaced by HA sensors | Oct 2025 | Team Tracker + NHL HACS integrations |
 
 ## 📊 **Project Status**
 

@@ -12,8 +12,6 @@
     "test:integration": "playwright test integration.spec.ts --config=docker-deployment.config.ts",
     "test:performance": "playwright test performance.spec.ts --config=docker-deployment.config.ts",
     "test:all": "playwright test --config=docker-deployment.config.ts",
-    "test:sports": "playwright test sports-api-endpoints.spec.ts --config=sports-api.config.ts",
-    "test:sports-ui": "playwright test sports-dashboard-ui.spec.ts --config=sports-api.config.ts",
     "test:cross-browser": "playwright test --config=docker-deployment.config.ts --project=docker-firefox,docker-webkit",
     "test:mobile": "playwright test --config=docker-deployment.config.ts --project=docker-mobile-chrome,docker-mobile-safari",
     "test:debug": "playwright test --config=docker-deployment.config.ts --debug",
