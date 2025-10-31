@@ -363,13 +363,28 @@ export const api = {
   },
 
   // Ask AI - Natural Language Query Interface
-  async askAIQuery(query: string, userId = 'anonymous'): Promise<any> {
+  async askAIQuery(query: string, options?: {
+    conversation_context?: any;
+    conversation_history?: any[];
+    userId?: string;
+  }): Promise<any> {
+    const requestBody: any = {
+      query,
+      user_id: options?.userId || 'anonymous'
+    };
+    
+    // Add context and history if provided
+    if (options?.conversation_context) {
+      requestBody.context = options.conversation_context;
+    }
+    
+    if (options?.conversation_history) {
+      requestBody.conversation_history = options.conversation_history;
+    }
+    
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query`, {
       method: 'POST',
-      body: JSON.stringify({
-        query,
-        user_id: userId
-      }),
+      body: JSON.stringify(requestBody),
     });
   },
 

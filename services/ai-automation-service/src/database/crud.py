@@ -177,13 +177,14 @@ async def get_pattern_stats(db: AsyncSession) -> Dict:
 # Suggestion CRUD Operations
 # ============================================================================
 
-async def store_suggestion(db: AsyncSession, suggestion_data: Dict) -> Suggestion:
+async def store_suggestion(db: AsyncSession, suggestion_data: Dict, commit: bool = True) -> Suggestion:
     """
     Store automation suggestion in database.
     
     Args:
         db: Database session
         suggestion_data: Suggestion dictionary
+        commit: Whether to commit immediately (default: True)
     
     Returns:
         Stored Suggestion object
@@ -204,14 +205,17 @@ async def store_suggestion(db: AsyncSession, suggestion_data: Dict) -> Suggestio
         )
         
         db.add(suggestion)
-        await db.commit()
-        await db.refresh(suggestion)
+        
+        if commit:
+            await db.commit()
+            await db.refresh(suggestion)
         
         logger.info(f"✅ Stored suggestion: {suggestion.title}")
         return suggestion
         
     except Exception as e:
-        await db.rollback()
+        if commit:
+            await db.rollback()
         logger.error(f"Failed to store suggestion: {e}", exc_info=True)
         raise
 

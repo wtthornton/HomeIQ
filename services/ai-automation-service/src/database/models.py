@@ -5,7 +5,7 @@ Epic AI-1: Pattern detection and automation suggestions
 Epic AI-2: Device intelligence and capability tracking
 """
 
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON, Boolean, Index
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON, Boolean, Index, UniqueConstraint, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from datetime import datetime
@@ -255,8 +255,53 @@ async def init_db():
     # Create async engine
     engine = create_async_engine(
         'sqlite+aiosqlite:///data/ai_automation.db',
-        echo=False  # Set to True for SQL debugging
+        echo=False,  # Set to True for SQL debugging
+        pool_pre_ping=True,  # Verify connections before using
+        connect_args={
+            "timeout": 30.0
+        }
     )
+    
+    # Configure SQLite pragmas for optimal performance
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):
+        """
+        Set SQLite pragmas on each connection for optimal performance.
+        
+        Pragmas configured:
+        - WAL mode: Better concurrency (multiple readers, one writer)
+        - NORMAL sync: Faster writes, still safe (survives OS crash)
+        - 64MB cache: Improves query performance
+        - Memory temp tables: Faster temporary operations
+        - Foreign keys ON: Enforce referential integrity
+        - 30s busy timeout: Wait for locks instead of immediate fail
+        """
+        cursor = dbapi_conn.cursor()
+        try:
+            # Enable WAL mode for concurrent access
+            cursor.execute("PRAGMA journal_mode=WAL")
+            
+            # Synchronous mode: NORMAL is faster and still safe
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            
+            # Cache size (negative = KB, positive = pages)
+            cursor.execute("PRAGMA cache_size=-64000")  # 64MB
+            
+            # Use memory for temp tables
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            
+            # Enable foreign key constraints
+            cursor.execute("PRAGMA foreign_keys=ON")
+            
+            # Busy timeout (milliseconds)
+            cursor.execute("PRAGMA busy_timeout=30000")  # 30s
+            
+            logger.debug("SQLite pragmas configured successfully")
+        except Exception as e:
+            logger.error(f"Failed to set SQLite pragmas: {e}")
+            raise
+        finally:
+            cursor.close()
     
     # Create session factory
     async_session = async_sessionmaker(
@@ -295,6 +340,28 @@ class AskAIQuery(Base):
     
     def __repr__(self):
         return f"<AskAIQuery(query_id={self.query_id}, query='{self.original_query[:50]}...', suggestions={len(self.suggestions or [])})>"
+
+
+class EntityAlias(Base):
+    """User-defined aliases for entities (nicknames/personalized names)"""
+    __tablename__ = "entity_aliases"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    entity_id = Column(String, nullable=False, index=True)
+    alias = Column(String, nullable=False)
+    user_id = Column(String, nullable=False, index=True, default="anonymous")  # For multi-user support
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint: one alias per entity per user (user can have multiple aliases for same entity)
+    # Index for fast alias lookup
+    __table_args__ = (
+        UniqueConstraint('alias', 'user_id', name='uq_alias_user'),
+        Index('idx_alias_lookup', 'alias', 'user_id'),  # Fast lookup
+    )
+    
+    def __repr__(self):
+        return f"<EntityAlias(id={self.id}, entity_id='{self.entity_id}', alias='{self.alias}', user_id='{self.user_id}')>"
 
 
 def get_db_session():

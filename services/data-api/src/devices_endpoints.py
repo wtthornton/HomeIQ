@@ -700,7 +700,7 @@ async def bulk_upsert_devices(
     """
     Internal endpoint for websocket-ingestion to bulk upsert devices from HA discovery
     
-    Simple approach: Loop and merge (SQLAlchemy handles upsert logic)
+    Uses INSERT OR REPLACE for reliable upsert without SQLAlchemy metadata issues
     """
     try:
         upserted_count = 0
@@ -712,24 +712,39 @@ async def bulk_upsert_devices(
                 logger.warning(f"Skipping device without ID: {device_data.get('name', 'unknown')}")
                 continue
             
-            # Create device instance
-            device = Device(
-                device_id=device_id,
-                name=device_data.get('name_by_user') or device_data.get('name'),
-                name_by_user=device_data.get('name_by_user'),
-                manufacturer=device_data.get('manufacturer'),
-                model=device_data.get('model'),
-                sw_version=device_data.get('sw_version'),
-                area_id=device_data.get('area_id'),
-                integration=device_data.get('integration'),  # Fix: Include integration field
-                entry_type=device_data.get('entry_type'),
-                configuration_url=device_data.get('configuration_url'),
-                suggested_area=device_data.get('suggested_area'),
-                last_seen=datetime.now()
+            # Check if device exists first
+            result = await db.execute(
+                select(Device).where(Device.device_id == device_id)
             )
+            existing_device = result.scalar_one_or_none()
             
-            # Merge (upsert) - updates if exists, inserts if new
-            await db.merge(device)
+            # Prepare device data
+            device_values = {
+                'device_id': device_id,
+                'name': device_data.get('name_by_user') or device_data.get('name', 'Unknown'),
+                'name_by_user': device_data.get('name_by_user'),
+                'manufacturer': device_data.get('manufacturer'),
+                'model': device_data.get('model'),
+                'sw_version': device_data.get('sw_version'),
+                'area_id': device_data.get('area_id'),
+                'integration': device_data.get('integration'),
+                'entry_type': device_data.get('entry_type'),
+                'configuration_url': device_data.get('configuration_url'),
+                'suggested_area': device_data.get('suggested_area'),
+                'last_seen': datetime.now()
+            }
+            
+            if existing_device:
+                # Update existing device
+                for key, value in device_values.items():
+                    if key != 'device_id':  # Don't update primary key
+                        setattr(existing_device, key, value)
+            else:
+                # Insert new device
+                device_values['created_at'] = datetime.now()
+                new_device = Device(**device_values)
+                db.add(new_device)
+            
             upserted_count += 1
         
         await db.commit()
@@ -745,6 +760,8 @@ async def bulk_upsert_devices(
     except Exception as e:
         await db.rollback()
         logger.error(f"Error bulk upserting devices: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk upsert devices: {str(e)}"

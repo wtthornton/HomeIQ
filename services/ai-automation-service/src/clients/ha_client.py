@@ -743,4 +743,42 @@ class HomeAssistantClient:
                 "success": False,
                 "error": str(e)
             }
+    
+    async def get_entity_state(self, entity_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get current state and attributes for an entity from Home Assistant.
+        
+        This is a passthrough to HA's /api/states/{entity_id} endpoint.
+        Returns the full state object including attributes like is_hue_group.
+        
+        Args:
+            entity_id: Entity ID to lookup (e.g., 'light.office')
+            
+        Returns:
+            Entity state dict with attributes, or None if not found
+            
+        Example:
+            state = await ha_client.get_entity_state('light.office')
+            if state and state.get('attributes', {}).get('is_hue_group'):
+                print("This is a Hue room group!")
+        """
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/states/{entity_id}"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    state_data = await response.json()
+                    logger.debug(f"Retrieved state for {entity_id}: {state_data.get('state', 'unknown')}")
+                    return state_data
+                elif response.status == 404:
+                    logger.warning(f"Entity {entity_id} not found in HA")
+                    return None
+                else:
+                    logger.error(f"Unexpected status {response.status} for {entity_id}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"Error fetching entity state for {entity_id}: {e}")
+            return None
 

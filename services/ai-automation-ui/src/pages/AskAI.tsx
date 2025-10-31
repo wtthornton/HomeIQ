@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
+import { ContextIndicator } from '../components/ask-ai/ContextIndicator';
 import api from '../services/api';
 
 interface ChatMessage {
@@ -20,6 +21,7 @@ interface ChatMessage {
   suggestions?: any[];
   entities?: any[];
   confidence?: number;
+  followUpPrompts?: string[];
 }
 
 interface AskAIQuery {
@@ -33,6 +35,14 @@ interface AskAIQuery {
   created_at: string;
 }
 
+interface ConversationContext {
+  mentioned_devices: string[];
+  mentioned_intents: string[];
+  active_suggestions: string[];
+  last_query: string;
+  last_entities: any[];
+}
+
 const exampleQueries = [
   "Turn on the living room lights when I get home",
   "Flash the office lights when VGK scores",
@@ -44,29 +54,128 @@ const exampleQueries = [
 
 export const AskAI: React.FC = () => {
   const { darkMode } = useAppStore();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      type: 'ai',
-      content: "Hi! I'm your Home Assistant AI assistant. I can help you create automations by understanding your natural language requests. Here are some examples:",
-      timestamp: new Date(),
-      suggestions: []
+  
+  // Welcome message constant
+  const welcomeMessage: ChatMessage = {
+    id: 'welcome',
+    type: 'ai',
+    content: "Hi! I'm your Home Assistant AI assistant. I can help you create automations by understanding your natural language requests. Here are some examples:",
+    timestamp: new Date(),
+    suggestions: []
+  };
+  
+  // Load conversation from localStorage or start fresh
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('ask-ai-conversation');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Restore Date objects from ISO strings
+        return parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      } catch (e) {
+        console.error('Failed to parse saved conversation:', e);
+        return [welcomeMessage];
+      }
     }
-  ]);
+    return [welcomeMessage];
+  });
+  
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
   
+  // Conversation context tracking
+  const [conversationContext, setConversationContext] = useState<ConversationContext>({
+    mentioned_devices: [],
+    mentioned_intents: [],
+    active_suggestions: [],
+    last_query: '',
+    last_entities: []
+  });
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+  
+  // Save conversation to localStorage whenever messages change
+  useEffect(() => {
+    try {
+      localStorage.setItem('ask-ai-conversation', JSON.stringify(messages));
+    } catch (e) {
+      console.error('Failed to save conversation to localStorage:', e);
+    }
+  }, [messages]);
+  
+  // Update context from message
+  const updateContextFromMessage = (message: ChatMessage) => {
+    if (message.entities && message.entities.length > 0) {
+      const devices = message.entities
+        .map(e => e.name || e.entity_id || '')
+        .filter(Boolean) as string[];
+      
+      setConversationContext(prev => ({
+        ...prev,
+        mentioned_devices: [...new Set([...prev.mentioned_devices, ...devices])], // Deduplicate
+        last_query: message.content,
+        last_entities: message.entities || []
+      }));
+    }
+    
+    if (message.suggestions && message.suggestions.length > 0) {
+      const suggestionIds = message.suggestions.map(s => s.suggestion_id || '');
+      setConversationContext(prev => ({
+        ...prev,
+        active_suggestions: [...new Set([...prev.active_suggestions, ...suggestionIds])] // Deduplicate
+      }));
+    }
+  };
+  
+  // Generate follow-up prompts based on query and suggestions
+  const generateFollowUpPrompts = (query: string, suggestions: any[]): string[] => {
+    const prompts: string[] = [];
+    const queryLower = query.toLowerCase();
+    
+    // Flash-specific prompts
+    if (queryLower.includes('flash')) {
+      prompts.push('Make it flash 5 times instead');
+      prompts.push('Use different colors for the flash');
+    }
+    
+    // Light-specific prompts
+    if (queryLower.includes('light')) {
+      prompts.push(`Set brightness to 50%`);
+      prompts.push('Only after sunset');
+      if (!queryLower.includes('flash')) {
+        prompts.push('Make it flash instead');
+      }
+    }
+    
+    // Time-specific prompts
+    if (queryLower.includes('when') || queryLower.includes('at ')) {
+      prompts.push('Change the time schedule');
+      prompts.push('Add more conditions');
+    }
+    
+    // General refinement prompts
+    if (suggestions.length > 0) {
+      prompts.push('Show me more automation ideas');
+      prompts.push('What else can I automate?');
+    }
+    
+    // Return up to 4 prompts, removing duplicates
+    return [...new Set(prompts)].slice(0, 4);
+  };
 
   const handleSendMessage = async () => {
     const inputValue = inputRef.current?.value.trim();
@@ -85,11 +194,27 @@ export const AskAI: React.FC = () => {
     setIsTyping(true);
 
     try {
-      const response = await api.askAIQuery(inputValue);
+      // Pass context and conversation history to API
+      const response = await api.askAIQuery(inputValue, {
+        conversation_context: conversationContext,
+        conversation_history: messages
+          .filter(msg => msg.type !== 'ai' || msg.id !== 'welcome')
+          .map(msg => ({
+            role: msg.type,
+            content: msg.content,
+            timestamp: msg.timestamp.toISOString()
+          }))
+      });
       
       // Simulate typing delay for better UX
       await new Promise(resolve => setTimeout(resolve, 1000));
 
+      // Generate follow-up prompts
+      const followUpPrompts = generateFollowUpPrompts(
+        inputValue,
+        response.suggestions
+      );
+      
       const aiMessage: ChatMessage = {
         id: response.query_id,
         type: 'ai',
@@ -97,10 +222,14 @@ export const AskAI: React.FC = () => {
         timestamp: new Date(),
         suggestions: response.suggestions,
         entities: response.extracted_entities,
-        confidence: response.confidence
+        confidence: response.confidence,
+        followUpPrompts: followUpPrompts
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Update context with the AI response
+      updateContextFromMessage(aiMessage);
       
       if (response.suggestions.length === 0) {
         toast.error('No suggestions found. Try rephrasing your question.');
@@ -236,19 +365,92 @@ export const AskAI: React.FC = () => {
   };
 
   const clearChat = () => {
-    setMessages([{
-      id: 'welcome',
-      type: 'ai',
-      content: "Hi! I'm your Home Assistant AI assistant. I can help you create automations by understanding your natural language requests. Here are some examples:",
-      timestamp: new Date(),
-      suggestions: []
-    }]);
+    localStorage.removeItem('ask-ai-conversation');
+    setMessages([welcomeMessage]);
+    setConversationContext({
+      mentioned_devices: [],
+      mentioned_intents: [],
+      active_suggestions: [],
+      last_query: '',
+      last_entities: []
+    });
     toast.success('Chat cleared');
   };
 
   const handleExampleClick = (example: string) => {
     setInputValue(example);
     inputRef.current?.focus();
+  };
+  
+  const exportConversation = () => {
+    try {
+      const conversationData = {
+        messages: messages,
+        context: conversationContext,
+        exportedAt: new Date().toISOString(),
+        version: '1.0'
+      };
+      
+      const dataStr = JSON.stringify(conversationData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ask-ai-conversation-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Conversation exported successfully');
+    } catch (error) {
+      console.error('Failed to export conversation:', error);
+      toast.error('Failed to export conversation');
+    }
+  };
+  
+  const importConversation = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+        
+        // Validate structure
+        if (!data.messages || !Array.isArray(data.messages)) {
+          throw new Error('Invalid conversation format');
+        }
+        
+        // Restore Date objects
+        const restoredMessages = data.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        
+        setMessages(restoredMessages);
+        
+        // Restore context if available
+        if (data.context) {
+          setConversationContext(data.context);
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('ask-ai-conversation', JSON.stringify(restoredMessages));
+        
+        toast.success('Conversation imported successfully');
+      } catch (error) {
+        console.error('Failed to import conversation:', error);
+        toast.error('Failed to import conversation - invalid file format');
+      }
+    };
+    
+    reader.readAsText(file);
+    // Reset input so same file can be selected again
+    event.target.value = '';
   };
 
   return (
@@ -327,6 +529,37 @@ export const AskAI: React.FC = () => {
               </svg>
             </button>
             <button
+              onClick={exportConversation}
+              className={`p-1.5 rounded transition-colors ${
+                darkMode 
+                  ? 'hover:bg-gray-700 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+              title="Export Conversation"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
+            <label
+              className={`p-1.5 rounded cursor-pointer transition-colors ${
+                darkMode 
+                  ? 'hover:bg-gray-700 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+              title="Import Conversation"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <input
+                type="file"
+                accept=".json"
+                onChange={importConversation}
+                className="hidden"
+              />
+            </label>
+            <button
               onClick={clearChat}
               className={`px-2 py-1 rounded text-xs transition-colors ${
                 darkMode 
@@ -397,6 +630,33 @@ export const AskAI: React.FC = () => {
                         })}
                       </div>
                     )}
+                    
+                    {/* Show follow-up prompts if available */}
+                    {message.followUpPrompts && message.followUpPrompts.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-400">
+                        <p className={`text-xs mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          💡 Try asking:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {message.followUpPrompts.map((prompt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setInputValue(prompt);
+                                inputRef.current?.focus();
+                              }}
+                              className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                                darkMode
+                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                              }`}
+                            >
+                              {prompt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className={`text-xs mt-2 opacity-60 ${
                       message.type === 'user' ? 'text-blue-100' : ''
@@ -430,6 +690,9 @@ export const AskAI: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
         </div>
+        
+        {/* Context Indicator - Shows active conversation context */}
+        <ContextIndicator context={conversationContext} darkMode={darkMode} />
 
         {/* Input Area - Full width and compact at bottom */}
         <div className={`border-t px-6 py-2 flex-shrink-0 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>

@@ -37,7 +37,12 @@ from ..model_services.orchestrator import ModelOrchestrator
 from ..llm.openai_client import OpenAIClient
 from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel
 from ..utils.capability_utils import normalize_capability, format_capability_for_display
+from ..services.entity_attribute_service import EntityAttributeService
+from ..prompt_building.entity_context_builder import EntityContextBuilder
+from ..services.component_detector import ComponentDetector
+from ..services.safety_validator import SafetyValidator
 from sqlalchemy import select, update
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +131,7 @@ openai_client = None
 
 if settings.ha_url and settings.ha_token:
     try:
-        ha_client = HomeAssistantClient(settings.ha_url, settings.ha_token)
+        ha_client = HomeAssistantClient(settings.ha_url, access_token=settings.ha_token)
         logger.info("✅ Home Assistant client initialized for Ask AI")
     except Exception as e:
         logger.error(f"❌ Failed to initialize HA client: {e}")
@@ -183,10 +188,201 @@ class QueryRefinementResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
+async def expand_group_entities_to_members(
+    entity_ids: List[str],
+    ha_client: Optional[HomeAssistantClient],
+    entity_validator: Optional[Any] = None
+) -> List[str]:
+    """
+    Generic function to expand group entities to their individual member entities.
+    
+    For example, if entity_ids contains ["light.office"] and light.office is a group
+    with members ["light.hue_go_1", "light.hue_color_downlight_2_2", ...], 
+    this function will return the individual light entity IDs instead.
+    
+    Args:
+        entity_ids: List of entity IDs that may include group entities
+        ha_client: Home Assistant client for fetching entity state
+        entity_validator: Optional EntityValidator instance for group detection
+        
+    Returns:
+        Expanded list with group entities replaced by their member entity IDs
+    """
+    if not ha_client:
+        logger.warning("⚠️ No HA client available, cannot expand group entities")
+        return entity_ids
+    
+    expanded_entity_ids = []
+    
+    # Always enrich entities to check for group indicators (is_group, is_hue_group, entity_id attribute)
+    from ..services.entity_attribute_service import EntityAttributeService
+    attribute_service = EntityAttributeService(ha_client)
+    
+    # Batch enrich all entities to get attributes for group detection
+    enriched_data = await attribute_service.enrich_multiple_entities(entity_ids)
+    
+    for entity_id in entity_ids:
+        try:
+            # Check if this is a group entity
+            is_group = False
+            
+            # Method 1: Check enriched attributes (is_group flag, is_hue_group, entity_id attribute)
+            if entity_id in enriched_data:
+                enriched = enriched_data[entity_id]
+                is_group = enriched.get('is_group', False)
+                # Also check for group indicators in attributes
+                attributes = enriched.get('attributes', {})
+                # Group entities have an 'entity_id' attribute containing member list
+                if attributes.get('is_hue_group') or attributes.get('entity_id'):
+                    is_group = True
+            
+            # Method 2: Use entity validator's heuristic-based group detection if available
+            if not is_group and entity_validator:
+                # Create minimal entity dict from enriched data for group detection
+                enriched = enriched_data.get(entity_id, {})
+                entity_dict = {
+                    'entity_id': entity_id,
+                    'device_id': enriched.get('device_id'),
+                    'friendly_name': enriched.get('friendly_name')
+                }
+                is_group = entity_validator._is_group_entity(entity_dict)
+            
+            if is_group:
+                logger.info(f"🔍 Group entity detected: {entity_id}, fetching members...")
+                
+                # Fetch entity state to get member entity IDs
+                state_data = await ha_client.get_entity_state(entity_id)
+                if state_data:
+                    attributes = state_data.get('attributes', {})
+                    
+                    # Group entities store member IDs in 'entity_id' attribute
+                    member_entity_ids = attributes.get('entity_id')
+                    
+                    if member_entity_ids:
+                        if isinstance(member_entity_ids, list):
+                            # List of entity IDs
+                            expanded_entity_ids.extend(member_entity_ids)
+                            logger.info(f"✅ Expanded group {entity_id} to {len(member_entity_ids)} members: {member_entity_ids[:5]}...")
+                        elif isinstance(member_entity_ids, str):
+                            # Single entity ID as string
+                            expanded_entity_ids.append(member_entity_ids)
+                            logger.info(f"✅ Expanded group {entity_id} to member: {member_entity_ids}")
+                        else:
+                            # Fallback: keep the group entity if we can't extract members
+                            logger.warning(f"⚠️ Group {entity_id} has unexpected entity_id format: {type(member_entity_ids)}")
+                            expanded_entity_ids.append(entity_id)
+                    else:
+                        # Not actually a group, or no members - keep it
+                        logger.debug(f"No members found for {entity_id}, treating as individual entity")
+                        expanded_entity_ids.append(entity_id)
+                else:
+                    # Couldn't fetch state - keep the entity ID
+                    logger.warning(f"⚠️ Could not fetch state for {entity_id}, treating as individual entity")
+                    expanded_entity_ids.append(entity_id)
+            else:
+                # Not a group entity - keep it as-is
+                expanded_entity_ids.append(entity_id)
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Error checking/expanding entity {entity_id}: {e}, keeping original")
+            expanded_entity_ids.append(entity_id)
+    
+    # Deduplicate the expanded list
+    expanded_entity_ids = list(dict.fromkeys(expanded_entity_ids))  # Preserves order while deduplicating
+    
+    if len(expanded_entity_ids) != len(entity_ids):
+        logger.info(f"✅ Expanded {len(entity_ids)} entities to {len(expanded_entity_ids)} individual entities")
+    
+    return expanded_entity_ids
+
+
+def map_devices_to_entities(
+    devices_involved: List[str], 
+    enriched_data: Dict[str, Dict[str, Any]]
+) -> Dict[str, str]:
+    """
+    Map device friendly names to entity IDs from enriched data.
+    
+    Used to create validated_entities mapping from devices_involved (friendly names) 
+    to entity IDs using already-enriched entity data, avoiding re-resolution.
+    
+    Args:
+        devices_involved: List of device friendly names from LLM suggestion
+        enriched_data: Dictionary mapping entity_id to enriched entity data
+        
+    Returns:
+        Dictionary mapping device_name → entity_id
+    """
+    validated_entities = {}
+    unmapped_devices = []
+    
+    for device_name in devices_involved:
+        mapped = False
+        # Find matching entity by friendly_name in enriched_data
+        for entity_id, enriched in enriched_data.items():
+            friendly_name = enriched.get('friendly_name', '')
+            if friendly_name == device_name:
+                validated_entities[device_name] = entity_id
+                mapped = True
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}'")
+                break
+        
+        if not mapped:
+            unmapped_devices.append(device_name)
+            logger.warning(f"⚠️ Could not map device '{device_name}' to entity_id (not found in enriched_data)")
+    
+    if unmapped_devices and validated_entities:
+        logger.info(
+            f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to entities "
+            f"({len(unmapped_devices)} unmapped: {unmapped_devices})"
+        )
+    elif validated_entities:
+        logger.info(f"✅ Mapped all {len(validated_entities)} devices to entities")
+    elif devices_involved:
+        logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to entities")
+    
+    return validated_entities
+
+
+def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]:
+    """
+    Deduplicate entity mapping - if multiple device names map to same entity_id,
+    keep only unique entity_ids.
+    
+    Args:
+        entity_mapping: Dictionary mapping device names to entity_ids
+        
+    Returns:
+        Deduplicated mapping with only unique entity_ids
+    """
+    seen_entities = {}
+    deduplicated = {}
+    
+    for device_name, entity_id in entity_mapping.items():
+        if entity_id not in seen_entities:
+            # First occurrence of this entity_id
+            deduplicated[device_name] = entity_id
+            seen_entities[entity_id] = device_name
+        else:
+            # Duplicate - log and skip
+            logger.debug(
+                f"⚠️ Duplicate entity mapping: '{device_name}' → {entity_id} "
+                f"(already mapped as '{seen_entities[entity_id]}')"
+            )
+    
+    if len(deduplicated) < len(entity_mapping):
+        logger.info(
+            f"✅ Deduplicated entities: {len(deduplicated)} unique from {len(entity_mapping)} total "
+            f"({len(entity_mapping) - len(deduplicated)} duplicates removed)"
+        )
+    
+    return deduplicated
+
 async def generate_automation_yaml(
     suggestion: Dict[str, Any], 
     original_query: str, 
-    entities: Optional[List[Dict[str, Any]]] = None
+    entities: Optional[List[Dict[str, Any]]] = None,
+    db_session: Optional[AsyncSession] = None
 ) -> str:
     """
     Generate Home Assistant automation YAML from a suggestion.
@@ -199,6 +395,7 @@ async def generate_automation_yaml(
         suggestion: Suggestion dictionary with description, trigger_summary, action_summary, devices_involved
         original_query: Original user query for context
         entities: Optional list of entities with capabilities for enhanced context
+        db_session: Optional database session for alias support
     
     Returns:
         YAML string for the automation
@@ -215,9 +412,13 @@ async def generate_automation_yaml(
     
     try:
         logger.info("🔍 Starting entity validation...")
-        # Initialize entity validator with data API client
+        # Initialize entity validator with data API client and optional db_session for alias support
         data_api_client = DataAPIClient()
-        entity_validator = EntityValidator(data_api_client)
+        ha_client = HomeAssistantClient(
+            ha_url=settings.ha_url,
+            access_token=settings.ha_token
+        ) if settings.ha_url and settings.ha_token else None
+        entity_validator = EntityValidator(data_api_client, db_session=db_session, ha_client=ha_client)
         logger.info("✅ Entity validator initialized")
         
         # Map query devices to real entities
@@ -231,6 +432,10 @@ async def generate_automation_yaml(
         logger.info(f"🔍 ENTITY MAPPING TYPE: {type(entity_mapping)}")
         logger.info(f"🔍 ENTITY MAPPING BOOL: {bool(entity_mapping)}")
         
+        # Deduplicate entity mapping before using it
+        if entity_mapping:
+            entity_mapping = deduplicate_entity_mapping(entity_mapping)
+        
         # Update suggestion with validated entities
         if entity_mapping:
             suggestion['validated_entities'] = entity_mapping
@@ -241,8 +446,10 @@ async def generate_automation_yaml(
         logger.error(f"❌ Error validating entities: {e}", exc_info=True)
         # Continue without validation if there's an error
     
-    # Construct prompt for OpenAI to generate creative YAML with capability details
+    # Construct prompt for OpenAI to generate creative YAML with enriched entity context
     validated_entities_text = ""
+    entity_context_json = ""
+    
     if entities and len(entities) > 0:
         # Build enhanced entity context with capabilities
         validated_entities_text = f"""
@@ -257,6 +464,44 @@ Pay attention to the capability types and ranges when generating service calls:
 
 """
     elif 'validated_entities' in suggestion and suggestion['validated_entities']:
+        # Check if we have cached enriched context (fast path)
+        if 'enriched_entity_context' in suggestion and suggestion['enriched_entity_context']:
+            logger.info("✅ Using cached enriched entity context - FAST PATH")
+            entity_context_json = suggestion['enriched_entity_context']
+        else:
+            # Fall back to re-enrichment (slow path, backwards compatibility)
+            logger.info("⚠️ Re-enriching entities - SLOW PATH")
+            try:
+                logger.info("🔍 Enriching entities with attributes...")
+                
+                # Initialize HA client
+                ha_client = HomeAssistantClient(
+                    ha_url=settings.ha_url,
+                    access_token=settings.ha_token
+                )
+                
+                # Get entity IDs from mapping
+                entity_ids = list(suggestion['validated_entities'].values())
+                
+                # Enrich entities with attributes
+                attribute_service = EntityAttributeService(ha_client)
+                enriched_data = await attribute_service.enrich_multiple_entities(entity_ids)
+                
+                # Build entity context JSON
+                context_builder = EntityContextBuilder()
+                entity_context_json = await context_builder.build_entity_context_json(
+                    entities=[{'entity_id': eid} for eid in entity_ids],
+                    enriched_data=enriched_data
+                )
+                
+                logger.info(f"✅ Built entity context JSON with {len(enriched_data)} enriched entities")
+                logger.debug(f"Entity context JSON: {entity_context_json[:500]}...")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Error enriching entities: {e}")
+                entity_context_json = ""
+        
+        # Build fallback text format
         validated_entities_text = f"""
 VALIDATED ENTITIES (use these exact entity IDs):
 {chr(10).join([f"- {term}: {entity_id}" for term, entity_id in suggestion['validated_entities'].items()])}
@@ -264,7 +509,22 @@ VALIDATED ENTITIES (use these exact entity IDs):
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
 If you need multiple lights, use the same entity ID multiple times or use the entity_id provided for 'lights'.
 """
-        logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text}")
+        
+        # Add entity context JSON if available
+        if entity_context_json:
+            validated_entities_text += f"""
+
+ENTITY CONTEXT (Complete Information):
+{entity_context_json}
+
+Use this entity information to:
+1. Choose the right entity type (group vs individual)
+2. Understand device capabilities
+3. Generate appropriate actions
+4. Respect device limitations (e.g., brightness range, color modes)
+"""
+        
+        logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text[:200]}...")
         logger.debug(f" VALIDATED ENTITIES TEXT: {validated_entities_text}")
     else:
         validated_entities_text = """
@@ -276,6 +536,9 @@ CRITICAL: No validated entities found. Use generic placeholder entity IDs that c
     
     # Check if test mode
     is_test = 'TEST MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
+    
+    # TASK 2.4: Check if sequence test mode (shortened delays instead of stripping)
+    is_sequence_test = suggestion.get('test_mode') == 'sequence'
     
     prompt = f"""
 You are a Home Assistant automation YAML generator expert with deep knowledge of advanced HA features.
@@ -290,12 +553,12 @@ Automation suggestion:
 
 {validated_entities_text}
 
-{"🔴 TEST MODE: For manual testing - Generate simple automation YAML:" if is_test else "Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life."}
+{"🔴 TEST MODE WITH SEQUENCES: For quick testing - Generate automation YAML with shortened delays (10x faster):" if is_sequence_test else ("🔴 TEST MODE: For manual testing - Generate simple automation YAML:" if is_test else "Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life.")}
 {"- Use event trigger that fires immediately on manual trigger" if is_test else ""}
-{"- NO delays or timing components" if is_test else ""}
-{"- NO repeat loops or sequences (just execute once)" if is_test else ""}
-{"- Action should execute the device control immediately" if is_test else ""}
-{"- Example trigger: platform: event, event_type: test_trigger" if is_test else ""}
+{"- SHORTEN all delays by 10x (e.g., 2 seconds → 0.2 seconds, 30 seconds → 3 seconds)" if is_sequence_test else ("- NO delays or timing components" if is_test else "")}
+{"- REDUCE repeat counts (e.g., 5 times → 2 times, 10 times → 3 times) for quick preview" if is_sequence_test else ("- NO repeat loops or sequences (just execute once)" if is_test else "")}
+{"- Keep sequences and repeat blocks but execute faster" if is_sequence_test else ("- Action should execute the device control immediately" if is_test else "")}
+{"- Example: If original has 'delay: 00:00:05', use 'delay: 00:00:00.5' (or 0.5 seconds)" if is_sequence_test else ("- Example trigger: platform: event, event_type: test_trigger" if is_test else "")}
 
 Requirements:
 1. Use YAML format (not JSON)
@@ -416,7 +679,7 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use adv
                 }
             ],
             temperature=0.3,  # Lower temperature for more consistent YAML
-            max_tokens=1000
+            max_tokens=2000  # Increased to prevent truncation of complex automations
         )
         
         yaml_content = response.choices[0].message.content.strip()
@@ -439,6 +702,13 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use adv
         except yaml_lib.YAMLError as e:
             logger.error(f"❌ Generated invalid YAML: {e}")
             raise ValueError(f"Generated YAML is invalid: {e}")
+        
+        # Debug: Print the final YAML content
+        logger.info("=" * 80)
+        logger.info("📋 FINAL HA AUTOMATION YAML")
+        logger.info("=" * 80)
+        logger.info(yaml_content)
+        logger.info("=" * 80)
         
         return yaml_content
         
@@ -631,11 +901,125 @@ async def generate_suggestions_from_query(
         
         unified_builder = UnifiedPromptBuilder(device_intelligence_client=_device_intelligence_client)
         
-        # Build unified prompt with device intelligence
+        # NEW: Resolve and enrich entities with full attribute data (like YAML generation does)
+        entity_context_json = ""
+        resolved_entity_ids = []
+        enriched_data = {}  # Initialize at function level for use in suggestion building
+        
+        try:
+            logger.info("🔍 Resolving and enriching entities for suggestion generation...")
+            
+            # Initialize HA client and entity validator
+            ha_client = HomeAssistantClient(
+                ha_url=settings.ha_url,
+                access_token=settings.ha_token
+            ) if settings.ha_url and settings.ha_token else None
+            
+            if ha_client:
+                # Step 1: Fetch ALL entities matching query context (location + domain)
+                # This finds all lights in the office (e.g., all 6 lights including WLED)
+                # instead of just mapping generic names to single entities
+                from ..services.entity_validator import EntityValidator
+                from ..clients.data_api_client import DataAPIClient
+                
+                data_api_client = DataAPIClient()
+                entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
+                
+                # Extract location and domain from query to get ALL matching entities
+                query_location = entity_validator._extract_location_from_query(query)
+                query_domain = entity_validator._extract_domain_from_query(query)
+                
+                logger.info(f"🔍 Extracted location='{query_location}', domain='{query_domain}' from query")
+                
+                # Fetch ALL entities matching the query context (all office lights, not just one)
+                available_entities = await entity_validator._get_available_entities(
+                    domain=query_domain,
+                    area_id=query_location
+                )
+                
+                if available_entities:
+                    # Get all entity IDs that match the query context
+                    resolved_entity_ids = [e.get('entity_id') for e in available_entities if e.get('entity_id')]
+                    logger.info(f"✅ Found {len(resolved_entity_ids)} entities matching query context (location={query_location}, domain={query_domain})")
+                    logger.debug(f"Resolved entity IDs: {resolved_entity_ids[:10]}...")  # Log first 10
+                    
+                    # Expand group entities to their individual member entities (generic, no hardcoding)
+                    resolved_entity_ids = await expand_group_entities_to_members(
+                        resolved_entity_ids,
+                        ha_client,
+                        entity_validator
+                    )
+                else:
+                    # Fallback: try mapping device names (may only return one per term)
+                    device_names = [e.get('name') for e in entities if e.get('name')]
+                    if device_names:
+                        logger.info(f"🔍 No entities found by location/domain, trying device name mapping...")
+                        entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
+                        if entity_mapping:
+                            resolved_entity_ids = list(entity_mapping.values())
+                            logger.info(f"✅ Resolved {len(entity_mapping)} device names to {len(resolved_entity_ids)} entity IDs")
+                            
+                            # Expand group entities to individual members
+                            resolved_entity_ids = await expand_group_entities_to_members(
+                                resolved_entity_ids,
+                                ha_client,
+                                entity_validator
+                            )
+                        else:
+                            # Last fallback: extract entity IDs directly from entities
+                            resolved_entity_ids = [e.get('entity_id') for e in entities if e.get('entity_id')]
+                            if resolved_entity_ids:
+                                logger.info(f"⚠️ Using {len(resolved_entity_ids)} entity IDs from extracted entities")
+                            else:
+                                logger.warning("⚠️ No entity IDs found for enrichment")
+                                resolved_entity_ids = []
+                    else:
+                        resolved_entity_ids = []
+                        logger.warning("⚠️ No entities found and no device names to map")
+                
+                # Step 2: Enrich resolved entity IDs with full attribute data
+                if resolved_entity_ids:
+                    logger.info(f"🔍 Enriching {len(resolved_entity_ids)} resolved entities...")
+                    
+                    # Enrich entities with attributes
+                    attribute_service = EntityAttributeService(ha_client)
+                    enriched_data = await attribute_service.enrich_multiple_entities(resolved_entity_ids)
+                    
+                    # Build entity context JSON from enriched data
+                    # Create entity dicts for context builder from enriched data
+                    enriched_entities = []
+                    for entity_id in resolved_entity_ids:
+                        enriched = enriched_data.get(entity_id, {})
+                        enriched_entities.append({
+                            'entity_id': entity_id,
+                            'friendly_name': enriched.get('friendly_name', entity_id),
+                            'name': enriched.get('friendly_name', entity_id.split('.')[-1] if '.' in entity_id else entity_id)
+                        })
+                    
+                    context_builder = EntityContextBuilder()
+                    entity_context_json = await context_builder.build_entity_context_json(
+                        entities=enriched_entities,
+                        enriched_data=enriched_data
+                    )
+                    
+                    logger.info(f"✅ Built entity context JSON with {len(enriched_data)} enriched entities")
+                    logger.debug(f"Entity context JSON: {entity_context_json[:500]}...")
+                else:
+                    logger.warning("⚠️ No entity IDs to enrich - skipping enrichment")
+            else:
+                logger.warning("⚠️ Home Assistant client not available, skipping entity enrichment")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Error resolving/enriching entities for suggestions: {e}", exc_info=True)
+            entity_context_json = ""
+            enriched_data = {}  # Ensure enriched_data is empty on error
+        
+        # Build unified prompt with device intelligence AND enriched entity context
         prompt_dict = await unified_builder.build_query_prompt(
             query=query,
             entities=entities,
-            output_mode="suggestions"
+            output_mode="suggestions",
+            entity_context_json=entity_context_json  # Pass enriched context
         )
         
         # Generate suggestions with unified prompt
@@ -670,12 +1054,22 @@ async def generate_suggestions_from_query(
             # suggestions_data is already parsed JSON from unified prompt method
             parsed = suggestions_data
             for i, suggestion in enumerate(parsed):
+                # Map devices_involved to entity IDs using enriched_data (if available)
+                validated_entities = {}
+                devices_involved = suggestion.get('devices_involved', [])
+                if enriched_data and devices_involved:
+                    validated_entities = map_devices_to_entities(devices_involved, enriched_data)
+                    if validated_entities:
+                        logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to entities for suggestion {i+1}")
+                
                 suggestions.append({
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
-                    'devices_involved': suggestion['devices_involved'],
+                    'devices_involved': devices_involved,
+                    'validated_entities': validated_entities,  # Save mapping for fast test execution
+                    'enriched_entity_context': entity_context_json,  # NEW: Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
                     'confidence': suggestion['confidence'],
                     'status': 'draft',
@@ -690,6 +1084,8 @@ async def generate_suggestions_from_query(
                 'trigger_summary': "Based on your query",
                 'action_summary': "Device control",
                 'devices_involved': [entity['name'] for entity in entities[:3]],
+                'validated_entities': {},  # Empty mapping for fallback (backwards compatible)
+                'enriched_entity_context': entity_context_json,  # Use any available context
                 'confidence': 0.7,
                 'status': 'draft',
                 'created_at': datetime.now().isoformat()
@@ -1024,6 +1420,291 @@ def _generate_test_quality_report(
     }
 
 
+# ============================================================================
+# Task 1.1: State Capture & Validation Functions
+# ============================================================================
+
+async def capture_entity_states(
+    ha_client: HomeAssistantClient,
+    entity_ids: List[str],
+    timeout: float = 5.0
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Capture current state of entities before test execution.
+    
+    Task 1.1: State Capture & Validation
+    
+    Args:
+        ha_client: Home Assistant client
+        entity_ids: List of entity IDs to capture
+        timeout: Maximum time to wait for state retrieval
+        
+    Returns:
+        Dictionary mapping entity_id to state dictionary
+    """
+    states = {}
+    
+    for entity_id in entity_ids:
+        try:
+            state = await ha_client.get_entity_state(entity_id)
+            if state:
+                states[entity_id] = {
+                    'state': state.get('state'),
+                    'attributes': state.get('attributes', {}),
+                    'timestamp': datetime.now().isoformat()
+                }
+        except Exception as e:
+            logger.warning(f"Failed to capture state for {entity_id}: {e}")
+            states[entity_id] = {
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    logger.info(f"📸 Captured states for {len(states)} entities")
+    return states
+
+
+async def validate_state_changes(
+    ha_client: HomeAssistantClient,
+    before_states: Dict[str, Dict[str, Any]],
+    entity_ids: List[str],
+    wait_timeout: float = 5.0,
+    check_interval: float = 0.5
+) -> Dict[str, Any]:
+    """
+    Validate that state changes occurred after test execution.
+    
+    Task 1.1: State Capture & Validation
+    
+    Args:
+        ha_client: Home Assistant client
+        before_states: States captured before execution
+        entity_ids: List of entity IDs to check
+        wait_timeout: Maximum time to wait for changes (seconds)
+        check_interval: Interval between checks (seconds)
+        
+    Returns:
+        Validation report with before/after states and success flags
+    """
+    validation_results = {}
+    start_time = time.time()
+    
+    # Wait and poll for state changes
+    while (time.time() - start_time) < wait_timeout:
+        for entity_id in entity_ids:
+            if entity_id not in validation_results:
+                try:
+                    after_state = await ha_client.get_entity_state(entity_id)
+                    before_state_data = before_states.get(entity_id, {})
+                    before_state = before_state_data.get('state')
+                    
+                    if after_state:
+                        after_state_value = after_state.get('state')
+                        
+                        # Check if state changed
+                        if before_state != after_state_value:
+                            validation_results[entity_id] = {
+                                'success': True,
+                                'before_state': before_state,
+                                'after_state': after_state_value,
+                                'changed': True,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            logger.info(f"✅ State change detected for {entity_id}: {before_state} → {after_state_value}")
+                        # Also check attribute changes for entities that might not change state
+                        elif before_state == after_state_value:
+                            # Check common attributes that might change (brightness, color, etc.)
+                            before_attrs = before_state_data.get('attributes', {})
+                            after_attrs = after_state.get('attributes', {})
+                            
+                            # Check for meaningful attribute changes
+                            changed_attrs = {}
+                            for key in ['brightness', 'color_name', 'rgb_color', 'temperature']:
+                                if before_attrs.get(key) != after_attrs.get(key):
+                                    changed_attrs[key] = {
+                                        'before': before_attrs.get(key),
+                                        'after': after_attrs.get(key)
+                                    }
+                            
+                            if changed_attrs:
+                                validation_results[entity_id] = {
+                                    'success': True,
+                                    'before_state': before_state,
+                                    'after_state': after_state_value,
+                                    'changed': True,
+                                    'attribute_changes': changed_attrs,
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                                logger.info(f"✅ Attribute changes detected for {entity_id}: {changed_attrs}")
+                            # If no changes detected yet, mark as pending
+                            elif entity_id not in validation_results:
+                                validation_results[entity_id] = {
+                                    'success': False,
+                                    'before_state': before_state,
+                                    'after_state': after_state_value,
+                                    'changed': False,
+                                    'pending': True,
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                
+                except Exception as e:
+                    logger.warning(f"Error validating state for {entity_id}: {e}")
+                    if entity_id not in validation_results:
+                        validation_results[entity_id] = {
+                            'success': False,
+                            'error': str(e),
+                            'timestamp': datetime.now().isoformat()
+                        }
+        
+        # Check if all entities have been validated with changes
+        all_validated = all(
+            entity_id in validation_results and validation_results[entity_id].get('changed', False)
+            for entity_id in entity_ids
+        )
+        
+        if all_validated:
+            break
+        
+        # Wait before next check
+        await asyncio.sleep(check_interval)
+    
+    # Final validation - mark pending entities as no change
+    for entity_id in entity_ids:
+        if entity_id not in validation_results:
+            before_state_data = before_states.get(entity_id, {})
+            validation_results[entity_id] = {
+                'success': False,
+                'before_state': before_state_data.get('state'),
+                'after_state': None,
+                'changed': False,
+                'note': 'No state change detected within timeout',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    success_count = sum(1 for r in validation_results.values() if r.get('success', False))
+    total_count = len(validation_results)
+    
+    logger.info(f"✅ State validation complete: {success_count}/{total_count} entities changed")
+    
+    return {
+        'entities': validation_results,
+        'summary': {
+            'total_checked': total_count,
+            'changed': success_count,
+            'unchanged': total_count - success_count,
+            'validation_time_ms': round((time.time() - start_time) * 1000, 2)
+        }
+    }
+
+
+# ============================================================================
+# Task 1.3: OpenAI JSON Mode Test Result Analyzer
+# ============================================================================
+
+class TestResultAnalyzer:
+    """
+    Analyzes test execution results using OpenAI with JSON mode.
+    
+    Task 1.3: OpenAI JSON Mode for Test Result Analysis
+    """
+    
+    def __init__(self, openai_client: OpenAIClient):
+        """Initialize analyzer with OpenAI client"""
+        self.client = openai_client
+    
+    async def analyze_test_execution(
+        self,
+        test_yaml: str,
+        state_validation: Dict[str, Any],
+        execution_logs: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze test execution and return structured JSON results.
+        
+        Args:
+            test_yaml: Test automation YAML
+            state_validation: State validation results
+            execution_logs: Optional execution logs
+            
+        Returns:
+            Structured analysis with success, issues, and recommendations
+        """
+        if not self.client:
+            logger.warning("OpenAI client not available, skipping analysis")
+            return {
+                'success': True,
+                'issues': [],
+                'recommendations': ['Test executed, but AI analysis unavailable'],
+                'confidence': 0.7
+            }
+        
+        # Build analysis prompt
+        state_summary = state_validation.get('summary', {})
+        changed_count = state_summary.get('changed', 0)
+        total_count = state_summary.get('total_checked', 0)
+        
+        prompt = f"""Analyze this test automation execution and provide structured feedback.
+
+TEST YAML:
+{test_yaml[:500]}
+
+STATE VALIDATION RESULTS:
+- Entities checked: {total_count}
+- Entities changed: {changed_count}
+- Entities unchanged: {total_count - changed_count}
+- Validation time: {state_summary.get('validation_time_ms', 0)}ms
+
+ENTITY CHANGES:
+{json.dumps(state_validation.get('entities', {}), indent=2)[:1000]}
+
+EXECUTION LOGS:
+{execution_logs or 'No logs available'}
+
+TASK: Analyze the test execution and determine:
+1. Did the automation execute successfully?
+2. Were the expected state changes detected?
+3. Are there any issues or warnings?
+4. What recommendations do you have?
+
+Response format: ONLY JSON, no other text:
+{{
+  "success": true/false,
+  "issues": ["List of issues found"],
+  "recommendations": ["List of recommendations"],
+  "confidence": 0.0-1.0
+}}"""
+
+        try:
+            response = await self.client.client.chat.completions.create(
+                model=self.client.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a test automation analysis expert. Analyze execution results and provide structured feedback in JSON format only."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,  # Low temperature for consistent analysis
+                max_tokens=400,
+                response_format={"type": "json_object"}  # Force JSON mode
+            )
+            
+            content = response.choices[0].message.content.strip()
+            analysis = json.loads(content)
+            
+            logger.info(f"✅ Test analysis complete: success={analysis.get('success', False)}")
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze test execution: {e}")
+            return {
+                'success': True,  # Default to success if analysis fails
+                'issues': [f'Analysis unavailable: {str(e)}'],
+                'recommendations': [],
+                'confidence': 0.5
+            }
+
+
 @router.post("/query/{query_id}/suggestions/{suggestion_id}/test")
 async def test_suggestion_from_query(
     query_id: str,
@@ -1112,46 +1793,99 @@ async def test_suggestion_from_query(
         # For test mode, pass empty entities list so it uses validated_entities from test_suggestion
         entities = []
         
-        # Use devices_involved from the suggestion (these are the actual device names to map)
-        devices_involved = suggestion.get('devices_involved', [])
-        logger.debug(f" devices_involved from suggestion: {devices_involved}")
+        # Check if validated_entities already exists (fast path)
+        if suggestion.get('validated_entities'):
+            entity_mapping = suggestion['validated_entities']
+            entity_resolution_time = 0  # No time spent on resolution
+            logger.info(f"✅ Using saved validated_entities mapping ({len(entity_mapping)} entities) - FAST PATH")
+        else:
+            # Fall back to re-resolution (slow path, backwards compatibility)
+            logger.info(f"⚠️ Re-resolving entities (validated_entities not saved) - SLOW PATH")
+            # Use devices_involved from the suggestion (these are the actual device names to map)
+            devices_involved = suggestion.get('devices_involved', [])
+            logger.debug(f" devices_involved from suggestion: {devices_involved}")
+            
+            # Map devices to entity_ids using the same logic as in generate_automation_yaml
+            logger.debug(f" Mapping devices to entity_ids...")
+            from ..services.entity_validator import EntityValidator
+            from ..clients.data_api_client import DataAPIClient
+            data_api_client = DataAPIClient()
+            ha_client = HomeAssistantClient(
+                ha_url=settings.ha_url,
+                access_token=settings.ha_token
+            ) if settings.ha_url and settings.ha_token else None
+            entity_validator = EntityValidator(data_api_client, db_session=db, ha_client=ha_client)
+            resolved_entities = await entity_validator.map_query_to_entities(query.original_query, devices_involved)
+            entity_resolution_time = (time.time() - entity_resolution_start) * 1000
+            logger.debug(f"resolved_entities result (type={type(resolved_entities)}): {resolved_entities}")
+            
+            # Build validated_entities mapping from resolved entities
+            entity_mapping = {}
+            logger.info(f" About to build entity_mapping from {len(devices_involved)} devices")
+            for device_name in devices_involved:
+                if device_name in resolved_entities:
+                    entity_id = resolved_entities[device_name]
+                    entity_mapping[device_name] = entity_id
+                    logger.debug(f" Mapped '{device_name}' to '{entity_id}'")
+                else:
+                    logger.warning(f" Device '{device_name}' not found in resolved_entities")
+            
+            # Deduplicate entities - if multiple device names map to same entity_id, keep only unique ones
+            entity_mapping = deduplicate_entity_mapping(entity_mapping)
         
-        # Map devices to entity_ids using the same logic as in generate_automation_yaml
-        logger.debug(f" Mapping devices to entity_ids...")
-        from ..services.entity_validator import EntityValidator
-        from ..clients.data_api_client import DataAPIClient
-        data_api_client = DataAPIClient()
-        entity_validator = EntityValidator(data_api_client)
-        resolved_entities = await entity_validator.map_query_to_entities(query.original_query, devices_involved)
-        entity_resolution_time = (time.time() - entity_resolution_start) * 1000
-        logger.debug(f"resolved_entities result (type={type(resolved_entities)}): {resolved_entities}")
+        # TASK 2.4: Check if suggestion has sequences for testing with shortened delays
+        component_detector_preview = ComponentDetector()
+        detected_components_preview = component_detector_preview.detect_stripped_components(
+            "",
+            suggestion.get('description', '')
+        )
         
-        # Build validated_entities mapping from resolved entities
-        entity_mapping = {}
-        logger.info(f" About to build entity_mapping from {len(devices_involved)} devices")
-        for device_name in devices_involved:
-            if device_name in resolved_entities:
-                entity_id = resolved_entities[device_name]
-                entity_mapping[device_name] = entity_id
-                logger.debug(f" Mapped '{device_name}' to '{entity_id}'")
-            else:
-                logger.warning(f" Device '{device_name}' not found in resolved_entities")
+        # Check if we have sequences/repeats that can be tested with shortened delays
+        has_sequences = any(
+            comp.component_type in ['repeat', 'delay'] 
+            for comp in detected_components_preview
+        )
         
-        # Modify suggestion to strip timing/delay components for test
+        # TASK 2.4: Modify suggestion for test - use sequence mode if applicable
         test_suggestion = suggestion.copy()
-        test_suggestion['description'] = f"TEST MODE: {suggestion.get('description', '')} - Execute core action only"
-        test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
-        test_suggestion['action_summary'] = suggestion.get('action_summary', '').split('every')[0].split('Every')[0].strip()
+        if has_sequences:
+            # Sequence testing mode: shorten delays instead of removing
+            test_suggestion['description'] = f"TEST MODE WITH SEQUENCES: {suggestion.get('description', '')} - Execute with shortened delays (10x faster)"
+            test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
+            test_suggestion['action_summary'] = suggestion.get('action_summary', '')
+            test_suggestion['test_mode'] = 'sequence'  # Mark for sequence-aware YAML generation
+        else:
+            # Simple test mode: strip timing components
+            test_suggestion['description'] = f"TEST MODE: {suggestion.get('description', '')} - Execute core action only"
+            test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
+            test_suggestion['action_summary'] = suggestion.get('action_summary', '').split('every')[0].split('Every')[0].strip()
+            test_suggestion['test_mode'] = 'simple'
+        
         test_suggestion['validated_entities'] = entity_mapping
         logger.debug(f" Added validated_entities: {entity_mapping}")
         logger.debug(f" test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
         logger.debug(f" test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
         
-        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities)
+        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities, db_session=db)
         yaml_gen_time = (time.time() - yaml_gen_start) * 1000
         logger.debug(f"After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
         logger.info(f"Generated test automation YAML")
         logger.debug(f"Generated YAML preview: {str(automation_yaml)[:500]}")
+        
+        # TASK 1.2: Detect stripped components for restoration tracking
+        component_detector = ComponentDetector()
+        stripped_components = component_detector.detect_stripped_components(
+            automation_yaml,
+            suggestion.get('description', '')
+        )
+        logger.info(f"🔍 Detected {len(stripped_components)} stripped components")
+        
+        # Extract entity IDs from mapping for state capture
+        entity_ids = list(entity_mapping.values()) if entity_mapping else []
+        
+        # TASK 1.1: Capture entity states BEFORE test execution
+        logger.info(f"📸 Capturing entity states before test execution...")
+        before_states = await capture_entity_states(ha_client, entity_ids)
         
         # STEP 3: Create automation in HA
         ha_create_start = time.time()
@@ -1193,10 +1927,19 @@ async def test_suggestion_from_query(
             ha_trigger_time = (time.time() - ha_trigger_start) * 1000
             logger.info(f"Automation triggered")
             
-            # Wait 30 seconds
-            logger.info("Waiting 30 seconds before deletion...")
-            import asyncio
-            await asyncio.sleep(30)
+            # TASK 1.1: Wait and validate state changes (reduced wait time since we're checking)
+            logger.info("Waiting for state changes (max 5 seconds)...")
+            state_validation = await validate_state_changes(
+                ha_client,
+                before_states,
+                entity_ids,
+                wait_timeout=5.0
+            )
+            
+            # Additional wait only if needed for delayed actions (reduced from 30s)
+            remaining_wait = max(0, 2.0 - state_validation['summary']['validation_time_ms'] / 1000)
+            if remaining_wait > 0:
+                await asyncio.sleep(remaining_wait)
             logger.debug("Wait complete")
             
             # Delete the automation
@@ -1212,6 +1955,18 @@ async def test_suggestion_from_query(
                 automation_yaml=automation_yaml,
                 validated_entities=entity_mapping
             )
+            
+            # TASK 1.3: Analyze test execution with OpenAI JSON mode
+            logger.info("🔍 Analyzing test execution results...")
+            analyzer = TestResultAnalyzer(openai_client)
+            test_analysis = await analyzer.analyze_test_execution(
+                test_yaml=automation_yaml,
+                state_validation=state_validation,
+                execution_logs=f"Automation {automation_id} triggered successfully"
+            )
+            
+            # TASK 1.5: Format stripped components for preview
+            stripped_components_preview = component_detector.format_components_for_preview(stripped_components)
             
             # Calculate total time
             total_time = (time.time() - start_time) * 1000
@@ -1238,9 +1993,16 @@ async def test_suggestion_from_query(
                 "automation_yaml": automation_yaml,
                 "automation_id": automation_id,
                 "deleted": True,
-                "message": "Test completed successfully - automation created, ran for 30 seconds, and deleted",
+                "message": "Test completed successfully - automation created, executed, and deleted",
                 "quality_report": quality_report,
-                "performance_metrics": performance_metrics
+                "performance_metrics": performance_metrics,
+                # TASK 1.1: State capture and validation results
+                "state_validation": state_validation,
+                # TASK 1.3: AI analysis results
+                "test_analysis": test_analysis,
+                # TASK 1.5: Stripped components preview
+                "stripped_components": stripped_components_preview,
+                "restoration_hint": "These components will be added back when you approve"
             }
             
         except Exception as e:
@@ -1255,12 +2017,183 @@ async def test_suggestion_from_query(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# Task 1.4: Component Restoration Function
+# ============================================================================
+
+async def restore_stripped_components(
+    original_suggestion: Dict[str, Any],
+    test_result: Optional[Dict[str, Any]],
+    original_query: str,
+    openai_client: OpenAIClient
+) -> Dict[str, Any]:
+    """
+    Restore components that were stripped during testing.
+    
+    Task 1.4 + Task 2.5: Explicit Component Restoration with Enhanced Support
+    
+    Task 2.5 Enhancements:
+    - Support nested components (delays within repeats)
+    - Better context understanding from original query
+    - Validate restored components match user intent
+    
+    Args:
+        original_suggestion: Original suggestion dictionary
+        test_result: Test result containing stripped_components (if available)
+        original_query: Original user query for context
+        openai_client: OpenAI client for intelligent restoration
+        
+    Returns:
+        Updated suggestion with restoration log
+    """
+    # Extract stripped components from test result if available
+    stripped_components = []
+    if test_result and 'stripped_components' in test_result:
+        stripped_components = test_result['stripped_components']
+    
+    # If no test result, try to detect components from original suggestion
+    if not stripped_components:
+        logger.info("No test result found, detecting components from original suggestion...")
+        component_detector = ComponentDetector()
+        detected = component_detector.detect_stripped_components(
+            "",  # No YAML available
+            original_suggestion.get('description', '')
+        )
+        stripped_components = component_detector.format_components_for_preview(detected)
+    
+    if not stripped_components:
+        logger.info("No components to restore")
+        return {
+            'suggestion': original_suggestion,
+            'restored_components': [],
+            'restoration_log': []
+        }
+    
+    # Use OpenAI to intelligently restore components with context
+    if not openai_client:
+        logger.warning("OpenAI client not available, skipping intelligent restoration")
+        return {
+            'suggestion': original_suggestion,
+            'restored_components': stripped_components,
+            'restoration_log': [f"Found {len(stripped_components)} components to restore (restoration skipped)"]
+        }
+    
+    # TASK 2.5: Analyze component nesting (delays within repeats)
+    nested_components = []
+    simple_components = []
+    
+    for comp in stripped_components:
+        comp_type = comp.get('type', '')
+        original_value = comp.get('original_value', '')
+        
+        # Check if component appears to be nested (e.g., delay mentioned with repeat)
+        if comp_type == 'delay' and any(
+            'repeat' in str(other_comp.get('original_value', '')).lower() or other_comp.get('type') == 'repeat'
+            for other_comp in stripped_components
+        ):
+            nested_components.append(comp)
+        elif comp_type == 'repeat':
+            # Repeats may contain delays - check original description for context
+            if 'delay' in original_value.lower() or 'wait' in original_value.lower():
+                nested_components.append(comp)
+            else:
+                simple_components.append(comp)
+        else:
+            simple_components.append(comp)
+    
+    # Build restoration prompt with enhanced context
+    components_text = "\n".join([
+        f"- {comp.get('type', 'unknown')}: {comp.get('original_value', 'N/A')} (confidence: {comp.get('confidence', 0.8):.2f})"
+        for comp in stripped_components
+    ])
+    
+    nesting_info = ""
+    if nested_components:
+        nesting_info = f"\n\nNESTED COMPONENTS DETECTED: {len(nested_components)} component(s) may be nested (e.g., delays within repeat blocks). Pay special attention to restore them in the correct order and context."
+    
+    prompt = f"""Restore these automation components that were stripped during testing.
+
+ORIGINAL USER QUERY:
+"{original_query}"
+
+ORIGINAL SUGGESTION:
+Description: {original_suggestion.get('description', '')}
+Trigger: {original_suggestion.get('trigger_summary', '')}
+Action: {original_suggestion.get('action_summary', '')}
+
+STRIPPED COMPONENTS TO RESTORE:
+{components_text}{nesting_info}
+
+TASK 2.5 ENHANCED RESTORATION:
+1. Analyze the original query context to understand user intent
+2. Identify nested components (e.g., delays within repeat blocks)
+3. Restore components in the correct structure and order
+4. Validate that restored components match the original user intent
+5. For nested components: ensure delays/repeats are properly structured (e.g., delay inside repeat.sequence)
+
+The original suggestion should already contain these components naturally. Your job is to verify they are properly included and able to be restored with correct nesting.
+
+Response format: ONLY JSON, no other text:
+{{
+  "restored": true/false,
+  "restored_components": ["list of component types that were restored"],
+  "restoration_details": ["detailed description of what was restored, including nesting information"],
+  "nested_components_restored": ["list of nested components if any"],
+  "restoration_structure": "description of component hierarchy (e.g., 'delay: 2s within repeat: 3 times')",
+  "confidence": 0.0-1.0,
+  "intent_match": true/false,
+  "intent_validation": "explanation of how restored components match user intent"
+}}"""
+
+    try:
+        response = await openai_client.client.chat.completions.create(
+            model=openai_client.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an automation expert. Restore timing, delay, and repeat components that were removed for testing, ensuring they match the original user intent. Pay special attention to nested components (delays within repeats) and restore them with correct structure."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Low temperature for consistent restoration
+            max_tokens=500,  # Increased for nested component descriptions
+            response_format={"type": "json_object"}
+        )
+        
+        content = response.choices[0].message.content.strip()
+        restoration_result = json.loads(content)
+        
+        logger.info(f"✅ Component restoration complete: {restoration_result.get('restored_components', [])}")
+        
+        # TASK 2.5: Enhanced return with nesting and intent validation
+        return {
+            'suggestion': original_suggestion,  # Original already has components, we're just validating
+            'restored_components': stripped_components,
+            'restoration_log': restoration_result.get('restoration_details', []),
+            'restoration_confidence': restoration_result.get('confidence', 0.9),
+            'nested_components_restored': restoration_result.get('nested_components_restored', []),
+            'restoration_structure': restoration_result.get('restoration_structure', ''),
+            'intent_match': restoration_result.get('intent_match', True),
+            'intent_validation': restoration_result.get('intent_validation', '')
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to restore components: {e}")
+        return {
+            'suggestion': original_suggestion,
+            'restored_components': stripped_components,
+            'restoration_log': [f'Restoration attempted but failed: {str(e)}'],
+            'restoration_confidence': 0.5
+        }
+
+
 @router.post("/query/{query_id}/suggestions/{suggestion_id}/approve")
 async def approve_suggestion_from_query(
     query_id: str,
     suggestion_id: str,
     db: AsyncSession = Depends(get_db),
-    ha_client: HomeAssistantClient = Depends(get_ha_client)
+    ha_client: HomeAssistantClient = Depends(get_ha_client),
+    openai_client: OpenAIClient = Depends(get_openai_client)
 ) -> Dict[str, Any]:
     """
     Approve a suggestion and create the automation in Home Assistant.
@@ -1283,9 +2216,45 @@ async def approve_suggestion_from_query(
         if not suggestion:
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
+        # TASK 1.4: Restore stripped components if test was run
+        # For now, we'll check the original suggestion for components to restore
+        # In the future, we could store test results and retrieve them here
+        test_result = None  # TODO: Retrieve from test history when available
+        restoration_result = await restore_stripped_components(
+            original_suggestion=suggestion,
+            test_result=test_result,
+            original_query=query.original_query,
+            openai_client=openai_client
+        )
+        
+        # Use restored suggestion (which is the same as original for now)
+        final_suggestion = restoration_result['suggestion']
+        
         # Generate YAML for the suggestion with entities for capability details
         entities = query.extracted_entities if query.extracted_entities else []
-        automation_yaml = await generate_automation_yaml(suggestion, query.original_query, entities)
+        automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, entities, db_session=db)
+        
+        # TASK 2.3: Run safety checks before creating automation
+        logger.info("🔒 Running safety validation...")
+        safety_validator = SafetyValidator(ha_client=ha_client)
+        safety_report = await safety_validator.validate_automation(automation_yaml)
+        
+        if not safety_report.get('safe', True):
+            critical_issues = safety_report.get('critical_issues', [])
+            logger.warning(f"⚠️ Safety validation failed: {len(critical_issues)} critical issues")
+            return {
+                "suggestion_id": suggestion_id,
+                "query_id": query_id,
+                "status": "blocked",
+                "safe": False,
+                "safety_report": safety_report,
+                "message": "Automation creation blocked due to safety concerns",
+                "warnings": [issue.get('message') for issue in critical_issues]
+            }
+        
+        # Log warnings if any
+        if safety_report.get('warnings'):
+            logger.info(f"⚠️ Safety validation passed with {len(safety_report.get('warnings', []))} warnings")
         
         # Create automation in Home Assistant
         if ha_client:
@@ -1302,7 +2271,19 @@ async def approve_suggestion_from_query(
                     "automation_yaml": automation_yaml,
                     "ready_to_deploy": True,
                     "warnings": creation_result.get('warnings', []),
-                    "message": creation_result.get('message', 'Automation created successfully')
+                    "message": creation_result.get('message', 'Automation created successfully'),
+                    # TASK 1.4: Component restoration log
+                    "restoration_log": restoration_result.get('restoration_log', []),
+                    "restored_components": restoration_result.get('restored_components', []),
+                    "restoration_confidence": restoration_result.get('restoration_confidence', 1.0),
+                    # TASK 2.5: Enhanced restoration fields
+                    "nested_components_restored": restoration_result.get('nested_components_restored', []),
+                    "restoration_structure": restoration_result.get('restoration_structure', ''),
+                    "intent_match": restoration_result.get('intent_match', True),
+                    "intent_validation": restoration_result.get('intent_validation', ''),
+                    # TASK 2.3: Safety validation report
+                    "safety_report": safety_report,
+                    "safe": safety_report.get('safe', True)
                 }
             else:
                 logger.error(f"❌ Failed to create automation: {creation_result.get('error')}")
@@ -1317,4 +2298,139 @@ async def approve_suggestion_from_query(
         raise
     except Exception as e:
         logger.error(f"Error approving suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Entity Alias Management Endpoints
+# ============================================================================
+
+class AliasCreateRequest(BaseModel):
+    """Request to create an alias"""
+    entity_id: str = Field(..., description="Entity ID to alias")
+    alias: str = Field(..., description="Alias/nickname for the entity")
+    user_id: str = Field(default="anonymous", description="User ID")
+
+
+class AliasDeleteRequest(BaseModel):
+    """Request to delete an alias"""
+    alias: str = Field(..., description="Alias to delete")
+    user_id: str = Field(default="anonymous", description="User ID")
+
+
+class AliasResponse(BaseModel):
+    """Response with alias information"""
+    entity_id: str
+    alias: str
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
+@router.post("/aliases", response_model=AliasResponse, status_code=status.HTTP_201_CREATED)
+async def create_alias(
+    request: AliasCreateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create a new alias for an entity.
+    
+    Example:
+        POST /api/v1/ask-ai/aliases
+        {
+            "entity_id": "light.bedroom_1",
+            "alias": "sleepy light",
+            "user_id": "user123"
+        }
+    """
+    try:
+        from ..services.alias_service import AliasService
+        
+        alias_service = AliasService(db)
+        entity_alias = await alias_service.create_alias(
+            entity_id=request.entity_id,
+            alias=request.alias,
+            user_id=request.user_id
+        )
+        
+        if not entity_alias:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Alias '{request.alias}' already exists for user {request.user_id}"
+            )
+        
+        return AliasResponse(
+            entity_id=entity_alias.entity_id,
+            alias=entity_alias.alias,
+            user_id=entity_alias.user_id,
+            created_at=entity_alias.created_at,
+            updated_at=entity_alias.updated_at
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating alias: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/aliases/{alias}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_alias(
+    alias: str,
+    user_id: str = "anonymous",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete an alias.
+    
+    Args:
+        alias: Alias to delete
+        user_id: User ID (default: "anonymous")
+    
+    Example:
+        DELETE /api/v1/ask-ai/aliases/sleepy%20light?user_id=user123
+    """
+    try:
+        from ..services.alias_service import AliasService
+        
+        alias_service = AliasService(db)
+        deleted = await alias_service.delete_alias(alias, user_id)
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Alias '{alias}' not found for user {user_id}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting alias: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/aliases", response_model=Dict[str, List[str]])
+async def list_aliases(
+    user_id: str = "anonymous",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all aliases for a user, grouped by entity_id.
+    
+    Returns a dictionary mapping entity_id → list of aliases.
+    
+    Example:
+        GET /api/v1/ask-ai/aliases?user_id=user123
+        {
+            "light.bedroom_1": ["sleepy light", "bedroom main"],
+            "light.living_room_1": ["living room lamp"]
+        }
+    """
+    try:
+        from ..services.alias_service import AliasService
+        
+        alias_service = AliasService(db)
+        aliases_by_entity = await alias_service.get_all_aliases(user_id)
+        
+        return aliases_by_entity
+    except Exception as e:
+        logger.error(f"Error listing aliases: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

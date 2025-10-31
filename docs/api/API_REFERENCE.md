@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** October 27, 2025  
-**API Version:** v4.1  
+**Last Updated:** October 29, 2025  
+**API Version:** v4.2  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Enhanced AI automation prompts with full device capability details
+**Recent Updates:** Entity resolution enhancements (fuzzy matching, blocking, user aliases)
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -818,6 +818,58 @@ Test a suggestion from a query.
 #### POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/approve
 Approve specific suggestion from a query.
 
+### Entity Alias Management (October 2025)
+
+User-defined aliases allow personalized nicknames for devices (e.g., "sleepy light" → light.bedroom_1).
+
+#### POST /api/v1/ask-ai/aliases
+Create a new alias for an entity.
+
+**Request:**
+```json
+{
+  "entity_id": "light.bedroom_1",
+  "alias": "sleepy light",
+  "user_id": "user123"
+}
+```
+
+**Response:**
+```json
+{
+  "entity_id": "light.bedroom_1",
+  "alias": "sleepy light",
+  "user_id": "user123",
+  "created_at": "2025-10-29T12:00:00Z",
+  "updated_at": "2025-10-29T12:00:00Z"
+}
+```
+
+#### DELETE /api/v1/ask-ai/aliases/{alias}
+Delete an alias.
+
+**Query Parameters:**
+- `user_id` (optional, default: "anonymous"): User ID
+
+**Example:**
+```bash
+DELETE /api/v1/ask-ai/aliases/sleepy%20light?user_id=user123
+```
+
+#### GET /api/v1/ask-ai/aliases
+List all aliases for a user, grouped by entity_id.
+
+**Query Parameters:**
+- `user_id` (optional, default: "anonymous"): User ID
+
+**Response:**
+```json
+{
+  "light.bedroom_1": ["sleepy light", "bedroom main"],
+  "light.living_room_1": ["living room lamp"]
+}
+```
+
 ### Deployment & Management
 
 #### POST /api/deploy/{suggestion_id}
@@ -1145,8 +1197,8 @@ setInterval(updateDashboard, 5000);
 
 ---
 
-**Document Version:** 4.0  
-**Last Updated:** October 20, 2025  
+**Document Version:** 4.2  
+**Last Updated:** October 29, 2025  
 **Status:** ✅ Production Ready  
 **Maintained By:** HA Ingestor Team
 

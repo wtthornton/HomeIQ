@@ -119,7 +119,8 @@ Guidelines:
         self,
         query: str,
         entities: List[Dict],
-        output_mode: str = "suggestions"  # "suggestions" | "yaml"
+        output_mode: str = "suggestions",  # "suggestions" | "yaml"
+        entity_context_json: Optional[str] = None  # Enriched entity context JSON
     ) -> Dict[str, str]:
         """
         Build prompt for Ask AI query-based suggestion generation.
@@ -128,6 +129,7 @@ Guidelines:
             query: User's natural language query
             entities: List of detected entities with capabilities
             output_mode: "suggestions" for creative ideas, "yaml" for full automation
+            entity_context_json: Optional enriched entity context JSON from EntityContextBuilder
             
         Returns:
             Dictionary with "system_prompt" and "user_prompt" keys
@@ -139,6 +141,21 @@ Guidelines:
             logger.warning(f"Failed to build entity context section: {e}")
             entity_section = "No device information available."
         
+        # Add enriched entity context JSON if available
+        enriched_context_section = ""
+        if entity_context_json:
+            enriched_context_section = f"""
+
+ENRICHED ENTITY CONTEXT (Complete Entity Information):
+{entity_context_json}
+
+Use this enriched context to:
+- Distinguish between group entities and individual entities
+- Understand device capabilities and limitations
+- Generate automations that respect device types (e.g., don't control individual Hue lights when room group is available)
+- Create appropriate service calls based on entity attributes
+"""
+        
         # Generate capability-specific examples
         capability_examples = self._generate_capability_examples(entities)
         
@@ -148,28 +165,19 @@ Guidelines:
 Available devices and capabilities:
 {entity_section}
 
+{enriched_context_section}
+
 CAPABILITY-SPECIFIC AUTOMATION IDEAS:
 {capability_examples}
 
-CREATIVE EXAMPLES USING DEVICE CAPABILITIES:
-- Instead of basic "flash lights", consider: "Use LED notifications to flash red-blue pattern when door opens"
-- Instead of simple on/off, think: "Use smart bulb mode to create sunrise effect over 30 seconds"
-- Instead of basic control, consider: "Use auto-off timer to turn lights off after 10 minutes"
-- Combine capabilities: "Use LED notifications + smart bulb mode for color-coded door alerts"
-- Health-aware: "Prioritize devices with health_score > 80 for reliable automations"
-- Use device-specific features: "Leverage smart bulb color temperature changes for mood lighting"
-- Advanced patterns: "Create choreographed light sequences across multiple rooms"
-- Smart timing: "Use device auto-off timers combined with motion sensors for energy efficiency"
-
-CREATIVE EXAMPLES TO INSPIRE YOU:
-- Instead of just "flash lights when door opens", consider: "Flash all four office lights in sequence (left, right, back, front) when front door opens"
-- Instead of simple on/off, think: "Flash red for front door opening and blue for back door opening"
-- Combine multiple triggers: "Flash lights when BOTH front and garage doors open"
-- Add conditions: "Flash lights when door opens, but only after sunset"
-- Use different patterns: "Strobe lights rapidly for 3 seconds, then steady blue for 10 seconds"
-- Consider device combinations: "Flash lights AND play door chime when front door opens"
-- Advanced sequences: "Create a 'welcome home' sequence: garage door opens → lights fade on → music starts → temperature adjusts"
-- Smart interactions: "Use device health scores to create fallback automations for unreliable devices"
+CRITICAL: DEVICE NAMING REQUIREMENTS:
+- ONLY use devices that are listed in the "Available devices and capabilities" section OR the "ENRICHED ENTITY CONTEXT" section above
+- Count how many devices are actually available - DO NOT assume a specific number
+- Use ACTUAL device friendly names from the enriched entity context JSON - DO NOT make up generic names like "Device 1" or "office lights"
+- Reference devices by their EXACT friendly_name from the entities list
+- If the enriched context shows 6 individual lights, list all 6 with their actual names
+- DO NOT use group entity names unless the enriched context shows it's a group entity
+- Example: If enriched context shows ["Office light 1", "Office light 2", "Office light 3"], use those exact names
 
 Generate 3-5 {output_mode} that PROGRESS from CLOSE to your request → to CRAZY CREATIVE ideas:
 
@@ -202,37 +210,11 @@ IMPORTANT: Return your response as a JSON array of suggestion objects, each with
 - description: A detailed description of the automation
 - trigger_summary: What triggers the automation
 - action_summary: What actions will be performed
-- devices_involved: Array of device names
+- devices_involved: Array of device names - MUST use EXACT friendly_name values from the enriched entity context JSON above
 - capabilities_used: Array of device capabilities being used
 - confidence: A confidence score between 0 and 1 (higher for conservative, lower for creative)
 
-Example JSON structure showing the progression:
-[
-  {{
-    "description": "Direct: Turn on kitchen lights when door opens",
-    "trigger_summary": "Front door opens",
-    "action_summary": "Turn on kitchen lights",
-    "devices_involved": ["Kitchen lights"],
-    "capabilities_used": ["Power state"],
-    "confidence": 0.95
-  }},
-  {{
-    "description": "Enhanced: Flash kitchen lights briefly when door opens to notify without staying on",
-    "trigger_summary": "Front door opens",
-    "action_summary": "Flash lights for 2 seconds, then turn off",
-    "devices_involved": ["Kitchen lights"],
-    "capabilities_used": ["LED notifications", "Auto-off timer"],
-    "confidence": 0.85
-  }},
-  {{
-    "description": "Creative: Color-coded door alerts with fading brightness - red for front door, blue for back door, sequenced patterns",
-    "trigger_summary": "Any door opens",
-    "action_summary": "Flash color-coded LED notifications that fade from bright to dim over 5 seconds in sequence",
-    "devices_involved": ["Kitchen lights", "Living room lights"],
-    "capabilities_used": ["LED notifications", "Brightness control", "Color control", "Sequential patterns"],
-    "confidence": 0.75
-  }}
-]"""
+CRITICAL: For devices_involved, extract the exact "friendly_name" values from the enriched entity context JSON. Do NOT invent generic names like "Device 1" or "office lights". Use the actual device names from the entities array in the enriched context."""
 
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,

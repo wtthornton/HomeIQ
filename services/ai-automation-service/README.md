@@ -48,6 +48,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🔍 Entity discovery and capability analysis
 - 💡 Intelligent suggestion generation
 - 🎯 Context-aware recommendations
+- 🎨 **Enhanced Entity Resolution** - Multi-signal matching with fuzzy search, blocking, and user aliases
 
 ## Quick Start
 
@@ -128,6 +129,11 @@ docker-compose up -d ai-automation-service
 - `GET /api/v1/ask-ai/query/{id}/suggestions` - Get query suggestions
 - `POST /api/v1/ask-ai/query/{id}/suggestions/{id}/test` - Test suggestion
 - `POST /api/v1/ask-ai/query/{id}/suggestions/{id}/approve` - Approve suggestion
+
+### Entity Alias Management
+- `POST /api/v1/ask-ai/aliases` - Create alias for entity (e.g., "sleepy light" → light.bedroom_1)
+- `DELETE /api/v1/ask-ai/aliases/{alias}` - Delete alias
+- `GET /api/v1/ask-ai/aliases` - List all aliases for user
 
 ### Deployment & Management
 - `POST /api/deploy/{id}` - Deploy approved suggestion to Home Assistant
@@ -217,9 +223,17 @@ The complete call tree documentation provides exhaustive detail on every phase:
 - Tests: `tests/test_nlevel_*.py`
 
 ### Database
-- **SQLite**: Patterns, suggestions, device capabilities, feature usage, synergies, embeddings
+- **SQLite**: Patterns, suggestions, device capabilities, feature usage, synergies, embeddings, entity aliases
 - **Alembic migrations**: `alembic/versions/`
 - **Models**: `src/database/models.py`
+- **New Tables**: `entity_aliases` (user-defined nicknames for entities)
+
+### Entity Resolution Enhancements
+- **Multi-Signal Matching**: Combines embeddings (35%), exact matches (30%), fuzzy matching (15%), numbered devices (15%), and location (5%)
+- **Fuzzy String Matching**: Handles typos and abbreviations using rapidfuzz (e.g., "office lite" → "office light")
+- **Enhanced Blocking**: Domain and location filtering reduces candidate entities by 90-95% before ML matching
+- **User Aliases**: Create personalized names for entities (e.g., "sleepy light" → light.bedroom_1)
+- **Additional Metadata**: Leverages `name_by_user`, `suggested_area`, and `integration` from device registry
 
 ## Testing
 
