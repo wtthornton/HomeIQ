@@ -649,12 +649,19 @@ async def approve_suggestion(
         if not suggestion:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         
-        # Step 2: Verify status
-        if suggestion.status not in ['draft', 'refining']:
+        # Step 2: Verify status (allow re-approving deployed suggestions for updates)
+        # Note: 'approved' status is set after YAML generation, so it should be allowed for re-deployment
+        if suggestion.status not in ['draft', 'refining', 'deployed', 'yaml_generated', 'approved']:
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot approve suggestion in '{suggestion.status}' status"
             )
+        
+        # If already deployed, this is a re-deploy (regenerate YAML and update)
+        # Include 'approved' status since it means YAML was generated but may need re-deployment
+        is_redeploy = suggestion.status in ['deployed', 'yaml_generated', 'approved']
+        if is_redeploy:
+            logger.info(f"🔄 Re-deploying suggestion {suggestion_id} - regenerating YAML with latest logic")
         
         # Use final_description if provided, otherwise use the current description_only
         description_to_use = request.final_description or suggestion.description_only or suggestion.description or ""
@@ -749,8 +756,37 @@ async def approve_suggestion(
         deployment_error = None
         if ha_client:
             try:
-                logger.info(f"🚀 Deploying automation to Home Assistant for suggestion {suggestion_id}")
-                deployment_result = await ha_client.deploy_automation(automation_yaml=automation_yaml)
+                # If re-deploying, ensure YAML has the correct automation ID for updates
+                if is_redeploy and suggestion.ha_automation_id:
+                    existing_automation_id = suggestion.ha_automation_id
+                    logger.info(f"🔄 Re-deploying automation {existing_automation_id} to Home Assistant")
+                    
+                    # Parse YAML and ensure it has the correct ID for updating
+                    import yaml
+                    automation_data = yaml.safe_load(automation_yaml)
+                    if isinstance(automation_data, dict):
+                        # Extract ID from entity_id (e.g., "automation.test" -> "test")
+                        # Try to preserve the original ID if present, otherwise extract from entity_id
+                        entity_id_parts = existing_automation_id.replace('automation.', '').split('.')
+                        base_id = entity_id_parts[-1] if entity_id_parts else None
+                        
+                        # If YAML doesn't have an 'id', try to set it from the existing automation
+                        # Note: This is a best-effort approach - HA may use the alias for matching
+                        if 'id' not in automation_data and base_id:
+                            # Use create_automation which handles updates properly
+                            deployment_result = await ha_client.create_automation(automation_yaml)
+                        else:
+                            # YAML has an ID, use create_automation which will update if ID exists
+                            deployment_result = await ha_client.create_automation(automation_yaml)
+                    else:
+                        # Fallback to deploy_automation if YAML parsing fails
+                        deployment_result = await ha_client.deploy_automation(
+                            automation_yaml=automation_yaml,
+                            automation_id=existing_automation_id
+                        )
+                else:
+                    logger.info(f"🚀 Deploying automation to Home Assistant for suggestion {suggestion_id}")
+                    deployment_result = await ha_client.deploy_automation(automation_yaml=automation_yaml)
                 
                 if deployment_result.get('success'):
                     automation_id = deployment_result.get('automation_id')
@@ -932,6 +968,49 @@ def _generate_use_cases(capabilities: Dict) -> List[str]:
     return use_cases if use_cases else [f"Control {device_name}"]
 
 
+
+
+@router.get("/by-automation/{automation_id}", response_model=Dict[str, Any])
+async def get_suggestion_by_automation_id(
+    automation_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get suggestion by Home Assistant automation ID.
+    Used for re-deploy functionality from Deployed page.
+    """
+    logger.info(f"📖 Get suggestion by automation_id: {automation_id}")
+    
+    try:
+        result = await db.execute(
+            select(SuggestionModel).where(SuggestionModel.ha_automation_id == automation_id)
+        )
+        suggestion = result.scalar_one_or_none()
+        
+        if not suggestion:
+            raise HTTPException(status_code=404, detail=f"Suggestion not found for automation_id: {automation_id}")
+        
+        return {
+            "id": suggestion.id,
+            "suggestion_id": f"suggestion-{suggestion.id}",
+            "title": suggestion.title,
+            "description": suggestion.description_only or suggestion.description,
+            "description_only": suggestion.description_only or suggestion.description,
+            "status": suggestion.status,
+            "ha_automation_id": suggestion.ha_automation_id,
+            "automation_yaml": suggestion.automation_yaml,
+            "conversation_history": suggestion.conversation_history or [],
+            "device_capabilities": suggestion.device_capabilities or {},
+            "refinement_count": suggestion.refinement_count or 0,
+            "confidence": suggestion.confidence,
+            "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
+            "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get suggestion by automation_id: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggestion: {str(e)}")
 
 
 @router.get("/{suggestion_id}", response_model=Dict[str, Any])

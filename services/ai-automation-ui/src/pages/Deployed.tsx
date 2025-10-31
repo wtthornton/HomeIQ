@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import api from '../services/api';
 
@@ -43,23 +44,56 @@ export const Deployed: React.FC = () => {
     try {
       if (currentState === 'on') {
         await api.disableAutomation(automationId);
-        alert(`✅ Disabled ${automationId}`);
+        toast.success(`✅ Disabled ${automationId}`);
       } else {
         await api.enableAutomation(automationId);
-        alert(`✅ Enabled ${automationId}`);
+        toast.success(`✅ Enabled ${automationId}`);
       }
       await loadAutomations(); // Refresh
     } catch (error) {
-      alert(`❌ Failed to toggle automation: ${error}`);
+      toast.error(`❌ Failed to toggle automation: ${error}`);
     }
   };
 
   const handleTrigger = async (automationId: string) => {
     try {
       await api.triggerAutomation(automationId);
-      alert(`✅ Triggered ${automationId}`);
+      toast.success(`✅ Triggered ${automationId}`);
     } catch (error) {
-      alert(`❌ Failed to trigger automation: ${error}`);
+      toast.error(`❌ Failed to trigger automation: ${error}`);
+    }
+  };
+
+  const handleRedeploy = async (automationId: string) => {
+    try {
+      toast.loading('🔄 Finding suggestion and regenerating YAML...', { id: `redeploy-${automationId}` });
+      
+      // Step 1: Find the suggestion by automation_id
+      const suggestion = await api.getSuggestionByAutomationId(automationId);
+      
+      if (!suggestion || !suggestion.id) {
+        throw new Error('Suggestion not found for this automation');
+      }
+      
+      toast.loading('🔄 Regenerating YAML with latest improvements...', { id: `redeploy-${automationId}` });
+      
+      // Step 2: Re-deploy (regenerate YAML and deploy)
+      // redeploySuggestion expects numeric ID, suggestion.id is already numeric from getSuggestionByAutomationId
+      const result = await api.redeploySuggestion(suggestion.id);
+      
+      toast.success(
+        `✅ Re-deployed successfully!\nNew YAML generated with latest improvements.\nSafety score: ${result.yaml_validation.safety_score}/100`,
+        { id: `redeploy-${automationId}`, duration: 6000 }
+      );
+      
+      // Refresh the list
+      await loadAutomations();
+    } catch (error: any) {
+      console.error('Failed to re-deploy:', error);
+      toast.error(
+        `❌ Re-deploy failed: ${error?.message || 'Unknown error'}`,
+        { id: `redeploy-${automationId}`, duration: 5000 }
+      );
     }
   };
 
@@ -165,6 +199,21 @@ export const Deployed: React.FC = () => {
                     }`}
                   >
                     ▶️ Trigger
+                  </motion.button>
+                  
+                  {/* Re-deploy Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleRedeploy(automation.entity_id)}
+                    className={`px-4 py-2 rounded-lg font-medium ${
+                      darkMode
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                        : 'bg-purple-500 hover:bg-purple-600 text-white'
+                    }`}
+                    title="Re-generate YAML with latest improvements and re-deploy"
+                  >
+                    🔄 Re-deploy
                   </motion.button>
                 </div>
               </div>
