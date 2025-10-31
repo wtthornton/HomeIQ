@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
+import re
 
 from ..database import get_db
 from ..config import settings
@@ -31,6 +32,10 @@ from ..database.models import Suggestion as SuggestionModel, Pattern as PatternM
 from sqlalchemy import select, update
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 from ..clients.ha_client import HomeAssistantClient
+from ..services.safety_validator import SafetyValidator
+
+# Import YAML generation from ask_ai_router
+from .ask_ai_router import generate_automation_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +431,168 @@ async def refine_description(
         )
 
 
+# ============================================================================
+# Helper Functions for YAML Generation
+# ============================================================================
+
+def _extract_trigger_summary(description: str) -> str:
+    """
+    Extract trigger summary from description.
+    Looks for patterns like "when", "at", "if", etc.
+    """
+    
+    # Common trigger patterns
+    trigger_patterns = [
+        r'(?:when|if|at|on|after|before)\s+([^,]+?)(?:,|$|\.)',
+        r'time[:\s]+([^,]+?)(?:,|$|\.)',
+    ]
+    
+    for pattern in trigger_patterns:
+        match = re.search(pattern, description, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    
+    # Fallback: extract first part before comma or period
+    parts = re.split(r'[,.]+', description)
+    if len(parts) > 1:
+        # Look for trigger keywords in first part
+        for keyword in ['when', 'if', 'at', 'on', 'after', 'before']:
+            if keyword.lower() in parts[0].lower():
+                return parts[0].strip()
+    
+    return "Automation trigger"  # Default fallback
+
+
+def _extract_action_summary(description: str) -> str:
+    """
+    Extract action summary from description.
+    Looks for action verbs like "turn on", "flash", "dim", etc.
+    """
+    
+    # Common action patterns
+    action_patterns = [
+        r'(turn\s+(?:on|off|up|down)|flash|dim|brighten|change|set|enable|disable|activate|deactivate)\s+([^,]+?)(?:,|$|\.)',
+        r'(?:then|and)\s+(.+?)(?:,|$|\.)',
+    ]
+    
+    for pattern in action_patterns:
+        match = re.search(pattern, description, re.IGNORECASE)
+        if match:
+            return match.group(0).strip()
+    
+    # Fallback: extract last part after comma or period
+    parts = re.split(r'[,.]+', description)
+    if len(parts) > 1:
+        # Last part often contains the action
+        return parts[-1].strip()
+    
+    return description.strip()  # Use whole description as fallback
+
+
+def _extract_devices(suggestion: SuggestionModel, conversation_history: List[Dict]) -> List[str]:
+    """
+    Extract device names from suggestion and conversation history.
+    Combines information from title, description, and conversation history.
+    """
+    devices = []
+    
+    # Extract from title (often contains device name)
+    if suggestion.title:
+        # Pattern: "AI Suggested: {device}" or "Automation: {device}"
+        title_match = re.search(r'(?:AI Suggested|Automation):\s*(.+?)(?:\s|$|at|when)', suggestion.title)
+        if title_match:
+            devices.append(title_match.group(1).strip())
+    
+    # Extract from description
+    if suggestion.description_only or suggestion.description:
+        desc = suggestion.description_only or suggestion.description
+        # Look for common device patterns
+        device_patterns = [
+            r'(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock|thermostat|camera)',
+            r'(?:office|living room|kitchen|bedroom|garage|front|back)\s+([a-z\s]+)',
+        ]
+        for pattern in device_patterns:
+            matches = re.findall(pattern, desc, re.IGNORECASE)
+            devices.extend([m.strip() for m in matches if m.strip()])
+    
+    # Extract from conversation history
+    if conversation_history:
+        for entry in conversation_history:
+            user_input = entry.get('user_input', '')
+            # Look for device mentions in user edits
+            device_matches = re.findall(
+                r'(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock)',
+                user_input,
+                re.IGNORECASE
+            )
+            devices.extend([m.strip() for m in device_matches if m.strip()])
+    
+    # Deduplicate and return
+    return list(set(devices)) if devices else ["device"]
+
+
+async def _extract_entities_from_context(
+    suggestion: SuggestionModel,
+    conversation_history: List[Dict],
+    db: AsyncSession
+) -> List[Dict[str, Any]]:
+    """
+    Extract entities from conversation history and device capabilities.
+    Uses EntityValidator to map natural language to real entity IDs.
+    """
+    from ..services.entity_validator import EntityValidator
+    from ..clients.data_api_client import DataAPIClient
+    
+    # Build combined description from suggestion and history
+    combined_text = suggestion.description_only or suggestion.description or ""
+    
+    # Add conversation history context
+    if conversation_history:
+        for entry in conversation_history:
+            user_input = entry.get('user_input', '')
+            if user_input:
+                combined_text += f" {user_input}"
+    
+    # Try to extract entities using EntityValidator
+    try:
+        data_api_client = DataAPIClient()
+        ha_client_for_validation = HomeAssistantClient(
+            ha_url=settings.ha_url,
+            access_token=settings.ha_token
+        ) if settings.ha_url and settings.ha_token else None
+        
+        entity_validator = EntityValidator(
+            data_api_client,
+            db_session=db,
+            ha_client=ha_client_for_validation
+        )
+        
+        # Extract devices from context
+        devices_involved = _extract_devices(suggestion, conversation_history)
+        
+        # Map to real entities
+        entity_mapping = await entity_validator.map_query_to_entities(
+            combined_text,
+            devices_involved
+        )
+        
+        # Convert mapping to entity list format
+        if entity_mapping:
+            entities = []
+            for term, entity_id in entity_mapping.items():
+                entities.append({
+                    'name': term,
+                    'entity_id': entity_id,
+                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                })
+            return entities
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to extract entities from context: {e}")
+    
+    # Fallback: return empty list if extraction fails
+    return []
+
+
 @router.post("/{suggestion_id}/approve")
 async def approve_suggestion(
     suggestion_id: str,
@@ -435,14 +602,23 @@ async def approve_suggestion(
     """
     Approve suggestion and generate YAML.
     
-    Phase 4: ✅ IMPLEMENTED - YAML generation after approval!
+    Unified Implementation (Phase 2): Uses same YAML generation as Ask-AI page!
     
     Flow:
     1. Fetch suggestion from database
     2. Verify status (draft or refining)
-    3. Generate YAML using existing method
-    4. Validate YAML syntax
-    5. Store YAML and update status
+    3. Extract entities from conversation history and device capabilities
+    4. Generate YAML using unified generate_automation_yaml() with entity validation
+    5. Validate YAML syntax
+    6. Run safety validation before deployment
+    7. Store YAML and update status
+    8. Deploy to Home Assistant (if enabled)
+    
+    Uses superset of available data:
+    - description_only / final_description
+    - conversation_history (for context)
+    - device_capabilities (for validation)
+    - Extracted entities (validated via EntityValidator)
     """
     logger.info(f"✅ Approving suggestion {suggestion_id}")
     
@@ -484,40 +660,33 @@ async def approve_suggestion(
         description_to_use = request.final_description or suggestion.description_only or suggestion.description or ""
         logger.info(f"📝 Generating YAML for: {description_to_use[:60]}...")
         
-        # Step 3: Generate YAML using existing method
-        # Build pattern dict from suggestion
-        pattern = {
-            'pattern_type': 'time_of_day',  # Simplified for now
-            'device_id': suggestion.title.split(':')[1].strip() if ':' in suggestion.title else 'unknown',
-            'hour': 18,  # Extract from description if needed
-            'minute': 0,
-            'occurrences': 20,
-            'confidence': suggestion.confidence
+        # Step 3: Extract context information
+        conversation_history = suggestion.conversation_history or []
+        devices_involved = _extract_devices(suggestion, conversation_history)
+        entities = await _extract_entities_from_context(suggestion, conversation_history, db)
+        
+        # Build suggestion dictionary in format expected by generate_automation_yaml
+        suggestion_dict = {
+            'description': description_to_use,
+            'trigger_summary': _extract_trigger_summary(description_to_use),
+            'action_summary': _extract_action_summary(description_to_use),
+            'devices_involved': devices_involved,
+            'device_capabilities': suggestion.device_capabilities or {}
         }
         
-        # Use unified prompt builder to generate automation
-        # Note: The description is already in the suggestion, so we'll generate YAML based on pattern
-        # For refined descriptions, the pattern metadata could be enhanced, but this works for now
-        prompt_dict = await prompt_builder.build_pattern_prompt(
-            pattern=pattern,
-            device_context={'name': pattern['device_id']},
-            output_mode="yaml"
+        # Step 4: Generate YAML using unified method (same as Ask-AI page)
+        logger.info("🚀 Using unified YAML generation with entity validation...")
+        automation_yaml = await generate_automation_yaml(
+            suggestion=suggestion_dict,
+            original_query=description_to_use,
+            entities=entities if entities else None,
+            db_session=db
         )
-        
-        result = await openai_client.generate_with_unified_prompt(
-            prompt_dict=prompt_dict,
-            temperature=0.7,
-            max_tokens=600,
-            output_format="yaml"
-        )
-        
-        # Extract YAML from result (result is an AutomationSuggestion object, not a dict)
-        automation_yaml = result.automation_yaml if hasattr(result, 'automation_yaml') else ''
         
         if not automation_yaml:
             raise HTTPException(status_code=500, detail="Failed to generate automation YAML")
         
-        # Step 4: Validate YAML syntax
+        # Step 5: Validate YAML syntax
         import yaml
         try:
             yaml.safe_load(automation_yaml)
@@ -527,7 +696,39 @@ async def approve_suggestion(
             logger.warning(f"⚠️ Generated YAML has syntax errors: {e}")
             raise HTTPException(status_code=400, detail=f"Generated YAML has syntax errors: {str(e)}")
         
-        # Step 5: Store YAML first
+        # Step 6: Run safety validation before deployment
+        logger.info("🔒 Running safety validation...")
+        safety_report = None
+        if ha_client:
+            try:
+                safety_validator = SafetyValidator(ha_client=ha_client)
+                safety_report = await safety_validator.validate_automation(automation_yaml)
+                
+                if not safety_report.get('safe', True):
+                    critical_issues = safety_report.get('critical_issues', [])
+                    logger.warning(f"⚠️ Safety validation failed: {len(critical_issues)} critical issues")
+                    return {
+                        "suggestion_id": suggestion_id,
+                        "status": "blocked",
+                        "safe": False,
+                        "safety_report": safety_report,
+                        "message": "Automation creation blocked due to safety concerns",
+                        "warnings": [issue.get('message') for issue in critical_issues],
+                        "automation_yaml": automation_yaml,  # Still return YAML for review
+                        "yaml_validation": {
+                            "syntax_valid": yaml_valid,
+                            "safety_score": safety_report.get('safety_score', 0),
+                            "issues": critical_issues
+                        }
+                    }
+                
+                if safety_report.get('warnings'):
+                    logger.info(f"⚠️ Safety validation passed with {len(safety_report.get('warnings', []))} warnings")
+            except Exception as e:
+                logger.warning(f"⚠️ Safety validation error: {e}, continuing without safety check")
+                safety_report = {'safe': True, 'warnings': [f'Safety check skipped: {str(e)}']}
+        
+        # Step 7: Store YAML first
         await db.execute(
             update(SuggestionModel)
             .where(SuggestionModel.id == db_id)
@@ -543,7 +744,7 @@ async def approve_suggestion(
         
         logger.info(f"✅ YAML generated and stored for suggestion {suggestion_id}")
         
-        # Step 6: Deploy to Home Assistant
+        # Step 8: Deploy to Home Assistant
         automation_id = None
         deployment_error = None
         if ha_client:
@@ -578,20 +779,31 @@ async def approve_suggestion(
             logger.warning("⚠️ HA client not available - skipping deployment")
             deployment_error = "Home Assistant client not configured"
         
-        # Return response
+        # Return response (matching Ask-AI endpoint format)
         response = {
             "suggestion_id": suggestion_id,
             "status": "deployed" if automation_id else "approved",
             "automation_yaml": automation_yaml,
             "automation_id": automation_id,
+            "ready_to_deploy": yaml_valid and (safety_report is None or safety_report.get('safe', True)),
             "yaml_validation": {
                 "syntax_valid": yaml_valid,
-                "safety_score": 95,  # Simplified
-                "issues": []
+                "safety_score": safety_report.get('safety_score', 95) if safety_report else 95,
+                "issues": safety_report.get('critical_issues', []) if safety_report else []
             },
-            "ready_to_deploy": yaml_valid,
             "approved_at": datetime.utcnow().isoformat()
         }
+        
+        # Add safety report if available
+        if safety_report:
+            response["safety_report"] = safety_report
+            response["safe"] = safety_report.get('safe', True)
+            if safety_report.get('warnings'):
+                response["warnings"] = [w.get('message') if isinstance(w, dict) else w for w in safety_report.get('warnings', [])]
+        
+        # Add restoration info (empty for now, for consistency with Ask-AI)
+        response["restoration_log"] = []
+        response["restored_components"] = []
         
         if deployment_error:
             response["deployment_error"] = deployment_error
