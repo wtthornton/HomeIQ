@@ -65,12 +65,6 @@ class Settings(BaseSettings):
     nl_max_tokens: int = 1500
     nl_temperature: float = 0.3  # Lower = more consistent
     
-    # Automation Miner Integration (Epic AI-4, Story AI4.2)
-    enable_pattern_enhancement: bool = False
-    miner_base_url: str = "http://automation-miner:8019"
-    miner_query_timeout_ms: int = 100
-    miner_cache_ttl_days: int = 7
-    
     # Unified Prompt System
     enable_device_intelligence_prompts: bool = True
     device_intelligence_timeout: int = 5
@@ -80,6 +74,9 @@ class Settings(BaseSettings):
     creative_temperature: float = 1.0  # For Ask AI - Maximum creativity for crazy ideas
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
+    
+    # OpenAI Rate Limiting (Performance Optimization)
+    openai_concurrent_limit: int = 5  # Max concurrent API calls
     
     class Config:
         env_file = "infrastructure/env.ai-automation"

@@ -10,6 +10,7 @@ from .deployment_router import router as deployment_router
 from .nl_generation_router import router as nl_generation_router
 from .conversational_router import router as conversational_router  # Story AI1.23
 from .ask_ai_router import router as ask_ai_router  # Ask AI Tab
+from .devices_router import router as devices_router, set_device_intelligence_client
 
 __all__ = [
     'health_router',
@@ -21,6 +22,8 @@ __all__ = [
     'deployment_router',
     'nl_generation_router',
     'conversational_router',  # Story AI1.23: Conversational Refinement
-    'ask_ai_router'  # Ask AI Tab: Natural Language Query Interface
+    'ask_ai_router',  # Ask AI Tab: Natural Language Query Interface
+    'devices_router',
+    'set_device_intelligence_client'
 ]
 

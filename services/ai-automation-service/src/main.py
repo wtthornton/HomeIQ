@@ -23,7 +23,7 @@ except ImportError:
 
 from .config import settings
 from .database.models import init_db
-from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router
+from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, set_device_intelligence_client
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
@@ -47,7 +47,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware (allow frontend at ports 3000, 3001, 3002)
+# CORS middleware (allow frontend at ports 3000, 3001)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -55,8 +55,6 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",  # AI Automation standalone UI
         "http://127.0.0.1:3001",
-        "http://localhost:3002",  # Legacy
-        "http://127.0.0.1:3002",
         "http://ai-automation-ui",  # Container network
         "http://ai-automation-ui:80",
         "http://homeiq-dashboard",  # Health dashboard container
@@ -79,26 +77,7 @@ app.include_router(deployment_router)
 app.include_router(nl_generation_router)  # Story AI1.21: Natural Language
 app.include_router(conversational_router)  # Story AI1.23: Conversational Refinement (Phase 1: Stubs)
 app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interface
-
-# Add direct devices endpoint for frontend compatibility
-@app.get("/api/devices")
-async def get_devices():
-    """Get devices from Device Intelligence Service"""
-    try:
-        devices = await device_intelligence_client.get_devices(limit=1000)
-        return {
-            "success": True,
-            "devices": devices,
-            "count": len(devices)
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch devices from Device Intelligence Service: {e}")
-        return {
-            "success": False,
-            "devices": [],
-            "count": 0,
-            "error": str(e)
-        }
+app.include_router(devices_router)  # Devices endpoint
 
 # Initialize scheduler
 scheduler = DailyAnalysisScheduler()
@@ -116,8 +95,9 @@ data_api_client = DataAPIClient(base_url=settings.data_api_url)
 device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
 
 # Make device intelligence client available to routers
-from .api.ask_ai_router import set_device_intelligence_client, get_model_orchestrator, get_multi_model_extractor
-set_device_intelligence_client(device_intelligence_client)
+from .api.ask_ai_router import set_device_intelligence_client as set_ask_ai_client, get_model_orchestrator, get_multi_model_extractor
+set_ask_ai_client(device_intelligence_client)  # For Ask AI router
+set_device_intelligence_client(device_intelligence_client)  # For devices router
 
 
 @app.on_event("startup")
@@ -229,6 +209,13 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown"""
     logger.info("AI Automation Service shutting down")
+    
+    # Close device intelligence client
+    try:
+        await device_intelligence_client.close()
+        logger.info("✅ Device Intelligence client closed")
+    except Exception as e:
+        logger.error(f"❌ Device Intelligence client shutdown failed: {e}")
     
     # Stop scheduler
     try:

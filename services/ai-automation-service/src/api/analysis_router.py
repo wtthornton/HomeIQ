@@ -16,6 +16,7 @@ from ..llm.openai_client import OpenAIClient
 from ..database.crud import store_patterns, store_suggestion, get_patterns
 from ..database.models import get_db, get_db_session
 from ..config import settings
+from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +212,7 @@ async def _run_analysis_pipeline(request: AnalysisRequest):
         logger.info(f"  → Processing top {len(top_patterns)} patterns for suggestions")
         
         openai_client = OpenAIClient(api_key=settings.openai_api_key)
+        prompt_builder = UnifiedPromptBuilder()
         suggestions_generated = []
         suggestions_failed = []
         
@@ -219,7 +221,29 @@ async def _run_analysis_pipeline(request: AnalysisRequest):
                 logger.info(f"  → [{i}/{len(top_patterns)}] Generating suggestion for {pattern['device_id']}")
                 
                 # Story AI1.24: Generate description-only (no YAML until user approves)
-                description_data = await openai_client.generate_description_only(pattern)
+                # Build prompt using UnifiedPromptBuilder
+                prompt_dict = await prompt_builder.build_pattern_prompt(
+                    pattern=pattern,
+                    device_context=None,
+                    output_mode="description"
+                )
+                
+                # Generate with unified method
+                result = await openai_client.generate_with_unified_prompt(
+                    prompt_dict=prompt_dict,
+                    temperature=0.7,
+                    max_tokens=300,
+                    output_format="description"
+                )
+                
+                # Parse result to match expected format
+                description_data = {
+                    'title': result.get('title', pattern.get('device_id', 'Automation')),
+                    'description': result.get('description', ''),
+                    'rationale': result.get('rationale', ''),
+                    'category': result.get('category', 'convenience'),
+                    'priority': result.get('priority', 'medium')
+                }
                 
                 # Store suggestion in database
                 async with get_db_session() as db:

@@ -383,71 +383,6 @@ class DailyAnalysisScheduler:
                 job_result['patterns_stored'] = 0
             
             # ================================================================
-            # Phase 3b: Community Pattern Enhancement (NEW - Epic AI-4, Story AI4.2)
-            # ================================================================
-            community_enhancements = []
-            if settings.enable_pattern_enhancement and all_patterns:
-                logger.info("🌐 Phase 3b/7: Community Pattern Enhancement (Epic AI-4)...")
-                
-                try:
-                    from ..miner import MinerClient, EnhancementExtractor
-                    
-                    # Initialize Miner client
-                    miner_client = MinerClient(
-                        base_url=settings.miner_base_url,
-                        timeout=settings.miner_query_timeout_ms / 1000.0,
-                        cache_ttl_days=settings.miner_cache_ttl_days
-                    )
-                    
-                    # Extract device types from patterns
-                    pattern_devices = set()
-                    for pattern in all_patterns:
-                        if 'devices' in pattern:
-                            pattern_devices.update(pattern['devices'])
-                    
-                    # Query Miner for similar community automations
-                    logger.info(f"  → Querying Miner for {len(pattern_devices)} device types...")
-                    
-                    community_automations = []
-                    for device in list(pattern_devices)[:5]:  # Top 5 devices to avoid too many queries
-                        results = await miner_client.search_corpus(
-                            device=device,
-                            min_quality=0.8,
-                            limit=5
-                        )
-                        community_automations.extend(results)
-                    
-                    logger.info(f"    ✅ Found {len(community_automations)} community automations")
-                    
-                    # Extract enhancements
-                    if community_automations:
-                        extractor = EnhancementExtractor()
-                        user_devices = [d.device_type for d in devices_response.get('devices', [])]
-                        
-                        community_enhancements = extractor.extract_enhancements(
-                            community_automations,
-                            user_devices
-                        )
-                        
-                        logger.info(f"    ✅ Extracted {len(community_enhancements)} applicable enhancements")
-                        logger.info(f"       Top enhancements: {[e.category for e in community_enhancements[:3]]}")
-                        
-                        job_result['community_enhancements_found'] = len(community_enhancements)
-                    else:
-                        logger.info("    ℹ️  No community automations found for user's devices")
-                        job_result['community_enhancements_found'] = 0
-                
-                except Exception as e:
-                    logger.warning(f"    ⚠️ Community enhancement failed (graceful degradation): {e}")
-                    community_enhancements = []
-                    job_result['community_enhancement_error'] = str(e)
-            else:
-                if not settings.enable_pattern_enhancement:
-                    logger.info("ℹ️  Phase 3b: Community enhancement disabled (feature flag off)")
-                else:
-                    logger.info("ℹ️  Phase 3b: No patterns to enhance")
-            
-            # ================================================================
             # Phase 3c: Synergy Detection (NEW - Epic AI-3)
             # ================================================================
             logger.info("🔗 Phase 3c/7: Synergy Detection (Epic AI-3)...")
@@ -593,73 +528,128 @@ class DailyAnalysisScheduler:
             # Initialize OpenAI client
             openai_client = OpenAIClient(api_key=settings.openai_api_key)
             
+            # Phase 4: Pre-fetch device contexts for caching (parallel)
+            logger.info("🔍 Phase 4.5/7: Pre-fetching device contexts...")
+            device_contexts = {}
+            try:
+                # Collect all unique device IDs from patterns
+                all_device_ids = set()
+                for pattern in all_patterns:
+                    if 'device_id' in pattern:
+                        all_device_ids.add(pattern['device_id'])
+                
+                if all_device_ids:
+                    logger.info(f"  → Pre-fetching contexts for {len(all_device_ids)} devices")
+                    # Fetch contexts in parallel for better performance
+                    async def fetch_device_context(device_id):
+                        try:
+                            context = await unified_builder.get_enhanced_device_context({'device_id': device_id})
+                            return device_id, context
+                        except Exception as e:
+                            logger.warning(f"  ⚠️ Failed to fetch context for {device_id}: {e}")
+                            return device_id, {}
+                    
+                    # Execute all fetches in parallel
+                    fetch_tasks = [fetch_device_context(device_id) for device_id in all_device_ids]
+                    fetch_results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+                    
+                    # Collect results
+                    for result in fetch_results:
+                        if not isinstance(result, Exception):
+                            device_id, context = result
+                            device_contexts[device_id] = context
+                    
+                    logger.info(f"  ✅ Pre-fetched {len(device_contexts)} device contexts")
+            except Exception as e:
+                logger.warning(f"  ⚠️ Device context pre-fetch failed: {e}")
+                device_contexts = {}
+            
             # ----------------------------------------------------------------
-            # Part A: Pattern-based suggestions (Epic AI-1)
+            # Part A: Pattern-based suggestions (Epic AI-1) - PARALLEL PROCESSING
             # ----------------------------------------------------------------
             logger.info("  → Part A: Pattern-based suggestions (Epic AI-1)...")
             
             pattern_suggestions = []
             
+            # Helper function for parallel pattern processing (defined outside loop)
+            async def process_pattern_suggestion(pattern, cached_contexts):
+                try:
+                    # Use cached context if available
+                    if cached_contexts and pattern.get('device_id') in cached_contexts:
+                        enhanced_context = cached_contexts[pattern['device_id']]
+                    else:
+                        enhanced_context = await unified_builder.get_enhanced_device_context(pattern)
+                    
+                    # Build unified prompt
+                    prompt_dict = await unified_builder.build_pattern_prompt(
+                        pattern=pattern,
+                        device_context=enhanced_context,
+                        output_mode="description"
+                    )
+                    
+                    # Generate suggestion
+                    description_data = await openai_client.generate_with_unified_prompt(
+                        prompt_dict=prompt_dict,
+                        temperature=settings.default_temperature,
+                        max_tokens=settings.description_max_tokens,
+                        output_format="description"
+                    )
+                    
+                    # Format suggestion
+                    if 'title' in description_data:
+                        title = description_data['title']
+                        description = description_data['description']
+                        rationale = description_data['rationale']
+                        category = description_data['category']
+                        priority = description_data['priority']
+                    else:
+                        title = f"Automation for {pattern.get('device_id', 'device')}"
+                        description = description_data.get('description', '')
+                        rationale = "Based on detected usage pattern"
+                        category = "convenience"
+                        priority = "medium"
+                    
+                    suggestion = {
+                        'type': 'pattern_automation',
+                        'source': 'Epic-AI-1',
+                        'pattern_id': pattern.get('id'),
+                        'pattern_type': pattern.get('pattern_type'),
+                        'title': title,
+                        'description': description,
+                        'automation_yaml': None,
+                        'confidence': pattern['confidence'],
+                        'category': category,
+                        'priority': priority,
+                        'rationale': rationale
+                    }
+                    
+                    return suggestion
+                except Exception as e:
+                    logger.error(f"     Failed to process pattern: {e}")
+                    return None
+            
             if all_patterns:
                 sorted_patterns = sorted(all_patterns, key=lambda p: p['confidence'], reverse=True)
                 top_patterns = sorted_patterns[:10]
                 
-                logger.info(f"     Processing top {len(top_patterns)} patterns")
+                logger.info(f"     Processing top {len(top_patterns)} patterns (parallel)")
                 
-                for i, pattern in enumerate(top_patterns, 1):
-                    try:
-                        # Get enhanced device context with device intelligence
-                        enhanced_context = await unified_builder.get_enhanced_device_context(pattern)
-                        
-                        # Build unified prompt with device intelligence
-                        prompt_dict = await unified_builder.build_pattern_prompt(
-                            pattern=pattern,
-                            device_context=enhanced_context,
-                            output_mode="description"  # Use description-only for Story AI1.23
-                        )
-                        
-                        # Generate suggestion with unified prompt
-                        description_data = await openai_client.generate_with_unified_prompt(
-                            prompt_dict=prompt_dict,
-                            temperature=settings.default_temperature,
-                            max_tokens=settings.description_max_tokens,
-                            output_format="description"
-                        )
-                        
-                        # Handle both old and new response formats
-                        if 'title' in description_data:
-                            # Old format from generate_description_only
-                            title = description_data['title']
-                            description = description_data['description']
-                            rationale = description_data['rationale']
-                            category = description_data['category']
-                            priority = description_data['priority']
-                        else:
-                            # New format from unified prompt
-                            title = f"Automation for {pattern.get('device_id', 'device')}"
-                            description = description_data.get('description', '')
-                            rationale = "Based on detected usage pattern"
-                            category = "convenience"
-                            priority = "medium"
-                        
-                        pattern_suggestions.append({
-                            'type': 'pattern_automation',
-                            'source': 'Epic-AI-1',
-                            'pattern_id': pattern.get('id'),
-                            'pattern_type': pattern.get('pattern_type'),
-                            'title': title,
-                            'description': description,
-                            'automation_yaml': None,  # Story AI1.24: No YAML until approved
-                            'confidence': pattern['confidence'],
-                            'category': category,
-                            'priority': priority,
-                            'rationale': rationale
-                        })
-                        
-                        logger.debug(f"     [{i}/{len(top_patterns)}] ✅ {title}")
-                        
-                    except Exception as e:
-                        logger.error(f"     [{i}/{len(top_patterns)}] ❌ Failed: {e}")
+                # Process patterns in parallel with batch size limit
+                BATCH_SIZE = settings.openai_concurrent_limit
+                
+                for i in range(0, len(top_patterns), BATCH_SIZE):
+                    batch = top_patterns[i:i + BATCH_SIZE]
+                    
+                    # Execute batch in parallel
+                    tasks = [process_pattern_suggestion(pattern, device_contexts) for pattern in batch]
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # Collect successful suggestions
+                    for result in results:
+                        if result and not isinstance(result, Exception):
+                            pattern_suggestions.append(result)
+                    
+                    logger.info(f"     Batch {i//BATCH_SIZE + 1}: {len([r for r in results if r])} suggestions generated")
                 
                 logger.info(f"     ✅ Generated {len(pattern_suggestions)} pattern suggestions")
             else:
@@ -729,17 +719,24 @@ class DailyAnalysisScheduler:
             logger.info(f"   - Synergy-based (AI-3): {len(synergy_suggestions)}")
             logger.info(f"   - Top suggestions kept: {len(all_suggestions)}")
             
-            # Store all combined suggestions
+            # Store all combined suggestions in single transaction
             suggestions_stored = 0
-            for suggestion in all_suggestions:
+            async with get_db_session() as db:
+                for suggestion in all_suggestions:
+                    try:
+                        await store_suggestion(db, suggestion, commit=False)
+                        suggestions_stored += 1
+                    except Exception as e:
+                        logger.error(f"   ❌ Failed to store suggestion: {e}")
+                        # Continue with other suggestions
+                
                 try:
-                    async with get_db_session() as db:
-                        await store_suggestion(db, suggestion)
-                    suggestions_stored += 1
+                    await db.commit()
+                    logger.info(f"   💾 Stored {suggestions_stored}/{len(all_suggestions)} suggestions in database")
                 except Exception as e:
-                    logger.error(f"   ❌ Failed to store suggestion: {e}")
-            
-            logger.info(f"   💾 Stored {suggestions_stored}/{len(all_suggestions)} suggestions in database")
+                    await db.rollback()
+                    logger.error(f"   ❌ Failed to commit suggestions: {e}")
+                    suggestions_stored = 0
             
             suggestions_generated = len(all_suggestions)
             

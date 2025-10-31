@@ -1,11 +1,11 @@
 """
 Prompt Building Module
 
-Provides enhanced prompt building capabilities with device intelligence integration.
+Provides unified prompt building capabilities with device intelligence integration.
 """
 
-from .enhanced_prompt_builder import EnhancedPromptBuilder
+from .unified_prompt_builder import UnifiedPromptBuilder
 
 __all__ = [
-    "EnhancedPromptBuilder"
+    "UnifiedPromptBuilder"
 ]

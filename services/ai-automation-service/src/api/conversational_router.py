@@ -29,6 +29,7 @@ from ..config import settings
 from ..llm.openai_client import OpenAIClient
 from ..database.models import Suggestion as SuggestionModel
 from sqlalchemy import select, update
+from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,11 @@ router = APIRouter(prefix="/api/v1/suggestions", tags=["Conversational Suggestio
 
 # Phase 2-4: Initialize OpenAI client (single simple class)
 openai_client = None
+prompt_builder = None
 if settings.openai_api_key:
     try:
         openai_client = OpenAIClient(api_key=settings.openai_api_key, model="gpt-4o-mini")
+        prompt_builder = UnifiedPromptBuilder()
         logger.info("✅ OpenAI client initialized")
     except Exception as e:
         logger.error(f"❌ Failed to initialize OpenAI client: {e}")
@@ -167,10 +170,23 @@ async def generate_description_only(
         }
         
         # Generate description via OpenAI
-        description = await openai_client.generate_description_only(
+        # Build prompt using UnifiedPromptBuilder
+        prompt_dict = await prompt_builder.build_pattern_prompt(
             pattern=pattern_dict,
-            device_context=device_context
+            device_context=device_context,
+            output_mode="description"
         )
+        
+        # Generate with unified method
+        result = await openai_client.generate_with_unified_prompt(
+            prompt_dict=prompt_dict,
+            temperature=0.7,
+            max_tokens=300,
+            output_format="description"
+        )
+        
+        # Extract description from result
+        description = result.get('description', '')
         
         # Simple capabilities (mock for now)
         capabilities = {
@@ -447,16 +463,27 @@ async def approve_suggestion(
             'confidence': suggestion.confidence
         }
         
-        # Use existing generate_automation_suggestion method
-        automation_result = await openai_client.generate_automation_suggestion(
+        # Use unified prompt builder to generate automation
+        prompt_dict = await prompt_builder.build_pattern_prompt(
             pattern=pattern,
-            device_context={'name': pattern['device_id']}
+            device_context={'name': pattern['device_id']},
+            output_mode="yaml"
         )
+        
+        result = await openai_client.generate_with_unified_prompt(
+            prompt_dict=prompt_dict,
+            temperature=0.7,
+            max_tokens=600,
+            output_format="yaml"
+        )
+        
+        # Extract YAML from result
+        automation_yaml = result.get('automation_yaml', '')
         
         # Step 4: Validate YAML
         import yaml
         try:
-            yaml.safe_load(automation_result.automation_yaml)
+            yaml.safe_load(automation_yaml)
             yaml_valid = True
         except yaml.YAMLError:
             yaml_valid = False
@@ -467,7 +494,7 @@ async def approve_suggestion(
             update(SuggestionModel)
             .where(SuggestionModel.id == db_id)
             .values(
-                automation_yaml=automation_result.automation_yaml,
+                automation_yaml=automation_yaml,
                 yaml_generated_at=datetime.utcnow(),
                 approved_at=datetime.utcnow(),
                 status='yaml_generated',
@@ -481,7 +508,7 @@ async def approve_suggestion(
         return {
             "suggestion_id": suggestion_id,
             "status": "yaml_generated",
-            "automation_yaml": automation_result.automation_yaml,
+            "automation_yaml": automation_yaml,
             "yaml_validation": {
                 "syntax_valid": yaml_valid,
                 "safety_score": 95,  # Simplified

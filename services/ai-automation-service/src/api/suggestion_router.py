@@ -15,6 +15,7 @@ from ..database import get_db, get_patterns, store_suggestion, get_suggestions
 from ..config import settings
 from ..clients.data_api_client import DataAPIClient
 from ..validation.device_validator import DeviceValidator, ValidationResult
+from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,9 @@ router = APIRouter(prefix="/api/suggestions", tags=["Suggestions"])
 
 # Initialize OpenAI client
 openai_client = OpenAIClient(api_key=settings.openai_api_key, model="gpt-4o-mini")
+
+# Initialize Unified Prompt Builder
+prompt_builder = UnifiedPromptBuilder()
 
 # Initialize Data API client for fetching device metadata
 data_api_client = DataAPIClient(base_url="http://data-api:8006")
@@ -141,10 +145,29 @@ async def generate_suggestions(
                         continue
                 else:
                     # Original pattern is valid, proceed normally
-                    description_data = await openai_client.generate_description_only(
-                        pattern_dict,
-                        device_context=device_context
+                    # Build prompt using UnifiedPromptBuilder
+                    prompt_dict = await prompt_builder.build_pattern_prompt(
+                        pattern=pattern_dict,
+                        device_context=device_context,
+                        output_mode="description"
                     )
+                    
+                    # Generate with unified method
+                    result = await openai_client.generate_with_unified_prompt(
+                        prompt_dict=prompt_dict,
+                        temperature=0.7,
+                        max_tokens=300,
+                        output_format="description"
+                    )
+                    
+                    # Parse result to match expected format
+                    description_data = {
+                        'title': result.get('title', pattern_dict.get('device_id', 'Automation')),
+                        'description': result.get('description', ''),
+                        'rationale': result.get('rationale', ''),
+                        'category': result.get('category', 'convenience'),
+                        'priority': result.get('priority', 'medium')
+                    }
                 
                 # Store in database
                 suggestion_data = {
