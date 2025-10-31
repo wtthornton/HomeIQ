@@ -41,8 +41,10 @@ interface Props {
   onApprove: (id: number) => Promise<void>;
   onReject: (id: number) => Promise<void>;
   onTest?: (id: number) => Promise<void>;
+  onRedeploy?: (id: number) => Promise<void>;
   darkMode?: boolean;
   disabled?: boolean;
+  tested?: boolean;
 }
 
 export const ConversationalSuggestionCard: React.FC<Props> = ({
@@ -51,10 +53,11 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   onApprove,
   onReject,
   onTest,
+  onRedeploy,
   darkMode = false,
-  disabled = false
+  disabled = false,
+  tested = false
 }) => {
-  console.log('ConversationalSuggestionCard received suggestion:', suggestion);
   const [isEditing, setIsEditing] = useState(false);
   const [editInput, setEditInput] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -353,19 +356,30 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 {onTest && (
                   <button
                     onClick={handleTest}
-                    disabled={disabled}
+                    disabled={disabled || tested}
                     className={`px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
-                      disabled
+                      disabled || tested
                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                         : darkMode
                           ? 'bg-yellow-600 hover:bg-yellow-700 text-white hover:shadow-lg'
                           : 'bg-yellow-500 hover:bg-yellow-600 text-white hover:shadow-lg'
                     }`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Test</span>
+                    {tested ? (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Tested</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Test</span>
+                      </>
+                    )}
                   </button>
                 )}
 
@@ -483,6 +497,36 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span>Deploy to Home Assistant</span>
+          </button>
+        )}
+
+        {/* Re-deploy Button (for deployed suggestions) */}
+        {suggestion.status === 'deployed' && onRedeploy && (
+          <button
+            onClick={() => onRedeploy(suggestion.id)}
+            disabled={disabled}
+            className={`w-full px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
+              disabled
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-purple-600 hover:bg-purple-700 text-white hover:shadow-lg'
+            }`}
+          >
+            {disabled ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Re-deploying...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Re-deploy with Updated YAML</span>
+              </>
+            )}
           </button>
         )}
 

@@ -52,6 +52,25 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/suggestions/list?${params}`);
   },
 
+  async getSuggestionByAutomationId(automationId: string): Promise<any> {
+    return fetchJSON(`${API_BASE_URL}/v1/suggestions/by-automation/${automationId}`);
+  },
+
+  async redeploySuggestion(id: number, finalDescription?: string): Promise<{
+    suggestion_id: string;
+    status: string;
+    automation_yaml: string;
+    automation_id?: string;
+    yaml_validation: { syntax_valid: boolean; safety_score: number; issues: any[] };
+    ready_to_deploy: boolean;
+  }> {
+    // Re-deploy uses the same approve endpoint - it regenerates YAML and deploys
+    return fetchJSON(`${API_BASE_URL}/v1/suggestions/suggestion-${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ final_description: finalDescription || null }),
+    });
+  },
+
   // Story AI1.23: Generate new suggestions
   async generateSuggestion(patternId: number | undefined, patternType: string, deviceId: string, metadata: any): Promise<{
     suggestion_id: string;
@@ -402,6 +421,10 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions`);
   },
 
+  /**
+   * @deprecated The Test button now uses approveAskAISuggestion() + disableAutomation() instead.
+   * This method is kept for backward compatibility and may be used by tests.
+   */
   async testAskAISuggestion(queryId: string, suggestionId: string): Promise<any> {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions/${suggestionId}/test`, {
       method: 'POST',

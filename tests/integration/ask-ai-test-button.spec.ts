@@ -33,14 +33,13 @@ test.describe('Ask AI - Test Button Integration', () => {
        * 
        * Call Tree:
        * 1. User clicks Test button
-       * 2. POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/test
-       * 3. Backend generates YAML from suggestion
-       * 4. Backend validates YAML
-       * 5. Backend creates automation in HA with [TEST] prefix
-       * 6. Backend triggers automation immediately
-       * 7. Backend disables automation
-       * 8. Backend returns success response
-       * 9. Frontend shows success toast
+       * 2. POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/approve (creates automation)
+       * 3. Backend generates full YAML from suggestion (no simplification)
+       * 4. Backend validates YAML and runs safety checks
+       * 5. Backend creates automation in HA (enabled initially)
+       * 6. POST /api/deploy/automations/{automation_id}/disable (frontend disables it)
+       * 7. Frontend shows success toast
+       * 8. Test button is disabled permanently
        */
 
       // Step 1: Submit a query to generate suggestions
@@ -64,9 +63,9 @@ test.describe('Ask AI - Test Button Integration', () => {
       // This confirms the API call was initiated
       
       // Step 4: Wait for and verify success toast
-      // Expected: "Test automation executed! Check your Home Assistant devices."
+      // Expected: "Test automation created and disabled!" or similar
       await askAI.waitForToast(
-        /test automation executed|executed successfully/i,
+        /test automation.*created.*disabled|created and disabled/i,
         undefined,
         60000 // Allow up to 60s for HA execution
       );
@@ -86,14 +85,15 @@ test.describe('Ask AI - Test Button Integration', () => {
       expect(automationId).toBeTruthy();
       expect(automationId).toContain('automation.');
       
-      // Step 6: Verify automation ID has test_ prefix if present
-      if (automationId?.includes('test_')) {
-        console.log(`✅ Automation ID correctly prefixed: ${automationId}`);
-      }
+      // Step 6: Verify automation ID format (should be automation.*)
+      console.log(`✅ Automation created: ${automationId}`);
 
       // Step 7: Verify cleanup info toast
-      // Expected: "The test automation is now disabled. You can delete it from HA or approve this suggestion."
+      // Expected: "The automation is disabled. You can enable it manually or approve this suggestion."
       // This may appear as a second toast or in the success message
+      
+      // Step 8: Verify test button is disabled
+      // The button should show "Tested" state and be non-clickable
     });
 
     test('Test button shows validation warnings when entities missing', async () => {

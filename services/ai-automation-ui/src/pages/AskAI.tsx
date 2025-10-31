@@ -88,6 +88,7 @@ export const AskAI: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
+  const [testedSuggestions, setTestedSuggestions] = useState<Set<string>>(new Set());
   
   // Conversation context tracking
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
@@ -282,48 +283,70 @@ export const AskAI: React.FC = () => {
         );
         const queryId = messageWithQuery?.id || 'unknown';
         
+        // Mark as tested immediately (prevent double-click)
+        setTestedSuggestions(prev => new Set(prev).add(suggestionId));
+        
         // Show loading toast
-        const loadingToast = toast.loading('⏳ Creating and running test automation...');
+        const loadingToast = toast.loading('⏳ Creating automation (will be disabled)...');
         
         try {
-          const response = await api.testAskAISuggestion(queryId, suggestionId);
-          toast.dismiss(loadingToast);
+          // Call approve endpoint (same as Approve & Create - no simplification)
+          const response = await api.approveAskAISuggestion(queryId, suggestionId);
           
-          // Log the quality report to console
-          if (response.quality_report) {
-            console.log('🔍 Quality Report:', JSON.stringify(response.quality_report, null, 2));
-          }
-          
-          if (!response.valid) {
-            toast.error(`❌ Validation failed: ${response.validation_details?.error || 'Unknown error'}`, {
-              duration: 6000
-            });
-          } else if (response.executed) {
-            toast.success(
-              `✅ Test automation executed! Check your devices.\n\nAutomation ID: ${response.automation_id}`,
-              { duration: 8000 }
-            );
-            
-            // Show additional info
-            if (response.validation_details?.warnings?.length > 0) {
-              response.validation_details.warnings.forEach((warning: string) => {
-                toast(warning, { icon: '⚠️', duration: 5000 });
+          if (response.automation_id && response.status === 'approved') {
+            // Immediately disable the automation
+            try {
+              await api.disableAutomation(response.automation_id);
+              toast.dismiss(loadingToast);
+              toast.success(
+                `✅ Test automation created and disabled!\n\nAutomation ID: ${response.automation_id}`,
+                { duration: 8000 }
+              );
+              toast(
+                `💡 The automation "${response.automation_id}" is disabled. You can enable it manually or approve this suggestion.`,
+                { icon: 'ℹ️', duration: 6000 }
+              );
+              
+              // Show warnings if any
+              if (response.warnings && response.warnings.length > 0) {
+                response.warnings.forEach((warning: string) => {
+                  toast(warning, { icon: '⚠️', duration: 5000 });
+                });
+              }
+            } catch (disableError: any) {
+              toast.dismiss(loadingToast);
+              const errorMessage = disableError?.message || disableError?.toString() || 'Unknown error';
+              toast.error(
+                `⚠️ Automation created but failed to disable: ${response.automation_id}\n\n${errorMessage}`,
+                { duration: 8000 }
+              );
+              // Re-enable button on disable failure
+              setTestedSuggestions(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(suggestionId);
+                return newSet;
               });
             }
-            
-            // Show cleanup info
-            toast(
-              `💡 The test automation "${response.automation_id}" is now disabled. You can delete it from HA or approve this suggestion.`,
-              { icon: 'ℹ️', duration: 6000 }
-            );
           } else {
-            toast.error(
-              `⚠️ Test automation created but execution failed. Check HA logs.\n\nAutomation ID: ${response.automation_id}`,
-              { duration: 8000 }
-            );
+            toast.dismiss(loadingToast);
+            toast.error(`❌ Failed to create test automation: ${response.message || 'Unknown error'}`);
+            // Re-enable button on error
+            setTestedSuggestions(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(suggestionId);
+              return newSet;
+            });
           }
-        } catch (error) {
+        } catch (error: any) {
           toast.dismiss(loadingToast);
+          const errorMessage = error?.message || error?.toString() || 'Unknown error';
+          toast.error(`❌ Failed to create test automation: ${errorMessage}`);
+          // Re-enable button on error
+          setTestedSuggestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(suggestionId);
+            return newSet;
+          });
           throw error;
         }
       } else if (action === 'refine' && refinement) {
@@ -713,6 +736,7 @@ export const AskAI: React.FC = () => {
                                 onTest={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'test')}
                                 darkMode={darkMode}
                                 disabled={isProcessing}
+                                tested={testedSuggestions.has(suggestion.suggestion_id)}
                               />
                             </div>
                           );
