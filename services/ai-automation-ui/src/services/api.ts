@@ -139,6 +139,7 @@ export const api = {
     suggestion_id: string;
     status: string;
     automation_yaml: string;
+    automation_id?: string;
     yaml_validation: { syntax_valid: boolean; safety_score: number; issues: any[] };
     ready_to_deploy: boolean;
   }> {
