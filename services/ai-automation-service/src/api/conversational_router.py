@@ -596,7 +596,7 @@ async def _extract_entities_from_context(
 @router.post("/{suggestion_id}/approve")
 async def approve_suggestion(
     suggestion_id: str,
-    request: ApproveRequest,
+    request: ApproveRequest = ApproveRequest(),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -621,6 +621,7 @@ async def approve_suggestion(
     - Extracted entities (validated via EntityValidator)
     """
     logger.info(f"✅ Approving suggestion {suggestion_id}")
+    logger.info(f"📥 Request body: final_description={request.final_description}, user_notes={request.user_notes}")
     
     if not openai_client:
         raise HTTPException(
@@ -649,12 +650,16 @@ async def approve_suggestion(
         if not suggestion:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         
+        logger.info(f"📋 Approving suggestion {suggestion_id} (DB ID: {db_id}) - Current status: '{suggestion.status}'")
+        
         # Step 2: Verify status (allow re-approving deployed suggestions for updates)
         # Note: 'approved' status is set after YAML generation, so it should be allowed for re-deployment
         if suggestion.status not in ['draft', 'refining', 'deployed', 'yaml_generated', 'approved']:
+            error_msg = f"Cannot approve suggestion in '{suggestion.status}' status"
+            logger.warning(f"⚠️ {error_msg} for suggestion {suggestion_id} (DB ID: {db_id})")
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot approve suggestion in '{suggestion.status}' status"
+                detail=error_msg
             )
         
         # If already deployed, this is a re-deploy (regenerate YAML and update)

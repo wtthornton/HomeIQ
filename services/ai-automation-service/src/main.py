@@ -3,8 +3,10 @@ AI Automation Service - Main FastAPI Application
 Phase 1 MVP - Pattern detection and suggestion generation
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import sys
 import logging
 from pathlib import Path
@@ -64,6 +66,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add error handling middleware
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors with detailed logging."""
+    logger.error(f"❌ Validation error on {request.method} {request.url.path}: {exc}")
+    logger.error(f"❌ Validation details: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "Validation Error",
+            "detail": exc.errors(),
+            "path": str(request.url.path),
+            "method": request.method
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions with logging."""
+    logger.error(f"❌ Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "detail": str(exc),
+            "path": str(request.url.path),
+            "method": request.method
+        }
+    )
 
 # Include routers
 app.include_router(health_router)
