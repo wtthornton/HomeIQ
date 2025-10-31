@@ -26,8 +26,14 @@ export const ConversationalDashboard: React.FC = () => {
       // Load all suggestions, filter on frontend
       const response = await api.getSuggestions();
       // Map API response to component format
-      console.log('Raw API response:', response.data.suggestions[0]);
-      const mappedSuggestions = response.data.suggestions.map(suggestion => {
+      const suggestionsArray = response.data?.suggestions || [];
+      console.log(`Loaded ${suggestionsArray.length} suggestions from API`);
+      
+      if (suggestionsArray.length > 0) {
+        console.log('Raw API response (first suggestion):', suggestionsArray[0]);
+      }
+      
+      const mappedSuggestions = suggestionsArray.map(suggestion => {
         // Extract device hash from title and replace with friendly name
         const deviceHashMatch = suggestion.title.match(/AI Suggested: ([a-f0-9]{32})/);
         let friendlyTitle = suggestion.title;
@@ -83,34 +89,53 @@ export const ConversationalDashboard: React.FC = () => {
   const generateSampleSuggestion = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Generating sample suggestion...');
+      
       const response = await api.generateSuggestion(
-        1,
+        undefined,  // No pattern_id for sample suggestions
         'time_of_day',
         'light.living_room',
-        { hour: 18, confidence: 0.85 }
+        { hour: 18, confidence: 0.85, occurrences: 20 }
       );
       
+      console.log('Generate response:', response);
+      
       // Convert API response to suggestion format
+      const suggestionId = response.suggestion_id;
+      const idMatch = suggestionId.match(/-(\d+)$/);
+      const id = idMatch ? parseInt(idMatch[1]) : Date.now();
+      
       const suggestion = {
-        id: parseInt(response.suggestion_id.split('-')[1]),
-        suggestion_id: response.suggestion_id,
-        description_only: response.description,
-        trigger_summary: response.trigger_summary,
-        action_summary: response.action_summary,
-        devices_involved: response.devices_involved,
-        confidence: response.confidence,
-        status: response.status,
-        created_at: response.created_at,
+        id: id,
+        suggestion_id: suggestionId,
+        title: `Automation: ${response.devices_involved?.[0]?.friendly_name || 'Living Room Light'}`,
+        description: response.description || '',
+        description_only: response.description || '',
+        trigger_summary: response.trigger_summary || '',
+        action_summary: response.action_summary || '',
+        devices_involved: response.devices_involved || [],
+        confidence: response.confidence || 0.85,
+        status: response.status || 'draft',
+        created_at: response.created_at || new Date().toISOString(),
         conversation_history: [],
         refinement_count: 0,
         device_capabilities: {}
       };
       
-      setSuggestions([suggestion]);
+      // Add to existing suggestions instead of replacing
+      setSuggestions(prev => [...prev, suggestion]);
+      
+      // Switch to draft tab to show the new suggestion
+      setSelectedStatus('draft');
+      
       toast.success('✅ Generated sample suggestion!');
-    } catch (error) {
+      
+      // Reload suggestions to get fresh data from API
+      await loadSuggestions();
+    } catch (error: any) {
       console.error('Failed to generate suggestion:', error);
-      toast.error('Failed to generate suggestion');
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      toast.error(`Failed to generate suggestion: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -277,40 +302,58 @@ export const ConversationalDashboard: React.FC = () => {
               />
             ))}
           </div>
-        ) : suggestions.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`text-center py-16 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
-            <div className="text-6xl mb-4">🤖</div>
-            <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              No {selectedStatus} suggestions
-            </h3>
-            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
-              {selectedStatus === 'draft'
-                ? 'Generate a sample suggestion to try the conversational automation flow'
-                : `No ${selectedStatus} suggestions found`}
-            </p>
-            {selectedStatus === 'draft' && (
-              <button
-                onClick={generateSampleSuggestion}
-                disabled={loading}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                  darkMode
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300'
-                }`}
+        ) : (() => {
+          // Filter suggestions by selected status
+          const filteredSuggestions = suggestions.filter(suggestion => suggestion.status === selectedStatus);
+          
+          // Show empty state if no suggestions match the selected status
+          if (filteredSuggestions.length === 0) {
+            return (
+              <motion.div
+                key="empty-state"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`text-center py-16 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
               >
-                {loading ? 'Generating...' : '🎯 Generate Sample Suggestion'}
-              </button>
-            )}
-          </motion.div>
-        ) : (
-          <div className="grid gap-6">
-            {suggestions
-              .filter(suggestion => suggestion.status === selectedStatus)
-              .map((suggestion) => (
+                <div className="text-6xl mb-4">🤖</div>
+                <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  No {selectedStatus} suggestions
+                </h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
+                  {selectedStatus === 'draft'
+                    ? 'Generate a sample suggestion to try the conversational automation flow'
+                    : suggestions.length > 0
+                    ? `You have ${suggestions.length} suggestion(s) with other statuses. Switch tabs to view them.`
+                    : `No ${selectedStatus} suggestions found`}
+                </p>
+                {selectedStatus === 'draft' && (
+                  <button
+                    onClick={generateSampleSuggestion}
+                    disabled={loading}
+                    className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                      darkMode
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300'
+                    }`}
+                  >
+                    {loading ? 'Generating...' : '🎯 Generate Sample Suggestion'}
+                  </button>
+                )}
+              </motion.div>
+            );
+          }
+          
+          // Show filtered suggestions
+          return (
+            <motion.div 
+              key="suggestions-list"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid gap-6"
+            >
+              {filteredSuggestions.map((suggestion) => (
                 <ConversationalSuggestionCard
                   key={suggestion.id}
                   suggestion={suggestion}
@@ -320,8 +363,9 @@ export const ConversationalDashboard: React.FC = () => {
                   darkMode={darkMode}
                 />
               ))}
-          </div>
-        )}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Footer Info */}

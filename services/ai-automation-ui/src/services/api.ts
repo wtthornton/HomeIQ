@@ -53,7 +53,7 @@ export const api = {
   },
 
   // Story AI1.23: Generate new suggestions
-  async generateSuggestion(patternId: number, patternType: string, deviceId: string, metadata: any): Promise<{
+  async generateSuggestion(patternId: number | undefined, patternType: string, deviceId: string, metadata: any): Promise<{
     suggestion_id: string;
     description: string;
     trigger_summary: string;
@@ -66,7 +66,7 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/v1/suggestions/generate`, {
       method: 'POST',
       body: JSON.stringify({
-        pattern_id: patternId,
+        pattern_id: patternId ?? null,  // Send null if undefined
         pattern_type: patternType,
         device_id: deviceId,
         metadata: metadata

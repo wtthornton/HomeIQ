@@ -327,9 +327,85 @@ export const AskAI: React.FC = () => {
           throw error;
         }
       } else if (action === 'refine' && refinement) {
-        // TODO: Implement refinement API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Refinement submitted');
+        const messageWithQuery = messages.find(msg => 
+          msg.suggestions?.some(s => s.suggestion_id === suggestionId)
+        );
+        const queryId = messageWithQuery?.id || 'unknown';
+        
+        if (!refinement.trim()) {
+          toast.error('Please enter your refinement');
+          return;
+        }
+        
+        try {
+          const response = await api.refineAskAIQuery(queryId, refinement);
+          
+          // Update the specific suggestion in the message
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === queryId && msg.suggestions) {
+              return {
+                ...msg,
+                suggestions: msg.suggestions.map(s => {
+                  if (s.suggestion_id === suggestionId) {
+                    // Update the suggestion with refined data
+                    const refinedSuggestion = response.refined_suggestions?.find(
+                      (rs: any) => rs.suggestion_id === suggestionId || 
+                      (msg.suggestions && response.refined_suggestions?.indexOf(rs) === msg.suggestions.indexOf(s))
+                    );
+                    
+                    if (refinedSuggestion) {
+                      // Add to conversation history
+                      const newHistoryEntry = {
+                        timestamp: new Date().toISOString(),
+                        user_input: refinement,
+                        updated_description: refinedSuggestion.description || s.description,
+                        changes: response.changes_made || [`Applied: ${refinement}`],
+                        validation: { ok: true }
+                      };
+                      
+                      return {
+                        ...s,
+                        description: refinedSuggestion.description || s.description,
+                        trigger_summary: refinedSuggestion.trigger_summary || s.trigger_summary,
+                        action_summary: refinedSuggestion.action_summary || s.action_summary,
+                        confidence: refinedSuggestion.confidence || s.confidence,
+                        status: 'refining' as const,
+                        refinement_count: (s.refinement_count || 0) + 1,
+                        conversation_history: [...(s.conversation_history || []), newHistoryEntry]
+                      };
+                    }
+                    
+                    // If no specific refined suggestion found, update description with refinement context
+                    const newHistoryEntry = {
+                      timestamp: new Date().toISOString(),
+                      user_input: refinement,
+                      updated_description: s.description,
+                      changes: [`Applied: ${refinement}`],
+                      validation: { ok: true }
+                    };
+                    
+                    return {
+                      ...s,
+                      description: s.description,
+                      status: 'refining' as const,
+                      refinement_count: (s.refinement_count || 0) + 1,
+                      conversation_history: [...(s.conversation_history || []), newHistoryEntry]
+                    };
+                  }
+                  return s;
+                })
+              };
+            }
+            return msg;
+          }));
+          
+          toast.success('✅ Suggestion refined successfully!');
+        } catch (error: any) {
+          console.error('Refinement failed:', error);
+          const errorMessage = error?.message || error?.toString() || 'Unknown error';
+          toast.error(`Failed to refine suggestion: ${errorMessage}`);
+          throw error;
+        }
       } else if (action === 'approve') {
         const messageWithQuery = messages.find(msg => 
           msg.suggestions?.some(s => s.suggestion_id === suggestionId)
@@ -603,22 +679,35 @@ export const AskAI: React.FC = () => {
                                              processingActions.has(`${suggestion.suggestion_id}-reject`) ||
                                              processingActions.has(`${suggestion.suggestion_id}-refine`);
                           
+                          // Find if this suggestion has been refined (has a status of 'refining')
+                          const suggestionStatus = suggestion.status || 'draft';
+                          const refinementCount = suggestion.refinement_count || 0;
+                          const conversationHistory = suggestion.conversation_history || [];
+                          
                           return (
                             <div key={idx} className="border-t border-gray-400 pt-3">
                               <ConversationalSuggestionCard
                                 suggestion={{
-                                  id: idx + 1,
+                                  id: parseInt(suggestion.suggestion_id.replace(/\D/g, '')) || idx + 1, // Extract numeric part or use index
                                   description_only: suggestion.description,
                                   title: `${suggestion.trigger_summary} → ${suggestion.action_summary}`,
-                                  category: 'automation',
+                                  category: suggestion.category || 'automation',
                                   confidence: suggestion.confidence,
-                                  status: suggestion.status as 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected',
-                                  refinement_count: 0,
-                                  conversation_history: [],
-                                  automation_yaml: null,
+                                  status: suggestionStatus as 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected',
+                                  refinement_count: refinementCount,
+                                  conversation_history: conversationHistory,
+                                  device_capabilities: suggestion.device_capabilities || {},
+                                  automation_yaml: suggestion.automation_yaml || null,
                                   created_at: suggestion.created_at
                                 }}
-                                onRefine={async (_id: number, refinement: string) => handleSuggestionAction(suggestion.suggestion_id, 'refine', refinement)}
+                                onRefine={async (_id: number, refinement: string) => {
+                                  try {
+                                    await handleSuggestionAction(suggestion.suggestion_id, 'refine', refinement);
+                                  } catch (error) {
+                                    // Error is already handled in handleSuggestionAction
+                                    throw error;
+                                  }
+                                }}
                                 onApprove={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'approve')}
                                 onReject={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'reject')}
                                 onTest={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'test')}

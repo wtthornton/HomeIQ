@@ -27,9 +27,10 @@ from ..config import settings
 
 # Phase 2-4: Import OpenAI components (SIMPLIFIED)
 from ..llm.openai_client import OpenAIClient
-from ..database.models import Suggestion as SuggestionModel
+from ..database.models import Suggestion as SuggestionModel, Pattern as PatternModel
 from sqlalchemy import select, update
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+from ..clients.ha_client import HomeAssistantClient
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,17 @@ if settings.openai_api_key:
 else:
     logger.warning("⚠️ OpenAI API key not set - conversational features disabled")
 
+# Initialize Home Assistant client for deployment
+ha_client = None
+if settings.ha_url and settings.ha_token:
+    try:
+        ha_client = HomeAssistantClient(settings.ha_url, settings.ha_token)
+        logger.info("✅ Home Assistant client initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize HA client: {e}")
+else:
+    logger.warning("⚠️ Home Assistant URL/token not set - deployment disabled")
+
 
 # ============================================================================
 # Request/Response Models
@@ -56,7 +68,7 @@ else:
 
 class GenerateRequest(BaseModel):
     """Request to generate description-only suggestion"""
-    pattern_id: int
+    pattern_id: Optional[int] = None
     pattern_type: str
     device_id: str
     metadata: Dict[str, Any]
@@ -70,7 +82,7 @@ class RefineRequest(BaseModel):
 
 class ApproveRequest(BaseModel):
     """Request to approve and generate YAML"""
-    final_description: str
+    final_description: Optional[str] = None
     user_notes: Optional[str] = None
 
 
@@ -142,7 +154,8 @@ async def generate_description_only(
     3. Cache device capabilities
     4. Return structured response (no YAML generated yet)
     """
-    logger.info(f"📝 Generating description for pattern {request.pattern_id} ({request.pattern_type})")
+    pattern_info = f"pattern {request.pattern_id}" if request.pattern_id else "sample suggestion"
+    logger.info(f"📝 Generating description for {pattern_info} ({request.pattern_type})")
     
     # Check if OpenAI is configured
     if not openai_client:
@@ -152,6 +165,23 @@ async def generate_description_only(
         )
     
     try:
+        # Validate pattern_id if provided, set to None if not found or not provided
+        validated_pattern_id = None
+        if request.pattern_id is not None:
+            result = await db.execute(
+                select(PatternModel).where(PatternModel.id == request.pattern_id)
+            )
+            pattern_exists = result.scalar_one_or_none()
+            
+            if pattern_exists:
+                validated_pattern_id = request.pattern_id
+                logger.info(f"✅ Using existing pattern {request.pattern_id}")
+            else:
+                logger.warning(f"⚠️ Pattern {request.pattern_id} not found, creating suggestion without pattern")
+                validated_pattern_id = None
+        else:
+            logger.info("📝 Creating suggestion without pattern (sample/direct generation)")
+        
         # Build pattern dict for OpenAI
         pattern_dict = {
             'pattern_type': request.pattern_type,
@@ -199,7 +229,7 @@ async def generate_description_only(
         
         # Create database record
         suggestion = SuggestionModel(
-            pattern_id=request.pattern_id,
+            pattern_id=validated_pattern_id,
             description_only=description,
             title=f"Automation: {device_name}",
             category="convenience",  # Default category
@@ -450,7 +480,9 @@ async def approve_suggestion(
                 detail=f"Cannot approve suggestion in '{suggestion.status}' status"
             )
         
-        logger.info(f"📝 Generating YAML for: {request.final_description[:60]}...")
+        # Use final_description if provided, otherwise use the current description_only
+        description_to_use = request.final_description or suggestion.description_only or suggestion.description or ""
+        logger.info(f"📝 Generating YAML for: {description_to_use[:60]}...")
         
         # Step 3: Generate YAML using existing method
         # Build pattern dict from suggestion
@@ -464,6 +496,8 @@ async def approve_suggestion(
         }
         
         # Use unified prompt builder to generate automation
+        # Note: The description is already in the suggestion, so we'll generate YAML based on pattern
+        # For refined descriptions, the pattern metadata could be enhanced, but this works for now
         prompt_dict = await prompt_builder.build_pattern_prompt(
             pattern=pattern,
             device_context={'name': pattern['device_id']},
@@ -477,19 +511,23 @@ async def approve_suggestion(
             output_format="yaml"
         )
         
-        # Extract YAML from result
-        automation_yaml = result.get('automation_yaml', '')
+        # Extract YAML from result (result is an AutomationSuggestion object, not a dict)
+        automation_yaml = result.automation_yaml if hasattr(result, 'automation_yaml') else ''
         
-        # Step 4: Validate YAML
+        if not automation_yaml:
+            raise HTTPException(status_code=500, detail="Failed to generate automation YAML")
+        
+        # Step 4: Validate YAML syntax
         import yaml
         try:
             yaml.safe_load(automation_yaml)
             yaml_valid = True
-        except yaml.YAMLError:
+        except yaml.YAMLError as e:
             yaml_valid = False
-            logger.warning("⚠️ Generated YAML has syntax errors")
+            logger.warning(f"⚠️ Generated YAML has syntax errors: {e}")
+            raise HTTPException(status_code=400, detail=f"Generated YAML has syntax errors: {str(e)}")
         
-        # Step 5: Store YAML and update status
+        # Step 5: Store YAML first
         await db.execute(
             update(SuggestionModel)
             .where(SuggestionModel.id == db_id)
@@ -497,7 +535,7 @@ async def approve_suggestion(
                 automation_yaml=automation_yaml,
                 yaml_generated_at=datetime.utcnow(),
                 approved_at=datetime.utcnow(),
-                status='yaml_generated',
+                status='approved',  # Set to 'approved' so deploy endpoint accepts it
                 updated_at=datetime.utcnow()
             )
         )
@@ -505,10 +543,47 @@ async def approve_suggestion(
         
         logger.info(f"✅ YAML generated and stored for suggestion {suggestion_id}")
         
-        return {
+        # Step 6: Deploy to Home Assistant
+        automation_id = None
+        deployment_error = None
+        if ha_client:
+            try:
+                logger.info(f"🚀 Deploying automation to Home Assistant for suggestion {suggestion_id}")
+                deployment_result = await ha_client.deploy_automation(automation_yaml=automation_yaml)
+                
+                if deployment_result.get('success'):
+                    automation_id = deployment_result.get('automation_id')
+                    
+                    # Update status to deployed
+                    await db.execute(
+                        update(SuggestionModel)
+                        .where(SuggestionModel.id == db_id)
+                        .values(
+                            status='deployed',
+                            ha_automation_id=automation_id,
+                            deployed_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow()
+                        )
+                    )
+                    await db.commit()
+                    
+                    logger.info(f"✅ Successfully deployed automation {automation_id} to Home Assistant")
+                else:
+                    deployment_error = deployment_result.get('error', 'Unknown deployment error')
+                    logger.error(f"❌ Deployment failed: {deployment_error}")
+            except Exception as e:
+                deployment_error = str(e)
+                logger.error(f"❌ Deployment error: {deployment_error}")
+        else:
+            logger.warning("⚠️ HA client not available - skipping deployment")
+            deployment_error = "Home Assistant client not configured"
+        
+        # Return response
+        response = {
             "suggestion_id": suggestion_id,
-            "status": "yaml_generated",
+            "status": "deployed" if automation_id else "approved",
             "automation_yaml": automation_yaml,
+            "automation_id": automation_id,
             "yaml_validation": {
                 "syntax_valid": yaml_valid,
                 "safety_score": 95,  # Simplified
@@ -517,6 +592,12 @@ async def approve_suggestion(
             "ready_to_deploy": yaml_valid,
             "approved_at": datetime.utcnow().isoformat()
         }
+        
+        if deployment_error:
+            response["deployment_error"] = deployment_error
+            response["deployment_warning"] = "YAML generated but not deployed to Home Assistant"
+        
+        return response
         
     except HTTPException:
         raise
