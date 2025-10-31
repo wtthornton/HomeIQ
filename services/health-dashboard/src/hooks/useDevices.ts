@@ -8,6 +8,7 @@ export interface Device {
   model: string;
   sw_version?: string;
   area_id?: string;
+  integration?: string;  // HA integration/platform name
   entity_count: number;
   timestamp: string;
 }

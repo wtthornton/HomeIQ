@@ -166,8 +166,18 @@ async def list_devices(
 async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
     """Get device by ID (SQLite) - Story 22.2"""
     try:
-        # Simple SELECT with entity count
-        query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
+        # Simple SELECT with entity count (only select columns that exist in current schema)
+        query = select(
+            Device.device_id,
+            Device.name,
+            Device.manufacturer,
+            Device.model,
+            Device.sw_version,
+            Device.area_id,
+            Device.integration,
+            Device.last_seen,
+            func.count(Entity.entity_id).label('entity_count')
+        )\
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
             .group_by(Device.device_id)
@@ -178,16 +188,19 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
         if not row:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
         
-        device, entity_count = row
+        # Unpack row tuple (simplified - only columns that exist)
+        (device_id_col, name, manufacturer, model, sw_version, area_id, 
+         integration, last_seen, entity_count) = row
+        
         return DeviceResponse(
-            device_id=device.device_id,
-            name=device.name,
-            manufacturer=device.manufacturer or "Unknown",
-            model=device.model or "Unknown",
-            sw_version=device.sw_version,
-            area_id=device.area_id,
+            device_id=device_id_col,
+            name=name,
+            manufacturer=manufacturer or "Unknown",
+            model=model or "Unknown",
+            sw_version=sw_version,
+            area_id=area_id,
             entity_count=entity_count,
-            timestamp=device.last_seen.isoformat() if device.last_seen else datetime.now().isoformat()
+            timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
         )
     except HTTPException:
         raise
@@ -708,6 +721,7 @@ async def bulk_upsert_devices(
                 model=device_data.get('model'),
                 sw_version=device_data.get('sw_version'),
                 area_id=device_data.get('area_id'),
+                integration=device_data.get('integration'),  # Fix: Include integration field
                 entry_type=device_data.get('entry_type'),
                 configuration_url=device_data.get('configuration_url'),
                 suggested_area=device_data.get('suggested_area'),
@@ -791,4 +805,42 @@ async def bulk_upsert_entities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk upsert entities: {str(e)}"
+        )
+
+
+@router.delete("/internal/devices/clear")
+async def clear_all_devices(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete all devices and entities from the database (for reload/reset)
+    """
+    try:
+        from sqlalchemy import delete
+        
+        # Delete all entities first (due to foreign key constraint)
+        entities_deleted = await db.execute(delete(Entity))
+        entities_count = entities_deleted.rowcount
+        
+        # Delete all devices
+        devices_deleted = await db.execute(delete(Device))
+        devices_count = devices_deleted.rowcount
+        
+        await db.commit()
+        
+        logger.info(f"Cleared {devices_count} devices and {entities_count} entities from database")
+        
+        return {
+            "success": True,
+            "devices_deleted": devices_count,
+            "entities_deleted": entities_count,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error clearing devices and entities: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear devices and entities: {str(e)}"
         )

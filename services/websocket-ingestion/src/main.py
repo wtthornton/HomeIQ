@@ -705,6 +705,44 @@ async def create_app():
     # Add standardized event rate endpoint
     app.router.add_get('/api/v1/event-rate', service.get_event_rate)
     
+    # Add discovery trigger endpoint
+    async def trigger_discovery_handler(request):
+        """Endpoint to manually trigger device/entity discovery"""
+        service = request.app['service']
+        try:
+            if not service.connection_manager or not service.connection_manager.discovery_service:
+                return web.json_response({
+                    "success": False,
+                    "error": "Connection manager or discovery service not available"
+                }, status=503)
+            
+            websocket = service.connection_manager.websocket
+            if not websocket:
+                return web.json_response({
+                    "success": False,
+                    "error": "WebSocket connection not available"
+                }, status=503)
+            
+            logger.info("Manual discovery trigger requested")
+            discovery_result = await service.connection_manager.discovery_service.discover_all(
+                websocket, store=True
+            )
+            
+            return web.json_response({
+                "success": True,
+                "devices_discovered": len(discovery_result.get("devices", [])),
+                "entities_discovered": len(discovery_result.get("entities", [])),
+                "timestamp": datetime.now().isoformat()
+            })
+        except Exception as e:
+            logger.error(f"Error triggering discovery: {e}")
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
+    app.router.add_post('/api/v1/discovery/trigger', trigger_discovery_handler)
+    
     # Add WebSocket endpoint
     app.router.add_get('/ws', websocket_handler)
     

@@ -186,15 +186,25 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
     const totalDevices = devices.length;
     const totalEntities = entities.length;
     
-    // Get top integrations by device count from actual entity data
+    // Get top integrations by device count - use device integration field first, fallback to entity platform
     const integrationDeviceCounts = new Map<string, number>();
     devices.forEach(device => {
-      entities
-        .filter(e => e.device_id === device.device_id)
-        .forEach(entity => {
-          const count = integrationDeviceCounts.get(entity.platform) || 0;
-          integrationDeviceCounts.set(entity.platform, count + 1);
-        });
+      // Try to get integration from device first (if available)
+      // Otherwise, use the platform from the first entity of this device
+      let integrationKey = device.integration;
+      if (!integrationKey) {
+        const deviceEntities = entities.filter(e => e.device_id === device.device_id);
+        if (deviceEntities.length > 0) {
+          integrationKey = deviceEntities[0].platform || 'unknown';
+        } else {
+          integrationKey = 'unknown';
+        }
+      }
+      
+      // Count unique devices per integration
+      if (integrationKey) {
+        integrationDeviceCounts.set(integrationKey, (integrationDeviceCounts.get(integrationKey) || 0) + 1);
+      }
     });
     
     // Calculate health based on recent activity and device count
