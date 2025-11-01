@@ -302,7 +302,7 @@ async def expand_group_entities_to_members(
     """
     Generic function to expand group entities to their individual member entities.
     
-    For example, if entity_ids contains ["light.office"] and light.office is a group
+    For example, if entity_ids contains a light entity and that entity is a group
     with members ["light.hue_go_1", "light.hue_color_downlight_2_2", ...], 
     this function will return the individual light entity IDs instead.
     
@@ -551,7 +551,7 @@ async def map_devices_to_entities(
                     logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (fuzzy match)")
                     break
         
-        # Strategy 3: Match by domain name (e.g., "wled" matches "wled.office")
+        # Strategy 3: Match by domain name (e.g., "wled" matches light entities with "wled" in the name)
         if not mapped and fuzzy_match:
             for entity_id, enriched in enriched_data.items():
                 domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
@@ -645,7 +645,7 @@ def extract_device_mentions_from_text(
             domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
             entity_name = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
             
-            # Check domain matches (e.g., "wled" text matches "wled.office")
+            # Check domain matches (e.g., "wled" text matches light entities with "wled" in the name)
             if domain and domain in text_lower and len(domain) >= 3:
                 if domain not in [m.lower() for m in mentions.keys()]:
                     mentions[domain] = entity_id
@@ -1016,7 +1016,7 @@ Pay attention to the capability types and ranges when generating service calls:
 IMPORTANT SERVICE MAPPING:
 - ALL light entities (including WLED) use: light.turn_on and light.turn_off
 - WLED entities are lights, so use light.turn_on (NOT wled.turn_on)
-- Example: For wled.office entity, use: service: light.turn_on with target.entity_id: wled.office
+- Example: For a WLED entity from the validated list above, use: service: light.turn_on with target.entity_id: {validated_wled_entity_id}
 
 """
     elif 'validated_entities' in suggestion and suggestion.get('validated_entities'):
@@ -1109,28 +1109,41 @@ EXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified t
 
 """
             
+            # Build dynamic example entity IDs for the prompt
+            example_light = next((eid for eid in validated_entities.values() if eid.startswith('light.')), None)
+            example_sensor = next((eid for eid in validated_entities.values() if eid.startswith('binary_sensor.') or eid.startswith('sensor.')), None)
+            example_wled = next((eid for eid in validated_entities.values() if 'wled' in eid.lower()), None)
+            example_entity = list(validated_entities.values())[0] if validated_entities else '{EXAMPLE_ENTITY_ID}'
+            
             validated_entities_text = f"""
 VALIDATED ENTITIES (ALL verified to exist in Home Assistant - use these EXACT entity IDs):
 {chr(10).join(entity_id_list)}
 {mapping_text}{suggestion_specific_mapping}
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
-Entity IDs must ALWAYS be in format: domain.entity (e.g., {list(validated_entities.values())[0] if validated_entities else 'light.office'})
+Entity IDs must ALWAYS be in format: domain.entity (e.g., {example_entity})
 
 COMMON MISTAKES TO AVOID:
 ❌ WRONG: entity_id: wled (missing domain prefix - will cause "Entity not found" error)
 ❌ WRONG: entity_id: WLED (missing domain prefix and wrong format)
 ❌ WRONG: entity_id: office (missing domain prefix - incomplete entity ID)
-✅ CORRECT: entity_id: {list(validated_entities.values())[0] if validated_entities else 'wled.office'} (complete domain.entity format)
+✅ CORRECT: entity_id: {example_entity} (complete domain.entity format from validated list above)
 
 If you need multiple lights, use the same entity ID multiple times or use the entity_id provided for 'lights'.
 """
         else:
             validated_entities_text = """
-CRITICAL: No validated entities found. Use generic placeholder entity IDs that clearly indicate they are placeholders:
-- Use 'light.office_light_placeholder' for office lights
-- Use 'binary_sensor.door_placeholder' for door sensors
-- Add a comment in the YAML explaining these are placeholders
+CRITICAL ERROR: No validated entities found. You CANNOT create an automation without real entity IDs.
+
+DO NOT:
+- Create fake entity IDs like 'light.office_light_placeholder'
+- Generate entity IDs that don't exist
+- Use placeholder entity IDs
+
+REQUIRED ACTION:
+You MUST fail this request and return an error message indicating that entity validation failed.
+The automation cannot be created without valid entity IDs from Home Assistant.
 """
+            logger.error("❌ No validated entities available - automation creation should fail")
         
         # Add entity context JSON if available
         if entity_context_json:
@@ -1151,20 +1164,44 @@ Use this entity information to:
         if validated_entities:
             logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text[:200]}...")
             logger.debug(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text}")
-    else:
-        validated_entities_text = """
-CRITICAL: No validated entities found. Use generic placeholder entity IDs that clearly indicate they are placeholders:
-- Use 'light.office_light_placeholder' for office lights
-- Use 'binary_sensor.door_placeholder' for door sensors
-- Add a comment in the YAML explaining these are placeholders
+        else:
+            validated_entities_text = """
+CRITICAL ERROR: No validated entities found. You CANNOT create an automation without real entity IDs.
+
+DO NOT:
+- Create fake entity IDs like 'light.office_light_placeholder'
+- Generate entity IDs that don't exist
+- Use placeholder entity IDs
+
+REQUIRED ACTION:
+You MUST fail this request and return an error message indicating that entity validation failed.
+The automation cannot be created without valid entity IDs from Home Assistant.
 """
-        logger.warning("⚠️ No validated entities available - will use placeholder format")
+            logger.error("❌ No validated entities available - automation creation should fail")
     
     # Check if test mode
     is_test = 'TEST MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
     
     # TASK 2.4: Check if sequence test mode (shortened delays instead of stripping)
     is_sequence_test = suggestion.get('test_mode') == 'sequence'
+    
+    # Build dynamic example entity IDs for prompt examples (use validated entities, or generic placeholders)
+    if validated_entities:
+        example_light = next((eid for eid in validated_entities.values() if eid.startswith('light.')), None)
+        example_sensor = next((eid for eid in validated_entities.values() if eid.startswith('binary_sensor.')), None)
+        example_door_sensor = next((eid for eid in validated_entities.values() if 'door' in eid.lower() and eid.startswith('binary_sensor.')), example_sensor)
+        example_motion_sensor = next((eid for eid in validated_entities.values() if 'motion' in eid.lower() and eid.startswith('binary_sensor.')), example_sensor)
+        example_wled = next((eid for eid in validated_entities.values() if 'wled' in eid.lower()), example_light)
+        example_entity_1 = example_light or example_entity
+        example_entity_2 = next((eid for eid in list(validated_entities.values())[1:2] if eid.startswith('light.')), example_light) or example_entity_1
+    else:
+        example_light = '{LIGHT_ENTITY}'
+        example_sensor = '{SENSOR_ENTITY}'
+        example_door_sensor = '{DOOR_SENSOR_ENTITY}'
+        example_motion_sensor = '{MOTION_SENSOR_ENTITY}'
+        example_wled = '{WLED_ENTITY}'
+        example_entity_1 = '{ENTITY_1}'
+        example_entity_2 = '{ENTITY_2}'
     
     prompt = f"""
 You are a Home Assistant automation YAML generator expert with deep knowledge of advanced HA features.
@@ -1189,12 +1226,18 @@ Automation suggestion:
 Requirements:
 1. Use YAML format (not JSON)
 2. Include: id, alias, trigger, action
-3. CRITICAL: Use ONLY the validated entity IDs provided above - do NOT create new entity IDs
+3. **ABSOLUTELY CRITICAL - READ THIS CAREFULLY:**
+   - Use ONLY the validated entity IDs provided in the VALIDATED ENTITIES list above
+   - DO NOT create new entity IDs - this will cause automation creation to FAIL
+   - DO NOT use entity IDs from examples below - those are just formatting examples
+   - DO NOT invent entity IDs based on device names - ONLY use the validated list
    - If an entity is NOT in the validated list, DO NOT invent it
-   - If you need a binary sensor but it's not validated, use the closest validated binary sensor
-   - Example: If "office desk presence" isn't validated but "binary_sensor.office_motion" is, use that
-   - NEVER create entity IDs like "binary_sensor.office_desk_presence" if it's not in the validated list
-   - This will cause automation creation to FAIL with "Entity not found" errors
+   - If you need a binary sensor but it's not validated, use the closest validated binary sensor from the list above
+   - NEVER create entity IDs like "binary_sensor.office_desk_presence" or "light.office" if they're not in the validated list
+   - If you cannot find a matching entity in the validated list, you MUST either:
+     a) Use the closest similar entity from the validated list, OR
+     b) Fail the request with an error explaining no matching entity was found
+   - Creating fake entity IDs will cause automation creation to FAIL with "Entity not found" errors
 4. Add appropriate conditions if needed
 5. Include mode: single or restart
 6. Add description field
@@ -1208,33 +1251,38 @@ Requirements:
    - `parallel` for simultaneous actions
 
 CRITICAL YAML STRUCTURE RULES:
-1. Entity IDs MUST ALWAYS be in format: domain.entity (e.g., light.office, binary_sensor.door, wled.office)
+1. **Entity IDs MUST ALWAYS be in format: domain.entity (use ONLY validated entities from the list above)**
+   - **DO NOT use the example entity IDs shown below** - those are just formatting examples
+   - **MUST use actual entity IDs from the VALIDATED ENTITIES list above**
    - NEVER use incomplete entity IDs like "wled", "office", or "WLED"
-   - If you see "wled" in the description, look up the full entity ID from VALIDATED ENTITIES above
-   - Example: If description says "wled" and validated entities shows "WLED: wled.office", use "wled.office"
+   - NEVER create entity IDs based on the examples - examples use placeholders like {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
+   - If you see "wled" in the description, find the actual WLED entity ID from the VALIDATED ENTITIES list above
+   - IMPORTANT: The examples below show YAML STRUCTURE only - replace ALL example entity IDs with real ones from the validated list above
 2. Service calls ALWAYS use target.entity_id structure:
    ```yaml
    - service: light.turn_on
      target:
-       entity_id: light.kitchen
+       entity_id: {example_light if example_light else '{LIGHT_ENTITY}'}
    ```
    NEVER use entity_id directly in the action!
+   NOTE: Replace the entity ID above with an actual validated entity ID from the list above
 3. Multiple entities use list format:
    ```yaml
    target:
      entity_id:
-       - light.kitchen
-       - light.living_room
+       - {example_entity_1 if example_entity_1 else '{ENTITY_1}'}
+       - {example_entity_2 if example_entity_2 else '{ENTITY_2}'}
    ```
+   NOTE: Replace these with actual validated entity IDs from the list above
 4. Required fields: alias, trigger, action
 5. Always include mode: single (or restart, queued, parallel)
 
-Advanced YAML Examples:
+Advanced YAML Examples (NOTE: Replace entity IDs with validated ones from above):
 
 Example 1 - Simple time trigger (CORRECT):
 ```yaml
-alias: Morning Kitchen Light
-description: Turn on kitchen light at 7 AM
+alias: Morning Light
+description: Turn on light at 7 AM
 mode: single
 trigger:
   - platform: time
@@ -1242,19 +1290,19 @@ trigger:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.kitchen
+      entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
     data:
       brightness_pct: 100
 ```
 
 Example 2 - State trigger with condition (CORRECT):
 ```yaml
-alias: Motion-Activated Office Light
-description: Turn on office light when motion detected after 6 PM
+alias: Motion-Activated Light
+description: Turn on light when motion detected after 6 PM
 mode: single
 trigger:
   - platform: state
-    entity_id: binary_sensor.office_motion
+    entity_id: {example_motion_sensor if example_motion_sensor else '{REPLACE_WITH_VALIDATED_MOTION_SENSOR}'}
     to: 'on'
 condition:
   - condition: time
@@ -1262,7 +1310,7 @@ condition:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.office
+      entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
     data:
       brightness_pct: 75
       color_name: warm_white
@@ -1282,13 +1330,13 @@ action:
       sequence:
         - service: light.turn_on
           target:
-            entity_id: light.office
+            entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
           data:
             brightness_pct: 100
         - delay: '00:00:01'
         - service: light.turn_off
           target:
-            entity_id: light.office
+            entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
         - delay: '00:00:01'
 ```
 
@@ -1299,11 +1347,11 @@ description: Different colors for different doors
 mode: single
 trigger:
   - platform: state
-    entity_id: binary_sensor.front_door
+    entity_id: {example_door_sensor if example_door_sensor else '{REPLACE_WITH_VALIDATED_DOOR_SENSOR_1}'}
     to: 'on'
     id: front_door
   - platform: state
-    entity_id: binary_sensor.back_door
+    entity_id: {example_door_sensor if example_door_sensor else '{REPLACE_WITH_VALIDATED_DOOR_SENSOR_2}'}
     to: 'on'
     id: back_door
 condition:
@@ -1318,7 +1366,7 @@ action:
         sequence:
           - service: light.turn_on
             target:
-              entity_id: light.office_lights
+              entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
             data:
               brightness_pct: 100
               color_name: red
@@ -1328,14 +1376,14 @@ action:
         sequence:
           - service: light.turn_on
             target:
-              entity_id: light.office_lights
+              entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
             data:
               brightness_pct: 100
               color_name: blue
     default:
       - service: light.turn_on
         target:
-          entity_id: light.office_lights
+          entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
         data:
           brightness_pct: 50
           color_name: white
@@ -1347,15 +1395,15 @@ CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
    ❌ WRONG: triggers: (plural) or trigger: state
    ✅ CORRECT: trigger: (singular) and platform: state
    
-   Example:
+   Example (replace entity IDs with validated ones from above):
    ❌ WRONG:
      triggers:
-       - entity_id: binary_sensor.door
+       - entity_id: {example_sensor if example_sensor else '{SENSOR_ENTITY}'}
          trigger: state
    ✅ CORRECT:
      trigger:
        - platform: state
-         entity_id: binary_sensor.door
+         entity_id: {example_sensor if example_sensor else '{SENSOR_ENTITY}'}
 
 2. ACTION STRUCTURE:
    ❌ WRONG: actions: (plural) or action: light.turn_on (inside action list)
@@ -1379,16 +1427,16 @@ CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
        - sequence:
            - service: light.turn_on  # ✅ CORRECT FIELD NAME
              target:
-               entity_id: light.office  # ✅ FULL ENTITY ID (domain.entity)
+               entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
            - service: light.turn_on  # ✅ WLED entities use light.turn_on service (NOT wled.turn_on)
              target:
-               entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
+               entity_id: {example_wled if example_wled else '{REPLACE_WITH_VALIDATED_WLED_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
              data:
                effect: fireworks  # WLED-specific effect parameter
            - delay: "00:01:00"
            - service: light.turn_off  # ✅ WLED entities use light.turn_off service (NOT wled.turn_off)
              target:
-               entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
+               entity_id: {example_wled if example_wled else '{REPLACE_WITH_VALIDATED_WLED_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
 
 4. FIELD NAMES IN ACTIONS:
    - Top level: Use "action:" (singular)
@@ -1396,26 +1444,27 @@ CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
    - In triggers: Use "platform:" NOT "trigger:"
 
 COMMON MISTAKES TO AVOID:
-❌ WRONG: entity_id: light.kitchen (in action directly, missing target wrapper)
-✅ CORRECT: target: {{ entity_id: light.kitchen }}
+❌ WRONG: entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} (in action directly, missing target wrapper)
+✅ CORRECT: target: {{ entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} }}
 
 ❌ WRONG: entity_id: wled (INCOMPLETE - missing entity name, will cause "Entity not found" error)
-✅ CORRECT: target: {{ entity_id: wled.office }} (COMPLETE - domain.entity format)
+✅ CORRECT: target: {{ entity_id: {example_wled if example_wled else '{WLED_ENTITY}'} }} (COMPLETE - domain.entity format from validated list)
 
 ❌ WRONG: entity_id: office (INCOMPLETE - missing domain prefix, will cause "Entity not found" error)
-✅ CORRECT: target: {{ entity_id: light.office }} (COMPLETE - domain.entity format)
+✅ CORRECT: target: {{ entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} }} (COMPLETE - domain.entity format from validated list)
 
 ❌ WRONG: service: wled.turn_on (WLED entities use light.turn_on service - wled.turn_on does NOT exist)
-✅ CORRECT: service: light.turn_on with target.entity_id: wled.office (WLED entities are lights)
+✅ CORRECT: service: light.turn_on with target.entity_id: {example_wled if example_wled else '{WLED_ENTITY}'} (WLED entities are lights, use validated entity ID)
 
 REMEMBER:
 1. Every entity_id MUST have BOTH domain AND entity name separated by a dot!
 2. ALL light entities (including WLED) use light.turn_on/light.turn_off services
-3. If the description mentions "wled", look up the full entity ID (e.g., "wled.office") in the VALIDATED ENTITIES section above.
+3. If the description mentions "wled", look up the full entity ID from the VALIDATED ENTITIES section above.
 4. Use light.turn_on service for WLED entities, NOT wled.turn_on (that service doesn't exist in HA)
+5. NEVER create entity IDs - ONLY use the validated entity IDs provided in the list above
 
-❌ WRONG: entity_id: "office" (missing domain)
-✅ CORRECT: entity_id: light.office (full format)
+❌ WRONG: entity_id: "office" (missing domain, NOT from validated list)
+✅ CORRECT: entity_id: {example_light if example_light else 'USE_VALIDATED_ENTITY'} (from validated list above)
 
 ❌ WRONG: service: light.turn_on without target
 ✅ CORRECT: service: light.turn_on with target.entity_id
@@ -1426,7 +1475,13 @@ REMEMBER:
 ❌ WRONG: action: light.turn_on (inside action list)
 ✅ CORRECT: service: light.turn_on (inside action list)
 
-Generate ONLY the YAML content, no explanations or markdown code blocks. Use the validated entity IDs provided above. Follow the structure examples exactly. DOUBLE-CHECK that you use "platform:" in triggers and "service:" in actions.
+**FINAL REMINDER BEFORE GENERATING YAML:**
+1. The examples above show YAML STRUCTURE ONLY - DO NOT copy their entity IDs
+2. ALL entity IDs MUST come from the VALIDATED ENTITIES list at the top
+3. If an entity ID isn't in that validated list, DO NOT use it - find a similar one from the list or fail
+4. Creating entity IDs that don't exist will cause automation creation to FAIL
+
+Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONLY the validated entity IDs from the list above. Follow the structure examples exactly for YAML syntax, but replace ALL entity IDs with real ones from the validated list. DOUBLE-CHECK that you use "platform:" in triggers and "service:" in actions.
 """
 
     try:
@@ -1683,6 +1738,72 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use the
         except ValueError as e:
             # Re-raise ValueError from entity validation
             raise
+        
+        # POST-GENERATION SAFETY NET: Validate all entities in generated YAML against HA
+        # This catches any invalid entities that somehow got past the LLM prompt restrictions
+        if ha_client:
+            try:
+                import yaml as yaml_lib
+                post_gen_parsed = yaml_lib.safe_load(yaml_content)
+                if post_gen_parsed:
+                    from ..services.entity_id_validator import EntityIDValidator
+                    post_gen_validator = EntityIDValidator()
+                    
+                    # Extract all entity IDs from generated YAML
+                    post_gen_entity_tuples = post_gen_validator._extract_all_entity_ids(post_gen_parsed)
+                    post_gen_entity_ids = [eid for eid, _ in post_gen_entity_tuples] if post_gen_entity_tuples else []
+                    
+                    if post_gen_entity_ids:
+                        logger.info(f"🔍 POST-GENERATION VALIDATION: Checking {len(post_gen_entity_ids)} entity IDs from generated YAML...")
+                        invalid_post_gen = []
+                        replacements = {}
+                        
+                        for entity_id in post_gen_entity_ids:
+                            try:
+                                entity_state = await ha_client.get_entity_state(entity_id)
+                                if not entity_state:
+                                    invalid_post_gen.append(entity_id)
+                                    logger.warning(f"⚠️ Post-gen check: Entity NOT found: {entity_id}")
+                                    # Try to find replacement from validated entities
+                                    if validated_entity_ids:
+                                        # Find closest match by domain
+                                        domain = entity_id.split('.')[0] if '.' in entity_id else ''
+                                        candidates = [eid for eid in validated_entity_ids if eid.startswith(f"{domain}.")]
+                                        if candidates:
+                                            replacement = candidates[0]
+                                            replacements[entity_id] = replacement
+                                            logger.info(f"  🔧 Found replacement: {entity_id} → {replacement}")
+                            except Exception:
+                                invalid_post_gen.append(entity_id)
+                                logger.warning(f"⚠️ Post-gen check: Entity validation failed: {entity_id}")
+                        
+                        # Replace invalid entities if we found replacements
+                        if replacements:
+                            logger.info(f"🔧 POST-GEN REPLACEMENT: Replacing {len(replacements)} invalid entities with validated ones...")
+                            for old_id, new_id in replacements.items():
+                                yaml_content = yaml_content.replace(old_id, new_id)
+                                logger.info(f"  ✅ Replaced: {old_id} → {new_id}")
+                            
+                            # Re-parse to update the parsed YAML
+                            post_gen_parsed = yaml_lib.safe_load(yaml_content)
+                        
+                        # If we still have invalid entities without replacements, fail
+                        remaining_invalid = [eid for eid in invalid_post_gen if eid not in replacements]
+                        if remaining_invalid:
+                            logger.error(f"❌ POST-GEN VALIDATION FAILED: {len(remaining_invalid)} invalid entities without replacements: {remaining_invalid}")
+                            raise ValueError(
+                                f"Generated YAML contains invalid entity IDs that don't exist in Home Assistant: {', '.join(remaining_invalid)}. "
+                                f"Available validated entities: {', '.join(validated_entity_ids[:10]) if validated_entity_ids else 'None'}"
+                            )
+                        elif invalid_post_gen:
+                            logger.info(f"✅ POST-GEN VALIDATION: Fixed {len(replacements)} invalid entities via replacement")
+                        else:
+                            logger.info(f"✅ POST-GEN VALIDATION: All {len(post_gen_entity_ids)} entity IDs are valid")
+            except ValueError:
+                # Re-raise ValueError - these are fatal
+                raise
+            except Exception as e:
+                logger.warning(f"⚠️ Post-generation validation error (continuing with generated YAML): {e}", exc_info=True)
         
         # Debug: Print the final YAML content
         logger.info("=" * 80)
@@ -3494,7 +3615,21 @@ async def approve_suggestion_from_query(
                     else:
                         logger.info(f"✅ FINAL TEST VALIDATION PASSED: All {len(all_entity_ids_in_yaml)} entity IDs exist in HA")
             except Exception as e:
-                logger.warning(f"⚠️ Final test entity validation error (continuing anyway): {e}", exc_info=True)
+                logger.error(f"❌ Final test entity validation error: {e}", exc_info=True)
+                # Fail if validation can't complete - don't create automation with unvalidated entities
+                return {
+                    "suggestion_id": suggestion_id,
+                    "query_id": query_id,
+                    "status": "error",
+                    "safe": False,
+                    "message": "Failed to validate entities in automation YAML",
+                    "error_details": {
+                        "type": "validation_error",
+                        "message": f"Entity validation failed: {str(e)}",
+                        "suggestion": "Unable to verify entity IDs exist in Home Assistant. Automation creation blocked."
+                    },
+                    "warnings": [f"Validation error: {str(e)[:200]}"]
+                }
         
         # TASK 2.3: Run safety checks before creating automation
         logger.info("🔒 Running safety validation...")
@@ -3576,7 +3711,21 @@ async def approve_suggestion_from_query(
                     else:
                         logger.info(f"✅ FINAL VALIDATION PASSED: All {len(all_entity_ids_in_yaml)} entity IDs exist in HA")
             except Exception as e:
-                logger.warning(f"⚠️ Final entity validation error (continuing anyway): {e}", exc_info=True)
+                logger.error(f"❌ Final entity validation error: {e}", exc_info=True)
+                # Fail if validation can't complete - don't create automation with unvalidated entities
+                return {
+                    "suggestion_id": suggestion_id,
+                    "query_id": query_id,
+                    "status": "error",
+                    "safe": False,
+                    "message": "Failed to validate entities in automation YAML",
+                    "error_details": {
+                        "type": "validation_error",
+                        "message": f"Entity validation failed: {str(e)}",
+                        "suggestion": "Unable to verify entity IDs exist in Home Assistant. Automation creation blocked."
+                    },
+                    "warnings": [f"Validation error: {str(e)[:200]}"]
+                }
         
         # Create automation in Home Assistant
         if ha_client:

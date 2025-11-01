@@ -57,7 +57,8 @@ Now generate the precise YAML automation code.
 
 Guidelines:
 - Generate COMPLETE, VALID Home Assistant YAML
-- Use exact entity IDs provided (format: domain.entity_name, e.g., light.kitchen)
+- Use ONLY the exact entity IDs provided in the validated entities list (format: domain.entity_name)
+- NEVER create new entity IDs - ONLY use validated ones from the provided list
 - Include all conditions and details from description
 - Use appropriate service calls for device types
 - Add proper formatting and indentation (2 spaces)
@@ -65,20 +66,23 @@ Guidelines:
 - Be precise - this will be deployed directly
 
 CRITICAL YAML STRUCTURE RULES:
-1. Entity IDs MUST be in format: domain.entity (e.g., light.office, binary_sensor.door)
+1. Entity IDs MUST be in format: domain.entity (use ONLY validated entities from provided list)
+   - NEVER create entity IDs - ONLY use the validated ones provided
 2. Service calls use target.entity_id, not entity_id directly:
    ```yaml
    - service: light.turn_on
      target:
-       entity_id: light.kitchen
+       entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
    ```
+   NOTE: Replace {REPLACE_WITH_VALIDATED_LIGHT_ENTITY} with actual validated entity ID from list
 3. Multiple entities use list format:
    ```yaml
    target:
      entity_id:
-       - light.kitchen
-       - light.living_room
+       - {REPLACE_WITH_VALIDATED_ENTITY_1}
+       - {REPLACE_WITH_VALIDATED_ENTITY_2}
    ```
+   NOTE: Replace these with actual validated entity IDs from provided list
 4. Data parameters go under `data:` key
 5. Required fields: alias, trigger, action
 6. Optional fields: id, description, mode, condition
@@ -101,10 +105,10 @@ When to use advanced features:
 
 COMPLETE YAML EXAMPLES:
 
-Example 1 - Simple time trigger:
+Example 1 - Simple time trigger (NOTE: Replace entity IDs with validated ones):
 ```yaml
-alias: Morning Kitchen Light
-description: Turn on kitchen light at 7 AM
+alias: Morning Light
+description: Turn on light at 7 AM
 mode: single
 trigger:
   - platform: time
@@ -112,19 +116,19 @@ trigger:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.kitchen
+      entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
     data:
       brightness_pct: 100
 ```
 
-Example 2 - State trigger with condition:
+Example 2 - State trigger with condition (NOTE: Replace entity IDs with validated ones):
 ```yaml
-alias: Motion-Activated Office Light
-description: Turn on office light when motion detected after 6 PM
+alias: Motion-Activated Light
+description: Turn on light when motion detected after 6 PM
 mode: single
 trigger:
   - platform: state
-    entity_id: binary_sensor.office_motion
+    entity_id: {REPLACE_WITH_VALIDATED_MOTION_SENSOR}
     to: 'on'
 condition:
   - condition: time
@@ -132,36 +136,36 @@ condition:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.office
+      entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
     data:
       brightness_pct: 75
       color_name: warm_white
 ```
 
-Example 3 - Multiple actions with delay:
+Example 3 - Multiple actions with delay (NOTE: Replace entity IDs with validated ones):
 ```yaml
 alias: Door Open Notification
 description: Flash lights when door opens
 mode: single
 trigger:
   - platform: state
-    entity_id: binary_sensor.front_door
+    entity_id: {REPLACE_WITH_VALIDATED_DOOR_SENSOR}
     from: 'off'
     to: 'on'
 action:
   - service: light.turn_on
     target:
-      entity_id: light.office
+      entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
     data:
       brightness_pct: 100
       color_name: red
   - delay: '00:00:02'
   - service: light.turn_off
     target:
-      entity_id: light.office
+      entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
 ```
 
-Example 4 - Repeat with sequence:
+Example 4 - Repeat with sequence (NOTE: Replace entity IDs with validated ones):
 ```yaml
 alias: Flash Pattern
 description: Flash lights 3 times
@@ -175,13 +179,13 @@ action:
       sequence:
         - service: light.turn_on
           target:
-            entity_id: light.office
+            entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
           data:
             brightness_pct: 100
         - delay: '00:00:01'
         - service: light.turn_off
           target:
-            entity_id: light.office
+            entity_id: {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
         - delay: '00:00:01'
 ```
 
@@ -263,7 +267,7 @@ YAML_GENERATION_TOOLS = [
                     },
                     "target_entity_id": {
                         "type": "string",
-                        "description": "Target entity ID (e.g., 'light.kitchen')"
+                        "description": "Target entity ID from validated entities list (format: domain.entity, e.g., 'light.{entity_name}') - MUST be from validated entities only"
                     },
                     "data": {
                         "type": "object",
