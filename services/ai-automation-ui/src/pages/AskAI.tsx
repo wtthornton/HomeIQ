@@ -906,11 +906,14 @@ export const AskAI: React.FC = () => {
           <div className="flex items-center space-x-1">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-1.5 rounded transition-colors ${
-                darkMode 
-                  ? 'hover:bg-gray-700 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-600'
-              }`}
+              className="p-1.5 rounded transition-colors"
+              style={{ color: '#cbd5e1' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
               title="Toggle Examples"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -919,11 +922,14 @@ export const AskAI: React.FC = () => {
             </button>
             <button
               onClick={exportConversation}
-              className={`p-1.5 rounded transition-colors ${
-                darkMode 
-                  ? 'hover:bg-gray-700 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-600'
-              }`}
+              className="p-1.5 rounded transition-colors"
+              style={{ color: '#cbd5e1' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
               title="Export Conversation"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -931,11 +937,14 @@ export const AskAI: React.FC = () => {
               </svg>
             </button>
             <label
-              className={`p-1.5 rounded cursor-pointer transition-colors ${
-                darkMode 
-                  ? 'hover:bg-gray-700 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-600'
-              }`}
+              className="p-1.5 rounded cursor-pointer transition-colors"
+              style={{ color: '#cbd5e1' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
               title="Import Conversation"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -956,15 +965,29 @@ export const AskAI: React.FC = () => {
                 }
               }}
               disabled={messages.length <= 1}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                messages.length <= 1
-                  ? darkMode
-                    ? 'border-gray-700 text-gray-500 cursor-not-allowed border opacity-50'
-                    : 'border-gray-200 text-gray-400 cursor-not-allowed border opacity-50'
-                  : darkMode
-                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700 border'
-                    : 'border-gray-300 text-gray-600 hover:bg-gray-50 border'
-              }`}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border uppercase"
+              style={messages.length <= 1 ? {
+                borderColor: 'rgba(51, 65, 85, 0.3)',
+                color: '#64748b',
+                opacity: 0.5,
+                cursor: 'not-allowed'
+              } : {
+                borderColor: 'rgba(51, 65, 85, 0.5)',
+                color: '#cbd5e1',
+                background: 'rgba(30, 41, 59, 0.6)'
+              }}
+              onMouseEnter={(e) => {
+                if (messages.length > 1) {
+                  e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (messages.length > 1) {
+                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                  e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+                }
+              }}
               title="Clear conversation and start new (Ctrl+K / Cmd+K)"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -994,13 +1017,18 @@ export const AskAI: React.FC = () => {
                 >
                   <div className={`w-full rounded-lg p-3 shadow-sm ${
                     message.type === 'user' 
-                      ? 'bg-blue-500 text-white max-w-2xl ml-auto' 
+                      ? 'max-w-2xl ml-auto' 
                       : 'ds-card max-w-5xl'
-                  }`} style={message.type !== 'user' ? {
+                  }`} style={message.type === 'user' ? {
+                    background: 'linear-gradient(to right, #3b82f6, #2563eb)',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 0 20px rgba(59, 130, 246, 0.2)'
+                  } : {
                     background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
-                    border: '1px solid rgba(51, 65, 85, 0.5)',
-                    color: '#cbd5e1'
-                  } : {}}>
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    color: '#cbd5e1',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
+                  }}>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
                     {/* Show suggestions if available */}
@@ -1017,7 +1045,7 @@ export const AskAI: React.FC = () => {
                           const conversationHistory = suggestion.conversation_history || [];
                           
                           return (
-                            <div key={idx} className="border-t border-gray-400 pt-3">
+                            <div key={idx} className="pt-3" style={{ borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
                               <ConversationalSuggestionCard
                                 suggestion={{
                                   id: parseInt(suggestion.suggestion_id.replace(/\D/g, '')) || idx + 1, // Extract numeric part or use index
@@ -1067,11 +1095,20 @@ export const AskAI: React.FC = () => {
                                 setInputValue(prompt);
                                 inputRef.current?.focus();
                               }}
-                              className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-                                darkMode
-                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                              }`}
+                              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                              style={{
+                                background: 'rgba(30, 41, 59, 0.6)',
+                                border: '1px solid rgba(51, 65, 85, 0.5)',
+                                color: '#cbd5e1'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                                e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+                              }}
                             >
                               {prompt}
                             </button>
@@ -1097,13 +1134,15 @@ export const AskAI: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-start"
               >
-                <div className={`px-4 py-3 rounded-lg max-w-5xl ${
-                  darkMode ? 'bg-gray-800' : 'bg-white'
-                }`}>
+                <div className="px-4 py-3 rounded-lg max-w-5xl" style={{
+                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
+                }}>
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#3b82f6' }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#3b82f6', animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#3b82f6', animationDelay: '0.2s' }}></div>
                   </div>
                 </div>
               </motion.div>

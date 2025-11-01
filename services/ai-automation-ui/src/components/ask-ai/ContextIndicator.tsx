@@ -29,26 +29,30 @@ export const ContextIndicator: React.FC<ContextIndicatorProps> = ({ context, dar
   }
   
   return (
-    <div className={`border-t px-4 py-2 text-xs ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
+    <div className="border-t px-4 py-2 text-xs" style={{
+      borderColor: 'rgba(51, 65, 85, 0.5)',
+      background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+      backdropFilter: 'blur(12px)'
+    }}>
       <div className="flex items-center gap-4 flex-wrap">
-        <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-          🎛️ Context:
+        <span className="font-medium" style={{ color: '#cbd5e1' }}>
+          🎛️ CONTEXT:
         </span>
         
         {context.mentioned_devices.length > 0 && (
-          <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <span style={{ color: '#94a3b8' }}>
             Devices: {context.mentioned_devices.slice(0, 3).join(', ')}
             {context.mentioned_devices.length > 3 && ` +${context.mentioned_devices.length - 3}`}
           </span>
         )}
         
         {context.active_suggestions.length > 0 && (
-          <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <span style={{ color: '#94a3b8' }}>
             {context.active_suggestions.length} active suggestion{context.active_suggestions.length > 1 ? 's' : ''}
           </span>
         )}
         
-        <span className={`${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+        <span style={{ color: '#64748b' }}>
           {context.mentioned_devices.length} mention{context.mentioned_devices.length !== 1 ? 's' : ''} in this conversation
         </span>
       </div>

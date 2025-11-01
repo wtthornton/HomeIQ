@@ -210,9 +210,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowCapabilities(!showCapabilities)}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${
-                darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-900'
-              }`}
+              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                border: '1px solid rgba(51, 65, 85, 0.5)',
+                color: '#cbd5e1'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+              }}
             >
               <span className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -232,17 +243,21 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`mt-2 p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} border ${darkMode ? 'border-blue-800' : 'border-blue-200'}`}
+                  className="mt-2 p-4 rounded-lg border"
+                  style={{
+                    background: 'rgba(30, 58, 138, 0.2)',
+                    borderColor: 'rgba(59, 130, 246, 0.3)'
+                  }}
                 >
                   <ul className="space-y-2 text-sm">
                     {suggestion.device_capabilities.friendly_capabilities.map((cap, idx) => (
-                      <li key={idx} className={`flex items-start gap-2 ${darkMode ? 'text-blue-200' : 'text-blue-900'}`}>
-                        <span className="text-blue-500">•</span>
+                      <li key={idx} className="flex items-start gap-2" style={{ color: '#93c5fd' }}>
+                        <span style={{ color: '#60a5fa' }}>•</span>
                         <span>{cap}</span>
                       </li>
                     ))}
                   </ul>
-                  <p className={`mt-3 text-xs italic ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                  <p className="mt-3 text-xs italic" style={{ color: '#bfdbfe' }}>
                     Try saying: "Make it blue" or "Set to 75% brightness" or "Only on weekdays"
                   </p>
                 </motion.div>
@@ -256,9 +271,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${
-                darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-              }`}
+              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                border: '1px solid rgba(51, 65, 85, 0.5)',
+                color: '#cbd5e1'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+              }}
             >
               <span className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -323,11 +349,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   value={editInput}
                   onChange={(e) => setEditInput(e.target.value)}
                   placeholder="Describe your changes... (e.g., 'Make it blue and only on weekdays')"
-                  className={`w-full p-4 rounded-lg border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    darkMode
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className="w-full p-4 rounded-lg border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{
+                    background: 'rgba(30, 41, 59, 0.6)',
+                    borderColor: 'rgba(51, 65, 85, 0.5)',
+                    color: '#ffffff'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                   rows={3}
                   autoFocus
                 />
@@ -335,7 +370,8 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   <button
                     onClick={handleRefine}
                     disabled={isRefining || !editInput.trim()}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                    style={getButtonStyles(isRefining || !editInput.trim() ? 'secondary' : 'primary', { flex: 1 })}
+                    className={isRefining || !editInput.trim() ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     {isRefining ? (
                       <>
@@ -343,26 +379,22 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-                        <span>Updating...</span>
+                        <span>UPDATING...</span>
                       </>
                     ) : (
                       <>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Update Description</span>
+                        <span>UPDATE DESCRIPTION</span>
                       </>
                     )}
                   </button>
                   <button
                     onClick={() => setIsEditing(false)}
-                    className={`px-4 py-2 font-medium rounded-lg transition-colors ${
-                      darkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
+                    style={getButtonStyles('secondary')}
                   >
-                    Cancel
+                    CANCEL
                   </button>
                 </div>
               </div>
@@ -373,27 +405,25 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   <button
                     onClick={handleTest}
                     disabled={disabled || tested}
-                    className={`px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
-                      disabled || tested
-                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                        : darkMode
-                          ? 'bg-yellow-600 hover:bg-yellow-700 text-white hover:shadow-lg'
-                          : 'bg-yellow-500 hover:bg-yellow-600 text-white hover:shadow-lg'
-                    }`}
+                    style={getButtonStyles(disabled || tested ? 'secondary' : 'primary', {
+                      background: disabled || tested ? undefined : 'linear-gradient(to right, #f59e0b, #d97706)',
+                      boxShadow: disabled || tested ? undefined : '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                    })}
+                    className={disabled || tested ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     {tested ? (
                       <>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Tested</span>
+                        <span>TESTED</span>
                       </>
                     ) : (
                       <>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>Test</span>
+                        <span>TEST</span>
                       </>
                     )}
                   </button>
@@ -403,11 +433,12 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 <button
                   onClick={handleApprove}
                   disabled={disabled}
-                  className={`flex-1 px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
-                    disabled
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-lg'
-                  }`}
+                  style={getButtonStyles(disabled ? 'secondary' : 'primary', {
+                    flex: 1,
+                    background: disabled ? undefined : 'linear-gradient(to right, #10b981, #059669)',
+                    boxShadow: disabled ? undefined : '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                  })}
+                  className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   {disabled ? (
                     <>
@@ -415,14 +446,14 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      <span>Processing...</span>
+                      <span>PROCESSING...</span>
                     </>
                   ) : (
                     <>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Approve & Create</span>
+                      <span>APPROVE & CREATE</span>
                     </>
                   )}
                 </button>
@@ -431,34 +462,26 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 <button
                   onClick={() => setIsEditing(true)}
                   disabled={disabled}
-                  className={`px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
-                    disabled
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : darkMode
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
-                  }`}
+                  style={getButtonStyles(disabled ? 'secondary' : 'primary')}
+                  className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  <span>Edit</span>
+                  <span>EDIT</span>
                 </button>
 
                 {/* Reject Button */}
                 <button
                   onClick={() => onReject(suggestion.id)}
                   disabled={disabled}
-                  className={`px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                    disabled
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : 'bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
-                  }`}
+                  style={getButtonStyles('secondary')}
+                  className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <span>Not Interested</span>
+                  <span>NOT INTERESTED</span>
                 </button>
               </div>
             )}
@@ -470,9 +493,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowYaml(!showYaml)}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${
-                darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-              }`}
+              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                border: '1px solid rgba(51, 65, 85, 0.5)',
+                color: '#cbd5e1'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+              }}
             >
               <span className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -493,9 +527,11 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <pre className={`mt-2 p-4 rounded-lg text-xs overflow-x-auto font-mono ${
-                    darkMode ? 'bg-gray-900 text-green-400' : 'bg-gray-50 text-gray-800'
-                  } border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <pre className="mt-2 p-4 rounded-lg text-xs overflow-x-auto font-mono border" style={{
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    borderColor: 'rgba(51, 65, 85, 0.5)',
+                    color: '#10b981'
+                  }}>
                     {suggestion.automation_yaml}
                   </pre>
                 </motion.div>
@@ -540,7 +576,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span>Re-deploy with Updated YAML</span>
+                <span>RE-DEPLOY WITH UPDATED YAML</span>
               </>
             )}
           </button>
