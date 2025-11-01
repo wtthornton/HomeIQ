@@ -657,6 +657,97 @@ class EntityValidator:
         logger.info(f"Final entity mapping: {mapping}")
         return mapping
     
+    def _find_binary_sensor_fuzzy(self, query_term: str, available_entities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Find binary sensor with fuzzy matching for presence/motion/occupancy patterns.
+        
+        Handles common binary sensor naming variations:
+        - {location}_{type} (e.g., office_desk_presence)
+        - {type}_{location} (e.g., presence_office_desk)
+        - {location}_{device}_{type} (e.g., office_desk_occupancy)
+        - {location}_{type}_{device} (e.g., office_presence_desk)
+        
+        Args:
+            query_term: Query term like "office desk presence" or "desk presence"
+            available_entities: List of available entities (filtered by binary_sensor domain)
+            
+        Returns:
+            Best matching binary sensor entity or None
+        """
+        query_lower = query_term.lower()
+        query_words = set(re.findall(r'\w+', query_lower))
+        
+        # Common binary sensor type keywords
+        sensor_types = {'presence', 'motion', 'occupancy', 'contact', 'door', 'window'}
+        query_has_sensor_type = any(st in query_words for st in sensor_types)
+        
+        # Extract location and sensor type from query
+        location_words = query_words - sensor_types
+        sensor_type_words = query_words & sensor_types
+        
+        candidates = []
+        
+        for entity in available_entities:
+            entity_id = entity.get('entity_id', '')
+            if not entity_id.startswith('binary_sensor.'):
+                continue
+            
+            entity_name = entity_id.replace('binary_sensor.', '').lower()
+            entity_words = set(re.findall(r'\w+', entity_name))
+            
+            # Calculate multiple similarity scores
+            scores = []
+            
+            # Score 1: Exact substring match
+            if query_lower in entity_name or entity_name in query_lower:
+                scores.append(1.0)
+            
+            # Score 2: Word overlap
+            common_words = query_words.intersection(entity_words)
+            if common_words:
+                word_score = len(common_words) / max(len(query_words), len(entity_words))
+                scores.append(word_score)
+            
+            # Score 3: Location words match
+            if location_words:
+                location_match = location_words.intersection(entity_words)
+                if location_match:
+                    location_score = len(location_match) / len(location_words)
+                    scores.append(location_score * 0.8)
+            
+            # Score 4: Sensor type match (important for binary sensors)
+            if query_has_sensor_type and sensor_type_words:
+                type_match = sensor_type_words.intersection(entity_words)
+                if type_match:
+                    type_score = len(type_match) / len(sensor_type_words)
+                    scores.append(type_score * 0.9)  # High weight for sensor type
+            
+            # Score 5: Pattern matching for common binary sensor patterns
+            # Check if entity follows common patterns
+            if location_words and sensor_type_words:
+                # Pattern: location_type or type_location
+                for loc_word in location_words:
+                    for type_word in sensor_type_words:
+                        pattern1 = f"{loc_word}_{type_word}"
+                        pattern2 = f"{type_word}_{loc_word}"
+                        if pattern1 in entity_name or pattern2 in entity_name:
+                            scores.append(0.85)
+            
+            # Use highest score
+            if scores:
+                final_score = max(scores)
+                if final_score > 0.5:  # Threshold for fuzzy match
+                    candidates.append((entity, final_score))
+        
+        # Return best match
+        if candidates:
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            best_entity, best_score = candidates[0]
+            logger.info(f"🔍 Fuzzy match for '{query_term}': {best_entity['entity_id']} (score: {best_score:.2f})")
+            return best_entity
+        
+        return None
+
     def _find_best_match(
         self, 
         query_term: str, 
@@ -669,6 +760,7 @@ class EntityValidator:
         Enhanced to:
         - Handle numbered devices (e.g., "Office light 1" -> "light.office_1")
         - Use location/area context to prefer entities in the correct room
+        - Fuzzy matching for binary sensors (presence, motion, occupancy)
         
         Args:
             query_term: Term from user query (e.g., "office light" or "office light 1")
@@ -680,6 +772,16 @@ class EntityValidator:
         """
         query_words = set(re.findall(r'\w+', query_term.lower()))
         logger.debug(f"_find_best_match for '{query_term}' with {len(query_words)} words: {query_words}")
+        
+        # SPECIAL HANDLING: Try fuzzy matching for binary sensors first
+        # Check if query mentions presence/motion/occupancy/door/window
+        binary_sensor_keywords = {'presence', 'motion', 'occupancy', 'door', 'window', 'contact', 'sensor'}
+        if any(keyword in query_term.lower() for keyword in binary_sensor_keywords):
+            binary_sensors = [e for e in available_entities if e.get('entity_id', '').startswith('binary_sensor.')]
+            if binary_sensors:
+                fuzzy_match = self._find_binary_sensor_fuzzy(query_term, binary_sensors)
+                if fuzzy_match:
+                    return fuzzy_match
         
         # STEP 1: Check if query contains a number
         numbered_info = self._extract_number_from_query(query_term)

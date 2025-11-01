@@ -49,19 +49,31 @@ logger = logging.getLogger(__name__)
 
 # Global device intelligence client and extractors
 
-def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, Any]]) -> str:
+def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict[str, Any]], enriched_data: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
     """
-    Build entity validation context with detailed capabilities for YAML generation.
+    Build entity validation context with COMPREHENSIVE data from ALL sources.
+    
+    Uses enriched_data (comprehensive enrichment) when available, falls back to entities list.
     
     Args:
-        entities: List of entity dictionaries with capabilities
+        entities: List of entity dictionaries (fallback if enriched_data not available)
+        enriched_data: Comprehensive enriched data dictionary mapping entity_id to all available data
         
     Returns:
-        Formatted string with entity IDs and their capabilities
+        Formatted string with ALL available entity information
     """
+    from ..services.comprehensive_entity_enrichment import format_comprehensive_enrichment_for_prompt
+    
+    # Use comprehensive enrichment if available
+    if enriched_data:
+        logger.info(f"📋 Building context from comprehensive enrichment ({len(enriched_data)} entities)")
+        return format_comprehensive_enrichment_for_prompt(enriched_data)
+    
+    # Fallback to basic entities list
     if not entities:
         return "No entities available for validation."
     
+    logger.info(f"📋 Building context from entities list ({len(entities)} entities)")
     sections = []
     for entity in entities:
         entity_id = entity.get('entity_id', 'unknown')
@@ -69,6 +81,26 @@ def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, 
         entity_name = entity.get('name', entity.get('friendly_name', entity_id))
         
         section = f"- {entity_name} ({entity_id}, domain: {domain})\n"
+        
+        # Add location if available
+        if entity.get('area_name'):
+            section += f"  Location: {entity['area_name']}\n"
+        elif entity.get('area_id'):
+            section += f"  Location: {entity['area_id']}\n"
+        
+        # Add device info if available
+        device_info = []
+        if entity.get('manufacturer'):
+            device_info.append(entity['manufacturer'])
+        if entity.get('model'):
+            device_info.append(entity['model'])
+        if device_info:
+            section += f"  Device: {' '.join(device_info)}\n"
+        
+        # Add health score if available
+        if entity.get('health_score') is not None:
+            health_status = "Excellent" if entity['health_score'] > 80 else "Good" if entity['health_score'] > 60 else "Fair"
+            section += f"  Health: {entity['health_score']}/100 ({health_status})\n"
         
         # Add capabilities with details
         capabilities = entity.get('capabilities', [])
@@ -86,9 +118,22 @@ def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, 
         else:
             section += "  Capabilities: Basic on/off\n"
         
+        # Add integration if available
+        if entity.get('integration') and entity.get('integration') != 'unknown':
+            section += f"  Integration: {entity['integration']}\n"
+        
+        # Add supported features if available
+        if entity.get('supported_features'):
+            section += f"  Supported Features: {entity['supported_features']}\n"
+        
         sections.append(section.strip())
     
     return "\n".join(sections)
+
+
+def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, Any]]) -> str:
+    """Backwards compatibility wrapper."""
+    return _build_entity_validation_context_with_comprehensive_data(entities, enriched_data=None)
 
 # Global device intelligence client and extractors
 _device_intelligence_client: Optional[DeviceIntelligenceClient] = None
@@ -103,8 +148,13 @@ def get_self_correction_service() -> Optional[YAMLSelfCorrectionService]:
     if _self_correction_service is None:
         if openai_client and hasattr(openai_client, 'client'):
             # Pass the AsyncOpenAI client from OpenAIClient wrapper
-            _self_correction_service = YAMLSelfCorrectionService(openai_client.client)
-            logger.info("✅ YAML self-correction service initialized")
+            # Also pass HA client and device intelligence client for device name lookup
+            _self_correction_service = YAMLSelfCorrectionService(
+                openai_client.client,
+                ha_client=ha_client,
+                device_intelligence_client=_device_intelligence_client
+            )
+            logger.info("✅ YAML self-correction service initialized with device DB access")
         else:
             logger.warning("⚠️ Cannot initialize self-correction service - OpenAI client not available")
     return _self_correction_service
@@ -138,6 +188,48 @@ def get_model_orchestrator() -> Optional[ModelOrchestrator]:
 
 # Create router
 router = APIRouter(prefix="/api/v1/ask-ai", tags=["Ask AI"])
+
+
+# ============================================================================
+# Reverse Engineering Analytics Endpoint
+# ============================================================================
+
+@router.get("/analytics/reverse-engineering")
+async def get_reverse_engineering_analytics(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get analytics and insights for reverse engineering performance.
+    
+    Provides aggregated metrics including:
+    - Similarity improvements
+    - Performance metrics (iterations, time, cost)
+    - Automation success rates
+    - Value indicators and KPIs
+    
+    Args:
+        days: Number of days to analyze (default: 30)
+        db: Database session
+        
+    Returns:
+        Dictionary with comprehensive analytics
+    """
+    try:
+        from ..services.reverse_engineering_metrics import get_reverse_engineering_analytics
+        
+        analytics = await get_reverse_engineering_analytics(db_session=db, days=days)
+        
+        return {
+            "status": "success",
+            "analytics": analytics
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get reverse engineering analytics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve analytics: {str(e)}"
+        )
 
 # Initialize clients
 ha_client = None
@@ -759,16 +851,25 @@ async def generate_automation_yaml(
     entity_context_json = ""
     
     if entities and len(entities) > 0:
-        # Build enhanced entity context with capabilities
+        # Use comprehensive enriched data if available (from validation step above)
+        # Fallback to entities list
+        comprehensive_enriched_for_prompt = comprehensive_enriched_data if 'comprehensive_enriched_data' in locals() else None
+        
+        # Build enhanced entity context with COMPREHENSIVE data (capabilities, health, manufacturer, model, area, etc.)
         validated_entities_text = f"""
-VALIDATED ENTITIES WITH CAPABILITIES (use these exact entity IDs):
-{_build_entity_validation_context_with_capabilities(entities)}
+VALIDATED ENTITIES WITH COMPREHENSIVE DATA (use these exact entity IDs):
+{_build_entity_validation_context_with_comprehensive_data(entities, enriched_data=comprehensive_enriched_for_prompt)}
 
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
 Pay attention to the capability types and ranges when generating service calls:
 - For numeric capabilities: Use values within the specified range
 - For enum capabilities: Use only the listed enum values
 - For composite capabilities: Configure all sub-features properly
+
+IMPORTANT SERVICE MAPPING:
+- ALL light entities (including WLED) use: light.turn_on and light.turn_off
+- WLED entities are lights, so use light.turn_on (NOT wled.turn_on)
+- Example: For wled.office entity, use: service: light.turn_on with target.entity_id: wled.office
 
 """
     elif 'validated_entities' in suggestion and suggestion.get('validated_entities'):
@@ -1134,11 +1235,13 @@ CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
            - service: light.turn_on  # ✅ CORRECT FIELD NAME
              target:
                entity_id: light.office  # ✅ FULL ENTITY ID (domain.entity)
-           - service: wled.turn_on
+           - service: light.turn_on  # ✅ WLED entities use light.turn_on service (NOT wled.turn_on)
              target:
                entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
+             data:
+               effect: fireworks  # WLED-specific effect parameter
            - delay: "00:01:00"
-           - service: wled.turn_off
+           - service: light.turn_off  # ✅ WLED entities use light.turn_off service (NOT wled.turn_off)
              target:
                entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
 
@@ -1157,8 +1260,14 @@ COMMON MISTAKES TO AVOID:
 ❌ WRONG: entity_id: office (INCOMPLETE - missing domain prefix, will cause "Entity not found" error)
 ✅ CORRECT: target: {{ entity_id: light.office }} (COMPLETE - domain.entity format)
 
-REMEMBER: Every entity_id MUST have BOTH domain AND entity name separated by a dot!
-If the description mentions "wled", look up the full entity ID (e.g., "wled.office") in the VALIDATED ENTITIES section above.
+❌ WRONG: service: wled.turn_on (WLED entities use light.turn_on service - wled.turn_on does NOT exist)
+✅ CORRECT: service: light.turn_on with target.entity_id: wled.office (WLED entities are lights)
+
+REMEMBER:
+1. Every entity_id MUST have BOTH domain AND entity name separated by a dot!
+2. ALL light entities (including WLED) use light.turn_on/light.turn_off services
+3. If the description mentions "wled", look up the full entity ID (e.g., "wled.office") in the VALIDATED ENTITIES section above.
+4. Use light.turn_on service for WLED entities, NOT wled.turn_on (that service doesn't exist in HA)
 
 ❌ WRONG: entity_id: "office" (missing domain)
 ✅ CORRECT: entity_id: light.office (full format)
@@ -1250,18 +1359,27 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use the
             except Exception as e:
                 logger.warning(f"⚠️ HA API validation error (continuing anyway): {e}")
         
-        # Validate YAML structure
+        # Validate YAML structure and fix service names (e.g., wled.turn_on → light.turn_on)
         from ..services.yaml_structure_validator import YAMLStructureValidator
         validator = YAMLStructureValidator()
         validation = validator.validate(yaml_content)
+        
+        # If validation fixed service names (like wled.turn_on → light.turn_on), use the fixed YAML
+        if validation.fixed_yaml:
+            yaml_content = validation.fixed_yaml
+            service_fixes = [w for w in validation.warnings if '→' in w]
+            if service_fixes:
+                logger.info(f"✅ Applied {len(service_fixes)} service name fixes:")
+                for fix in service_fixes:
+                    logger.info(f"  🔧 {fix}")
         
         if not validation.is_valid:
             logger.error("❌ YAML structure validation failed:")
             for error in validation.errors:
                 logger.error(f"  {error}")
             
-            # Try auto-fix
-            if validation.fixed_yaml:
+            # Try auto-fix for structure issues
+            if validation.fixed_yaml and yaml_content != validation.fixed_yaml:
                 logger.info("🔧 Attempting to auto-fix YAML structure...")
                 fixed_validation = validator.validate(validation.fixed_yaml)
                 if fixed_validation.is_valid:
@@ -1272,13 +1390,14 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use the
                     for error in fixed_validation.errors:
                         logger.warning(f"  {error}")
                     yaml_content = validation.fixed_yaml
-            else:
+            elif not validation.fixed_yaml:
                 logger.warning("⚠️ Could not auto-fix YAML structure errors - using original YAML")
         else:
             logger.info("✅ YAML structure validation passed")
             if validation.warnings:
                 for warning in validation.warnings:
-                    logger.warning(f"  {warning}")
+                    if '→' not in warning:  # Don't log service fixes again (already logged above)
+                        logger.warning(f"  {warning}")
         
         # Validate entity_id values (CRITICAL: prevents HA 400 errors)
         try:
@@ -1694,13 +1813,19 @@ async def generate_suggestions_from_query(
                         resolved_entity_ids = []
                         logger.warning("⚠️ No entities found and no device names to map")
                 
-                # Step 2: Enrich resolved entity IDs with full attribute data
+                # Step 2: Enrich resolved entity IDs with COMPREHENSIVE data from ALL sources
                 if resolved_entity_ids:
-                    logger.info(f"🔍 Enriching {len(resolved_entity_ids)} resolved entities...")
+                    logger.info(f"🔍 Comprehensively enriching {len(resolved_entity_ids)} resolved entities...")
                     
-                    # Enrich entities with attributes
-                    attribute_service = EntityAttributeService(ha_client)
-                    enriched_data = await attribute_service.enrich_multiple_entities(resolved_entity_ids)
+                    # Use comprehensive enrichment service that combines ALL data sources
+                    from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                    enriched_data = await enrich_entities_comprehensively(
+                        entity_ids=set(resolved_entity_ids),
+                        ha_client=ha_client,
+                        device_intelligence_client=_device_intelligence_client,
+                        data_api_client=None,  # Could add DataAPIClient if historical patterns needed
+                        include_historical=False  # Set to True to include usage patterns
+                    )
                     
                     # Build entity context JSON from enriched data
                     # Create entity dicts for context builder from enriched data
@@ -2609,6 +2734,24 @@ async def test_suggestion_from_query(
         if correction_service:
             try:
                 logger.info("🔄 Running reverse engineering self-correction (test mode)...")
+                
+                # Get comprehensive enriched data for entities used in YAML
+                test_enriched_data = None
+                if entity_mapping and ha_client:
+                    try:
+                        from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                        entity_ids_for_enrichment = set(entity_mapping.values())
+                        test_enriched_data = await enrich_entities_comprehensively(
+                            entity_ids=entity_ids_for_enrichment,
+                            ha_client=ha_client,
+                            device_intelligence_client=_device_intelligence_client,
+                            data_api_client=None,
+                            include_historical=False
+                        )
+                        logger.info(f"✅ Got comprehensive enrichment for {len(test_enriched_data)} entities for reverse engineering")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not get comprehensive enrichment for test: {e}")
+                
                 context = {
                     "entities": entities,
                     "suggestion": test_suggestion,
@@ -2618,8 +2761,26 @@ async def test_suggestion_from_query(
                 correction_result = await correction_service.correct_yaml(
                     user_prompt=query.original_query,
                     generated_yaml=automation_yaml,
-                    context=context
+                    context=context,
+                    comprehensive_enriched_data=test_enriched_data
                 )
+                
+                # Store initial metrics for test mode (test automations are temporary, so automation_created stays None)
+                try:
+                    from ..services.reverse_engineering_metrics import store_reverse_engineering_metrics
+                    await store_reverse_engineering_metrics(
+                        db_session=db,
+                        suggestion_id=suggestion_id,
+                        query_id=query_id,
+                        correction_result=correction_result,
+                        automation_created=None,  # Test automations are temporary
+                        automation_id=None,
+                        had_validation_errors=False,
+                        errors_fixed_count=0
+                    )
+                    logger.info("✅ Stored reverse engineering metrics for test")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to store test metrics: {e}")
                 
                 if correction_result.convergence_achieved or correction_result.final_similarity >= 0.80:
                     # Use corrected YAML if similarity improved significantly (lower threshold for test mode)
@@ -3062,6 +3223,23 @@ async def approve_suggestion_from_query(
         if correction_service:
             try:
                 logger.info("🔄 Running reverse engineering self-correction...")
+                
+                # Get comprehensive enriched data for entities used in YAML
+                approve_enriched_data = None
+                if validated_entity_ids and ha_client:
+                    try:
+                        from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                        approve_enriched_data = await enrich_entities_comprehensively(
+                            entity_ids=set(validated_entity_ids),
+                            ha_client=ha_client,
+                            device_intelligence_client=_device_intelligence_client,
+                            data_api_client=None,
+                            include_historical=False
+                        )
+                        logger.info(f"✅ Got comprehensive enrichment for {len(approve_enriched_data)} entities for reverse engineering")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not get comprehensive enrichment for approve: {e}")
+                
                 context = {
                     "entities": entities,
                     "suggestion": final_suggestion,
@@ -3070,8 +3248,29 @@ async def approve_suggestion_from_query(
                 correction_result = await correction_service.correct_yaml(
                     user_prompt=query.original_query,
                     generated_yaml=automation_yaml,
-                    context=context
+                    context=context,
+                    comprehensive_enriched_data=approve_enriched_data
                 )
+                
+                # Store initial metrics in database (automation_created will be updated later)
+                try:
+                    from ..services.reverse_engineering_metrics import store_reverse_engineering_metrics
+                    # Check if YAML had validation errors before RE
+                    had_validation_errors = False  # Will be updated if we detect errors
+                    
+                    await store_reverse_engineering_metrics(
+                        db_session=db,
+                        suggestion_id=suggestion_id,
+                        query_id=query_id,
+                        correction_result=correction_result,
+                        automation_created=None,  # Will be updated after creation attempt
+                        automation_id=None,
+                        had_validation_errors=had_validation_errors,
+                        errors_fixed_count=0
+                    )
+                    logger.info("✅ Stored initial reverse engineering metrics")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to store initial reverse engineering metrics: {e}")
                 
                 if correction_result.convergence_achieved or correction_result.final_similarity >= 0.80:
                     # Use corrected YAML if similarity improved significantly
@@ -3087,6 +3286,56 @@ async def approve_suggestion_from_query(
                 correction_result = None
         else:
             logger.debug("Self-correction service not available, skipping reverse engineering")
+        
+        # FINAL VALIDATION: Verify ALL entity IDs in test YAML exist in HA BEFORE creating automation
+        if ha_client:
+            try:
+                import yaml as yaml_lib
+                parsed_yaml = yaml_lib.safe_load(automation_yaml)
+                if parsed_yaml:
+                    from ..services.entity_id_validator import EntityIDValidator
+                    entity_id_extractor = EntityIDValidator()
+                    
+                    # Extract all entity IDs from YAML (returns list of tuples: (entity_id, location))
+                    entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
+                    all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
+                    logger.info(f"🔍 FINAL TEST VALIDATION: Checking {len(all_entity_ids_in_yaml)} entity IDs exist in HA...")
+                    
+                    # Validate each entity ID exists in HA
+                    invalid_entities = []
+                    for entity_id in all_entity_ids_in_yaml:
+                        try:
+                            entity_state = await ha_client.get_entity_state(entity_id)
+                            if not entity_state:
+                                invalid_entities.append(entity_id)
+                                logger.error(f"❌ Entity NOT FOUND in HA: {entity_id}")
+                        except Exception as e:
+                            invalid_entities.append(entity_id)
+                            logger.error(f"❌ Entity NOT FOUND in HA: {entity_id} (error: {str(e)[:100]})")
+                    
+                    if invalid_entities:
+                        # FAIL before creating test automation
+                        error_msg = f"Invalid entity IDs in test YAML: {', '.join(invalid_entities)}"
+                        logger.error(f"❌ {error_msg}")
+                        
+                        return {
+                            "suggestion_id": suggestion_id,
+                            "query_id": query_id,
+                            "status": "error",
+                            "safe": False,
+                            "message": "Test automation contains invalid entity IDs",
+                            "error_details": {
+                                "type": "invalid_entities",
+                                "message": error_msg,
+                                "invalid_entities": invalid_entities,
+                                "suggestion": "The automation contains entity IDs that do not exist in Home Assistant."
+                            },
+                            "warnings": [f"Entity not found: {eid}" for eid in invalid_entities]
+                        }
+                    else:
+                        logger.info(f"✅ FINAL TEST VALIDATION PASSED: All {len(all_entity_ids_in_yaml)} entity IDs exist in HA")
+            except Exception as e:
+                logger.warning(f"⚠️ Final test entity validation error (continuing anyway): {e}", exc_info=True)
         
         # TASK 2.3: Run safety checks before creating automation
         logger.info("🔒 Running safety validation...")
@@ -3113,13 +3362,107 @@ async def approve_suggestion_from_query(
         if safety_report.get('warnings'):
             logger.info(f"⚠️ Safety validation passed with {len(safety_report.get('warnings', []))} warnings")
         
+        # FINAL VALIDATION: Verify ALL entity IDs in YAML exist in HA BEFORE creating automation
+        if ha_client:
+            try:
+                import yaml as yaml_lib
+                parsed_yaml = yaml_lib.safe_load(automation_yaml)
+                if parsed_yaml:
+                    from ..services.entity_id_validator import EntityIDValidator
+                    entity_id_extractor = EntityIDValidator()
+                    
+                    # Extract all entity IDs from YAML (returns list of tuples: (entity_id, location))
+                    entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
+                    all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
+                    logger.info(f"🔍 FINAL VALIDATION: Checking {len(all_entity_ids_in_yaml)} entity IDs exist in HA...")
+                    
+                    # Validate each entity ID exists in HA
+                    invalid_entities = []
+                    for entity_id in all_entity_ids_in_yaml:
+                        try:
+                            # Check if entity exists by getting its state
+                            entity_state = await ha_client.get_entity_state(entity_id)
+                            if not entity_state:
+                                invalid_entities.append(entity_id)
+                                logger.error(f"❌ Entity NOT FOUND in HA: {entity_id}")
+                        except Exception as e:
+                            # If get_entity_state fails, entity likely doesn't exist
+                            invalid_entities.append(entity_id)
+                            logger.error(f"❌ Entity NOT FOUND in HA: {entity_id} (error: {str(e)[:100]})")
+                    
+                    if invalid_entities:
+                        # FAIL BEFORE creating automation
+                        error_msg = f"Invalid entity IDs found in YAML that do not exist in Home Assistant: {', '.join(invalid_entities)}"
+                        logger.error(f"❌ {error_msg}")
+                        
+                        # Suggest alternatives if we have validated entities
+                        suggestions = []
+                        if validated_entity_ids:
+                            suggestions.append(f"Available validated entities: {', '.join(validated_entity_ids[:10])}")
+                        
+                        return {
+                            "suggestion_id": suggestion_id,
+                            "query_id": query_id,
+                            "status": "error",
+                            "safe": False,
+                            "message": "Automation contains invalid entity IDs",
+                            "error_details": {
+                                "type": "invalid_entities",
+                                "message": error_msg,
+                                "invalid_entities": invalid_entities,
+                                "suggestion": "The automation contains entity IDs that do not exist in Home Assistant. Please check your device names and try again." + (f" {suggestions[0]}" if suggestions else "")
+                            },
+                            "warnings": [f"Entity not found: {eid}" for eid in invalid_entities]
+                        }
+                    else:
+                        logger.info(f"✅ FINAL VALIDATION PASSED: All {len(all_entity_ids_in_yaml)} entity IDs exist in HA")
+            except Exception as e:
+                logger.warning(f"⚠️ Final entity validation error (continuing anyway): {e}", exc_info=True)
+        
         # Create automation in Home Assistant
         if ha_client:
             try:
                 creation_result = await ha_client.create_automation(automation_yaml)
+                created_automation_id = creation_result.get('automation_id')
+                
+                # Update metrics with automation creation result (after successful creation)
+                if correction_result:
+                    try:
+                        from ..services.reverse_engineering_metrics import store_reverse_engineering_metrics
+                        await store_reverse_engineering_metrics(
+                            db_session=db,
+                            suggestion_id=suggestion_id,
+                            query_id=query_id,
+                            correction_result=correction_result,
+                            automation_created=True,
+                            automation_id=created_automation_id,
+                            had_validation_errors=False,
+                            errors_fixed_count=0
+                        )
+                        logger.info("✅ Updated reverse engineering metrics with automation creation success")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to update metrics with automation creation: {e}")
             except Exception as e:
                 error_message = str(e)
                 logger.error(f"❌ Failed to create automation: {error_message}")
+                
+                # Update metrics with automation creation failure
+                if correction_result:
+                    try:
+                        from ..services.reverse_engineering_metrics import store_reverse_engineering_metrics
+                        await store_reverse_engineering_metrics(
+                            db_session=db,
+                            suggestion_id=suggestion_id,
+                            query_id=query_id,
+                            correction_result=correction_result,
+                            automation_created=False,
+                            automation_id=None,
+                            had_validation_errors=("400" in error_message or "Message malformed" in error_message),
+                            errors_fixed_count=0
+                        )
+                        logger.info("✅ Updated reverse engineering metrics with automation creation failure")
+                    except Exception as e2:
+                        logger.warning(f"⚠️ Failed to update metrics with creation failure: {e2}")
                 
                 # Check if it's a 400 error (validation error)
                 if "400" in error_message or "Message malformed" in error_message:

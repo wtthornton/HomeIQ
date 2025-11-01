@@ -115,7 +115,7 @@ class EntityAttributeService:
         entity_ids: List[str]
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Batch enrich multiple entities.
+        Batch enrich multiple entities IN PARALLEL for performance.
         
         Args:
             entity_ids: List of entity IDs to enrich
@@ -125,13 +125,32 @@ class EntityAttributeService:
         """
         enriched = {}
         
-        # Enrich entities in parallel where possible
-        for entity_id in entity_ids:
-            enriched_data = await self.enrich_entity_with_attributes(entity_id)
-            if enriched_data:
-                enriched[entity_id] = enriched_data
+        # Enrich entities in parallel (major performance improvement)
+        import asyncio
         
-        logger.info(f"Enriched {len(enriched)} out of {len(entity_ids)} entities")
+        async def enrich_one(entity_id: str) -> tuple:
+            """Enrich a single entity"""
+            try:
+                enriched_data = await self.enrich_entity_with_attributes(entity_id)
+                return (entity_id, enriched_data)
+            except Exception as e:
+                logger.debug(f"Error enriching {entity_id}: {e}")
+                return (entity_id, None)
+        
+        # Execute all enrichment tasks in parallel
+        if entity_ids:
+            tasks = [enrich_one(entity_id) for entity_id in entity_ids]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.debug(f"Entity enrichment error: {result}")
+                    continue
+                entity_id, enriched_data = result
+                if enriched_data:
+                    enriched[entity_id] = enriched_data
+        
+        logger.info(f"Enriched {len(enriched)} out of {len(entity_ids)} entities (parallel)")
         
         return enriched
     

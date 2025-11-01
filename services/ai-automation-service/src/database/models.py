@@ -373,3 +373,77 @@ def get_db_session():
             result = await db.execute(query)
     """
     return async_session()
+
+
+# ============================================================================
+# Reverse Engineering Metrics Tracking
+# ============================================================================
+
+class ReverseEngineeringMetrics(Base):
+    """
+    Metrics for tracking reverse engineering value and performance.
+    
+    Tracks similarity improvements, iterations, costs, and automation success
+    to measure the value provided by reverse engineering.
+    
+    Created: November 2025
+    """
+    __tablename__ = 'reverse_engineering_metrics'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign Keys
+    suggestion_id = Column(String, nullable=False, index=True)  # Links to AskAI suggestion
+    query_id = Column(String, nullable=False, index=True)  # Links to AskAI query
+    
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # ===== Similarity Metrics =====
+    initial_similarity = Column(Float, nullable=True)  # Similarity before RE (iteration 0)
+    final_similarity = Column(Float, nullable=False)  # Similarity after RE
+    similarity_improvement = Column(Float, nullable=True)  # final - initial
+    improvement_percentage = Column(Float, nullable=True)  # (final/initial - 1) * 100
+    
+    # ===== Performance Metrics =====
+    iterations_completed = Column(Integer, nullable=False)  # Number of iterations
+    max_iterations = Column(Integer, nullable=False, default=5)
+    convergence_achieved = Column(Boolean, nullable=False, default=False)
+    total_processing_time_ms = Column(Integer, nullable=True)  # Total time
+    time_per_iteration_ms = Column(Float, nullable=True)  # Average time per iteration
+    
+    # ===== Cost Metrics =====
+    total_tokens_used = Column(Integer, nullable=False, default=0)
+    estimated_cost_usd = Column(Float, nullable=True)  # ~$0.05 per 1M input tokens
+    tokens_per_iteration = Column(Float, nullable=True)
+    
+    # ===== Automation Success =====
+    automation_created = Column(Boolean, nullable=True)  # Was automation created in HA?
+    automation_id = Column(String, nullable=True)  # HA automation ID if created
+    had_validation_errors = Column(Boolean, nullable=True)  # Did original YAML have errors?
+    errors_fixed_count = Column(Integer, nullable=True, default=0)  # Errors fixed by RE
+    automation_approved = Column(Boolean, nullable=True)  # Did user approve/test?
+    automation_in_use = Column(Boolean, nullable=True)  # Is automation active in HA?
+    
+    # ===== YAML Comparison =====
+    original_yaml = Column(Text, nullable=True)  # YAML before reverse engineering
+    corrected_yaml = Column(Text, nullable=True)  # YAML after reverse engineering
+    yaml_changed = Column(Boolean, nullable=True, default=False)  # Did RE change the YAML?
+    
+    # ===== Iteration History (JSON) =====
+    iteration_history_json = Column(JSON, nullable=True)  # Full iteration history
+    
+    # ===== Indexes =====
+    __table_args__ = (
+        Index('idx_re_metrics_query_id', 'query_id'),
+        Index('idx_re_metrics_suggestion_id', 'suggestion_id'),
+        Index('idx_re_metrics_created_at', 'created_at'),
+        Index('idx_re_metrics_final_similarity', 'final_similarity'),
+        Index('idx_re_metrics_convergence', 'convergence_achieved'),
+        Index('idx_re_metrics_automation_created', 'automation_created'),
+    )
+    
+    def __repr__(self):
+        return f"<ReverseEngineeringMetrics(id={self.id}, query_id={self.query_id}, " \
+               f"similarity={self.final_similarity:.2%}, iterations={self.iterations_completed}, " \
+               f"cost=${self.estimated_cost_usd:.4f})>"

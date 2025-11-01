@@ -32,7 +32,21 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
     });
 
     if (!response.ok) {
-      throw new APIError(response.status, `API error: ${response.statusText}`);
+      // Try to parse error response body for better error messages
+      let errorMessage = response.statusText;
+      try {
+        const errorBody = await response.json();
+        if (errorBody.detail) {
+          errorMessage = typeof errorBody.detail === 'string' 
+            ? errorBody.detail 
+            : JSON.stringify(errorBody.detail);
+        } else if (errorBody.message) {
+          errorMessage = errorBody.message;
+        }
+      } catch {
+        // If JSON parsing fails, use statusText
+      }
+      throw new APIError(response.status, errorMessage);
     }
 
     return await response.json();
@@ -61,6 +75,8 @@ export const api = {
     status: string;
     automation_yaml: string;
     automation_id?: string;
+    category?: string;
+    priority?: string;
     yaml_validation: { syntax_valid: boolean; safety_score: number; issues: any[] };
     ready_to_deploy: boolean;
   }> {
@@ -435,6 +451,17 @@ export const api = {
   async approveAskAISuggestion(queryId: string, suggestionId: string): Promise<any> {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions/${suggestionId}/approve`, {
       method: 'POST',
+    });
+  },
+
+  async reverseEngineerYAML(data: {
+    yaml: string;
+    original_prompt: string;
+    context?: any;
+  }): Promise<any> {
+    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/reverse-engineer-yaml`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
   };

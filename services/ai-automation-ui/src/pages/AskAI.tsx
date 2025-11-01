@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import { ContextIndicator } from '../components/ask-ai/ContextIndicator';
+import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
+import { ReverseEngineeringLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import api from '../services/api';
 
 interface ChatMessage {
@@ -88,7 +90,14 @@ export const AskAI: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
+  const [reverseEngineeringStatus, setReverseEngineeringStatus] = useState<{
+    visible: boolean;
+    iteration?: number;
+    similarity?: number;
+    action?: 'test' | 'approve';
+  }>({ visible: false });
   const [testedSuggestions, setTestedSuggestions] = useState<Set<string>>(new Set());
+  const [showClearModal, setShowClearModal] = useState(false);
   
   // Conversation context tracking
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
@@ -117,6 +126,23 @@ export const AskAI: React.FC = () => {
       console.error('Failed to save conversation to localStorage:', e);
     }
   }, [messages]);
+
+  // Keyboard shortcut for clearing chat (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        // Only open modal if there are messages to clear (excluding welcome message)
+        if (messages.length > 1) {
+          setShowClearModal(true);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [messages.length]);
   
   // Update context from message
   const updateContextFromMessage = (message: ChatMessage) => {
@@ -286,28 +312,101 @@ export const AskAI: React.FC = () => {
         // Mark as tested immediately (prevent double-click)
         setTestedSuggestions(prev => new Set(prev).add(suggestionId));
         
-        // Show loading toast
+        // Show engaging reverse engineering loader IMMEDIATELY
+        setReverseEngineeringStatus({ visible: true, action: 'test' });
+        console.log('🎨 Loader set to visible for test action');
+        
+        // Minimum display time to ensure user sees it (2 seconds)
+        const loaderStartTime = Date.now();
+        const minDisplayTime = 2000;
+        
+        // Show loading toast as backup
         const loadingToast = toast.loading('⏳ Creating automation (will be disabled)...');
         
         try {
           // Call approve endpoint (same as Approve & Create - no simplification)
           const response = await api.approveAskAISuggestion(queryId, suggestionId);
+          console.log('✅ API response received', { 
+            hasReverseEng: !!response.reverse_engineering,
+            enabled: response.reverse_engineering?.enabled 
+          });
+          
+          // Update loader with progress if available
+          if (response.reverse_engineering?.enabled && response.reverse_engineering?.iteration_history) {
+            const lastIteration = response.reverse_engineering.iteration_history[
+              response.reverse_engineering.iteration_history.length - 1
+            ];
+            if (lastIteration) {
+              setReverseEngineeringStatus({
+                visible: true,
+                iteration: response.reverse_engineering.iterations_completed,
+                similarity: response.reverse_engineering.final_similarity,
+                action: 'test'
+              });
+              console.log('📊 Updated loader with progress', {
+                iteration: response.reverse_engineering.iterations_completed,
+                similarity: response.reverse_engineering.final_similarity
+              });
+            }
+          }
+          
+          // Ensure minimum display time
+          const elapsed = Date.now() - loaderStartTime;
+          const remainingTime = Math.max(0, minDisplayTime - elapsed);
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+          
+          // Hide loader after minimum display time
+          setReverseEngineeringStatus({ visible: false });
+          console.log('👋 Loader hidden');
+          
+          // Check if automation creation was blocked by safety validation
+          if (response.status === 'blocked' || response.safe === false) {
+            toast.dismiss(loadingToast);
+            const warnings = response.warnings || [];
+            const errorMessage = response.message || 'Test automation creation blocked due to safety concerns';
+            
+            toast.error(`❌ ${errorMessage}`);
+            
+            // Show individual warnings
+            warnings.forEach((warning: string) => {
+              toast(warning, { icon: '⚠️', duration: 6000 });
+            });
+            
+            // Re-enable button so user can try again after fixing the issue
+            setTestedSuggestions(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(suggestionId);
+              return newSet;
+            });
+            return;
+          }
           
           if (response.automation_id && response.status === 'approved') {
             // Immediately disable the automation
             try {
               await api.disableAutomation(response.automation_id);
               toast.dismiss(loadingToast);
-              toast.success(
-                `✅ Test automation created and disabled!\n\nAutomation ID: ${response.automation_id}`,
-                { duration: 8000 }
-              );
+              
+              // Show success with reverse engineering stats if available
+              if (response.reverse_engineering?.enabled) {
+                const simPercent = Math.round(response.reverse_engineering.final_similarity * 100);
+                toast.success(
+                  `✅ Test automation created and disabled!\n\nAutomation ID: ${response.automation_id}\n✨ Quality match: ${simPercent}%`,
+                  { duration: 8000 }
+                );
+              } else {
+                toast.success(
+                  `✅ Test automation created and disabled!\n\nAutomation ID: ${response.automation_id}`,
+                  { duration: 8000 }
+                );
+              }
+              
               toast(
                 `💡 The automation "${response.automation_id}" is disabled. You can enable it manually or approve this suggestion.`,
                 { icon: 'ℹ️', duration: 6000 }
               );
               
-              // Show warnings if any
+              // Show warnings if any (non-critical)
               if (response.warnings && response.warnings.length > 0) {
                 response.warnings.forEach((warning: string) => {
                   toast(warning, { icon: '⚠️', duration: 5000 });
@@ -338,6 +437,8 @@ export const AskAI: React.FC = () => {
             });
           }
         } catch (error: any) {
+          console.error('❌ Test action failed:', error);
+          setReverseEngineeringStatus({ visible: false });
           toast.dismiss(loadingToast);
           const errorMessage = error?.message || error?.toString() || 'Unknown error';
           toast.error(`❌ Failed to create test automation: ${errorMessage}`);
@@ -435,13 +536,145 @@ export const AskAI: React.FC = () => {
         );
         const queryId = messageWithQuery?.id || 'unknown';
         
-        await api.approveAskAISuggestion(queryId, suggestionId);
-        toast.success('✅ Automation approved and YAML generated!');
+        // Show engaging reverse engineering loader IMMEDIATELY
+        setReverseEngineeringStatus({ visible: true, action: 'approve' });
+        console.log('🎨 Loader set to visible for approve action');
         
-        setMessages(prev => prev.map(msg => ({
-          ...msg,
-          suggestions: msg.suggestions?.filter(s => s.suggestion_id !== suggestionId) || []
-        })));
+        // Minimum display time to ensure user sees it (2 seconds)
+        const loaderStartTime = Date.now();
+        const minDisplayTime = 2000;
+        
+        try {
+          const response = await api.approveAskAISuggestion(queryId, suggestionId);
+          
+          // Debug logging to understand response structure
+          console.log('🔍 APPROVE RESPONSE:', {
+            status: response?.status,
+            safe: response?.safe,
+            automation_id: response?.automation_id,
+            has_warnings: !!response?.warnings,
+            message: response?.message,
+            hasReverseEng: !!response.reverse_engineering,
+            enabled: response.reverse_engineering?.enabled
+          });
+          
+          // Update loader with progress if available
+          if (response.reverse_engineering?.enabled && response.reverse_engineering?.iteration_history) {
+            const lastIteration = response.reverse_engineering.iteration_history[
+              response.reverse_engineering.iteration_history.length - 1
+            ];
+            if (lastIteration) {
+              setReverseEngineeringStatus({
+                visible: true,
+                iteration: response.reverse_engineering.iterations_completed,
+                similarity: response.reverse_engineering.final_similarity,
+                action: 'approve'
+              });
+              console.log('📊 Updated loader with progress', {
+                iteration: response.reverse_engineering.iterations_completed,
+                similarity: response.reverse_engineering.final_similarity
+              });
+            }
+          }
+          
+          // Ensure minimum display time
+          const elapsed = Date.now() - loaderStartTime;
+          const remainingTime = Math.max(0, minDisplayTime - elapsed);
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+          
+          // Hide loader after minimum display time
+          setReverseEngineeringStatus({ visible: false });
+          console.log('👋 Loader hidden');
+          
+          // PRIORITY 1: Check if automation creation failed (error, blocked, or unsafe)
+          // This MUST be checked FIRST and return early to prevent success toast
+          if (response && (
+            response.status === 'error' || 
+            response.status === 'blocked' || 
+            response.safe === false ||
+            (response.error_details && response.error_details.type)
+          )) {
+            console.log('🔍 Response indicates FAILURE - showing error only', {
+              status: response.status,
+              safe: response.safe,
+              error_details: response.error_details
+            });
+            
+            const warnings = Array.isArray(response.warnings) ? response.warnings : [];
+            let errorMessage = response.message || 'Failed to create automation';
+            
+            // Enhance error message with details if available
+            if (response.error_details) {
+              if (response.error_details.message) {
+                errorMessage = response.error_details.message;
+              }
+              if (response.error_details.suggestion) {
+                errorMessage += `\n\n💡 ${response.error_details.suggestion}`;
+              }
+            }
+            
+            toast.error(`❌ ${errorMessage}`, { duration: 10000 });
+            
+            // Show individual warnings (filter out null/undefined values)
+            warnings.filter((w: any) => w != null).forEach((warning: string) => {
+              toast(typeof warning === 'string' ? warning : String(warning), { icon: '⚠️', duration: 6000 });
+            });
+            
+            // CRITICAL: Return early to prevent any success path execution
+            setReverseEngineeringStatus({ visible: false });
+            return;
+          }
+          
+          // PRIORITY 2: Success - automation was created
+          // Must check BOTH status === 'approved' AND automation_id exists
+          if (response && response.status === 'approved' && response.automation_id) {
+            console.log('🔍 Response is APPROVED - showing success');
+            
+            // Show success with reverse engineering stats if available
+            if (response.reverse_engineering?.enabled) {
+              const simPercent = Math.round(response.reverse_engineering.final_similarity * 100);
+              toast.success(
+                `✅ Automation created successfully!\n\nAutomation ID: ${response.automation_id}\n✨ Quality match: ${simPercent}%`,
+                { duration: 8000 }
+              );
+            } else {
+              toast.success(`✅ Automation created successfully!\n\nAutomation ID: ${response.automation_id}`);
+            }
+            
+            // Show warnings if any (non-critical)
+            if (Array.isArray(response.warnings) && response.warnings.length > 0) {
+              response.warnings.filter((w: any) => w != null).forEach((warning: string) => {
+                toast(typeof warning === 'string' ? warning : String(warning), { icon: '⚠️', duration: 5000 });
+              });
+            }
+            
+            // Remove the suggestion from the UI
+            setMessages(prev => prev.map(msg => ({
+              ...msg,
+              suggestions: msg.suggestions?.filter(s => s.suggestion_id !== suggestionId) || []
+            })));
+          } else {
+            // PRIORITY 3: Unexpected response - show error with details
+            console.error('🔍 Unexpected approve response:', response);
+            const errorMsg = response?.message || 'Unexpected response from server';
+            toast.error(`❌ Failed to create automation: ${errorMsg}`);
+            
+            // Show warnings if any
+            if (response && Array.isArray(response.warnings) && response.warnings.length > 0) {
+              response.warnings.filter((w: any) => w != null).forEach((warning: string) => {
+                toast(typeof warning === 'string' ? warning : String(warning), { icon: '⚠️', duration: 6000 });
+              });
+            }
+          }
+        } catch (error: any) {
+          console.error('❌ Approve action failed:', error);
+          setReverseEngineeringStatus({ visible: false });
+          const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+          toast.error(`❌ Failed to approve automation: ${errorMessage}`);
+          
+          // Re-throw to be caught by outer try-catch
+          throw error;
+        }
       } else if (action === 'reject') {
         await new Promise(resolve => setTimeout(resolve, 500));
         toast.success('Suggestion rejected');
@@ -464,8 +697,19 @@ export const AskAI: React.FC = () => {
   };
 
   const clearChat = () => {
+    // Store message count for toast
+    const messageCount = messages.length - 1; // Exclude welcome message
+    
+    // Clear localStorage
     localStorage.removeItem('ask-ai-conversation');
+    
+    // Reset all state
     setMessages([welcomeMessage]);
+    setInputValue('');
+    setIsLoading(false);
+    setIsTyping(false);
+    setProcessingActions(new Set());
+    setTestedSuggestions(new Set());
     setConversationContext({
       mentioned_devices: [],
       mentioned_intents: [],
@@ -473,12 +717,41 @@ export const AskAI: React.FC = () => {
       last_query: '',
       last_entities: []
     });
-    toast.success('Chat cleared');
+    
+    // Clear input field
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      // Focus input after a brief delay to ensure state updates
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+    
+    // Scroll to top smoothly
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Close modal and show toast
+    setShowClearModal(false);
+    toast.success(
+      messageCount > 0 
+        ? `Chat cleared! (${messageCount} message${messageCount !== 1 ? 's' : ''} removed)`
+        : 'Chat cleared - ready for a new conversation'
+    );
   };
 
   const handleExampleClick = (example: string) => {
     setInputValue(example);
     inputRef.current?.focus();
+  };
+
+  const handleExportAndClear = () => {
+    exportConversation();
+    // Small delay to ensure export completes before clearing
+    setTimeout(() => {
+      clearChat();
+    }, 500);
   };
   
   const exportConversation = () => {
@@ -659,14 +932,28 @@ export const AskAI: React.FC = () => {
               />
             </label>
             <button
-              onClick={clearChat}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
-                darkMode 
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
-                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-              } border`}
+              onClick={() => {
+                // Only show modal if there are messages to clear (excluding welcome message)
+                if (messages.length > 1) {
+                  setShowClearModal(true);
+                }
+              }}
+              disabled={messages.length <= 1}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                messages.length <= 1
+                  ? darkMode
+                    ? 'border-gray-700 text-gray-500 cursor-not-allowed border opacity-50'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed border opacity-50'
+                  : darkMode
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700 border'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50 border'
+              }`}
+              title="Clear conversation and start new (Ctrl+K / Cmd+K)"
             >
-              Clear
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Chat
             </button>
           </div>
         </div>
@@ -837,6 +1124,23 @@ export const AskAI: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Clear Chat Modal */}
+      <ClearChatModal
+        isOpen={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onConfirm={clearChat}
+        onExportAndClear={handleExportAndClear}
+        messageCount={messages.length - 1} // Exclude welcome message
+        darkMode={darkMode}
+      />
+
+      {/* Reverse Engineering Loader */}
+      <ReverseEngineeringLoader
+        isVisible={reverseEngineeringStatus.visible}
+        iteration={reverseEngineeringStatus.iteration}
+        similarity={reverseEngineeringStatus.similarity}
+      />
     </div>
   );
 };

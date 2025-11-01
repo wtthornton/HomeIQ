@@ -395,3 +395,70 @@ action:
             logger.error(f"Stack trace:\n{traceback.format_exc()}")
             raise
     
+    async def infer_category_and_priority(self, description: str) -> Dict[str, str]:
+        """
+        Infer category and priority from automation description.
+        
+        Used for regenerating category when description changes during redeploy.
+        
+        Args:
+            description: Automation description
+            
+        Returns:
+            Dictionary with 'category' and 'priority' keys
+        """
+        try:
+            result = await self.generate_with_unified_prompt(
+                prompt_dict={
+                    "system_prompt": "You are a Home Assistant automation classifier. Classify automations into categories and priorities based on their primary purpose.",
+                    "user_prompt": f"""Analyze this automation description and classify it.
+
+Description: "{description}"
+
+Return ONLY a JSON object with:
+{{
+    "category": "energy|comfort|security|convenience",
+    "priority": "high|medium|low"
+}}
+
+Guidelines:
+- energy: Saving power, efficiency, cost reduction
+- comfort: Temperature, lighting ambiance, personal preferences
+- security: Safety, alarms, monitoring, locks
+- convenience: Time-saving, automation of routine tasks
+
+Choose the category that BEST fits the primary purpose of this automation."""
+                },
+                temperature=0.2,  # Low temperature for consistency
+                max_tokens=100,
+                output_format="json"
+            )
+            
+            category = result.get('category', 'convenience')
+            priority = result.get('priority', 'medium')
+            
+            # Validate category
+            if category not in ['energy', 'comfort', 'security', 'convenience']:
+                logger.warning(f"Invalid category '{category}' from LLM, defaulting to 'convenience'")
+                category = 'convenience'
+            
+            # Validate priority
+            if priority not in ['high', 'medium', 'low']:
+                logger.warning(f"Invalid priority '{priority}' from LLM, defaulting to 'medium'")
+                priority = 'medium'
+            
+            logger.info(f"✅ Inferred category: {category}, priority: {priority}")
+            
+            return {
+                'category': category,
+                'priority': priority
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to infer category: {e}")
+            # Return safe defaults
+            return {
+                'category': 'convenience',
+                'priority': 'medium'
+            }
+    

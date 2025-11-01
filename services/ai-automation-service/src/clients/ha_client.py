@@ -808,17 +808,28 @@ class HomeAssistantClient:
             async with session.get(url) as response:
                 if response.status == 200:
                     states = await response.json()
-                    domain_entities = [
-                        state.get('entity_id') 
-                        for state in states 
-                        if state.get('entity_id', '').startswith(f"{domain}.")
-                    ]
+                    domain_entities = []
+                    
+                    # Handle case where states might not be a list
+                    if not isinstance(states, list):
+                        logger.warning(f"Unexpected states response type: {type(states)}")
+                        return []
+                    
+                    for state in states:
+                        if isinstance(state, dict):
+                            entity_id = state.get('entity_id')
+                            if entity_id and isinstance(entity_id, str) and entity_id.startswith(f"{domain}."):
+                                domain_entities.append(entity_id)
+                        elif isinstance(state, str) and state.startswith(f"{domain}."):
+                            # Handle case where state is just an entity ID string
+                            domain_entities.append(state)
+                    
                     logger.info(f"Found {len(domain_entities)} entities for domain '{domain}': {domain_entities[:5]}")
                     return domain_entities
                 else:
                     logger.warning(f"Failed to get states from HA: {response.status}")
                     return []
         except Exception as e:
-            logger.error(f"Error getting entities by domain '{domain}': {e}")
+            logger.error(f"Error getting entities by domain '{domain}': {e}", exc_info=True)
             return []
 

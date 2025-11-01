@@ -15,7 +15,7 @@ Phase 2: Real OpenAI descriptions + capabilities ✅ CURRENT
 Phase 3-4: Refinement and YAML generation (Coming soon)
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
@@ -596,7 +596,7 @@ async def _extract_entities_from_context(
 @router.post("/{suggestion_id}/approve")
 async def approve_suggestion(
     suggestion_id: str,
-    request: ApproveRequest = ApproveRequest(),
+    request: Optional[ApproveRequest] = Body(None),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -621,6 +621,11 @@ async def approve_suggestion(
     - Extracted entities (validated via EntityValidator)
     """
     logger.info(f"✅ Approving suggestion {suggestion_id}")
+    
+    # Handle optional request body
+    if request is None:
+        request = ApproveRequest(final_description=None, user_notes=None)
+    
     logger.info(f"📥 Request body: final_description={request.final_description}, user_notes={request.user_notes}")
     
     if not openai_client:
@@ -740,12 +745,27 @@ async def approve_suggestion(
                 logger.warning(f"⚠️ Safety validation error: {e}, continuing without safety check")
                 safety_report = {'safe': True, 'warnings': [f'Safety check skipped: {str(e)}']}
         
+        # Step 6.5: Regenerate category and priority during redeploy
+        category = suggestion.category
+        priority = suggestion.priority
+        if is_redeploy:
+            logger.info("🔄 Re-deploy detected - regenerating category and priority")
+            try:
+                classification = await openai_client.infer_category_and_priority(description_to_use)
+                category = classification['category']
+                priority = classification['priority']
+                logger.info(f"✅ Updated category: {category}, priority: {priority}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to regenerate category: {e}, keeping original values")
+        
         # Step 7: Store YAML first
         await db.execute(
             update(SuggestionModel)
             .where(SuggestionModel.id == db_id)
             .values(
                 automation_yaml=automation_yaml,
+                category=category,
+                priority=priority,
                 yaml_generated_at=datetime.utcnow(),
                 approved_at=datetime.utcnow(),
                 status='approved',  # Set to 'approved' so deploy endpoint accepts it
@@ -826,6 +846,8 @@ async def approve_suggestion(
             "status": "deployed" if automation_id else "approved",
             "automation_yaml": automation_yaml,
             "automation_id": automation_id,
+            "category": category,
+            "priority": priority,
             "ready_to_deploy": yaml_valid and (safety_report is None or safety_report.get('safe', True)),
             "yaml_validation": {
                 "syntax_valid": yaml_valid,

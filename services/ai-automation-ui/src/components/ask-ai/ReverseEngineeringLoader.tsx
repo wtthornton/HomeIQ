@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
 interface ReverseEngineeringLoaderProps {
@@ -288,6 +288,16 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
   const [currentTitleIndex, setCurrentTitleIndex] = useState(0);
   const [pulseActive, setPulseActive] = useState(true);
 
+  // Reset all indices when visibility changes to false (prevent stacking)
+  useEffect(() => {
+    if (!isVisible) {
+      setCurrentMessageIndex(0);
+      setCurrentTipIndex(0);
+      setCurrentTitleIndex(0);
+      setPulseActive(true);
+    }
+  }, [isVisible]);
+
   // Rotate messages every 2.5 seconds
   useEffect(() => {
     if (!isVisible) return;
@@ -419,27 +429,34 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
         </div>
 
         {/* Title */}
-        <motion.h2
-          key={currentTitleIndex}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight"
-        >
-          {TITLE_VARIATIONS[currentTitleIndex]}
-        </motion.h2>
+        <AnimatePresence mode="wait">
+          <motion.h2
+            key={currentTitleIndex}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight"
+          >
+            {TITLE_VARIATIONS[currentTitleIndex]}
+          </motion.h2>
+        </AnimatePresence>
 
-        {/* Current message */}
-        <motion.p
-          key={currentMessageIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          className="text-sm text-slate-300 mb-6 font-medium"
-        >
-          {currentMessage.text}
-        </motion.p>
+        {/* Current message - wrapped in AnimatePresence for proper exit */}
+        <div className="min-h-[3rem] mb-6 flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={currentMessageIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="text-sm text-slate-300 font-medium text-center"
+            >
+              {currentMessage.text}
+            </motion.p>
+          </AnimatePresence>
+        </div>
 
         {/* Progress indicator */}
         <div className="mb-6">
@@ -519,18 +536,23 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
           </motion.span>
         </div>
 
-        {/* Tech tip */}
-        <motion.div
-          key={currentTipIndex}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/30 backdrop-blur-sm"
-        >
-          <p className="text-xs text-slate-400 leading-relaxed">
-            {currentTip}
-          </p>
-        </motion.div>
+        {/* Tech tip - wrapped in AnimatePresence for proper exit */}
+        <div className="min-h-[4rem]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentTipIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/30 backdrop-blur-sm"
+            >
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {currentTip}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
         {/* Bottom accent */}
         <div className="mt-6 text-xs text-slate-500 font-medium uppercase tracking-wider">

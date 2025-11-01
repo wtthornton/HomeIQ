@@ -95,8 +95,69 @@ class YAMLStructureValidator:
                                 f"⚠️ Trigger {i+1}: Missing 'platform:' field (may need 'platform: state')"
                             )
         
-        # Check action structure
+        # Check action structure and fix service names
         actions = data.get('action', data.get('actions', []))
+        service_fixes_applied = []
+        
+        def fix_services_in_structure(obj, path=""):
+            """Recursively fix service names in actions, sequences, chooses, etc."""
+            if isinstance(obj, dict):
+                # Check if this is a service call
+                if 'service' in obj:
+                    service = obj.get('service', '')
+                    target = obj.get('target', {})
+                    entity_id = None
+                    
+                    # Extract entity_id from target
+                    if isinstance(target, dict):
+                        entity_id = target.get('entity_id')
+                    elif isinstance(target, str):
+                        entity_id = target
+                    
+                    # Handle list of entity IDs
+                    if isinstance(entity_id, list) and len(entity_id) > 0:
+                        entity_id = entity_id[0]
+                    
+                    # Fix WLED service names: wled.turn_on -> light.turn_on
+                    if entity_id and isinstance(entity_id, str):
+                        domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
+                        
+                        # WLED entities are lights - use light.turn_on, not wled.turn_on
+                        if domain == 'wled':
+                            if service == 'wled.turn_on':
+                                obj['service'] = 'light.turn_on'
+                                service_fixes_applied.append(f"{path}: wled.turn_on → light.turn_on (WLED entities use light service)")
+                                logger.info(f"🔧 Fixed service: wled.turn_on → light.turn_on for {entity_id}")
+                            elif service == 'wled.turn_off':
+                                obj['service'] = 'light.turn_off'
+                                service_fixes_applied.append(f"{path}: wled.turn_off → light.turn_off (WLED entities use light service)")
+                                logger.info(f"🔧 Fixed service: wled.turn_off → light.turn_off for {entity_id}")
+                            elif service.startswith('wled.'):
+                                # Generic fix for any wled.* service
+                                new_service = service.replace('wled.', 'light.', 1)
+                                obj['service'] = new_service
+                                service_fixes_applied.append(f"{path}: {service} → {new_service} (WLED entities use light service)")
+                                logger.info(f"🔧 Fixed service: {service} → {new_service} for {entity_id}")
+                
+                # Recursively check nested structures
+                for key, value in obj.items():
+                    if key in ['action', 'sequence', 'repeat', 'choose', 'parallel']:
+                        fix_services_in_structure(value, f"{path}.{key}" if path else key)
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    fix_services_in_structure(item, f"{path}[{i}]" if path else f"[{i}]")
+        
+        # Fix services in the entire YAML structure
+        fix_services_in_structure(actions, "action")
+        
+        if service_fixes_applied:
+            logger.info(f"✅ Applied {len(service_fixes_applied)} service name fixes")
+            # Regenerate YAML with fixes
+            fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
+            warnings.extend(service_fixes_applied)
+        else:
+            fixed_yaml = None
+        
         if isinstance(actions, list):
             for i, action in enumerate(actions):
                 if isinstance(action, dict):
@@ -138,6 +199,11 @@ class YAMLStructureValidator:
                     logger.info("✅ Auto-fixed YAML structure errors")
                 else:
                     logger.warning(f"⚠️ Auto-fix incomplete: {len(fixed_validation.errors)} errors remain")
+        
+        # If fixes were applied, update fixed_yaml
+        if service_fixes_applied and not fixed_yaml:
+            # Regenerate YAML if we haven't already
+            fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
         
         return ValidationResult(
             is_valid=len(errors) == 0,

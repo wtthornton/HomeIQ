@@ -29,18 +29,38 @@ class DeviceIntelligenceClient:
             response = await self.client.get(f"{self.base_url}/api/discovery/devices", timeout=5.0)
             if response.status_code == 200:
                 devices = response.json()
+                
+                # Handle case where response might be a dict with devices list
+                if isinstance(devices, dict):
+                    devices = devices.get('devices', []) or devices.get('data', []) or []
+                
+                # Ensure devices is a list
+                if not isinstance(devices, list):
+                    logger.warning(f"Unexpected devices response type: {type(devices)}, expected list")
+                    return []
+                
                 # Filter by area name (case insensitive)
-                filtered_devices = [
-                    d for d in devices 
-                    if d.get('area_name', '').lower() == area_name.lower()
-                ]
+                filtered_devices = []
+                for d in devices:
+                    # Handle case where d might be a string or dict
+                    if isinstance(d, str):
+                        # If device is just an ID string, we can't filter by area
+                        logger.debug(f"Device is string ID: {d}, skipping area filter")
+                        continue
+                    elif isinstance(d, dict):
+                        area = d.get('area_name') or d.get('area') or d.get('area_id') or ''
+                        if isinstance(area, str) and area.lower() == area_name.lower():
+                            filtered_devices.append(d)
+                    else:
+                        logger.warning(f"Unexpected device type in list: {type(d)}")
+                
                 logger.debug(f"Found {len(filtered_devices)} devices in area '{area_name}'")
                 return filtered_devices
             else:
                 logger.error(f"Failed to get devices: {response.status_code}")
                 return []
         except Exception as e:
-            logger.warning(f"Device intelligence unavailable for area {area_name}: {e}")
+            logger.warning(f"Device intelligence unavailable for area {area_name}: {e}", exc_info=True)
             return []
     
     async def get_device_details(self, device_id: str) -> Optional[Dict[str, Any]]:

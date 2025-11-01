@@ -248,7 +248,18 @@ class MultiModelEntityExtractor:
                 devices = await self.device_intel_client.get_devices_by_area(area_name)
                 
                 for device in devices:
-                    device_id = device['id']
+                    # Handle case where device might be a string (device ID) or dict
+                    if isinstance(device, str):
+                        device_id = device
+                    elif isinstance(device, dict):
+                        device_id = device.get('id') or device.get('device_id')
+                    else:
+                        logger.warning(f"Unexpected device type: {type(device)}, skipping")
+                        continue
+                    
+                    if not device_id:
+                        logger.warning(f"Device missing ID: {device}, skipping")
+                        continue
                     
                     # Skip if already added from device entity lookup
                     if device_id in added_device_ids:
@@ -260,7 +271,7 @@ class MultiModelEntityExtractor:
                         enhanced_entities.append(enhanced_entity)
                         added_device_ids.add(device_id)
             except Exception as e:
-                logger.error(f"Failed to enhance area {entity['name']}: {e}")
+                logger.error(f"Failed to enhance area {entity.get('name', 'unknown')}: {e}", exc_info=True)
                 enhanced_entities.append(entity)
         
         # Process device entities (NEW LOGIC)
@@ -270,13 +281,22 @@ class MultiModelEntityExtractor:
                 all_devices = await self.device_intel_client.get_all_devices(limit=200)
                 
                 for entity in device_entities:
-                    device_name = entity['name']
+                    device_name = entity.get('name') if isinstance(entity, dict) else str(entity)
                     
                     # Search for device by name (fuzzy matching)
                     matching_devices = self._find_matching_devices(device_name, all_devices)
                     
                     for device in matching_devices:
-                        device_id = device['id']
+                        # Handle case where device might be a string or dict
+                        if isinstance(device, str):
+                            device_id = device
+                        elif isinstance(device, dict):
+                            device_id = device.get('id') or device.get('device_id')
+                        else:
+                            continue
+                        
+                        if not device_id:
+                            continue
                         
                         # Skip if already added from area lookup
                         if device_id in added_device_ids:
@@ -292,7 +312,14 @@ class MultiModelEntityExtractor:
                             break
                         
                     # If no match found, keep the original entity
-                    if not any(d['id'] in added_device_ids for d in matching_devices):
+                    matching_device_ids = []
+                    for d in matching_devices:
+                        if isinstance(d, str):
+                            matching_device_ids.append(d)
+                        elif isinstance(d, dict):
+                            matching_device_ids.append(d.get('id') or d.get('device_id'))
+                    
+                    if not any(did in added_device_ids for did in matching_device_ids if did):
                         enhanced_entities.append(entity)
                         
             except Exception as e:

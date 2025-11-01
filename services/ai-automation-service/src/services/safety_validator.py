@@ -64,7 +64,8 @@ class SafetyValidator:
     async def validate_automation(
         self,
         automation_yaml: str,
-        automation_id: Optional[str] = None
+        automation_id: Optional[str] = None,
+        validated_entities: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Validate automation for safety and conflicts.
@@ -107,7 +108,7 @@ class SafetyValidator:
             time_issues = self._check_time_conflicts(yaml_data)
             issues.extend(time_issues)
             
-            entity_issues = await self._check_entity_availability(yaml_data)
+            entity_issues = await self._check_entity_availability(yaml_data, validated_entities=validated_entities)
             issues.extend(entity_issues)
             
             # Categorize issues by severity
@@ -311,16 +312,29 @@ class SafetyValidator:
         
         return issues
     
-    async def _check_entity_availability(self, yaml_data: Dict) -> List[Dict[str, Any]]:
+    async def _check_entity_availability(
+        self, 
+        yaml_data: Dict,
+        validated_entities: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Final check that all entities exist and are accessible.
         
-        This is a final validation step.
+        Enhanced to:
+        - Distinguish between validated and non-validated entities
+        - Provide suggestions for missing entities
+        - Use fuzzy matching to find similar entities
+        
+        Args:
+            yaml_data: Parsed YAML
+            validated_entities: List of entity IDs that were validated during generation
         """
         issues = []
         
         if not self.ha_client:
             return issues  # Skip if HA client not available
+        
+        validated_set = set(validated_entities) if validated_entities else set()
         
         # Extract all entities from YAML
         all_entities = set()
@@ -347,17 +361,114 @@ class SafetyValidator:
             try:
                 state = await self.ha_client.get_entity_state(entity_id)
                 if not state:
-                    issues.append({
-                        'severity': 'critical',
+                    # Check if this was a validated entity
+                    was_validated = entity_id in validated_set
+                    
+                    # Try to find similar entities
+                    suggestions = await self._find_similar_entities(entity_id)
+                    
+                    # Determine severity: critical if validated, warning if not
+                    severity = 'critical' if was_validated else 'warning'
+                    
+                    # Build recommendation with suggestions
+                    recommendation = f'Verify entity {entity_id} exists in Home Assistant.'
+                    if suggestions:
+                        recommendation += f' Did you mean: {", ".join(suggestions[:3])}?'
+                    elif not was_validated:
+                        recommendation += ' This entity was not validated during generation - consider using a validated entity instead.'
+                    
+                    issue = {
+                        'severity': severity,
                         'category': 'availability',
                         'message': f'Entity not found: {entity_id}',
-                        'details': {'entity_id': entity_id},
-                        'recommendation': f'Verify entity {entity_id} exists in Home Assistant'
-                    })
+                        'details': {
+                            'entity_id': entity_id,
+                            'was_validated': was_validated,
+                            'suggestions': suggestions[:5]  # Top 5 suggestions
+                        },
+                        'recommendation': recommendation
+                    }
+                    issues.append(issue)
+                    logger.warning(
+                        f"{'🔴 CRITICAL' if was_validated else '⚠️ WARNING'}: "
+                        f"Entity not found: {entity_id} "
+                        f"(validated: {was_validated})"
+                    )
             except Exception as e:
                 logger.warning(f"Error checking entity {entity_id}: {e}")
         
         return issues
+    
+    async def _find_similar_entities(self, entity_id: str) -> List[str]:
+        """
+        Find similar entities in Home Assistant using fuzzy matching.
+        
+        This method tries to find similar entities by:
+        1. Checking common entity ID patterns in the same domain
+        2. Using word-based similarity matching
+        
+        Args:
+            entity_id: Entity ID that was not found (e.g., 'binary_sensor.office_desk_presence')
+            
+        Returns:
+            List of similar entity IDs, sorted by similarity
+        """
+        if not self.ha_client:
+            return []
+        
+        try:
+            domain = entity_id.split('.')[0] if '.' in entity_id else ''
+            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            
+            # Split entity name into words
+            entity_words = set(re.findall(r'\w+', entity_name.lower()))
+            
+            # Try to check a few common patterns by testing actual entities
+            # Since we don't have a get_all_states method, we'll use pattern-based suggestions
+            candidates = []
+            
+            # Common binary sensor patterns to try
+            if domain == 'binary_sensor':
+                # Try common variations
+                patterns_to_try = []
+                
+                # Extract location and type from entity name
+                words = list(entity_words)
+                
+                # Pattern 1: Remove last word (e.g., office_desk_presence -> office_desk)
+                if len(words) > 1:
+                    patterns_to_try.append('_'.join(words[:-1]))
+                
+                # Pattern 2: Remove middle words, keep first and last (e.g., office_desk_presence -> office_presence)
+                if len(words) > 2:
+                    patterns_to_try.append(f"{words[0]}_{words[-1]}")
+                
+                # Pattern 3: Just location (first word)
+                if words:
+                    patterns_to_try.append(words[0])
+                
+                # Try each pattern
+                for pattern in patterns_to_try[:3]:  # Limit to 3 patterns to avoid too many API calls
+                    test_entity_id = f"{domain}.{pattern}"
+                    try:
+                        state = await self.ha_client.get_entity_state(test_entity_id)
+                        if state:
+                            # Calculate similarity score
+                            pattern_words = set(re.findall(r'\w+', pattern.lower()))
+                            common = entity_words.intersection(pattern_words)
+                            if common:
+                                similarity = len(common) / len(entity_words.union(pattern_words))
+                                candidates.append((test_entity_id, similarity))
+                    except Exception:
+                        pass  # Entity doesn't exist, skip
+            
+            # Sort by similarity and return top matches
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            return [eid for eid, score in candidates[:5]]
+            
+        except Exception as e:
+            logger.warning(f"Error finding similar entities for {entity_id}: {e}")
+            return []
     
     def _extract_entities_from_trigger(self, trigger: Any) -> List[str]:
         """Extract entity IDs from trigger configuration"""

@@ -206,7 +206,8 @@ export const ConversationalDashboard: React.FC = () => {
                 ...s,
                 status: result.status,
                 automation_yaml: result.automation_yaml,
-                yaml_generated_at: new Date().toISOString()
+                yaml_generated_at: new Date().toISOString(),
+                ha_automation_id: result.automation_id
               }
             : s
         )
@@ -219,6 +220,53 @@ export const ConversationalDashboard: React.FC = () => {
       );
     } catch (error) {
       console.error('Failed to approve:', error);
+      throw error;
+    }
+  };
+
+  const handleRedeploy = async (id: number) => {
+    try {
+      toast.loading('🔄 Re-deploying with updated YAML and category...', { id: `redeploy-${id}` });
+      
+      const result = await api.redeploySuggestion(id);
+      
+      // Check if category changed
+      const oldSuggestion = suggestions.find(s => s.id === id);
+      const categoryChanged = result.category && oldSuggestion && result.category !== oldSuggestion.category;
+      
+      // Update local state
+      setSuggestions(prev =>
+        prev.map(s =>
+          s.id === id
+            ? {
+                ...s,
+                status: result.status,
+                automation_yaml: result.automation_yaml,
+                category: result.category || s.category,
+                priority: result.priority || s.priority,
+                yaml_generated_at: new Date().toISOString(),
+                ha_automation_id: result.automation_id || s.ha_automation_id
+              }
+            : s
+        )
+      );
+
+      // Build success message
+      let successMsg = `✅ Re-deployed successfully!\nSafety score: ${result.yaml_validation.safety_score}/100`;
+      if (categoryChanged) {
+        successMsg += `\nCategory updated: ${oldSuggestion.category} → ${result.category}`;
+      }
+
+      toast.success(successMsg, { id: `redeploy-${id}`, duration: 6000 });
+      
+      // Reload suggestions to get fresh data
+      await loadSuggestions();
+    } catch (error: any) {
+      console.error('Failed to re-deploy:', error);
+      toast.error(
+        `❌ Re-deploy failed: ${error?.message || 'Unknown error'}`,
+        { id: `redeploy-${id}`, duration: 5000 }
+      );
       throw error;
     }
   };
@@ -360,6 +408,7 @@ export const ConversationalDashboard: React.FC = () => {
                   onRefine={handleRefine}
                   onApprove={handleApprove}
                   onReject={handleReject}
+                  onRedeploy={handleRedeploy}
                   darkMode={darkMode}
                 />
               ))}
