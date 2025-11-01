@@ -57,12 +57,31 @@ Now generate the precise YAML automation code.
 
 Guidelines:
 - Generate COMPLETE, VALID Home Assistant YAML
-- Use exact entity IDs provided
+- Use exact entity IDs provided (format: domain.entity_name, e.g., light.kitchen)
 - Include all conditions and details from description
 - Use appropriate service calls for device types
 - Add proper formatting and indentation (2 spaces)
 - Follow Home Assistant best practices
 - Be precise - this will be deployed directly
+
+CRITICAL YAML STRUCTURE RULES:
+1. Entity IDs MUST be in format: domain.entity (e.g., light.office, binary_sensor.door)
+2. Service calls use target.entity_id, not entity_id directly:
+   ```yaml
+   - service: light.turn_on
+     target:
+       entity_id: light.kitchen
+   ```
+3. Multiple entities use list format:
+   ```yaml
+   target:
+     entity_id:
+       - light.kitchen
+       - light.living_room
+   ```
+4. Data parameters go under `data:` key
+5. Required fields: alias, trigger, action
+6. Optional fields: id, description, mode, condition
 
 ADVANCED FEATURES (Task 2.2 - Use when appropriate, Target: 40%+ usage):
 - `choose` - Use for conditional logic with multiple paths (if/else patterns)
@@ -80,20 +99,98 @@ When to use advanced features:
 - Dynamic values → use `template`
 - Repeated patterns → use `repeat`
 
+COMPLETE YAML EXAMPLES:
+
+Example 1 - Simple time trigger:
+```yaml
+alias: Morning Kitchen Light
+description: Turn on kitchen light at 7 AM
+mode: single
+trigger:
+  - platform: time
+    at: '07:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.kitchen
+    data:
+      brightness_pct: 100
+```
+
+Example 2 - State trigger with condition:
+```yaml
+alias: Motion-Activated Office Light
+description: Turn on office light when motion detected after 6 PM
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.office_motion
+    to: 'on'
+condition:
+  - condition: time
+    after: '18:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.office
+    data:
+      brightness_pct: 75
+      color_name: warm_white
+```
+
+Example 3 - Multiple actions with delay:
+```yaml
+alias: Door Open Notification
+description: Flash lights when door opens
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door
+    from: 'off'
+    to: 'on'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.office
+    data:
+      brightness_pct: 100
+      color_name: red
+  - delay: '00:00:02'
+  - service: light.turn_off
+    target:
+      entity_id: light.office
+```
+
+Example 4 - Repeat with sequence:
+```yaml
+alias: Flash Pattern
+description: Flash lights 3 times
+mode: single
+trigger:
+  - platform: event
+    event_type: test_trigger
+action:
+  - repeat:
+      count: 3
+      sequence:
+        - service: light.turn_on
+          target:
+            entity_id: light.office
+          data:
+            brightness_pct: 100
+        - delay: '00:00:01'
+        - service: light.turn_off
+          target:
+            entity_id: light.office
+        - delay: '00:00:01'
+```
+
 Response format: ONLY JSON, no other text:
 {
   "yaml": "Complete YAML automation as string with \\n for newlines",
   "alias": "Automation name (descriptive)",
   "services_used": ["list of HA services called, e.g., light.turn_on"],
   "confidence": 0.95
-}
-
-Example:
-{
-  "yaml": "alias: Morning Kitchen Light\\ntrigger:\\n  - platform: time\\n    at: '07:00:00'\\naction:\\n  - service: light.turn_on\\n    target:\\n      entity_id: light.kitchen\\n    data:\\n      brightness_pct: 100",
-  "alias": "Morning Kitchen Light",
-  "services_used": ["light.turn_on"],
-  "confidence": 0.98
 }
 """
 
@@ -442,10 +539,20 @@ class YAMLGenerator:
         )
         
         # Validate YAML syntax
+        syntax_valid = False
+        structure_valid = False
+        structure_errors = []
         try:
             yaml.safe_load(yaml_str)
             syntax_valid = True
             logger.info("✅ YAML syntax validation passed")
+            
+            # Validate HA structure
+            structure_valid, structure_errors = self.validate_ha_structure(yaml_str)
+            if structure_valid:
+                logger.info("✅ HA structure validation passed")
+            else:
+                logger.warning(f"⚠️ HA structure validation failed: {structure_errors}")
         except yaml.YAMLError as e:
             syntax_valid = False
             logger.error(f"❌ YAML syntax validation failed: {e}")
@@ -455,8 +562,9 @@ class YAMLGenerator:
             yaml=yaml_str,
             alias=automation_meta.get('alias', 'Generated Automation'),
             services_used=automation_meta.get('services_used', []),
-            syntax_valid=syntax_valid,
-            confidence=0.95  # Higher confidence with structured output
+            syntax_valid=syntax_valid and structure_valid,
+            safety_issues=structure_errors if structure_errors else None,
+            confidence=0.95 if (syntax_valid and structure_valid) else 0.7  # Lower confidence if validation issues
         )
         
         logger.info(f"✅ YAML generation complete (function calling): {result.alias}")
@@ -534,6 +642,9 @@ class YAMLGenerator:
         """
         Convert function call results into Home Assistant YAML format.
         
+        Uses proper YAML serialization instead of string concatenation to ensure
+        valid structure, especially for nested data structures.
+        
         Args:
             triggers: List of trigger function call results
             actions: List of action function call results
@@ -543,87 +654,106 @@ class YAMLGenerator:
         Returns:
             Complete YAML automation string
         """
-        yaml_parts = []
+        # Build automation dict structure
+        automation_dict = {}
         
         # Add alias
-        alias = automation_meta.get('alias', 'Generated Automation')
-        yaml_parts.append(f"alias: {alias}")
+        automation_dict['alias'] = automation_meta.get('alias', 'Generated Automation')
         
         # Add description if available
         if automation_meta.get('description'):
-            yaml_parts.append(f"description: {automation_meta['description']}")
+            automation_dict['description'] = automation_meta['description']
         
         # Add mode
-        mode = automation_meta.get('mode', 'single')
-        yaml_parts.append(f"mode: {mode}")
+        automation_dict['mode'] = automation_meta.get('mode', 'single')
         
-        # Add triggers
+        # Convert triggers to proper format
         if triggers:
-            yaml_parts.append("trigger:")
+            automation_dict['trigger'] = []
             for trigger in triggers:
-                yaml_parts.append("  - platform: " + trigger['platform'])
+                trigger_dict = {'platform': trigger['platform']}
+                # Add other trigger fields
                 for key, value in trigger.items():
                     if key != 'platform' and value is not None:
-                        if isinstance(value, str):
-                            yaml_parts.append(f"    {key}: '{value}'")
+                        # Handle special cases for trigger fields
+                        if key == 'from' and value:
+                            trigger_dict['from'] = value
+                        elif key == 'for' and value:
+                            trigger_dict['for'] = value
                         else:
-                            yaml_parts.append(f"    {key}: {value}")
+                            trigger_dict[key] = value
+                automation_dict['trigger'].append(trigger_dict)
         
-        # Add conditions
+        # Convert conditions to proper format
         if conditions:
-            yaml_parts.append("condition:")
+            automation_dict['condition'] = []
             for condition in conditions:
+                cond_dict = {'condition': condition['condition']}
                 cond_type = condition['condition']
+                
                 if cond_type in ['and', 'or', 'not']:
-                    yaml_parts.append(f"  - condition: {cond_type}")
-                    # Handle nested conditions (simplified)
+                    # Logical conditions - simplified for now
+                    automation_dict['condition'].append(cond_dict)
                 else:
-                    yaml_parts.append(f"  - condition: {cond_type}")
+                    # State, time, numeric_state, etc.
                     for key, value in condition.items():
                         if key != 'condition' and value is not None:
-                            if isinstance(value, (list, dict)):
-                                yaml_parts.append(f"    {key}: {value}")
-                            elif isinstance(value, str):
-                                yaml_parts.append(f"    {key}: '{value}'")
-                            else:
-                                yaml_parts.append(f"    {key}: {value}")
+                            cond_dict[key] = value
+                    automation_dict['condition'].append(cond_dict)
         
-        # Add actions
+        # Convert actions to proper format
         if actions:
-            yaml_parts.append("action:")
+            automation_dict['action'] = []
             for action in actions:
                 action_type = action.get('action_type', 'service')
                 
                 if action_type == 'delay':
-                    delay = action.get('delay', '00:00:01')
-                    yaml_parts.append(f"  - delay: '{delay}'")
+                    automation_dict['action'].append({'delay': action.get('delay', '00:00:01')})
                 elif action_type == 'repeat':
-                    count = action.get('repeat_count', 1)
-                    yaml_parts.append(f"  - repeat:")
-                    yaml_parts.append(f"      count: {count}")
-                    yaml_parts.append(f"      sequence:")
-                    # Sequence would be nested actions
+                    repeat_dict = {
+                        'repeat': {
+                            'count': action.get('repeat_count', 1),
+                            'sequence': []  # Nested actions would go here
+                        }
+                    }
+                    automation_dict['action'].append(repeat_dict)
                 else:
                     # Service call
                     service = action.get('service')
                     if service:
-                        yaml_parts.append(f"  - service: {service}")
+                        action_dict = {'service': service}
+                        
+                        # Add target with entity_id
                         entity_id = action.get('target_entity_id')
                         if entity_id:
-                            yaml_parts.append(f"    target:")
-                            yaml_parts.append(f"      entity_id: {entity_id}")
+                            # Validate entity ID format (must be domain.entity format)
+                            if '.' in entity_id and not entity_id.startswith('.'):
+                                action_dict['target'] = {'entity_id': entity_id}
+                            else:
+                                logger.warning(f"Invalid entity_id format: {entity_id}, skipping target")
+                        
+                        # Add data
                         data = action.get('data')
                         if data:
-                            yaml_parts.append(f"    data:")
-                            for key, value in data.items():
-                                if isinstance(value, (list, dict)):
-                                    yaml_parts.append(f"      {key}: {value}")
-                                elif isinstance(value, str):
-                                    yaml_parts.append(f"      {key}: '{value}'")
-                                else:
-                                    yaml_parts.append(f"      {key}: {value}")
+                            action_dict['data'] = data
+                        
+                        automation_dict['action'].append(action_dict)
         
-        return '\n'.join(yaml_parts)
+        # Use yaml.dump() for proper serialization
+        try:
+            yaml_str = yaml.dump(
+                automation_dict,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+                width=1000,  # Prevent line wrapping
+                indent=2
+            )
+            return yaml_str.strip()
+        except Exception as e:
+            logger.error(f"Error serializing YAML: {e}")
+            # Fallback to basic format
+            return f"alias: {automation_dict.get('alias', 'Generated Automation')}\n"
     
     def _build_yaml_prompt(
         self,
@@ -731,6 +861,92 @@ OUTPUT (JSON only, no markdown):"""
             return True, None
         except yaml.YAMLError as e:
             return False, str(e)
+    
+    def validate_ha_structure(self, yaml_string: str) -> tuple[bool, List[str]]:
+        """
+        Validate Home Assistant automation structure.
+        
+        Checks for:
+        - Required fields (alias, trigger, action)
+        - Valid entity ID formats
+        - Proper service call structure
+        - Valid trigger/condition/action formats
+        
+        Args:
+            yaml_string: YAML string to validate
+        
+        Returns:
+            Tuple of (is_valid, list_of_errors)
+        """
+        errors = []
+        
+        try:
+            automation_dict = yaml.safe_load(yaml_string)
+            
+            if not isinstance(automation_dict, dict):
+                errors.append("YAML must be a dictionary")
+                return False, errors
+            
+            # Check required fields
+            if 'alias' not in automation_dict:
+                errors.append("Missing required field: 'alias'")
+            
+            if 'trigger' not in automation_dict and 'triggers' not in automation_dict:
+                errors.append("Missing required field: 'trigger' or 'triggers'")
+            
+            if 'action' not in automation_dict and 'actions' not in automation_dict:
+                errors.append("Missing required field: 'action' or 'actions'")
+            
+            # Validate trigger format
+            triggers = automation_dict.get('trigger', automation_dict.get('triggers', []))
+            if triggers:
+                if not isinstance(triggers, list):
+                    errors.append("'trigger' must be a list")
+                else:
+                    for i, trigger in enumerate(triggers):
+                        if not isinstance(trigger, dict):
+                            errors.append(f"Trigger {i} must be a dictionary")
+                            continue
+                        if 'platform' not in trigger:
+                            errors.append(f"Trigger {i} missing required field: 'platform'")
+                        # Validate entity_id format if present
+                        if 'entity_id' in trigger:
+                            entity_id = trigger['entity_id']
+                            if not isinstance(entity_id, str) or '.' not in entity_id:
+                                errors.append(f"Trigger {i} has invalid entity_id format: {entity_id}")
+            
+            # Validate action format
+            actions = automation_dict.get('action', automation_dict.get('actions', []))
+            if actions:
+                if not isinstance(actions, list):
+                    errors.append("'action' must be a list")
+                else:
+                    for i, action in enumerate(actions):
+                        if not isinstance(action, dict):
+                            errors.append(f"Action {i} must be a dictionary")
+                            continue
+                        
+                        # Validate service call structure
+                        if 'service' in action:
+                            if 'target' in action:
+                                target = action['target']
+                                if isinstance(target, dict) and 'entity_id' in target:
+                                    entity_id = target['entity_id']
+                                    # Handle both string and list formats
+                                    if isinstance(entity_id, str):
+                                        if '.' not in entity_id:
+                                            errors.append(f"Action {i} has invalid entity_id format: {entity_id}")
+                                    elif isinstance(entity_id, list):
+                                        for eid in entity_id:
+                                            if not isinstance(eid, str) or '.' not in eid:
+                                                errors.append(f"Action {i} has invalid entity_id in list: {eid}")
+            
+            return len(errors) == 0, errors
+            
+        except yaml.YAMLError as e:
+            return False, [f"YAML syntax error: {str(e)}"]
+        except Exception as e:
+            return False, [f"Validation error: {str(e)}"]
     
     def get_usage_stats(self) -> Dict:
         """

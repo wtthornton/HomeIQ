@@ -41,6 +41,7 @@ from ..services.entity_attribute_service import EntityAttributeService
 from ..prompt_building.entity_context_builder import EntityContextBuilder
 from ..services.component_detector import ComponentDetector
 from ..services.safety_validator import SafetyValidator
+from ..services.yaml_self_correction import YAMLSelfCorrectionService
 from sqlalchemy import select, update
 import asyncio
 
@@ -94,6 +95,19 @@ _device_intelligence_client: Optional[DeviceIntelligenceClient] = None
 _enhanced_extractor: Optional[EnhancedEntityExtractor] = None
 _multi_model_extractor: Optional[MultiModelEntityExtractor] = None
 _model_orchestrator: Optional[ModelOrchestrator] = None
+_self_correction_service: Optional[YAMLSelfCorrectionService] = None
+
+def get_self_correction_service() -> Optional[YAMLSelfCorrectionService]:
+    """Get self-correction service singleton"""
+    global _self_correction_service
+    if _self_correction_service is None:
+        if openai_client and hasattr(openai_client, 'client'):
+            # Pass the AsyncOpenAI client from OpenAIClient wrapper
+            _self_correction_service = YAMLSelfCorrectionService(openai_client.client)
+            logger.info("✅ YAML self-correction service initialized")
+        else:
+            logger.warning("⚠️ Cannot initialize self-correction service - OpenAI client not available")
+    return _self_correction_service
 
 def set_device_intelligence_client(client: DeviceIntelligenceClient):
     """Set device intelligence client for enhanced extraction"""
@@ -436,10 +450,21 @@ async def generate_automation_yaml(
         if entity_mapping:
             entity_mapping = deduplicate_entity_mapping(entity_mapping)
         
-        # Update suggestion with validated entities
+        # Validate entity ID formats before using them
+        validated_mapping = {}
         if entity_mapping:
-            suggestion['validated_entities'] = entity_mapping
-            logger.info(f"✅ VALIDATED ENTITIES ADDED TO SUGGESTION: {suggestion.get('validated_entities')}")
+            for term, entity_id in entity_mapping.items():
+                # Ensure entity_id is in proper format (domain.entity)
+                if isinstance(entity_id, str) and '.' in entity_id and not entity_id.startswith('.'):
+                    validated_mapping[term] = entity_id
+                else:
+                    logger.warning(f"⚠️ Skipping invalid entity_id format: {term} -> {entity_id}")
+            
+            if validated_mapping:
+                suggestion['validated_entities'] = validated_mapping
+                logger.info(f"✅ VALIDATED ENTITIES ADDED TO SUGGESTION: {suggestion.get('validated_entities')}")
+            else:
+                logger.warning(f"⚠️ No valid entity IDs after format validation")
         else:
             logger.warning(f"⚠️ No valid entities found - mapping was: {entity_mapping}")
     except Exception as e:
@@ -463,12 +488,18 @@ Pay attention to the capability types and ranges when generating service calls:
 - For composite capabilities: Configure all sub-features properly
 
 """
-    elif 'validated_entities' in suggestion and suggestion['validated_entities']:
+    elif 'validated_entities' in suggestion and suggestion.get('validated_entities'):
+        # Ensure we have a non-empty dict
+        validated_entities = suggestion.get('validated_entities', {})
+        if not validated_entities or not isinstance(validated_entities, dict):
+            logger.warning(f"⚠️ validated_entities is empty or invalid: {validated_entities}")
+            validated_entities = {}
+        
         # Check if we have cached enriched context (fast path)
-        if 'enriched_entity_context' in suggestion and suggestion['enriched_entity_context']:
+        if validated_entities and 'enriched_entity_context' in suggestion and suggestion['enriched_entity_context']:
             logger.info("✅ Using cached enriched entity context - FAST PATH")
             entity_context_json = suggestion['enriched_entity_context']
-        else:
+        elif validated_entities:
             # Fall back to re-enrichment (slow path, backwards compatibility)
             logger.info("⚠️ Re-enriching entities - SLOW PATH")
             try:
@@ -501,13 +532,22 @@ Pay attention to the capability types and ranges when generating service calls:
                 logger.warning(f"⚠️ Error enriching entities: {e}")
                 entity_context_json = ""
         
-        # Build fallback text format
-        validated_entities_text = f"""
+        # Build fallback text format using validated_entities from above check
+        if validated_entities:
+            validated_entities_text = f"""
 VALIDATED ENTITIES (use these exact entity IDs):
-{chr(10).join([f"- {term}: {entity_id}" for term, entity_id in suggestion['validated_entities'].items()])}
+{chr(10).join([f"- {term}: {entity_id}" for term, entity_id in validated_entities.items()])}
 
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
+Entity IDs must be in format: domain.entity (e.g., light.office, binary_sensor.door)
 If you need multiple lights, use the same entity ID multiple times or use the entity_id provided for 'lights'.
+"""
+        else:
+            validated_entities_text = """
+CRITICAL: No validated entities found. Use generic placeholder entity IDs that clearly indicate they are placeholders:
+- Use 'light.office_light_placeholder' for office lights
+- Use 'binary_sensor.door_placeholder' for door sensors
+- Add a comment in the YAML explaining these are placeholders
 """
         
         # Add entity context JSON if available
@@ -524,8 +564,9 @@ Use this entity information to:
 4. Respect device limitations (e.g., brightness range, color modes)
 """
         
-        logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text[:200]}...")
-        logger.debug(f" VALIDATED ENTITIES TEXT: {validated_entities_text}")
+        if validated_entities:
+            logger.info(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text[:200]}...")
+            logger.debug(f"🔍 VALIDATED ENTITIES TEXT: {validated_entities_text}")
     else:
         validated_entities_text = """
 CRITICAL: No validated entities found. Use generic placeholder entity IDs that clearly indicate they are placeholders:
@@ -533,6 +574,7 @@ CRITICAL: No validated entities found. Use generic placeholder entity IDs that c
 - Use 'binary_sensor.door_placeholder' for door sensors
 - Add a comment in the YAML explaining these are placeholders
 """
+        logger.warning("⚠️ No validated entities available - will use placeholder format")
     
     # Check if test mode
     is_test = 'TEST MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
@@ -576,54 +618,102 @@ Requirements:
    - `repeat` for patterns
    - `parallel` for simultaneous actions
 
+CRITICAL YAML STRUCTURE RULES:
+1. Entity IDs MUST be in format: domain.entity (e.g., light.office, binary_sensor.door)
+2. Service calls ALWAYS use target.entity_id structure:
+   ```yaml
+   - service: light.turn_on
+     target:
+       entity_id: light.kitchen
+   ```
+   NEVER use entity_id directly in the action!
+3. Multiple entities use list format:
+   ```yaml
+   target:
+     entity_id:
+       - light.kitchen
+       - light.living_room
+   ```
+4. Required fields: alias, trigger, action
+5. Always include mode: single (or restart, queued, parallel)
+
 Advanced YAML Examples:
+
+Example 1 - Simple time trigger (CORRECT):
 ```yaml
-# Sequential flashing pattern
-id: office_lights_sequence
-alias: "Office Lights Sequence on Door Open"
-description: "Flash office lights in sequence when front door opens"
+alias: Morning Kitchen Light
+description: Turn on kitchen light at 7 AM
+mode: single
+trigger:
+  - platform: time
+    at: '07:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.kitchen
+    data:
+      brightness_pct: 100
+```
+
+Example 2 - State trigger with condition (CORRECT):
+```yaml
+alias: Motion-Activated Office Light
+description: Turn on office light when motion detected after 6 PM
 mode: single
 trigger:
   - platform: state
-    entity_id: binary_sensor.front_door
+    entity_id: binary_sensor.office_motion
     to: 'on'
+condition:
+  - condition: time
+    after: '18:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.office
+    data:
+      brightness_pct: 75
+      color_name: warm_white
+```
+
+Example 3 - Repeat with sequence (CORRECT):
+```yaml
+alias: Flash Pattern
+description: Flash lights 3 times
+mode: single
+trigger:
+  - platform: event
+    event_type: test_trigger
 action:
   - repeat:
+      count: 3
       sequence:
         - service: light.turn_on
           target:
-            entity_id: light.office_left
+            entity_id: light.office
           data:
             brightness_pct: 100
-            color_name: red
-        - delay: "00:00:01"
+        - delay: '00:00:01'
         - service: light.turn_off
           target:
-            entity_id: light.office_left
-        - service: light.turn_on
-          target:
-            entity_id: light.office_right
-          data:
-            brightness_pct: 100
-            color_name: blue
-        - delay: "00:00:01"
-        - service: light.turn_off
-          target:
-            entity_id: light.office_right
-      count: 3
+            entity_id: light.office
+        - delay: '00:00:01'
+```
 
-# Color-coded door notifications
-id: door_color_notifications
-alias: "Color-Coded Door Notifications"
-description: "Different colors for different doors"
+Example 4 - Choose with multiple triggers (CORRECT):
+```yaml
+alias: Color-Coded Door Notifications
+description: Different colors for different doors
 mode: single
 trigger:
   - platform: state
     entity_id: binary_sensor.front_door
     to: 'on'
+    id: front_door
   - platform: state
     entity_id: binary_sensor.back_door
     to: 'on'
+    id: back_door
 condition:
   - condition: time
     after: "18:00:00"
@@ -632,7 +722,7 @@ action:
   - choose:
       - conditions:
           - condition: trigger
-            id: "0"
+            id: front_door
         sequence:
           - service: light.turn_on
             target:
@@ -640,10 +730,9 @@ action:
             data:
               brightness_pct: 100
               color_name: red
-              flash: long
       - conditions:
           - condition: trigger
-            id: "1"
+            id: back_door
         sequence:
           - service: light.turn_on
             target:
@@ -651,7 +740,6 @@ action:
             data:
               brightness_pct: 100
               color_name: blue
-              flash: long
     default:
       - service: light.turn_on
         target:
@@ -661,7 +749,17 @@ action:
           color_name: white
 ```
 
-Generate ONLY the YAML content, no explanations or markdown code blocks. Use advanced HA features to implement the creative suggestion properly.
+COMMON MISTAKES TO AVOID:
+❌ WRONG: entity_id: light.kitchen (in action directly)
+✅ CORRECT: target: { entity_id: light.kitchen }
+
+❌ WRONG: entity_id: "office" (missing domain)
+✅ CORRECT: entity_id: light.office (full format)
+
+❌ WRONG: service: light.turn_on without target
+✅ CORRECT: service: light.turn_on with target.entity_id
+
+Generate ONLY the YAML content, no explanations or markdown code blocks. Use the validated entity IDs provided above. Follow the structure examples exactly.
 """
 
     try:
@@ -698,10 +796,46 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use adv
         # Validate the YAML syntax
         try:
             yaml_lib.safe_load(yaml_content)
-            logger.info(f"✅ Generated valid YAML for suggestion {suggestion.get('suggestion_id')}")
+            logger.info(f"✅ Generated valid YAML syntax for suggestion {suggestion.get('suggestion_id')}")
         except yaml_lib.YAMLError as e:
-            logger.error(f"❌ Generated invalid YAML: {e}")
-            raise ValueError(f"Generated YAML is invalid: {e}")
+            logger.error(f"❌ Generated invalid YAML syntax: {e}")
+            raise ValueError(f"Generated YAML syntax is invalid: {e}")
+        
+        # Validate HA structure
+        from ..llm.yaml_generator import YAMLGenerator
+        yaml_gen = YAMLGenerator(openai_client.client if hasattr(openai_client, 'client') else None)
+        structure_valid, structure_errors = yaml_gen.validate_ha_structure(yaml_content)
+        if not structure_valid:
+            logger.warning(f"⚠️ HA structure validation failed: {structure_errors}")
+            # Log but don't fail - HA API validation will catch it
+        
+        # Validate with HA API if client is available
+        # Use global ha_client or create one if needed
+        validation_ha_client = ha_client if 'ha_client' in locals() and ha_client else None
+        if not validation_ha_client and settings.ha_url and settings.ha_token:
+            try:
+                validation_ha_client = HomeAssistantClient(
+                    ha_url=settings.ha_url,
+                    access_token=settings.ha_token
+                )
+            except Exception as e:
+                logger.warning(f"⚠️ Could not create HA client for validation: {e}")
+        
+        if validation_ha_client:
+            try:
+                logger.info("🔍 Validating YAML with Home Assistant API...")
+                validation_result = await validation_ha_client.validate_automation(yaml_content)
+                if not validation_result.get('valid', False):
+                    error_msg = validation_result.get('error', 'Unknown validation error')
+                    warnings = validation_result.get('warnings', [])
+                    logger.warning(f"⚠️ HA API validation failed: {error_msg}")
+                    if warnings:
+                        logger.warning(f"⚠️ HA API warnings: {warnings}")
+                    # Don't fail - let user see the validation issues
+                else:
+                    logger.info("✅ HA API validation passed")
+            except Exception as e:
+                logger.warning(f"⚠️ HA API validation error (continuing anyway): {e}")
         
         # Debug: Print the final YAML content
         logger.info("=" * 80)
@@ -2433,4 +2567,99 @@ async def list_aliases(
         return aliases_by_entity
     except Exception as e:
         logger.error(f"Error listing aliases: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reverse-engineer-yaml", response_model=Dict[str, Any])
+async def reverse_engineer_yaml(request: Dict[str, Any]):
+    """
+    Reverse engineer YAML and self-correct with iterative refinement.
+    
+    Uses advanced self-correction techniques to iteratively improve YAML quality:
+    - Reverse Prompt Engineering (RPE) to understand generated YAML
+    - Semantic similarity comparison using embeddings
+    - ProActive Self-Refinement (PASR) for feedback-driven improvement
+    - Up to 5 iterations until convergence or min similarity achieved
+    
+    Request:
+    {
+        "yaml": "automation yaml content",
+        "original_prompt": "user's original request",
+        "context": {} (optional)
+    }
+    
+    Returns:
+    {
+        "final_yaml": "refined yaml",
+        "final_similarity": 0.95,
+        "iterations_completed": 3,
+        "convergence_achieved": true,
+        "iteration_history": [
+            {
+                "iteration": 1,
+                "similarity_score": 0.72,
+                "reverse_engineered_prompt": "description of what yaml does",
+                "feedback": "explanation of issues",
+                "improvement_actions": ["specific actions to improve"]
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        yaml_content = request.get("yaml", "")
+        original_prompt = request.get("original_prompt", "")
+        context = request.get("context")
+        
+        if not yaml_content or not original_prompt:
+            raise ValueError("yaml and original_prompt are required")
+        
+        # Get self-correction service
+        correction_service = get_self_correction_service()
+        if not correction_service:
+            raise HTTPException(
+                status_code=503,
+                detail="Self-correction service not available - OpenAI client not configured"
+            )
+        
+        logger.info(f"🔄 Starting reverse engineering for prompt: {original_prompt[:60]}...")
+        
+        # Run self-correction
+        result = await correction_service.correct_yaml(
+            user_prompt=original_prompt,
+            generated_yaml=yaml_content,
+            context=context
+        )
+        
+        logger.info(
+            f"✅ Self-correction complete: "
+            f"similarity={result.final_similarity:.2%}, "
+            f"iterations={result.iterations_completed}, "
+            f"converged={result.convergence_achieved}"
+        )
+        
+        # Format response
+        return {
+            "final_yaml": result.final_yaml,
+            "final_similarity": result.final_similarity,
+            "iterations_completed": result.iterations_completed,
+            "max_iterations": result.max_iterations,
+            "convergence_achieved": result.convergence_achieved,
+            "iteration_history": [
+                {
+                    "iteration": iter_result.iteration,
+                    "similarity_score": iter_result.similarity_score,
+                    "reverse_engineered_prompt": iter_result.reverse_engineered_prompt,
+                    "feedback": iter_result.correction_feedback,
+                    "improvement_actions": iter_result.improvement_actions
+                }
+                for iter_result in result.iteration_history
+            ]
+        }
+        
+    except ValueError as e:
+        logger.error(f"Invalid request: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Reverse engineering failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
