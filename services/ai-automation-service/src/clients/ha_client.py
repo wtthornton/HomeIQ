@@ -732,11 +732,15 @@ class HomeAssistantClient:
                         }
                     else:
                         error_text = await response.text()
+                        error_json = {}
+                        try:
+                            error_json = await response.json()
+                            error_text = error_json.get('message', error_text)
+                        except:
+                            pass  # Use text if JSON parsing fails
+                        
                         logger.error(f"❌ Failed to create automation ({response.status}): {error_text}")
-                        return {
-                            "success": False,
-                            "error": f"HTTP {response.status}: {error_text}"
-                        }
+                        raise Exception(f"HTTP {response.status}: {error_text}")
         except Exception as e:
             logger.error(f"❌ Error creating automation: {e}", exc_info=True)
             return {
@@ -775,10 +779,46 @@ class HomeAssistantClient:
                     logger.warning(f"Entity {entity_id} not found in HA")
                     return None
                 else:
-                    logger.error(f"Unexpected status {response.status} for {entity_id}")
+                    logger.warning(f"Failed to get entity state for {entity_id}: {response.status}")
                     return None
-                    
         except Exception as e:
-            logger.error(f"Error fetching entity state for {entity_id}: {e}")
+            logger.error(f"Error getting entity state for {entity_id}: {e}")
             return None
+    
+    async def get_entities_by_domain(self, domain: str) -> List[str]:
+        """
+        Get all entity IDs for a specific domain from Home Assistant.
+        
+        Queries HA's /api/states endpoint and filters by domain prefix.
+        
+        Args:
+            domain: Domain name (e.g., 'wled', 'light', 'binary_sensor')
+            
+        Returns:
+            List of entity IDs matching the domain (e.g., ['wled.office', 'wled.kitchen'])
+            
+        Example:
+            wled_entities = await ha_client.get_entities_by_domain('wled')
+            # Returns: ['wled.office', 'wled.kitchen']
+        """
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/states"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    states = await response.json()
+                    domain_entities = [
+                        state.get('entity_id') 
+                        for state in states 
+                        if state.get('entity_id', '').startswith(f"{domain}.")
+                    ]
+                    logger.info(f"Found {len(domain_entities)} entities for domain '{domain}': {domain_entities[:5]}")
+                    return domain_entities
+                else:
+                    logger.warning(f"Failed to get states from HA: {response.status}")
+                    return []
+        except Exception as e:
+            logger.error(f"Error getting entities by domain '{domain}': {e}")
+            return []
 

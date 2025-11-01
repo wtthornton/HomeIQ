@@ -312,7 +312,8 @@ async def expand_group_entities_to_members(
 
 def map_devices_to_entities(
     devices_involved: List[str], 
-    enriched_data: Dict[str, Dict[str, Any]]
+    enriched_data: Dict[str, Dict[str, Any]],
+    fuzzy_match: bool = True
 ) -> Dict[str, str]:
     """
     Map device friendly names to entity IDs from enriched data.
@@ -323,6 +324,7 @@ def map_devices_to_entities(
     Args:
         devices_involved: List of device friendly names from LLM suggestion
         enriched_data: Dictionary mapping entity_id to enriched entity data
+        fuzzy_match: If True, use fuzzy matching for partial matches
         
     Returns:
         Dictionary mapping device_name → entity_id
@@ -332,14 +334,41 @@ def map_devices_to_entities(
     
     for device_name in devices_involved:
         mapped = False
-        # Find matching entity by friendly_name in enriched_data
+        device_name_lower = device_name.lower()
+        
+        # Strategy 1: Exact match by friendly_name
         for entity_id, enriched in enriched_data.items():
             friendly_name = enriched.get('friendly_name', '')
-            if friendly_name == device_name:
+            if friendly_name.lower() == device_name_lower:
                 validated_entities[device_name] = entity_id
                 mapped = True
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}'")
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match)")
                 break
+        
+        # Strategy 2: Fuzzy matching (case-insensitive substring)
+        if not mapped and fuzzy_match:
+            for entity_id, enriched in enriched_data.items():
+                friendly_name = enriched.get('friendly_name', '').lower()
+                entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
+                
+                # Check if device_name is contained in friendly_name or entity name
+                if (device_name_lower in friendly_name or 
+                    friendly_name in device_name_lower or
+                    device_name_lower in entity_name_part):
+                    validated_entities[device_name] = entity_id
+                    mapped = True
+                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (fuzzy match)")
+                    break
+        
+        # Strategy 3: Match by domain name (e.g., "wled" matches "wled.office")
+        if not mapped and fuzzy_match:
+            for entity_id, enriched in enriched_data.items():
+                domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
+                if domain == device_name_lower:
+                    validated_entities[device_name] = entity_id
+                    mapped = True
+                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (domain match)")
+                    break
         
         if not mapped:
             unmapped_devices.append(device_name)
@@ -356,6 +385,131 @@ def map_devices_to_entities(
         logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to entities")
     
     return validated_entities
+
+
+def extract_device_mentions_from_text(
+    text: str,
+    validated_entities: Dict[str, str],
+    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
+) -> Dict[str, str]:
+    """
+    Extract device mentions from text and map them to entity IDs.
+    
+    Args:
+        text: Text to scan (description, trigger_summary, action_summary)
+        validated_entities: Dictionary mapping friendly_name → entity_id
+        enriched_data: Optional enriched entity data for fuzzy matching
+        
+    Returns:
+        Dictionary mapping mention → entity_id
+    """
+    if not text:
+        return {}
+    
+    mentions = {}
+    text_lower = text.lower()
+    
+    # Extract mentions from validated_entities
+    for friendly_name, entity_id in validated_entities.items():
+        friendly_name_lower = friendly_name.lower()
+        # Check if friendly name appears in text (word boundary matching)
+        import re
+        pattern = r'\b' + re.escape(friendly_name_lower) + r'\b'
+        if re.search(pattern, text_lower):
+            mentions[friendly_name] = entity_id
+            logger.debug(f"🔍 Found mention '{friendly_name}' in text → {entity_id}")
+        
+        # Also check for partial matches (e.g., "wled" matches "WLED" or "wled strip")
+        if friendly_name_lower in text_lower or text_lower in friendly_name_lower:
+            if friendly_name not in mentions:
+                mentions[friendly_name] = entity_id
+                logger.debug(f"🔍 Found partial mention '{friendly_name}' in text → {entity_id}")
+    
+    # If enriched_data available, also check entity names and domains
+    if enriched_data:
+        for entity_id, enriched in enriched_data.items():
+            friendly_name = enriched.get('friendly_name', '').lower()
+            domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
+            entity_name = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
+            
+            # Check domain matches (e.g., "wled" text matches "wled.office")
+            if domain and domain in text_lower and len(domain) >= 3:
+                if domain not in [m.lower() for m in mentions.keys()]:
+                    mentions[domain] = entity_id
+                    logger.debug(f"🔍 Found domain mention '{domain}' in text → {entity_id}")
+            
+            # Check entity name matches
+            if entity_name and entity_name in text_lower:
+                if entity_name not in [m.lower() for m in mentions.keys()]:
+                    mentions[entity_name] = entity_id
+                    logger.debug(f"🔍 Found entity name mention '{entity_name}' in text → {entity_id}")
+    
+    return mentions
+
+
+async def enhance_suggestion_with_entity_ids(
+    suggestion: Dict[str, Any],
+    validated_entities: Dict[str, str],
+    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None,
+    ha_client: Optional[HomeAssistantClient] = None
+) -> Dict[str, Any]:
+    """
+    Enhance suggestion by adding entity IDs directly.
+    
+    Adds:
+    - entity_ids_used: List of actual entity IDs
+    - entity_id_annotations: Detailed mapping with context
+    - device_mentions: Maps description terms → entity IDs
+    
+    Args:
+        suggestion: Suggestion dictionary
+        validated_entities: Mapping friendly_name → entity_id
+        enriched_data: Optional enriched entity data
+        ha_client: Optional HA client for querying entities
+        
+    Returns:
+        Enhanced suggestion dictionary
+    """
+    enhanced = suggestion.copy()
+    
+    # Extract all device mentions from suggestion text fields
+    device_mentions = {}
+    text_fields = [
+        enhanced.get('description', ''),
+        enhanced.get('trigger_summary', ''),
+        enhanced.get('action_summary', '')
+    ]
+    
+    for text in text_fields:
+        mentions = extract_device_mentions_from_text(text, validated_entities, enriched_data)
+        device_mentions.update(mentions)
+    
+    # Get entity IDs used
+    entity_ids_used = list(set(validated_entities.values()))
+    
+    # Build entity_id_annotations with context
+    entity_id_annotations = {}
+    for friendly_name, entity_id in validated_entities.items():
+        entity_id_annotations[friendly_name] = {
+            'entity_id': entity_id,
+            'domain': entity_id.split('.')[0] if '.' in entity_id else '',
+            'mentioned_in': []
+        }
+        
+        # Track where this device is mentioned
+        for field in ['description', 'trigger_summary', 'action_summary']:
+            text = enhanced.get(field, '').lower()
+            if friendly_name.lower() in text:
+                entity_id_annotations[friendly_name]['mentioned_in'].append(field)
+    
+    # Add device_mentions (from text extraction)
+    enhanced['device_mentions'] = device_mentions
+    enhanced['entity_ids_used'] = entity_ids_used
+    enhanced['entity_id_annotations'] = entity_id_annotations
+    
+    logger.info(f"✅ Enhanced suggestion with {len(entity_ids_used)} entity IDs and {len(device_mentions)} device mentions")
+    
+    return enhanced
 
 
 def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]:
@@ -392,11 +546,140 @@ def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]
     
     return deduplicated
 
+
+async def pre_validate_suggestion_for_yaml(
+    suggestion: Dict[str, Any],
+    validated_entities: Dict[str, str],
+    ha_client: Optional[HomeAssistantClient] = None
+) -> Dict[str, str]:
+    """
+    Pre-validate and enhance suggestion before YAML generation.
+    
+    Extracts all device mentions from description/trigger/action summaries,
+    maps them to entity IDs, and queries HA for domain entities if device name is incomplete.
+    
+    Args:
+        suggestion: Suggestion dictionary
+        validated_entities: Mapping friendly_name → entity_id
+        ha_client: Optional HA client for querying entities
+        
+    Returns:
+        Enhanced validated_entities dictionary with all mentions mapped
+    """
+    enhanced_validated_entities = validated_entities.copy()
+    
+    # Extract device mentions from all text fields
+    text_fields = {
+        'description': suggestion.get('description', ''),
+        'trigger_summary': suggestion.get('trigger_summary', ''),
+        'action_summary': suggestion.get('action_summary', '')
+    }
+    
+    all_mentions = {}
+    for field, text in text_fields.items():
+        mentions = extract_device_mentions_from_text(text, validated_entities, None)
+        all_mentions.update(mentions)
+    
+    # Add mentions to validated_entities
+    for mention, entity_id in all_mentions.items():
+        if mention not in enhanced_validated_entities:
+            enhanced_validated_entities[mention] = entity_id
+            logger.debug(f"🔍 Added mention '{mention}' → {entity_id} to validated entities")
+    
+    # Check for incomplete entity IDs (domain-only mentions like "wled")
+    if ha_client:
+        incomplete_mentions = []
+        for mention, entity_id in all_mentions.items():
+            if '.' not in entity_id:  # Incomplete entity ID
+                incomplete_mentions.append((mention, entity_id))
+        
+        # Query HA for domain entities if we found incomplete mentions
+        if incomplete_mentions:
+            domains_to_query = set()
+            for mention, entity_id in incomplete_mentions:
+                domains_to_query.add(entity_id.lower())
+            
+            logger.info(f"🔍 Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
+            for domain in domains_to_query:
+                try:
+                    domain_entities = await ha_client.get_entities_by_domain(domain)
+                    if domain_entities:
+                        # Use first entity from domain if multiple exist
+                        enhanced_validated_entities[mention] = domain_entities[0]
+                        logger.info(f"✅ Queried HA for '{domain}', using first entity: {domain_entities[0]}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
+    
+    return enhanced_validated_entities
+
+
+async def build_suggestion_specific_entity_mapping(
+    suggestion: Dict[str, Any],
+    validated_entities: Dict[str, str]
+) -> str:
+    """
+    Build suggestion-specific entity ID mapping text for LLM prompt.
+    
+    Creates explicit mapping table for devices mentioned in THIS specific suggestion.
+    
+    Args:
+        suggestion: Suggestion dictionary
+        validated_entities: Mapping friendly_name → entity_id
+        
+    Returns:
+        Formatted text for LLM prompt
+    """
+    if not validated_entities:
+        return ""
+    
+    # Extract devices mentioned in this suggestion
+    description = suggestion.get('description', '').lower()
+    trigger = suggestion.get('trigger_summary', '').lower()
+    action = suggestion.get('action_summary', '').lower()
+    combined_text = f"{description} {trigger} {action}"
+    
+    # Build mapping for devices mentioned in this suggestion
+    mappings = []
+    for friendly_name, entity_id in validated_entities.items():
+        friendly_name_lower = friendly_name.lower()
+        # Check if this device is mentioned in the suggestion
+        if (friendly_name_lower in combined_text or 
+            friendly_name_lower in description or
+            friendly_name_lower in trigger or
+            friendly_name_lower in action):
+            domain = entity_id.split('.')[0] if '.' in entity_id else ''
+            mappings.append(f"  - \"{friendly_name}\" or \"{friendly_name_lower}\" → {entity_id} (domain: {domain})")
+    
+    if not mappings:
+        # Fallback: include all validated entities
+        for friendly_name, entity_id in validated_entities.items():
+            domain = entity_id.split('.')[0] if '.' in entity_id else ''
+            mappings.append(f"  - \"{friendly_name}\" → {entity_id} (domain: {domain})")
+    
+    if mappings:
+        return f"""
+SUGGESTION-SPECIFIC ENTITY ID MAPPINGS:
+For THIS specific automation suggestion, use these exact mappings:
+
+Description: "{suggestion.get('description', '')[:100]}..."
+Trigger mentions: "{suggestion.get('trigger_summary', '')[:100]}..."
+Action mentions: "{suggestion.get('action_summary', '')[:100]}..."
+
+ENTITY ID MAPPINGS FOR THIS AUTOMATION:
+{chr(10).join(mappings[:10])}  # Limit to first 10 to avoid prompt bloat
+
+CRITICAL: When generating YAML, use the entity IDs above. For example, if you see "wled" in the description, use the full entity ID from above (NOT just "wled").
+"""
+    
+    return ""
+
+
 async def generate_automation_yaml(
     suggestion: Dict[str, Any], 
     original_query: str, 
     entities: Optional[List[Dict[str, Any]]] = None,
-    db_session: Optional[AsyncSession] = None
+    db_session: Optional[AsyncSession] = None,
+    ha_client: Optional[HomeAssistantClient] = None
 ) -> str:
     """
     Generate Home Assistant automation YAML from a suggestion.
@@ -532,14 +815,67 @@ Pay attention to the capability types and ranges when generating service calls:
                 logger.warning(f"⚠️ Error enriching entities: {e}")
                 entity_context_json = ""
         
+        # Pre-validate suggestion and enhance validated_entities (Phase 3)
+        try:
+            enhanced_validated_entities = await pre_validate_suggestion_for_yaml(
+                suggestion,
+                validated_entities,
+                ha_client
+            )
+            if enhanced_validated_entities != validated_entities:
+                logger.info(f"✅ Enhanced validated_entities: {len(validated_entities)} → {len(enhanced_validated_entities)} entities")
+                validated_entities = enhanced_validated_entities
+        except Exception as e:
+            logger.warning(f"⚠️ Pre-validation failed, using original validated_entities: {e}")
+        
+        # Build suggestion-specific entity mapping (Phase 4)
+        suggestion_specific_mapping = ""
+        try:
+            suggestion_specific_mapping = await build_suggestion_specific_entity_mapping(
+                suggestion,
+                validated_entities
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to build suggestion-specific mapping: {e}")
+        
         # Build fallback text format using validated_entities from above check
         if validated_entities:
+            # Build explicit mapping examples for common patterns
+            mapping_examples = []
+            entity_id_list = []
+            
+            for term, entity_id in validated_entities.items():
+                entity_id_list.append(f"- {term}: {entity_id}")
+                # Add explicit mappings for common terms
+                term_lower = term.lower()
+                if 'wled' in term_lower or 'wled' == term_lower:
+                    mapping_examples.append(f"  - If you see 'wled', 'WLED', or '{term}' in the description → use: {entity_id}")
+                elif 'light' in term_lower:
+                    mapping_examples.append(f"  - If you see '{term}' or 'light' → use: {entity_id}")
+                elif 'motion' in term_lower or 'presence' in term_lower:
+                    mapping_examples.append(f"  - If you see '{term}' or motion/presence sensors → use: {entity_id}")
+            
+            mapping_text = ""
+            if mapping_examples:
+                mapping_text = f"""
+EXPLICIT ENTITY ID MAPPINGS (use these exact mappings):
+{chr(10).join(mapping_examples)}
+
+"""
+            
             validated_entities_text = f"""
 VALIDATED ENTITIES (use these exact entity IDs):
-{chr(10).join([f"- {term}: {entity_id}" for term, entity_id in validated_entities.items()])}
-
+{chr(10).join(entity_id_list)}
+{mapping_text}{suggestion_specific_mapping}
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
-Entity IDs must be in format: domain.entity (e.g., light.office, binary_sensor.door)
+Entity IDs must ALWAYS be in format: domain.entity (e.g., {list(validated_entities.values())[0] if validated_entities else 'light.office'})
+
+COMMON MISTAKES TO AVOID:
+❌ WRONG: entity_id: wled (missing domain prefix - will cause "Entity not found" error)
+❌ WRONG: entity_id: WLED (missing domain prefix and wrong format)
+❌ WRONG: entity_id: office (missing domain prefix - incomplete entity ID)
+✅ CORRECT: entity_id: {list(validated_entities.values())[0] if validated_entities else 'wled.office'} (complete domain.entity format)
+
 If you need multiple lights, use the same entity ID multiple times or use the entity_id provided for 'lights'.
 """
         else:
@@ -552,10 +888,12 @@ CRITICAL: No validated entities found. Use generic placeholder entity IDs that c
         
         # Add entity context JSON if available
         if entity_context_json:
+            # Escape any curly braces in JSON to prevent f-string formatting errors
+            escaped_json = entity_context_json.replace('{', '{{').replace('}', '}}')
             validated_entities_text += f"""
 
 ENTITY CONTEXT (Complete Information):
-{entity_context_json}
+{escaped_json}
 
 Use this entity information to:
 1. Choose the right entity type (group vs individual)
@@ -606,6 +944,11 @@ Requirements:
 1. Use YAML format (not JSON)
 2. Include: id, alias, trigger, action
 3. CRITICAL: Use ONLY the validated entity IDs provided above - do NOT create new entity IDs
+   - If an entity is NOT in the validated list, DO NOT invent it
+   - If you need a binary sensor but it's not validated, use the closest validated binary sensor
+   - Example: If "office desk presence" isn't validated but "binary_sensor.office_motion" is, use that
+   - NEVER create entity IDs like "binary_sensor.office_desk_presence" if it's not in the validated list
+   - This will cause automation creation to FAIL with "Entity not found" errors
 4. Add appropriate conditions if needed
 5. Include mode: single or restart
 6. Add description field
@@ -619,7 +962,10 @@ Requirements:
    - `parallel` for simultaneous actions
 
 CRITICAL YAML STRUCTURE RULES:
-1. Entity IDs MUST be in format: domain.entity (e.g., light.office, binary_sensor.door)
+1. Entity IDs MUST ALWAYS be in format: domain.entity (e.g., light.office, binary_sensor.door, wled.office)
+   - NEVER use incomplete entity IDs like "wled", "office", or "WLED"
+   - If you see "wled" in the description, look up the full entity ID from VALIDATED ENTITIES above
+   - Example: If description says "wled" and validated entities shows "WLED: wled.office", use "wled.office"
 2. Service calls ALWAYS use target.entity_id structure:
    ```yaml
    - service: light.turn_on
@@ -749,9 +1095,70 @@ action:
           color_name: white
 ```
 
+CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
+
+1. TRIGGER STRUCTURE:
+   ❌ WRONG: triggers: (plural) or trigger: state
+   ✅ CORRECT: trigger: (singular) and platform: state
+   
+   Example:
+   ❌ WRONG:
+     triggers:
+       - entity_id: binary_sensor.door
+         trigger: state
+   ✅ CORRECT:
+     trigger:
+       - platform: state
+         entity_id: binary_sensor.door
+
+2. ACTION STRUCTURE:
+   ❌ WRONG: actions: (plural) or action: light.turn_on (inside action list)
+   ✅ CORRECT: action: (singular) and service: light.turn_on (inside actions)
+   
+   Example:
+   ❌ WRONG:
+     actions:
+       - action: light.turn_on
+   ✅ CORRECT:
+     action:
+       - service: light.turn_on
+
+3. SEQUENCE STRUCTURE:
+   ❌ WRONG:
+     action:
+       - sequence:
+           - action: light.turn_on  # ❌ WRONG FIELD NAME
+   ✅ CORRECT:
+     action:
+       - sequence:
+           - service: light.turn_on  # ✅ CORRECT FIELD NAME
+             target:
+               entity_id: light.office  # ✅ FULL ENTITY ID (domain.entity)
+           - service: wled.turn_on
+             target:
+               entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
+           - delay: "00:01:00"
+           - service: wled.turn_off
+             target:
+               entity_id: wled.office  # ✅ FULL ENTITY ID (domain.entity) - NOT just "wled"
+
+4. FIELD NAMES IN ACTIONS:
+   - Top level: Use "action:" (singular)
+   - Inside action list: Use "service:" NOT "action:"
+   - In triggers: Use "platform:" NOT "trigger:"
+
 COMMON MISTAKES TO AVOID:
-❌ WRONG: entity_id: light.kitchen (in action directly)
-✅ CORRECT: target: { entity_id: light.kitchen }
+❌ WRONG: entity_id: light.kitchen (in action directly, missing target wrapper)
+✅ CORRECT: target: {{ entity_id: light.kitchen }}
+
+❌ WRONG: entity_id: wled (INCOMPLETE - missing entity name, will cause "Entity not found" error)
+✅ CORRECT: target: {{ entity_id: wled.office }} (COMPLETE - domain.entity format)
+
+❌ WRONG: entity_id: office (INCOMPLETE - missing domain prefix, will cause "Entity not found" error)
+✅ CORRECT: target: {{ entity_id: light.office }} (COMPLETE - domain.entity format)
+
+REMEMBER: Every entity_id MUST have BOTH domain AND entity name separated by a dot!
+If the description mentions "wled", look up the full entity ID (e.g., "wled.office") in the VALIDATED ENTITIES section above.
 
 ❌ WRONG: entity_id: "office" (missing domain)
 ✅ CORRECT: entity_id: light.office (full format)
@@ -759,7 +1166,13 @@ COMMON MISTAKES TO AVOID:
 ❌ WRONG: service: light.turn_on without target
 ✅ CORRECT: service: light.turn_on with target.entity_id
 
-Generate ONLY the YAML content, no explanations or markdown code blocks. Use the validated entity IDs provided above. Follow the structure examples exactly.
+❌ WRONG: trigger: state (in trigger definition)
+✅ CORRECT: platform: state (in trigger definition)
+
+❌ WRONG: action: light.turn_on (inside action list)
+✅ CORRECT: service: light.turn_on (inside action list)
+
+Generate ONLY the YAML content, no explanations or markdown code blocks. Use the validated entity IDs provided above. Follow the structure examples exactly. DOUBLE-CHECK that you use "platform:" in triggers and "service:" in actions.
 """
 
     try:
@@ -836,6 +1249,176 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use the
                     logger.info("✅ HA API validation passed")
             except Exception as e:
                 logger.warning(f"⚠️ HA API validation error (continuing anyway): {e}")
+        
+        # Validate YAML structure
+        from ..services.yaml_structure_validator import YAMLStructureValidator
+        validator = YAMLStructureValidator()
+        validation = validator.validate(yaml_content)
+        
+        if not validation.is_valid:
+            logger.error("❌ YAML structure validation failed:")
+            for error in validation.errors:
+                logger.error(f"  {error}")
+            
+            # Try auto-fix
+            if validation.fixed_yaml:
+                logger.info("🔧 Attempting to auto-fix YAML structure...")
+                fixed_validation = validator.validate(validation.fixed_yaml)
+                if fixed_validation.is_valid:
+                    logger.info("✅ Auto-fix successful! Using corrected YAML.")
+                    yaml_content = validation.fixed_yaml
+                else:
+                    logger.warning("⚠️ Auto-fix incomplete, but using fixed version anyway:")
+                    for error in fixed_validation.errors:
+                        logger.warning(f"  {error}")
+                    yaml_content = validation.fixed_yaml
+            else:
+                logger.warning("⚠️ Could not auto-fix YAML structure errors - using original YAML")
+        else:
+            logger.info("✅ YAML structure validation passed")
+            if validation.warnings:
+                for warning in validation.warnings:
+                    logger.warning(f"  {warning}")
+        
+        # Validate entity_id values (CRITICAL: prevents HA 400 errors)
+        try:
+            parsed_yaml = yaml_lib.safe_load(yaml_content)
+            if parsed_yaml:
+                from ..services.entity_id_validator import EntityIDValidator
+                entity_validator = EntityIDValidator()
+                
+                # Get validated entity IDs for auto-fixing
+                validated_entity_ids = []
+                
+                # Strategy 1: Extract from entities parameter (from query.extracted_entities)
+                if entities:
+                    for entity in entities:
+                        if isinstance(entity, dict) and 'entity_id' in entity:
+                            entity_id = entity['entity_id']
+                            if entity_id and isinstance(entity_id, str):  # Only add non-empty string entity IDs
+                                validated_entity_ids.append(entity_id)
+                        elif isinstance(entity, str) and entity:
+                            validated_entity_ids.append(entity)
+                
+                # Strategy 2: Extract from suggestion's validated_entities if available
+                if isinstance(suggestion, dict) and 'validated_entities' in suggestion:
+                    validated_mapping = suggestion.get('validated_entities', {})
+                    if isinstance(validated_mapping, dict):
+                        for entity_id in validated_mapping.values():
+                            if entity_id and isinstance(entity_id, str):
+                                if entity_id not in validated_entity_ids:
+                                    validated_entity_ids.append(entity_id)
+                
+                # Strategy 3: Extract incomplete entity IDs from YAML and query HA for domain matches
+                if parsed_yaml:
+                    incomplete_ids = []
+                    # Quick scan for incomplete entity IDs (no dot)
+                    def scan_for_incomplete_ids(data, path=""):
+                        if isinstance(data, dict):
+                            for key, value in data.items():
+                                if key == 'entity_id':
+                                    if isinstance(value, str) and '.' not in value and value:
+                                        incomplete_ids.append((value, path))
+                                else:
+                                    scan_for_incomplete_ids(value, f"{path}.{key}" if path else key)
+                        elif isinstance(data, list):
+                            for i, item in enumerate(data):
+                                scan_for_incomplete_ids(item, f"{path}[{i}]" if path else f"[{i}]")
+                    
+                    scan_for_incomplete_ids(parsed_yaml)
+                    
+                    # Query HA for entities matching incomplete IDs (treat as domain names)
+                    if incomplete_ids and ha_client:
+                        domains_to_query = set()
+                        for incomplete_id, _ in incomplete_ids:
+                            # Treat incomplete ID as potential domain
+                            domains_to_query.add(incomplete_id.lower())
+                        
+                        logger.info(f"🔍 Found {len(incomplete_ids)} incomplete entity IDs, querying HA for domains: {list(domains_to_query)}")
+                        for domain in domains_to_query:
+                            try:
+                                domain_entities = await ha_client.get_entities_by_domain(domain)
+                                for entity_id in domain_entities:
+                                    if entity_id not in validated_entity_ids:
+                                        validated_entity_ids.append(entity_id)
+                                        logger.debug(f"📋 Added entity from HA query: {entity_id}")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
+                
+                logger.info(f"🔍 Validated entities for auto-fix ({len(validated_entity_ids)} total): {validated_entity_ids[:10]}")
+                
+                entity_validation = entity_validator.validate_entity_ids(
+                    parsed_yaml, 
+                    validated_entities=validated_entity_ids,
+                    auto_fix=True
+                )
+                
+                # Check if fixes were applied (check both warnings for "Auto-fixed" and actual fix count)
+                fixes_were_applied = False
+                fix_count = 0
+                if entity_validation.warnings:
+                    for warning in entity_validation.warnings:
+                        if 'Auto-fixed' in warning:
+                            fixes_were_applied = True
+                            # Try to extract fix count from warning
+                            if 'Auto-fixed' in warning:
+                                try:
+                                    # Warning format: "Auto-fixed X incomplete entity IDs"
+                                    import re
+                                    match = re.search(r'Auto-fixed (\d+)', warning)
+                                    if match:
+                                        fix_count = int(match.group(1))
+                                except:
+                                    pass
+                
+                # If fixes were applied, regenerate YAML and re-validate
+                if fixes_were_applied:
+                    logger.info(f"🔧 Auto-fixes applied ({fix_count if fix_count > 0 else 'unknown count'}), regenerating YAML...")
+                    yaml_content = yaml_lib.dump(parsed_yaml, default_flow_style=False, sort_keys=False)
+                    logger.info("🔄 Regenerated YAML after auto-fixing entity IDs")
+                    
+                    # Re-parse and re-validate to ensure fixes worked
+                    try:
+                        reparsed_yaml = yaml_lib.safe_load(yaml_content)
+                        if reparsed_yaml:
+                            # Re-validate to confirm all issues are fixed
+                            re_validation = entity_validator.validate_entity_ids(
+                                reparsed_yaml,
+                                validated_entities=validated_entity_ids,
+                                auto_fix=False  # Don't auto-fix again, just validate
+                            )
+                            
+                            if re_validation.is_valid:
+                                logger.info("✅ Re-validation passed after auto-fixes - all entity IDs are now valid")
+                            else:
+                                logger.warning(f"⚠️ Re-validation found {len(re_validation.errors)} remaining errors after auto-fixes")
+                                for error in re_validation.errors[:3]:
+                                    logger.warning(f"  {error}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not re-validate regenerated YAML: {e}")
+                
+                if not entity_validation.is_valid:
+                    logger.error("❌ Entity ID validation failed:")
+                    for error in entity_validation.errors:
+                        logger.error(f"  {error}")
+                    
+                    # Include available validated entities in error message for debugging
+                    error_msg = f"Invalid entity IDs in YAML: {entity_validation.errors[:3]}"
+                    if len(entity_validation.errors) > 3:
+                        error_msg += f" (and {len(entity_validation.errors) - 3} more)"
+                    if validated_entity_ids:
+                        error_msg += f"\nAvailable validated entities: {validated_entity_ids[:5]}"
+                    else:
+                        error_msg += "\nNo validated entities were available for auto-fixing"
+                    
+                    raise ValueError(error_msg)
+                else:
+                    logger.info("✅ Entity ID validation passed")
+        except yaml_lib.YAMLError as e:
+            logger.warning(f"⚠️ Could not parse YAML for entity ID validation: {e}")
+        except ValueError as e:
+            # Re-raise ValueError from entity validation
+            raise
         
         # Debug: Print the final YAML content
         logger.info("=" * 80)
@@ -1192,23 +1775,37 @@ async def generate_suggestions_from_query(
                 validated_entities = {}
                 devices_involved = suggestion.get('devices_involved', [])
                 if enriched_data and devices_involved:
-                    validated_entities = map_devices_to_entities(devices_involved, enriched_data)
+                    validated_entities = map_devices_to_entities(devices_involved, enriched_data, fuzzy_match=True)
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to entities for suggestion {i+1}")
                 
-                suggestions.append({
+                # Create base suggestion
+                base_suggestion = {
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
                     'devices_involved': devices_involved,
                     'validated_entities': validated_entities,  # Save mapping for fast test execution
-                    'enriched_entity_context': entity_context_json,  # NEW: Cache enrichment data to avoid re-enrichment
+                    'enriched_entity_context': entity_context_json,  # Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
                     'confidence': suggestion['confidence'],
                     'status': 'draft',
                     'created_at': datetime.now().isoformat()
-                })
+                }
+                
+                # Enhance suggestion with entity IDs (Phase 1 & 2)
+                try:
+                    enhanced_suggestion = await enhance_suggestion_with_entity_ids(
+                        base_suggestion,
+                        validated_entities,
+                        enriched_data if enriched_data else None,
+                        ha_client if 'ha_client' in locals() else None
+                    )
+                    suggestions.append(enhanced_suggestion)
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to enhance suggestion {i+1} with entity IDs: {e}, using base suggestion")
+                    suggestions.append(base_suggestion)
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse OpenAI response: {e}")
             # Fallback if JSON parsing fails
@@ -2000,11 +2597,44 @@ async def test_suggestion_from_query(
         logger.debug(f" test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
         logger.debug(f" test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
         
-        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities, db_session=db)
+        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities, db_session=db, ha_client=ha_client)
         yaml_gen_time = (time.time() - yaml_gen_start) * 1000
         logger.debug(f"After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
         logger.info(f"Generated test automation YAML")
         logger.debug(f"Generated YAML preview: {str(automation_yaml)[:500]}")
+        
+        # Reverse engineering self-correction: Validate and improve YAML to match user intent
+        correction_result = None
+        correction_service = get_self_correction_service()
+        if correction_service:
+            try:
+                logger.info("🔄 Running reverse engineering self-correction (test mode)...")
+                context = {
+                    "entities": entities,
+                    "suggestion": test_suggestion,
+                    "devices_involved": test_suggestion.get('devices_involved', []),
+                    "test_mode": True
+                }
+                correction_result = await correction_service.correct_yaml(
+                    user_prompt=query.original_query,
+                    generated_yaml=automation_yaml,
+                    context=context
+                )
+                
+                if correction_result.convergence_achieved or correction_result.final_similarity >= 0.80:
+                    # Use corrected YAML if similarity improved significantly (lower threshold for test mode)
+                    if correction_result.final_similarity > 0.80:
+                        logger.info(f"✅ Using self-corrected test YAML (similarity: {correction_result.final_similarity:.2%})")
+                        automation_yaml = correction_result.final_yaml
+                    else:
+                        logger.info(f"ℹ️  Self-correction completed (similarity: {correction_result.final_similarity:.2%}), keeping original test YAML")
+                else:
+                    logger.warning(f"⚠️  Self-correction did not converge (similarity: {correction_result.final_similarity:.2%}), using original test YAML")
+            except Exception as e:
+                logger.warning(f"⚠️  Self-correction failed in test mode, continuing with original YAML: {e}")
+                correction_result = None
+        else:
+            logger.debug("Self-correction service not available for test, skipping reverse engineering")
         
         # TASK 1.2: Detect stripped components for restoration tracking
         component_detector = ComponentDetector()
@@ -2120,7 +2750,7 @@ async def test_suggestion_from_query(
             if ha_create_time > 5000:
                 logger.warning(f"Slow HA creation: {ha_create_time:.2f}ms")
             
-            return {
+            response_data = {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
                 "executed": True,
@@ -2138,6 +2768,33 @@ async def test_suggestion_from_query(
                 "stripped_components": stripped_components_preview,
                 "restoration_hint": "These components will be added back when you approve"
             }
+            
+            # Add reverse engineering correction results if available
+            if correction_result:
+                response_data["reverse_engineering"] = {
+                    "enabled": True,
+                    "final_similarity": correction_result.final_similarity,
+                    "iterations_completed": correction_result.iterations_completed,
+                    "convergence_achieved": correction_result.convergence_achieved,
+                    "total_tokens_used": correction_result.total_tokens_used,
+                    "yaml_improved": correction_result.final_similarity > 0.80,
+                    "iteration_history": [
+                        {
+                            "iteration": iter_result.iteration,
+                            "similarity_score": iter_result.similarity_score,
+                            "reverse_engineered_prompt": iter_result.reverse_engineered_prompt[:200] + "..." if len(iter_result.reverse_engineered_prompt) > 200 else iter_result.reverse_engineered_prompt,
+                            "improvement_actions": iter_result.improvement_actions[:3]  # Limit to first 3 actions
+                        }
+                        for iter_result in correction_result.iteration_history
+                    ]
+                }
+            else:
+                response_data["reverse_engineering"] = {
+                    "enabled": False,
+                    "reason": "Service not available or failed"
+                }
+            
+            return response_data
             
         except Exception as e:
             logger.error(f"❌ ERROR in test execution: {e}")
@@ -2366,12 +3023,78 @@ async def approve_suggestion_from_query(
         
         # Generate YAML for the suggestion with entities for capability details
         entities = query.extracted_entities if query.extracted_entities else []
-        automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, entities, db_session=db)
+        try:
+            automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, entities, db_session=db, ha_client=ha_client)
+        except ValueError as e:
+            # Catch validation errors and return proper error response
+            error_msg = str(e)
+            logger.error(f"❌ YAML generation failed: {error_msg}")
+            
+            # Extract available entities from error message if present
+            suggestion_text = "The automation contains invalid entity IDs. Please check the automation description and try again."
+            if "Available validated entities" in error_msg:
+                suggestion_text += " The system attempted to auto-fix incomplete entity IDs but could not find matching entities in Home Assistant."
+            elif "No validated entities were available" in error_msg:
+                suggestion_text += " No validated entities were available for auto-fixing. Please ensure device names in your query match existing Home Assistant entities."
+            
+            return {
+                "suggestion_id": suggestion_id,
+                "query_id": query_id,
+                "status": "error",
+                "safe": False,
+                "message": "Failed to generate valid automation YAML",
+                "error_details": {
+                    "type": "validation_error",
+                    "message": error_msg,
+                    "suggestion": suggestion_text
+                }
+            }
+        
+        # Track validated entities for safety validator
+        validated_entity_ids = []
+        if 'validated_entities' in final_suggestion and final_suggestion.get('validated_entities'):
+            validated_entity_ids = list(final_suggestion['validated_entities'].values())
+            logger.info(f"📋 Tracked {len(validated_entity_ids)} validated entities for safety check: {validated_entity_ids}")
+        
+        # Reverse engineering self-correction: Validate and improve YAML to match user intent
+        correction_result = None
+        correction_service = get_self_correction_service()
+        if correction_service:
+            try:
+                logger.info("🔄 Running reverse engineering self-correction...")
+                context = {
+                    "entities": entities,
+                    "suggestion": final_suggestion,
+                    "devices_involved": final_suggestion.get('devices_involved', [])
+                }
+                correction_result = await correction_service.correct_yaml(
+                    user_prompt=query.original_query,
+                    generated_yaml=automation_yaml,
+                    context=context
+                )
+                
+                if correction_result.convergence_achieved or correction_result.final_similarity >= 0.80:
+                    # Use corrected YAML if similarity improved significantly
+                    if correction_result.final_similarity > 0.85:
+                        logger.info(f"✅ Using self-corrected YAML (similarity: {correction_result.final_similarity:.2%})")
+                        automation_yaml = correction_result.final_yaml
+                    else:
+                        logger.info(f"ℹ️  Self-correction completed (similarity: {correction_result.final_similarity:.2%}), keeping original YAML")
+                else:
+                    logger.warning(f"⚠️  Self-correction did not converge (similarity: {correction_result.final_similarity:.2%}), using original YAML")
+            except Exception as e:
+                logger.warning(f"⚠️  Self-correction failed, continuing with original YAML: {e}")
+                correction_result = None
+        else:
+            logger.debug("Self-correction service not available, skipping reverse engineering")
         
         # TASK 2.3: Run safety checks before creating automation
         logger.info("🔒 Running safety validation...")
         safety_validator = SafetyValidator(ha_client=ha_client)
-        safety_report = await safety_validator.validate_automation(automation_yaml)
+        safety_report = await safety_validator.validate_automation(
+            automation_yaml,
+            validated_entities=validated_entity_ids
+        )
         
         if not safety_report.get('safe', True):
             critical_issues = safety_report.get('critical_issues', [])
@@ -2392,12 +3115,52 @@ async def approve_suggestion_from_query(
         
         # Create automation in Home Assistant
         if ha_client:
-            creation_result = await ha_client.create_automation(automation_yaml)
+            try:
+                creation_result = await ha_client.create_automation(automation_yaml)
+            except Exception as e:
+                error_message = str(e)
+                logger.error(f"❌ Failed to create automation: {error_message}")
+                
+                # Check if it's a 400 error (validation error)
+                if "400" in error_message or "Message malformed" in error_message:
+                    # Try to extract the path from error message
+                    path_match = None
+                    if "data[" in error_message:
+                        # Extract path like data['actions'][0]['sequence'][1]['target']['entity_id']
+                        import re
+                        path_match = re.search(r"data\[([^\]]+)\]", error_message)
+                    
+                    error_details = {
+                        "message": error_message,
+                        "type": "validation_error",
+                    }
+                    if path_match:
+                        error_details["yaml_path"] = path_match.group(1)
+                    
+                    return {
+                        "suggestion_id": suggestion_id,
+                        "query_id": query_id,
+                        "status": "error",
+                        "safe": False,
+                        "message": f"Automation validation failed: {error_message}",
+                        "error_details": error_details,
+                        "warnings": []
+                    }
+                else:
+                    # Other error
+                    return {
+                        "suggestion_id": suggestion_id,
+                        "query_id": query_id,
+                        "status": "error",
+                        "safe": False,
+                        "message": f"Failed to create automation: {error_message}",
+                        "warnings": []
+                    }
             
             if creation_result.get('success'):
                 logger.info(f"✅ Automation created successfully: {creation_result.get('automation_id')}")
                 
-                return {
+                response_data = {
                     "suggestion_id": suggestion_id,
                     "query_id": query_id,
                     "status": "approved",
@@ -2419,6 +3182,33 @@ async def approve_suggestion_from_query(
                     "safety_report": safety_report,
                     "safe": safety_report.get('safe', True)
                 }
+                
+                # Add reverse engineering correction results if available
+                if correction_result:
+                    response_data["reverse_engineering"] = {
+                        "enabled": True,
+                        "final_similarity": correction_result.final_similarity,
+                        "iterations_completed": correction_result.iterations_completed,
+                        "convergence_achieved": correction_result.convergence_achieved,
+                        "total_tokens_used": correction_result.total_tokens_used,
+                        "yaml_improved": correction_result.final_similarity > 0.85,
+                        "iteration_history": [
+                            {
+                                "iteration": iter_result.iteration,
+                                "similarity_score": iter_result.similarity_score,
+                                "reverse_engineered_prompt": iter_result.reverse_engineered_prompt[:200] + "..." if len(iter_result.reverse_engineered_prompt) > 200 else iter_result.reverse_engineered_prompt,
+                                "improvement_actions": iter_result.improvement_actions[:3]  # Limit to first 3 actions
+                            }
+                            for iter_result in correction_result.iteration_history
+                        ]
+                    }
+                else:
+                    response_data["reverse_engineering"] = {
+                        "enabled": False,
+                        "reason": "Service not available or failed"
+                    }
+                
+                return response_data
             else:
                 logger.error(f"❌ Failed to create automation: {creation_result.get('error')}")
                 raise HTTPException(
