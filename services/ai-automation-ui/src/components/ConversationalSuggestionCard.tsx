@@ -129,18 +129,30 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-lg border overflow-hidden ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      } shadow-lg`}
+      className="rounded-lg border overflow-hidden shadow-lg"
+      style={{
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+        border: '1px solid rgba(51, 65, 85, 0.5)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
+      }}
     >
       {/* Header */}
-      <div className={`p-6 ${darkMode ? 'bg-gray-750' : 'bg-gradient-to-r from-blue-50 to-purple-50'}`}>
+      <div className="p-6" style={{
+        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%)',
+        borderBottom: '1px solid rgba(51, 65, 85, 0.5)'
+      }}>
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">💡</span>
-              <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {suggestion.title}
+              <motion.span
+                animate={{ rotate: [0, -10, 10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="text-2xl"
+              >
+                💡
+              </motion.span>
+              <h3 className="ds-title-card" style={{ color: '#ffffff' }}>
+                {suggestion.title.toUpperCase()}
               </h3>
             </div>
             
@@ -176,7 +188,11 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         </div>
 
         {/* Main Description (NO YAML!) */}
-        <div className={`text-base leading-relaxed ${darkMode ? 'text-gray-200' : 'text-gray-800'} bg-white/50 dark:bg-gray-900/50 p-4 rounded-lg border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+        <div className="ds-text-body text-base leading-relaxed p-4 rounded-lg border" style={{
+          background: 'rgba(30, 41, 59, 0.6)',
+          border: '1px solid rgba(51, 65, 85, 0.5)',
+          color: '#cbd5e1'
+        }}>
           {suggestion.description_only || 'No description available'}
         </div>
         

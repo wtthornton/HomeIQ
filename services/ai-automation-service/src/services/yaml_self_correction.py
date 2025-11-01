@@ -397,7 +397,7 @@ class YAMLSelfCorrectionService:
         yaml_content: str,
         context: Optional[Dict] = None,
         comprehensive_enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
-    ) -> str:
+    ) -> tuple[str, int]:
         """
         Reverse engineer YAML back to natural language description.
         
@@ -489,13 +489,17 @@ Write as if explaining to a user who asked for this automation."""
                 max_tokens=300
             )
             
+            # Track tokens
+            usage = response.usage
+            tokens_used = (usage.prompt_tokens + usage.completion_tokens) if usage else 0
+            
             reverse_description = response.choices[0].message.content.strip()
-            logger.debug(f"Reverse engineered: {reverse_description[:100]}...")
-            return reverse_description
+            logger.debug(f"Reverse engineered: {reverse_description[:100]}... (tokens: {tokens_used})")
+            return reverse_description, tokens_used
             
         except Exception as e:
             logger.error(f"Reverse engineering failed: {e}")
-            return "Failed to analyze YAML"
+            return "Failed to analyze YAML", 0
     
     async def _calculate_similarity(
         self,

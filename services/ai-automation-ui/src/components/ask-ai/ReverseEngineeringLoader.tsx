@@ -291,6 +291,13 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
   // Reset all indices when visibility changes to false (prevent stacking)
   useEffect(() => {
     if (!isVisible) {
+      // Reset immediately when hidden
+      setCurrentMessageIndex(0);
+      setCurrentTipIndex(0);
+      setCurrentTitleIndex(0);
+      setPulseActive(true);
+    } else {
+      // Reset when becoming visible to start fresh
       setCurrentMessageIndex(0);
       setCurrentTipIndex(0);
       setCurrentTitleIndex(0);
@@ -347,49 +354,54 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
   const progressStep = Math.min(iteration || 0, 5);
   const progressStage = PROGRESS_STAGES[progressStep] || PROGRESS_STAGES[0];
 
-  if (!isVisible) {
-    return null;
-  }
-
+  // Use AnimatePresence to handle exit animations properly
   const loaderContent = (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 999999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)'
-      }}
-    >
-      {/* Animated grid background */}
-      <div className="absolute inset-0 opacity-10" style={{
-        backgroundImage: `
-          linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
-        `,
-        backgroundSize: '50px 50px',
-        animation: 'gridMove 20s linear infinite'
-      }} />
+    <AnimatePresence mode="wait">
+      {isVisible && (
+        <motion.div
+          key="loader-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)'
+          }}
+        >
+          {/* Animated grid background */}
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `
+              linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px',
+            animation: 'gridMove 20s linear infinite'
+          }} />
 
-      {/* Main card */}
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900 rounded-xl shadow-2xl p-10 max-w-lg mx-4 text-center border border-slate-700/50"
-        style={{
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2), 0 0 100px rgba(59, 130, 246, 0.1)',
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)'
-        }}
-      >
+        {/* Main card */}
+        <motion.div
+          key="loader-card"
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20, transition: { duration: 0.2 } }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900 rounded-xl shadow-2xl p-10 max-w-lg mx-4 text-center border border-slate-700/50"
+          style={{
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2), 0 0 100px rgba(59, 130, 246, 0.1)',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)'
+          }}
+        >
         {/* Corner accent lines */}
         <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-blue-500/50" />
         <div className="absolute top-0 right-0 w-20 h-20 border-t-2 border-r-2 border-blue-500/50" />
@@ -578,17 +590,19 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             className="w-full h-full border-2 border-cyan-500/50 border-b-cyan-500"
           />
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
 
-      {/* Add CSS for grid animation */}
-      <style>{`
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-      `}</style>
-    </div>
+          {/* Add CSS for grid animation */}
+          <style>{`
+            @keyframes gridMove {
+              0% { transform: translate(0, 0); }
+              100% { transform: translate(50px, 50px); }
+            }
+          `}</style>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 
   // Use portal to render at document root for maximum z-index

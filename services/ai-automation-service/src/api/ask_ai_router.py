@@ -402,9 +402,105 @@ async def expand_group_entities_to_members(
     return expanded_entity_ids
 
 
-def map_devices_to_entities(
+async def verify_entities_exist_in_ha(
+    entity_ids: List[str],
+    ha_client: Optional[HomeAssistantClient],
+    use_ensemble: bool = True,
+    query_context: Optional[str] = None,
+    available_entities: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, bool]:
+    """
+    Verify which entity IDs actually exist in Home Assistant.
+    
+    Uses ensemble validation (all models) when available, falls back to HA API check.
+    
+    Args:
+        entity_ids: List of entity IDs to verify
+        ha_client: Optional HA client for verification
+        use_ensemble: If True, use ensemble validation (HF, OpenAI, embeddings)
+        query_context: Optional query context for ensemble validation
+        available_entities: Optional available entities for ensemble validation
+        
+    Returns:
+        Dictionary mapping entity_id -> exists (True/False)
+    """
+    if not ha_client or not entity_ids:
+        return {eid: False for eid in entity_ids} if entity_ids else {}
+    
+    # Try ensemble validation if enabled and models available
+    if use_ensemble:
+        try:
+            from ..services.ensemble_entity_validator import EnsembleEntityValidator
+            
+            # Get models if available
+            sentence_model = None
+            if _self_correction_service and hasattr(_self_correction_service, 'similarity_model'):
+                sentence_model = _self_correction_service.similarity_model
+            elif _multi_model_extractor:
+                # Could also get from multi_model_extractor if needed
+                pass
+            
+            # Initialize ensemble validator
+            ensemble_validator = EnsembleEntityValidator(
+                ha_client=ha_client,
+                openai_client=openai_client,
+                sentence_transformer_model=sentence_model,
+                device_intelligence_client=_device_intelligence_client,
+                min_consensus_threshold=0.5  # Moderate threshold - HA API is ground truth
+            )
+            
+            # Validate using ensemble
+            logger.info(f"🔍 Using ensemble validation for {len(entity_ids)} entities")
+            ensemble_results = await ensemble_validator.validate_entities_batch(
+                entity_ids=entity_ids,
+                query_context=query_context,
+                available_entities=available_entities
+            )
+            
+            # Extract existence results
+            verified = {eid: result.exists for eid, result in ensemble_results.items()}
+            
+            # Log warnings for low consensus entities
+            for eid, result in ensemble_results.items():
+                if result.exists and result.consensus_score < 0.7:
+                    logger.warning(
+                        f"⚠️ Entity {eid} validated but low consensus ({result.consensus_score:.2f}) "
+                        f"- methods: {[r.method.value for r in result.method_results]}"
+                    )
+            
+            logger.info(f"✅ Ensemble validation: {sum(verified.values())}/{len(verified)} entities valid")
+            return verified
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Ensemble validation failed, falling back to HA API check: {e}")
+            # Fall through to simple HA API check
+    
+    # Fallback: Simple HA API verification (parallel for performance)
+    import asyncio
+    async def verify_one(entity_id: str) -> tuple[str, bool]:
+        try:
+            state = await ha_client.get_entity_state(entity_id)
+            return (entity_id, state is not None)
+        except Exception:
+            return (entity_id, False)
+    
+    tasks = [verify_one(eid) for eid in entity_ids]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    verified = {}
+    for result in results:
+        if isinstance(result, Exception):
+            continue
+        entity_id, exists = result
+        verified[entity_id] = exists
+    
+    return verified
+
+
+async def map_devices_to_entities(
     devices_involved: List[str], 
     enriched_data: Dict[str, Dict[str, Any]],
+    ha_client: Optional[HomeAssistantClient] = None,
     fuzzy_match: bool = True
 ) -> Dict[str, str]:
     """
@@ -413,13 +509,16 @@ def map_devices_to_entities(
     Used to create validated_entities mapping from devices_involved (friendly names) 
     to entity IDs using already-enriched entity data, avoiding re-resolution.
     
+    IMPORTANT: Only includes entity IDs that actually exist in Home Assistant.
+    
     Args:
         devices_involved: List of device friendly names from LLM suggestion
         enriched_data: Dictionary mapping entity_id to enriched entity data
+        ha_client: Optional HA client for verifying entities exist
         fuzzy_match: If True, use fuzzy matching for partial matches
         
     Returns:
-        Dictionary mapping device_name → entity_id
+        Dictionary mapping device_name → entity_id (only verified entities)
     """
     validated_entities = {}
     unmapped_devices = []
@@ -466,15 +565,37 @@ def map_devices_to_entities(
             unmapped_devices.append(device_name)
             logger.warning(f"⚠️ Could not map device '{device_name}' to entity_id (not found in enriched_data)")
     
+    # CRITICAL: Verify ALL mapped entities actually exist in Home Assistant
+    if validated_entities and ha_client:
+        logger.info(f"🔍 Verifying {len(validated_entities)} mapped entities exist in Home Assistant...")
+        entity_ids_to_verify = list(validated_entities.values())
+        verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
+        
+        # Filter out entities that don't exist
+        verified_validated_entities = {}
+        invalid_entities = []
+        for device_name, entity_id in validated_entities.items():
+            if verification_results.get(entity_id, False):
+                verified_validated_entities[device_name] = entity_id
+            else:
+                invalid_entities.append(f"{device_name} → {entity_id}")
+                logger.warning(f"❌ Entity {entity_id} (mapped from '{device_name}') does NOT exist in HA - removed from validated_entities")
+        
+        if invalid_entities:
+            logger.warning(f"⚠️ Removed {len(invalid_entities)} invalid entity mappings: {', '.join(invalid_entities[:5])}")
+        
+        validated_entities = verified_validated_entities
+        logger.info(f"✅ Verified {len(validated_entities)}/{len(entity_ids_to_verify)} entities exist in HA")
+    
     if unmapped_devices and validated_entities:
         logger.info(
-            f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to entities "
+            f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to verified entities "
             f"({len(unmapped_devices)} unmapped: {unmapped_devices})"
         )
     elif validated_entities:
-        logger.info(f"✅ Mapped all {len(validated_entities)} devices to entities")
+        logger.info(f"✅ Mapped all {len(validated_entities)} devices to verified entities")
     elif devices_involved:
-        logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to entities")
+        logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to verified entities")
     
     return validated_entities
 
@@ -672,35 +793,61 @@ async def pre_validate_suggestion_for_yaml(
         mentions = extract_device_mentions_from_text(text, validated_entities, None)
         all_mentions.update(mentions)
     
-    # Add mentions to validated_entities
+    # Add mentions to enhanced_validated_entities, but collect for verification first
+    new_mentions = {}
     for mention, entity_id in all_mentions.items():
         if mention not in enhanced_validated_entities:
-            enhanced_validated_entities[mention] = entity_id
-            logger.debug(f"🔍 Added mention '{mention}' → {entity_id} to validated entities")
+            new_mentions[mention] = entity_id
+            logger.debug(f"🔍 Found mention '{mention}' → {entity_id}")
     
-    # Check for incomplete entity IDs (domain-only mentions like "wled")
-    if ha_client:
-        incomplete_mentions = []
-        for mention, entity_id in all_mentions.items():
-            if '.' not in entity_id:  # Incomplete entity ID
-                incomplete_mentions.append((mention, entity_id))
+    # Check for incomplete entity IDs (domain-only mentions like "wled", "office")
+    if ha_client and new_mentions:
+        incomplete_mentions = {}
+        complete_mentions = {}
+        for mention, entity_id in new_mentions.items():
+            if '.' not in entity_id or entity_id.startswith('.') or entity_id.endswith('.'):  # Incomplete entity ID
+                incomplete_mentions[mention] = entity_id
+            else:
+                complete_mentions[mention] = entity_id
         
         # Query HA for domain entities if we found incomplete mentions
         if incomplete_mentions:
             domains_to_query = set()
-            for mention, entity_id in incomplete_mentions:
-                domains_to_query.add(entity_id.lower())
+            for mention, entity_id in incomplete_mentions.items():
+                domains_to_query.add(entity_id.lower().strip('.'))
             
             logger.info(f"🔍 Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
             for domain in domains_to_query:
                 try:
                     domain_entities = await ha_client.get_entities_by_domain(domain)
                     if domain_entities:
-                        # Use first entity from domain if multiple exist
-                        enhanced_validated_entities[mention] = domain_entities[0]
-                        logger.info(f"✅ Queried HA for '{domain}', using first entity: {domain_entities[0]}")
+                        # Verify the first entity exists before using it
+                        first_entity = domain_entities[0]
+                        state = await ha_client.get_entity_state(first_entity)
+                        if state:
+                            # Use first entity from domain if it exists
+                            for mention in incomplete_mentions:
+                                if incomplete_mentions[mention].lower().strip('.') == domain:
+                                    complete_mentions[mention] = first_entity
+                                    logger.info(f"✅ Queried HA for '{domain}', verified and using: {first_entity}")
+                        else:
+                            logger.warning(f"⚠️ Entity {first_entity} from domain '{domain}' query does not exist in HA")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
+        
+        # CRITICAL: Verify ALL complete mentions exist in HA before adding
+        if complete_mentions and ha_client:
+            logger.info(f"🔍 Verifying {len(complete_mentions)} extracted mentions exist in HA...")
+            entity_ids_to_verify = list(complete_mentions.values())
+            verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
+            
+            # Only add verified entities
+            for mention, entity_id in complete_mentions.items():
+                if verification_results.get(entity_id, False):
+                    enhanced_validated_entities[mention] = entity_id
+                    logger.debug(f"✅ Added verified mention '{mention}' → {entity_id} to validated entities")
+                else:
+                    logger.warning(f"❌ Mention '{mention}' → {entity_id} does NOT exist in HA - skipped")
     
     return enhanced_validated_entities
 
@@ -941,31 +1088,29 @@ IMPORTANT SERVICE MAPPING:
         
         # Build fallback text format using validated_entities from above check
         if validated_entities:
-            # Build explicit mapping examples for common patterns
+            # Build explicit mapping examples GENERICALLY (not hardcoded for specific terms)
             mapping_examples = []
             entity_id_list = []
             
             for term, entity_id in validated_entities.items():
                 entity_id_list.append(f"- {term}: {entity_id}")
-                # Add explicit mappings for common terms
-                term_lower = term.lower()
-                if 'wled' in term_lower or 'wled' == term_lower:
-                    mapping_examples.append(f"  - If you see 'wled', 'WLED', or '{term}' in the description → use: {entity_id}")
-                elif 'light' in term_lower:
-                    mapping_examples.append(f"  - If you see '{term}' or 'light' → use: {entity_id}")
-                elif 'motion' in term_lower or 'presence' in term_lower:
-                    mapping_examples.append(f"  - If you see '{term}' or motion/presence sensors → use: {entity_id}")
+                # Build generic mapping instructions
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                term_variations = [term, term.lower(), term.upper(), term.title()]
+                mapping_examples.append(
+                    f"  - If you see any variation of '{term}' (or domain '{domain}') in the description → use EXACTLY: {entity_id}"
+                )
             
             mapping_text = ""
             if mapping_examples:
                 mapping_text = f"""
-EXPLICIT ENTITY ID MAPPINGS (use these exact mappings):
-{chr(10).join(mapping_examples)}
+EXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified to exist in Home Assistant):
+{chr(10).join(mapping_examples[:15])}  # Limit to first 15 to avoid prompt bloat
 
 """
             
             validated_entities_text = f"""
-VALIDATED ENTITIES (use these exact entity IDs):
+VALIDATED ENTITIES (ALL verified to exist in Home Assistant - use these EXACT entity IDs):
 {chr(10).join(entity_id_list)}
 {mapping_text}{suggestion_specific_mapping}
 CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
@@ -1900,9 +2045,23 @@ async def generate_suggestions_from_query(
                 validated_entities = {}
                 devices_involved = suggestion.get('devices_involved', [])
                 if enriched_data and devices_involved:
-                    validated_entities = map_devices_to_entities(devices_involved, enriched_data, fuzzy_match=True)
+                    # Initialize HA client for verification if needed
+                    ha_client_for_mapping = ha_client if 'ha_client' in locals() else (
+                        HomeAssistantClient(
+                            ha_url=settings.ha_url,
+                            access_token=settings.ha_token
+                        ) if settings.ha_url and settings.ha_token else None
+                    )
+                    validated_entities = await map_devices_to_entities(
+                        devices_involved, 
+                        enriched_data, 
+                        ha_client=ha_client_for_mapping,
+                        fuzzy_match=True
+                    )
                     if validated_entities:
-                        logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to entities for suggestion {i+1}")
+                        logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
+                    else:
+                        logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
                 
                 # Create base suggestion
                 base_suggestion = {

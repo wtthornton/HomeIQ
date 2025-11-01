@@ -281,7 +281,12 @@ class MultiModelEntityExtractor:
                 all_devices = await self.device_intel_client.get_all_devices(limit=200)
                 
                 for entity in device_entities:
-                    device_name = entity.get('name') if isinstance(entity, dict) else str(entity)
+                    # Handle case where entity might be a string or dict
+                    if isinstance(entity, str):
+                        device_name = entity
+                        entity = {'name': entity, 'type': 'device'}  # Convert to dict for consistency
+                    else:
+                        device_name = entity.get('name') if isinstance(entity, dict) else str(entity)
                     
                     # Search for device by name (fuzzy matching)
                     matching_devices = self._find_matching_devices(device_name, all_devices)

@@ -26,14 +26,24 @@ export const Navigation: React.FC = () => {
   };
 
   return (
-    <nav className={`sticky top-0 z-50 ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} border-b shadow-sm transition-colors`}>
+    <nav className="sticky top-0 z-50 border-b shadow-sm transition-colors" style={{
+      background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+      borderColor: 'rgba(51, 65, 85, 0.5)',
+      backdropFilter: 'blur(12px)'
+    }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-12">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="text-xl">🤖</div>
-            <div className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              HA AutomateAI
+            <motion.div
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+              className="text-xl"
+            >
+              🤖
+            </motion.div>
+            <div className="ds-title-card text-sm" style={{ color: '#ffffff' }}>
+              HA AUTOMATEAI
             </div>
           </Link>
 
@@ -43,15 +53,24 @@ export const Navigation: React.FC = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-1 text-sm font-medium transition-colors ${
-                  isActive(item.path)
-                    ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-500 text-white'
-                    : darkMode
-                    ? 'text-gray-300 hover:bg-gray-800'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                className="px-3 py-1 text-sm font-medium transition-colors"
+                style={{
+                  background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
+                  color: isActive(item.path) ? '#ffffff' : '#cbd5e1',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  borderRadius: '0.375rem'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive(item.path)) {
+                    e.currentTarget.style.background = 'rgba(51, 65, 85, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive(item.path)) {
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
               >
                 {item.label}
               </Link>
@@ -60,11 +79,17 @@ export const Navigation: React.FC = () => {
             {/* Dark Mode Toggle - 44x44px minimum touch target */}
             <button
               onClick={toggleDarkMode}
-              className={`p-3 rounded-lg ml-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${
-                darkMode
-                  ? 'bg-gray-800 hover:bg-gray-700'
-                  : 'bg-gray-100 hover:bg-gray-200'
-              }`}
+              className="p-3 rounded-lg ml-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                border: '1px solid rgba(51, 65, 85, 0.5)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+              }}
               aria-label="Toggle dark mode"
             >
               {darkMode ? '☀️' : '🌙'}
@@ -75,13 +100,22 @@ export const Navigation: React.FC = () => {
               href="http://localhost:3000"
               target="_blank"
               rel="noopener noreferrer"
-              className={`ml-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                darkMode
-                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className="ml-2 px-4 py-2 rounded-lg font-medium transition-colors"
+              style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                border: '1px solid rgba(51, 65, 85, 0.5)',
+                color: '#cbd5e1',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+              }}
             >
-              🔧 Admin
+              🔧 ADMIN
             </a>
           </div>
 
@@ -105,19 +139,15 @@ export const Navigation: React.FC = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg ${
-                isActive(item.path)
-                  ? darkMode
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
-                  : darkMode
-                  ? 'text-gray-400'
-                  : 'text-gray-600'
-              }`}
+              className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg"
+              style={{
+                background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
+                color: isActive(item.path) ? '#ffffff' : '#94a3b8'
+              }}
             >
               <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-medium">
-                {item.label.replace(/[🤖📊🚀⚙️]/g, '').trim()}
+              <span className="text-xs font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
+                {item.label.replace(/[🤖💬📊🔮🚀🔍⚙️]/g, '').trim()}
               </span>
             </Link>
           ))}

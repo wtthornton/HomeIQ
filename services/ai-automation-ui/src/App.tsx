@@ -32,7 +32,7 @@ export const App: React.FC = () => {
   return (
     <SelectionProvider>
       <Router>
-        <div className={`min-h-screen transition-colors ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="min-h-screen transition-colors ds-bg-gradient-primary">
           <Navigation />
         
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

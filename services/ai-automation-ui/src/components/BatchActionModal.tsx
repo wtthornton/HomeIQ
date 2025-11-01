@@ -1,10 +1,12 @@
 /**
  * Batch Action Confirmation Modal
  * Modal dialog for confirming batch operations with progress tracking
+ * Updated with Modern & Manly Design System
  */
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getModalOverlayStyles, getCardStyles, getButtonStyles } from '../utils/designSystem';
 
 interface BatchActionModalProps {
   isOpen: boolean;
@@ -72,36 +74,31 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
     }
   };
 
-  const getVariantColors = () => {
+  const getVariantConfig = () => {
     switch (variant) {
       case 'approve':
         return {
-          button: 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700',
+          buttonVariant: 'primary' as const,
           icon: '✅',
-          accent: 'text-green-600'
+          accentColor: '#10b981'
         };
       case 'reject':
-        return {
-          button: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700',
-          icon: '❌',
-          accent: 'text-red-600'
-        };
       case 'delete':
         return {
-          button: 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800',
-          icon: '🗑️',
-          accent: 'text-red-700'
+          buttonVariant: 'danger' as const,
+          icon: variant === 'delete' ? '🗑️' : '❌',
+          accentColor: '#ef4444'
         };
       default:
         return {
-          button: 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+          buttonVariant: 'primary' as const,
           icon: 'ℹ️',
-          accent: 'text-blue-600'
+          accentColor: '#3b82f6'
         };
     }
   };
 
-  const colors = getVariantColors();
+  const config = getVariantConfig();
 
   if (!isOpen) return null;
 
@@ -111,7 +108,8 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        style={getModalOverlayStyles()}
+        className="p-4"
         onClick={onClose}
       >
         <motion.div
@@ -119,25 +117,33 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className={`relative max-w-md w-full rounded-2xl shadow-2xl p-6 ${
-            darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-          }`}
+          style={getCardStyles({ maxWidth: '28rem', width: '100%' })}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Corner accents */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '5rem', height: '5rem', borderTop: '2px solid rgba(59, 130, 246, 0.5)', borderLeft: '2px solid rgba(59, 130, 246, 0.5)' }} />
+          <div style={{ position: 'absolute', top: 0, right: 0, width: '5rem', height: '5rem', borderTop: '2px solid rgba(59, 130, 246, 0.5)', borderRight: '2px solid rgba(59, 130, 246, 0.5)' }} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, width: '5rem', height: '5rem', borderBottom: '2px solid rgba(59, 130, 246, 0.5)', borderLeft: '2px solid rgba(59, 130, 246, 0.5)' }} />
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: '5rem', height: '5rem', borderBottom: '2px solid rgba(59, 130, 246, 0.5)', borderRight: '2px solid rgba(59, 130, 246, 0.5)' }} />
           {/* Header */}
           <div className="flex items-start gap-4 mb-6">
-            <div className={`text-4xl ${colors.accent}`}>
-              {colors.icon}
-            </div>
+            <motion.div
+              animate={{ rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              className="text-4xl"
+              style={{ color: config.accentColor }}
+            >
+              {config.icon}
+            </motion.div>
             <div className="flex-1">
-              <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {title}
+              <h2 className="ds-title-card mb-2" style={{ color: '#ffffff' }}>
+                {title.toUpperCase()}
               </h2>
-              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <p className="ds-text-body text-sm">
                 {message}
               </p>
-              <div className={`mt-2 text-sm font-medium ${colors.accent}`}>
-                {selectedCount} item{selectedCount > 1 ? 's' : ''} selected
+              <div className="ds-text-label mt-2" style={{ color: config.accentColor }}>
+                {selectedCount} ITEM{selectedCount > 1 ? 'S' : ''} SELECTED
               </div>
             </div>
           </div>
@@ -145,20 +151,16 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
           {/* Progress Bar */}
           {isProcessing && (
             <div className="mb-6">
-              <div className={`w-full h-2 rounded-full overflow-hidden ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-200'
-              }`}>
+              <div className="ds-progress-bar">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.3 }}
-                  className={`h-full ${colors.button}`}
+                  className="ds-progress-fill"
                 />
               </div>
-              <div className={`text-xs mt-2 text-center ${
-                darkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                Processing... {progress}%
+              <div className="ds-text-label mt-2 text-center">
+                PROCESSING... {progress}%
               </div>
             </div>
           )}
@@ -168,13 +170,18 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 rounded-lg bg-red-100 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-600 text-red-800 dark:text-red-200"
+              className="mb-6 p-4 rounded-lg"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '2px solid rgba(239, 68, 68, 0.5)',
+                color: '#fca5a5'
+              }}
             >
               <div className="flex items-center gap-2">
                 <span className="text-xl">⚠️</span>
                 <div>
-                  <div className="font-semibold">Error</div>
-                  <div className="text-sm">{error}</div>
+                  <div className="ds-text-label font-semibold">ERROR</div>
+                  <div className="ds-text-body text-sm">{error}</div>
                 </div>
               </div>
             </motion.div>
@@ -185,38 +192,32 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
             <button
               onClick={onClose}
               disabled={isProcessing}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
-                darkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              style={getButtonStyles('secondary', { flex: 1 })}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {cancelLabel}
+              {cancelLabel.toUpperCase()}
             </button>
             <button
               onClick={handleConfirm}
               disabled={isProcessing}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold text-white shadow-lg transition-all ${
-                colors.button
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              style={getButtonStyles(config.buttonVariant, { flex: 1 })}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Processing...
+                  PROCESSING...
                 </span>
               ) : (
-                confirmLabel
+                confirmLabel.toUpperCase()
               )}
             </button>
           </div>
 
           {/* Keyboard Hint */}
           {!isProcessing && (
-            <div className={`mt-4 text-xs text-center ${
-              darkMode ? 'text-gray-500' : 'text-gray-400'
-            }`}>
-              Press Escape to cancel, Enter to confirm
+            <div className="ds-text-label mt-4 text-center">
+              PRESS ESCAPE TO CANCEL, ENTER TO CONFIRM
             </div>
           )}
         </motion.div>

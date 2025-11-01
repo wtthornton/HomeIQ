@@ -826,24 +826,30 @@ export const AskAI: React.FC = () => {
   };
 
   return (
-    <div className={`flex transition-colors ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`} style={{ 
+    <div className="flex transition-colors ds-bg-gradient-primary" style={{ 
       height: 'calc(100vh - 80px)',
       position: 'fixed',
       top: '80px',
       left: '0',
       right: '0',
-      bottom: '0'
+      bottom: '0',
+      background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)'
     }}>
       {/* Sidebar with Examples */}
       <motion.div
         initial={false}
         animate={{ width: sidebarOpen ? '320px' : '0px' }}
-        className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r overflow-hidden`}
+        className="border-r overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+          borderColor: 'rgba(51, 65, 85, 0.5)',
+          backdropFilter: 'blur(12px)'
+        }}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Quick Examples
+            <h3 className="ds-title-card" style={{ fontSize: '1rem', color: '#ffffff' }}>
+              QUICK EXAMPLES
             </h3>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -859,11 +865,20 @@ export const AskAI: React.FC = () => {
               <button
                 key={index}
                 onClick={() => handleExampleClick(example)}
-                className={`w-full text-left p-3 rounded-lg text-sm transition-colors ${
-                  darkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
+                className="w-full text-left p-3 rounded-lg text-sm transition-colors"
+                style={{
+                  background: 'rgba(30, 41, 59, 0.6)',
+                  border: '1px solid rgba(51, 65, 85, 0.5)',
+                  color: '#cbd5e1'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
+                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                  e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
+                }}
               >
                 {example}
               </button>
@@ -875,14 +890,16 @@ export const AskAI: React.FC = () => {
       {/* Main Chat Area - Full Height Container */}
       <div className="flex-1 flex flex-col h-full">
         {/* Ultra-Compact Header - Full width */}
-        <div className={`flex items-center justify-between px-6 py-2 border-b flex-shrink-0 ${
-          darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
-        }`}>
+        <div className="flex items-center justify-between px-6 py-2 border-b flex-shrink-0" style={{
+          borderColor: 'rgba(51, 65, 85, 0.5)',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+          backdropFilter: 'blur(12px)'
+        }}>
           <div className="flex items-center space-x-3">
-            <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Ask AI
+            <h1 className="ds-title-section" style={{ fontSize: '1.25rem', color: '#ffffff' }}>
+              ASK AI
             </h1>
-            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <span className="ds-text-label" style={{ color: '#94a3b8' }}>
               Home Assistant Automation Assistant
             </span>
           </div>
@@ -960,7 +977,10 @@ export const AskAI: React.FC = () => {
 
         {/* Messages Area - Full width and optimized for space */}
         <div 
-          className={`flex-1 overflow-y-auto px-6 py-3 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}
+          className="flex-1 overflow-y-auto px-6 py-3"
+          style={{
+            background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%)'
+          }}
         >
           <div className="w-full space-y-3">
             <AnimatePresence>
@@ -972,13 +992,15 @@ export const AskAI: React.FC = () => {
                   exit={{ opacity: 0, y: -20 }}
                   className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`w-full ${
+                  <div className={`w-full rounded-lg p-3 shadow-sm ${
                     message.type === 'user' 
                       ? 'bg-blue-500 text-white max-w-2xl ml-auto' 
-                      : darkMode 
-                        ? 'bg-gray-800 text-gray-100 max-w-5xl' 
-                        : 'bg-white text-gray-900 max-w-5xl'
-                  } rounded-lg p-3 shadow-sm`}>
+                      : 'ds-card max-w-5xl'
+                  }`} style={message.type !== 'user' ? {
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+                    border: '1px solid rgba(51, 65, 85, 0.5)',
+                    color: '#cbd5e1'
+                  } : {}}>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
                     {/* Show suggestions if available */}
@@ -1095,7 +1117,11 @@ export const AskAI: React.FC = () => {
         <ContextIndicator context={conversationContext} darkMode={darkMode} />
 
         {/* Input Area - Full width and compact at bottom */}
-        <div className={`border-t px-6 py-2 flex-shrink-0 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+        <div className="border-t px-6 py-2 flex-shrink-0" style={{
+          borderColor: 'rgba(51, 65, 85, 0.5)',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+          backdropFilter: 'blur(12px)'
+        }}>
           <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex space-x-3 max-w-6xl mx-auto">
             <input
               ref={inputRef}
