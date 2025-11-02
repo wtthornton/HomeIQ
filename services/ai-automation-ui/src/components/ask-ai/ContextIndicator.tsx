@@ -22,7 +22,7 @@ interface ContextIndicatorProps {
   darkMode: boolean;
 }
 
-export const ContextIndicator: React.FC<ContextIndicatorProps> = ({ context, darkMode }) => {
+export const ContextIndicator: React.FC<ContextIndicatorProps> = ({ context, darkMode: _darkMode }) => {
   // Don't show if no context
   if (context.mentioned_devices.length === 0 && context.active_suggestions.length === 0) {
     return null;

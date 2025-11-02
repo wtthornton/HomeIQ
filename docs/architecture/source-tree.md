@@ -33,21 +33,27 @@ homeiq/
 ├── services/                      # 19 Microservices (Alpine-based)
 │   ├── admin-api/                 # System monitoring & control API (Port 8003 external → 8004 internal) [Epic 13]
 │   ├── data-api/                  # Feature data hub API (Port 8006) [Epic 13]
-│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8020) [Epic 27-30] ✨ NEW
+│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal) [Epic 27-30] ✨ NEW
 │   ├── health-dashboard/          # React frontend (13 tabs, Port 3000) - Added Setup tab
 │   ├── websocket-ingestion/       # WebSocket client service (Port 8001)
-│   ├── enrichment-pipeline/       # Data processing service (Port 8002)
+│   ├── ❌ enrichment-pipeline/    # DEPRECATED (Port 8002) - Epic 31: Direct writes to InfluxDB
 │   ├── data-retention/            # Data lifecycle management (Port 8080)
-│   ├── sports-data/               # ESPN sports API service (Port 8005) [SQLite webhooks - Epic 22.3]
 │   ├── log-aggregator/            # Centralized logging (Port 8015)
-│   ├── weather-api/               # Weather integration (Internal)
+│   ├── weather-api/               # Weather integration (Port 8009)
 │   ├── carbon-intensity-service/  # Carbon data (Port 8010)
 │   ├── electricity-pricing-service/ # Pricing data (Port 8011)
 │   ├── air-quality-service/       # Air quality (Port 8012)
-│   ├── calendar-service/          # HA calendar integration (Port 8013)
 │   ├── smart-meter-service/       # Smart meter (Port 8014)
 │   ├── energy-correlator/         # Energy correlation analysis (Port 8017)
-│   ├── ai-automation-service/     # AI automation suggestions (Port 8018) [📖 Complete call tree: implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md]
+│   ├── ai-automation-service/     # AI automation suggestions (Port 8024 external, 8018 internal) [📖 Complete call tree: implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md]
+│   ├── device-intelligence-service/ # Device capability discovery (Port 8028 external, 8019 internal)
+│   ├── ai-core-service/           # AI orchestration (Port 8018)
+│   ├── openvino-service/          # OpenVINO models (Port 8026 external, 8019 internal)
+│   ├── ml-service/                # ML algorithms (Port 8025 external, 8020 internal)
+│   ├── ner-service/               # Named Entity Recognition (Port 8019)
+│   ├── openai-service/            # GPT-4o-mini client (Port 8020)
+│   ├── automation-miner/          # Automation mining (Port 8029 external, 8019 internal)
+│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal)
 │   └── ha-simulator/              # Test event generator
 ├── shared/                        # Shared Python utilities
 │   ├── logging_config.py          # ⭐ Structured logging + correlation IDs

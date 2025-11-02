@@ -57,8 +57,9 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 - **Ask AI Tab**: Natural language automation creation
 - **Pattern Mining**: AI analyzes your usage and suggests automations
-- **Device Validation**: Intelligent device compatibility checking
+- **Device Validation**: Intelligent device compatibility checking with post-refinement sanitization
 - **Smart Recommendations**: Context-aware automation suggestions
+- **Self-Healing YAML**: Automatic entity ID correction during refinement
 
 ### 📊 Enterprise Analytics
 
@@ -180,9 +181,9 @@ pytest test_[module_name].py
 │  ├─ WebSocket Ingestion                 :8001               │
 │  ├─ Admin API                           :8003               │
 │  ├─ Data API                            :8006               │
-│  ├─ AI Automation Service               :8018               │
-│  ├─ Device Intelligence Service         :8021               │
-│  └─ HA Setup Service                    :8020               │
+│  ├─ AI Automation Service               :8024               │
+│  ├─ Device Intelligence Service         :8028               │
+│  └─ HA Setup Service                    :8027               │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Layer                                                  │
 │  ├─ InfluxDB (Time-series)              :8086               │
@@ -216,35 +217,50 @@ pytest test_[module_name].py
 │                    AI Services Layer                        │
 ├─────────────────────────────────────────────────────────────┤
 │  AI Core Service (Orchestrator)           :8018             │
-│  ├─ OpenVINO Service (Embeddings)         :8022             │
-│  ├─ ML Service (Clustering)               :8021             │
+│  ├─ OpenVINO Service (Embeddings)         :8026 (ext→8019)  │
+│  ├─ ML Service (Clustering)               :8025 (ext→8020)  │
 │  ├─ NER Service (Entity Recognition)      :8019             │
-│  └─ OpenAI Service (GPT-4o-mini)          :8020             │
+│  ├─ OpenAI Service (GPT-4o-mini)          :8020             │
+│  ├─ AI Automation Service                 :8024 (ext→8018)  │
+│  ├─ Device Intelligence Service           :8028 (ext→8019)  │
+│  └─ Automation Miner                      :8029 (ext→8019)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| AI Service | Purpose | Port | Models | Status |
-|------------|---------|------|--------|--------|
-| **OpenVINO Service** | Embeddings, re-ranking, classification | 8022 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
-| **ML Service** | K-Means clustering, anomaly detection | 8021 | scikit-learn algorithms | ✅ Active |
-| **NER Service** | Named Entity Recognition | 8019 | dslim/bert-base-NER | ✅ Active |
-| **OpenAI Service** | GPT-4o-mini API client | 8020 | GPT-4o-mini | ✅ Active |
-| **AI Core Service** | Multi-model orchestration | 8018 | Service coordinator | ✅ Active |
+| AI Service | Purpose | External Port | Internal Port | Models | Status |
+|------------|---------|---------------|---------------|--------|--------|
+| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
+| **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8019 | 8019 | dslim/bert-base-NER | ✅ Active |
+| **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
+| **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
+| **AI Automation Service** | Pattern detection & automation | 8024 | 8018 | Orchestrator | ✅ Active |
+| **Device Intelligence** | Device capability discovery | 8028 | 8019 | MQTT-based | ✅ Active |
+| **Automation Miner** | Community automation mining | 8029 | 8019 | Web scraping | ✅ Active |
+| **HA Setup Service** | HA setup recommendations | 8027 | 8020 | N/A | ✅ Active |
 
 ### Key Components
 
-| Service | Purpose | Port | Tech Stack | Status |
-|---------|---------|------|------------|--------|
-| **Health Dashboard** | System monitoring & management | 3000 | React, TypeScript, Vite | ✅ Active |
-| **AI Automation UI** | Conversational automation | 3001 | React, TypeScript | ✅ Active |
-| **WebSocket Ingestion** | Real-time HA event capture | 8001 | Python, aiohttp, WebSocket | ✅ Active |
-| **AI Automation Service** | Pattern detection & AI | 8018 | Python, FastAPI, OpenAI | ✅ Active |
-| **Data API** | Historical data queries | 8006 | Python, FastAPI | ✅ Active |
-| **Admin API** | System control & config | 8003 | Python, FastAPI | ✅ Active |
-| **Device Intelligence** | Device capability discovery | 8021 | Python, FastAPI, MQTT | ✅ Active |
-| **Weather API** | Standalone weather service | 8009 | Python, FastAPI | ✅ Active |
-| **Sports Data** | NFL/NHL game data | 8005 | Python, FastAPI | ✅ Active |
-| **❌ Enrichment Pipeline** | **DEPRECATED** (Epic 31) | 8002 | Python, FastAPI | ❌ Deprecated |
+| Service | Purpose | External Port | Internal Port | Tech Stack | Status |
+|---------|---------|---------------|---------------|------------|--------|
+| **Health Dashboard** | System monitoring & management | 3000 | 80 | React, TypeScript, Vite | ✅ Active |
+| **AI Automation UI** | Conversational automation | 3001 | 80 | React, TypeScript | ✅ Active |
+| **WebSocket Ingestion** | Real-time HA event capture | 8001 | 8001 | Python, aiohttp, WebSocket | ✅ Active |
+| **AI Automation Service** | Pattern detection & AI | 8024 | 8018 | Python, FastAPI, OpenAI, Self-Correction | ✅ Active |
+| **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
+| **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |
+| **Device Intelligence** | Device capability discovery | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
+| **Weather API** | Standalone weather service | 8009 | 8009 | Python, FastAPI | ✅ Active |
+| **Data Retention** | Data lifecycle management | 8080 | 8080 | Python, FastAPI | ✅ Active |
+| **Carbon Intensity** | Grid carbon footprint | 8010 | 8010 | Python, FastAPI | ✅ Active |
+| **Electricity Pricing** | Real-time pricing | 8011 | 8011 | Python, FastAPI | ✅ Active |
+| **Air Quality** | AQI monitoring | 8012 | 8012 | Python, FastAPI | ✅ Active |
+| **Smart Meter** | Energy consumption | 8014 | 8014 | Python, FastAPI | ✅ Active |
+| **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
+| **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
+| **InfluxDB** | Time-series database | 8086 | 8086 | InfluxDB 2.7 | ✅ Active |
+| **Mosquitto** | MQTT broker | 1883, 9001 | 1883, 9001 | Eclipse Mosquitto | ✅ Active |
+| **❌ Enrichment Pipeline** | **DEPRECATED** (Epic 31) | 8002 | - | Python, FastAPI | ❌ Deprecated |
 
 ---
 
@@ -423,6 +439,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - ✅ AI-powered pattern detection (Phase 1)
 - ✅ Conversational automation UI
 - ✅ Device validation system
+- ✅ Post-refinement entity sanitization (Nov 2025)
 - 🚧 Advanced ML models (Phase 2)
 - 🚧 Multi-hop automation chains
 

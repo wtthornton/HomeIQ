@@ -126,7 +126,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <pre className={`mt-2 p-4 rounded-lg text-xs overflow-x-auto font-mono ${
+              <pre className={`mt-2 p-4 rounded-lg text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono ${
                 darkMode ? 'bg-gray-900 text-green-400' : 'bg-gray-50 text-gray-800'
               } border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 {suggestion.automation_yaml}

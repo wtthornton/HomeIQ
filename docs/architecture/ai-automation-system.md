@@ -1,13 +1,12 @@
 # AI Automation System Architecture
 
 **Epic:** AI1 - AI Automation Suggestion System (Enhanced)  
-**Last Updated:** October 17, 2025  
+**Last Updated:** November 1, 2025  
 **Status:** Production Ready
 
-**🔄 Recent Update (Oct 17, 2025):**
-- Updated database schema for Story AI1.23 (Conversational Suggestion Refinement)
-- Added description-first workflow with iterative natural language editing
-- Status lifecycle now supports both legacy batch flow and new conversational flow
+**🔄 Recent Updates:**
+- **Oct 17, 2025:** Database schema updated for Story AI1.23 (Conversational Suggestion Refinement)
+- **Nov 1, 2025:** Post-refinement entity sanitization added to self-correction service (prevents invalid entity IDs)
 
 ---
 
@@ -71,6 +70,13 @@ The AI Automation System provides intelligent Home Assistant automation generati
 │  │  - Version Storage (last 3)                              │  │
 │  │  - Auto-cleanup                                           │  │
 │  │  - Safety-validated rollback                             │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ YAML Self-Correction & Entity Sanitization (Nov 2025)   │  │
+│  │  - Reverse engineering refinement                        │  │
+│  │  - Post-refinement entity ID validation                  │  │
+│  │  - Invalid entity replacement                           │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -190,7 +196,51 @@ User Request Text
 
 ---
 
-### 4. Pattern Detection (AI1.4-1.6)
+### 4. YAML Self-Correction & Entity Sanitization (Nov 2025)
+
+**Purpose:** Improve YAML quality through iterative refinement and ensure entity validity
+
+**Components:**
+- `yaml_self_correction.py` - Reverse engineering and refinement logic
+- `_sanitize_entity_ids()` - Post-refinement entity ID validation
+- `_find_best_entity_match()` - Generic entity matching algorithm
+
+**Features:**
+- **Reverse Engineering**: Converts YAML back to natural language for similarity comparison
+- **Iterative Refinement**: Up to 5 iterations to improve similarity match
+- **Entity Sanitization**: Automatically fixes invalid entity IDs during refinement
+- **Generic Matching**: Works for any entity type/domain without hardcoding
+
+**Entity Matching Algorithm:**
+1. **Domain Matching**: Requires same domain (binary_sensor → binary_sensor)
+2. **Location Matching**: Prefers entities in same area/location (+2.0 score)
+3. **Name Similarity**: Scores based on common words (+0.5 per match)
+
+**Flow:**
+```
+Generated YAML
+    → Reverse engineer to natural language
+    → Calculate similarity vs original request
+    → Generate improvement feedback
+    → Refine YAML with OpenAI
+    → Sanitize entity IDs (NEW)
+        ├─ Extract all entity IDs from YAML
+        ├─ Check each against available entities
+        ├─ Find best match for invalid IDs
+        └─ Replace invalid IDs in YAML
+    → Repeat until convergence or max iterations
+    → Return refined YAML
+```
+
+**Key Features:**
+- Self-healing: Fixes entity mismatches automatically
+- Generic: Works for all entity types without hardcoding
+- Safe: Validates against all Home Assistant entities
+- Non-invasive: Only runs during refinement, no impact on other flows
+
+---
+
+### 5. Pattern Detection (AI1.4-1.6)
 
 **Purpose:** Automatically discover automation opportunities from usage patterns
 

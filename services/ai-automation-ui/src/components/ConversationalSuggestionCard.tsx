@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { getButtonStyles } from '../utils/designSystem';
 
 interface ConversationalSuggestion {
   id: number;
@@ -527,7 +528,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <pre className="mt-2 p-4 rounded-lg text-xs overflow-x-auto font-mono border" style={{
+                  <pre className="mt-2 p-4 rounded-lg text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono border" style={{
                     background: 'rgba(15, 23, 42, 0.9)',
                     borderColor: 'rgba(51, 65, 85, 0.5)',
                     color: '#10b981'

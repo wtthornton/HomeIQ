@@ -45,9 +45,9 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
 |---------|------|----------|---------|
 | **Admin API** | 8003 | `http://localhost:8003` | System monitoring, Docker management |
 | **Data API** | 8006 | `http://localhost:8006` | Feature data (events, devices, sports, analytics) |
-| **Sports Data** | 8005 | `http://localhost:8005` | ESPN sports integration (NFL/NHL) |
-| **AI Automation** | 8018 | `http://localhost:8018` | Automation suggestions & conversational AI |
+| **AI Automation** | 8024 | `http://localhost:8024` | Automation suggestions & conversational AI |
 | **Dashboard** | 3000 | `http://localhost:3000` | Frontend (nginx proxy to APIs) |
+| **AI Automation UI** | 3001 | `http://localhost:3001` | Conversational automation UI |
 | **InfluxDB** | 8086 | `http://localhost:8086` | Time-series database |
 
 ---
@@ -599,6 +599,36 @@ List detected patterns with filtering.
 
 #### GET /api/patterns/stats
 Get pattern detection statistics.
+
+#### POST /api/patterns/incremental-update
+Perform incremental pattern update using only recent events.
+
+**Query Parameters:**
+- `hours` (default: 1): Number of hours of new events to process (1-24)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Incremental update complete: 1234 events processed",
+  "data": {
+    "patterns_updated": 45,
+    "events_processed": 1234,
+    "time_range": {
+      "start": "2025-01-20T12:00:00Z",
+      "end": "2025-01-20T13:00:00Z",
+      "hours": 1
+    },
+    "performance": {
+      "duration_seconds": 15.3,
+      "events_per_second": 80
+    },
+    "note": "Incremental updates are enabled. Detectors now support incremental learning."
+  }
+}
+```
+
+**Note:** This endpoint processes only new events since the last update, making it 90% faster than full pattern detection. Ideal for near real-time pattern updates.
 
 ### Suggestion Management
 

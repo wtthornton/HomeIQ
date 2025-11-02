@@ -1,6 +1,6 @@
 # AI Automation Service - Suggestion Creation Call Tree
 
-**Last Updated:** October 27, 2025  
+**Last Updated:** November 1, 2025  
 **Service:** ai-automation-service  
 **Endpoint:** POST `/api/v1/ask-ai/query`  
 **Recent Updates:** 
@@ -10,6 +10,7 @@
 - **NEW:** Dynamic capability-specific examples in prompts
 - **NEW:** Enhanced YAML generation with capability constraints
 - **NEW:** Capability-aware suggestion filtering
+- **NEW (Nov 2025):** Post-refinement entity sanitization - automatically fixes invalid entity IDs during self-correction
 
 ## Overview
 
@@ -130,24 +131,24 @@ process_natural_language_query()
        │    │         │         ├──> For each area entity:
        │    │         │         │    └──> DeviceIntelligenceClient.get_devices_by_area(area_name)
        │    │         │         │         └──> HTTP GET /api/discovery/devices
-       │    │         │         │              └──> device-intelligence-service:8021
+       │    │         │         │              └──> device-intelligence-service:8028
        │    │         │         │
        │    │         │         │              For each device in area:
        │    │         │         │              └──> DeviceIntelligenceClient.get_device_details(device_id)
        │    │         │         │                   └──> HTTP GET /api/discovery/devices/{device_id}
-       │    │         │         │                        └──> device-intelligence-service:8021
+       │    │         │         │                        └──> device-intelligence-service:8028
        │    │         │         │
        │    │         │         └──> For each device entity (NEW - Enhanced):
        │    │         │              ├──> DeviceIntelligenceClient.get_all_devices()
        │    │         │              │    └──> HTTP GET /api/discovery/devices?limit=200
-       │    │         │              │         └──> device-intelligence-service:8021
+       │    │         │              │         └──> device-intelligence-service:8028
        │    │         │              │
        │    │         │              ├──> _find_matching_devices(search_name, all_devices)
        │    │         │              │    └──> Fuzzy search for device by name
        │    │         │              │
        │    │         │              └──> DeviceIntelligenceClient.get_device_details(device_id)
        │    │         │                   └──> HTTP GET /api/discovery/devices/{device_id}
-       │    │         │                        └──> device-intelligence-service:8021
+       │    │         │                        └──> device-intelligence-service:8028
        │    │         │
        │    │         ├──> Else if complex query detected:
        │    │         │    └──> _extract_with_openai(query)
@@ -166,7 +167,7 @@ process_natural_language_query()
        │    │         │
        │    │         └──> DeviceIntelligenceClient.get_devices_by_area()
        │    │              └──> HTTP GET /api/discovery/devices
-       │    │                   └──> device-intelligence-service:8021
+       │    │                   └──> device-intelligence-service:8028
        │    │
        │    └──> Method: "basic" (emergency fallback)
        │         └──> extract_entities_from_query(query)
@@ -1467,7 +1468,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 
 # Device Intelligence
-DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8021
+DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///data/ai_automation.db
@@ -1487,10 +1488,16 @@ POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/test
 ```
 POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/approve
 ```
-- Generates full YAML automation
-- Validates entities
+- Generates full YAML automation with entity validation
+- Runs reverse-engineering self-correction with post-refinement entity sanitization
+- Validates all entities exist in Home Assistant
 - Creates automation in Home Assistant
 - Returns automation_id
+
+**Validation Layers:**
+1. **Pre-YAML validation**: Entity mapping from validated entities
+2. **Self-correction sanitization**: Fixes invalid entity IDs during refinement (NEW)
+3. **Final validation**: Verifies all entity IDs exist before deployment
 
 ### Refine Query
 ```
@@ -1928,7 +1935,7 @@ overall_confidence = query.confidence
 
 ### `GET /api/discovery/devices/{device_id}` - Single Device Details
 
-**Endpoint:** `GET http://device-intelligence-service:8021/api/discovery/devices/{device_id}`  
+**Endpoint:** `GET http://device-intelligence-service:8028/api/discovery/devices/{device_id}`  
 **Purpose:** Get detailed information about a specific device
 
 **Response Structure:**
@@ -2071,12 +2078,12 @@ Each entity contains:
 
 ### `GET /api/discovery/devices` - All Devices (used by `get_devices_by_area`)
 
-**Endpoint:** `GET http://device-intelligence-service:8021/api/discovery/devices`  
+**Endpoint:** `GET http://device-intelligence-service:8028/api/discovery/devices`  
 **Method:** Client-side filters by `area_name` (case-insensitive)
 
 ### `DeviceIntelligenceClient.get_devices_by_area(area_name)`
 
-**Endpoint:** `GET http://device-intelligence-service:8021/api/discovery/devices`  
+**Endpoint:** `GET http://device-intelligence-service:8028/api/discovery/devices`  
 **Method:** Client-side filters by `area_name` (case-insensitive)
 
 **Response Structure:**

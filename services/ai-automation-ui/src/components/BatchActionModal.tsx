@@ -31,7 +31,7 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
   cancelLabel = 'Cancel',
   variant = 'default',
   selectedCount,
-  darkMode = false
+  darkMode: _darkMode = false
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);

@@ -22,6 +22,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from sklearn.model_selection import TimeSeriesSplit
 
+# Import Phase 1 improvements
+from .confidence_calibrator import PatternConfidenceCalibrator
+from .utility_scorer import PatternUtilityScorer
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +45,9 @@ class MLPatternDetector(ABC):
         min_confidence: float = 0.7,
         min_occurrences: int = 5,
         max_patterns: int = 100,
-        enable_ml: bool = True
+        enable_ml: bool = True,
+        enable_incremental: bool = True,
+        window_days: int = 30
     ):
         """
         Initialize ML pattern detector.
@@ -51,26 +57,51 @@ class MLPatternDetector(ABC):
             min_occurrences: Minimum occurrences required for valid patterns
             max_patterns: Maximum number of patterns to return
             enable_ml: Whether to use ML algorithms (vs rule-based)
+            enable_incremental: Whether to support incremental learning updates
+            window_days: Time window in days for pattern detection
         """
         self.min_confidence = min_confidence
         self.min_occurrences = min_occurrences
         self.max_patterns = max_patterns
         self.enable_ml = enable_ml
+        self.enable_incremental = enable_incremental
+        self.window_days = window_days
         
         # ML models (lazy initialization)
         self._clustering_model = None
         self._anomaly_model = None
         self._scaler = StandardScaler()
         
+        # Incremental learning state
+        self._last_update_time: Optional[datetime] = None
+        self._incremental_models: Dict[str, Any] = {}
+        self._pattern_cache: List[Dict] = []
+        
+        # Phase 1 improvements: Confidence calibration and utility scoring
+        self.calibrator: Optional[PatternConfidenceCalibrator] = None
+        self.utility_scorer: Optional[PatternUtilityScorer] = None
+        
         # Performance tracking
         self.detection_stats = {
             'total_patterns': 0,
             'ml_patterns': 0,
             'rule_patterns': 0,
-            'processing_time': 0.0
+            'processing_time': 0.0,
+            'incremental_updates': 0,
+            'full_analyses': 0
         }
         
-        logger.info(f"MLPatternDetector initialized: confidence={min_confidence}, occurrences={min_occurrences}")
+        # Initialize Phase 1 improvements
+        if enable_incremental:
+            try:
+                self.calibrator = PatternConfidenceCalibrator()
+                self.calibrator.load()  # Try to load existing model
+                self.utility_scorer = PatternUtilityScorer()
+                logger.info("Confidence calibrator and utility scorer initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Phase 1 improvements: {e}")
+        
+        logger.info(f"MLPatternDetector initialized: confidence={min_confidence}, occurrences={min_occurrences}, incremental={enable_incremental}")
     
     @abstractmethod
     def detect_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
@@ -101,12 +132,13 @@ class MLPatternDetector(ABC):
             pattern.get('pattern_type') is not None
         )
     
-    def _calculate_confidence(self, pattern_data: Dict) -> float:
+    def _calculate_confidence(self, pattern_data: Dict, use_calibration: bool = True) -> float:
         """
-        Calculate pattern confidence score.
+        Calculate pattern confidence score with optional calibration.
         
         Args:
             pattern_data: Pattern data dictionary
+            use_calibration: Whether to use calibrated confidence if available
             
         Returns:
             Confidence score between 0.0 and 1.0
@@ -125,7 +157,18 @@ class MLPatternDetector(ABC):
         if time_consistency > 0:
             base_confidence = (base_confidence + time_consistency) / 2
         
-        return min(base_confidence, 1.0)
+        raw_confidence = min(base_confidence, 1.0)
+        
+        # Apply calibration if available and enabled
+        if use_calibration and self.calibrator and self.calibrator.is_fitted:
+            try:
+                pattern_data['confidence'] = raw_confidence  # Set base confidence for calibration
+                calibrated = self.calibrator.calibrate_confidence(pattern_data)
+                return calibrated
+            except Exception as e:
+                logger.warning(f"Calibration failed, using raw confidence: {e}")
+        
+        return raw_confidence
     
     def _cluster_patterns(self, patterns: List[Dict], features: np.ndarray) -> List[Dict]:
         """
@@ -290,7 +333,7 @@ class MLPatternDetector(ABC):
         **kwargs
     ) -> Dict[str, Any]:
         """
-        Create standardized pattern dictionary.
+        Create standardized pattern dictionary with utility scoring.
         
         Args:
             pattern_type: Type of pattern detected
@@ -302,7 +345,7 @@ class MLPatternDetector(ABC):
             **kwargs: Additional pattern fields
             
         Returns:
-            Standardized pattern dictionary
+            Standardized pattern dictionary with utility scores
         """
         pattern = {
             'pattern_type': pattern_type,
@@ -315,6 +358,10 @@ class MLPatternDetector(ABC):
             **kwargs
         }
         
+        # Add device_id if not present (for compatibility)
+        if 'device_id' not in pattern and devices:
+            pattern['device_id'] = devices[0] if isinstance(devices, list) else devices
+        
         # Add ML-specific fields if available
         if 'cluster_id' in kwargs:
             pattern['cluster_id'] = kwargs['cluster_id']
@@ -322,6 +369,17 @@ class MLPatternDetector(ABC):
             pattern['ml_confidence'] = kwargs['ml_confidence']
         if 'anomaly_score' in kwargs:
             pattern['anomaly_score'] = kwargs['anomaly_score']
+        
+        # Add utility scores using utility scorer
+        if self.utility_scorer:
+            try:
+                utility_scores = self.utility_scorer.score_pattern(pattern)
+                if 'metadata' not in pattern:
+                    pattern['metadata'] = {}
+                pattern['metadata']['utility'] = utility_scores
+                pattern['utility_score'] = utility_scores['total_utility']
+            except Exception as e:
+                logger.warning(f"Failed to calculate utility scores: {e}")
         
         return pattern
     
@@ -387,5 +445,214 @@ class MLPatternDetector(ABC):
             'total_patterns': 0,
             'ml_patterns': 0,
             'rule_patterns': 0,
-            'processing_time': 0.0
+            'processing_time': 0.0,
+            'incremental_updates': 0,
+            'full_analyses': 0
         }
+    
+    def incremental_update(self, events_df: pd.DataFrame, last_update_time: Optional[datetime] = None) -> List[Dict]:
+        """
+        Perform incremental pattern update using only new events since last update.
+        
+        Args:
+            events_df: Events DataFrame (should contain all events in window)
+            last_update_time: Timestamp of last update (if None, uses stored time)
+            
+        Returns:
+            Updated list of patterns
+        """
+        if not self.enable_incremental:
+            # Fall back to full analysis
+            return self.detect_patterns(events_df)
+        
+        update_time = last_update_time or self._last_update_time
+        
+        if update_time is None or events_df.empty:
+            # First run or no data: perform full analysis
+            logger.info("Performing initial full analysis (no previous state)")
+            self.detection_stats['full_analyses'] += 1
+            patterns = self.detect_patterns(events_df)
+            self._last_update_time = datetime.utcnow()
+            self._pattern_cache = patterns
+            return patterns
+        
+        # Extract only new events since last update
+        events_df['time'] = pd.to_datetime(events_df['time'])
+        new_events = events_df[events_df['time'] > update_time].copy()
+        
+        if new_events.empty:
+            logger.info("No new events since last update, returning cached patterns")
+            return self._pattern_cache
+        
+        logger.info(f"Incremental update: {len(new_events)} new events since {update_time}")
+        self.detection_stats['incremental_updates'] += 1
+        
+        # Merge new events with recent history (last window_days)
+        cutoff_time = datetime.utcnow() - timedelta(days=self.window_days)
+        recent_events = events_df[events_df['time'] > cutoff_time].copy()
+        
+        # Perform incremental pattern detection
+        patterns = self._incremental_detect_patterns(recent_events, new_events)
+        
+        # Update state
+        self._last_update_time = datetime.utcnow()
+        self._pattern_cache = patterns
+        
+        return patterns
+    
+    def _incremental_detect_patterns(
+        self, 
+        all_events_df: pd.DataFrame, 
+        new_events_df: pd.DataFrame
+    ) -> List[Dict]:
+        """
+        Incremental pattern detection using partial_fit capabilities.
+        
+        Args:
+            all_events_df: All events in current window
+            new_events_df: Only new events since last update
+            
+        Returns:
+            Updated patterns list
+        """
+        # For most detectors, we'll do a lightweight update:
+        # 1. Keep existing patterns from cache
+        # 2. Detect new patterns from new events only
+        # 3. Merge and deduplicate
+        
+        existing_patterns = self._pattern_cache.copy()
+        
+        # Detect patterns from new events (this will be faster than full analysis)
+        new_patterns = self.detect_patterns(new_events_df)
+        
+        # Merge patterns: update occurrences for existing, add new ones
+        merged_patterns = self._merge_patterns(existing_patterns, new_patterns)
+        
+        # Filter by confidence and occurrences
+        filtered_patterns = [
+            p for p in merged_patterns 
+            if self._validate_pattern(p)
+        ]
+        
+        # Limit to max_patterns, sorted by confidence
+        filtered_patterns.sort(key=lambda x: x.get('confidence', 0), reverse=True)
+        return filtered_patterns[:self.max_patterns]
+    
+    def _merge_patterns(self, existing: List[Dict], new: List[Dict]) -> List[Dict]:
+        """
+        Merge existing and new patterns, updating occurrences and confidence.
+        
+        Args:
+            existing: Existing patterns from cache
+            new: Newly detected patterns
+            
+        Returns:
+            Merged pattern list
+        """
+        # Create lookup by pattern_id or device_id + pattern_type
+        pattern_map = {}
+        
+        for pattern in existing:
+            key = self._get_pattern_key(pattern)
+            pattern_map[key] = pattern.copy()
+        
+        # Merge new patterns
+        for pattern in new:
+            key = self._get_pattern_key(pattern)
+            
+            if key in pattern_map:
+                # Update existing pattern
+                existing_pattern = pattern_map[key]
+                existing_pattern['occurrences'] = existing_pattern.get('occurrences', 0) + pattern.get('occurrences', 0)
+                # Recalculate confidence with updated occurrences
+                existing_pattern['confidence'] = self._calculate_confidence(existing_pattern)
+                # Update metadata to reflect latest occurrence
+                if 'last_seen' in pattern.get('metadata', {}):
+                    existing_pattern['metadata']['last_seen'] = pattern['metadata']['last_seen']
+            else:
+                # New pattern
+                pattern_map[key] = pattern.copy()
+        
+        return list(pattern_map.values())
+    
+    def _get_pattern_key(self, pattern: Dict) -> str:
+        """Generate unique key for pattern matching."""
+        pattern_type = pattern.get('pattern_type', 'unknown')
+        device_id = pattern.get('device_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
+        
+        # For co-occurrence patterns, include both devices
+        if pattern_type == 'co_occurrence' and 'devices' in pattern and len(pattern['devices']) >= 2:
+            devices = sorted(pattern['devices'][:2])
+            return f"{pattern_type}:{devices[0]}+{devices[1]}"
+        
+        # Include metadata for sequence patterns
+        if pattern_type == 'sequence' and 'metadata' in pattern:
+            sequence = pattern['metadata'].get('sequence', [])
+            if sequence:
+                return f"{pattern_type}:{device_id}:{','.join(sequence[:3])}"
+        
+        return f"{pattern_type}:{device_id}"
+    
+    def _incremental_cluster_patterns(
+        self, 
+        patterns: List[Dict], 
+        features: np.ndarray,
+        update_only: bool = False
+    ) -> List[Dict]:
+        """
+        Incremental clustering using partial_fit if update_only=True.
+        
+        Args:
+            patterns: Pattern list to cluster
+            features: Feature matrix
+            update_only: If True, use partial_fit for incremental update
+            
+        Returns:
+            Clustered patterns
+        """
+        if not self.enable_ml or len(patterns) < 3:
+            return patterns
+        
+        try:
+            features_scaled = self._scaler.fit_transform(features) if not update_only else self._scaler.transform(features)
+            
+            # Use MiniBatchKMeans for incremental learning
+            n_clusters = self._find_optimal_clusters(features_scaled)
+            
+            if n_clusters > 1:
+                model_key = 'clustering_model'
+                
+                if update_only and model_key in self._incremental_models:
+                    # Incremental update using partial_fit
+                    model = self._incremental_models[model_key]
+                    if hasattr(model, 'partial_fit'):
+                        model.partial_fit(features_scaled)
+                    else:
+                        # Re-fit if partial_fit not available
+                        model.fit(features_scaled)
+                else:
+                    # Initial fit or full refit
+                    model = MiniBatchKMeans(
+                        n_clusters=n_clusters,
+                        random_state=42,
+                        batch_size=100
+                    )
+                    model.fit(features_scaled)
+                    self._incremental_models[model_key] = model
+                
+                cluster_labels = model.predict(features_scaled)
+                
+                # Add cluster information
+                for i, pattern in enumerate(patterns):
+                    pattern['cluster_id'] = int(cluster_labels[i])
+                    pattern['cluster_size'] = int(np.sum(cluster_labels == cluster_labels[i]))
+                    pattern['ml_confidence'] = self._calculate_cluster_confidence(
+                        features_scaled[i], model
+                    )
+                
+                logger.info(f"Incremental clustering: {len(patterns)} patterns in {n_clusters} clusters")
+            
+        except Exception as e:
+            logger.warning(f"Incremental clustering failed: {e}, using original patterns")
+        
+        return patterns

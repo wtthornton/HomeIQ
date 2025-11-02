@@ -50,22 +50,28 @@ logger = logging.getLogger(__name__)
 class DailyAnalysisScheduler:
     """Schedules and runs daily pattern analysis and suggestion generation"""
     
-    def __init__(self, cron_schedule: Optional[str] = None):
+    def __init__(self, cron_schedule: Optional[str] = None, enable_incremental: bool = True):
         """
         Initialize the scheduler.
         
         Args:
             cron_schedule: Cron expression (default: "0 3 * * *" = 3 AM daily)
+            enable_incremental: Enable incremental updates for faster processing
         """
         self.scheduler = AsyncIOScheduler()
         self.cron_schedule = cron_schedule or settings.analysis_schedule
         self.is_running = False
         self._job_history = []
+        self.enable_incremental = enable_incremental
+        
+        # Track last analysis time for incremental updates
+        self._last_analysis_time: Optional[datetime] = None
+        self._last_pattern_update_time: Optional[datetime] = None
         
         # MQTT client will be set by main.py
         self.mqtt_client = None
         
-        logger.info(f"DailyAnalysisScheduler initialized with schedule: {self.cron_schedule}")
+        logger.info(f"DailyAnalysisScheduler initialized with schedule: {self.cron_schedule}, incremental={enable_incremental}")
     
     def set_mqtt_client(self, mqtt_client):
         """Set the MQTT client from main.py"""
@@ -235,14 +241,23 @@ class DailyAnalysisScheduler:
             tod_detector = TimeOfDayPatternDetector(
                 min_occurrences=5,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             
-            # Time-of-day detector doesn't have optimized version
-            tod_patterns = tod_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
+                logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                tod_patterns = tod_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                # Full analysis
+                tod_patterns = tod_detector.detect_patterns(events_df)
             
             all_patterns.extend(tod_patterns)
             logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns (daily aggregates stored)")
+            
+            # Update last pattern update time after first detector
+            self._last_pattern_update_time = datetime.now(timezone.utc)
             
             # Co-occurrence patterns (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running co-occurrence detector (incremental)...")
@@ -250,13 +265,19 @@ class DailyAnalysisScheduler:
                 window_minutes=5,
                 min_support=5,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
-            
-            if len(events_df) > 50000:
-                co_patterns = co_detector.detect_patterns_optimized(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
+                logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                co_patterns = co_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
-                co_patterns = co_detector.detect_patterns(events_df)
+                # Full analysis
+                if len(events_df) > 10000:
+                    co_patterns = co_detector.detect_patterns_optimized(events_df)
+                else:
+                    co_patterns = co_detector.detect_patterns(events_df)
             
             all_patterns.extend(co_patterns)
             logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns (daily aggregates stored)")
@@ -271,9 +292,14 @@ class DailyAnalysisScheduler:
                 min_sequence_length=2,
                 min_sequence_occurrences=3,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
-            sequence_patterns = sequence_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(sequence_detector, 'incremental_update'):
+                sequence_patterns = sequence_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                sequence_patterns = sequence_detector.detect_patterns(events_df)
             all_patterns.extend(sequence_patterns)
             logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns (daily aggregates stored)")
             
@@ -284,9 +310,14 @@ class DailyAnalysisScheduler:
                 presence_weight=0.4,
                 time_weight=0.3,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
-            contextual_patterns = contextual_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(contextual_detector, 'incremental_update'):
+                contextual_patterns = contextual_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                contextual_patterns = contextual_detector.detect_patterns(events_df)
             all_patterns.extend(contextual_patterns)
             logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns (monthly aggregates stored)")
             
@@ -295,9 +326,14 @@ class DailyAnalysisScheduler:
             room_detector = RoomBasedDetector(
                 min_room_activity_events=5,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
-            room_patterns = room_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(room_detector, 'incremental_update'):
+                room_patterns = room_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                room_patterns = room_detector.detect_patterns(events_df)
             all_patterns.extend(room_patterns)
             logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns (daily aggregates stored)")
             
@@ -308,9 +344,14 @@ class DailyAnalysisScheduler:
                 min_session_events=3,
                 min_session_occurrences=3,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
-            session_patterns = session_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(session_detector, 'incremental_update'):
+                session_patterns = session_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                session_patterns = session_detector.detect_patterns(events_df)
             all_patterns.extend(session_patterns)
             logger.info(f"    ✅ Found {len(session_patterns)} session patterns (weekly aggregates stored)")
             
@@ -321,9 +362,14 @@ class DailyAnalysisScheduler:
                 max_duration_hours=24,
                 min_occurrences=3,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
-            duration_patterns = duration_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(duration_detector, 'incremental_update'):
+                duration_patterns = duration_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                duration_patterns = duration_detector.detect_patterns(events_df)
             all_patterns.extend(duration_patterns)
             logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns (daily aggregates stored)")
             
@@ -333,9 +379,14 @@ class DailyAnalysisScheduler:
                 min_weekday_occurrences=5,
                 min_weekend_occurrences=3,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
-            day_type_patterns = day_type_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(day_type_detector, 'incremental_update'):
+                day_type_patterns = day_type_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                day_type_patterns = day_type_detector.detect_patterns(events_df)
             all_patterns.extend(day_type_patterns)
             logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns (weekly aggregates stored)")
             
@@ -346,9 +397,14 @@ class DailyAnalysisScheduler:
                 seasonal_window_days=30,
                 weather_integration=True,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
-            seasonal_patterns = seasonal_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(seasonal_detector, 'incremental_update'):
+                seasonal_patterns = seasonal_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                seasonal_patterns = seasonal_detector.detect_patterns(events_df)
             all_patterns.extend(seasonal_patterns)
             logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns (monthly aggregates stored)")
             
@@ -362,14 +418,45 @@ class DailyAnalysisScheduler:
                 enable_behavioral_analysis=True,
                 enable_device_analysis=True,
                 min_confidence=0.7,
+                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
-            anomaly_patterns = anomaly_detector.detect_patterns(events_df)
+            # Use incremental update if enabled and previous run exists
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(anomaly_detector, 'incremental_update'):
+                anomaly_patterns = anomaly_detector.incremental_update(events_df, self._last_pattern_update_time)
+            else:
+                anomaly_patterns = anomaly_detector.detect_patterns(events_df)
             all_patterns.extend(anomaly_patterns)
             logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns (daily aggregates stored)")
             
+            # Update last analysis time after pattern detection completes
+            self._last_analysis_time = datetime.now(timezone.utc)
+            if self._last_pattern_update_time is None:
+                self._last_pattern_update_time = self._last_analysis_time
+            
             logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
             logger.info(f"   📦 Aggregates stored: 6 Group A (daily), 2 Group B (weekly), 2 Group C (monthly)")
+            if self.enable_incremental:
+                stats_summary = {}
+                detector_names = [
+                    'tod_detector', 'co_detector', 'sequence_detector', 'contextual_detector',
+                    'room_detector', 'session_detector', 'duration_detector', 
+                    'day_type_detector', 'seasonal_detector', 'anomaly_detector'
+                ]
+                for detector_name in detector_names:
+                    if detector_name in locals():
+                        detector = locals()[detector_name]
+                        if hasattr(detector, 'get_detection_stats'):
+                            stats = detector.get_detection_stats()
+                            incremental = stats.get('incremental_updates', 0)
+                            full = stats.get('full_analyses', 0)
+                            if incremental > 0 or full > 0:
+                                stats_summary[detector_name] = {
+                                    'incremental': incremental,
+                                    'full': full
+                                }
+                if stats_summary:
+                    logger.info(f"   ⚡ Incremental update stats: {stats_summary}")
             job_result['patterns_detected'] = len(all_patterns)
             
             # Store patterns (don't fail if no patterns)

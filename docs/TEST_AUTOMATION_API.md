@@ -140,8 +140,10 @@ If validation fails:
 - **Error**: Description of what's wrong
 - Common errors:
   - Missing required YAML fields
-  - Invalid entity ID
+  - Invalid entity ID (automatically fixed by entity sanitization in Nov 2025)
   - Syntax errors in generated YAML
+
+**Note:** As of November 2025, invalid entity IDs are automatically sanitized during self-correction. Check logs for replacement messages.
 
 ## Viewing Test Automations in Home Assistant
 

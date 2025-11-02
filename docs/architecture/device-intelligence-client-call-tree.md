@@ -456,7 +456,7 @@ Data is stored in SQLite database for fast lookups:
 
 3. **Client Request:** 
    ```http
-   GET http://device-intelligence-service:8021/api/discovery/devices
+   GET http://device-intelligence-service:8028/api/discovery/devices
    ```
 
 4. **Service Processing:**
