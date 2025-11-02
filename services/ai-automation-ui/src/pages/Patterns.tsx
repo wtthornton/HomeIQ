@@ -189,7 +189,7 @@ export const Patterns: React.FC = () => {
             whileTap={{ scale: 0.95 }}
             onClick={loadPatterns}
             disabled={loading || analysisRunning}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
               darkMode 
                 ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:opacity-50' 
                 : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:opacity-50'
@@ -202,7 +202,7 @@ export const Patterns: React.FC = () => {
             whileTap={{ scale: 0.95 }}
             onClick={handleRunAnalysis}
             disabled={analysisRunning || loading}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
+            className={`px-4 py-1.5 text-xs rounded-lg font-medium transition-all ${
               analysisRunning
                 ? 'bg-blue-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'

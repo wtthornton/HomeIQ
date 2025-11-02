@@ -319,7 +319,7 @@ export const Settings: React.FC = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             disabled={saving}
-            className={`flex-1 px-6 py-3 rounded-xl font-bold shadow-lg transition-all ${
+            className={`flex-1 px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
                 ? 'bg-blue-600 hover:bg-blue-500 text-white'
                 : 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -333,7 +333,7 @@ export const Settings: React.FC = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleReset}
-            className={`px-6 py-3 rounded-xl font-bold shadow-lg transition-all ${
+            className={`px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
                 ? 'bg-gray-700 hover:bg-gray-600 text-white'
                 : 'bg-gray-200 hover:bg-gray-300 text-gray-900'

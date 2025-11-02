@@ -96,14 +96,22 @@ export const getButtonStyles = (
   additionalStyles?: React.CSSProperties
 ) => {
   const baseStyles = {
-    fontWeight: 600,
-    padding: '0.75rem 1.5rem',
+    fontWeight: 500,
+    padding: '0.375rem 0.75rem',
+    fontSize: '0.6875rem', // 11px - slightly smaller
     borderRadius: DesignSystem.borderRadius.md,
     border: 'none',
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
+    letterSpacing: '0.025em',
     transition: DesignSystem.transitions.standard,
     cursor: 'pointer' as const,
+    display: 'inline-flex' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: '0.375rem',
+    height: 'auto',
+    minHeight: 'unset',
+    lineHeight: '1.2',
     ...additionalStyles,
   };
 

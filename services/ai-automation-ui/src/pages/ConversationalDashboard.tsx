@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import api from '../services/api';
+import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 
 export const ConversationalDashboard: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -18,6 +19,7 @@ export const ConversationalDashboard: React.FC = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<'draft' | 'refining' | 'yaml_generated' | 'deployed'>('draft');
+  const [processingRedeploy, setProcessingRedeploy] = useState<number | null>(null);
 
   const loadSuggestions = async () => {
     try {
@@ -226,6 +228,7 @@ export const ConversationalDashboard: React.FC = () => {
 
   const handleRedeploy = async (id: number) => {
     try {
+      setProcessingRedeploy(id);
       toast.loading('🔄 Re-deploying with updated YAML and category...', { id: `redeploy-${id}` });
       
       const result = await api.redeploySuggestion(id);
@@ -268,6 +271,8 @@ export const ConversationalDashboard: React.FC = () => {
         { id: `redeploy-${id}`, duration: 5000 }
       );
       throw error;
+    } finally {
+      setProcessingRedeploy(null);
     }
   };
 
@@ -283,7 +288,12 @@ export const ConversationalDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <ProcessLoader
+        isVisible={!!processingRedeploy}
+        processType="automation-creation"
+      />
+      <div className="space-y-6">
       {/* Header */}
       <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} pb-4`}>
         <div className="flex items-center justify-between">
@@ -307,7 +317,7 @@ export const ConversationalDashboard: React.FC = () => {
           <button
             key={status}
             onClick={() => setSelectedStatus(status)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               selectedStatus === status
                 ? darkMode
                   ? 'bg-blue-600 text-white'
@@ -379,7 +389,7 @@ export const ConversationalDashboard: React.FC = () => {
                   <button
                     onClick={generateSampleSuggestion}
                     disabled={loading}
-                    className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                    className={`px-4 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
                         ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700'
                         : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300'
@@ -434,7 +444,8 @@ export const ConversationalDashboard: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
