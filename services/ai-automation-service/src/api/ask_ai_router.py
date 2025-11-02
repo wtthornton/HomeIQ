@@ -1016,7 +1016,7 @@ Pay attention to the capability types and ranges when generating service calls:
 IMPORTANT SERVICE MAPPING:
 - ALL light entities (including WLED) use: light.turn_on and light.turn_off
 - WLED entities are lights, so use light.turn_on (NOT wled.turn_on)
-- Example: For a WLED entity from the validated list above, use: service: light.turn_on with target.entity_id: {validated_wled_entity_id}
+- Example: For a WLED entity from the validated list above, use: service: light.turn_on with target.entity_id: <actual_wled_entity_id>
 
 """
     elif 'validated_entities' in suggestion and suggestion.get('validated_entities'):
