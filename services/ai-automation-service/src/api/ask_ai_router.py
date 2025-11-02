@@ -996,6 +996,7 @@ async def generate_automation_yaml(
     # Construct prompt for OpenAI to generate creative YAML with enriched entity context
     validated_entities_text = ""
     entity_context_json = ""
+    validated_entities = {}  # Initialize to avoid NameError
     
     if entities and len(entities) > 0:
         # Use comprehensive enriched data if available (from validation step above)
