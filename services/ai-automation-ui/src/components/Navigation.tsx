@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAppStore } from '../store';
 
 export const Navigation: React.FC = () => {

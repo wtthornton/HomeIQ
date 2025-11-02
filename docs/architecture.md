@@ -91,11 +91,15 @@ The system now includes **containerized AI microservices** for advanced automati
 ### 🤖 AI Services Architecture
 
 **Containerized AI Models:**
-- **OpenVINO Service** (Port 8022): Embeddings, re-ranking, classification using all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small
-- **ML Service** (Port 8021): Classical machine learning with K-Means clustering and Isolation Forest anomaly detection
+- **OpenVINO Service** (Port 8026 external, 8019 internal): Embeddings, re-ranking, classification using all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small
+- **ML Service** (Port 8025 external, 8020 internal): Classical machine learning with K-Means clustering and Isolation Forest anomaly detection
 - **NER Service** (Port 8019): Named Entity Recognition using BERT (dslim/bert-base-NER)
 - **OpenAI Service** (Port 8020): GPT-4o-mini API client for advanced language processing
 - **AI Core Service** (Port 8018): Orchestrator for complex AI workflows and multi-model coordination
+- **AI Automation Service** (Port 8024 external, 8018 internal): Pattern detection & automation suggestions
+- **Device Intelligence** (Port 8028 external, 8019 internal): Device capability discovery via MQTT
+- **Automation Miner** (Port 8029 external, 8019 internal): Community automation mining
+- **HA Setup Service** (Port 8027 external, 8020 internal): Home Assistant setup recommendations
 
 **Key Benefits:**
 - **Distributed Models**: Each AI model runs in its own container for better resource management
@@ -139,10 +143,12 @@ graph TB
     METER[Smart Meter<br/>localhost:8014] -->|Direct Writes| INFLUX
     
     %% AI Services
-    AI[AI Automation<br/>localhost:8018] -->|Reads Events| INFLUX
+    AI[AI Automation<br/>localhost:8024] -->|Reads Events| INFLUX
     AI_UI[AI Automation UI<br/>localhost:3001] --> AI
-    DEVICE_INTEL[Device Intelligence<br/>localhost:8021] -->|MQTT| MQTT
-    AUTO_MINER[Automation Miner<br/>localhost:8019] -->|Community Data| AI
+    AI_CORE[AI Core Service<br/>localhost:8018] --> AI
+    DEVICE_INTEL[Device Intelligence<br/>localhost:8028] -->|MQTT| MQTT
+    AUTO_MINER[Automation Miner<br/>localhost:8029] -->|Community Data| AI
+    HA_SETUP[HA Setup Service<br/>localhost:8027] --> DATA
     
     RETENTION[Data Retention<br/>localhost:8080] --> INFLUX
     RETENTION -->|S3 Archive| S3[(S3/Glacier)]
@@ -253,6 +259,14 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 - ✅ **Reduced complexity** with direct InfluxDB writes
 - ✅ **Better reliability** with fewer failure points
 - ✅ **Simplified debugging** with direct data flow
+
+## Recent Updates
+
+### November 2025 - Entity Sanitization
+- **Added**: Post-refinement entity ID validation to YAML self-correction
+- **Feature**: Automatic invalid entity ID detection and replacement
+- **Impact**: Prevents "Entity not found" errors during automation approval
+- **Implementation**: Generic matching algorithm working for all entity types
 
 ## 📚 Complete Documentation
 

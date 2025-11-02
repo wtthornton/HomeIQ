@@ -14,7 +14,8 @@ interface ServicesTabProps {
 const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // Core Services
   { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '🏠', type: 'core', port: 8001, description: 'Home Assistant WebSocket client' },
-  { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', port: 8002, description: 'Multi-source data enrichment' },
+  // DEPRECATED: enrichment-pipeline (Port 8002) - Epic 31: Direct writes to InfluxDB
+  // { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', port: 8002, description: 'Multi-source data enrichment' },
   // { id: 'data-retention', name: 'Data Retention', icon: '💾', type: 'core', port: 8080, description: 'Storage optimization' }, // TODO: Enable when service is deployed
   { id: 'admin-api', name: 'Admin API', icon: '🔌', type: 'core', port: 8003, description: 'REST API gateway' },
   { id: 'health-dashboard', name: 'Health Dashboard', icon: '📊', type: 'core', port: 3000, description: 'Web UI' },

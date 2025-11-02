@@ -6,6 +6,7 @@ Based on 2025 research: Self-Refine, RPE, and ProActive Self-Refinement (PASR)
 
 import logging
 import time
+import re
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, asdict
 import yaml
@@ -697,6 +698,12 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                 logger.error(f"Refined YAML has syntax error: {e}")
                 return current_yaml, 0  # Return original if refinement is invalid
             
+            # Post-refinement validation: Check and fix entity IDs against available entities
+            if comprehensive_enriched_data:
+                refined_yaml_text = await self._sanitize_entity_ids(
+                    refined_yaml_text, comprehensive_enriched_data
+                )
+            
             return refined_yaml_text, tokens_used
             
         except Exception as e:
@@ -714,4 +721,196 @@ Generate the improved YAML that addresses these issues while maintaining valid H
             else:
                 lines.append(f"{key}: {value}")
         return "\n".join(lines)
+    
+    async def _sanitize_entity_ids(
+        self, 
+        yaml_text: str, 
+        comprehensive_enriched_data: Dict[str, Dict[str, Any]]
+    ) -> str:
+        """
+        Sanitize entity IDs in YAML by replacing invalid ones with closest valid matches.
+        
+        This is a generic post-refinement validator that:
+        1. Extracts all entity IDs from the YAML
+        2. Checks each against available entities
+        3. Finds best match if invalid
+        4. Replaces in YAML
+        
+        Args:
+            yaml_text: The YAML to sanitize
+            comprehensive_enriched_data: Dict of entity_id -> enriched entity data
+            
+        Returns:
+            Sanitized YAML with invalid entity IDs replaced
+        """
+        try:
+            # Parse YAML to extract entity IDs
+            parsed_yaml = yaml.safe_load(yaml_text)
+            if not parsed_yaml:
+                return yaml_text
+            
+            # Get all available entity IDs from comprehensive data
+            available_entity_ids = set(comprehensive_enriched_data.keys())
+            
+            # If HA client is available, fetch more entities for matching
+            if self.ha_client and len(available_entity_ids) < 100:
+                try:
+                    # Fetch all states from HA to get comprehensive entity list
+                    ha_client = self.ha_client
+                    session = await ha_client._get_session()
+                    url = f"{ha_client.ha_url}/api/states"
+                    
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            all_states = await response.json()
+                            ha_entity_ids = {state['entity_id'] for state in all_states if 'entity_id' in state}
+                            available_entity_ids.update(ha_entity_ids)
+                            
+                            logger.debug(f"🔍 Expanded entity pool to {len(available_entity_ids)} entities for sanitization")
+                            
+                            # Enrich the additional entities for matching
+                            for entity_id in ha_entity_ids:
+                                if entity_id not in comprehensive_enriched_data:
+                                    try:
+                                        state = await self.ha_client.get_entity_state(entity_id)
+                                        if state:
+                                            comprehensive_enriched_data[entity_id] = {
+                                                'entity_id': entity_id,
+                                                'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+                                                'friendly_name': state.get('attributes', {}).get('friendly_name'),
+                                                'area_id': state.get('attributes', {}).get('area_id'),
+                                                'state': state.get('state')
+                                            }
+                                    except Exception:
+                                        pass  # Skip enrichment errors
+                except Exception as e:
+                    logger.debug(f"Could not fetch additional entities from HA: {e}")
+            
+            # Extract entity IDs from YAML
+            entity_ids_in_yaml = self._extract_entity_ids_from_yaml(parsed_yaml)
+            
+            # Track replacements
+            replacements = {}
+            for entity_id in entity_ids_in_yaml:
+                if entity_id not in available_entity_ids:
+                    logger.warning(f"🔧 Invalid entity ID in refined YAML: {entity_id}")
+                    
+                    # Find best match
+                    best_match = self._find_best_entity_match(
+                        entity_id, available_entity_ids, comprehensive_enriched_data
+                    )
+                    
+                    if best_match:
+                        replacements[entity_id] = best_match
+                        logger.info(f"✅ Replaced {entity_id} → {best_match}")
+                    else:
+                        logger.error(f"❌ No match found for {entity_id}, keeping original")
+            
+            # Apply replacements to YAML text
+            if replacements:
+                sanitized_yaml = yaml_text
+                for old_id, new_id in replacements.items():
+                    # Replace with word boundaries to avoid partial matches
+                    pattern = r'\b' + re.escape(old_id) + r'\b'
+                    sanitized_yaml = re.sub(pattern, new_id, sanitized_yaml)
+                
+                logger.info(f"✅ Sanitized {len(replacements)} entity IDs in refined YAML")
+                return sanitized_yaml
+            
+            return yaml_text
+            
+        except Exception as e:
+            logger.error(f"Entity sanitization failed: {e}")
+            return yaml_text  # Return original on error
+    
+    def _find_best_entity_match(
+        self,
+        invalid_entity_id: str,
+        available_entity_ids: Set[str],
+        comprehensive_enriched_data: Dict[str, Dict[str, Any]]
+    ) -> Optional[str]:
+        """
+        Find the best matching entity ID for an invalid one.
+        
+        Uses generic matching based on:
+        - Domain matching
+        - Location/area matching
+        - Entity name similarity
+        - Device name similarity
+        
+        Args:
+            invalid_entity_id: The invalid entity ID to match
+            available_entity_ids: Set of valid entity IDs
+            comprehensive_enriched_data: Entity data for matching
+            
+        Returns:
+            Best matching entity ID or None
+        """
+        if not available_entity_ids or not comprehensive_enriched_data:
+            return None
+        
+        # Parse invalid entity ID
+        if '.' not in invalid_entity_id:
+            return None
+        
+        invalid_domain, invalid_name = invalid_entity_id.split('.', 1)
+        
+        # Try to extract location from invalid entity ID
+        invalid_location = self._extract_location_from_entity_id(invalid_entity_id)
+        
+        best_match = None
+        best_score = 0.0
+        
+        for entity_id in available_entity_ids:
+            score = 0.0
+            
+            # Domain must match
+            if entity_id.startswith(f"{invalid_domain}."):
+                score += 1.0
+            else:
+                continue  # Skip if domain doesn't match
+            
+            # Location matching (higher weight)
+            entity_data = comprehensive_enriched_data.get(entity_id, {})
+            entity_location = (
+                entity_data.get('area_id', '') or 
+                entity_data.get('device_area_id', '') or
+                self._extract_location_from_entity_id(entity_id)
+            )
+            
+            if invalid_location and entity_location:
+                if invalid_location in entity_location or entity_location in invalid_location:
+                    score += 2.0
+                elif any(part in entity_location for part in invalid_location.split('_') if len(part) > 2):
+                    score += 1.0
+            
+            # Name similarity
+            if '.' in entity_id:
+                _, entity_name = entity_id.split('.', 1)
+                common_parts = set(invalid_name.split('_')) & set(entity_name.split('_'))
+                if common_parts:
+                    score += len(common_parts) * 0.5
+            
+            if score > best_score:
+                best_score = score
+                best_match = entity_id
+        
+        return best_match if best_score >= 1.0 else None
+    
+    def _extract_location_from_entity_id(self, entity_id: str) -> Optional[str]:
+        """Extract potential location from entity ID"""
+        if '.' not in entity_id:
+            return None
+        
+        _, name = entity_id.split('.', 1)
+        
+        # Try common location patterns in entity names
+        location_keywords = ['office', 'living_room', 'kitchen', 'bedroom', 'bathroom', 
+                            'garage', 'attic', 'basement', 'outdoor', 'patio', 'deck']
+        
+        for keyword in location_keywords:
+            if keyword in name.lower():
+                return keyword
+        
+        return None
 

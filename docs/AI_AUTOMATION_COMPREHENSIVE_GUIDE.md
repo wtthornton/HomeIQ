@@ -1,7 +1,7 @@
 # AI Automation System - Comprehensive Guide
 
-**Version:** 1.0  
-**Last Updated:** October 16, 2025  
+**Version:** 1.1  
+**Last Updated:** November 1, 2025  
 **Status:** Production Ready  
 **Epic:** AI1.19-22 (Enhanced)
 
@@ -486,6 +486,34 @@ SAFETY_MIN_SCORE=40
 
 ---
 
+### Invalid Entity IDs in Automation
+
+**Symptom:** "Invalid entity IDs in test YAML" or "Entity not found" errors
+
+**What Happened:**
+- Self-correction may have introduced invalid entity IDs during refinement
+- Entity sanitization automatically fixes these (Nov 2025 update)
+
+**Solutions:**
+1. Check logs for sanitization activity:
+```bash
+docker-compose logs ai-automation-service | Select-String "Sanitized|Replaced"
+```
+
+2. Verify the fix was applied:
+- Look for: `✅ Sanitized N entity IDs in refined YAML`
+- Look for: `✅ Replaced {old_id} → {new_id}`
+
+3. If still failing, check available entities:
+```bash
+curl http://localhost:8006/api/entities?domain=binary_sensor
+curl http://localhost:8006/api/entities?domain=light
+```
+
+**New Feature (Nov 2025):** Entity sanitization automatically replaces invalid entity IDs with best matching valid ones during self-correction refinement.
+
+---
+
 ### Can't Deploy to Home Assistant
 
 **Symptom:** "Deployment failed" or "HA API error"
@@ -729,6 +757,11 @@ A: As many as Home Assistant can handle (1000s). System designed for 10-50.
 ---
 
 ## Changelog
+
+### Version 1.1 (November 1, 2025)
+- ✅ Post-refinement entity sanitization (prevents invalid entity IDs)
+- ✅ Generic entity matching algorithm (works for all domains)
+- ✅ Self-healing YAML generation
 
 ### Version 1.0 (October 16, 2025)
 - ✅ Natural Language generation (AI1.21)

@@ -77,6 +77,7 @@ alembic upgrade head
 
 # Start service
 python -m uvicorn src.main:app --host 0.0.0.0 --port 8018 --reload
+# Note: Service runs on port 8018 internally, exposed as 8024 externally in Docker
 ```
 
 ### Running with Docker

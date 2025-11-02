@@ -840,26 +840,37 @@ AI Services (8018-8028):                Integration Services (8009-8014):
 | Service | Internal Port | External Port | Status | Purpose |
 |---------|---------------|---------------|--------|---------|
 | websocket-ingestion | 8001 | 8001 | ✅ Running | HA event ingestion |
-| enrichment-pipeline | 8002 | 8002 | ✅ Running | Data processing |
+| ❌ enrichment-pipeline | - | 8002 | ❌ Deprecated | Data processing (Epic 31) |
 | admin-api | 8004 | 8003 | ✅ Running | System monitoring (port mapped) |
 | data-api | 8006 | 8006 | ✅ Running | Feature data hub |
-| sports-data | 8005 | 8005 | ✅ Running | Sports data API |
-| health-dashboard | 3000 | 3000 | ✅ Running | React frontend |
+| health-dashboard | 80 | 3000 | ✅ Running | React frontend (nginx) |
 | data-retention | 8080 | 8080 | ✅ Running | Data lifecycle management |
 | log-aggregator | 8015 | 8015 | ✅ Running | Centralized logging |
-| carbon-intensity | 8010 | Internal | ✅ Running | Carbon data |
-| electricity-pricing | 8011 | Internal | ✅ Running | Pricing data |
-| air-quality | 8012 | Internal | ✅ Running | Air quality data |
-| calendar-service | 8013 | Internal | ✅ Running | Calendar integration |
-| smart-meter | 8014 | Internal | ✅ Running | Smart meter data |
-| energy-correlator | 8017 | Internal | ✅ Running | Energy analysis |
-| ai-automation | 8018 | Internal | ✅ Running | AI automation |
+| weather-api | 8009 | 8009 | ✅ Running | Weather data integration |
+| carbon-intensity | 8010 | 8010 | ✅ Running | Carbon data |
+| electricity-pricing | 8011 | 8011 | ✅ Running | Pricing data |
+| air-quality | 8012 | 8012 | ✅ Running | Air quality data |
+| smart-meter | 8014 | 8014 | ✅ Running | Smart meter data |
+| energy-correlator | 8017 | 8017 | ✅ Running | Energy analysis |
+| ai-core-service | 8018 | 8018 | ✅ Running | AI orchestration |
+| ai-automation-service | 8018 | 8024 | ✅ Running | AI automation (port mapped) |
+| ai-automation-ui | 80 | 3001 | ✅ Running | AI UI frontend (nginx) |
+| ner-service | 8019 | 8019 | ✅ Running | Named Entity Recognition |
+| openai-service | 8020 | 8020 | ✅ Running | GPT-4o-mini API client |
+| ml-service | 8020 | 8025 | ✅ Running | ML algorithms (port mapped) |
+| openvino-service | 8019 | 8026 | ✅ Running | OpenVINO models (port mapped) |
+| ha-setup-service | 8020 | 8027 | ✅ Running | HA setup service (port mapped) |
+| device-intelligence | 8019 | 8028 | ✅ Running | Device intelligence (port mapped) |
+| automation-miner | 8019 | 8029 | ✅ Running | Automation mining (port mapped) |
 | InfluxDB | 8086 | 8086 | ✅ Running | Time-series database |
+| Mosquitto | 1883, 9001 | 1883, 9001 | ✅ Running | MQTT broker |
 
 **Key:**
 - ✅ Running - Service actively deployed
-- Internal - Accessible only via Docker network
-- Port Mapping - admin-api: external 8003 → internal 8004
+- ❌ Deprecated - Service removed in Epic 31
+- Port Mapping - Some services use different external ports to avoid conflicts
+- Internal port is what the service listens on inside Docker network
+- External port is what's exposed to the host machine
 
 ---
 
@@ -867,18 +878,22 @@ AI Services (8018-8028):                Integration Services (8009-8014):
 
 ### AI Services Overview
 
-The system now includes **5 containerized AI microservices** for advanced automation and analysis:
+The system now includes **9 containerized AI microservices** for advanced automation and analysis:
 
 | Service | External Port | Internal Port | Status | Purpose |
 |---------|---------------|---------------|--------|---------|
-| openvino-service | 8022 | 8019 | ✅ Running | Embeddings, re-ranking, classification |
-| ml-service | 8021 | 8020 | ✅ Running | K-Means clustering, anomaly detection |
+| ai-core-service | 8018 | 8018 | ✅ Running | AI orchestration and coordination |
 | ner-service | 8019 | 8019 | ✅ Running | Named Entity Recognition (BERT) |
 | openai-service | 8020 | 8020 | ✅ Running | GPT-4o-mini API client |
-| ai-core-service | 8018 | 8018 | ✅ Running | AI orchestration and coordination |
+| ai-automation-service | 8024 | 8018 | ✅ Running | Pattern detection & automation |
+| ml-service | 8025 | 8020 | ✅ Running | K-Means clustering, anomaly detection |
+| openvino-service | 8026 | 8019 | ✅ Running | Embeddings, re-ranking, classification |
+| ha-setup-service | 8027 | 8020 | ✅ Running | HA setup recommendations |
+| device-intelligence | 8028 | 8019 | ✅ Running | Device capability discovery |
+| automation-miner | 8029 | 8019 | ✅ Running | Community automation mining |
 
 ### 1. OpenVINO Service
-**Port:** 8022 (external) → 8019 (internal)  
+**Port:** 8026 (external) → 8019 (internal)  
 **Technology:** Python 3.11, FastAPI, sentence-transformers, transformers  
 **Purpose:** Optimized AI model inference for embeddings, re-ranking, and classification
 
@@ -894,7 +909,7 @@ The system now includes **5 containerized AI microservices** for advanced automa
 - `GET /health` - Service health status
 
 ### 2. ML Service
-**Port:** 8021 (external) → 8020 (internal)  
+**Port:** 8025 (external) → 8020 (internal)  
 **Technology:** Python 3.11, FastAPI, scikit-learn, pandas, numpy  
 **Purpose:** Classical machine learning algorithms for data analysis
 
@@ -952,13 +967,14 @@ The system now includes **5 containerized AI microservices** for advanced automa
 
 **Communication Pattern:**
 ```
-AI Automation Service (Port 8017)
+AI Automation Service (Port 8024 external, 8018 internal)
     ↓ HTTP API calls
 AI Core Service (Port 8018)
-    ├─ OpenVINO Service (Port 8019) - Embeddings, re-ranking
-    ├─ ML Service (Port 8020) - Clustering, anomaly detection
+    ├─ OpenVINO Service (Port 8026 external, 8019 internal) - Embeddings, re-ranking
+    ├─ ML Service (Port 8025 external, 8020 internal) - Clustering, anomaly detection
     ├─ NER Service (Port 8019) - Entity extraction
-    └─ OpenAI Service (Port 8020) - Language processing
+    ├─ OpenAI Service (Port 8020) - Language processing
+    └─ Device Intelligence (Port 8028 external, 8019 internal) - Device capabilities
 ```
 
 **Health Monitoring:**

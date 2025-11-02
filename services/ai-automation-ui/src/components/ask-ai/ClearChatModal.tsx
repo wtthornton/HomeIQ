@@ -24,7 +24,7 @@ export const ClearChatModal: React.FC<ClearChatModalProps> = ({
   onConfirm,
   onExportAndClear,
   messageCount,
-  darkMode
+  darkMode: _darkMode
 }) => {
   if (!isOpen) return null;
 

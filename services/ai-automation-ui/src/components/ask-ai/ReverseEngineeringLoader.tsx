@@ -5,7 +5,7 @@
  * validates and improves the automation YAML.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
@@ -287,6 +287,7 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [currentTitleIndex, setCurrentTitleIndex] = useState(0);
   const [pulseActive, setPulseActive] = useState(true);
+  const usedTitlesRef = useRef<Set<number>>(new Set());
 
   // Reset all indices when visibility changes to false (prevent stacking)
   useEffect(() => {
@@ -296,12 +297,14 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
       setCurrentTipIndex(0);
       setCurrentTitleIndex(0);
       setPulseActive(true);
+      usedTitlesRef.current = new Set();
     } else {
       // Reset when becoming visible to start fresh
       setCurrentMessageIndex(0);
       setCurrentTipIndex(0);
       setCurrentTitleIndex(0);
       setPulseActive(true);
+      usedTitlesRef.current = new Set();
     }
   }, [isVisible]);
 
@@ -316,12 +319,24 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
     return () => clearInterval(messageInterval);
   }, [isVisible]);
 
-  // Rotate title every 3 seconds
+  // Rotate title every 3 seconds - advance to next unused title or stop
   useEffect(() => {
     if (!isVisible) return;
 
     const titleInterval = setInterval(() => {
-      setCurrentTitleIndex((prev) => (prev + 1) % TITLE_VARIATIONS.length);
+      setCurrentTitleIndex((prevIndex) => {
+        usedTitlesRef.current.add(prevIndex);
+        
+        // Find next unused title
+        for (let i = 0; i < TITLE_VARIATIONS.length; i++) {
+          const nextIndex = (prevIndex + i + 1) % TITLE_VARIATIONS.length;
+          if (!usedTitlesRef.current.has(nextIndex)) {
+            return nextIndex;
+          }
+        }
+        // All titles used, keep showing last one
+        return prevIndex;
+      });
     }, 3000);
 
     return () => clearInterval(titleInterval);

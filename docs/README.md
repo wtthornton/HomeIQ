@@ -158,25 +158,26 @@ docker-compose ps
 
 ### Core Services
 
-| Service | Purpose | Port | Tech Stack | Status |
-|---------|---------|------|------------|--------|
-| **Health Dashboard** | System monitoring & management | 3000 | React, TypeScript, Vite | ✅ Active |
-| **AI Automation UI** | Conversational automation | 3001 | React, TypeScript | ✅ Active |
-| **WebSocket Ingestion** | Real-time HA event capture | 8001 | Python, aiohttp, WebSocket | ✅ Active |
-| **AI Automation Service** | Pattern detection & AI orchestration | 8018 | Python, FastAPI, OpenAI | ✅ Active |
-| **Data API** | Historical data queries | 8006 | Python, FastAPI | ✅ Active |
-| **Admin API** | System control & config | 8003 | Python, FastAPI | ✅ Active |
-| **Device Intelligence** | Device capability discovery | 8028 | Python, FastAPI, MQTT | ✅ Active |
-| **InfluxDB** | Time-series database | 8086 | InfluxDB 2.7 | ✅ Active |
+| Service | Purpose | External Port | Internal Port | Tech Stack | Status |
+|---------|---------|---------------|---------------|------------|--------|
+| **Health Dashboard** | System monitoring & management | 3000 | 80 | React, TypeScript, Vite | ✅ Active |
+| **AI Automation UI** | Conversational automation | 3001 | 80 | React, TypeScript | ✅ Active |
+| **WebSocket Ingestion** | Real-time HA event capture | 8001 | 8001 | Python, aiohttp, WebSocket | ✅ Active |
+| **AI Automation Service** | Pattern detection & AI orchestration | 8024 | 8018 | Python, FastAPI, OpenAI | ✅ Active |
+| **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
+| **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |
+| **Device Intelligence** | Device capability discovery | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
+| **InfluxDB** | Time-series database | 8086 | 8086 | InfluxDB 2.7 | ✅ Active |
 
 ### AI Services (Phase 1)
 
-| AI Service | Purpose | Port | Models | Status |
-|------------|---------|------|--------|--------|
-| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | all-MiniLM-L6-v2, bge-reranker-base | ✅ Active |
-| **ML Service** | K-Means clustering, anomaly detection | 8025 | scikit-learn algorithms | ✅ Active |
-| **NER Service** | Named Entity Recognition | 8019 | dslim/bert-base-NER | ✅ Active |
-| **OpenAI Service** | GPT-4o-mini API client | 8020 | GPT-4o-mini | ✅ Active |
+| AI Service | Purpose | External Port | Internal Port | Models | Status |
+|------------|---------|---------------|---------------|--------|--------|
+| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base | ✅ Active |
+| **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8019 | 8019 | dslim/bert-base-NER | ✅ Active |
+| **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
+| **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
 
 ### Integration Services
 

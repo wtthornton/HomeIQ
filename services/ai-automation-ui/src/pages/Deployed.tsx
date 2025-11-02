@@ -347,7 +347,7 @@ export const Deployed: React.FC = () => {
                   exit={{ opacity: 0, height: 0 }}
                   className={`mt-4 rounded-lg overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}
                 >
-                  <pre className={`p-4 overflow-x-auto text-xs font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                  <pre className={`p-4 overflow-x-auto overflow-y-auto max-h-96 text-xs font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                     <code>{yamlCache.get(automation.entity_id)}</code>
                   </pre>
                 </motion.div>

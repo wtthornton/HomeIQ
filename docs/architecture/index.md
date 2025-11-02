@@ -161,7 +161,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 | **data-retention** | Python/FastAPI | 8080 | Data lifecycle and cleanup management |
 | **health-dashboard** | React/TypeScript | 3000 | Web-based monitoring interface (13 tabs) |
 | **sports-data** | Python/FastAPI | 8005 | ESPN sports API integration (NFL/NHL) |
-| **ai-automation-service** | Python/FastAPI | 8018 | **AI automation suggestions** (NL generation, pattern detection, safety validation) ✨ |
+| **ai-automation-service** | Python/FastAPI | 8024 (external), 8018 (internal) | **AI automation suggestions** (NL generation, pattern detection, safety validation) ✨ |
 | **influxdb** | InfluxDB 2.7 | 8086 | Time-series data storage |
 
 #### External Data Services
@@ -294,7 +294,7 @@ This architecture documentation should be updated whenever:
 
 ---
 
-**Last Updated**: October 16, 2025  
-**Version**: 5.0 (Enhanced with AI Automation - Epic AI1.19-22)  
+**Last Updated**: November 1, 2025  
+**Version**: 5.1 (Enhanced with AI Automation + Entity Sanitization)  
 **Status**: Production Ready  
 **Maintained By**: HA Ingestor Team

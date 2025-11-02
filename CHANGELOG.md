@@ -5,6 +5,38 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-11-01
+
+### Added - AI Automation Entity Sanitization (November 1, 2025)
+
+#### Post-Refinement Entity Validation
+- **ADDED**: Generic entity sanitization to YAML self-correction service
+- **FEATURE**: Automatic invalid entity ID detection and replacement
+- **ALGORITHM**: Domain-aware, location-aware, name-similarity matching
+- **IMPACT**: Prevents "Entity not found" errors during automation approval
+
+#### Implementation
+- `_sanitize_entity_ids()` - Extracts and validates all entity IDs from refined YAML
+- `_find_best_entity_match()` - Generic matching algorithm (domain + location + name)
+- `_extract_location_from_entity_id()` - Location keyword extraction
+- Integrated into `_refine_yaml()` workflow after each iteration
+
+#### Features
+- **Generic**: Works for all entity types/domains without hardcoding
+- **Self-Healing**: Automatically fixes entity mismatches
+- **Safe**: Validates against all Home Assistant entities
+- **Non-Invasive**: Only runs during self-correction refinement
+
+#### Files Modified
+- `services/ai-automation-service/src/services/yaml_self_correction.py`
+
+#### Documentation Updated
+- `docs/architecture/ai-automation-system.md` - Added self-correction module
+- `docs/architecture/ai-automation-suggestion-call-tree.md` - Updated approve flow
+- `docs/AI_AUTOMATION_COMPREHENSIVE_GUIDE.md` - Version 1.1 changelog
+- `README.md` - Added self-healing YAML feature
+- `implementation/SELF_CORRECTION_ENTITY_SANITIZATION_FIX.md` - Implementation details
+
 ## [Unreleased] - 2025-10-19
 
 ### Fixed - Log Aggregator Docker SDK Update (October 19, 2025)
