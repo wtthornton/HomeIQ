@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import api from '../services/api';
+import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 
 interface Automation {
   entity_id: string;
@@ -25,6 +26,7 @@ export const Deployed: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expandedCode, setExpandedCode] = useState<Set<string>>(new Set());
   const [yamlCache, setYamlCache] = useState<Map<string, string>>(new Map());
+  const [processingOperation, setProcessingOperation] = useState<{ type: 'redeploy' | 'self-correct'; automationId: string } | null>(null);
 
   useEffect(() => {
     loadAutomations();
@@ -68,6 +70,7 @@ export const Deployed: React.FC = () => {
 
   const handleRedeploy = async (automationId: string) => {
     try {
+      setProcessingOperation({ type: 'redeploy', automationId });
       toast.loading('🔄 Finding suggestion and regenerating YAML...', { id: `redeploy-${automationId}` });
       
       // Step 1: Find the suggestion by automation_id
@@ -96,6 +99,8 @@ export const Deployed: React.FC = () => {
         `❌ Re-deploy failed: ${error?.message || 'Unknown error'}`,
         { id: `redeploy-${automationId}`, duration: 5000 }
       );
+    } finally {
+      setProcessingOperation(null);
     }
   };
 
@@ -132,6 +137,7 @@ export const Deployed: React.FC = () => {
 
   const handleSelfCorrect = async (automationId: string) => {
     try {
+      setProcessingOperation({ type: 'self-correct', automationId });
       toast.loading('🔄 Loading YAML and original prompt...', { id: `self-correct-${automationId}` });
       
       // Step 1: Find the suggestion by automation_id to get YAML and original prompt
@@ -185,11 +191,18 @@ export const Deployed: React.FC = () => {
     } catch (error: any) {
       toast.dismiss(`self-correct-${automationId}`);
       toast.error(`Self-correction failed: ${error.message}`);
+    } finally {
+      setProcessingOperation(null);
     }
   };
 
   return (
-    <div className="space-y-6" data-testid="deployed-container">
+    <>
+      <ProcessLoader
+        isVisible={!!processingOperation}
+        processType={processingOperation?.type === 'self-correct' ? 'reverse-engineering' : 'automation-creation'}
+      />
+      <div className="space-y-6" data-testid="deployed-container">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -267,7 +280,7 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleToggle(automation.entity_id, automation.state)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
                       automation.state === 'on'
                         ? darkMode
                           ? 'bg-gray-700 hover:bg-gray-600 text-white'
@@ -283,7 +296,7 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleTrigger(automation.entity_id)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
                       darkMode
                         ? 'bg-blue-600 hover:bg-blue-500 text-white'
                         : 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -297,7 +310,7 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleRedeploy(automation.entity_id)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
                       darkMode
                         ? 'bg-purple-600 hover:bg-purple-500 text-white'
                         : 'bg-purple-500 hover:bg-purple-600 text-white'
@@ -312,7 +325,7 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleShowCode(automation.entity_id)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
                       darkMode
                         ? 'bg-gray-600 hover:bg-gray-500 text-white'
                         : 'bg-gray-500 hover:bg-gray-600 text-white'
@@ -327,7 +340,7 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelfCorrect(automation.entity_id)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
                       darkMode
                         ? 'bg-green-600 hover:bg-green-500 text-white'
                         : 'bg-green-500 hover:bg-green-600 text-white'
@@ -362,7 +375,7 @@ export const Deployed: React.FC = () => {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={loadAutomations}
-        className={`w-full px-6 py-3 rounded-xl font-semibold shadow-lg transition-all ${
+        className={`w-full px-4 py-2 text-xs rounded-xl font-semibold shadow-lg transition-all ${
           darkMode
             ? 'bg-gray-700 hover:bg-gray-600 text-white'
             : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
@@ -370,6 +383,7 @@ export const Deployed: React.FC = () => {
       >
         🔄 Refresh List
       </motion.button>
-    </div>
+      </div>
+    </>
   );
 };

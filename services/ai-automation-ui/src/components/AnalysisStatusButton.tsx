@@ -6,6 +6,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { ProcessLoader } from './ask-ai/ReverseEngineeringLoader';
 
 interface AnalysisStatusProps {
   status: 'ready' | 'running' | 'success' | 'error';
@@ -87,7 +88,7 @@ export const AnalysisStatusButton: React.FC<AnalysisStatusProps> = ({
   };
 
   const getButtonStyles = () => {
-    const baseStyles = "px-4 py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+    const baseStyles = "px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md";
     
     switch (status) {
       case 'running':
@@ -102,7 +103,13 @@ export const AnalysisStatusButton: React.FC<AnalysisStatusProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <>
+      <ProcessLoader
+        isVisible={status === 'running'}
+        processType="analysis"
+        progress={progress}
+      />
+      <div className="flex flex-col items-end gap-2">
       {/* Progress Bar for Running State */}
       {status === 'running' && progress > 0 && (
         <div className="w-full max-w-xs">
@@ -160,6 +167,7 @@ export const AnalysisStatusButton: React.FC<AnalysisStatusProps> = ({
           {status === 'error' && '❌ Failed'}
         </motion.div>
       )}
-    </div>
+      </div>
+    </>
   );
 };

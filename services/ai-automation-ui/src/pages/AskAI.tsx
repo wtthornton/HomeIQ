@@ -12,7 +12,7 @@ import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import { ContextIndicator } from '../components/ask-ai/ContextIndicator';
 import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
-import { ReverseEngineeringLoader } from '../components/ask-ai/ReverseEngineeringLoader';
+import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import api from '../services/api';
 
 interface ChatMessage {
@@ -263,14 +263,29 @@ export const AskAI: React.FC = () => {
       } else {
         toast.success(`Found ${response.suggestions.length} automation suggestion${response.suggestions.length > 1 ? 's' : ''}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      toast.error('Failed to process your request. Please try again.');
+      console.error('Error details:', {
+        message: error?.message,
+        status: error?.status,
+        stack: error?.stack,
+        response: error?.response
+      });
+      
+      // Show more detailed error message to user
+      let errorMessageText = "Sorry, I encountered an error processing your request. Please try again.";
+      if (error?.message) {
+        errorMessageText += ` (Error: ${error.message})`;
+      } else if (error?.status) {
+        errorMessageText += ` (Status: ${error.status})`;
+      }
+      
+      toast.error(errorMessageText);
       
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         type: 'ai',
-        content: "Sorry, I encountered an error processing your request. Please try again.",
+        content: errorMessageText,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -827,9 +842,9 @@ export const AskAI: React.FC = () => {
 
   return (
     <div className="flex transition-colors ds-bg-gradient-primary" style={{ 
-      height: 'calc(100vh - 80px)',
+      height: 'calc(100vh - 40px)',
       position: 'fixed',
-      top: '80px',
+      top: '40px',
       left: '0',
       right: '0',
       bottom: '0',
@@ -890,16 +905,16 @@ export const AskAI: React.FC = () => {
       {/* Main Chat Area - Full Height Container */}
       <div className="flex-1 flex flex-col h-full">
         {/* Ultra-Compact Header - Full width */}
-        <div className="flex items-center justify-between px-6 py-2 border-b flex-shrink-0" style={{
+        <div className="flex items-center justify-between px-6 py-1 border-b flex-shrink-0" style={{
           borderColor: 'rgba(51, 65, 85, 0.5)',
           background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
           backdropFilter: 'blur(12px)'
         }}>
           <div className="flex items-center space-x-3">
-            <h1 className="ds-title-section" style={{ fontSize: '1.25rem', color: '#ffffff' }}>
+            <h1 className="ds-title-section" style={{ fontSize: '1.125rem', color: '#ffffff' }}>
               ASK AI
             </h1>
-            <span className="ds-text-label" style={{ color: '#94a3b8' }}>
+            <span className="ds-text-label" style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
               Home Assistant Automation Assistant
             </span>
           </div>
@@ -965,7 +980,7 @@ export const AskAI: React.FC = () => {
                 }
               }}
               disabled={messages.length <= 1}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border uppercase"
+              className="px-2.5 py-0.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 border uppercase"
               style={messages.length <= 1 ? {
                 borderColor: 'rgba(51, 65, 85, 0.3)',
                 color: '#64748b',
@@ -1044,6 +1059,129 @@ export const AskAI: React.FC = () => {
                           const refinementCount = suggestion.refinement_count || 0;
                           const conversationHistory = suggestion.conversation_history || [];
                           
+                          // Extract device information from suggestion
+                          const extractDeviceInfo = (suggestion: any, extractedEntities?: any[]): Array<{ friendly_name: string; entity_id: string; domain?: string }> => {
+                            const devices: Array<{ friendly_name: string; entity_id: string; domain?: string }> = [];
+                            const seenEntityIds = new Set<string>();
+                            
+                            // Helper to add device safely
+                            const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+                              if (entityId && !seenEntityIds.has(entityId)) {
+                                devices.push({
+                                  friendly_name: friendlyName,
+                                  entity_id: entityId,
+                                  domain: domain || entityId.split('.')[0]
+                                });
+                                seenEntityIds.add(entityId);
+                              }
+                            };
+                            
+                            // 1. Try validated_entities (most reliable - direct mapping from API)
+                            if (suggestion.validated_entities && typeof suggestion.validated_entities === 'object') {
+                              Object.entries(suggestion.validated_entities).forEach(([friendlyName, entityId]: [string, any]) => {
+                                if (entityId && typeof entityId === 'string') {
+                                  addDevice(friendlyName, entityId);
+                                }
+                              });
+                            }
+                            
+                            // 2. Try entity_id_annotations (enhanced suggestion format)
+                            if (suggestion.entity_id_annotations && typeof suggestion.entity_id_annotations === 'object') {
+                              Object.entries(suggestion.entity_id_annotations).forEach(([friendlyName, annotation]: [string, any]) => {
+                                if (annotation?.entity_id) {
+                                  addDevice(friendlyName, annotation.entity_id, annotation.domain);
+                                }
+                              });
+                            }
+                            
+                            // 3. Try device_mentions
+                            if (suggestion.device_mentions && typeof suggestion.device_mentions === 'object') {
+                              Object.entries(suggestion.device_mentions).forEach(([mention, entityId]: [string, any]) => {
+                                if (entityId && typeof entityId === 'string') {
+                                  addDevice(mention, entityId);
+                                }
+                              });
+                            }
+                            
+                            // 4. Try entity_ids_used array
+                            if (suggestion.entity_ids_used && Array.isArray(suggestion.entity_ids_used)) {
+                              suggestion.entity_ids_used.forEach((entityId: string) => {
+                                if (entityId && typeof entityId === 'string') {
+                                  // Extract friendly name from entity_id
+                                  const parts = entityId.split('.');
+                                  const friendlyName = parts.length > 1 
+                                    ? parts[1].split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                                    : entityId;
+                                  addDevice(friendlyName, entityId);
+                                }
+                              });
+                            }
+                            
+                            // 5. Try devices_involved array (may have device names without entity IDs)
+                            if (suggestion.devices_involved && Array.isArray(suggestion.devices_involved)) {
+                              suggestion.devices_involved.forEach((deviceName: string) => {
+                                if (typeof deviceName === 'string' && deviceName.trim()) {
+                                  // Try to infer entity ID from device name
+                                  const normalizedName = deviceName.toLowerCase().replace(/\s+/g, '_');
+                                  const inferredEntityId = `light.${normalizedName}`; // Default to light domain
+                                  addDevice(deviceName, inferredEntityId, 'light');
+                                }
+                              });
+                            }
+                            
+                            // 6. Try extracted_entities from message
+                            if (extractedEntities && Array.isArray(extractedEntities)) {
+                              extractedEntities.forEach((entity: any) => {
+                                const entityId = entity.entity_id || entity.id;
+                                if (entityId) {
+                                  const friendlyName = entity.name || entity.friendly_name || 
+                                    (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
+                                      word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
+                                  addDevice(friendlyName, entityId, entity.domain);
+                                }
+                              });
+                            }
+                            
+                            // 7. Last resort: parse device names from description/action text
+                            if (devices.length === 0) {
+                              const text = `${suggestion.description || ''} ${suggestion.action_summary || ''} ${suggestion.trigger_summary || ''}`.toLowerCase();
+                              
+                              const devicePatterns = [
+                                { pattern: /\bwled\b.*?\bled\b.*?\bstrip\b/gi, defaultName: 'WLED LED Strip', defaultDomain: 'light' },
+                                { pattern: /\bceiling\b.*?\blights?\b/gi, defaultName: 'Ceiling Lights', defaultDomain: 'light' },
+                                { pattern: /\boffice\b.*?\blights?\b/gi, defaultName: 'Office Lights', defaultDomain: 'light' },
+                                { pattern: /\bliving\b.*?\broom\b.*?\blights?\b/gi, defaultName: 'Living Room Lights', defaultDomain: 'light' },
+                                { pattern: /\bbedroom\b.*?\blights?\b/gi, defaultName: 'Bedroom Lights', defaultDomain: 'light' },
+                                { pattern: /\bkitchen\b.*?\blights?\b/gi, defaultName: 'Kitchen Lights', defaultDomain: 'light' },
+                              ];
+                              
+                              devicePatterns.forEach(({ pattern, defaultName, defaultDomain }) => {
+                                if (pattern.test(text)) {
+                                  const deviceId = `${defaultDomain}.${defaultName.toLowerCase().replace(/\s+/g, '_').replace(/s$/, '')}`;
+                                  addDevice(defaultName, deviceId, defaultDomain);
+                                }
+                              });
+                            }
+                            
+                            return devices;
+                          };
+                          
+                          const deviceInfo = extractDeviceInfo(suggestion, message.entities);
+                          
+                          // Debug logging
+                          if (deviceInfo.length > 0) {
+                            console.log('✅ Extracted device info:', deviceInfo);
+                          } else {
+                            console.log('⚠️ No devices extracted from suggestion:', {
+                              hasEntityAnnotations: !!suggestion.entity_id_annotations,
+                              hasDeviceMentions: !!suggestion.device_mentions,
+                              hasEntityIdsUsed: !!suggestion.entity_ids_used,
+                              hasMessageEntities: !!message.entities,
+                              description: suggestion.description?.substring(0, 100),
+                              actionSummary: suggestion.action_summary?.substring(0, 100)
+                            });
+                          }
+                          
                           return (
                             <div key={idx} className="pt-3" style={{ borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
                               <ConversationalSuggestionCard
@@ -1057,6 +1195,7 @@ export const AskAI: React.FC = () => {
                                   refinement_count: refinementCount,
                                   conversation_history: conversationHistory,
                                   device_capabilities: suggestion.device_capabilities || {},
+                                  device_info: deviceInfo.length > 0 ? deviceInfo : undefined,
                                   automation_yaml: suggestion.automation_yaml || null,
                                   created_at: suggestion.created_at
                                 }}
@@ -1178,7 +1317,7 @@ export const AskAI: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || !inputValue.trim()}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-xs ${
                 isLoading || !inputValue.trim()
                   ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -1200,11 +1339,18 @@ export const AskAI: React.FC = () => {
         darkMode={darkMode}
       />
 
-      {/* Reverse Engineering Loader */}
-      <ReverseEngineeringLoader
+      {/* Reverse engineering loader */}
+      <ProcessLoader
         isVisible={reverseEngineeringStatus.visible}
+        processType="reverse-engineering"
         iteration={reverseEngineeringStatus.iteration}
         similarity={reverseEngineeringStatus.similarity}
+      />
+      
+      {/* Query processing loader */}
+      <ProcessLoader
+        isVisible={isLoading}
+        processType="query-processing"
       />
     </div>
   );

@@ -10,6 +10,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
 
+interface DeviceInfo {
+  friendly_name: string;
+  entity_id: string;
+  domain?: string;
+}
+
 interface ConversationalSuggestion {
   id: number;
   description_only: string;
@@ -32,6 +38,7 @@ interface ConversationalSuggestion {
     supported_features?: Record<string, boolean>;
     friendly_capabilities?: string[];
   };
+  device_info?: DeviceInfo[]; // List of devices involved in the suggestion
   automation_yaml?: string | null;
   created_at: string;
 }
@@ -138,34 +145,34 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       }}
     >
       {/* Header */}
-      <div className="p-6" style={{
+      <div className="p-4" style={{
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%)',
         borderBottom: '1px solid rgba(51, 65, 85, 0.5)'
       }}>
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <motion.span
                 animate={{ rotate: [0, -10, 10, 0] }}
                 transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                className="text-2xl"
+                className="text-lg"
               >
                 💡
               </motion.span>
-              <h3 className="ds-title-card" style={{ color: '#ffffff' }}>
+              <h3 className="ds-title-card" style={{ color: '#ffffff', fontSize: '0.95rem' }}>
                 {suggestion.title.toUpperCase()}
               </h3>
             </div>
             
             {/* Status Badge */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-1.5 items-center flex-wrap">
               {suggestion.category && (
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getCategoryColor()}`}>
+                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor()}`}>
                   {getCategoryIcon()} {suggestion.category}
                 </span>
               )}
               
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                 suggestion.status === 'draft' ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
                 suggestion.status === 'refining' ? 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                 suggestion.status === 'yaml_generated' ? 'bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200' :
@@ -177,7 +184,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 {suggestion.status === 'deployed' && '🚀 Deployed'}
               </span>
               
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                 suggestion.confidence >= 0.9 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                 suggestion.confidence >= 0.7 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
@@ -189,7 +196,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         </div>
 
         {/* Main Description (NO YAML!) */}
-        <div className="ds-text-body text-base leading-relaxed p-4 rounded-lg border" style={{
+        <div className="ds-text-body text-sm leading-relaxed p-3 rounded-lg border mt-2" style={{
           background: 'rgba(30, 41, 59, 0.6)',
           border: '1px solid rgba(51, 65, 85, 0.5)',
           color: '#cbd5e1'
@@ -197,21 +204,70 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           {suggestion.description_only || 'No description available'}
         </div>
         
+        {/* Device Information Buttons */}
+        {suggestion.device_info && suggestion.device_info.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+            <span className="text-xs opacity-70" style={{ color: '#94a3b8' }}>
+              Devices:
+            </span>
+            {suggestion.device_info.map((device, idx) => {
+              // Generate Home Assistant entity URL
+              // Default to localhost if env var not set, or use environment variable
+              const haBaseUrl = import.meta.env.VITE_HA_URL || 'http://192.168.1.86:8123';
+              const haUrl = `${haBaseUrl}/config/entities/${encodeURIComponent(device.entity_id)}`;
+              
+              return (
+                <a
+                  key={idx}
+                  href={haUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-2 py-0.5 rounded-md font-medium transition-all hover:scale-105"
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    color: '#93c5fd',
+                    textDecoration: 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+                    e.currentTarget.style.color = '#bfdbfe';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                    e.currentTarget.style.color = '#93c5fd';
+                  }}
+                  title={`View ${device.friendly_name} details (${device.entity_id})`}
+                >
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {device.friendly_name}
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        )}
+        
         {suggestion.conversation_history && suggestion.conversation_history.length > 0 && (
-          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <div className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
             Based on {suggestion.conversation_history.length} edit{suggestion.conversation_history.length > 1 ? 's' : ''}
           </div>
         )}
       </div>
 
       {/* Body */}
-      <div className="p-6 space-y-4">
+      <div className="p-4 space-y-3">
         {/* Device Capabilities (Expandable) */}
         {suggestion.device_capabilities && suggestion.device_capabilities.friendly_capabilities && suggestion.device_capabilities.friendly_capabilities.length > 0 && (
           <div>
             <button
               onClick={() => setShowCapabilities(!showCapabilities)}
-              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -272,7 +328,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -350,7 +406,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   value={editInput}
                   onChange={(e) => setEditInput(e.target.value)}
                   placeholder="Describe your changes... (e.g., 'Make it blue and only on weekdays')"
-                  className="w-full p-4 rounded-lg border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   style={{
                     background: 'rgba(30, 41, 59, 0.6)',
                     borderColor: 'rgba(51, 65, 85, 0.5)',
@@ -367,7 +423,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   rows={3}
                   autoFocus
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
                     onClick={handleRefine}
                     disabled={isRefining || !editInput.trim()}
@@ -376,7 +432,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   >
                     {isRefining ? (
                       <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
@@ -384,7 +440,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         <span>UPDATE DESCRIPTION</span>
@@ -400,7 +456,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 flex-wrap items-center">
                 {/* Test Button */}
                 {onTest && (
                   <button
@@ -408,20 +464,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                     disabled={disabled || tested}
                     style={getButtonStyles(disabled || tested ? 'secondary' : 'primary', {
                       background: disabled || tested ? undefined : 'linear-gradient(to right, #f59e0b, #d97706)',
-                      boxShadow: disabled || tested ? undefined : '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                      boxShadow: disabled || tested ? undefined : '0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                     })}
                     className={disabled || tested ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     {tested ? (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         <span>TESTED</span>
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>TEST</span>
@@ -436,14 +492,16 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   disabled={disabled}
                   style={getButtonStyles(disabled ? 'secondary' : 'primary', {
                     flex: 1,
+                    minWidth: '120px',
+                    maxWidth: '200px',
                     background: disabled ? undefined : 'linear-gradient(to right, #10b981, #059669)',
-                    boxShadow: disabled ? undefined : '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                    boxShadow: disabled ? undefined : '0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                   })}
                   className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   {disabled ? (
                     <>
-                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -451,7 +509,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <span>APPROVE & CREATE</span>
@@ -466,7 +524,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   style={getButtonStyles(disabled ? 'secondary' : 'primary')}
                   className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   <span>EDIT</span>
@@ -479,7 +537,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   style={getButtonStyles('secondary')}
                   className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   <span>NOT INTERESTED</span>
@@ -494,7 +552,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowYaml(!showYaml)}
-              className="w-full text-left px-4 py-3 rounded-lg font-medium transition-all"
+              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -544,9 +602,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         {/* Deploy Button (after YAML generated) */}
         {suggestion.status === 'yaml_generated' && (
           <button
-            className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            className="w-full px-3 py-0.5 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 text-xs"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span>Deploy to Home Assistant</span>
@@ -558,7 +616,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <button
             onClick={() => onRedeploy(suggestion.id)}
             disabled={disabled}
-            className={`w-full px-4 py-3 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md ${
+            className={`w-full px-3 py-0.5 font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md text-xs ${
               disabled
                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                 : 'bg-purple-600 hover:bg-purple-700 text-white hover:shadow-lg'
@@ -566,7 +624,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           >
             {disabled ? (
               <>
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -574,7 +632,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span>RE-DEPLOY WITH UPDATED YAML</span>
@@ -584,7 +642,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         )}
 
         {/* Metadata Footer */}
-        <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} pt-2 mt-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex justify-between">
             <span>Created: {new Date(suggestion.created_at).toLocaleString()}</span>
             <span>ID: #{suggestion.id}</span>
