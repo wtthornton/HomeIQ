@@ -261,6 +261,7 @@ class AskAIQueryRequest(BaseModel):
     query: str = Field(..., description="Natural language question about devices/automations")
     user_id: str = Field(default="anonymous", description="User identifier")
     context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
+    conversation_history: Optional[List[Dict[str, Any]]] = Field(default=None, description="Conversation history for context")
 
 
 class AskAIQueryResponse(BaseModel):
@@ -946,6 +947,10 @@ async def generate_automation_yaml(
     from ..services.entity_validator import EntityValidator
     from ..clients.data_api_client import DataAPIClient
     
+    # Import yaml module - must be here to avoid UnboundLocalError when ha_client is assigned
+    # yaml_lib is imported at top of file, but we need to ensure it's available here
+    import yaml as yaml_lib
+    
     try:
         logger.info("🔍 Starting entity validation...")
         # Initialize entity validator with data API client and optional db_session for alias support
@@ -982,9 +987,30 @@ async def generate_automation_yaml(
                 else:
                     logger.warning(f"⚠️ Skipping invalid entity_id format: {term} -> {entity_id}")
             
-            if validated_mapping:
+            # CRITICAL: Verify all entities exist in Home Assistant before using them
+            if validated_mapping and ha_client:
+                logger.info(f"🔍 Verifying {len(validated_mapping)} mapped entities exist in Home Assistant...")
+                entity_ids_to_verify = list(validated_mapping.values())
+                verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
+                
+                # Filter to only validated entities that actually exist in HA
+                verified_validated_mapping = {}
+                for term, entity_id in validated_mapping.items():
+                    if verification_results.get(entity_id, False):
+                        verified_validated_mapping[term] = entity_id
+                        logger.debug(f"✅ Verified entity: '{term}' → {entity_id}")
+                    else:
+                        logger.warning(f"❌ Entity '{term}' → {entity_id} does NOT exist in HA - removed")
+                
+                if verified_validated_mapping:
+                    suggestion['validated_entities'] = verified_validated_mapping
+                    logger.info(f"✅ VERIFIED VALIDATED ENTITIES ADDED: {len(verified_validated_mapping)} entities exist in HA")
+                else:
+                    logger.warning(f"⚠️ No valid entity IDs after HA verification - all entities were invalid")
+            elif validated_mapping:
+                # No HA client available, use unverified mapping but warn
                 suggestion['validated_entities'] = validated_mapping
-                logger.info(f"✅ VALIDATED ENTITIES ADDED TO SUGGESTION: {suggestion.get('validated_entities')}")
+                logger.warning(f"⚠️ No HA client for verification - using unverified mapping: {validated_mapping}")
             else:
                 logger.warning(f"⚠️ No valid entity IDs after format validation")
         else:
@@ -1233,11 +1259,12 @@ Requirements:
    - DO NOT use entity IDs from examples below - those are just formatting examples
    - DO NOT invent entity IDs based on device names - ONLY use the validated list
    - If an entity is NOT in the validated list, DO NOT invent it
-   - If you need a binary sensor but it's not validated, use the closest validated binary sensor from the list above
    - NEVER create entity IDs like "binary_sensor.office_desk_presence" or "light.office" if they're not in the validated list
-   - If you cannot find a matching entity in the validated list, you MUST either:
-     a) Use the closest similar entity from the validated list, OR
-     b) Fail the request with an error explaining no matching entity was found
+   - If the suggestion requires entities that are NOT in the validated list above:
+     a) SIMPLIFY THE AUTOMATION to only use validated entities, OR
+     b) Use a time-based trigger instead of missing sensor triggers, OR
+     c) Return an error explaining which entities are missing from the validated list
+   - Example: If suggestion needs "presence sensor" but none exists in validated entities → use time trigger instead
    - Creating fake entity IDs will cause automation creation to FAIL with "Entity not found" errors
 4. Add appropriate conditions if needed
 5. Include mode: single or restart
@@ -1256,7 +1283,7 @@ CRITICAL YAML STRUCTURE RULES:
    - **DO NOT use the example entity IDs shown below** - those are just formatting examples
    - **MUST use actual entity IDs from the VALIDATED ENTITIES list above**
    - NEVER use incomplete entity IDs like "wled", "office", or "WLED"
-   - NEVER create entity IDs based on the examples - examples use placeholders like {REPLACE_WITH_VALIDATED_LIGHT_ENTITY}
+   - NEVER create entity IDs based on the examples - examples use placeholders like PLACEHOLDER_ENTITY_ID
    - If you see "wled" in the description, find the actual WLED entity ID from the VALIDATED ENTITIES list above
    - IMPORTANT: The examples below show YAML STRUCTURE only - replace ALL example entity IDs with real ones from the validated list above
 2. Service calls ALWAYS use target.entity_id structure:
@@ -1291,7 +1318,7 @@ trigger:
 action:
   - service: light.turn_on
     target:
-      entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+      entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
     data:
       brightness_pct: 100
 ```
@@ -1303,7 +1330,7 @@ description: Turn on light when motion detected after 6 PM
 mode: single
 trigger:
   - platform: state
-    entity_id: {example_motion_sensor if example_motion_sensor else '{REPLACE_WITH_VALIDATED_MOTION_SENSOR}'}
+    entity_id: {example_motion_sensor if example_motion_sensor else '{{REPLACE_WITH_VALIDATED_MOTION_SENSOR}}'}
     to: 'on'
 condition:
   - condition: time
@@ -1311,7 +1338,7 @@ condition:
 action:
   - service: light.turn_on
     target:
-      entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+      entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
     data:
       brightness_pct: 75
       color_name: warm_white
@@ -1331,13 +1358,13 @@ action:
       sequence:
         - service: light.turn_on
           target:
-            entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+            entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
           data:
             brightness_pct: 100
         - delay: '00:00:01'
         - service: light.turn_off
           target:
-            entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+            entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
         - delay: '00:00:01'
 ```
 
@@ -1348,11 +1375,11 @@ description: Different colors for different doors
 mode: single
 trigger:
   - platform: state
-    entity_id: {example_door_sensor if example_door_sensor else '{REPLACE_WITH_VALIDATED_DOOR_SENSOR_1}'}
+    entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_1}}'}
     to: 'on'
     id: front_door
   - platform: state
-    entity_id: {example_door_sensor if example_door_sensor else '{REPLACE_WITH_VALIDATED_DOOR_SENSOR_2}'}
+    entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_2}}'}
     to: 'on'
     id: back_door
 condition:
@@ -1367,7 +1394,7 @@ action:
         sequence:
           - service: light.turn_on
             target:
-              entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
             data:
               brightness_pct: 100
               color_name: red
@@ -1377,14 +1404,14 @@ action:
         sequence:
           - service: light.turn_on
             target:
-              entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
             data:
               brightness_pct: 100
               color_name: blue
     default:
       - service: light.turn_on
         target:
-          entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}
+          entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
         data:
           brightness_pct: 50
           color_name: white
@@ -1423,21 +1450,21 @@ CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
      action:
        - sequence:
            - action: light.turn_on  # ❌ WRONG FIELD NAME
-   ✅ CORRECT:
-     action:
-       - sequence:
-           - service: light.turn_on  # ✅ CORRECT FIELD NAME
-             target:
-               entity_id: {example_light if example_light else '{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
-           - service: light.turn_on  # ✅ WLED entities use light.turn_on service (NOT wled.turn_on)
-             target:
-               entity_id: {example_wled if example_wled else '{REPLACE_WITH_VALIDATED_WLED_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
-             data:
-               effect: fireworks  # WLED-specific effect parameter
-           - delay: "00:01:00"
-           - service: light.turn_off  # ✅ WLED entities use light.turn_off service (NOT wled.turn_off)
-             target:
-               entity_id: {example_wled if example_wled else '{REPLACE_WITH_VALIDATED_WLED_ENTITY}'}  # ✅ FULL ENTITY ID (domain.entity)
+  ✅ CORRECT:
+    action:
+      - sequence:
+          - service: light.turn_on  # ✅ CORRECT FIELD NAME
+            target:
+              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
+          - service: light.turn_on  # ✅ WLED entities use light.turn_on service (NOT wled.turn_on)
+            target:
+              entity_id: {example_wled if example_wled else '{{REPLACE_WITH_VALIDATED_WLED_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
+            data:
+              effect: fireworks  # WLED-specific effect parameter
+          - delay: "00:01:00"
+          - service: light.turn_off  # ✅ WLED entities use light.turn_off service (NOT wled.turn_off)
+            target:
+              entity_id: {example_wled if example_wled else '{{REPLACE_WITH_VALIDATED_WLED_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
 
 4. FIELD NAMES IN ACTIONS:
    - Top level: Use "action:" (singular)
@@ -1744,7 +1771,7 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONL
         # This catches any invalid entities that somehow got past the LLM prompt restrictions
         if ha_client:
             try:
-                import yaml as yaml_lib
+                # yaml_lib already imported at top of function
                 post_gen_parsed = yaml_lib.safe_load(yaml_content)
                 if post_gen_parsed:
                     from ..services.entity_id_validator import EntityIDValidator
@@ -2317,7 +2344,10 @@ async def process_natural_language_query(
         return response
         
     except Exception as e:
-        logger.error(f"❌ Failed to process Ask AI query: {e}")
+        logger.error(f"❌ Failed to process Ask AI query: {e}", exc_info=True)
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process query: {str(e)}"
@@ -3296,8 +3326,9 @@ async def restore_stripped_components(
     
     if not stripped_components:
         logger.info("No components to restore")
+        # Preserve all original suggestion data including validated_entities
         return {
-            'suggestion': original_suggestion,
+            'suggestion': original_suggestion.copy(),  # Make copy to preserve validated_entities
             'restored_components': [],
             'restoration_log': []
         }
@@ -3305,8 +3336,9 @@ async def restore_stripped_components(
     # Use OpenAI to intelligently restore components with context
     if not openai_client:
         logger.warning("OpenAI client not available, skipping intelligent restoration")
+        # Preserve all original suggestion data including validated_entities
         return {
-            'suggestion': original_suggestion,
+            'suggestion': original_suggestion.copy(),  # Make copy to preserve validated_entities
             'restored_components': stripped_components,
             'restoration_log': [f"Found {len(stripped_components)} components to restore (restoration skipped)"]
         }
@@ -3399,8 +3431,10 @@ Response format: ONLY JSON, no other text:
         logger.info(f"✅ Component restoration complete: {restoration_result.get('restored_components', [])}")
         
         # TASK 2.5: Enhanced return with nesting and intent validation
+        # Preserve all original suggestion data including validated_entities
+        restored_suggestion = original_suggestion.copy()
         return {
-            'suggestion': original_suggestion,  # Original already has components, we're just validating
+            'suggestion': restored_suggestion,  # Original already has components, we're just validating
             'restored_components': stripped_components,
             'restoration_log': restoration_result.get('restoration_details', []),
             'restoration_confidence': restoration_result.get('confidence', 0.9),
@@ -3412,8 +3446,9 @@ Response format: ONLY JSON, no other text:
         
     except Exception as e:
         logger.error(f"Failed to restore components: {e}")
+        # Preserve all original suggestion data including validated_entities
         return {
-            'suggestion': original_suggestion,
+            'suggestion': original_suggestion.copy(),  # Make copy to preserve validated_entities
             'restored_components': stripped_components,
             'restoration_log': [f'Restoration attempted but failed: {str(e)}'],
             'restoration_confidence': 0.5
@@ -3449,6 +3484,51 @@ async def approve_suggestion_from_query(
         if not suggestion:
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
+        # Ensure validated_entities is properly populated before proceeding
+        # If missing or empty, try to rebuild from original query
+        entities = query.extracted_entities if query.extracted_entities else []
+        if not suggestion.get('validated_entities') or not isinstance(suggestion.get('validated_entities'), dict) or len(suggestion.get('validated_entities', {})) == 0:
+            logger.warning(f"⚠️ Suggestion {suggestion_id} missing validated_entities, attempting to rebuild from query...")
+            try:
+                # Re-extract entities from the original query to get fresh validated entities
+                if query.original_query:
+                    logger.info(f"🔄 Re-extracting entities from original query: {query.original_query}")
+                    re_extracted_entities = await extract_entities_with_ha(query.original_query)
+                    if re_extracted_entities:
+                        entities = re_extracted_entities
+                        logger.info(f"✅ Re-extracted {len(entities)} entities from query")
+                    
+                    # Now map devices_involved to validated entities
+                    if entities and suggestion.get('devices_involved'):
+                        devices_involved = suggestion.get('devices_involved', [])
+                        logger.info(f"🔄 Mapping {len(devices_involved)} devices to entities: {devices_involved}")
+                        
+                        # Build enriched data from extracted entities
+                        enriched_data = {}
+                        for entity in entities:
+                            entity_id = entity.get('entity_id') or entity.get('id')
+                            if entity_id:
+                                enriched_data[entity_id] = entity
+                        
+                        # Map devices to entities
+                        validated_entities = await map_devices_to_entities(
+                            devices_involved,
+                            enriched_data if enriched_data else None,
+                            ha_client=ha_client,
+                            fuzzy_match=True
+                        )
+                        if validated_entities:
+                            suggestion['validated_entities'] = validated_entities
+                            logger.info(f"✅ Rebuilt {len(validated_entities)} validated entities for suggestion: {list(validated_entities.keys())}")
+                        else:
+                            logger.error(f"❌ Could not map devices to validated entities. Devices: {devices_involved}, Entities: {[e.get('entity_id') or e.get('id') for e in entities[:5]]}")
+                    else:
+                        logger.warning(f"⚠️ Cannot rebuild validated_entities: entities={len(entities) if entities else 0}, devices_involved={len(suggestion.get('devices_involved', []))}")
+                else:
+                    logger.warning("⚠️ Cannot rebuild validated_entities: no original_query available")
+            except Exception as e:
+                logger.error(f"❌ Error rebuilding validated_entities: {e}", exc_info=True)
+        
         # TASK 1.4: Restore stripped components if test was run
         # For now, we'll check the original suggestion for components to restore
         # In the future, we could store test results and retrieve them here
@@ -3463,8 +3543,12 @@ async def approve_suggestion_from_query(
         # Use restored suggestion (which is the same as original for now)
         final_suggestion = restoration_result['suggestion']
         
+        # Ensure validated_entities from rebuilt suggestion are preserved in final_suggestion
+        if suggestion.get('validated_entities') and not final_suggestion.get('validated_entities'):
+            final_suggestion['validated_entities'] = suggestion['validated_entities']
+            logger.info(f"✅ Preserved rebuilt validated_entities in final_suggestion: {len(final_suggestion['validated_entities'])} entities")
+        
         # Generate YAML for the suggestion with entities for capability details
-        entities = query.extracted_entities if query.extracted_entities else []
         try:
             automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, entities, db_session=db, ha_client=ha_client)
         except ValueError as e:
@@ -3571,7 +3655,7 @@ async def approve_suggestion_from_query(
         # FINAL VALIDATION: Verify ALL entity IDs in test YAML exist in HA BEFORE creating automation
         if ha_client:
             try:
-                import yaml as yaml_lib
+                # yaml_lib already imported at top of file
                 parsed_yaml = yaml_lib.safe_load(automation_yaml)
                 if parsed_yaml:
                     from ..services.entity_id_validator import EntityIDValidator
@@ -3660,7 +3744,7 @@ async def approve_suggestion_from_query(
         # FINAL VALIDATION: Verify ALL entity IDs in YAML exist in HA BEFORE creating automation
         if ha_client:
             try:
-                import yaml as yaml_lib
+                # yaml_lib already imported at top of file
                 parsed_yaml = yaml_lib.safe_load(automation_yaml)
                 if parsed_yaml:
                     from ..services.entity_id_validator import EntityIDValidator
