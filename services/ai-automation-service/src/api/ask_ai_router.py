@@ -16,7 +16,7 @@ Integration:
 - Reuses ConversationalSuggestionCard components
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
@@ -507,8 +507,11 @@ async def map_devices_to_entities(
     """
     Map device friendly names to entity IDs from enriched data.
     
-    Used to create validated_entities mapping from devices_involved (friendly names) 
-    to entity IDs using already-enriched entity data, avoiding re-resolution.
+    Optimized for single-home local solutions:
+    - Deduplicates redundant mappings (multiple friendly names → same entity_id)
+    - Prioritizes exact matches over fuzzy matches
+    - Uses area context for better matching in single-home scenarios
+    - Consolidates devices_involved to unique entity mappings
     
     IMPORTANT: Only includes entity IDs that actually exist in Home Assistant.
     
@@ -519,58 +522,96 @@ async def map_devices_to_entities(
         fuzzy_match: If True, use fuzzy matching for partial matches
         
     Returns:
-        Dictionary mapping device_name → entity_id (only verified entities)
+        Dictionary mapping device_name → entity_id (only verified entities, deduplicated)
     """
     validated_entities = {}
     unmapped_devices = []
+    entity_id_to_best_device_name = {}  # Track best device name for each entity_id
     
     for device_name in devices_involved:
         mapped = False
         device_name_lower = device_name.lower()
+        matched_entity_id = None
+        match_quality = 0  # 3=exact, 2=fuzzy, 1=domain
         
-        # Strategy 1: Exact match by friendly_name
+        # Strategy 1: Exact match by friendly_name (highest priority)
         for entity_id, enriched in enriched_data.items():
             friendly_name = enriched.get('friendly_name', '')
             if friendly_name.lower() == device_name_lower:
-                validated_entities[device_name] = entity_id
-                mapped = True
+                matched_entity_id = entity_id
+                match_quality = 3
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match)")
                 break
         
-        # Strategy 2: Fuzzy matching (case-insensitive substring)
-        if not mapped and fuzzy_match:
+        # Strategy 2: Fuzzy matching (case-insensitive substring) - area-aware for single-home
+        if not matched_entity_id and fuzzy_match:
+            best_fuzzy_match = None
+            best_fuzzy_score = 0
+            
             for entity_id, enriched in enriched_data.items():
                 friendly_name = enriched.get('friendly_name', '').lower()
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
+                area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
                 
-                # Check if device_name is contained in friendly_name or entity name
-                if (device_name_lower in friendly_name or 
-                    friendly_name in device_name_lower or
-                    device_name_lower in entity_name_part):
-                    validated_entities[device_name] = entity_id
-                    mapped = True
-                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (fuzzy match)")
-                    break
+                # Calculate fuzzy match score (higher = better)
+                score = 0
+                if device_name_lower in friendly_name or friendly_name in device_name_lower:
+                    score += 2  # Strong match
+                if device_name_lower in entity_name_part:
+                    score += 1  # Weak match
+                # Area context bonus for single-home scenarios
+                if area_name and device_name_lower in area_name:
+                    score += 1  # Area context bonus
+                
+                if score > best_fuzzy_score:
+                    best_fuzzy_score = score
+                    best_fuzzy_match = entity_id
+            
+            if best_fuzzy_match and best_fuzzy_score > 0:
+                matched_entity_id = best_fuzzy_match
+                match_quality = 2
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match, score: {best_fuzzy_score})")
         
-        # Strategy 3: Match by domain name (e.g., "wled" matches light entities with "wled" in the name)
-        if not mapped and fuzzy_match:
+        # Strategy 3: Match by domain name (lowest priority)
+        if not matched_entity_id and fuzzy_match:
             for entity_id, enriched in enriched_data.items():
                 domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
                 if domain == device_name_lower:
-                    validated_entities[device_name] = entity_id
-                    mapped = True
+                    matched_entity_id = entity_id
+                    match_quality = 1
                     logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (domain match)")
                     break
         
-        if not mapped:
+        # Store mapping if found, but only keep best device name for each entity_id
+        if matched_entity_id:
+            existing_quality = entity_id_to_best_device_name.get(matched_entity_id, {}).get('quality', 0)
+            if match_quality > existing_quality:
+                # Replace existing mapping with better match
+                if matched_entity_id in entity_id_to_best_device_name:
+                    old_device_name = entity_id_to_best_device_name[matched_entity_id]['device_name']
+                    logger.debug(f"🔄 Replacing '{old_device_name}' → '{device_name}' for entity_id '{matched_entity_id}' (better match quality)")
+                    validated_entities.pop(old_device_name, None)
+                
+                entity_id_to_best_device_name[matched_entity_id] = {
+                    'device_name': device_name,
+                    'quality': match_quality
+                }
+                validated_entities[device_name] = matched_entity_id
+                mapped = True
+            elif match_quality == existing_quality:
+                # Same quality - keep both, but log for consolidation
+                validated_entities[device_name] = matched_entity_id
+                mapped = True
+                logger.debug(f"📋 Duplicate mapping: '{device_name}' → '{matched_entity_id}' (same quality as existing)")
+        else:
             unmapped_devices.append(device_name)
             logger.warning(f"⚠️ Could not map device '{device_name}' to entity_id (not found in enriched_data)")
     
     # CRITICAL: Verify ALL mapped entities actually exist in Home Assistant
     if validated_entities and ha_client:
         logger.info(f"🔍 Verifying {len(validated_entities)} mapped entities exist in Home Assistant...")
-        entity_ids_to_verify = list(validated_entities.values())
-        verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
+        unique_entity_ids = list(set(validated_entities.values()))  # Get unique entity IDs
+        verification_results = await verify_entities_exist_in_ha(unique_entity_ids, ha_client)
         
         # Filter out entities that don't exist
         verified_validated_entities = {}
@@ -586,19 +627,93 @@ async def map_devices_to_entities(
             logger.warning(f"⚠️ Removed {len(invalid_entities)} invalid entity mappings: {', '.join(invalid_entities[:5])}")
         
         validated_entities = verified_validated_entities
-        logger.info(f"✅ Verified {len(validated_entities)}/{len(entity_ids_to_verify)} entities exist in HA")
+        logger.info(f"✅ Verified {len(validated_entities)}/{len(unique_entity_ids)} unique entities exist in HA")
+    
+    # Log consolidation stats
+    unique_entity_count = len(set(validated_entities.values()))
+    if len(validated_entities) > unique_entity_count:
+        logger.info(
+            f"🔄 Consolidated {len(devices_involved)} devices → {unique_entity_count} unique entities "
+            f"({len(validated_entities)} device names mapped, {len(devices_involved) - len(validated_entities)} redundant)"
+        )
     
     if unmapped_devices and validated_entities:
         logger.info(
-            f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to verified entities "
+            f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to {unique_entity_count} verified entities "
             f"({len(unmapped_devices)} unmapped: {unmapped_devices})"
         )
     elif validated_entities:
-        logger.info(f"✅ Mapped all {len(validated_entities)} devices to verified entities")
+        unique_entity_count = len(set(validated_entities.values()))
+        logger.info(f"✅ Mapped all {len(validated_entities)} devices to {unique_entity_count} verified entities")
     elif devices_involved:
         logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to verified entities")
     
     return validated_entities
+
+
+def consolidate_devices_involved(
+    devices_involved: List[str],
+    validated_entities: Dict[str, str]
+) -> List[str]:
+    """
+    Consolidate devices_involved array by removing redundant device names that map to the same entity.
+    
+    Optimized for single-home local solutions:
+    - Removes duplicate device names that map to the same entity_id
+    - Keeps the most specific/descriptive device name for each unique entity
+    - Preserves order while deduplicating
+    
+    Args:
+        devices_involved: Original list of device friendly names
+        validated_entities: Dictionary mapping device_name → entity_id
+        
+    Returns:
+        Consolidated list of unique device names (one per entity_id)
+    """
+    if not devices_involved or not validated_entities:
+        return devices_involved
+    
+    # Group device names by their mapped entity_id
+    entity_id_to_devices = {}
+    for device_name in devices_involved:
+        entity_id = validated_entities.get(device_name)
+        if entity_id:
+            if entity_id not in entity_id_to_devices:
+                entity_id_to_devices[entity_id] = []
+            entity_id_to_devices[entity_id].append(device_name)
+    
+    # For each entity_id, keep the most specific device name
+    # Priority: longer names > exact matches > shorter names
+    consolidated = []
+    entity_ids_seen = set()
+    
+    for device_name in devices_involved:
+        entity_id = validated_entities.get(device_name)
+        if entity_id and entity_id not in entity_ids_seen:
+            # If multiple devices map to same entity, choose the best one
+            if len(entity_id_to_devices.get(entity_id, [])) > 1:
+                candidates = entity_id_to_devices[entity_id]
+                # Prefer longer, more specific names
+                best_name = max(candidates, key=lambda x: (len(x), x.count(' '), x.lower()))
+                consolidated.append(best_name)
+                logger.debug(
+                    f"🔄 Consolidated {len(candidates)} devices ({', '.join(candidates)}) "
+                    f"→ '{best_name}' for entity_id '{entity_id}'"
+                )
+            else:
+                consolidated.append(device_name)
+            entity_ids_seen.add(entity_id)
+        elif entity_id not in validated_entities:
+            # Keep unmapped devices (they might be groups or areas)
+            consolidated.append(device_name)
+    
+    if len(consolidated) < len(devices_involved):
+        logger.info(
+            f"🔄 Consolidated devices_involved: {len(devices_involved)} → {len(consolidated)} "
+            f"({len(devices_involved) - len(consolidated)} redundant entries removed)"
+        )
+    
+    return consolidated
 
 
 def extract_device_mentions_from_text(
@@ -1205,6 +1320,20 @@ You MUST fail this request and return an error message indicating that entity va
 The automation cannot be created without valid entity IDs from Home Assistant.
 """
             logger.error("❌ No validated entities available - automation creation should fail")
+    
+    # CRITICAL: Fail early if no validated entities available
+    # This prevents the LLM from generating fake entity IDs
+    if not validated_entities:
+        devices_involved = suggestion.get('devices_involved', [])
+        error_msg = (
+            f"Cannot generate automation YAML: No validated entities found. "
+            f"The system could not map any of {len(devices_involved)} requested devices "
+            f"({', '.join(devices_involved[:5])}{'...' if len(devices_involved) > 5 else ''}) "
+            f"to actual Home Assistant entities. "
+            f"Available validated entities: None"
+        )
+        logger.error(f"❌ {error_msg}")
+        raise ValueError(error_msg)
     
     # Check if test mode
     is_test = 'TEST MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
@@ -2193,6 +2322,8 @@ async def generate_suggestions_from_query(
                 # Map devices_involved to entity IDs using enriched_data (if available)
                 validated_entities = {}
                 devices_involved = suggestion.get('devices_involved', [])
+                original_devices_count = len(devices_involved)
+                
                 if enriched_data and devices_involved:
                     # Initialize HA client for verification if needed
                     ha_client_for_mapping = ha_client if 'ha_client' in locals() else (
@@ -2209,6 +2340,15 @@ async def generate_suggestions_from_query(
                     )
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
+                        
+                        # Consolidate devices_involved to remove redundant entries (single-home optimization)
+                        devices_involved = consolidate_devices_involved(devices_involved, validated_entities)
+                        if len(devices_involved) < original_devices_count:
+                            logger.info(
+                                f"🔄 Optimized devices_involved for suggestion {i+1}: "
+                                f"{original_devices_count} → {len(devices_involved)} entries "
+                                f"({original_devices_count - len(devices_involved)} redundant entries removed)"
+                            )
                     else:
                         logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
                 
@@ -2218,7 +2358,7 @@ async def generate_suggestions_from_query(
                     'description': suggestion['description'],
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
-                    'devices_involved': devices_involved,
+                    'devices_involved': devices_involved,  # Consolidated (deduplicated)
                     'validated_entities': validated_entities,  # Save mapping for fast test execution
                     'enriched_entity_context': entity_context_json,  # Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
@@ -3455,10 +3595,15 @@ Response format: ONLY JSON, no other text:
         }
 
 
+class ApproveSuggestionRequest(BaseModel):
+    """Request body for approving a suggestion with optional selected entity IDs."""
+    selected_entity_ids: Optional[List[str]] = Field(default=None, description="List of entity IDs selected by user to include in automation")
+
 @router.post("/query/{query_id}/suggestions/{suggestion_id}/approve")
 async def approve_suggestion_from_query(
     query_id: str,
     suggestion_id: str,
+    request: Optional[ApproveSuggestionRequest] = Body(default=None),
     db: AsyncSession = Depends(get_db),
     ha_client: HomeAssistantClient = Depends(get_ha_client),
     openai_client: OpenAIClient = Depends(get_openai_client)
@@ -3510,7 +3655,7 @@ async def approve_suggestion_from_query(
                             if entity_id:
                                 enriched_data[entity_id] = entity
                         
-                        # Map devices to entities
+                        # Map devices to entities (optimized for single-home with deduplication)
                         validated_entities = await map_devices_to_entities(
                             devices_involved,
                             enriched_data if enriched_data else None,
@@ -3519,6 +3664,17 @@ async def approve_suggestion_from_query(
                         )
                         if validated_entities:
                             suggestion['validated_entities'] = validated_entities
+                            
+                            # Consolidate devices_involved to remove redundant entries (single-home optimization)
+                            original_devices_count = len(devices_involved)
+                            consolidated_devices = consolidate_devices_involved(devices_involved, validated_entities)
+                            if len(consolidated_devices) < original_devices_count:
+                                suggestion['devices_involved'] = consolidated_devices
+                                logger.info(
+                                    f"🔄 Consolidated devices_involved during approve: "
+                                    f"{original_devices_count} → {len(consolidated_devices)} entries"
+                                )
+                            
                             logger.info(f"✅ Rebuilt {len(validated_entities)} validated entities for suggestion: {list(validated_entities.keys())}")
                         else:
                             logger.error(f"❌ Could not map devices to validated entities. Devices: {devices_involved}, Entities: {[e.get('entity_id') or e.get('id') for e in entities[:5]]}")
@@ -3547,6 +3703,23 @@ async def approve_suggestion_from_query(
         if suggestion.get('validated_entities') and not final_suggestion.get('validated_entities'):
             final_suggestion['validated_entities'] = suggestion['validated_entities']
             logger.info(f"✅ Preserved rebuilt validated_entities in final_suggestion: {len(final_suggestion['validated_entities'])} entities")
+        
+        # Filter validated_entities by selected_entity_ids if provided
+        selected_entity_ids = request.selected_entity_ids if request else None
+        if selected_entity_ids and len(selected_entity_ids) > 0:
+            logger.info(f"🎯 Filtering validated_entities to selected devices: {selected_entity_ids}")
+            original_validated = final_suggestion.get('validated_entities', {})
+            if original_validated:
+                # Filter to only include selected entity IDs
+                filtered_validated = {
+                    friendly_name: entity_id 
+                    for friendly_name, entity_id in original_validated.items()
+                    if entity_id in selected_entity_ids
+                }
+                final_suggestion['validated_entities'] = filtered_validated
+                logger.info(f"✅ Filtered from {len(original_validated)} to {len(filtered_validated)} selected entities")
+            else:
+                logger.warning(f"⚠️ No validated_entities to filter, but selected_entity_ids provided: {selected_entity_ids}")
         
         # Generate YAML for the suggestion with entities for capability details
         try:
