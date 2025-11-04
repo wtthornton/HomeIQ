@@ -322,7 +322,7 @@ class DailyAnalysisScheduler:
             # Room-based patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running room-based detector (incremental)...")
             room_detector = RoomBasedDetector(
-                min_room_activity_events=5,
+                min_room_occurrences=5,
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
@@ -338,8 +338,7 @@ class DailyAnalysisScheduler:
             # Session patterns (Story AI5.6: Weekly aggregation enabled)
             logger.info("    → Running session detector (weekly aggregates)...")
             session_detector = SessionDetector(
-                session_timeout_minutes=60,
-                min_session_events=3,
+                session_gap_minutes=60,
                 min_session_occurrences=3,
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,

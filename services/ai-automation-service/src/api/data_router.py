@@ -163,7 +163,7 @@ async def get_entities(
     domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: Optional[str] = Query(default=None, description="Filter by platform"),
     area_id: Optional[str] = Query(default=None, description="Filter by area/room"),
-    limit: int = Query(default=100, ge=1, le=10000, description="Maximum number of entities")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities")
 ) -> Dict[str, Any]:
     """
     Fetch entities from Data API.
