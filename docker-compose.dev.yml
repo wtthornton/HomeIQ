@@ -48,7 +48,6 @@ services:
       - ENABLE_WEATHER_API=${ENABLE_WEATHER_API:-true}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WEATHER_SERVICE_URL=http://weather-api:8001
-      - ENRICHMENT_SERVICE_URL=http://enrichment-pipeline:8002
     volumes:
       - ./services/websocket-ingestion:/app
       - ./shared:/app/shared
@@ -58,44 +57,12 @@ services:
         condition: service_healthy
       weather-api:
         condition: service_healthy
-      enrichment-pipeline:
-        condition: service_healthy
       ha-simulator:
         condition: service_healthy
     networks:
       - homeiq-network-dev
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  enrichment-pipeline:
-    build:
-      context: .
-      dockerfile: services/enrichment-pipeline/Dockerfile.dev
-    container_name: homeiq-enrichment-dev
-    restart: unless-stopped
-    ports:
-      - "8002:8002"
-    environment:
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - LOG_LEVEL=DEBUG
-    volumes:
-      - ./services/enrichment-pipeline:/app
-      - ./shared:/app/shared
-      - /app/__pycache__
-    depends_on:
-      influxdb:
-        condition: service_healthy
-    networks:
-      - homeiq-network-dev
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -144,7 +111,6 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8004
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8000
-      - ENRICHMENT_PIPELINE_URL=http://enrichment-pipeline:8002
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
@@ -158,8 +124,6 @@ services:
       influxdb:
         condition: service_healthy
       websocket-ingestion:
-        condition: service_healthy
-      enrichment-pipeline:
         condition: service_healthy
     networks:
       - homeiq-network-dev
