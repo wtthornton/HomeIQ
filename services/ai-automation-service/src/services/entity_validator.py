@@ -394,6 +394,151 @@ class EntityValidator:
         
         return None
     
+    def _extract_quantity_and_category(self, query: str) -> List[Tuple[Optional[int], str, List[str]]]:
+        """
+        Extract quantity and category patterns from query.
+        
+        Examples:
+        - "4 ceiling lights" → (4, "ceiling light", ["ceiling", "light"])
+        - "wled sprit" → (None, "wled sprit", ["wled", "sprit"])
+        - "all lights" → (None, "light", ["light"])
+        - "ceiling lights" → (None, "ceiling light", ["ceiling", "light"])
+        
+        Returns:
+            List of tuples: (quantity, category, search_terms)
+        """
+        import re
+        patterns = []
+        query_lower = query.lower()
+        
+        # Pattern 1: Numbered quantity (e.g., "4 ceiling lights", "2 lights")
+        # Matches: number + optional words + light/device type
+        numbered_pattern = r'(\d+)\s+((?:ceiling|wall|floor|desk|table|bedroom|living|kitchen|office|garage|bathroom|dining|hall|entry|front|back|left|right|north|south|east|west)\s+)?(lights?|light|sensors?|switches?|devices?)'
+        matches = re.finditer(numbered_pattern, query_lower)
+        for match in matches:
+            quantity = int(match.group(1))
+            location = match.group(2).strip() if match.group(2) else ""
+            device_type = match.group(3).rstrip('s') if match.group(3) else ""  # Remove plural 's'
+            category = f"{location} {device_type}".strip() if location else device_type
+            search_terms = [t for t in [location.strip(), device_type] if t]
+            patterns.append((quantity, category, search_terms))
+            logger.info(f"🔍 Detected numbered pattern: {quantity} {category} (search terms: {search_terms})")
+        
+        # Pattern 2: Category without quantity (e.g., "ceiling lights", "wled sprit")
+        # Match common device categories
+        category_patterns = [
+            (r'wled\s+sprit', 'wled sprit', ['wled', 'sprit']),
+            (r'ceiling\s+lights?', 'ceiling light', ['ceiling', 'light']),
+            (r'wall\s+lights?', 'wall light', ['wall', 'light']),
+            (r'floor\s+lights?', 'floor light', ['floor', 'light']),
+            (r'all\s+lights?', 'light', ['light']),
+        ]
+        
+        for pattern, category, search_terms in category_patterns:
+            if re.search(pattern, query_lower):
+                # Check if this category was already captured by numbered pattern
+                if not any(p[1] == category for p in patterns):
+                    patterns.append((None, category, search_terms))
+                    logger.info(f"🔍 Detected category pattern: {category} (search terms: {search_terms})")
+        
+        return patterns
+    
+    async def _query_entities_by_category(
+        self,
+        category: str,
+        search_terms: List[str],
+        quantity: Optional[int],
+        query: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Query database for all entities matching a category.
+        
+        Uses regular logic (database queries) combined with AI understanding.
+        Searches by domain, name patterns, and friendly_name.
+        
+        Args:
+            category: Category name (e.g., "ceiling light")
+            search_terms: List of search terms to match
+            quantity: Optional quantity limit
+            query: Original query for context
+            
+        Returns:
+            List of matching entity dictionaries
+        """
+        if not self.data_api_client:
+            logger.warning("⚠️ Data API client not available - cannot query entities by category")
+            return []
+        
+        try:
+            # Extract domain from category (e.g., "ceiling light" → "light")
+            domain = None
+            for term in search_terms:
+                if term in ['light', 'sensor', 'switch', 'device', 'wled']:
+                    domain = term
+                    break
+            
+            # If no domain found, try to infer from category
+            if not domain:
+                if 'light' in category:
+                    domain = 'light'
+                elif 'sensor' in category:
+                    domain = 'sensor'
+                elif 'switch' in category:
+                    domain = 'switch'
+            
+            # Query all entities with matching domain
+            logger.info(f"🔍 Querying entities by domain={domain} for category '{category}'")
+            all_entities = await self._get_available_entities(domain=domain)
+            
+            if not all_entities:
+                logger.warning(f"⚠️ No entities found for domain '{domain}'")
+                return []
+            
+            logger.info(f"🔍 Found {len(all_entities)} entities with domain '{domain}', filtering by category...")
+            
+            # Filter entities by search terms
+            matching_entities = []
+            for entity in all_entities:
+                entity_id = entity.get('entity_id', '').lower()
+                friendly_name = entity.get('friendly_name', '').lower() if entity.get('friendly_name') else ''
+                entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+                
+                # Score entity based on how many search terms match
+                score = 0
+                for term in search_terms:
+                    term_lower = term.lower()
+                    # Check if term appears in entity_id or friendly_name
+                    if term_lower in entity_id or term_lower in friendly_name or term_lower in entity_name_part:
+                        score += 1
+                    # Also check for partial matches (e.g., "ceiling" matches "ceiling_light")
+                    if any(term_lower in word for word in entity_name_part.split('_') if word):
+                        score += 0.5
+                
+                # Entity matches if it has at least one search term match
+                if score > 0:
+                    matching_entities.append((entity, score))
+            
+            # Sort by score (best matches first)
+            matching_entities.sort(key=lambda x: x[1], reverse=True)
+            
+            # Extract just the entities (drop scores)
+            result_entities = [entity for entity, score in matching_entities]
+            
+            # Limit to quantity if specified
+            if quantity:
+                result_entities = result_entities[:quantity]
+                logger.info(f"✅ Limited to {quantity} entities as requested")
+            
+            logger.info(f"✅ Found {len(result_entities)} matching entities for category '{category}'")
+            for idx, entity in enumerate(result_entities[:5]):  # Log first 5
+                logger.info(f"  {idx + 1}. {entity.get('entity_id')} (score: {matching_entities[idx][1]:.1f})")
+            
+            return result_entities
+            
+        except Exception as e:
+            logger.error(f"❌ Error querying entities by category '{category}': {e}", exc_info=True)
+            return []
+    
     async def map_query_to_entities(self, query: str, entities: List[str]) -> Dict[str, str]:
         """
         Map query terms to actual entity IDs.
@@ -401,12 +546,16 @@ class EntityValidator:
         Enhanced to use area_id/location context for better matching.
         Only matches entities in the correct room/area when location is mentioned.
         
+        NEW: Detects quantities and categories (e.g., "4 ceiling lights") and queries
+        database for ALL matching entities, not just one.
+        
         Args:
             query: Original user query
             entities: List of entities mentioned in query
             
         Returns:
             Dictionary mapping query terms to actual entity IDs
+            For quantities, returns multiple mappings (e.g., "ceiling light 1", "ceiling light 2", ...)
         """
         import time
         blocking_start = time.time()
@@ -417,6 +566,51 @@ class EntityValidator:
         metrics = PerformanceMetrics()
         metrics.entity_count = len(entities)
         metrics.total_resolution_ms = 0  # Will be set at end
+        
+        # STEP 0: Detect quantities and categories in query (NEW LOGIC)
+        # Examples: "4 ceiling lights", "all lights", "ceiling lights", "wled sprit"
+        quantity_matches = self._extract_quantity_and_category(query)
+        if quantity_matches:
+            logger.info(f"🔍 QUANTITY DETECTION: Found {len(quantity_matches)} quantity/category patterns in query")
+            for quantity_info in quantity_matches:
+                quantity, category, search_terms = quantity_info
+                logger.info(f"  → Quantity: {quantity}, Category: {category}, Search terms: {search_terms}")
+                
+                # Query database for ALL matching entities
+                matching_entities = await self._query_entities_by_category(
+                    category=category,
+                    search_terms=search_terms,
+                    quantity=quantity,
+                    query=query
+                )
+                
+                if matching_entities:
+                    logger.info(f"✅ Found {len(matching_entities)} matching entities for '{category}'")
+                    # Map each entity to a unique key
+                    for idx, entity in enumerate(matching_entities[:quantity] if quantity else matching_entities):
+                        entity_id = entity.get('entity_id')
+                        if entity_id:
+                            # Create unique mapping key (e.g., "ceiling light 1", "ceiling light 2")
+                            if quantity and quantity > 1:
+                                mapping_key = f"{category} {idx + 1}" if idx < quantity else f"{category} {idx + 1}"
+                            else:
+                                mapping_key = f"{category} {idx + 1}" if len(matching_entities) > 1 else category
+                            mapping[mapping_key] = entity_id
+                            logger.info(f"  → Mapped '{mapping_key}' → {entity_id}")
+                    
+                    # Also add the category itself mapping to all entities as a list (for backward compatibility)
+                    # This allows the system to use all matching entities when the category is referenced
+                    if category not in mapping and matching_entities:
+                        # For quantities > 1, store all entity IDs as a comma-separated list
+                        # The YAML generator can split this to create multiple actions
+                        if quantity and quantity > 1:
+                            all_entity_ids = ','.join([e.get('entity_id') for e in matching_entities[:quantity] if e.get('entity_id')])
+                            mapping[category] = all_entity_ids
+                            logger.info(f"  → Mapped category '{category}' to all {quantity} entities: {all_entity_ids}")
+                        else:
+                            mapping[category] = matching_entities[0].get('entity_id')
+                else:
+                    logger.warning(f"⚠️ No entities found for category '{category}' with search terms: {search_terms}")
         
         # STEP 1: Extract blocking filters from query
         # 1.1: Extract domain (e.g., "light", "switch")

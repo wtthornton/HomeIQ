@@ -71,14 +71,26 @@ class InfluxDBEventClient:
                 end_time = datetime.now(timezone.utc)
             
             # Build Flux query
-            # Query the home_assistant_events measurement, filter for state field only
+            # Query the home_assistant_events measurement
+            # Use context_id field (like data-api) to get one record per event
+            # Tags (entity_id, event_type, domain) are automatically included
             flux_query = f'''
                 from(bucket: "{self.bucket}")
                   |> range(start: {start_time.isoformat()}, stop: {end_time.isoformat()})
                   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-                  |> filter(fn: (r) => r["_field"] == "state")
-                  |> filter(fn: (r) => r["event_type"] == "state_changed")
+                  |> filter(fn: (r) => r["_field"] == "context_id")
             '''
+            
+            # Add event_type filter if needed (it's a tag)
+            if not event_type:
+                # Default to state_changed for pattern detection
+                flux_query += f'''
+                  |> filter(fn: (r) => r["event_type"] == "state_changed")
+                '''
+            else:
+                flux_query += f'''
+                  |> filter(fn: (r) => r["event_type"] == "{event_type}")
+                '''
             
             # Add entity_id filter
             if entity_id:
@@ -104,6 +116,9 @@ class InfluxDBEventClient:
             tables = self.query_api.query(flux_query, org=self.org)
             
             # Convert to list of dicts
+            # Note: When querying context_id field, _value contains context_id, not state
+            # We need to query state_value field to get the actual state
+            # For now, use entity_id and timestamp for pattern detection
             events = []
             for table in tables:
                 for record in table.records:
@@ -111,14 +126,17 @@ class InfluxDBEventClient:
                     entity_id = record.values.get('entity_id', '')
                     domain = entity_id.split('.')[0] if '.' in entity_id else ''
                     
+                    # When querying context_id, state is not available
+                    # Pattern detectors will need entity_id and timestamp
                     event = {
                         '_time': record.get_time(),
                         'entity_id': entity_id,
-                        'state': record.get_value(),
+                        'state': '',  # Not available when querying context_id - would need separate query for state_value
                         'domain': domain,
                         'friendly_name': record.values.get('attr_friendly_name', entity_id),
-                        'device_id': record.values.get('device_id', ''),
-                        'event_type': record.values.get('event_type', 'state_changed')
+                        'device_id': record.values.get('device_id', entity_id),
+                        'event_type': record.values.get('event_type', 'state_changed'),
+                        'context_id': record.get_value()  # This is the context_id from _value
                     }
                     events.append(event)
             

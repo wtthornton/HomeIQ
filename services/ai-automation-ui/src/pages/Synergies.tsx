@@ -28,8 +28,19 @@ export const Synergies: React.FC = () => {
         ]);
         setSynergies(synergiesRes.data.synergies || []);
         setStats(statsRes.data || statsRes);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load synergies:', err);
+        // Log detailed error information
+        if (err.status) {
+          console.error(`API Error ${err.status}: ${err.message}`);
+        }
+        // Set empty stats on error so UI doesn't show undefined
+        setStats({
+          total_synergies: 0,
+          by_type: {},
+          by_complexity: {},
+          avg_impact_score: 0
+        });
       } finally {
         setLoading(false);
       }

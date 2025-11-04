@@ -180,17 +180,19 @@ class EnsembleEntityValidator:
             state = await self.ha_client.get_entity_state(entity_id)
             exists = state is not None
             
+            # ✅ FIX: state is a dict, not an object - access via dict keys
             return EntityValidationResult(
                 entity_id=entity_id,
                 method=ValidationMethod.HA_API,
                 exists=exists,
                 confidence=1.0 if exists else 0.0,  # Ground truth is 100% confident
                 details={
-                    "state": state.state if state else None,
-                    "attributes": state.attributes if state else None
+                    "state": state.get('state') if state else None,
+                    "attributes": state.get('attributes') if state else None
                 }
             )
         except Exception as e:
+            logger.error(f"❌ HA API validation failed for {entity_id}: {e}", exc_info=True)
             return EntityValidationResult(
                 entity_id=entity_id,
                 method=ValidationMethod.HA_API,

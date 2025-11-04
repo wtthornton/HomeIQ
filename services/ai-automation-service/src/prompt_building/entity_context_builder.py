@@ -178,6 +178,17 @@ class EntityContextBuilder:
             if 'humidity' in attributes:
                 entity_entry['humidity'] = attributes['humidity']
             
+            # ✅ ADD EFFECT SUPPORT: Extract effect and effect_list for lights with effects (WLED, Hue, etc.)
+            if 'effect' in attributes:
+                entity_entry['current_effect'] = attributes['effect']
+            if 'effect_list' in attributes:
+                entity_entry['available_effects'] = attributes['effect_list']
+                logger.debug(f"📋 Entity {entity_id} has {len(attributes['effect_list'])} available effects")
+            
+            # Add supported_color_modes for better color control understanding
+            if 'supported_color_modes' in attributes:
+                entity_entry['supported_color_modes'] = attributes['supported_color_modes']
+            
             enriched_entities.append(entity_entry)
         
         # Build final context JSON

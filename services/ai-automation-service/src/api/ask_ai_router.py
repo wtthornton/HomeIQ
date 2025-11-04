@@ -45,7 +45,17 @@ from ..services.yaml_self_correction import YAMLSelfCorrectionService
 from sqlalchemy import select, update
 import asyncio
 
-logger = logging.getLogger(__name__)
+# Use service logger instead of module logger for proper JSON logging
+logger = logging.getLogger("ai-automation-service")
+# Also log to stderr to ensure we see output
+import sys
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+console_handler.setFormatter(console_formatter)
+if console_handler not in logger.handlers:
+    logger.addHandler(console_handler)
+logger.info("🔧 Ask AI Router logger initialized")
 
 # Global device intelligence client and extractors
 
@@ -642,6 +652,21 @@ async def map_devices_to_entities(
     Returns:
         Dictionary mapping device_name → entity_id (only verified entities, deduplicated)
     """
+    # 🔍 DETAILED DEBUGGING for approval flow
+    logger.info(f"🔍 [MAP_DEVICES] Called with {len(devices_involved)} devices and {len(enriched_data) if enriched_data else 0} enriched entities")
+    logger.info(f"🔍 [MAP_DEVICES] Devices to map: {devices_involved}")
+    if enriched_data:
+        logger.info(f"🔍 [MAP_DEVICES] Enriched entity IDs: {list(enriched_data.keys())[:10]}")
+        # Log structure of first enriched entity
+        first_entity_id = list(enriched_data.keys())[0] if enriched_data else None
+        if first_entity_id:
+            first_entity = enriched_data[first_entity_id]
+            logger.info(f"🔍 [MAP_DEVICES] First enriched entity structure - ID: {first_entity_id}")
+            logger.info(f"               Keys: {list(first_entity.keys())}")
+            logger.info(f"               friendly_name: {first_entity.get('friendly_name')}")
+            logger.info(f"               entity_id: {first_entity.get('entity_id')}")
+            logger.info(f"               name: {first_entity.get('name')}")
+    
     # Handle None or empty enriched_data gracefully
     if not enriched_data:
         logger.warning(f"⚠️ map_devices_to_entities called with empty/None enriched_data for {len(devices_involved)} devices")
@@ -772,6 +797,64 @@ async def map_devices_to_entities(
         logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to verified entities")
     
     return validated_entities
+
+
+def _pre_consolidate_device_names(
+    devices_involved: List[str],
+    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
+) -> List[str]:
+    """
+    Pre-consolidate device names by removing generic/redundant terms BEFORE entity mapping.
+    
+    This handles cases where OpenAI includes:
+    - Generic domain names ("light", "switch")
+    - Device type names ("wled", "hue")  
+    - Area-only references that don't map to actual entities
+    - Very short/generic terms (< 3 chars)
+    
+    Args:
+        devices_involved: Original list of device names from OpenAI
+        enriched_data: Optional enriched entity data for better filtering
+        
+    Returns:
+        Filtered list with generic/redundant terms removed
+    """
+    if not devices_involved:
+        return devices_involved
+    
+    # Generic terms to remove (domain names, device types, very short terms)
+    generic_terms = {'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover', 
+                     'fan', 'lock', 'wled', 'hue', 'mqtt', 'zigbee', 'zwave'}
+    
+    filtered = []
+    removed_terms = []
+    
+    for device_name in devices_involved:
+        device_lower = device_name.lower().strip()
+        
+        # Skip empty or very short terms
+        if len(device_lower) < 3:
+            removed_terms.append(device_name)
+            continue
+        
+        # Skip generic domain/integration terms
+        if device_lower in generic_terms:
+            removed_terms.append(device_name)
+            continue
+        
+        # Skip terms that are just numbers or single words without spaces (likely incomplete)
+        # BUT keep proper entity names like "Office" or "Living Room"
+        if device_lower.isdigit():
+            removed_terms.append(device_name)
+            continue
+        
+        # Keep all other terms (they're likely actual device names)
+        filtered.append(device_name)
+    
+    if removed_terms:
+        logger.debug(f"📋 Pre-consolidation removed generic terms: {removed_terms}")
+    
+    return filtered if filtered else devices_involved  # Return original if we filtered everything
 
 
 def consolidate_devices_involved(
@@ -1219,26 +1302,56 @@ async def generate_automation_yaml(
         validated_mapping = {}
         if entity_mapping:
             for term, entity_id in entity_mapping.items():
-                # Ensure entity_id is in proper format (domain.entity)
-                if isinstance(entity_id, str) and '.' in entity_id and not entity_id.startswith('.'):
-                    validated_mapping[term] = entity_id
-                else:
-                    logger.warning(f"⚠️ Skipping invalid entity_id format: {term} -> {entity_id}")
+                    # Handle comma-separated entity IDs (for quantities/categories)
+                    if isinstance(entity_id, str) and ',' in entity_id:
+                        # Split comma-separated entity IDs
+                        entity_ids = [eid.strip() for eid in entity_id.split(',')]
+                        # Validate each entity ID
+                        valid_entity_ids = []
+                        for eid in entity_ids:
+                            if '.' in eid and not eid.startswith('.'):
+                                valid_entity_ids.append(eid)
+                            else:
+                                logger.warning(f"⚠️ Skipping invalid entity_id format in list: {term} -> {eid}")
+                        if valid_entity_ids:
+                            # Store as comma-separated string for backward compatibility
+                            validated_mapping[term] = ','.join(valid_entity_ids)
+                    elif isinstance(entity_id, str) and '.' in entity_id and not entity_id.startswith('.'):
+                        validated_mapping[term] = entity_id
+                    else:
+                        logger.warning(f"⚠️ Skipping invalid entity_id format: {term} -> {entity_id}")
             
             # CRITICAL: Verify all entities exist in Home Assistant before using them
             if validated_mapping and ha_client:
                 logger.info(f"🔍 Verifying {len(validated_mapping)} mapped entities exist in Home Assistant...")
-                entity_ids_to_verify = list(validated_mapping.values())
+                # Extract all entity IDs (including comma-separated ones)
+                entity_ids_to_verify = []
+                for entity_id in validated_mapping.values():
+                    if ',' in entity_id:
+                        entity_ids_to_verify.extend([eid.strip() for eid in entity_id.split(',')])
+                    else:
+                        entity_ids_to_verify.append(entity_id)
+                
                 verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
                 
                 # Filter to only validated entities that actually exist in HA
                 verified_validated_mapping = {}
                 for term, entity_id in validated_mapping.items():
-                    if verification_results.get(entity_id, False):
-                        verified_validated_mapping[term] = entity_id
-                        logger.debug(f"✅ Verified entity: '{term}' → {entity_id}")
+                    if ',' in entity_id:
+                        # Handle comma-separated entity IDs
+                        entity_ids = [eid.strip() for eid in entity_id.split(',')]
+                        verified_entity_ids = [eid for eid in entity_ids if verification_results.get(eid, False)]
+                        if verified_entity_ids:
+                            verified_validated_mapping[term] = ','.join(verified_entity_ids)
+                            logger.debug(f"✅ Verified {len(verified_entity_ids)} entities for '{term}': {verified_entity_ids}")
+                        else:
+                            logger.warning(f"❌ No valid entities for '{term}' (all {len(entity_ids)} entities were invalid)")
                     else:
-                        logger.warning(f"❌ Entity '{term}' → {entity_id} does NOT exist in HA - removed")
+                        if verification_results.get(entity_id, False):
+                            verified_validated_mapping[term] = entity_id
+                            logger.debug(f"✅ Verified entity: '{term}' → {entity_id}")
+                        else:
+                            logger.warning(f"❌ Entity '{term}' → {entity_id} does NOT exist in HA - removed")
                 
                 if verified_validated_mapping:
                     suggestion['validated_entities'] = verified_validated_mapping
@@ -2428,11 +2541,52 @@ async def generate_suggestions_from_query(
             
             # suggestions_data is already parsed JSON from unified prompt method
             parsed = suggestions_data
+            logger.info(f"🔍 [CONSOLIDATION DEBUG] Processing {len(parsed)} suggestions from OpenAI")
             for i, suggestion in enumerate(parsed):
                 # Map devices_involved to entity IDs using enriched_data (if available)
                 validated_entities = {}
                 devices_involved = suggestion.get('devices_involved', [])
                 original_devices_count = len(devices_involved)
+                logger.info(f"🔍 [CONSOLIDATION DEBUG] Suggestion {i+1}: devices_involved BEFORE processing = {devices_involved}")
+                
+                # PRE-CONSOLIDATION: Remove generic/redundant terms before entity mapping
+                # This handles cases where OpenAI includes generic terms like "light", "wled", domain names, etc.
+                if devices_involved:
+                    devices_involved = _pre_consolidate_device_names(devices_involved, enriched_data)
+                    if len(devices_involved) < original_devices_count:
+                        logger.info(
+                            f"🔄 Pre-consolidated devices for suggestion {i+1}: "
+                            f"{original_devices_count} → {len(devices_involved)} "
+                            f"(removed {original_devices_count - len(devices_involved)} generic/redundant terms)"
+                        )
+                        original_devices_count = len(devices_involved)  # Update for next consolidation
+                    
+                    # DEDUPLICATION: Remove exact duplicate device names (case-insensitive) while preserving order
+                    seen = set()
+                    seen_lower = set()  # Track lowercase versions for case-insensitive dedup
+                    deduplicated = []
+                    duplicates_removed = []
+                    for device in devices_involved:
+                        device_lower = device.lower().strip()
+                        if device_lower not in seen_lower:
+                            seen.add(device)
+                            seen_lower.add(device_lower)
+                            deduplicated.append(device)
+                        else:
+                            duplicates_removed.append(device)
+                    
+                    if len(deduplicated) < len(devices_involved):
+                        logger.info(
+                            f"🔄 Deduplicated devices for suggestion {i+1}: "
+                            f"{len(devices_involved)} → {len(deduplicated)} "
+                            f"(removed {len(duplicates_removed)} duplicates: {duplicates_removed})"
+                        )
+                    else:
+                        logger.info(
+                            f"✅ No duplicates found in suggestion {i+1} devices_involved: {devices_involved}"
+                        )
+                    devices_involved = deduplicated
+                    original_devices_count = len(devices_involved)  # Update for next consolidation
                 
                 if enriched_data and devices_involved:
                     # Initialize HA client for verification if needed
@@ -2463,12 +2617,36 @@ async def generate_suggestions_from_query(
                         logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
                 
                 # Create base suggestion
+                # FINAL CHECK: Ensure no duplicates in devices_involved before storing
+                devices_set = set()
+                devices_lower_set = set()
+                final_devices = []
+                for device in devices_involved:
+                    device_lower = device.lower().strip()
+                    if device_lower not in devices_lower_set:
+                        devices_set.add(device)
+                        devices_lower_set.add(device_lower)
+                        final_devices.append(device)
+                
+                if len(final_devices) < len(devices_involved):
+                    removed = [d for d in devices_involved if d.lower().strip() not in devices_lower_set]
+                    logger.warning(
+                        f"⚠️ FINAL DEDUP: Removed {len(devices_involved) - len(final_devices)} duplicates "
+                        f"from suggestion {i+1} before storing: {removed}"
+                    )
+                    devices_involved = final_devices
+                
+                logger.info(
+                    f"📦 Suggestion {i+1} FINAL devices_involved to be stored: {devices_involved} "
+                    f"(count: {len(devices_involved)}, unique: {len(set(d.lower() for d in devices_involved))})"
+                )
+                
                 base_suggestion = {
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
-                    'devices_involved': devices_involved,  # Consolidated (deduplicated)
+                    'devices_involved': devices_involved,  # Consolidated (deduplicated) - FINAL
                     'validated_entities': validated_entities,  # Save mapping for fast test execution
                     'enriched_entity_context': entity_context_json,  # Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
@@ -3820,31 +3998,54 @@ async def approve_suggestion_from_query(
                         # Validate entity format (must be dict, not string)
                         enriched_data = {}
                         invalid_entities = 0
-                        for entity in entities:
+                        logger.info(f"🔍 [DEBUG] Building enriched_data from {len(entities)} entities")
+                        
+                        for idx, entity in enumerate(entities):
                             # Skip if entity is not a dict (may be string or other type)
                             if not isinstance(entity, dict):
                                 invalid_entities += 1
-                                logger.warning(f"⚠️ Skipping malformed entity (not a dict): {type(entity).__name__}: {entity}")
+                                logger.warning(f"⚠️ [ENTITY #{idx}] Skipping malformed entity (not a dict): {type(entity).__name__}: {str(entity)[:100]}")
                                 continue
                             
                             entity_id = entity.get('entity_id') or entity.get('id')
+                            entity_name = entity.get('friendly_name') or entity.get('name', 'unknown')
+                            
+                            logger.debug(f"🔍 [ENTITY #{idx}] entity_id={entity_id}, name={entity_name}, type={entity.get('type')}, keys={list(entity.keys())[:10]}")
+                            
                             if entity_id:
+                                # CRITICAL CHECK: Verify entity_id has proper domain.entity format
+                                if '.' not in entity_id:
+                                    logger.error(f"❌ [ENTITY #{idx}] INVALID entity_id format (missing domain): '{entity_id}' for '{entity_name}'")
+                                    logger.error(f"    This will cause 'Entity not found' errors! Full entity: {entity}")
+                                    continue
+                                
                                 enriched_data[entity_id] = entity
                             else:
-                                logger.debug(f"⚠️ Entity missing entity_id/id: {entity.get('name', 'unknown')}")
+                                logger.warning(f"⚠️ [ENTITY #{idx}] Entity missing entity_id/id: {entity_name}, keys={list(entity.keys())}")
                         
                         if invalid_entities > 0:
                             logger.warning(f"⚠️ Skipped {invalid_entities} malformed entities during enriched_data building")
                         
+                        logger.info(f"✅ [DEBUG] Built enriched_data with {len(enriched_data)} valid entity IDs")
+                        if enriched_data:
+                            logger.info(f"    First 5 entity IDs: {list(enriched_data.keys())[:5]}")
+                        
                         # Only proceed if we have valid enriched_data
                         if enriched_data:
                             # Map devices to entities (optimized for single-home with deduplication)
+                            logger.info(f"🔍 [DEBUG] Mapping {len(devices_involved)} devices to {len(enriched_data)} enriched entities")
+                            logger.info(f"    Devices to map: {devices_involved}")
+                            
                             validated_entities = await map_devices_to_entities(
                                 devices_involved,
                                 enriched_data,
                                 ha_client=ha_client,
                                 fuzzy_match=True
                             )
+                            
+                            logger.info(f"✅ [DEBUG] Mapping complete: {len(validated_entities)} validated entities")
+                            for dev, eid in list(validated_entities.items())[:5]:
+                                logger.info(f"    '{dev}' → '{eid}'")
                         else:
                             logger.warning(f"⚠️ No valid enriched_data built from {len(entities)} entities - cannot map devices")
                             validated_entities = {}
