@@ -168,45 +168,68 @@ pytest test_[module_name].py
 
 ## 🏗️ Architecture
 
-### System Overview (Epic 31 Architecture)
+### System Overview (Epic 31 Architecture - 26 Microservices)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
+│                     26 Microservices                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Web Layer                                                   │
-│  ├─ Health Dashboard (React)            :3000               │
-│  └─ AI Automation UI (React)            :3001               │
+│  Web Layer (2 services)                                      │
+│  ├─ Health Dashboard (React)            :3000 → nginx       │
+│  └─ AI Automation UI (React)            :3001 → nginx       │
 ├─────────────────────────────────────────────────────────────┤
-│  API Layer                                                   │
+│  Core API Layer (3 services)                                │
 │  ├─ WebSocket Ingestion                 :8001               │
-│  ├─ Admin API                           :8003               │
-│  ├─ Data API                            :8006               │
-│  ├─ AI Automation Service               :8024               │
-│  ├─ Device Intelligence Service         :8028               │
-│  └─ HA Setup Service                    :8027               │
+│  │   └─ Infinite retry + circuit breaker                    │
+│  ├─ Admin API                           :8003→8004          │
+│  └─ Data API (SQLite + InfluxDB)        :8006               │
 ├─────────────────────────────────────────────────────────────┤
-│  Data Layer                                                  │
+│  AI Services Layer (8 services)                             │
+│  ├─ AI Automation Service               :8024→8018          │
+│  │   └─ Pattern detection + conversational flow             │
+│  ├─ AI Core Service                     :8018               │
+│  ├─ OpenVINO Service                    :8026→8019          │
+│  ├─ ML Service                          :8025→8020          │
+│  ├─ NER Service                         :8019               │
+│  ├─ OpenAI Service                      :8020               │
+│  ├─ Device Intelligence Service         :8028→8019          │
+│  └─ Automation Miner                    :8029→8019          │
+├─────────────────────────────────────────────────────────────┤
+│  Data Layer (Hybrid Architecture)                           │
 │  ├─ InfluxDB (Time-series)              :8086               │
-│  └─ SQLite (Metadata)                    Files              │
+│  │   └─ 365-day retention, ~150 flattened fields            │
+│  └─ SQLite (5 Databases)                Files               │
+│      ├─ metadata.db (devices, entities)                     │
+│      ├─ ai_automation.db (11 tables)                        │
+│      ├─ automation_miner.db (community corpus)              │
+│      ├─ device_intelligence.db (7 tables)                   │
+│      └─ webhooks.db                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Integration Layer (Epic 31 - Direct Writes)                │
+│  Data Enrichment Layer (6 services - Epic 31 Direct Writes) │
 │  ├─ Weather API              :8009 → InfluxDB               │
 │  ├─ Carbon Intensity         :8010 → InfluxDB               │
 │  ├─ Electricity Pricing      :8011 → InfluxDB               │
 │  ├─ Air Quality              :8012 → InfluxDB               │
 │  ├─ Calendar Service         :8013 → InfluxDB               │
-│  ├─ Smart Meter              :8014 → InfluxDB               │
-│  └─ Sports Data              :8005 → InfluxDB               │
+│  └─ Smart Meter              :8014 → InfluxDB               │
+├─────────────────────────────────────────────────────────────┤
+│  Processing & Infrastructure (7 services)                   │
+│  ├─ Data Retention                      :8080               │
+│  ├─ Energy Correlator                   :8017               │
+│  ├─ Log Aggregator                      :8015               │
+│  ├─ HA Setup Service                    :8027→8020          │
+│  ├─ HA Simulator (dev only)             :8123               │
+│  ├─ Mosquitto (MQTT broker)             :1883, :9001        │
+│  └─ ❌ Enrichment Pipeline (DEPRECATED)  :8002 (Epic 31)     │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
                    ┌────────┴────────┐
                    │ Home Assistant  │
                    │  :8123 / :1883  │
+                   │  WebSocket API  │
                    └─────────────────┘
-
-❌ DEPRECATED: Enrichment Pipeline (port 8002) - Epic 31
 ```
 
 ### 🤖 Phase 1 AI Services (Containerized)
@@ -423,14 +446,15 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📊 Project Stats
 
-- **Services**: 20 microservices
+- **Services**: 26 microservices (24 active + 2 infrastructure)
 - **Languages**: Python, TypeScript, JavaScript
-- **Databases**: InfluxDB, SQLite
+- **Databases**: InfluxDB (time-series) + 5 SQLite databases (metadata)
 - **APIs**: RESTful, WebSocket, MQTT
-- **UI Frameworks**: React, Vite
-- **AI/ML**: OpenVINO, Transformers, Sentence-BERT
-- **Testing**: 272+ unit tests with comprehensive coverage
-- **Lines of Code**: 50,000+
+- **UI Frameworks**: React 18, Vite, Tailwind CSS
+- **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, Sentence-BERT, scikit-learn
+- **Testing**: 272+ unit tests + 18 E2E tests with comprehensive coverage
+- **Lines of Code**: 50,000+ (reviewed November 2025)
+- **Shared Libraries**: 3,947 lines across 11 core modules
 
 ---
 
@@ -476,6 +500,20 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 - 🐛 Issues: [GitHub Issues](https://github.com/wtthornton/HomeIQ/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/wtthornton/HomeIQ/discussions)
 - 📚 Wiki: [Project Wiki](https://github.com/wtthornton/HomeIQ/wiki)
+
+---
+
+## 📝 Documentation Updates
+
+**Latest Code Review:** November 4, 2025 - Comprehensive review of 50,000+ lines across 560+ files
+
+See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
+- Complete service inventory (26 microservices)
+- Database architecture analysis (5 SQLite + InfluxDB)
+- Shared libraries documentation (3,947 lines, 11 modules)
+- Infrastructure and deployment patterns
+- Performance characteristics and optimizations
+- Security measures and best practices
 
 ---
 
