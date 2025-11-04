@@ -435,16 +435,6 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions`);
   },
 
-  /**
-   * @deprecated The Test button now uses approveAskAISuggestion() + disableAutomation() instead.
-   * This method is kept for backward compatibility and may be used by tests.
-   */
-  async testAskAISuggestion(queryId: string, suggestionId: string): Promise<any> {
-    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions/${suggestionId}/test`, {
-      method: 'POST',
-    });
-  },
-
   async approveAskAISuggestion(
     queryId: string, 
     suggestionId: string, 

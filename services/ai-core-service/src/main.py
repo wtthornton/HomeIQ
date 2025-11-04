@@ -12,6 +12,7 @@ Responsibilities:
 
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -27,11 +28,44 @@ logger = logging.getLogger(__name__)
 # Global service manager
 service_manager: ServiceManager = None
 
+# Lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize service manager on startup"""
+    global service_manager
+
+    logger.info("🚀 Starting AI Core Service...")
+    try:
+        # Get service URLs from environment
+        openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
+        ml_url = os.getenv("ML_SERVICE_URL", "http://ml-service:8020")
+        ner_url = os.getenv("NER_SERVICE_URL", "http://ner-service:8019")
+        openai_url = os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
+
+        service_manager = ServiceManager(
+            openvino_url=openvino_url,
+            ml_url=ml_url,
+            ner_url=ner_url,
+            openai_url=openai_url
+        )
+
+        await service_manager.initialize()
+        logger.info("✅ AI Core Service started successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to start AI Core Service: {e}")
+        raise
+
+    yield
+
+    # Cleanup on shutdown (if needed)
+    logger.info("🛑 AI Core Service shutting down")
+
 # Create FastAPI app
 app = FastAPI(
     title="AI Core Service",
     description="Orchestrator for containerized AI models",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -71,33 +105,6 @@ class SuggestionResponse(BaseModel):
     suggestions: List[Dict[str, Any]] = Field(..., description="Generated suggestions")
     services_used: List[str] = Field(..., description="Services used")
     processing_time: float = Field(..., description="Processing time in seconds")
-
-# Initialize service manager
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service manager on startup"""
-    global service_manager
-    
-    logger.info("🚀 Starting AI Core Service...")
-    try:
-        # Get service URLs from environment
-        openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
-        ml_url = os.getenv("ML_SERVICE_URL", "http://ml-service:8020")
-        ner_url = os.getenv("NER_SERVICE_URL", "http://ner-service:8019")
-        openai_url = os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
-        
-        service_manager = ServiceManager(
-            openvino_url=openvino_url,
-            ml_url=ml_url,
-            ner_url=ner_url,
-            openai_url=openai_url
-        )
-        
-        await service_manager.initialize()
-        logger.info("✅ AI Core Service started successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to start AI Core Service: {e}")
-        raise
 
 # API Endpoints
 @app.get("/health")

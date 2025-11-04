@@ -30,9 +30,6 @@ from async_event_processor import AsyncEventProcessor
 from event_queue import EventQueue
 from batch_processor import BatchProcessor
 from memory_manager import MemoryManager
-# DEPRECATED (Epic 31, Story 31.4): Weather enrichment removed
-# Weather data now available via weather-api service (Port 8009)
-# from weather_enrichment import WeatherEnrichmentService
 from http_client import SimpleHTTPClient
 from influxdb_wrapper import InfluxDBConnectionManager
 from historical_event_counter import HistoricalEventCounter
@@ -59,11 +56,7 @@ class WebSocketIngestionService:
         self.event_queue: Optional[EventQueue] = None
         self.batch_processor: Optional[BatchProcessor] = None
         self.memory_manager: Optional[MemoryManager] = None
-        
-        # DEPRECATED (Epic 31, Story 31.4): Weather enrichment removed
-        # Use weather-api service on Port 8009 for weather data
-        self.weather_enrichment: Optional = None  # Set to None to prevent AttributeError
-        
+
         # HTTP client for enrichment service
         self.http_client: Optional[SimpleHTTPClient] = None
         
@@ -89,16 +82,6 @@ class WebSocketIngestionService:
         self.batch_size = int(os.getenv('BATCH_SIZE', '100'))
         self.batch_timeout = float(os.getenv('BATCH_TIMEOUT', '5.0'))
         self.max_memory_mb = int(os.getenv('MAX_MEMORY_MB', '1024'))
-        
-        # Weather enrichment configuration
-        self.weather_api_key = os.getenv('WEATHER_API_KEY')
-        self.weather_default_location = os.getenv('WEATHER_DEFAULT_LOCATION', 'London,UK')
-        # DEPRECATED (Epic 31): Weather enrichment disabled
-        self.weather_enrichment_enabled = False  # Force disabled - use weather-api service
-        
-        # DEPRECATED (Epic 31): Enrichment service removed
-        # Events now go directly to InfluxDB, external services consume from there
-        self.enrichment_service_url = None
         
         # InfluxDB configuration for device/entity registry storage
         self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
@@ -317,12 +300,6 @@ class WebSocketIngestionService:
         # Stop InfluxDB batch writer
         if hasattr(self, 'influxdb_batch_writer') and self.influxdb_batch_writer:
             await self.influxdb_batch_writer.stop()
-        
-        # Stop weather enrichment service
-        # DEPRECATED (Epic 31, Story 31.4): Weather enrichment removed
-        # if self.weather_enrichment:
-        #     await self.weather_enrichment.stop()
-        
         # Stop InfluxDB manager
         if self.influxdb_manager:
             await self.influxdb_manager.stop()
@@ -436,11 +413,6 @@ class WebSocketIngestionService:
         )
         
         try:
-            # DEPRECATED (Epic 31): Weather enrichment removed
-            # Weather data now available via weather-api service (Port 8009)
-            # Enrichment happens downstream if needed
-            # Original code removed to prevent AttributeError
-            
             # Add to batch processor for high-volume processing
             if self.batch_processor:
                 await self.batch_processor.add_event(processed_event)
@@ -497,10 +469,7 @@ class WebSocketIngestionService:
                     correlation_id=corr_id,
                     batch_size=batch_size
                 )
-            
-            # DEPRECATED (Epic 31): Enrichment service removed
-            # Events are now stored directly in InfluxDB
-            # External services (weather-api, etc.) consume from InfluxDB
+
             log_with_context(
                 logger, "DEBUG", "Batch processed - events stored in InfluxDB",
                 operation="influxdb_storage",
@@ -755,18 +724,11 @@ async def create_app():
 async def main():
     """Main entry point"""
     logger.info("Starting WebSocket Ingestion Service...")
-    
-    # DEPRECATED (Epic 31): Enrichment service removed
-    # Events go directly to InfluxDB, no HTTP client needed
-    http_client = None
-    
+
     # Create web application
     app = await create_app()
     service = app['service']
-    
-    # DEPRECATED (Epic 31): No HTTP client needed
-    service.http_client = None
-    
+
     # Start web server
     runner = web.AppRunner(app)
     await runner.setup()

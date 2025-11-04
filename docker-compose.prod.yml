@@ -105,58 +105,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  enrichment-pipeline:
-    build:
-      context: .
-      dockerfile: services/enrichment-pipeline/Dockerfile
-    container_name: homeiq-enrichment
-    restart: unless-stopped
-    ports:
-      - "8002:8002"
-    environment:
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_ORG=${INFLUXDB_ORG}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - WEATHER_API_KEY=${WEATHER_API_KEY}
-      - WEATHER_API_URL=${WEATHER_API_URL:-https://api.openweathermap.org/data/2.5}
-      - WEATHER_ENRICHMENT_ENABLED=${WEATHER_ENRICHMENT_ENABLED:-true}
-      - WEATHER_DEFAULT_LOCATION=${WEATHER_DEFAULT_LOCATION:-London,UK}
-      - PROCESSING_BATCH_SIZE=${PROCESSING_BATCH_SIZE:-50}
-      - PROCESSING_INTERVAL_SECONDS=${PROCESSING_INTERVAL_SECONDS:-30}
-    depends_on:
-      influxdb:
-        condition: service_healthy
-    networks:
-      - homeiq-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
-    security_opt:
-      - no-new-privileges:true
-    read_only: false
-    tmpfs:
-      - /tmp
-    volumes:
-      - enrichment_logs:/app/logs
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   weather-api:
     build:
       context: ./services/weather-api
@@ -230,14 +178,11 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
-      - ENRICHMENT_PIPELINE_URL=http://enrichment-pipeline:8002
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - CORS_METHODS=${CORS_METHODS:-GET,POST,PUT,DELETE}
       - CORS_HEADERS=${CORS_HEADERS:-*}
     depends_on:
       influxdb:
-        condition: service_healthy
-      enrichment-pipeline:
         condition: service_healthy
     networks:
       - homeiq-network
@@ -372,8 +317,6 @@ volumes:
   influxdb_logs:
     driver: local
   websocket_logs:
-    driver: local
-  enrichment_logs:
     driver: local
   weather_logs:
     driver: local
