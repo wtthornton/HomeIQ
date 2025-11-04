@@ -1,18 +1,33 @@
 /**
- * Reverse Engineering Loader - Modern & Bold Loading Component
+ * ProcessLoader - Modern & Bold Loading Component
  * 
- * Displays a sleek, tech-focused loading experience while reverse engineering
- * validates and improves the automation YAML.
+ * Displays a sleek, tech-focused loading experience for long-running processes.
+ * Supports different process types: reverse engineering, query processing, analysis, etc.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
-interface ReverseEngineeringLoaderProps {
+export type ProcessType = 
+  | 'reverse-engineering' 
+  | 'query-processing' 
+  | 'analysis' 
+  | 'batch-action'
+  | 'automation-creation'
+  | 'setup-wizard'
+  | 'generic';
+
+interface ProcessLoaderProps {
   isVisible: boolean;
+  processType?: ProcessType;
   iteration?: number;
   similarity?: number;
+  progress?: number;
+  customTitle?: string;
+  customSubtitle?: string;
+  customMessages?: Array<{ text: string; icon: string; color: string }>;
+  customTips?: string[];
 }
 
 const TECH_MESSAGES = [
@@ -255,34 +270,182 @@ const PROGRESS_STAGES = [
   { step: 5, text: "Finalizing", icon: "🚀" }
 ];
 
-const TITLE_VARIATIONS = [
-  "OPTIMIZING AUTOMATION",
-  "ENGINEERING EXCELLENCE",
-  "PERFECTING YOUR SETUP",
-  "REFINING INTELLIGENCE",
-  "BUILDING THE FUTURE",
-  "CALIBRATING PRECISION",
-  "SYNCHRONIZING SYSTEMS",
-  "ORCHESTRATING MASTERY",
-  "AMPLIFYING PERFORMANCE",
-  "ELEVATING INTELLIGENCE",
-  "FORGING PERFECTION",
-  "POLISHING AUTOMATION",
-  "MAXIMIZING POTENTIAL",
-  "ENHANCING CAPABILITIES",
-  "STREAMLINING EXECUTION",
-  "POWERING UP",
-  "TUNING FOR SUCCESS",
-  "MASTERING THE CRAFT",
-  "REFINING EXECUTION",
-  "OPTIMIZING PERFORMANCE"
-];
+// Process-specific configurations
+const PROCESS_CONFIGS: Record<ProcessType, {
+  titles: string[];
+  defaultSubtitle: string;
+  messages: Array<{ text: string; icon: string; color: string }>;
+  tips: string[];
+}> = {
+  'reverse-engineering': {
+    titles: [
+      "OPTIMIZING AUTOMATION",
+      "ENGINEERING EXCELLENCE",
+      "PERFECTING YOUR SETUP",
+      "REFINING INTELLIGENCE",
+      "BUILDING THE FUTURE",
+      "CALIBRATING PRECISION",
+      "SYNCHRONIZING SYSTEMS",
+      "ORCHESTRATING MASTERY",
+      "AMPLIFYING PERFORMANCE",
+      "ELEVATING INTELLIGENCE",
+      "FORGING PERFECTION",
+      "POLISHING AUTOMATION",
+      "MAXIMIZING POTENTIAL",
+      "ENHANCING CAPABILITIES",
+      "STREAMLINING EXECUTION",
+      "POWERING UP",
+      "TUNING FOR SUCCESS",
+      "MASTERING THE CRAFT",
+      "REFINING EXECUTION",
+      "OPTIMIZING PERFORMANCE"
+    ],
+    defaultSubtitle: "Processing automation logic with neural networks...",
+    messages: TECH_MESSAGES,
+    tips: TECH_TIPS
+  },
+  'query-processing': {
+    titles: [
+      "PROCESSING QUERY",
+      "ANALYZING INTENT",
+      "EXTRACTING ENTITIES",
+      "GENERATING SUGGESTIONS",
+      "MATCHING PATTERNS",
+      "UNDERSTANDING CONTEXT"
+    ],
+    defaultSubtitle: "Understanding your request and finding the best automations...",
+    messages: [
+      { text: "Analyzing your natural language query...", icon: "🧠", color: "from-blue-500 to-cyan-500" },
+      { text: "Extracting device entities and intents...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Searching automation patterns...", icon: "🔎", color: "from-indigo-500 to-blue-500" },
+      { text: "Matching your request to existing automations...", icon: "🎯", color: "from-cyan-500 to-teal-500" },
+      { text: "Generating intelligent suggestions...", icon: "✨", color: "from-yellow-500 to-orange-500" },
+      { text: "Validating and ranking results...", icon: "✅", color: "from-green-500 to-emerald-500" }
+    ],
+    tips: [
+      "💡 Using advanced semantic analysis to understand your intent",
+      "💡 Comparing your query to thousands of existing automations",
+      "💡 AI models are finding the best matches for your request",
+      "💡 Results are ranked by relevance and confidence"
+    ]
+  },
+  'analysis': {
+    titles: [
+      "ANALYZING PATTERNS",
+      "PROCESSING EVENTS",
+      "DETECTING TRENDS",
+      "GENERATING INSIGHTS",
+      "IDENTIFYING OPPORTUNITIES"
+    ],
+    defaultSubtitle: "Processing 30 days of Home Assistant events...",
+    messages: [
+      { text: "Fetching 30 days of event history...", icon: "📊", color: "from-blue-500 to-indigo-500" },
+      { text: "Detecting device usage patterns...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Identifying automation opportunities...", icon: "💡", color: "from-yellow-500 to-orange-500" },
+      { text: "Running machine learning algorithms...", icon: "🤖", color: "from-cyan-500 to-blue-500" },
+      { text: "Generating automation suggestions...", icon: "✨", color: "from-green-500 to-emerald-500" },
+      { text: "Validating and ranking suggestions...", icon: "✅", color: "from-teal-500 to-cyan-500" }
+    ],
+    tips: [
+      "💡 Analyzing patterns from the last 30 days of events",
+      "💡 This may take 1-2 minutes depending on event volume",
+      "💡 Machine learning models are finding automation opportunities",
+      "💡 Results will appear when analysis completes"
+    ]
+  },
+  'batch-action': {
+    titles: [
+      "PROCESSING ACTIONS",
+      "EXECUTING BATCH",
+      "APPLYING CHANGES",
+      "UPDATING AUTOMATIONS"
+    ],
+    defaultSubtitle: "Processing multiple actions in batch...",
+    messages: [
+      { text: "Preparing batch operations...", icon: "⚙️", color: "from-blue-500 to-indigo-500" },
+      { text: "Validating all changes...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Applying updates...", icon: "🔄", color: "from-cyan-500 to-teal-500" },
+      { text: "Processing automations...", icon: "🤖", color: "from-green-500 to-emerald-500" },
+      { text: "Finalizing changes...", icon: "✅", color: "from-yellow-500 to-orange-500" }
+    ],
+    tips: [
+      "💡 Processing multiple actions simultaneously",
+      "💡 Changes are being applied to all selected items",
+      "💡 This ensures consistency across all automations"
+    ]
+  },
+  'automation-creation': {
+    titles: [
+      "CREATING AUTOMATION",
+      "DEPLOYING TO HOME ASSISTANT",
+      "FINALIZING SETUP"
+    ],
+    defaultSubtitle: "Creating and deploying automation...",
+    messages: [
+      { text: "Validating automation configuration...", icon: "🔍", color: "from-blue-500 to-indigo-500" },
+      { text: "Checking safety constraints...", icon: "🛡️", color: "from-purple-500 to-pink-500" },
+      { text: "Deploying to Home Assistant...", icon: "🚀", color: "from-cyan-500 to-teal-500" },
+      { text: "Enabling automation...", icon: "✅", color: "from-green-500 to-emerald-500" }
+    ],
+    tips: [
+      "💡 Validating automation before deployment",
+      "💡 Ensuring all entities and services are available",
+      "💡 Automation will be enabled automatically upon success"
+    ]
+  },
+  'setup-wizard': {
+    titles: [
+      "INITIALIZING SYSTEM",
+      "SETTING UP AUTOMATION",
+      "CONFIGURING AI SERVICES"
+    ],
+    defaultSubtitle: "Running your first analysis...",
+    messages: [
+      { text: "Connecting to Home Assistant...", icon: "🔌", color: "from-blue-500 to-indigo-500" },
+      { text: "Fetching event history...", icon: "📊", color: "from-purple-500 to-pink-500" },
+      { text: "Starting pattern analysis...", icon: "🔍", color: "from-cyan-500 to-teal-500" },
+      { text: "Generating first suggestions...", icon: "✨", color: "from-yellow-500 to-orange-500" }
+    ],
+    tips: [
+      "💡 This is your first analysis - setting up everything",
+      "💡 Analysis typically takes 1-2 minutes",
+      "💡 You'll see suggestions when complete"
+    ]
+  },
+  'generic': {
+    titles: [
+      "PROCESSING",
+      "WORKING",
+      "PLEASE WAIT"
+    ],
+    defaultSubtitle: "Processing your request...",
+    messages: [
+      { text: "Processing your request...", icon: "⚙️", color: "from-blue-500 to-cyan-500" },
+      { text: "This may take a moment...", icon: "⏳", color: "from-purple-500 to-pink-500" }
+    ],
+    tips: [
+      "💡 Please wait while we process your request"
+    ]
+  }
+};
 
-export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> = ({
+export const ProcessLoader: React.FC<ProcessLoaderProps> = ({
   isVisible,
+  processType = 'reverse-engineering',
   iteration = 0,
-  similarity = 0
+  similarity = 0,
+  progress,
+  customTitle,
+  customSubtitle,
+  customMessages,
+  customTips
 }) => {
+  // Get configuration for process type
+  const config = PROCESS_CONFIGS[processType];
+  const titles = customTitle ? [customTitle] : config.titles;
+  const subtitle = customSubtitle || config.defaultSubtitle;
+  const messages = customMessages || config.messages;
+  const tips = customTips || config.tips;
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [currentTitleIndex, setCurrentTitleIndex] = useState(0);
@@ -310,26 +473,26 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
 
   // Rotate messages every 2.5 seconds
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || messages.length === 0) return;
 
     const messageInterval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % TECH_MESSAGES.length);
+      setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
     }, 2500);
 
     return () => clearInterval(messageInterval);
-  }, [isVisible]);
+  }, [isVisible, messages.length]);
 
   // Rotate title every 3 seconds - advance to next unused title or stop
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || titles.length === 0) return;
 
     const titleInterval = setInterval(() => {
       setCurrentTitleIndex((prevIndex) => {
         usedTitlesRef.current.add(prevIndex);
         
         // Find next unused title
-        for (let i = 0; i < TITLE_VARIATIONS.length; i++) {
-          const nextIndex = (prevIndex + i + 1) % TITLE_VARIATIONS.length;
+        for (let i = 0; i < titles.length; i++) {
+          const nextIndex = (prevIndex + i + 1) % titles.length;
           if (!usedTitlesRef.current.has(nextIndex)) {
             return nextIndex;
           }
@@ -340,18 +503,18 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
     }, 3000);
 
     return () => clearInterval(titleInterval);
-  }, [isVisible]);
+  }, [isVisible, titles.length]);
 
   // Rotate tips every 4 seconds
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || tips.length === 0) return;
 
     const tipInterval = setInterval(() => {
-      setCurrentTipIndex((prev) => (prev + 1) % TECH_TIPS.length);
+      setCurrentTipIndex((prev) => (prev + 1) % tips.length);
     }, 4000);
 
     return () => clearInterval(tipInterval);
-  }, [isVisible]);
+  }, [isVisible, tips.length]);
 
   // Pulse effect
   useEffect(() => {
@@ -364,10 +527,15 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
     return () => clearInterval(pulseInterval);
   }, [isVisible]);
 
-  const currentMessage = TECH_MESSAGES[currentMessageIndex];
-  const currentTip = TECH_TIPS[currentTipIndex];
+  const currentMessage = messages[currentMessageIndex];
+  const currentTip = tips[currentTipIndex];
   const progressStep = Math.min(iteration || 0, 5);
   const progressStage = PROGRESS_STAGES[progressStep] || PROGRESS_STAGES[0];
+  
+  // Calculate progress percentage
+  const progressPercent = progress !== undefined 
+    ? progress 
+    : Math.min((iteration * 20) + (similarity * 20), 100);
 
   // Use AnimatePresence to handle exit animations properly
   const loaderContent = (
@@ -465,25 +633,38 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
             transition={{ duration: 0.3 }}
             className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight"
           >
-            {TITLE_VARIATIONS[currentTitleIndex]}
+            {titles[currentTitleIndex % titles.length]}
           </motion.h2>
         </AnimatePresence>
 
+        {/* Subtitle */}
+        {subtitle && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-sm text-slate-400 mb-6 text-center"
+          >
+            {subtitle}
+          </motion.p>
+        )}
+
         {/* Current message - wrapped in AnimatePresence for proper exit */}
-        <div className="min-h-[3rem] mb-6 flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={currentMessageIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="text-sm text-slate-300 font-medium text-center"
-            >
-              {currentMessage.text}
-            </motion.p>
-          </AnimatePresence>
-        </div>
+        {messages.length > 0 && (
+          <div className="min-h-[3rem] mb-6 flex items-center justify-center">
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={currentMessageIndex}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="text-sm text-slate-300 font-medium text-center"
+              >
+                {currentMessage.text}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Progress indicator */}
         <div className="mb-6">
@@ -503,7 +684,7 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
             <motion.div
               className={`h-full bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600 rounded-full`}
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min((iteration * 20) + (similarity * 20), 100)}%` }}
+              animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
               {/* Shimmer effect */}
@@ -564,22 +745,24 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
         </div>
 
         {/* Tech tip - wrapped in AnimatePresence for proper exit */}
-        <div className="min-h-[4rem]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentTipIndex}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/30 backdrop-blur-sm"
-            >
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {currentTip}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        {tips.length > 0 && (
+          <div className="min-h-[4rem]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTipIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/30 backdrop-blur-sm"
+              >
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {currentTip}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Bottom accent */}
         <div className="mt-6 text-xs text-slate-500 font-medium uppercase tracking-wider">
@@ -631,4 +814,9 @@ export const ReverseEngineeringLoader: React.FC<ReverseEngineeringLoaderProps> =
     console.error('❌ Portal creation failed:', error);
     return loaderContent;
   }
+};
+
+// Backwards compatibility alias
+export const ReverseEngineeringLoader: React.FC<Omit<ProcessLoaderProps, 'processType'> & { processType?: ProcessType }> = (props) => {
+  return <ProcessLoader {...props} processType={props.processType || 'reverse-engineering'} />;
 };

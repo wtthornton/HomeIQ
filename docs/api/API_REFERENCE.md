@@ -846,7 +846,74 @@ Get all suggestions for a specific query.
 Test a suggestion from a query.
 
 #### POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/approve
-Approve specific suggestion from a query.
+Approve specific suggestion from a query with optional device selection and custom entity mapping.
+
+**Request Body:**
+```json
+{
+  "selected_entity_ids": ["light.office_lamp", "light.kitchen_ceiling"],
+  "custom_entity_mapping": {
+    "Office Light": "light.office_desk_lamp",
+    "Kitchen Light": "light.kitchen_main"
+  }
+}
+```
+
+**Parameters:**
+- `selected_entity_ids` (optional): List of entity IDs to include in the automation. Filters which devices from the suggestion are used.
+- `custom_entity_mapping` (optional): Map of friendly_name → entity_id overrides. Allows users to change which entity_id maps to a device name. All custom entity IDs are verified to exist in Home Assistant before applying.
+
+**Response:**
+```json
+{
+  "suggestion_id": "suggestion-xyz789",
+  "status": "approved",
+  "automation_id": "automation.abc123",
+  "automation_yaml": "...",
+  "ready_to_deploy": true
+}
+```
+
+**Features:**
+- **Device Selection**: Use `selected_entity_ids` to include/exclude specific devices
+- **Custom Mapping**: Use `custom_entity_mapping` to override entity IDs for specific device names
+- **Entity Validation**: All custom entity IDs are verified to exist in Home Assistant
+- **Mapping Priority**: Custom mappings are applied after device selection filtering
+
+#### GET /api/v1/ask-ai/entities/search
+Search available Home Assistant entities for device mapping.
+
+**Query Parameters:**
+- `domain` (optional): Filter by domain (e.g., "light", "switch", "sensor")
+- `search_term` (optional): Search term to match against entity_id or friendly_name
+- `limit` (optional, default: 100): Maximum number of results to return (1-500)
+
+**Response:**
+```json
+[
+  {
+    "entity_id": "light.office_desk_lamp",
+    "friendly_name": "Office Desk Lamp",
+    "domain": "light",
+    "state": "on",
+    "capabilities": ["brightness", "color_temp"],
+    "device_id": "device-abc123",
+    "area_id": "office"
+  },
+  {
+    "entity_id": "light.office_ceiling",
+    "friendly_name": "Office Ceiling Light",
+    "domain": "light",
+    "state": "off",
+    "capabilities": ["brightness", "rgb_color"],
+    "device_id": "device-xyz789",
+    "area_id": "office"
+  }
+]
+```
+
+**Use Case:** 
+Used by the frontend Device Mapping Modal to show alternative entities when users want to change which entity_id maps to a friendly_name in an automation suggestion. Entities are enriched with current state and capabilities from Home Assistant.
 
 ### Entity Alias Management (October 2025)
 

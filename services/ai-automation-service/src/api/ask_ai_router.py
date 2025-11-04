@@ -16,7 +16,7 @@ Integration:
 - Reuses ConversationalSuggestionCard components
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Body
+from fastapi import APIRouter, HTTPException, Depends, status, Body, Query
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
@@ -189,6 +189,25 @@ def get_model_orchestrator() -> Optional[ModelOrchestrator]:
 # Create router
 router = APIRouter(prefix="/api/v1/ask-ai", tags=["Ask AI"])
 
+# Initialize clients (will be set later)
+ha_client = None
+openai_client = None
+
+# Dependency injection functions (use closures to access global variables)
+def get_ha_client() -> HomeAssistantClient:
+    """Dependency injection for Home Assistant client"""
+    global ha_client
+    if not ha_client:
+        raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
+    return ha_client
+
+def get_openai_client() -> OpenAIClient:
+    """Dependency injection for OpenAI client"""
+    global openai_client
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="OpenAI client not initialized")
+    return openai_client
+
 
 # ============================================================================
 # Reverse Engineering Analytics Endpoint
@@ -231,10 +250,109 @@ async def get_reverse_engineering_analytics(
             detail=f"Failed to retrieve analytics: {str(e)}"
         )
 
-# Initialize clients
-ha_client = None
-openai_client = None
 
+@router.get("/entities/search")
+async def search_entities(
+    domain: Optional[str] = Query(None, description="Filter by domain (light, switch, sensor, etc.)"),
+    search_term: Optional[str] = Query(None, description="Search term to match against entity_id or friendly_name"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
+    ha_client: HomeAssistantClient = Depends(get_ha_client)
+) -> List[Dict[str, Any]]:
+    """
+    Search available entities for device mapping.
+    
+    Used by the frontend to show alternative entities when users want to change
+    which entity_id maps to a friendly_name in an automation suggestion.
+    
+    Args:
+        domain: Optional domain filter (e.g., "light", "switch", "sensor")
+        search_term: Optional search term to filter by entity_id or friendly_name
+        limit: Maximum number of results to return
+        ha_client: Home Assistant client for fetching entities
+        
+    Returns:
+        List of entity dictionaries with entity_id, friendly_name, domain, state, and attributes
+    """
+    try:
+        from ..clients.data_api_client import DataAPIClient
+        
+        logger.info(f"🔍 Searching entities - domain: {domain}, search_term: {search_term}, limit: {limit}")
+        
+        # Use DataAPIClient to fetch entities
+        data_api_client = DataAPIClient()
+        
+        # Fetch entities from data-api
+        entities = await data_api_client.fetch_entities(
+            domain=domain,
+            limit=limit * 2  # Fetch more than needed for filtering
+        )
+        
+        # Filter by search_term if provided
+        if search_term:
+            search_lower = search_term.lower()
+            entities = [
+                e for e in entities
+                if search_lower in e.get('entity_id', '').lower() or
+                   search_lower in e.get('friendly_name', '').lower()
+            ]
+        
+        # Limit results
+        entities = entities[:limit]
+        
+        # Enrich with state and attributes from HA if available
+        enriched_entities = []
+        for entity in entities:
+            entity_id = entity.get('entity_id')
+            if not entity_id:
+                continue
+                
+            enriched = {
+                'entity_id': entity_id,
+                'friendly_name': entity.get('friendly_name', entity_id),
+                'domain': entity.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown'),
+                'device_id': entity.get('device_id'),
+                'area_id': entity.get('area_id'),
+                'platform': entity.get('platform')
+            }
+            
+            # Try to get current state and attributes from HA
+            if ha_client:
+                try:
+                    state_data = await ha_client.get_entity_state(entity_id)
+                    if state_data:
+                        enriched['state'] = state_data.get('state')
+                        enriched['attributes'] = state_data.get('attributes', {})
+                        
+                        # Extract capabilities from attributes if available
+                        supported_features = enriched['attributes'].get('supported_features', 0)
+                        capabilities = []
+                        if enriched['domain'] == 'light':
+                            if supported_features & 1:  # SUPPORT_BRIGHTNESS
+                                capabilities.append('brightness')
+                            if supported_features & 2:  # SUPPORT_COLOR_TEMP
+                                capabilities.append('color_temp')
+                            if supported_features & 16:  # SUPPORT_EFFECT
+                                capabilities.append('effect')
+                            if supported_features & 32:  # SUPPORT_RGB_COLOR
+                                capabilities.append('rgb_color')
+                        enriched['capabilities'] = capabilities
+                except Exception as e:
+                    logger.debug(f"Could not fetch state for {entity_id}: {e}")
+            
+            enriched_entities.append(enriched)
+        
+        logger.info(f"✅ Found {len(enriched_entities)} entities matching search criteria")
+        return enriched_entities
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to search entities: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search entities: {str(e)}"
+        )
+
+
+# Initialize clients (reassign global variables)
 if settings.ha_url and settings.ha_token:
     try:
         ha_client = HomeAssistantClient(settings.ha_url, access_token=settings.ha_token)
@@ -524,6 +642,11 @@ async def map_devices_to_entities(
     Returns:
         Dictionary mapping device_name → entity_id (only verified entities, deduplicated)
     """
+    # Handle None or empty enriched_data gracefully
+    if not enriched_data:
+        logger.warning(f"⚠️ map_devices_to_entities called with empty/None enriched_data for {len(devices_involved)} devices")
+        return {}
+    
     validated_entities = {}
     unmapped_devices = []
     entity_id_to_best_device_name = {}  # Track best device name for each entity_id
@@ -2096,19 +2219,6 @@ def fallback_simplify(description: str) -> str:
     return re.sub(r'\s+', ' ', simplified).strip()
 
 
-def get_ha_client() -> HomeAssistantClient:
-    """Dependency injection for Home Assistant client"""
-    if not ha_client:
-        raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
-    return ha_client
-
-def get_openai_client() -> OpenAIClient:
-    """Dependency injection for OpenAI client"""
-    if not openai_client:
-        raise HTTPException(status_code=500, detail="OpenAI client not initialized")
-    return openai_client
-
-
 async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
     """
     Extract entities from query using multi-model approach.
@@ -3596,8 +3706,12 @@ Response format: ONLY JSON, no other text:
 
 
 class ApproveSuggestionRequest(BaseModel):
-    """Request body for approving a suggestion with optional selected entity IDs."""
+    """Request body for approving a suggestion with optional selected entity IDs and custom entity mappings."""
     selected_entity_ids: Optional[List[str]] = Field(default=None, description="List of entity IDs selected by user to include in automation")
+    custom_entity_mapping: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Custom mapping of friendly_name → entity_id overrides. Allows users to change which entity_id maps to a device name."
+    )
 
 @router.post("/query/{query_id}/suggestions/{suggestion_id}/approve")
 async def approve_suggestion_from_query(
@@ -3630,18 +3744,72 @@ async def approve_suggestion_from_query(
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
         
         # Ensure validated_entities is properly populated before proceeding
-        # If missing or empty, try to rebuild from original query
+        # If missing or empty, use the original extracted_entities from the query (which has all the device details)
         entities = query.extracted_entities if query.extracted_entities else []
-        if not suggestion.get('validated_entities') or not isinstance(suggestion.get('validated_entities'), dict) or len(suggestion.get('validated_entities', {})) == 0:
-            logger.warning(f"⚠️ Suggestion {suggestion_id} missing validated_entities, attempting to rebuild from query...")
-            try:
-                # Re-extract entities from the original query to get fresh validated entities
-                if query.original_query:
-                    logger.info(f"🔄 Re-extracting entities from original query: {query.original_query}")
-                    re_extracted_entities = await extract_entities_with_ha(query.original_query)
-                    if re_extracted_entities:
-                        entities = re_extracted_entities
-                        logger.info(f"✅ Re-extracted {len(entities)} entities from query")
+        
+        # First, try to use the original extracted_entities directly - they have all the device details!
+        if (not suggestion.get('validated_entities') or 
+            not isinstance(suggestion.get('validated_entities'), dict) or 
+            len(suggestion.get('validated_entities', {})) == 0):
+            
+            logger.info(f"💡 Suggestion {suggestion_id} has empty validated_entities, using original extracted_entities from query...")
+            
+            # Use the original extracted_entities which contain the full device details
+            logger.info(f"🔍 DEBUG: query.extracted_entities type: {type(query.extracted_entities)}, length: {len(query.extracted_entities) if query.extracted_entities else 0}")
+            logger.info(f"🔍 DEBUG: suggestion.get('devices_involved'): {suggestion.get('devices_involved')}")
+            
+            if query.extracted_entities and suggestion.get('devices_involved'):
+                devices_involved = suggestion.get('devices_involved', [])
+                logger.info(f"🔄 Building validated_entities from original extracted_entities for {len(devices_involved)} devices")
+                
+                # Build enriched_data from original extracted_entities (which have all the details)
+                enriched_data_from_query = {}
+                entities_processed = 0
+                entities_skipped = 0
+                for entity in query.extracted_entities:
+                    if isinstance(entity, dict):
+                        entities_processed += 1
+                        entity_id = entity.get('entity_id') or entity.get('id')
+                        if entity_id:
+                            enriched_data_from_query[entity_id] = entity
+                        else:
+                            logger.info(f"🔍 DEBUG: Entity missing entity_id: {entity.get('name', 'unknown')}")
+                    else:
+                        entities_skipped += 1
+                        logger.info(f"🔍 DEBUG: Skipped non-dict entity: {type(entity)}")
+                
+                logger.info(f"🔍 DEBUG: Processed {entities_processed} entities, skipped {entities_skipped}, built {len(enriched_data_from_query)} enriched_data entries")
+                
+                if enriched_data_from_query:
+                    # Map devices to entities using the original extracted entities
+                    validated_entities = await map_devices_to_entities(
+                        devices_involved,
+                        enriched_data_from_query,
+                        ha_client=ha_client,
+                        fuzzy_match=True
+                    )
+                    
+                    if validated_entities:
+                        suggestion['validated_entities'] = validated_entities
+                        logger.info(f"✅ Built {len(validated_entities)} validated_entities from original extracted_entities: {list(validated_entities.values())}")
+                    else:
+                        logger.warning(f"⚠️ Could not map devices using original extracted_entities, will try re-extraction as fallback")
+            
+            # Fallback: Re-extract entities if original extraction didn't work
+            if not suggestion.get('validated_entities') or len(suggestion.get('validated_entities', {})) == 0:
+                logger.warning(f"⚠️ Still no validated_entities after using original extracted_entities, attempting to re-extract from query...")
+                try:
+                    # Re-extract entities from the original query to get fresh validated entities
+                    if query.original_query:
+                        logger.info(f"🔄 Re-extracting entities from original query: {query.original_query}")
+                        re_extracted_entities = await extract_entities_with_ha(query.original_query)
+                        if re_extracted_entities:
+                            entities = re_extracted_entities
+                            logger.info(f"✅ Re-extracted {len(entities)} entities from query")
+                        else:
+                            logger.warning(f"⚠️ Re-extraction returned no entities")
+                    else:
+                        logger.warning(f"⚠️ Cannot re-extract: query.original_query is None")
                     
                     # Now map devices_involved to validated entities
                     if entities and suggestion.get('devices_involved'):
@@ -3649,19 +3817,37 @@ async def approve_suggestion_from_query(
                         logger.info(f"🔄 Mapping {len(devices_involved)} devices to entities: {devices_involved}")
                         
                         # Build enriched data from extracted entities
+                        # Validate entity format (must be dict, not string)
                         enriched_data = {}
+                        invalid_entities = 0
                         for entity in entities:
+                            # Skip if entity is not a dict (may be string or other type)
+                            if not isinstance(entity, dict):
+                                invalid_entities += 1
+                                logger.warning(f"⚠️ Skipping malformed entity (not a dict): {type(entity).__name__}: {entity}")
+                                continue
+                            
                             entity_id = entity.get('entity_id') or entity.get('id')
                             if entity_id:
                                 enriched_data[entity_id] = entity
+                            else:
+                                logger.debug(f"⚠️ Entity missing entity_id/id: {entity.get('name', 'unknown')}")
                         
-                        # Map devices to entities (optimized for single-home with deduplication)
-                        validated_entities = await map_devices_to_entities(
-                            devices_involved,
-                            enriched_data if enriched_data else None,
-                            ha_client=ha_client,
-                            fuzzy_match=True
-                        )
+                        if invalid_entities > 0:
+                            logger.warning(f"⚠️ Skipped {invalid_entities} malformed entities during enriched_data building")
+                        
+                        # Only proceed if we have valid enriched_data
+                        if enriched_data:
+                            # Map devices to entities (optimized for single-home with deduplication)
+                            validated_entities = await map_devices_to_entities(
+                                devices_involved,
+                                enriched_data,
+                                ha_client=ha_client,
+                                fuzzy_match=True
+                            )
+                        else:
+                            logger.warning(f"⚠️ No valid enriched_data built from {len(entities)} entities - cannot map devices")
+                            validated_entities = {}
                         if validated_entities:
                             suggestion['validated_entities'] = validated_entities
                             
@@ -3677,13 +3863,38 @@ async def approve_suggestion_from_query(
                             
                             logger.info(f"✅ Rebuilt {len(validated_entities)} validated entities for suggestion: {list(validated_entities.keys())}")
                         else:
-                            logger.error(f"❌ Could not map devices to validated entities. Devices: {devices_involved}, Entities: {[e.get('entity_id') or e.get('id') for e in entities[:5]]}")
+                            logger.error(
+                                f"❌ Could not map devices to validated entities. "
+                                f"Devices: {devices_involved}, "
+                                f"Extracted entities: {len(entities)}, "
+                                f"Valid enriched_data entries: {len(enriched_data)}"
+                            )
+                            # Try to use existing validated_entities from query if available
+                            if query.extracted_entities:
+                                logger.info(f"⚠️ Attempting to use existing extracted_entities from query as fallback")
+                                # Build enriched_data from query.extracted_entities as fallback
+                                fallback_enriched_data = {}
+                                for entity in query.extracted_entities:
+                                    if isinstance(entity, dict):
+                                        entity_id = entity.get('entity_id') or entity.get('id')
+                                        if entity_id:
+                                            fallback_enriched_data[entity_id] = entity
+                                
+                                if fallback_enriched_data:
+                                    validated_entities = await map_devices_to_entities(
+                                        devices_involved,
+                                        fallback_enriched_data,
+                                        ha_client=ha_client,
+                                        fuzzy_match=True
+                                    )
+                                    if validated_entities:
+                                        suggestion['validated_entities'] = validated_entities
+                                        logger.info(f"✅ Rebuilt {len(validated_entities)} validated entities using query.extracted_entities fallback")
                     else:
                         logger.warning(f"⚠️ Cannot rebuild validated_entities: entities={len(entities) if entities else 0}, devices_involved={len(suggestion.get('devices_involved', []))}")
-                else:
-                    logger.warning("⚠️ Cannot rebuild validated_entities: no original_query available")
-            except Exception as e:
-                logger.error(f"❌ Error rebuilding validated_entities: {e}", exc_info=True)
+                except Exception as e:
+                    logger.error(f"❌ Error rebuilding validated_entities: {e}", exc_info=True)
+                    # Don't re-raise - allow the function to continue and let generate_automation_yaml handle the missing entities
         
         # TASK 1.4: Restore stripped components if test was run
         # For now, we'll check the original suggestion for components to restore
@@ -3720,6 +3931,56 @@ async def approve_suggestion_from_query(
                 logger.info(f"✅ Filtered from {len(original_validated)} to {len(filtered_validated)} selected entities")
             else:
                 logger.warning(f"⚠️ No validated_entities to filter, but selected_entity_ids provided: {selected_entity_ids}")
+        
+        # Apply custom entity mappings if provided (user-assisted mapping)
+        custom_mapping = request.custom_entity_mapping if request else None
+        if custom_mapping and len(custom_mapping) > 0:
+            logger.info(f"🔧 Applying custom entity mappings: {custom_mapping}")
+            current_validated = final_suggestion.get('validated_entities', {})
+            
+            # Verify custom entity IDs exist in Home Assistant
+            custom_entity_ids_to_verify = list(custom_mapping.values())
+            if ha_client and custom_entity_ids_to_verify:
+                verification_results = await verify_entities_exist_in_ha(
+                    custom_entity_ids_to_verify,
+                    ha_client
+                )
+                
+                # Apply only verified mappings
+                applied_count = 0
+                skipped_count = 0
+                for friendly_name, new_entity_id in custom_mapping.items():
+                    if friendly_name in current_validated:
+                        if verification_results.get(new_entity_id, False):
+                            # Entity exists - apply the mapping
+                            old_entity_id = current_validated[friendly_name]
+                            current_validated[friendly_name] = new_entity_id
+                            applied_count += 1
+                            logger.info(f"✅ Applied custom mapping: '{friendly_name}' → {old_entity_id} → {new_entity_id}")
+                        else:
+                            skipped_count += 1
+                            logger.warning(f"⚠️ Custom entity_id {new_entity_id} for '{friendly_name}' does not exist in HA - skipped")
+                    else:
+                        # Add new mapping if friendly_name not in current validated_entities
+                        if verification_results.get(new_entity_id, False):
+                            current_validated[friendly_name] = new_entity_id
+                            applied_count += 1
+                            logger.info(f"✅ Added new custom mapping: '{friendly_name}' → {new_entity_id}")
+                        else:
+                            skipped_count += 1
+                            logger.warning(f"⚠️ Custom entity_id {new_entity_id} for '{friendly_name}' does not exist in HA - skipped")
+                
+                final_suggestion['validated_entities'] = current_validated
+                logger.info(f"✅ Applied {applied_count} custom mappings, skipped {skipped_count} invalid mappings")
+            elif not ha_client:
+                # No HA client - apply mappings without verification (not recommended)
+                logger.warning(f"⚠️ No HA client available - applying custom mappings without verification")
+                for friendly_name, new_entity_id in custom_mapping.items():
+                    if friendly_name in current_validated:
+                        old_entity_id = current_validated[friendly_name]
+                        current_validated[friendly_name] = new_entity_id
+                        logger.info(f"⚠️ Applied unverified custom mapping: '{friendly_name}' → {old_entity_id} → {new_entity_id}")
+                final_suggestion['validated_entities'] = current_validated
         
         # Generate YAML for the suggestion with entities for capability details
         try:

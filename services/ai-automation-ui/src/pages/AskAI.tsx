@@ -99,6 +99,9 @@ export const AskAI: React.FC = () => {
   const [testedSuggestions, setTestedSuggestions] = useState<Set<string>>(new Set());
   const [showClearModal, setShowClearModal] = useState(false);
   
+  // Device selection state: Map of suggestionId -> Map of entityId -> selected boolean
+  const [deviceSelections, setDeviceSelections] = useState<Map<string, Map<string, boolean>>>(new Map());
+  
   // Conversation context tracking
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     mentioned_devices: [],
@@ -312,7 +315,51 @@ export const AskAI: React.FC = () => {
     return response;
   };
 
-  const handleSuggestionAction = async (suggestionId: string, action: 'refine' | 'approve' | 'reject' | 'test', refinement?: string) => {
+  // Handle device selection toggle
+  const handleDeviceToggle = (suggestionId: number, entityId: string, selected: boolean) => {
+    setDeviceSelections(prev => {
+      const newSelections = new Map(prev);
+      const suggestionIdStr = suggestionId.toString();
+      
+      if (!newSelections.has(suggestionIdStr)) {
+        newSelections.set(suggestionIdStr, new Map());
+      }
+      
+      const selectionMap = newSelections.get(suggestionIdStr)!;
+      selectionMap.set(entityId, selected);
+      newSelections.set(suggestionIdStr, selectionMap);
+      
+      return newSelections;
+    });
+  };
+
+  // Get selected entity IDs for a suggestion
+  const getSelectedEntityIds = (suggestionId: string, deviceInfo?: Array<{ entity_id: string; selected?: boolean }>): string[] => {
+    const suggestionIdStr = suggestionId;
+    
+    // If deviceInfo is provided, use it to filter selected devices
+    if (deviceInfo) {
+      return deviceInfo
+        .filter(device => device.selected !== false) // Default to true if not specified
+        .map(device => device.entity_id);
+    }
+    
+    // Otherwise, check deviceSelections state
+    if (deviceSelections.has(suggestionIdStr)) {
+      const selectionMap = deviceSelections.get(suggestionIdStr)!;
+      const selected: string[] = [];
+      selectionMap.forEach((isSelected, entityId) => {
+        if (isSelected) {
+          selected.push(entityId);
+        }
+      });
+      return selected;
+    }
+    
+    return []; // Return empty array if no selections made
+  };
+
+  const handleSuggestionAction = async (suggestionId: string, action: 'refine' | 'approve' | 'reject' | 'test', refinement?: string, customMappings?: Record<string, string>) => {
     const actionKey = `${suggestionId}-${action}`;
     
     try {
@@ -339,8 +386,39 @@ export const AskAI: React.FC = () => {
         const loadingToast = toast.loading('⏳ Creating automation (will be disabled)...');
         
         try {
+          // Get selected entity IDs for this suggestion
+          const messageWithSuggestion = messages.find(msg => 
+            msg.suggestions?.some(s => s.suggestion_id === suggestionId)
+          );
+          const suggestion = messageWithSuggestion?.suggestions?.find(s => s.suggestion_id === suggestionId);
+          // Extract device info inline (helper function defined below in render)
+          const deviceInfo = suggestion ? (() => {
+            const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
+            const seenEntityIds = new Set<string>();
+            const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+              if (entityId && !seenEntityIds.has(entityId)) {
+                let isSelected = true;
+                if (deviceSelections.has(suggestionId)) {
+                  const selectionMap = deviceSelections.get(suggestionId)!;
+                  if (selectionMap.has(entityId)) {
+                    isSelected = selectionMap.get(entityId)!;
+                  }
+                }
+                devices.push({ friendly_name: friendlyName, entity_id: entityId, domain: domain || entityId.split('.')[0], selected: isSelected });
+                seenEntityIds.add(entityId);
+              }
+            };
+            if (suggestion.validated_entities) {
+              Object.entries(suggestion.validated_entities).forEach(([fn, eid]: [string, any]) => {
+                if (eid && typeof eid === 'string') addDevice(fn, eid);
+              });
+            }
+            return devices;
+          })() : undefined;
+          const selectedEntityIds = getSelectedEntityIds(suggestionId, deviceInfo);
+          
           // Call approve endpoint (same as Approve & Create - no simplification)
-          const response = await api.approveAskAISuggestion(queryId, suggestionId);
+          const response = await api.approveAskAISuggestion(queryId, suggestionId, selectedEntityIds.length > 0 ? selectedEntityIds : undefined);
           console.log('✅ API response received', { 
             hasReverseEng: !!response.reverse_engineering,
             enabled: response.reverse_engineering?.enabled 
@@ -560,7 +638,43 @@ export const AskAI: React.FC = () => {
         const minDisplayTime = 2000;
         
         try {
-          const response = await api.approveAskAISuggestion(queryId, suggestionId);
+          // Get selected entity IDs for this suggestion
+          const messageWithSuggestion = messages.find(msg => 
+            msg.suggestions?.some(s => s.suggestion_id === suggestionId)
+          );
+          const suggestion = messageWithSuggestion?.suggestions?.find(s => s.suggestion_id === suggestionId);
+          // Extract device info inline (since it's used in render too)
+          const deviceInfo = suggestion ? (() => {
+            const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
+            const seenEntityIds = new Set<string>();
+            const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+              if (entityId && !seenEntityIds.has(entityId)) {
+                let isSelected = true;
+                if (deviceSelections.has(suggestionId)) {
+                  const selectionMap = deviceSelections.get(suggestionId)!;
+                  if (selectionMap.has(entityId)) {
+                    isSelected = selectionMap.get(entityId)!;
+                  }
+                }
+                devices.push({ friendly_name: friendlyName, entity_id: entityId, domain: domain || entityId.split('.')[0], selected: isSelected });
+                seenEntityIds.add(entityId);
+              }
+            };
+            if (suggestion.validated_entities) {
+              Object.entries(suggestion.validated_entities).forEach(([fn, eid]: [string, any]) => {
+                if (eid && typeof eid === 'string') addDevice(fn, eid);
+              });
+            }
+            return devices;
+          })() : undefined;
+          const selectedEntityIds = getSelectedEntityIds(suggestionId, deviceInfo);
+          
+          const response = await api.approveAskAISuggestion(
+            queryId, 
+            suggestionId, 
+            selectedEntityIds.length > 0 ? selectedEntityIds : undefined,
+            customMappings && Object.keys(customMappings).length > 0 ? customMappings : undefined
+          );
           
           // Debug logging to understand response structure
           console.log('🔍 APPROVE RESPONSE:', {
@@ -1060,17 +1174,27 @@ export const AskAI: React.FC = () => {
                           const conversationHistory = suggestion.conversation_history || [];
                           
                           // Extract device information from suggestion
-                          const extractDeviceInfo = (suggestion: any, extractedEntities?: any[]): Array<{ friendly_name: string; entity_id: string; domain?: string }> => {
-                            const devices: Array<{ friendly_name: string; entity_id: string; domain?: string }> = [];
+                          const extractDeviceInfo = (suggestion: any, extractedEntities?: any[], suggestionId?: string): Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> => {
+                            const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
                             const seenEntityIds = new Set<string>();
                             
                             // Helper to add device safely
                             const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
                               if (entityId && !seenEntityIds.has(entityId)) {
+                                // Check if device selection exists for this suggestion
+                                let isSelected = true; // Default to selected
+                                if (suggestionId && deviceSelections.has(suggestionId)) {
+                                  const selectionMap = deviceSelections.get(suggestionId)!;
+                                  if (selectionMap.has(entityId)) {
+                                    isSelected = selectionMap.get(entityId)!;
+                                  }
+                                }
+                                
                                 devices.push({
                                   friendly_name: friendlyName,
                                   entity_id: entityId,
-                                  domain: domain || entityId.split('.')[0]
+                                  domain: domain || entityId.split('.')[0],
+                                  selected: isSelected
                                 });
                                 seenEntityIds.add(entityId);
                               }
@@ -1166,7 +1290,7 @@ export const AskAI: React.FC = () => {
                             return devices;
                           };
                           
-                          const deviceInfo = extractDeviceInfo(suggestion, message.entities);
+                          const deviceInfo = extractDeviceInfo(suggestion, message.entities, suggestion.suggestion_id);
                           
                           // Debug logging
                           if (deviceInfo.length > 0) {
@@ -1185,6 +1309,7 @@ export const AskAI: React.FC = () => {
                           return (
                             <div key={idx} className="pt-3" style={{ borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
                               <ConversationalSuggestionCard
+                                key={suggestion.suggestion_id}
                                 suggestion={{
                                   id: parseInt(suggestion.suggestion_id.replace(/\D/g, '')) || idx + 1, // Extract numeric part or use index
                                   description_only: suggestion.description,
@@ -1207,9 +1332,14 @@ export const AskAI: React.FC = () => {
                                     throw error;
                                   }
                                 }}
-                                onApprove={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'approve')}
+                                onApprove={async (_id: number, customMappings?: Record<string, string>) => handleSuggestionAction(suggestion.suggestion_id, 'approve', undefined, customMappings)}
                                 onReject={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'reject')}
                                 onTest={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'test')}
+                                onDeviceToggle={(id: number, entityId: string, selected: boolean) => {
+                                  handleDeviceToggle(id, entityId, selected);
+                                  // Force re-render to update device button states
+                                  setMessages(prev => [...prev]);
+                                }}
                                 darkMode={darkMode}
                                 disabled={isProcessing}
                                 tested={testedSuggestions.has(suggestion.suggestion_id)}

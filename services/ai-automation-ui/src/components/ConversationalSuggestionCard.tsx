@@ -9,11 +9,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
+import { DeviceMappingModal } from './DeviceMappingModal';
 
 interface DeviceInfo {
   friendly_name: string;
   entity_id: string;
   domain?: string;
+  selected?: boolean; // Whether this device is selected for inclusion in automation
 }
 
 interface ConversationalSuggestion {
@@ -46,10 +48,11 @@ interface ConversationalSuggestion {
 interface Props {
   suggestion: ConversationalSuggestion;
   onRefine: (id: number, userInput: string) => Promise<void>;
-  onApprove: (id: number) => Promise<void>;
+  onApprove: (id: number, customMappings?: Record<string, string>) => Promise<void>;
   onReject: (id: number) => Promise<void>;
   onTest?: (id: number) => Promise<void>;
   onRedeploy?: (id: number) => Promise<void>;
+  onDeviceToggle?: (id: number, entityId: string, selected: boolean) => void; // Callback for device selection changes
   darkMode?: boolean;
   disabled?: boolean;
   tested?: boolean;
@@ -62,6 +65,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   onReject,
   onTest,
   onRedeploy,
+  onDeviceToggle,
   darkMode = false,
   disabled = false,
   tested = false
@@ -72,6 +76,8 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [showYaml, setShowYaml] = useState(false);
+  const [customMappings, setCustomMappings] = useState<Record<string, string>>({});
+  const [editingMapping, setEditingMapping] = useState<{ friendlyName: string; currentEntityId: string; domain?: string } | null>(null);
 
   const getCategoryColor = () => {
     const colors = {
@@ -124,16 +130,43 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
 
   const handleApprove = async () => {
     try {
-      await onApprove(suggestion.id);
+      await onApprove(suggestion.id, Object.keys(customMappings).length > 0 ? customMappings : undefined);
       toast.success('✅ Automation created successfully!');
     } catch (error) {
       toast.error('❌ Failed to create automation');
     }
   };
 
+  const handleMappingSave = (friendlyName: string, newEntityId: string) => {
+    setCustomMappings(prev => ({
+      ...prev,
+      [friendlyName]: newEntityId
+    }));
+    setEditingMapping(null);
+    toast.success(`✅ Mapping updated: ${friendlyName} → ${newEntityId}`);
+  };
+
+  const handleMappingCancel = () => {
+    setEditingMapping(null);
+  };
+
+  const handleEditMapping = (device: DeviceInfo) => {
+    setEditingMapping({
+      friendlyName: device.friendly_name,
+      currentEntityId: device.entity_id,
+      domain: device.domain
+    });
+  };
+
+  // Get the current entity ID for a device (custom mapping or original)
+  const getEffectiveEntityId = (device: DeviceInfo): string => {
+    return customMappings[device.friendly_name] || device.entity_id;
+  };
+
   const isApproved = suggestion.status === 'yaml_generated' || suggestion.status === 'deployed';
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -204,50 +237,115 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           {suggestion.description_only || 'No description available'}
         </div>
         
-        {/* Device Information Buttons */}
+        {/* Device Information Buttons - Selectable */}
         {suggestion.device_info && suggestion.device_info.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5 items-center">
             <span className="text-xs opacity-70" style={{ color: '#94a3b8' }}>
               Devices:
             </span>
             {suggestion.device_info.map((device, idx) => {
-              // Generate Home Assistant entity URL
-              // Default to localhost if env var not set, or use environment variable
+              const isSelected = device.selected !== false; // Default to true if not specified
+              const effectiveEntityId = getEffectiveEntityId(device);
+              const hasCustomMapping = customMappings[device.friendly_name] !== undefined;
+              // Generate Home Assistant entity URL using effective entity ID
               const haBaseUrl = import.meta.env.VITE_HA_URL || 'http://192.168.1.86:8123';
-              const haUrl = `${haBaseUrl}/config/entities/${encodeURIComponent(device.entity_id)}`;
+              const haUrl = `${haBaseUrl}/config/entities/${encodeURIComponent(effectiveEntityId)}`;
               
               return (
-                <a
-                  key={idx}
-                  href={haUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs px-2 py-0.5 rounded-md font-medium transition-all hover:scale-105"
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.2)',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    color: '#93c5fd',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
-                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)';
-                    e.currentTarget.style.color = '#bfdbfe';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                    e.currentTarget.style.color = '#93c5fd';
-                  }}
-                  title={`View ${device.friendly_name} details (${device.entity_id})`}
-                >
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {device.friendly_name}
-                  </span>
-                </a>
+                <div key={idx} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (onDeviceToggle) {
+                        onDeviceToggle(suggestion.id, effectiveEntityId, !isSelected);
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      // Right-click opens HA page
+                      e.preventDefault();
+                      window.open(haUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="text-xs px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer"
+                    style={{
+                      background: isSelected 
+                        ? 'rgba(59, 130, 246, 0.4)' 
+                        : 'rgba(59, 130, 246, 0.1)',
+                      border: isSelected 
+                        ? '1px solid rgba(59, 130, 246, 0.6)' 
+                        : '1px solid rgba(59, 130, 246, 0.2)',
+                      color: isSelected ? '#bfdbfe' : '#64748b',
+                      textDecoration: 'none',
+                      opacity: isSelected ? 1 : 0.6
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isSelected) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)';
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.7)';
+                      } else {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isSelected 
+                        ? 'rgba(59, 130, 246, 0.4)' 
+                        : 'rgba(59, 130, 246, 0.1)';
+                      e.currentTarget.style.borderColor = isSelected 
+                        ? '1px solid rgba(59, 130, 246, 0.6)' 
+                        : '1px solid rgba(59, 130, 246, 0.2)';
+                    }}
+                    title={`${isSelected ? 'Click to exclude' : 'Click to include'} ${device.friendly_name} in automation. Right-click to view details.${hasCustomMapping ? ` Custom mapping: ${effectiveEntityId}` : ''}`}
+                    disabled={disabled || !onDeviceToggle}
+                  >
+                    <span className="flex items-center gap-1">
+                      {isSelected ? (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      {device.friendly_name}
+                      {hasCustomMapping && (
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <title>{`Custom mapping: ${device.entity_id} → ${effectiveEntityId}`}</title>
+                          <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+                  {!disabled && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEditMapping(device);
+                      }}
+                      className="text-xs p-0.5 rounded hover:bg-opacity-20 transition-all"
+                      style={{
+                        color: '#94a3b8',
+                        opacity: 0.7
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.7';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                      title={`Edit entity mapping for ${device.friendly_name}`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -650,6 +748,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         </div>
       </div>
     </motion.div>
+
+    {/* Device Mapping Modal */}
+    {editingMapping && (
+      <DeviceMappingModal
+        isOpen={true}
+        friendlyName={editingMapping.friendlyName}
+        currentEntityId={editingMapping.currentEntityId}
+        currentDomain={editingMapping.domain}
+        onSave={handleMappingSave}
+        onCancel={handleMappingCancel}
+        darkMode={darkMode}
+      />
+    )}
+  </>
   );
 };
 

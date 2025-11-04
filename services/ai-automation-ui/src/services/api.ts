@@ -448,10 +448,44 @@ export const api = {
     });
   },
 
-  async approveAskAISuggestion(queryId: string, suggestionId: string): Promise<any> {
+  async approveAskAISuggestion(
+    queryId: string, 
+    suggestionId: string, 
+    selectedEntityIds?: string[],
+    customEntityMapping?: Record<string, string>
+  ): Promise<any> {
+    const body: any = {};
+    if (selectedEntityIds && selectedEntityIds.length > 0) {
+      body.selected_entity_ids = selectedEntityIds;
+    }
+    if (customEntityMapping && Object.keys(customEntityMapping).length > 0) {
+      body.custom_entity_mapping = customEntityMapping;
+    }
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/query/${queryId}/suggestions/${suggestionId}/approve`, {
       method: 'POST',
+      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });
+  },
+
+  async searchEntities(params: {
+    domain?: string;
+    search_term?: string;
+    limit?: number;
+  }): Promise<Array<{
+    entity_id: string;
+    friendly_name: string;
+    domain: string;
+    state?: string;
+    capabilities?: string[];
+    device_id?: string;
+    area_id?: string;
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params.domain) queryParams.append('domain', params.domain);
+    if (params.search_term) queryParams.append('search_term', params.search_term);
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    
+    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/entities/search?${queryParams}`);
   },
 
   async reverseEngineerYAML(data: {

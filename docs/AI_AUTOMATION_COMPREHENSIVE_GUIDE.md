@@ -121,6 +121,28 @@ Turn on kitchen light at 7 AM on weekdays
 
 ---
 
+### 🎯 Device Selection & Mapping
+
+**What:** Fine-tune device selection and customize entity mappings before approving automations  
+**How:** Check/uncheck devices and use the visual mapping interface to change entity assignments  
+**When:** After suggestion generation, before approving
+
+**Features:**
+- **Device Selection**: Include or exclude specific devices from the automation
+- **Entity Mapping**: Change which Home Assistant entity maps to a friendly device name
+- **Entity Search**: Search for alternative entities by name, ID, or domain
+- **Capability Display**: See device capabilities (brightness, color, etc.) before mapping
+- **Validation**: All custom mappings are verified to exist in Home Assistant
+
+**Example Workflow:**
+1. AI suggests: "Turn on Office Light when door opens"
+2. Review devices shown in the suggestion card
+3. Click ✏️ edit icon next to "Office Light"
+4. Search for "office desk lamp" in the mapping modal
+5. Select the correct entity: `light.office_desk_lamp`
+6. Save mapping and approve automation
+7. Automation uses your custom mapping instead of AI's guess
+
 ### 📊 Pattern Detection (AI1.4-1.6)
 
 **What:** Daily analysis finds automation opportunities  
@@ -188,6 +210,13 @@ Check:
 - ✅ Trigger makes sense
 - ✅ Action is what you want
 - ✅ Safety score is high (≥80 is excellent)
+
+**Device Selection & Mapping:**
+- ✅ Check/uncheck devices to include/exclude from the automation
+- ✅ Click the edit icon (✏️) next to any device to change which entity it maps to
+- ✅ Search for alternative entities by name or ID
+- ✅ View device capabilities before selecting
+- ✅ Custom mappings are automatically validated against Home Assistant
 
 **Step 3: Deploy**
 
