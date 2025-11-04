@@ -3,6 +3,7 @@ AI Automation Service - Main FastAPI Application
 Phase 1 MVP - Pattern detection and suggestion generation
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -40,13 +41,159 @@ from .device_intelligence import CapabilityParser, MQTTCapabilityListener
 # Phase 1: Containerized AI Models
 from .models.model_manager import get_model_manager
 
+# Global variables for lifecycle management
+mqtt_client = None
+capability_parser = None
+capability_listener = None
+
+# Lifespan context manager for startup and shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize service on startup and cleanup on shutdown"""
+    global mqtt_client, capability_parser, capability_listener
+
+    logger.info("=" * 60)
+    logger.info("AI Automation Service Starting Up")
+    logger.info("=" * 60)
+    logger.info(f"Data API: {settings.data_api_url}")
+    logger.info(f"Device Intelligence Service: {settings.device_intelligence_url}")
+    logger.info(f"Home Assistant: {settings.ha_url}")
+    logger.info(f"MQTT Broker: {settings.mqtt_broker}:{settings.mqtt_port}")
+    logger.info(f"Analysis Schedule: {settings.analysis_schedule}")
+    logger.info("=" * 60)
+
+    # Initialize database
+    try:
+        await init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        raise
+
+    # Initialize MQTT client (Epic AI-1 + AI-2)
+    try:
+        mqtt_client = MQTTNotificationClient(
+            broker=settings.mqtt_broker,
+            port=settings.mqtt_port,
+            username=settings.mqtt_username,
+            password=settings.mqtt_password
+        )
+        # Use improved connection with retry logic
+        if mqtt_client.connect(max_retries=3, retry_delay=2.0):
+            logger.info("✅ MQTT client connected")
+        else:
+            logger.warning("⚠️ MQTT client connection failed - continuing without MQTT")
+            mqtt_client = None
+    except Exception as e:
+        logger.error(f"❌ MQTT client initialization failed: {e}")
+        mqtt_client = None
+        # Continue without MQTT - don't block service startup
+
+    # Initialize Device Intelligence (Epic AI-2 - Story AI2.1)
+    if mqtt_client and mqtt_client.is_connected:
+        try:
+            capability_parser = CapabilityParser()
+            capability_listener = MQTTCapabilityListener(
+                mqtt_client=mqtt_client,
+                db_session=None,  # Story 2.2 will add database session
+                parser=capability_parser
+            )
+            await capability_listener.start()
+            set_capability_listener(capability_listener)  # Connect to health endpoint
+            logger.info("✅ Device Intelligence capability listener started")
+        except Exception as e:
+            logger.error(f"❌ Device Intelligence initialization failed: {e}")
+            # Continue without Device Intelligence - don't block service startup
+    else:
+        logger.warning("⚠️ Device Intelligence not started (MQTT unavailable)")
+
+    # Set MQTT client in scheduler
+    if mqtt_client:
+        scheduler.set_mqtt_client(mqtt_client)
+
+    # Start scheduler (Epic AI-1)
+    try:
+        scheduler.start()
+        logger.info("✅ Daily analysis scheduler started")
+    except Exception as e:
+        logger.error(f"❌ Scheduler startup failed: {e}")
+        # Don't raise - service can still run without scheduler
+
+    # Initialize containerized AI models (Phase 1)
+    try:
+        model_manager = get_model_manager()
+        await model_manager.initialize()
+        logger.info("✅ Containerized AI models initialized")
+    except Exception as e:
+        logger.error(f"❌ AI models initialization failed: {e}")
+        # Continue without models - service can still run with fallbacks
+
+    # Set extractor references for stats endpoint
+    try:
+        from .api.health import set_model_orchestrator, set_multi_model_extractor
+
+        # Try multi-model extractor first (currently active)
+        extractor = get_multi_model_extractor()
+        if extractor:
+            set_multi_model_extractor(extractor)
+            logger.info("✅ Multi-model extractor set for stats endpoint")
+
+        # Fallback to orchestrator (if configured)
+        orchestrator = get_model_orchestrator()
+        if orchestrator:
+            set_model_orchestrator(orchestrator)
+            logger.info("✅ Model orchestrator set for stats endpoint")
+
+        if not extractor and not orchestrator:
+            logger.warning("⚠️ No extractor available for stats endpoint")
+    except Exception as e:
+        logger.error(f"❌ Failed to set extractor for stats: {e}")
+
+    logger.info("✅ AI Automation Service ready")
+
+    yield
+
+    # Shutdown
+    logger.info("AI Automation Service shutting down")
+
+    # Close device intelligence client
+    try:
+        await device_intelligence_client.close()
+        logger.info("✅ Device Intelligence client closed")
+    except Exception as e:
+        logger.error(f"❌ Device Intelligence client shutdown failed: {e}")
+
+    # Stop scheduler
+    try:
+        scheduler.stop()
+        logger.info("✅ Scheduler stopped")
+    except Exception as e:
+        logger.error(f"❌ Scheduler shutdown failed: {e}")
+
+    # Disconnect MQTT
+    if mqtt_client:
+        try:
+            mqtt_client.disconnect()
+            logger.info("✅ MQTT client disconnected")
+        except Exception as e:
+            logger.error(f"❌ MQTT disconnect failed: {e}")
+
+    # Cleanup AI models (Phase 1)
+    try:
+        model_manager = get_model_manager()
+        await model_manager.cleanup()
+        logger.info("✅ AI models cleaned up")
+    except Exception as e:
+        logger.error(f"❌ AI models cleanup failed: {e}")
+
 # Create FastAPI application
 app = FastAPI(
     title="AI Automation Service",
     description="AI-powered Home Assistant automation suggestion system",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS middleware (allow frontend at ports 3000, 3001)
@@ -131,147 +278,6 @@ device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_i
 from .api.ask_ai_router import set_device_intelligence_client as set_ask_ai_client, get_model_orchestrator, get_multi_model_extractor
 set_ask_ai_client(device_intelligence_client)  # For Ask AI router
 set_device_intelligence_client(device_intelligence_client)  # For devices router
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service on startup"""
-    global mqtt_client, capability_parser, capability_listener
-    
-    logger.info("=" * 60)
-    logger.info("AI Automation Service Starting Up")
-    logger.info("=" * 60)
-    logger.info(f"Data API: {settings.data_api_url}")
-    logger.info(f"Device Intelligence Service: {settings.device_intelligence_url}")
-    logger.info(f"Home Assistant: {settings.ha_url}")
-    logger.info(f"MQTT Broker: {settings.mqtt_broker}:{settings.mqtt_port}")
-    logger.info(f"Analysis Schedule: {settings.analysis_schedule}")
-    logger.info("=" * 60)
-    
-    # Initialize database
-    try:
-        await init_db()
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
-        raise
-    
-    # Initialize MQTT client (Epic AI-1 + AI-2)
-    try:
-        mqtt_client = MQTTNotificationClient(
-            broker=settings.mqtt_broker,
-            port=settings.mqtt_port,
-            username=settings.mqtt_username,
-            password=settings.mqtt_password
-        )
-        # Use improved connection with retry logic
-        if mqtt_client.connect(max_retries=3, retry_delay=2.0):
-            logger.info("✅ MQTT client connected")
-        else:
-            logger.warning("⚠️ MQTT client connection failed - continuing without MQTT")
-            mqtt_client = None
-    except Exception as e:
-        logger.error(f"❌ MQTT client initialization failed: {e}")
-        mqtt_client = None
-        # Continue without MQTT - don't block service startup
-    
-    # Initialize Device Intelligence (Epic AI-2 - Story AI2.1)
-    if mqtt_client and mqtt_client.is_connected:
-        try:
-            capability_parser = CapabilityParser()
-            capability_listener = MQTTCapabilityListener(
-                mqtt_client=mqtt_client,
-                db_session=None,  # Story 2.2 will add database session
-                parser=capability_parser
-            )
-            await capability_listener.start()
-            set_capability_listener(capability_listener)  # Connect to health endpoint
-            logger.info("✅ Device Intelligence capability listener started")
-        except Exception as e:
-            logger.error(f"❌ Device Intelligence initialization failed: {e}")
-            # Continue without Device Intelligence - don't block service startup
-    else:
-        logger.warning("⚠️ Device Intelligence not started (MQTT unavailable)")
-    
-    # Set MQTT client in scheduler
-    if mqtt_client:
-        scheduler.set_mqtt_client(mqtt_client)
-    
-    # Start scheduler (Epic AI-1)
-    try:
-        scheduler.start()
-        logger.info("✅ Daily analysis scheduler started")
-    except Exception as e:
-        logger.error(f"❌ Scheduler startup failed: {e}")
-        # Don't raise - service can still run without scheduler
-    
-    # Initialize containerized AI models (Phase 1)
-    try:
-        model_manager = get_model_manager()
-        await model_manager.initialize()
-        logger.info("✅ Containerized AI models initialized")
-    except Exception as e:
-        logger.error(f"❌ AI models initialization failed: {e}")
-        # Continue without models - service can still run with fallbacks
-    
-    # Set extractor references for stats endpoint
-    try:
-        from .api.health import set_model_orchestrator, set_multi_model_extractor
-        
-        # Try multi-model extractor first (currently active)
-        extractor = get_multi_model_extractor()
-        if extractor:
-            set_multi_model_extractor(extractor)
-            logger.info("✅ Multi-model extractor set for stats endpoint")
-        
-        # Fallback to orchestrator (if configured)
-        orchestrator = get_model_orchestrator()
-        if orchestrator:
-            set_model_orchestrator(orchestrator)
-            logger.info("✅ Model orchestrator set for stats endpoint")
-        
-        if not extractor and not orchestrator:
-            logger.warning("⚠️ No extractor available for stats endpoint")
-    except Exception as e:
-        logger.error(f"❌ Failed to set extractor for stats: {e}")
-    
-    logger.info("✅ AI Automation Service ready")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("AI Automation Service shutting down")
-    
-    # Close device intelligence client
-    try:
-        await device_intelligence_client.close()
-        logger.info("✅ Device Intelligence client closed")
-    except Exception as e:
-        logger.error(f"❌ Device Intelligence client shutdown failed: {e}")
-    
-    # Stop scheduler
-    try:
-        scheduler.stop()
-        logger.info("✅ Scheduler stopped")
-    except Exception as e:
-        logger.error(f"❌ Scheduler shutdown failed: {e}")
-    
-    # Disconnect MQTT
-    if mqtt_client:
-        try:
-            mqtt_client.disconnect()
-            logger.info("✅ MQTT client disconnected")
-        except Exception as e:
-            logger.error(f"❌ MQTT disconnect failed: {e}")
-    
-    # Cleanup AI models (Phase 1)
-    try:
-        model_manager = get_model_manager()
-        await model_manager.cleanup()
-        logger.info("✅ AI models cleaned up")
-    except Exception as e:
-        logger.error(f"❌ AI models cleanup failed: {e}")
 
 
 if __name__ == "__main__":
