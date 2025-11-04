@@ -20,6 +20,7 @@ export const Navigation: React.FC = () => {
     { path: '/deployed', label: '🚀 Deployed', icon: '🚀' },
     { path: '/discovery', label: '🔍 Discovery', icon: '🔍' },  // Epic AI-4, Story AI4.3
     { path: '/settings', label: '⚙️ Settings', icon: '⚙️' },
+    { path: '/admin', label: '🔧 Admin', icon: '🔧' },
   ];
 
   const isActive = (path: string) => {
@@ -96,28 +97,6 @@ export const Navigation: React.FC = () => {
               {darkMode ? '☀️' : '🌙'}
             </button>
 
-            {/* Link to Admin Dashboard */}
-              <a
-              href="http://localhost:3000"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-2 px-3 py-0.5 text-xs rounded-lg font-medium transition-colors"
-              style={{
-                background: 'rgba(30, 41, 59, 0.6)',
-                border: '1px solid rgba(51, 65, 85, 0.5)',
-                color: '#cbd5e1',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
-              }}
-            >
-              🔧 ADMIN
-            </a>
           </div>
 
           {/* Mobile Menu */}
@@ -148,7 +127,7 @@ export const Navigation: React.FC = () => {
             >
               <span className="text-lg">{item.icon}</span>
               <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
-                {item.label.replace(/[🤖💬📊🔮🚀🔍⚙️]/g, '').trim()}
+                {item.label.replace(/[🤖💬📊🔮🚀🔍⚙️🔧]/g, '').trim()}
               </span>
             </Link>
           ))}

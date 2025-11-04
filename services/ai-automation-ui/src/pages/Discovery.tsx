@@ -18,19 +18,37 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch user's devices from ai-automation-service
+    // Fetch user's device types from entities (domains)
     const fetchDevices = async () => {
       try {
-        const response = await fetch('http://localhost:8018/api/data/devices');
-        if (!response.ok) {
-          throw new Error('Failed to fetch devices');
+        // Fetch entities to get unique domains (device types)
+        // Note: ai-automation-service runs on port 8024 (mapped from 8018)
+        const entitiesResponse = await fetch('http://localhost:8024/api/data/entities?limit=10000');
+        if (!entitiesResponse.ok) {
+          throw new Error('Failed to fetch entities');
         }
         
-        const data = await response.json();
-        const deviceTypes = data.devices?.map((d: any) => d.device_type || d.domain) || [];
+        const entitiesData = await entitiesResponse.json();
         
-        setUserDevices(deviceTypes);
-        setLoading(false);
+        // Extract unique domains from entities
+        const entities = entitiesData.data?.entities || entitiesData.entities || [];
+        const uniqueDomains = Array.from(new Set(entities.map((e: any) => e.domain || e.entity_id?.split('.')[0]).filter(Boolean))) as string[];
+        
+        if (uniqueDomains.length > 0) {
+          setUserDevices(uniqueDomains);
+          setLoading(false);
+        } else {
+          // Fallback: try to get from devices
+          const devicesResponse = await fetch('http://localhost:8024/api/data/devices');
+          if (devicesResponse.ok) {
+            // Use demo devices as fallback if no entities found
+            setUserDevices(['light', 'switch', 'sensor']);
+            setError('No device types found. Using demo mode.');
+          } else {
+            throw new Error('Failed to fetch devices');
+          }
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Error fetching devices:', err);
         setError('Failed to load devices. Using demo mode.');

@@ -15,6 +15,7 @@ import { Synergies } from './pages/Synergies';  // Epic AI-3, Story AI3.8
 import { Deployed } from './pages/Deployed';
 import { Settings } from './pages/Settings';
 import { DiscoveryPage } from './pages/Discovery';  // Epic AI-4, Story AI4.3
+import { Admin } from './pages/Admin';
 import { useAppStore } from './store';
 
 export const App: React.FC = () => {
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
             <Route path="/deployed" element={<Deployed />} />
             <Route path="/discovery" element={<DiscoveryPage />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
 

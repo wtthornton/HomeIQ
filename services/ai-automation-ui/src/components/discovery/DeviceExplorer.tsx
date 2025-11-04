@@ -37,8 +37,9 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
     
     try {
       const userDevicesParam = devices.join(',');
+      // Note: automation-miner runs on port 8029 (mapped from 8019)
       const response = await fetch(
-        `http://localhost:8019/api/automation-miner/devices/${device}/possibilities?user_devices=${userDevicesParam}`
+        `http://localhost:8029/api/automation-miner/devices/${device}/possibilities?user_devices=${userDevicesParam}`
       );
       
       if (!response.ok) {

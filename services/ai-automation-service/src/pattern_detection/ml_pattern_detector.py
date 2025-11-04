@@ -477,8 +477,22 @@ class MLPatternDetector(ABC):
             return patterns
         
         # Extract only new events since last update
-        events_df['time'] = pd.to_datetime(events_df['time'])
-        new_events = events_df[events_df['time'] > update_time].copy()
+        # Handle different possible column names for timestamp
+        time_col = None
+        for col in ['timestamp', '_time', 'last_changed', 'time']:
+            if col in events_df.columns:
+                time_col = col
+                break
+        
+        if time_col is None:
+            logger.warning("No timestamp column found in events DataFrame, performing full analysis")
+            patterns = self.detect_patterns(events_df)
+            self._last_update_time = datetime.utcnow()
+            self._pattern_cache = patterns
+            return patterns
+        
+        events_df[time_col] = pd.to_datetime(events_df[time_col])
+        new_events = events_df[events_df[time_col] > update_time].copy()
         
         if new_events.empty:
             logger.info("No new events since last update, returning cached patterns")
@@ -489,7 +503,7 @@ class MLPatternDetector(ABC):
         
         # Merge new events with recent history (last window_days)
         cutoff_time = datetime.utcnow() - timedelta(days=self.window_days)
-        recent_events = events_df[events_df['time'] > cutoff_time].copy()
+        recent_events = events_df[events_df[time_col] > cutoff_time].copy()
         
         # Perform incremental pattern detection
         patterns = self._incremental_detect_patterns(recent_events, new_events)
