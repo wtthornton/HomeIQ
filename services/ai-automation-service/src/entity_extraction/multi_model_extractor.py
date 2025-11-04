@@ -309,6 +309,11 @@ class MultiModelEntityExtractor:
                             
                         device_details = await self.device_intel_client.get_device_details(device_id)
                         if device_details:
+                            # ✅ FIX: Validate that device_details is a dict before processing
+                            if not isinstance(device_details, dict):
+                                logger.warning(f"⚠️ device_intel_client returned non-dict type for device {device_id}: {type(device_details).__name__}")
+                                continue
+                            
                             enhanced_entity = self._build_enhanced_entity(device_details)
                             enhanced_entities.append(enhanced_entity)
                             added_device_ids.add(device_id)
@@ -439,6 +444,11 @@ class MultiModelEntityExtractor:
         area: Optional[str] = None
     ) -> Dict[str, Any]:
         """Build enhanced entity from device details."""
+        # ✅ FIX: Defensive check - ensure device_details is a dict
+        if not isinstance(device_details, dict):
+            logger.error(f"❌ _build_enhanced_entity received non-dict type: {type(device_details).__name__}")
+            raise ValueError(f"device_details must be a dict, got {type(device_details).__name__}")
+        
         entities_list = device_details.get('entities', [])
         entity_id = entities_list[0]['entity_id'] if entities_list else None
         domain = entities_list[0]['domain'] if entities_list else 'unknown'

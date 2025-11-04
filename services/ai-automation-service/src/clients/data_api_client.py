@@ -112,22 +112,97 @@ class DataAPIClient:
             if event_type:
                 params["event_type"] = event_type
             
-            logger.info(f"Fetching events from InfluxDB: start={start_time}, end={end_time}, limit={limit}")
+            logger.info(f"Fetching events from Data API: start={start_time}, end={end_time}, limit={limit}")
             
-            # Query InfluxDB directly for events
-            df = await self.influxdb_client.fetch_events(
-                start_time=start_time,
-                end_time=end_time,
-                entity_id=entity_id,
-                limit=limit
-            )
-            
-            if df.empty:
-                logger.warning(f"No events returned from InfluxDB for period {start_time} to {end_time}")
-                return pd.DataFrame()
-            
-            logger.info(f"✅ Fetched {len(df)} events from InfluxDB")
-            return df
+            # Try Data API first (more reliable, already tested)
+            try:
+                # Build query params
+                # Data API supports start_time and end_time as ISO strings
+                params = {
+                    "limit": limit
+                }
+                if start_time:
+                    params["start_time"] = start_time.isoformat()
+                if end_time:
+                    params["end_time"] = end_time.isoformat()
+                if entity_id:
+                    params["entity_id"] = entity_id
+                if device_id:
+                    params["device_id"] = device_id
+                if event_type:
+                    params["event_type"] = event_type
+                
+                # Query Data API endpoint
+                response = await self.client.get(
+                    f"{self.base_url}/api/v1/events",
+                    params=params
+                )
+                response.raise_for_status()
+                
+                events_data = response.json()
+                
+                # Handle list response format
+                if isinstance(events_data, list):
+                    events = events_data
+                elif isinstance(events_data, dict) and "events" in events_data:
+                    events = events_data["events"]
+                else:
+                    events = []
+                
+                if not events:
+                    logger.warning(f"No events returned from Data API for period {start_time} to {end_time}")
+                    return pd.DataFrame()
+                
+                # Convert to DataFrame format expected by pattern detectors
+                df_data = []
+                for event in events:
+                    # Extract timestamp
+                    timestamp_str = event.get("timestamp", event.get("time_fired"))
+                    if isinstance(timestamp_str, str):
+                        timestamp = pd.to_datetime(timestamp_str)
+                    else:
+                        timestamp = pd.to_datetime(event.get("_time", datetime.now(timezone.utc)))
+                    
+                    # Extract entity_id and state
+                    entity_id_val = event.get("entity_id", "")
+                    new_state = event.get("new_state")
+                    if isinstance(new_state, dict):
+                        state = new_state.get("state", "")
+                    else:
+                        state = event.get("state", event.get("state_value", ""))
+                    
+                    df_data.append({
+                        "timestamp": timestamp,
+                        "_time": timestamp,
+                        "last_changed": timestamp,
+                        "entity_id": entity_id_val,
+                        "device_id": event.get("device_id", entity_id_val),
+                        "state": state,
+                        "event_type": event.get("event_type", "state_changed"),
+                        "domain": entity_id_val.split(".")[0] if "." in entity_id_val else "",
+                        "friendly_name": event.get("friendly_name", entity_id_val)
+                    })
+                
+                df = pd.DataFrame(df_data)
+                logger.info(f"✅ Fetched {len(df)} events from Data API")
+                return df
+                
+            except Exception as e:
+                logger.warning(f"Data API query failed: {e}, falling back to direct InfluxDB query")
+                # Fallback to direct InfluxDB query
+                df = await self.influxdb_client.fetch_events(
+                    start_time=start_time,
+                    end_time=end_time,
+                    entity_id=entity_id,
+                    limit=limit
+                )
+                
+                if df.empty:
+                    logger.warning(f"No events returned from InfluxDB for period {start_time} to {end_time}")
+                    return pd.DataFrame()
+                
+                logger.info(f"✅ Fetched {len(df)} events from InfluxDB (fallback)")
+                return df
             
         except httpx.HTTPError as e:
             logger.error(f"❌ Failed to fetch events from Data API: {e}")

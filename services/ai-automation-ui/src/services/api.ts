@@ -7,12 +7,9 @@ import type { Suggestion, Pattern, ScheduleInfo, AnalysisStatus, UsageStats, Syn
 
 // Use relative path - nginx will proxy to ai-automation-service
 // In production (Docker), nginx proxies /api to http://ai-automation-service:8018/api
-// In development, use direct connection to localhost:8018
-const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  import.meta.env.MODE === 'development' 
-    ? 'http://localhost:8018/api' 
-    : '/api'
-);
+// In development (standalone), use direct connection to localhost:8024 (mapped from 8018)
+// When running via Docker (port 3001), nginx handles the proxy, so use relative /api
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class APIError extends Error {
   constructor(public status: number, message: string) {

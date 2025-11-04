@@ -100,6 +100,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(health_router)
 app.include_router(data_router)
+# Pattern router - ensure it's registered with all routes
 app.include_router(pattern_router)
 app.include_router(suggestion_router)
 app.include_router(synergy_router)  # Epic AI-3, Story AI3.8

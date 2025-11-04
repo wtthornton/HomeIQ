@@ -1178,27 +1178,40 @@ export const AskAI: React.FC = () => {
                             const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
                             const seenEntityIds = new Set<string>();
                             
-                            // Helper to add device safely
-                            const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
-                              if (entityId && !seenEntityIds.has(entityId)) {
-                                // Check if device selection exists for this suggestion
-                                let isSelected = true; // Default to selected
-                                if (suggestionId && deviceSelections.has(suggestionId)) {
-                                  const selectionMap = deviceSelections.get(suggestionId)!;
-                                  if (selectionMap.has(entityId)) {
-                                    isSelected = selectionMap.get(entityId)!;
-                                  }
+                                                          // Helper to add device safely
+                              const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+                                // Filter out generic/redundant device names (same as backend)
+                                const friendlyNameLower = friendlyName.toLowerCase().trim();
+                                const genericTerms = ['light', 'lights', 'device', 'devices', 'sensor', 'sensors', 'switch', 'switches'];
+                                if (genericTerms.includes(friendlyNameLower)) {
+                                  return; // Skip generic terms
                                 }
                                 
-                                devices.push({
-                                  friendly_name: friendlyName,
-                                  entity_id: entityId,
-                                  domain: domain || entityId.split('.')[0],
-                                  selected: isSelected
-                                });
-                                seenEntityIds.add(entityId);
-                              }
-                            };
+                                // Skip if entity ID is just a domain (e.g., "light.light")
+                                if (entityId && entityId.split('.').length === 2 && 
+                                    entityId.split('.')[1].toLowerCase() === entityId.split('.')[0].toLowerCase()) {
+                                  return; // Skip generic entity IDs like "light.light"
+                                }
+                                
+                                if (entityId && !seenEntityIds.has(entityId)) {
+                                  // Check if device selection exists for this suggestion
+                                  let isSelected = true; // Default to selected
+                                  if (suggestionId && deviceSelections.has(suggestionId)) {
+                                    const selectionMap = deviceSelections.get(suggestionId)!;
+                                    if (selectionMap.has(entityId)) {
+                                      isSelected = selectionMap.get(entityId)!;
+                                    }
+                                  }
+                                  
+                                  devices.push({
+                                    friendly_name: friendlyName,
+                                    entity_id: entityId,
+                                    domain: domain || entityId.split('.')[0],
+                                    selected: isSelected
+                                  });
+                                  seenEntityIds.add(entityId);
+                                }
+                              };
                             
                             // 1. Try validated_entities (most reliable - direct mapping from API)
                             if (suggestion.validated_entities && typeof suggestion.validated_entities === 'object') {
@@ -1241,17 +1254,43 @@ export const AskAI: React.FC = () => {
                               });
                             }
                             
-                            // 5. Try devices_involved array (may have device names without entity IDs)
-                            if (suggestion.devices_involved && Array.isArray(suggestion.devices_involved)) {
-                              suggestion.devices_involved.forEach((deviceName: string) => {
-                                if (typeof deviceName === 'string' && deviceName.trim()) {
-                                  // Try to infer entity ID from device name
-                                  const normalizedName = deviceName.toLowerCase().replace(/\s+/g, '_');
-                                  const inferredEntityId = `light.${normalizedName}`; // Default to light domain
-                                  addDevice(deviceName, inferredEntityId, 'light');
-                                }
-                              });
-                            }
+                                                          // 5. Try devices_involved array (may have device names without entity IDs)
+                              // ONLY if not already processed via validated_entities (prevent duplicates)
+                              if (suggestion.devices_involved && Array.isArray(suggestion.devices_involved)) {
+                                // Track friendly names already processed to avoid duplicates
+                                const seenFriendlyNames = new Set(
+                                  devices.map(d => d.friendly_name.toLowerCase())
+                                );
+                                
+                                suggestion.devices_involved.forEach((deviceName: string) => {
+                                  if (typeof deviceName === 'string' && deviceName.trim()) {
+                                    // Skip if this friendly name was already added from validated_entities
+                                    const deviceNameLower = deviceName.toLowerCase().trim();
+                                    if (seenFriendlyNames.has(deviceNameLower)) {
+                                      return; // Skip - already added from validated_entities
+                                    }
+                                    
+                                    // Check if this device name exists in validated_entities
+                                    if (suggestion.validated_entities && 
+                                        typeof suggestion.validated_entities === 'object' &&
+                                        suggestion.validated_entities[deviceName]) {
+                                      // Use the actual entity ID from validated_entities
+                                      const actualEntityId = suggestion.validated_entities[deviceName];
+                                      if (actualEntityId && typeof actualEntityId === 'string') {
+                                        addDevice(deviceName, actualEntityId);
+                                        seenFriendlyNames.add(deviceNameLower);
+                                        return;
+                                      }
+                                    }
+                                    
+                                    // Only infer if not in validated_entities (fallback)
+                                    const normalizedName = deviceName.toLowerCase().replace(/\s+/g, '_');
+                                    const inferredEntityId = `light.${normalizedName}`; // Default to light domain
+                                    addDevice(deviceName, inferredEntityId, 'light');
+                                    seenFriendlyNames.add(deviceNameLower);
+                                  }
+                                });
+                              }
                             
                             // 6. Try extracted_entities from message
                             if (extractedEntities && Array.isArray(extractedEntities)) {
