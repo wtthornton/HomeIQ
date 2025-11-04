@@ -11,6 +11,7 @@ Provides classical ML algorithms for:
 
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -28,11 +29,32 @@ logger = logging.getLogger(__name__)
 clustering_manager: ClusteringManager = None
 anomaly_manager: AnomalyDetectionManager = None
 
+# Lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize ML managers on startup"""
+    global clustering_manager, anomaly_manager
+
+    logger.info("🚀 Starting ML Service...")
+    try:
+        clustering_manager = ClusteringManager()
+        anomaly_manager = AnomalyDetectionManager()
+        logger.info("✅ ML Service started successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to start ML Service: {e}")
+        raise
+
+    yield
+
+    # Cleanup on shutdown (if needed)
+    logger.info("🛑 ML Service shutting down")
+
 # Create FastAPI app
 app = FastAPI(
     title="ML Service",
     description="Classical machine learning algorithms for pattern detection",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -73,21 +95,6 @@ class BatchProcessRequest(BaseModel):
 class BatchProcessResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(..., description="Results for each operation")
     processing_time: float = Field(..., description="Total processing time in seconds")
-
-# Initialize managers
-@app.on_event("startup")
-async def startup_event():
-    """Initialize ML managers on startup"""
-    global clustering_manager, anomaly_manager
-    
-    logger.info("🚀 Starting ML Service...")
-    try:
-        clustering_manager = ClusteringManager()
-        anomaly_manager = AnomalyDetectionManager()
-        logger.info("✅ ML Service started successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to start ML Service: {e}")
-        raise
 
 # API Endpoints
 @app.get("/health")

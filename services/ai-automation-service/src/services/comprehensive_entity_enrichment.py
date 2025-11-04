@@ -6,6 +6,7 @@ Combines ALL available data sources to provide complete entity context:
 - Entity Attributes (friendly_name, state, attributes, integration, supported_features)
 - HA Client (entity states, device data, area data)
 - Data API (device metadata, historical patterns)
+- Enrichment Context (weather, carbon, energy, air quality) - NEW
 """
 
 import logging
@@ -20,28 +21,34 @@ async def enrich_entities_comprehensively(
     ha_client: Optional[Any] = None,
     device_intelligence_client: Optional[Any] = None,
     data_api_client: Optional[Any] = None,
-    include_historical: bool = False
+    include_historical: bool = False,
+    enrichment_context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Dict[str, Any]]:
     """
     Comprehensive entity enrichment using ALL available data sources.
-    
+
     Args:
         entity_ids: Set of entity IDs to enrich
         ha_client: HomeAssistantClient for entity states and attributes
         device_intelligence_client: DeviceIntelligenceClient for device intelligence data
         data_api_client: DataAPIClient for historical data and metadata
         include_historical: Whether to include historical usage patterns
-        
+        enrichment_context: Optional enrichment data (weather, carbon, energy, air quality)
+
     Returns:
-        Dictionary mapping entity_id to comprehensive enriched data
+        Dictionary mapping entity_id to comprehensive enriched data, plus global enrichment context
     """
     enriched: Dict[str, Dict[str, Any]] = {}
-    
+
     if not entity_ids:
         logger.warning("No entity IDs provided for enrichment")
         return enriched
-    
-    logger.info(f"🔍 Starting comprehensive enrichment for {len(entity_ids)} entities")
+
+    # Add enrichment context logging
+    if enrichment_context:
+        logger.info(f"🔍 Starting comprehensive enrichment for {len(entity_ids)} entities with {len(enrichment_context)} enrichment types")
+    else:
+        logger.info(f"🔍 Starting comprehensive enrichment for {len(entity_ids)} entities")
     
     # Step 1: Get entity attributes from HA (fast, always available)
     # Use parallel enrichment to prevent timeout
@@ -176,8 +183,13 @@ async def enrich_entities_comprehensively(
             })
         
         enriched[entity_id] = combined
-    
-    logger.info(f"✅ Comprehensive enrichment complete: {len(enriched)}/{len(entity_ids)} entities")
+
+    # Add enrichment context as special key (if provided)
+    if enrichment_context:
+        enriched['_enrichment_context'] = enrichment_context
+        logger.info(f"✅ Added {len(enrichment_context)} enrichment types: {list(enrichment_context.keys())}")
+
+    logger.info(f"✅ Comprehensive enrichment complete: {len([k for k in enriched.keys() if not k.startswith('_')])}/{len(entity_ids)} entities")
     return enriched
 
 
@@ -367,20 +379,108 @@ async def _get_historical_patterns_for_entities(
     return historical_data
 
 
+def format_enrichment_context_for_prompt(enrichment_context: Dict[str, Any]) -> str:
+    """
+    Format enrichment context (weather, carbon, energy, air quality) for LLM prompts.
+
+    Args:
+        enrichment_context: Dictionary with enrichment data
+
+    Returns:
+        Formatted string with environmental context
+    """
+    if not enrichment_context:
+        return ""
+
+    sections = ["## Environmental Context\n"]
+
+    # Weather
+    if 'weather' in enrichment_context:
+        weather = enrichment_context['weather']
+        sections.append("**Weather:**")
+        sections.append(f"  - Temperature: {weather.get('current_temperature', 0):.1f}°F (feels like {weather.get('feels_like', 0):.1f}°F)")
+        sections.append(f"  - Condition: {weather.get('condition', 'Unknown')}")
+        sections.append(f"  - Humidity: {weather.get('humidity', 0)}%")
+        sections.append(f"  - Wind: {weather.get('wind_speed', 0):.1f} mph")
+
+    # Carbon Intensity
+    if 'carbon' in enrichment_context:
+        carbon = enrichment_context['carbon']
+        carbon_val = carbon.get('carbon_intensity', 0)
+        renewable_pct = carbon.get('renewable_percentage', 0)
+        sections.append("\n**Grid Carbon Intensity:**")
+        sections.append(f"  - Current: {carbon_val:.0f} gCO2/kWh")
+        sections.append(f"  - Renewable energy: {renewable_pct:.1f}%")
+        sections.append(f"  - Fossil fuels: {carbon.get('fossil_percentage', 0):.1f}%")
+
+        # Add context about carbon levels
+        if carbon_val > 500:
+            sections.append(f"  - Status: HIGH carbon (coal/gas heavy)")
+        elif carbon_val > 300:
+            sections.append(f"  - Status: MODERATE carbon")
+        else:
+            sections.append(f"  - Status: LOW carbon (clean energy)")
+
+    # Energy Pricing
+    if 'energy' in enrichment_context:
+        energy = enrichment_context['energy']
+        price = energy.get('current_price', 0)
+        peak = energy.get('peak_period', False)
+        sections.append("\n**Electricity Pricing:**")
+        sections.append(f"  - Current rate: ${price:.3f}/kWh")
+        sections.append(f"  - Period: {'PEAK (expensive)' if peak else 'OFF-PEAK (cheaper)'}")
+
+        # Add savings opportunity if peak
+        if peak:
+            sections.append(f"  - Opportunity: Delay high-power devices to off-peak hours for cost savings")
+
+    # Air Quality
+    if 'air_quality' in enrichment_context:
+        air = enrichment_context['air_quality']
+        aqi = air.get('aqi', 0)
+        category = air.get('category', 'Unknown')
+        sections.append("\n**Air Quality:**")
+        sections.append(f"  - AQI: {aqi} ({category})")
+        sections.append(f"  - PM2.5: {air.get('pm25', 0)} μg/m³")
+        sections.append(f"  - PM10: {air.get('pm10', 0)} μg/m³")
+
+        # Add health guidance
+        if aqi > 150:
+            sections.append(f"  - Status: UNHEALTHY - Consider air purifier automation")
+        elif aqi > 100:
+            sections.append(f"  - Status: MODERATE - May affect sensitive groups")
+        else:
+            sections.append(f"  - Status: GOOD air quality")
+
+    return "\n".join(sections)
+
+
 def format_comprehensive_enrichment_for_prompt(
     enriched_entities: Dict[str, Dict[str, Any]]
 ) -> str:
     """
     Format comprehensive enrichment data for LLM prompts.
-    
+
     Creates a detailed, structured text representation of all entity data.
+    Now includes environmental context (weather, carbon, energy, air quality).
     """
     if not enriched_entities:
         return "No entity data available."
-    
+
     sections = []
-    
+
+    # Extract and format enrichment context first (if present)
+    enrichment_context = enriched_entities.get('_enrichment_context')
+    if enrichment_context:
+        context_section = format_enrichment_context_for_prompt(enrichment_context)
+        if context_section:
+            sections.append(context_section)
+            sections.append("---\n")  # Separator between context and entities
+
     for entity_id, data in enriched_entities.items():
+        # Skip special keys
+        if entity_id.startswith('_'):
+            continue
         entity_section = []
         
         # Entity identification

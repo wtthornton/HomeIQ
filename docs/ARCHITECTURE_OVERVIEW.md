@@ -1,13 +1,14 @@
 # Architecture Overview: HomeIQ
 
-**Last Updated:** 2025-10-25
-**Version:** 3.0.0 (Phase 1 AI Containerization)
+**Last Updated:** 2025-11-04
+**Version:** 4.0.0 (Comprehensive Code Review Update)
+**Review Status:** ✅ Verified against actual implementation (50,000+ lines reviewed)
 
 ---
 
 ## System Architecture
 
-HomeIQ is an enterprise-grade intelligence layer for Home Assistant with AI-powered automation, pattern detection, advanced analytics, and distributed AI services.
+HomeIQ is an enterprise-grade intelligence layer for Home Assistant featuring **26 microservices**, hybrid database architecture (5 SQLite + InfluxDB), AI-powered automation with conversational flow, pattern detection, advanced analytics, and distributed AI services with circuit breaker resilience.
 
 ### Core Components
 
@@ -235,36 +236,73 @@ Storage & Notification
 
 ## Deployment Architecture
 
-### Docker Services
+### Docker Services (26 Microservices)
 
-```
-services:
-  - influxdb (time-series database)
-  - data-api (historical queries)
-  - admin-api (system management)
-  - websocket-ingestion (event capture)
-  - ai-automation-service (pattern + device intelligence)
-  - health-dashboard (monitoring UI)
-  - enrichment services:
-    - weather-api
-    - carbon-intensity-service
-    - electricity-pricing-service
-    - air-quality-service
-    - calendar-service
-    - smart-meter-service
-```
+**Core Services (5):**
+- `influxdb` - Time-series database (InfluxDB 2.7)
+- `data-api` - Historical queries + feature data hub (SQLite + InfluxDB)
+- `admin-api` - System management + monitoring
+- `websocket-ingestion` - Event capture with infinite retry + circuit breaker
+- `health-dashboard` - React monitoring UI with 13 tabs
+
+**AI Services (8):**
+- `ai-automation-service` - Pattern detection + conversational automation
+- `ai-core-service` - AI orchestration
+- `openvino-service` - Embeddings + re-ranking (all-MiniLM-L6-v2)
+- `ml-service` - Classical ML algorithms (scikit-learn)
+- `ner-service` - Named Entity Recognition
+- `openai-service` - GPT-4o-mini API wrapper
+- `device-intelligence-service` - Device capability discovery
+- `automation-miner` - Community automation mining
+
+**Data Enrichment Services (6):**
+- `weather-api` - OpenWeatherMap integration
+- `carbon-intensity-service` - WattTime grid carbon
+- `electricity-pricing-service` - Awattar pricing
+- `air-quality-service` - AirNow AQI data
+- `calendar-service` - HA calendar integration
+- `smart-meter-service` - Power consumption tracking
+
+**Processing & Infrastructure (7):**
+- `data-retention` - Data lifecycle management
+- `energy-correlator` - Energy pattern analysis
+- `log-aggregator` - Centralized logging
+- `ha-setup-service` - HA health monitoring
+- `ha-simulator` - Development mock server
+- `mosquitto` - MQTT broker
+- `enrichment-pipeline` - ❌ DEPRECATED (Epic 31)
 
 ### Resource Requirements
 
-| Service | Memory | CPU | Storage |
-|---------|--------|-----|---------|
-| InfluxDB | 512MB | 0.5 | 5-10GB |
-| AI Automation | 400MB peak | 0.3 | 100MB |
-| WebSocket | 256MB | 0.2 | Minimal |
-| Data API | 256MB | 0.2 | Minimal |
-| Dashboard | 128MB | 0.1 | Minimal |
-| Others | ~1GB total | 0.5 | Minimal |
-| **Total** | **~2.5GB** | **1.8** | **5-10GB** |
+**Development (default docker-compose.yml):**
+| Service | Memory Limit | Memory Reserved |
+|---------|-------------|-----------------|
+| InfluxDB | 512M | 256M |
+| WebSocket Ingestion | 512M | 256M |
+| Data API | 1G | 512M |
+| Admin API | 256M | 128M |
+| AI Automation Service | 512M | 256M |
+| OpenVINO Service | 1.5G | 1G |
+| ML Service | 512M | 256M |
+| Other AI Services | 512M each | 256M each |
+| **Total (All Services)** | **~8GB** | **~4GB** |
+
+**Production (docker-compose.prod.yml - optimized):**
+| Service | Memory Limit | CPU Limit |
+|---------|-------------|-----------|
+| InfluxDB | 2G | 2.0 |
+| WebSocket Ingestion | 256M | 0.5 |
+| Data Retention | 1G | 1.0 |
+| Data API | 512M | 0.5 |
+| Admin API | 512M | 0.5 |
+| Health Dashboard | 256M | 0.25 |
+| Enrichment Pipeline | 1G | 1.0 |
+| **Total (Core Services)** | **~5.5GB** | **~6 CPUs** |
+
+**Storage:**
+- InfluxDB: 5-10GB (365-day retention)
+- SQLite: 100-500MB (5 databases)
+- Logs: 1-2GB (rotating)
 
 ---
 
