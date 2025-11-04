@@ -40,8 +40,9 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
       
       try {
         const userDevicesParam = userDevices.join(',');
+        // Note: automation-miner runs on port 8029 (mapped from 8019)
         const response = await fetch(
-          `http://localhost:8019/api/automation-miner/devices/recommendations?user_devices=${userDevicesParam}&limit=10`
+          `http://localhost:8029/api/automation-miner/devices/recommendations?user_devices=${userDevicesParam}&limit=10`
         );
         
         if (!response.ok) {

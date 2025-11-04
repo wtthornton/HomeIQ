@@ -227,17 +227,19 @@ class CoOccurrencePatternDetector:
                 
                 # Store aggregate
                 try:
+                    # Calculate typical hours (simplified - could be enhanced)
+                    typical_hours = []  # Could extract from pattern metadata if available
+                    
+                    # Convert window_minutes to seconds
+                    time_window_seconds = self.window_minutes * 60
+                    
                     self.aggregate_client.write_co_occurrence_daily(
                         date=date_str,
-                        entity_id=combined_id,
-                        domain=f"{domain1}_{domain2}",
-                        device1=device1,
-                        device2=device2,
-                        occurrences=occurrences,
+                        device_pair=combined_id,
+                        co_occurrence_count=occurrences,
+                        time_window_seconds=time_window_seconds,
                         confidence=confidence,
-                        support=support,
-                        avg_time_delta_seconds=avg_time_delta,
-                        window_minutes=self.window_minutes
+                        typical_hours=typical_hours
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {combined_id}: {e}", exc_info=True)

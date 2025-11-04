@@ -241,7 +241,6 @@ class DailyAnalysisScheduler:
             tod_detector = TimeOfDayPatternDetector(
                 min_occurrences=5,
                 min_confidence=0.7,
-                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             
@@ -265,7 +264,6 @@ class DailyAnalysisScheduler:
                 window_minutes=5,
                 min_support=5,
                 min_confidence=0.7,
-                enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
             # Use incremental update if enabled and previous run exists

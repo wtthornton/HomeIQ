@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/synergies", tags=["Synergies"])
 
 
-@router.get("/")
+@router.get("", include_in_schema=True)
+@router.get("/", include_in_schema=True)
 async def list_synergies(
     synergy_type: Optional[str] = Query(default=None, description="Filter by synergy type"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence"),

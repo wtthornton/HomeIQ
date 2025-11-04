@@ -127,6 +127,7 @@ async def get_devices(
 ) -> Dict[str, Any]:
     """
     Fetch devices from Device Intelligence Service.
+    Returns devices in format expected by frontend: {devices: [...], count: ...}
     """
     try:
         logger.info(f"Fetching devices: manufacturer={manufacturer}, model={model}, area_id={area_id}, limit={limit}")
@@ -142,13 +143,10 @@ async def get_devices(
         if model:
             devices = [d for d in devices if d.get('model', '').lower() == model.lower()]
         
+        # Return format expected by Discovery.tsx frontend
         return {
-            "success": True,
-            "data": {
-                "devices": devices,
-                "count": len(devices)
-            },
-            "message": f"Fetched {len(devices)} devices successfully"
+            "devices": devices,
+            "count": len(devices)
         }
         
     except Exception as e:
@@ -165,10 +163,11 @@ async def get_entities(
     domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: Optional[str] = Query(default=None, description="Filter by platform"),
     area_id: Optional[str] = Query(default=None, description="Filter by area/room"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities")
+    limit: int = Query(default=100, ge=1, le=10000, description="Maximum number of entities")
 ) -> Dict[str, Any]:
     """
     Fetch entities from Data API.
+    Returns entities in format expected by frontend: {entities: [...], count: ...}
     """
     try:
         logger.info(f"Fetching entities: device_id={device_id}, domain={domain}, platform={platform}, area_id={area_id}, limit={limit}")
@@ -181,13 +180,14 @@ async def get_entities(
             limit=limit
         )
         
+        # Return format expected by frontend (can handle both formats)
         return {
-            "success": True,
+            "entities": entities,
+            "count": len(entities),
             "data": {
                 "entities": entities,
                 "count": len(entities)
-            },
-            "message": f"Fetched {len(entities)} entities successfully"
+            }
         }
         
     except Exception as e:
