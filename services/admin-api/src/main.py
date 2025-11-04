@@ -446,6 +446,63 @@ class AdminAPIService:
 admin_api_service = AdminAPIService()
 
 
+# Lifespan context manager for startup and shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown"""
+    # Startup
+    logger.info("Starting Admin API service...")
+
+    # Start monitoring services
+    await logging_service.start()
+    await metrics_service.start()
+    await alerting_service.start()
+
+    # Initialize InfluxDB connection for stats endpoints
+    try:
+        logger.info("Initializing InfluxDB connection for statistics...")
+        await admin_api_service.stats_endpoints.initialize()
+        logger.info("InfluxDB connection initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize InfluxDB: {e}")
+        logger.warning("Statistics will fall back to direct service calls")
+
+    # Start WebSocket broadcast loop for real-time dashboard updates
+    try:
+        logger.info("Starting WebSocket broadcast loop...")
+        await admin_api_service.websocket_endpoints.start_broadcast_loop()
+        logger.info("WebSocket broadcast loop started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start WebSocket broadcast loop: {e}")
+
+    logger.info("Admin API service started on 0.0.0.0:8004")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down Admin API service...")
+
+    # Stop WebSocket broadcast loop
+    try:
+        admin_api_service.websocket_endpoints.stop_broadcast_loop()
+        logger.info("WebSocket broadcast loop stopped")
+    except Exception as e:
+        logger.error(f"Error stopping WebSocket broadcast loop: {e}")
+
+    # Close InfluxDB connection
+    try:
+        await admin_api_service.stats_endpoints.close()
+    except Exception as e:
+        logger.error(f"Error closing InfluxDB connection: {e}")
+
+    # Stop monitoring services
+    await alerting_service.stop()
+    await metrics_service.stop()
+    await logging_service.stop()
+
+    logger.info("Admin API service stopped")
+
+
 # Create FastAPI app for external use
 app = FastAPI(
     title=admin_api_service.api_title,
@@ -453,7 +510,8 @@ app = FastAPI(
     description=admin_api_service.api_description,
     docs_url="/docs" if not admin_api_service.enable_auth else None,
     redoc_url="/redoc" if not admin_api_service.enable_auth else None,
-    openapi_url="/openapi.json" if not admin_api_service.enable_auth else None
+    openapi_url="/openapi.json" if not admin_api_service.enable_auth else None,
+    lifespan=lifespan
 )
 
 # Initialize the app in the service
@@ -463,62 +521,6 @@ admin_api_service.app = app
 admin_api_service._add_middleware()
 admin_api_service._add_routes()
 admin_api_service._add_exception_handlers()
-
-# Add startup and shutdown events
-@app.on_event("startup")
-async def on_startup():
-    """Handle application startup"""
-    logger.info("Starting Admin API service...")
-    
-    # Start monitoring services
-    await logging_service.start()
-    await metrics_service.start()
-    await alerting_service.start()
-    
-    # Initialize InfluxDB connection for stats endpoints
-    try:
-        logger.info("Initializing InfluxDB connection for statistics...")
-        await admin_api_service.stats_endpoints.initialize()
-        logger.info("InfluxDB connection initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize InfluxDB: {e}")
-        logger.warning("Statistics will fall back to direct service calls")
-    
-    # Start WebSocket broadcast loop for real-time dashboard updates
-    try:
-        logger.info("Starting WebSocket broadcast loop...")
-        await admin_api_service.websocket_endpoints.start_broadcast_loop()
-        logger.info("WebSocket broadcast loop started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start WebSocket broadcast loop: {e}")
-    
-    logger.info("Admin API service started on 0.0.0.0:8004")
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    """Handle application shutdown"""
-    logger.info("Shutting down Admin API service...")
-    
-    # Stop WebSocket broadcast loop
-    try:
-        admin_api_service.websocket_endpoints.stop_broadcast_loop()
-        logger.info("WebSocket broadcast loop stopped")
-    except Exception as e:
-        logger.error(f"Error stopping WebSocket broadcast loop: {e}")
-    
-    # Close InfluxDB connection
-    try:
-        await admin_api_service.stats_endpoints.close()
-    except Exception as e:
-        logger.error(f"Error closing InfluxDB connection: {e}")
-    
-    # Stop monitoring services
-    await alerting_service.stop()
-    await metrics_service.stop()
-    await logging_service.stop()
-    
-    logger.info("Admin API service stopped")
 
 
 if __name__ == "__main__":
