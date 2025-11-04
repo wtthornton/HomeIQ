@@ -33,17 +33,17 @@ export const Navigation: React.FC = () => {
       backdropFilter: 'blur(12px)'
     }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-12">
+        <div className="flex justify-between items-center h-8">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-1.5">
             <motion.div
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-              className="text-xl"
+              className="text-lg"
             >
               🤖
             </motion.div>
-            <div className="ds-title-card text-sm" style={{ color: '#ffffff' }}>
+            <div className="ds-title-card text-xs" style={{ color: '#ffffff' }}>
               HA AUTOMATEAI
             </div>
           </Link>
@@ -54,7 +54,7 @@ export const Navigation: React.FC = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className="px-3 py-1 text-sm font-medium transition-colors"
+                className="px-3 py-0.5 text-xs font-medium transition-colors"
                 style={{
                   background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
                   color: isActive(item.path) ? '#ffffff' : '#cbd5e1',
@@ -78,9 +78,9 @@ export const Navigation: React.FC = () => {
             ))}
 
             {/* Dark Mode Toggle - 44x44px minimum touch target */}
-            <button
+              <button
               onClick={toggleDarkMode}
-              className="p-3 rounded-lg ml-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-1 rounded-lg ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)'
@@ -97,11 +97,11 @@ export const Navigation: React.FC = () => {
             </button>
 
             {/* Link to Admin Dashboard */}
-            <a
+              <a
               href="http://localhost:3000"
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-2 px-4 py-2 rounded-lg font-medium transition-colors"
+              className="ml-2 px-3 py-0.5 text-xs rounded-lg font-medium transition-colors"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -124,7 +124,7 @@ export const Navigation: React.FC = () => {
           <div className="md:hidden flex items-center gap-2">
             <button
               onClick={toggleDarkMode}
-              className={`p-3 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${
+              className={`p-1 rounded-lg min-w-[28px] min-h-[28px] flex items-center justify-center text-sm ${
                 darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}
               aria-label="Toggle dark mode"
@@ -135,19 +135,19 @@ export const Navigation: React.FC = () => {
         </div>
 
         {/* Mobile Nav - Bottom */}
-        <div className="md:hidden flex justify-around pb-2">
+        <div className="md:hidden flex justify-around pb-1">
           {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg"
+              className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg"
               style={{
                 background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
                 color: isActive(item.path) ? '#ffffff' : '#94a3b8'
               }}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
                 {item.label.replace(/[🤖💬📊🔮🚀🔍⚙️]/g, '').trim()}
               </span>
             </Link>

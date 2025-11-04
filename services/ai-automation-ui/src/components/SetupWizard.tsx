@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { ProcessLoader } from './ask-ai/ReverseEngineeringLoader';
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -192,7 +193,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
   const currentStep = steps[step];
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-gray-900/95' : 'bg-black/50'} backdrop-blur-sm`}>
+    <>
+      <ProcessLoader
+        isVisible={running}
+        processType="setup-wizard"
+      />
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-gray-900/95' : 'bg-black/50'} backdrop-blur-sm`}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -289,7 +295,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
           </div>
         </div>
       </motion.div>
-    </div>
+      </div>
+    </>
   );
 };
 

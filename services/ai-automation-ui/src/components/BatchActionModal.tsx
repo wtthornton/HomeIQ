@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getModalOverlayStyles, getCardStyles, getButtonStyles } from '../utils/designSystem';
+import { ProcessLoader } from './ask-ai/ReverseEngineeringLoader';
 
 interface BatchActionModalProps {
   isOpen: boolean;
@@ -103,7 +104,13 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <>
+      <ProcessLoader
+        isVisible={isProcessing}
+        processType="batch-action"
+        progress={progress}
+      />
+      <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -223,5 +230,6 @@ export const BatchActionModal: React.FC<BatchActionModalProps> = ({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </>
   );
 };

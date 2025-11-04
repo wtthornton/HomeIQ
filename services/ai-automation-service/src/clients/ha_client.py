@@ -399,27 +399,26 @@ class HomeAssistantClient:
             
             # For MVP: Use the automation service to create/update
             # In production, you'd write to automations.yaml and reload
-            async with aiohttp.ClientSession() as session:
-                # Call automation.reload service to reload config
-                async with session.post(
-                    f"{self.ha_url}/api/services/automation/reload",
-                    headers=self.headers,
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
-                    if response.status in [200, 201]:
-                        logger.info(f"✅ Automation deployed: {automation_id}")
-                        return {
-                            "success": True,
-                            "automation_id": automation_id,
-                            "message": "Automation deployed successfully"
-                        }
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"❌ Deployment failed ({response.status}): {error_text}")
-                        return {
-                            "success": False,
-                            "error": f"HTTP {response.status}: {error_text}"
-                        }
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/services/automation/reload",
+                headers=self.headers,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                if response.status in [200, 201]:
+                    logger.info(f"✅ Automation deployed: {automation_id}")
+                    return {
+                        "success": True,
+                        "automation_id": automation_id,
+                        "message": "Automation deployed successfully"
+                    }
+                else:
+                    error_text = await response.text()
+                    logger.error(f"❌ Deployment failed ({response.status}): {error_text}")
+                    return {
+                        "success": False,
+                        "error": f"HTTP {response.status}: {error_text}"
+                    }
         except Exception as e:
             logger.error(f"❌ Error deploying automation: {e}", exc_info=True)
             return {
@@ -438,19 +437,19 @@ class HomeAssistantClient:
             True if successful
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.ha_url}/api/services/automation/turn_on",
-                    headers=self.headers,
-                    json={"entity_id": automation_id},
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status in [200, 201]:
-                        logger.info(f"✅ Enabled automation: {automation_id}")
-                        return True
-                    else:
-                        logger.error(f"Failed to enable {automation_id}: {response.status}")
-                        return False
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/services/automation/turn_on",
+                headers=self.headers,
+                json={"entity_id": automation_id},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status in [200, 201]:
+                    logger.info(f"✅ Enabled automation: {automation_id}")
+                    return True
+                else:
+                    logger.error(f"Failed to enable {automation_id}: {response.status}")
+                    return False
         except Exception as e:
             logger.error(f"Error enabling automation {automation_id}: {e}")
             return False
@@ -466,19 +465,19 @@ class HomeAssistantClient:
             True if successful
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.ha_url}/api/services/automation/turn_off",
-                    headers=self.headers,
-                    json={"entity_id": automation_id},
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status in [200, 201]:
-                        logger.info(f"⏸️ Disabled automation: {automation_id}")
-                        return True
-                    else:
-                        logger.error(f"Failed to disable {automation_id}: {response.status}")
-                        return False
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/services/automation/turn_off",
+                headers=self.headers,
+                json={"entity_id": automation_id},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status in [200, 201]:
+                    logger.info(f"⏸️ Disabled automation: {automation_id}")
+                    return True
+                else:
+                    logger.error(f"Failed to disable {automation_id}: {response.status}")
+                    return False
         except Exception as e:
             logger.error(f"Error disabling automation {automation_id}: {e}")
             return False
@@ -494,19 +493,19 @@ class HomeAssistantClient:
             True if successful
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.ha_url}/api/services/automation/trigger",
-                    headers=self.headers,
-                    json={"entity_id": automation_id},
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status in [200, 201]:
-                        logger.info(f"▶️ Triggered automation: {automation_id}")
-                        return True
-                    else:
-                        logger.error(f"Failed to trigger {automation_id}: {response.status}")
-                        return False
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/services/automation/trigger",
+                headers=self.headers,
+                json={"entity_id": automation_id},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status in [200, 201]:
+                    logger.info(f"▶️ Triggered automation: {automation_id}")
+                    return True
+                else:
+                    logger.error(f"Failed to trigger {automation_id}: {response.status}")
+                    return False
         except Exception as e:
             logger.error(f"Error triggering automation {automation_id}: {e}")
             return False
@@ -540,20 +539,20 @@ class HomeAssistantClient:
             Dict containing entities, intent, and response from HA
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.ha_url}/api/conversation/process",
-                    headers=self.headers,
-                    json={"text": text},
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status in [200, 201]:
-                        result = await response.json()
-                        logger.info(f"HA Conversation API processed: '{text}' -> {len(result.get('entities', []))} entities")
-                        return result
-                    else:
-                        logger.error(f"HA Conversation API failed: {response.status}")
-                        return {"entities": [], "intent": None, "response": None}
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/conversation/process",
+                headers=self.headers,
+                json={"text": text},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status in [200, 201]:
+                    result = await response.json()
+                    logger.info(f"HA Conversation API processed: '{text}' -> {len(result.get('entities', []))} entities")
+                    return result
+                else:
+                    logger.error(f"HA Conversation API failed: {response.status}")
+                    return {"entities": [], "intent": None, "response": None}
 
         except Exception as e:
             logger.error(f"Failed to process conversation with HA: {e}")
@@ -601,15 +600,15 @@ class HomeAssistantClient:
             logger.info(f"Validating {len(entity_ids)} entities from automation")
             
             # Check if entities exist in HA
-            async with aiohttp.ClientSession() as session:
-                for entity_id in entity_ids:
-                    async with session.get(
-                        f"{self.ha_url}/api/states/{entity_id}",
-                        headers=self.headers,
-                        timeout=aiohttp.ClientTimeout(total=5)
-                    ) as response:
-                        if response.status == 404:
-                            warnings.append(f"Entity not found: {entity_id}")
+            session = await self._get_session()
+            for entity_id in entity_ids:
+                async with session.get(
+                    f"{self.ha_url}/api/states/{entity_id}",
+                    headers=self.headers,
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    if response.status == 404:
+                        warnings.append(f"Entity not found: {entity_id}")
             
             if errors:
                 return {
@@ -710,37 +709,37 @@ class HomeAssistantClient:
             # Create automation via HA REST API
             # Note: HA doesn't have a direct REST endpoint to create automations
             # We need to use the config/automation/config endpoint (requires HA config write access)
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.ha_url}/api/config/automation/config/{automation_data['id']}",
-                    headers=self.headers,
-                    json=automation_data,
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
-                    if response.status in [200, 201]:
-                        result = await response.json()
-                        logger.info(f"✅ Automation created: {automation_id}")
-                        
-                        # Enable the automation
-                        await self.enable_automation(automation_id)
-                        
-                        return {
-                            "success": True,
-                            "automation_id": automation_id,
-                            "message": "Automation created and enabled successfully",
-                            "warnings": validation.get('warnings', [])
-                        }
-                    else:
-                        error_text = await response.text()
-                        error_json = {}
-                        try:
-                            error_json = await response.json()
-                            error_text = error_json.get('message', error_text)
-                        except:
-                            pass  # Use text if JSON parsing fails
-                        
-                        logger.error(f"❌ Failed to create automation ({response.status}): {error_text}")
-                        raise Exception(f"HTTP {response.status}: {error_text}")
+            session = await self._get_session()
+            async with session.post(
+                f"{self.ha_url}/api/config/automation/config/{automation_data['id']}",
+                headers=self.headers,
+                json=automation_data,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                if response.status in [200, 201]:
+                    result = await response.json()
+                    logger.info(f"✅ Automation created: {automation_id}")
+                    
+                    # Enable the automation
+                    await self.enable_automation(automation_id)
+                    
+                    return {
+                        "success": True,
+                        "automation_id": automation_id,
+                        "message": "Automation created and enabled successfully",
+                        "warnings": validation.get('warnings', [])
+                    }
+                else:
+                    error_text = await response.text()
+                    error_json = {}
+                    try:
+                        error_json = await response.json()
+                        error_text = error_json.get('message', error_text)
+                    except:
+                        pass  # Use text if JSON parsing fails
+                    
+                    logger.error(f"❌ Failed to create automation ({response.status}): {error_text}")
+                    raise Exception(f"HTTP {response.status}: {error_text}")
         except Exception as e:
             logger.error(f"❌ Error creating automation: {e}", exc_info=True)
             return {
