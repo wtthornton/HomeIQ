@@ -831,4 +831,165 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting entities by domain '{domain}': {e}", exc_info=True)
             return []
+    
+    async def get_entities_by_area_and_domain(
+        self,
+        area_id: str,
+        domain: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get entities from HA filtered by area and optionally domain.
+        
+        Uses /api/states endpoint and filters by area_id in attributes.
+        This provides real-time entity data from Home Assistant.
+        
+        Args:
+            area_id: Area ID to filter by (e.g., "office")
+            domain: Optional domain filter (e.g., "light", "binary_sensor")
+            
+        Returns:
+            List of entity dictionaries with entity_id, state, and attributes
+            
+        Example:
+            office_lights = await ha_client.get_entities_by_area_and_domain("office", "light")
+            # Returns: [{"entity_id": "light.office_desk", "state": "on", ...}, ...]
+        """
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/states"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    all_states = await response.json()
+                    
+                    if not isinstance(all_states, list):
+                        logger.warning(f"Unexpected states response type: {type(all_states)}")
+                        return []
+                    
+                    # Filter by area_id and optionally domain
+                    filtered_entities = []
+                    for state in all_states:
+                        if not isinstance(state, dict):
+                            continue
+                        
+                        entity_id = state.get('entity_id', '')
+                        attributes = state.get('attributes', {})
+                        
+                        # Check if entity is in the specified area
+                        entity_area_id = attributes.get('area_id')
+                        if entity_area_id != area_id:
+                            continue
+                        
+                        # Check domain if specified
+                        if domain:
+                            entity_domain = entity_id.split('.')[0] if '.' in entity_id else ''
+                            if entity_domain != domain:
+                                continue
+                        
+                        # Include entity with full state data
+                        filtered_entities.append({
+                            'entity_id': entity_id,
+                            'state': state.get('state'),
+                            'attributes': attributes,
+                            'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+                            'friendly_name': attributes.get('friendly_name', entity_id),
+                            'area_id': entity_area_id,
+                            'device_id': attributes.get('device_id'),
+                            'platform': attributes.get('platform', 'unknown')
+                        })
+                    
+                    logger.info(
+                        f"✅ Found {len(filtered_entities)} entities in area '{area_id}'"
+                        f"{f' (domain: {domain})' if domain else ''}"
+                    )
+                    if len(filtered_entities) > 0:
+                        logger.debug(f"First 3 entities: {[e['entity_id'] for e in filtered_entities[:3]]}")
+                    
+                    return filtered_entities
+                else:
+                    logger.warning(f"Failed to get states from HA: {response.status}")
+                    return []
+        except Exception as e:
+            logger.error(
+                f"Error getting entities by area '{area_id}' and domain '{domain}': {e}",
+                exc_info=True
+            )
+            return []
+    
+    async def get_entities_by_area_template(
+        self,
+        area_id: str,
+        domain: Optional[str] = None
+    ) -> List[str]:
+        """
+        Get entity IDs by area using HA Template API.
+        
+        Uses Jinja2 templates for flexible querying. More efficient than
+        fetching all states when you only need entity IDs.
+        
+        Args:
+            area_id: Area ID to filter by (e.g., "office")
+            domain: Optional domain filter (e.g., "light")
+            
+        Returns:
+            List of entity IDs matching the criteria
+            
+        Example:
+            office_light_ids = await ha_client.get_entities_by_area_template("office", "light")
+            # Returns: ["light.office_desk", "light.office_ceiling", ...]
+        """
+        try:
+            session = await self._get_session()
+            
+            # Build Jinja2 template
+            if domain:
+                template = (
+                    f"{{% set entities = states.{domain} | "
+                    f"selectattr('attributes.area_id', 'eq', '{area_id}') | list %}}\n"
+                    f"{{{{ entities | map(attribute='entity_id') | list | tojson }}}}"
+                )
+            else:
+                template = (
+                    f"{{% set all_entities = states | list %}}\n"
+                    f"{{% set filtered = all_entities | "
+                    f"selectattr('attributes.area_id', 'eq', '{area_id}') | list %}}\n"
+                    f"{{{{ filtered | map(attribute='entity_id') | list | tojson }}}}"
+                )
+            
+            url = f"{self.ha_url}/api/template"
+            
+            async with session.post(
+                url,
+                json={"template": template}
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    # Template API returns JSON string, need to parse
+                    if isinstance(result, str):
+                        import json
+                        entity_ids = json.loads(result)
+                    else:
+                        entity_ids = result
+                    
+                    if not isinstance(entity_ids, list):
+                        logger.warning(f"Unexpected template response type: {type(entity_ids)}")
+                        return []
+                    
+                    logger.info(
+                        f"✅ Template API found {len(entity_ids)} entities in area '{area_id}'"
+                        f"{f' (domain: {domain})' if domain else ''}"
+                    )
+                    return entity_ids
+                else:
+                    error_text = await response.text()
+                    logger.warning(
+                        f"Template API failed: {response.status} - {error_text}"
+                    )
+                    return []
+        except Exception as e:
+            logger.error(
+                f"Error using template API for area '{area_id}' and domain '{domain}': {e}",
+                exc_info=True
+            )
+            return []
 

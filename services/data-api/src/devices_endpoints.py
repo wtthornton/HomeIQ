@@ -14,6 +14,7 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from fastapi import APIRouter, HTTPException, status, Query, Depends
+from starlette.requests import Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -318,6 +319,7 @@ async def get_device_reliability(
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
 async def list_entities(
+    request: Request,
     limit: int = Query(default=100, ge=1, le=10000, description="Maximum number of entities to return"),
     domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: Optional[str] = Query(default=None, description="Filter by platform"),
@@ -326,16 +328,35 @@ async def list_entities(
 ):
     """List entities (SQLite) - Story 22.2"""
     try:
+        # Debug: Check raw query parameters
+        raw_query = dict(request.query_params)
+        logger.info(f"🔍 [list_entities] Raw query params: {raw_query}")
+        logger.info(f"🔍 [list_entities] Parsed params: limit={limit}, domain={domain}, platform={platform}, device_id={device_id}")
+        
+        # Override with raw query params if FastAPI didn't parse them
+        if 'device_id' in raw_query and not device_id:
+            device_id = raw_query.get('device_id')
+            logger.warning(f"⚠️ [list_entities] Using device_id from raw query: {device_id}")
+        if 'limit' in raw_query and limit == 100:
+            try:
+                limit = int(raw_query.get('limit', 100))
+                logger.warning(f"⚠️ [list_entities] Using limit from raw query: {limit}")
+            except (ValueError, TypeError):
+                pass
+        
         # Build query
         query = select(Entity)
         
         # Apply filters
         if domain:
             query = query.where(Entity.domain == domain)
+            logger.debug(f"🔍 [list_entities] Applied domain filter: {domain}")
         if platform:
             query = query.where(Entity.platform == platform)
+            logger.debug(f"🔍 [list_entities] Applied platform filter: {platform}")
         if device_id:
             query = query.where(Entity.device_id == device_id)
+            logger.info(f"🔍 [list_entities] Applied device_id filter: {device_id}")
         
         # Apply limit
         query = query.limit(limit)

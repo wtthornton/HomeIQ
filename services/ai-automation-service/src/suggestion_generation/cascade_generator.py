@@ -209,3 +209,4 @@ class CascadeSuggestionGenerator:
             'previous_level': previous.get('level', 3)
         }
 
+

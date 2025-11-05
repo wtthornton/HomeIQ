@@ -399,6 +399,28 @@ export const api = {
   },
 
   // Ask AI - Natural Language Query Interface
+  async clarifyAnswers(sessionId: string, answers: Array<{
+    question_id: string;
+    answer_text: string;
+    selected_entities?: string[];
+  }>): Promise<{
+    session_id: string;
+    confidence: number;
+    confidence_threshold: number;
+    clarification_complete: boolean;
+    message: string;
+    suggestions?: any[];
+    questions?: any[];
+  }> {
+    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        answers
+      }),
+    });
+  },
+
   async askAIQuery(query: string, options?: {
     conversation_context?: any;
     conversation_history?: any[];

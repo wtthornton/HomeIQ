@@ -13,6 +13,8 @@ import { ConversationalSuggestionCard } from '../components/ConversationalSugges
 import { ContextIndicator } from '../components/ask-ai/ContextIndicator';
 import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
+import { DebugPanel } from '../components/ask-ai/DebugPanel';
+import { ClarificationDialog } from '../components/ask-ai/ClarificationDialog';
 import api from '../services/api';
 
 interface ChatMessage {
@@ -24,6 +26,9 @@ interface ChatMessage {
   entities?: any[];
   confidence?: number;
   followUpPrompts?: string[];
+  clarificationNeeded?: boolean;
+  clarificationSessionId?: string;
+  questions?: any[];
 }
 
 interface AskAIQuery {
@@ -35,6 +40,10 @@ interface AskAIQuery {
   confidence: number;
   processing_time_ms: number;
   created_at: string;
+  clarification_needed?: boolean;
+  clarification_session_id?: string;
+  questions?: any[];
+  message?: string;
 }
 
 interface ConversationContext {
@@ -98,6 +107,12 @@ export const AskAI: React.FC = () => {
   }>({ visible: false });
   const [testedSuggestions, setTestedSuggestions] = useState<Set<string>>(new Set());
   const [showClearModal, setShowClearModal] = useState(false);
+  const [clarificationDialog, setClarificationDialog] = useState<{
+    questions: any[];
+    sessionId: string;
+    confidence: number;
+    threshold: number;
+  } | null>(null);
   
   // Device selection state: Map of suggestionId -> Map of entityId -> selected boolean
   const [deviceSelections, setDeviceSelections] = useState<Map<string, Map<string, boolean>>>(new Map());
@@ -253,10 +268,23 @@ export const AskAI: React.FC = () => {
         suggestions: response.suggestions,
         entities: response.extracted_entities,
         confidence: response.confidence,
-        followUpPrompts: followUpPrompts
+        followUpPrompts: followUpPrompts,
+        clarificationNeeded: response.clarification_needed,
+        clarificationSessionId: response.clarification_session_id,
+        questions: response.questions
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Show clarification dialog if needed
+      if (response.clarification_needed && response.questions && response.questions.length > 0) {
+        setClarificationDialog({
+          questions: response.questions,
+          sessionId: response.clarification_session_id || '',
+          confidence: response.confidence,
+          threshold: 0.85  // Default threshold
+        });
+      }
       
       // Update context with the AI response
       updateContextFromMessage(aiMessage);
@@ -299,7 +327,12 @@ export const AskAI: React.FC = () => {
   };
 
   const generateAIResponse = (query: AskAIQuery): string => {
-    const { suggestions, extracted_entities, confidence } = query;
+    const { suggestions, extracted_entities, confidence, clarification_needed, message } = query;
+
+    // Use message from API if provided (for clarification cases)
+    if (message) {
+      return message;
+    }
 
     let response = `I found ${suggestions.length} automation suggestion${suggestions.length > 1 ? 's' : ''} for your request.`;
 
@@ -1383,6 +1416,12 @@ export const AskAI: React.FC = () => {
                                 disabled={isProcessing}
                                 tested={testedSuggestions.has(suggestion.suggestion_id)}
                               />
+                              {/* Debug Panel */}
+                              <DebugPanel
+                                debug={suggestion.debug}
+                                technicalPrompt={suggestion.technical_prompt}
+                                darkMode={darkMode}
+                              />
                             </div>
                           );
                         })}
@@ -1521,6 +1560,53 @@ export const AskAI: React.FC = () => {
         isVisible={isLoading}
         processType="query-processing"
       />
+      
+      {/* Clarification Dialog */}
+      {clarificationDialog && (
+        <ClarificationDialog
+          questions={clarificationDialog.questions}
+          sessionId={clarificationDialog.sessionId}
+          currentConfidence={clarificationDialog.confidence}
+          confidenceThreshold={clarificationDialog.threshold}
+          onAnswer={async (answers) => {
+            try {
+              const response = await api.clarifyAnswers(clarificationDialog.sessionId, answers);
+              
+              if (response.clarification_complete && response.suggestions) {
+                // Add suggestions to conversation
+                const suggestionMessage: ChatMessage = {
+                  id: `clarify-${Date.now()}`,
+                  type: 'ai',
+                  content: response.message || 'Based on your answers, here are the automation suggestions:',
+                  timestamp: new Date(),
+                  suggestions: response.suggestions,
+                  confidence: response.confidence
+                };
+                
+                setMessages(prev => [...prev, suggestionMessage]);
+                setClarificationDialog(null);
+                toast.success('Clarification complete! Suggestions generated.');
+              } else if (response.questions && response.questions.length > 0) {
+                // More questions needed
+                setClarificationDialog({
+                  questions: response.questions,
+                  sessionId: response.session_id,
+                  confidence: response.confidence,
+                  threshold: response.confidence_threshold
+                });
+                toast.info(response.message || 'Please answer the additional questions.');
+              }
+            } catch (error: any) {
+              toast.error(`Failed to submit clarification: ${error.message || 'Unknown error'}`);
+            }
+          }}
+          onCancel={() => {
+            setClarificationDialog(null);
+            toast.info('Clarification cancelled');
+          }}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 };

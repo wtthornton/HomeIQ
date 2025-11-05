@@ -346,3 +346,4 @@ class PatternSynergyValidator:
         else:
             return -0.1  # Reduction
 
+

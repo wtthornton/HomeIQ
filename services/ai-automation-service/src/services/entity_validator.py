@@ -97,16 +97,16 @@ class EntityValidator:
         Initialize EntityValidator.
         
         Args:
-            data_api_client: Data API client for fetching entities
+            data_api_client: Data API client for fetching entities (cached fallback)
             enable_full_chain: Enable full model chain (embeddings, NER, etc.)
             db_session: Optional database session for alias support
-            ha_client: Optional HA client for attribute-based scoring
+            ha_client: Optional HA client for real-time entity queries and attribute-based scoring
         """
         self.data_api_client = data_api_client
+        self.ha_client = ha_client
         self.entity_cache = {}
         self.enable_full_chain = enable_full_chain
         self.db_session = db_session
-        self.ha_client = ha_client
         
         # Lazy-loaded models for full chain
         self._embedding_model = None
@@ -184,28 +184,62 @@ class EntityValidator:
         self,
         domain: Optional[str] = None,
         area_id: Optional[str] = None,
-        integration: Optional[str] = None
+        integration: Optional[str] = None,
+        use_realtime: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Get available entities from data-api with optional filtering.
+        Get available entities with optional filtering.
+        
+        Priority: Real-time HA API query (if ha_client available) > Cached database query
         
         Args:
             domain: Optional domain filter (e.g., "light", "switch")
             area_id: Optional area filter for location-based blocking
             integration: Optional integration filter for brand-based blocking
+            use_realtime: If True, prefer real-time HA API query (default: True)
             
         Returns:
             List of entity dictionaries
         """
+        # Priority 1: Real-time HA API query (if available and requested)
+        if use_realtime and self.ha_client and area_id:
+            try:
+                logger.info(
+                    f"🔍 Fetching entities from HA API (real-time) "
+                    f"(domain={domain}, area_id={area_id})"
+                )
+                entities = await self.ha_client.get_entities_by_area_and_domain(
+                    area_id=area_id,
+                    domain=domain
+                )
+                
+                if entities:
+                    logger.info(f"✅ Fetched {len(entities)} entities from HA API (real-time)")
+                    if len(entities) > 0:
+                        logger.info(f"First 3 entities: {[e.get('entity_id') for e in entities[:3]]}")
+                    return entities
+                else:
+                    logger.warning(f"⚠️ No entities found from HA API, falling back to database")
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Error fetching entities from HA API (real-time): {e}, "
+                    f"falling back to database"
+                )
+                # Fall through to database query
+        
+        # Priority 2: Cached database query (fallback)
         try:
             if self.data_api_client:
-                logger.info(f"🔍 Fetching entities from data-api (domain={domain}, area_id={area_id}, integration={integration})")
+                logger.info(
+                    f"🔍 Fetching entities from data-api (cached) "
+                    f"(domain={domain}, area_id={area_id}, integration={integration})"
+                )
                 entities = await self.data_api_client.fetch_entities(
                     domain=domain,
                     area_id=area_id,
                     platform=integration  # Note: data API uses 'platform' for integration
                 )
-                logger.info(f"✅ Fetched {len(entities)} entities from data-api")
+                logger.info(f"✅ Fetched {len(entities)} entities from data-api (cached)")
                 if len(entities) > 0:
                     logger.info(f"First 3 entities: {[e.get('entity_id') for e in entities[:3]]}")
                 return entities
@@ -381,7 +415,7 @@ class EntityValidator:
             "climate": ["temperature", "thermostat", "heat", "cool", "ac", "hvac", "climate", "temp"],
             "cover": ["blind", "shade", "curtain", "garage door", "door", "cover", "open", "close"],
             "sensor": ["sensor", "motion sensor", "temperature sensor"],
-            "binary_sensor": ["motion", "door sensor", "window sensor", "door", "window"],
+            "binary_sensor": ["motion", "door sensor", "window sensor", "door", "window", "presence", "presence sensor", "occupancy", "contact"],
             "fan": ["fan", "ventilation"],
             "media_player": ["tv", "television", "speaker", "music", "audio"],
             "lock": ["lock", "unlock", "door lock"],
@@ -393,6 +427,43 @@ class EntityValidator:
                 return domain
         
         return None
+    
+    def _extract_all_domains_from_query(self, query: str) -> List[str]:
+        """
+        Extract ALL device domains from query keywords (not just one).
+        
+        Examples:
+            "presence sensor triggers lights" -> ["binary_sensor", "light"]
+            "turn on office lights when door opens" -> ["light", "binary_sensor"]
+        
+        Args:
+            query: User query
+            
+        Returns:
+            List of domain names found in query
+        """
+        query_lower = query.lower()
+        found_domains = []
+        
+        # Domain keywords mapping (same as _extract_domain_from_query)
+        domain_keywords = {
+            "light": ["light", "lamp", "lamp", "bulb", "led", "brightness", "dim", "bright", "illuminate"],
+            "switch": ["switch", "outlet", "plug", "power"],
+            "climate": ["temperature", "thermostat", "heat", "cool", "ac", "hvac", "climate", "temp"],
+            "cover": ["blind", "shade", "curtain", "garage door", "door", "cover", "open", "close"],
+            "sensor": ["sensor", "motion sensor", "temperature sensor"],
+            "binary_sensor": ["motion", "door sensor", "window sensor", "door", "window", "presence", "presence sensor", "occupancy", "contact"],
+            "fan": ["fan", "ventilation"],
+            "media_player": ["tv", "television", "speaker", "music", "audio"],
+            "lock": ["lock", "unlock", "door lock"],
+        }
+        
+        for domain, keywords in domain_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                found_domains.append(domain)
+                logger.debug(f"Extracted domain from query: '{domain}'")
+        
+        return found_domains
     
     def _extract_quantity_and_category(self, query: str) -> List[Tuple[Optional[int], str, List[str]]]:
         """
