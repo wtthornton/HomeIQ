@@ -77,6 +77,11 @@ class GenerateRequest(BaseModel):
     pattern_type: str
     device_id: str
     metadata: Dict[str, Any]
+    auto_generate_yaml: Optional[bool] = Field(
+        None,
+        description="Override config to enable/disable auto-draft for this request. "
+                    "If None, uses config.auto_draft_suggestions_enabled"
+    )
 
 
 class RefineRequest(BaseModel):
@@ -89,6 +94,11 @@ class ApproveRequest(BaseModel):
     """Request to approve and generate YAML"""
     final_description: Optional[str] = None
     user_notes: Optional[str] = None
+    regenerate_yaml: bool = Field(
+        False,
+        description="Force regeneration of YAML even if auto-draft exists. "
+                    "Useful if user edited description and wants fresh YAML"
+    )
 
 
 class DeviceCapability(BaseModel):
@@ -107,6 +117,31 @@ class ValidationResult(BaseModel):
     alternatives: List[str] = []
 
 
+class YAMLValidationReport(BaseModel):
+    """YAML validation results from auto-draft generation"""
+    syntax_valid: bool = Field(description="Whether YAML syntax is valid")
+    safety_score: Optional[int] = Field(
+        None, ge=0, le=100,
+        description="Safety score (0-100). Only present if safety validation ran"
+    )
+    issues: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of validation issues (warnings or errors)"
+    )
+    services_used: List[str] = Field(
+        default_factory=list,
+        description="Home Assistant services used (e.g., ['light.turn_on'])"
+    )
+    entities_referenced: List[str] = Field(
+        default_factory=list,
+        description="Entity IDs referenced in YAML"
+    )
+    advanced_features_used: List[str] = Field(
+        default_factory=list,
+        description="Advanced features used (e.g., ['choose', 'parallel'])"
+    )
+
+
 class SuggestionResponse(BaseModel):
     """Suggestion response"""
     suggestion_id: str
@@ -117,6 +152,37 @@ class SuggestionResponse(BaseModel):
     confidence: float
     status: str
     created_at: str
+
+    # Auto-Draft Fields (NEW)
+    draft_id: Optional[str] = Field(
+        None,
+        description="Draft ID (same as suggestion_id, for semantic clarity)"
+    )
+    automation_yaml: Optional[str] = Field(
+        None,
+        description="Pre-generated Home Assistant YAML automation. "
+                    "Only present if auto_draft_suggestions_enabled=true "
+                    "and this suggestion is in top N (auto_draft_count)"
+    )
+    yaml_validation: Optional[YAMLValidationReport] = Field(
+        None,
+        description="YAML validation report. Only present if automation_yaml was generated"
+    )
+    yaml_generation_error: Optional[str] = Field(
+        None,
+        description="Error message if YAML generation failed. "
+                    "Suggestion is still returned but without YAML"
+    )
+    yaml_generated_at: Optional[str] = Field(
+        None,
+        description="ISO 8601 timestamp when YAML was generated. "
+                    "None if YAML not yet generated"
+    )
+    yaml_generation_status: Optional[str] = Field(
+        None,
+        description="Status of YAML generation: 'completed', 'queued', 'failed', 'not_requested'. "
+                    "Used for async generation when count > async_threshold"
+    )
 
 
 class RefinementResponse(BaseModel):

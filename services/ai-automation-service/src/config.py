@@ -77,7 +77,49 @@ class Settings(BaseSettings):
     
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls
-    
+
+    # Auto-Draft Generation Configuration (Story: Auto-Draft API)
+    auto_draft_suggestions_enabled: bool = True
+    """Enable automatic YAML draft generation during suggestion creation"""
+
+    auto_draft_count: int = 1
+    """Number of top suggestions to auto-generate YAML for (default: 1)
+
+    Rationale:
+    - 1 = Best UX/cost balance (most users approve top suggestion)
+    - 3 = Good for batch reviews
+    - 5+ = Use async pattern (see auto_draft_async_threshold)
+    """
+
+    auto_draft_async_threshold: int = 3
+    """If auto_draft_count > this value, use async background jobs
+
+    Rationale:
+    - ≤3 drafts: Synchronous (200-500ms each = 0.6-1.5s total, acceptable)
+    - >3 drafts: Async to prevent API timeout (>2s would degrade UX)
+    """
+
+    auto_draft_run_safety_validation: bool = False
+    """Run safety validation during auto-draft generation (default: False)
+
+    Rationale:
+    - False = Faster generation, validation runs on approval (recommended)
+    - True = Early validation, but slower API response (adds ~300ms per draft)
+    """
+
+    auto_draft_confidence_threshold: float = 0.70
+    """Minimum confidence score to trigger auto-draft generation
+
+    Only generate YAML for suggestions with confidence >= this threshold.
+    Helps reduce wasted YAML generation for low-quality suggestions.
+    """
+
+    auto_draft_max_retries: int = 2
+    """Max retries for YAML generation if OpenAI call fails"""
+
+    auto_draft_timeout: int = 10
+    """Timeout (seconds) for auto-draft generation per suggestion"""
+
     class Config:
         env_file = "infrastructure/env.ai-automation"
         case_sensitive = False
