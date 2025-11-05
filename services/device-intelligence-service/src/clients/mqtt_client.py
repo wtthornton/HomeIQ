@@ -49,10 +49,11 @@ class ZigbeeGroup:
 class MQTTClient:
     """MQTT client for Zigbee2MQTT bridge integration."""
     
-    def __init__(self, broker_url: str, username: Optional[str] = None, password: Optional[str] = None):
+    def __init__(self, broker_url: str, username: Optional[str] = None, password: Optional[str] = None, base_topic: str = "zigbee2mqtt"):
         self.broker_url = broker_url
         self.username = username
         self.password = password
+        self.base_topic = base_topic.rstrip('/')  # Remove trailing slash if present
         
         # Parse broker URL
         parsed = urlparse(broker_url)
@@ -177,10 +178,12 @@ class MQTTClient:
     def _subscribe_to_topics(self):
         """Subscribe to Zigbee2MQTT topics."""
         topics = [
-            "zigbee2mqtt/bridge/devices",
-            "zigbee2mqtt/bridge/groups", 
-            "zigbee2mqtt/bridge/info",
-            "zigbee2mqtt/bridge/networkmap"
+            f"{self.base_topic}/bridge/devices",  # Retained device list (published on startup)
+            f"{self.base_topic}/bridge/groups",  # Retained group list
+            f"{self.base_topic}/bridge/info",  # Bridge information
+            f"{self.base_topic}/bridge/networkmap",  # Network map
+            f"{self.base_topic}/bridge/response/device/list",  # Response to device list request
+            f"{self.base_topic}/bridge/response/group/list",  # Response to group list request
         ]
         
         for topic in topics:
@@ -190,13 +193,35 @@ class MQTTClient:
     async def _handle_message(self, topic: str, data: Dict[str, Any]):
         """Handle incoming MQTT messages."""
         try:
-            if topic == "zigbee2mqtt/bridge/devices":
+            # Handle device list messages (both retained and response)
+            if topic == f"{self.base_topic}/bridge/devices" or topic == f"{self.base_topic}/bridge/response/device/list":
+                # Extract data from response if it's a response message
+                if topic == f"{self.base_topic}/bridge/response/device/list":
+                    # Response format: {"data": {...}, "status": "ok"}
+                    if isinstance(data, dict) and "data" in data:
+                        data = data["data"]
+                    elif isinstance(data, dict) and "result" in data:
+                        data = data["result"]
+                    # If it's already a list, use it directly
+                    if not isinstance(data, list):
+                        logger.warning(f"⚠️ Unexpected device list format on {topic}: {type(data)}")
+                        return
                 await self._handle_devices_message(data)
-            elif topic == "zigbee2mqtt/bridge/groups":
+            # Handle group list messages (both retained and response)
+            elif topic == f"{self.base_topic}/bridge/groups" or topic == f"{self.base_topic}/bridge/response/group/list":
+                # Extract data from response if it's a response message
+                if topic == f"{self.base_topic}/bridge/response/group/list":
+                    if isinstance(data, dict) and "data" in data:
+                        data = data["data"]
+                    elif isinstance(data, dict) and "result" in data:
+                        data = data["result"]
+                    if not isinstance(data, list):
+                        logger.warning(f"⚠️ Unexpected group list format on {topic}: {type(data)}")
+                        return
                 await self._handle_groups_message(data)
-            elif topic == "zigbee2mqtt/bridge/info":
+            elif topic == f"{self.base_topic}/bridge/info":
                 await self._handle_info_message(data)
-            elif topic == "zigbee2mqtt/bridge/networkmap":
+            elif topic == f"{self.base_topic}/bridge/networkmap":
                 await self._handle_networkmap_message(data)
             else:
                 logger.debug(f"📨 Unhandled message on topic {topic}")
@@ -208,6 +233,7 @@ class MQTTClient:
         """Handle devices message from Zigbee2MQTT bridge."""
         logger.info(f"📱 Received {len(data)} devices from Zigbee2MQTT bridge")
         
+        # Store all devices first
         for device_data in data:
             try:
                 device = ZigbeeDevice(
@@ -229,18 +255,19 @@ class MQTTClient:
                 )
                 
                 self.devices[device.ieee_address] = device
-                
-                # Call message handler if registered
-                if "devices" in self.message_handlers:
-                    await self.message_handlers["devices"](device_data)
                     
             except Exception as e:
                 logger.error(f"❌ Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
+        
+        # Call message handler with full list (after all devices are stored)
+        if "devices" in self.message_handlers:
+            await self.message_handlers["devices"](data)
     
     async def _handle_groups_message(self, data: List[Dict[str, Any]]):
         """Handle groups message from Zigbee2MQTT bridge."""
         logger.info(f"👥 Received {len(data)} groups from Zigbee2MQTT bridge")
         
+        # Store all groups first
         for group_data in data:
             try:
                 group = ZigbeeGroup(
@@ -251,13 +278,13 @@ class MQTTClient:
                 )
                 
                 self.groups[group.id] = group
-                
-                # Call message handler if registered
-                if "groups" in self.message_handlers:
-                    await self.message_handlers["groups"](group_data)
                     
             except Exception as e:
                 logger.error(f"❌ Error parsing group {group_data.get('id', 'unknown')}: {e}")
+        
+        # Call message handler with full list (after all groups are stored)
+        if "groups" in self.message_handlers:
+            await self.message_handlers["groups"](data)
     
     async def _handle_info_message(self, data: Dict[str, Any]):
         """Handle info message from Zigbee2MQTT bridge."""
