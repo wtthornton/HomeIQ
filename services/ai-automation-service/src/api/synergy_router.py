@@ -57,7 +57,9 @@ async def list_synergies(
         synergies_list = []
         for s in synergies:
             # Phase 2: Filter by pattern validation if requested
-            if validated_by_patterns is not None and s.validated_by_patterns != validated_by_patterns:
+            # Use getattr with defaults in case Phase 2 columns don't exist
+            validated_by_patterns_value = getattr(s, 'validated_by_patterns', False)
+            if validated_by_patterns is not None and validated_by_patterns_value != validated_by_patterns:
                 continue
                 
             synergy_dict = {
@@ -73,13 +75,14 @@ async def list_synergies(
                 'created_at': s.created_at.isoformat() if s.created_at else None
             }
             
-            # Phase 2: Add pattern validation fields
-            synergy_dict['pattern_support_score'] = s.pattern_support_score
-            synergy_dict['validated_by_patterns'] = s.validated_by_patterns
-            if s.supporting_pattern_ids:
+            # Phase 2: Add pattern validation fields (use getattr with defaults)
+            synergy_dict['pattern_support_score'] = getattr(s, 'pattern_support_score', 0.0)
+            synergy_dict['validated_by_patterns'] = validated_by_patterns_value
+            supporting_pattern_ids_value = getattr(s, 'supporting_pattern_ids', None)
+            if supporting_pattern_ids_value:
                 import json
                 try:
-                    synergy_dict['supporting_pattern_ids'] = json.loads(s.supporting_pattern_ids)
+                    synergy_dict['supporting_pattern_ids'] = json.loads(supporting_pattern_ids_value)
                 except:
                     synergy_dict['supporting_pattern_ids'] = []
             else:
