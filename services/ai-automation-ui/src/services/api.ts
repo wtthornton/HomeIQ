@@ -379,10 +379,13 @@ export const api = {
   },
 
   // Synergies (Epic AI-3, Story AI3.8)
-  async getSynergies(synergyType?: string | null, minConfidence = 0.7): Promise<{ data: { synergies: SynergyOpportunity[] } }> {
+  async getSynergies(synergyType?: string | null, minConfidence = 0.7, validatedByPatterns?: boolean | null): Promise<{ data: { synergies: SynergyOpportunity[] } }> {
     const params = new URLSearchParams();
     if (synergyType) params.append('synergy_type', synergyType);
     params.append('min_confidence', minConfidence.toString());
+    if (validatedByPatterns !== null && validatedByPatterns !== undefined) {
+      params.append('validated_by_patterns', validatedByPatterns.toString());
+    }
     
     return fetchJSON(`${API_BASE_URL}/synergies?${params}`);
   },

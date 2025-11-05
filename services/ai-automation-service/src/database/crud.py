@@ -685,6 +685,7 @@ async def store_synergy_opportunity(db: AsyncSession, synergy_data: Dict) -> Syn
         Created SynergyOpportunity instance
         
     Story AI3.1: Device Synergy Detector Foundation
+    Phase 2: Supports pattern validation fields
     """
     import json
     
@@ -698,7 +699,11 @@ async def store_synergy_opportunity(db: AsyncSession, synergy_data: Dict) -> Syn
             complexity=synergy_data['complexity'],
             confidence=synergy_data['confidence'],
             area=synergy_data.get('area'),
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            # Phase 2: Pattern validation fields (defaults if not provided)
+            pattern_support_score=synergy_data.get('pattern_support_score', 0.0),
+            validated_by_patterns=synergy_data.get('validated_by_patterns', False),
+            supporting_pattern_ids=json.dumps(synergy_data.get('supporting_pattern_ids', [])) if synergy_data.get('supporting_pattern_ids') else None
         )
         
         db.add(synergy)
@@ -860,6 +865,68 @@ async def get_synergy_opportunities(
         return list(synergies)
         
     except Exception as e:
+        # Check if error is due to missing Phase 2 columns (pattern_support_score, etc.)
+        error_str = str(e)
+        if 'pattern_support_score' in error_str or 'validated_by_patterns' in error_str or 'supporting_pattern_ids' in error_str:
+            logger.warning(
+                "Phase 2 columns (pattern_support_score, validated_by_patterns, supporting_pattern_ids) "
+                "not found in database. Migration may not have been run. "
+                "Using explicit column selection to work around missing columns."
+            )
+            # Fallback: Use explicit column selection to avoid Phase 2 columns
+            # Note: This will return objects without Phase 2 fields, but they can be accessed safely with getattr
+            from sqlalchemy import select, column
+            base_columns = [
+                SynergyOpportunity.id,
+                SynergyOpportunity.synergy_id,
+                SynergyOpportunity.synergy_type,
+                SynergyOpportunity.device_ids,
+                SynergyOpportunity.opportunity_metadata,
+                SynergyOpportunity.impact_score,
+                SynergyOpportunity.complexity,
+                SynergyOpportunity.confidence,
+                SynergyOpportunity.area,
+                SynergyOpportunity.created_at
+            ]
+            
+            fallback_query = select(*base_columns).where(
+                SynergyOpportunity.confidence >= min_confidence
+            )
+            
+            if synergy_type:
+                fallback_query = fallback_query.where(SynergyOpportunity.synergy_type == synergy_type)
+            
+            fallback_query = fallback_query.order_by(SynergyOpportunity.impact_score.desc()).limit(limit)
+            
+            result = await db.execute(fallback_query)
+            rows = result.all()
+            
+            # Convert rows to SynergyOpportunity-like objects (they'll be missing Phase 2 fields)
+            synergies = []
+            for row in rows:
+                # Create a minimal object with just the base fields
+                # Phase 2 fields will be None/False when accessed via getattr
+                synergy = SynergyOpportunity(
+                    id=row.id,
+                    synergy_id=row.synergy_id,
+                    synergy_type=row.synergy_type,
+                    device_ids=row.device_ids,
+                    opportunity_metadata=row.opportunity_metadata,
+                    impact_score=row.impact_score,
+                    complexity=row.complexity,
+                    confidence=row.confidence,
+                    area=row.area,
+                    created_at=row.created_at,
+                    # Phase 2 fields with defaults
+                    pattern_support_score=0.0,
+                    validated_by_patterns=False,
+                    supporting_pattern_ids=None
+                )
+                synergies.append(synergy)
+            
+            logger.debug(f"Retrieved {len(synergies)} synergy opportunities (using fallback query)")
+            return synergies
+        
         logger.error(f"Failed to get synergies: {e}", exc_info=True)
         raise
 
@@ -898,12 +965,38 @@ async def get_synergy_stats(db: AsyncSession) -> Dict:
         )
         avg_impact = avg_impact_result.scalar() or 0.0
         
-        return {
+        # Phase 2: Pattern validation statistics
+        validated_count = 0
+        avg_pattern_support = 0.0
+        try:
+            validated_result = await db.execute(
+                select(func.count()).select_from(SynergyOpportunity).where(
+                    SynergyOpportunity.validated_by_patterns == True
+                )
+            )
+            validated_count = validated_result.scalar() or 0
+            
+            pattern_support_result = await db.execute(
+                select(func.avg(SynergyOpportunity.pattern_support_score))
+            )
+            avg_pattern_support = pattern_support_result.scalar() or 0.0
+        except Exception as e:
+            # Phase 2 columns might not exist - use defaults
+            logger.debug(f"Phase 2 columns not available in stats: {e}")
+        
+        result = {
             'total_synergies': total,
             'by_type': by_type,
             'by_complexity': by_complexity,
             'avg_impact_score': round(float(avg_impact), 2)
         }
+        
+        # Add Phase 2 stats if available
+        if validated_count > 0 or avg_pattern_support > 0:
+            result['validated_by_patterns'] = validated_count
+            result['avg_pattern_support_score'] = round(float(avg_pattern_support), 2)
+        
+        return result
         
     except Exception as e:
         logger.error(f"Failed to get synergy stats: {e}", exc_info=True)

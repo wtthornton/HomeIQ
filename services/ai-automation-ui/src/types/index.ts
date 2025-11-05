@@ -82,6 +82,7 @@ export interface UsageStats {
  * Synergy Opportunity Type
  * Story AI3.8: Frontend Synergy Tab
  * Epic AI-3: Cross-Device Synergy & Contextual Opportunities
+ * Phase 2: Pattern-Synergy Cross-Validation
  */
 export interface SynergyOpportunity {
   id: number;
@@ -104,5 +105,9 @@ export interface SynergyOpportunity {
   confidence: number;
   area?: string;
   created_at: string;
+  // Phase 2: Pattern-Synergy Cross-Validation
+  pattern_support_score?: number;  // 0.0-1.0, how well patterns support this synergy
+  validated_by_patterns?: boolean;  // true if patterns validate this synergy
+  supporting_pattern_ids?: number[];  // IDs of patterns that support this synergy
 }
 

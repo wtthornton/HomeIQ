@@ -572,13 +572,29 @@ class DailyAnalysisScheduler:
                 logger.info(f"   → Device synergies: {len(synergies) - len(weather_opportunities) if 'weather_opportunities' in locals() else len(synergies)}")
                 logger.info(f"   → Weather synergies: {len(weather_opportunities) if 'weather_opportunities' in locals() else 0}")
                 
-                # Store synergies in database
+                # Store synergies in database with Phase 2 pattern validation
                 if synergies:
                     async with get_db_session() as db:
-                        synergies_stored = await store_synergy_opportunities(db, synergies)
+                        synergies_stored = await store_synergy_opportunities(
+                            db,
+                            synergies,
+                            validate_with_patterns=True,  # Phase 2: Enable pattern validation
+                            min_pattern_confidence=0.7
+                        )
+                        # Query validated count from database
+                        from sqlalchemy import select, func
+                        from ..database.models import SynergyOpportunity
+                        validated_result = await db.execute(
+                            select(func.count()).select_from(SynergyOpportunity).where(
+                                SynergyOpportunity.validated_by_patterns == True
+                            )
+                        )
+                        total_validated = validated_result.scalar() or 0
                     logger.info(f"   💾 Stored {synergies_stored} synergies in database")
+                    logger.info(f"   ✅ Phase 2: Pattern validation enabled - {total_validated} total validated synergies in database")
                     job_result['synergies_detected'] = len(synergies)
                     job_result['synergies_stored'] = synergies_stored
+                    job_result['synergies_validated'] = total_validated
                 else:
                     logger.info("   ℹ️  No synergies to store")
                     job_result['synergies_detected'] = 0

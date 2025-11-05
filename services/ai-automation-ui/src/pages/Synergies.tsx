@@ -18,12 +18,13 @@ export const Synergies: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [filterValidated, setFilterValidated] = useState<boolean | null>(null);
 
   useEffect(() => {
     const loadSynergies = async () => {
       try {
         const [synergiesRes, statsRes] = await Promise.all([
-          api.getSynergies(filterType, 0.7),
+          api.getSynergies(filterType, 0.7, filterValidated),
           api.getSynergyStats()
         ]);
         setSynergies(synergiesRes.data.synergies || []);
@@ -47,7 +48,7 @@ export const Synergies: React.FC = () => {
     };
 
     loadSynergies();
-  }, [filterType]);
+  }, [filterType, filterValidated]);
 
   const getSynergyIcon = (type: string) => {
     const icons = {
@@ -94,7 +95,7 @@ export const Synergies: React.FC = () => {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-2 ${stats.validated_by_patterns !== undefined ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -149,6 +150,27 @@ export const Synergies: React.FC = () => {
               Easy to Implement
             </div>
           </motion.div>
+          {/* Phase 2: Pattern Validation Stats */}
+          {stats.validated_by_patterns !== undefined && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+            >
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent">
+                {stats.validated_by_patterns || 0}
+              </div>
+              <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Pattern Validated
+              </div>
+              {stats.avg_pattern_support_score !== undefined && (
+                <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Avg support: {Math.round((stats.avg_pattern_support_score || 0) * 100)}%
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       )}
 
@@ -181,6 +203,33 @@ export const Synergies: React.FC = () => {
             {getSynergyIcon(type)} {getSynergyTypeLabel(type)} ({count as number})
           </button>
         ))}
+        {/* Phase 2: Pattern Validation Filter */}
+        <button
+          onClick={() => setFilterValidated(filterValidated === true ? null : true)}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            filterValidated === true
+              ? 'bg-green-600 text-white'
+              : darkMode
+              ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          title="Filter synergies validated by patterns"
+        >
+          ✓ Validated
+        </button>
+        <button
+          onClick={() => setFilterValidated(filterValidated === false ? null : false)}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            filterValidated === false
+              ? 'bg-yellow-600 text-white'
+              : darkMode
+              ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          title="Filter unvalidated synergies"
+        >
+          ⚠ Unvalidated
+        </button>
       </div>
 
       {/* Loading State */}
@@ -217,7 +266,16 @@ export const Synergies: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="text-3xl">{getSynergyIcon(synergy.synergy_type)}</div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {/* Phase 2: Pattern Validation Badge */}
+                    {synergy.validated_by_patterns && (
+                      <span 
+                        className="px-2 py-1 rounded-full text-xs font-medium bg-green-600 text-white"
+                        title={`Validated by patterns (${Math.round((synergy.pattern_support_score || 0) * 100)}% support)`}
+                      >
+                        ✓ Validated
+                      </span>
+                    )}
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getComplexityColor(synergy.complexity)}`}>
                       {synergy.complexity}
                     </span>
@@ -264,8 +322,8 @@ export const Synergies: React.FC = () => {
                   </div>
                 )}
 
-                {/* Impact Score */}
-                <div className="mt-4 pt-4 border-t border-gray-700">
+                {/* Impact Score & Pattern Support */}
+                <div className="mt-4 pt-4 border-t border-gray-700 space-y-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
                       Impact Score
@@ -274,6 +332,44 @@ export const Synergies: React.FC = () => {
                       {Math.round(synergy.impact_score * 100)}%
                     </span>
                   </div>
+                  {/* Phase 2: Pattern Support Score */}
+                  {synergy.pattern_support_score !== undefined && synergy.pattern_support_score > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={darkMode ? 'text-gray-500' : 'text-gray-500'}>
+                          Pattern Support
+                        </span>
+                        <span className={`font-medium ${
+                          synergy.pattern_support_score >= 0.7 
+                            ? 'text-green-500' 
+                            : synergy.pattern_support_score >= 0.5
+                            ? 'text-yellow-500'
+                            : 'text-gray-500'
+                        }`}>
+                          {Math.round(synergy.pattern_support_score * 100)}%
+                        </span>
+                      </div>
+                      <div className={`h-1.5 rounded-full overflow-hidden ${
+                        darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
+                        <div 
+                          className={`h-full ${
+                            synergy.pattern_support_score >= 0.7
+                              ? 'bg-green-500'
+                              : synergy.pattern_support_score >= 0.5
+                              ? 'bg-yellow-500'
+                              : 'bg-gray-400'
+                          }`}
+                          style={{ width: `${synergy.pattern_support_score * 100}%` }}
+                        />
+                      </div>
+                      {synergy.supporting_pattern_ids && synergy.supporting_pattern_ids.length > 0 && (
+                        <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Supported by {synergy.supporting_pattern_ids.length} pattern{synergy.supporting_pattern_ids.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Created Date */}
