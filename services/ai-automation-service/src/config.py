@@ -1,7 +1,7 @@
 """Configuration management for AI Automation Service"""
 
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -119,6 +119,57 @@ class Settings(BaseSettings):
 
     auto_draft_timeout: int = 10
     """Timeout (seconds) for auto-draft generation per suggestion"""
+
+    # Expert Mode Configuration
+    expert_mode_enabled: bool = True
+    """Enable expert mode for advanced users who want full control over each step"""
+
+    expert_mode_default: bool = False
+    """Default mode if not specified in request: False=auto_draft, True=expert"""
+
+    expert_mode_allow_mode_switching: bool = True
+    """Allow users to switch between Standard and Expert modes mid-flow"""
+
+    expert_mode_yaml_validation_strict: bool = True
+    """Enforce strict YAML validation in expert mode (recommended)"""
+
+    expert_mode_validate_on_save: bool = True
+    """Validate YAML on save rather than on every keystroke (better performance)"""
+
+    expert_mode_show_yaml_diff: bool = True
+    """Show YAML diffs when editing (helpful for experts to track changes)"""
+
+    expert_mode_max_yaml_edits: int = 10
+    """Maximum number of YAML edits allowed per suggestion (prevent abuse)"""
+
+    expert_mode_allow_dangerous_operations: bool = False
+    """Allow potentially dangerous YAML operations (shell_command, python_script, etc.)
+
+    SECURITY: Only enable this for trusted admin users. Dangerous operations include:
+    - shell_command.* (arbitrary shell execution)
+    - python_script.* (arbitrary Python code)
+    - script.turn_on (script execution)
+    - homeassistant.restart (system restart)
+    """
+
+    expert_mode_blocked_services: List[str] = [
+        "shell_command",
+        "python_script",
+        "script.turn_on",
+        "automation.reload",
+        "homeassistant.restart",
+        "homeassistant.stop"
+    ]
+    """Services blocked in expert mode unless allow_dangerous_operations=true"""
+
+    expert_mode_require_approval_services: List[str] = [
+        "notify",
+        "camera",
+        "lock",
+        "cover",
+        "climate"
+    ]
+    """Services that require explicit user confirmation before deployment"""
 
     class Config:
         env_file = "infrastructure/env.ai-automation"
