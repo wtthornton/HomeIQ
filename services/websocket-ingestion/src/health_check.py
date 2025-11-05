@@ -117,20 +117,8 @@ class HealthCheckHandler:
                 health_data["status"] = "degraded"
                 health_data["reason"] = "Connection manager not initialized"
             
-            # Add weather enrichment statistics if available
-            if hasattr(self, 'websocket_service') and self.websocket_service.weather_enrichment:
-                weather_stats = self.websocket_service.weather_enrichment.get_enrichment_statistics()
-                health_data["weather_enrichment"] = {
-                    "is_enabled": weather_stats.get("is_running", False),
-                    "total_events_processed": weather_stats.get("total_events_processed", 0),
-                    "successful_enrichments": weather_stats.get("successful_enrichments", 0),
-                    "failed_enrichments": weather_stats.get("failed_enrichments", 0),
-                    "cache_hits": weather_stats.get("cache_hits", 0),
-                    "cache_misses": weather_stats.get("cache_misses", 0),
-                    "success_rate": weather_stats.get("success_rate", 0),
-                    "cache_hit_rate": weather_stats.get("cache_hit_rate", 0),
-                    "weather_client_stats": weather_stats.get("weather_client_stats", {})
-                }
+            # Weather enrichment is now handled by standalone weather-api service (Epic 31)
+            # No longer part of websocket-ingestion service
             
             # Always return 200 for health checks (even if degraded)
             # This ensures the service is considered "up" by load balancers

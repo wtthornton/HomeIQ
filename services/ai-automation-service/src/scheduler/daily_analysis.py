@@ -355,7 +355,7 @@ class DailyAnalysisScheduler:
             # Duration patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running duration detector (incremental)...")
             duration_detector = DurationDetector(
-                min_duration_minutes=5,
+                min_duration_seconds=300,  # 5 minutes in seconds
                 max_duration_hours=24,
                 min_occurrences=3,
                 min_confidence=0.7,
@@ -373,8 +373,7 @@ class DailyAnalysisScheduler:
             # Day-type patterns (Story AI5.6: Weekly aggregation enabled)
             logger.info("    → Running day-type detector (weekly aggregates)...")
             day_type_detector = DayTypeDetector(
-                min_weekday_occurrences=5,
-                min_weekend_occurrences=3,
+                min_day_type_occurrences=5,  # Minimum occurrences for day type patterns
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
