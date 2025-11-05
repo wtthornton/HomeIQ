@@ -1045,10 +1045,10 @@ services:
       - DEVICE_INTELLIGENCE_HOST=${DEVICE_INTELLIGENCE_HOST:-0.0.0.0}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SQLITE_DATABASE_URL=${SQLITE_DATABASE_URL:-sqlite:///./data/device_intelligence.db}
-      - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
       - HA_WS_URL=${HA_WS_URL:-}
       - NABU_CASA_URL=https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa
-      - HA_TOKEN=${HA_TOKEN:-}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
       - MQTT_BROKER=${MQTT_BROKER:-mqtt://192.168.1.86:1883}
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}

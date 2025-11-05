@@ -45,7 +45,8 @@ class DiscoveryService:
         self.mqtt_client = MQTTClient(
             settings.MQTT_BROKER,
             settings.MQTT_USERNAME,
-            settings.MQTT_PASSWORD
+            settings.MQTT_PASSWORD,
+            settings.ZIGBEE2MQTT_BASE_TOPIC
         )
         
         # Parser
@@ -198,9 +199,16 @@ class DiscoveryService:
         try:
             # Request bridge devices (this will trigger MQTT callback)
             if self.mqtt_client.is_connected():
+                base_topic = self.mqtt_client.base_topic
                 # Publish request for bridge devices
-                self.mqtt_client.client.publish("zigbee2mqtt/bridge/request/device/list")
-                logger.debug("📡 Requested Zigbee2MQTT device list refresh")
+                request_topic = f"{base_topic}/bridge/request/device/list"
+                self.mqtt_client.client.publish(request_topic, "{}")  # Empty JSON payload
+                logger.debug(f"📡 Requested Zigbee2MQTT device list refresh via {request_topic}")
+                
+                # Also request groups
+                group_request_topic = f"{base_topic}/bridge/request/group/list"
+                self.mqtt_client.client.publish(group_request_topic, "{}")
+                logger.debug(f"📡 Requested Zigbee2MQTT group list refresh via {group_request_topic}")
             
         except Exception as e:
             logger.error(f"❌ Error refreshing Zigbee data: {e}")
