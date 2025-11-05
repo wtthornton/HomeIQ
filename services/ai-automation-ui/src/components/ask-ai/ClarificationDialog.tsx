@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 interface ClarificationQuestion {
@@ -35,12 +35,10 @@ interface ClarificationDialogProps {
 
 export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
   questions,
-  sessionId,
   currentConfidence,
   confidenceThreshold,
   onAnswer,
-  onCancel,
-  darkMode = true
+  onCancel
 }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedEntities, setSelectedEntities] = useState<Record<string, string[]>>({});

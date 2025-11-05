@@ -327,7 +327,7 @@ export const AskAI: React.FC = () => {
   };
 
   const generateAIResponse = (query: AskAIQuery): string => {
-    const { suggestions, extracted_entities, confidence, clarification_needed, message } = query;
+    const { suggestions, extracted_entities, confidence, message } = query;
 
     // Use message from API if provided (for clarification cases)
     if (message) {
@@ -1594,7 +1594,7 @@ export const AskAI: React.FC = () => {
                   confidence: response.confidence,
                   threshold: response.confidence_threshold
                 });
-                toast.info(response.message || 'Please answer the additional questions.');
+                toast(response.message || 'Please answer the additional questions.', { icon: 'ℹ️' });
               }
             } catch (error: any) {
               toast.error(`Failed to submit clarification: ${error.message || 'Unknown error'}`);
@@ -1602,9 +1602,8 @@ export const AskAI: React.FC = () => {
           }}
           onCancel={() => {
             setClarificationDialog(null);
-            toast.info('Clarification cancelled');
+            toast('Clarification cancelled', { icon: 'ℹ️' });
           }}
-          darkMode={darkMode}
         />
       )}
     </div>
