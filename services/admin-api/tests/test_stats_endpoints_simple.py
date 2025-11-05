@@ -11,7 +11,7 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.stats_endpoints import StatsEndpoints
+from shared.monitoring import StatsEndpoints
 
 
 def test_stats_endpoints_initialization():

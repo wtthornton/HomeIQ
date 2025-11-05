@@ -239,7 +239,7 @@ class DailyAnalysisScheduler:
             # Time-of-day patterns (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running time-of-day detector (incremental)...")
             tod_detector = TimeOfDayPatternDetector(
-                min_occurrences=5,
+                min_occurrences=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
@@ -262,7 +262,7 @@ class DailyAnalysisScheduler:
             logger.info("  → Running co-occurrence detector (incremental)...")
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
-                min_support=5,
+                min_support=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
@@ -288,7 +288,7 @@ class DailyAnalysisScheduler:
             sequence_detector = SequenceDetector(
                 window_minutes=30,
                 min_sequence_length=2,
-                min_sequence_occurrences=3,
+                min_sequence_occurrences=5,  # Increased from 3 to 5 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
@@ -322,7 +322,7 @@ class DailyAnalysisScheduler:
             # Room-based patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running room-based detector (incremental)...")
             room_detector = RoomBasedDetector(
-                min_room_occurrences=5,
+                min_room_occurrences=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
@@ -357,7 +357,7 @@ class DailyAnalysisScheduler:
             duration_detector = DurationDetector(
                 min_duration_seconds=300,  # 5 minutes in seconds
                 max_duration_hours=24,
-                min_occurrences=3,
+                min_occurrences=10,  # Increased from 3 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
@@ -373,7 +373,7 @@ class DailyAnalysisScheduler:
             # Day-type patterns (Story AI5.6: Weekly aggregation enabled)
             logger.info("    → Running day-type detector (weekly aggregates)...")
             day_type_detector = DayTypeDetector(
-                min_day_type_occurrences=5,  # Minimum occurrences for day type patterns
+                min_day_type_occurrences=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
@@ -424,6 +424,24 @@ class DailyAnalysisScheduler:
                 anomaly_patterns = anomaly_detector.detect_patterns(events_df)
             all_patterns.extend(anomaly_patterns)
             logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns (daily aggregates stored)")
+            
+            # Multi-factor pattern detection (NEW - Enhanced Pattern Detection)
+            logger.info("    → Running multi-factor detector (time + presence + weather)...")
+            try:
+                from ..pattern_detection.multi_factor_detector import MultiFactorPatternDetector
+                multi_factor_detector = MultiFactorPatternDetector(
+                    time_factors=['time_of_day', 'day_of_week', 'season'],
+                    presence_factors=['presence'],
+                    weather_factors=['temperature', 'humidity'],
+                    min_pattern_occurrences=10,
+                    min_confidence=0.7,
+                    aggregate_client=aggregate_client
+                )
+                multi_factor_patterns = multi_factor_detector.detect_patterns(events_df)
+                all_patterns.extend(multi_factor_patterns)
+                logger.info(f"    ✅ Found {len(multi_factor_patterns)} multi-factor patterns")
+            except Exception as e:
+                logger.warning(f"    ⚠️ Multi-factor detection failed: {e}")
             
             # Update last analysis time after pattern detection completes
             self._last_analysis_time = datetime.now(timezone.utc)
@@ -497,6 +515,26 @@ class DailyAnalysisScheduler:
                 
                 logger.info("   → Calling detect_synergies() method...")
                 synergies = await synergy_detector.detect_synergies()
+                
+                # Enhanced synergy detection (NEW - Sequential, Simultaneous, Complementary)
+                logger.info("   → Running enhanced synergy detection...")
+                try:
+                    from ..synergy_detection.enhanced_synergy_detector import EnhancedSynergyDetector
+                    enhanced_detector = EnhancedSynergyDetector(
+                        base_synergy_detector=synergy_detector,
+                        data_api_client=data_client
+                    )
+                    enhanced_synergies = await enhanced_detector.detect_enhanced_synergies(
+                        events_df=events_df,
+                        window_minutes=30
+                    )
+                    # Merge with base synergies (avoid duplicates)
+                    existing_ids = {s.get('synergy_id') for s in synergies}
+                    new_enhanced = [s for s in enhanced_synergies if s.get('synergy_id') not in existing_ids]
+                    synergies.extend(new_enhanced)
+                    logger.info(f"   ✅ Enhanced detection added {len(new_enhanced)} new synergies")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Enhanced synergy detection failed: {e}")
                 
                 logger.info(f"✅ Device synergy detection complete:")
                 logger.info(f"   - Device synergies detected: {len(synergies)}")

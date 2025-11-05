@@ -16,6 +16,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# System noise filtering constants (Task 2: Filter System Noise)
+EXCLUDED_ENTITY_PREFIXES = [
+    'sensor.home_assistant_',  # System sensors
+    'sensor.slzb_',            # Coordinator sensors
+    'image.',                  # Images/maps (Roborock, cameras)
+    'event.',                  # System events
+    'binary_sensor.system_',   # System binary sensors
+]
+
+# Patterns to match (using contains check)
+EXCLUDED_PATTERNS = [
+    '_tracker',                # External API trackers (sports, etc.)
+    '_cpu_',                   # CPU/monitoring sensors
+    '_temp',                   # Temperature sensors (system)
+    '_chip_',                  # Chip temperature sensors
+    'coordinator_',            # Coordinator-related sensors
+]
+
 
 class CoOccurrencePatternDetector:
     """
@@ -33,7 +51,9 @@ class CoOccurrencePatternDetector:
         window_minutes: int = 5,
         min_support: int = 5,
         min_confidence: float = 0.7,
-        aggregate_client=None
+        aggregate_client=None,
+        filter_system_noise: bool = True,
+        max_variance_minutes: float = 30.0
     ):
         """
         Initialize co-occurrence detector.
@@ -43,14 +63,19 @@ class CoOccurrencePatternDetector:
             min_support: Minimum number of co-occurrences (default: 5)
             min_confidence: Minimum confidence threshold 0.0-1.0 (default: 0.7)
             aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
+            filter_system_noise: Filter out system sensors/trackers/images (default: True) - Task 2
+            max_variance_minutes: Maximum time variance in minutes for patterns (default: 30) - Task 3
         """
         self.window_minutes = window_minutes
         self.min_support = min_support
         self.min_confidence = min_confidence
         self.aggregate_client = aggregate_client
+        self.filter_system_noise = filter_system_noise
+        self.max_variance_minutes = max_variance_minutes
         logger.info(
             f"CoOccurrencePatternDetector initialized: "
-            f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}"
+            f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}, "
+            f"filter_system_noise={filter_system_noise}, max_variance={max_variance_minutes}min"
         )
     
     def detect_patterns(self, events: pd.DataFrame) -> List[Dict]:
@@ -88,6 +113,21 @@ class CoOccurrencePatternDetector:
         
         logger.info(f"Analyzing {len(events)} events for co-occurrence patterns")
         
+        # Task 2: Filter system noise before processing
+        if self.filter_system_noise:
+            original_count = len(events)
+            events = self._filter_system_noise(events)
+            filtered_count = len(events)
+            if filtered_count < original_count:
+                logger.info(
+                    f"✅ Filtered system noise: {original_count} → {filtered_count} events "
+                    f"({original_count - filtered_count} system events removed)"
+                )
+        
+        if events.empty:
+            logger.warning("No events remaining after filtering for co-occurrence detection")
+            return []
+        
         # 1. Sort by time for efficient windowing
         events = events.sort_values('timestamp').copy()
         events = events.reset_index(drop=True)
@@ -99,6 +139,9 @@ class CoOccurrencePatternDetector:
         # Track individual device events for confidence calculation
         for device_id in events['device_id']:
             device_event_counts[device_id] += 1
+        
+        # Task 3: Track time deltas for variance calculation
+        pair_time_deltas = defaultdict(list)  # Store time deltas for each pair
         
         # Sliding window approach
         for i, event in events.iterrows():
@@ -120,9 +163,18 @@ class CoOccurrencePatternDetector:
                 device_b = nearby_event['device_id']
                 
                 if device_b != device_a:
+                    # Task 2: Filter system noise in pairs (double-check)
+                    if self.filter_system_noise:
+                        if not self._is_actionable_pattern(device_a, device_b):
+                            continue
+                    
                     # Create sorted pair to avoid duplicates (A,B) vs (B,A)
                     pair = tuple(sorted([device_a, device_b]))
                     co_occurrences[pair] += 1
+                    
+                    # Task 3: Track time delta for variance calculation
+                    time_delta = (nearby_event['timestamp'] - timestamp_a).total_seconds()
+                    pair_time_deltas[pair].append(time_delta)
         
         logger.info(f"Found {len(co_occurrences)} unique device pairs")
         
@@ -146,10 +198,32 @@ class CoOccurrencePatternDetector:
             
             # Filter by thresholds
             if count >= self.min_support and confidence >= self.min_confidence:
-                # Calculate additional statistics
-                avg_time_delta = self._calculate_avg_time_delta(
-                    events, device1, device2, self.window_minutes
-                )
+                # Task 3: Calculate time variance and filter by threshold
+                time_deltas = pair_time_deltas.get((device1, device2), [])
+                
+                if time_deltas:
+                    # Calculate statistics
+                    avg_time_delta = float(np.mean(time_deltas))
+                    time_variance_seconds = float(np.var(time_deltas))
+                    time_variance_minutes = time_variance_seconds / 60.0
+                    time_std_seconds = float(np.std(time_deltas))
+                    time_std_minutes = time_std_seconds / 60.0
+                    
+                    # Task 3: Filter patterns with standard deviation > threshold
+                    # Note: We check std (not variance) since threshold is in minutes (like "± 30min")
+                    if time_std_minutes > self.max_variance_minutes:
+                        logger.debug(
+                            f"❌ Rejected pattern {device1}+{device2}: std {time_std_minutes:.1f}min "
+                            f"> threshold {self.max_variance_minutes}min"
+                        )
+                        continue
+                else:
+                    # Fallback to old method if no deltas tracked
+                    avg_time_delta = self._calculate_avg_time_delta(
+                        events, device1, device2, self.window_minutes
+                    )
+                    time_variance_minutes = None
+                    time_std_minutes = None
                 
                 pattern = {
                     'pattern_type': 'co_occurrence',
@@ -164,7 +238,9 @@ class CoOccurrencePatternDetector:
                         'support': float(support),
                         'device1_count': int(device1_count),
                         'device2_count': int(device2_count),
-                        'avg_time_delta_seconds': float(avg_time_delta) if avg_time_delta is not None else None
+                        'avg_time_delta_seconds': float(avg_time_delta) if avg_time_delta is not None else None,
+                        'time_variance_minutes': float(time_variance_minutes) if time_variance_minutes is not None else None,
+                        'time_std_minutes': float(time_std_minutes) if time_std_minutes is not None else None
                     }
                 }
                 
@@ -253,12 +329,25 @@ class CoOccurrencePatternDetector:
         """
         Optimized version for large event counts using intelligent sampling.
         
+        Note: System noise filtering and variance thresholding are applied
+        by calling detect_patterns() which handles these filters.
+        
         Args:
             events: DataFrame with columns [device_id, timestamp, state]
         
         Returns:
             List of co-occurrence patterns
         """
+        # Task 2: Filter system noise first (before sampling to save processing)
+        if self.filter_system_noise:
+            original_count = len(events)
+            events = self._filter_system_noise(events)
+            filtered_count = len(events)
+            if filtered_count < original_count:
+                logger.info(
+                    f"✅ Filtered system noise before optimization: {original_count} → {filtered_count} events"
+                )
+        
         # If too many events, sample intelligently
         if len(events) > 50000:
             logger.info(f"Large dataset detected ({len(events)} events), applying sampling")
@@ -324,6 +413,66 @@ class CoOccurrencePatternDetector:
         except Exception as e:
             logger.warning(f"Failed to calculate time delta for {device1}+{device2}: {e}")
             return None
+    
+    def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filter out system sensors, trackers, images, and events.
+        
+        Task 2: Filter System Noise from Co-occurrence Detector
+        
+        Args:
+            events: DataFrame with device_id column
+            
+        Returns:
+            Filtered DataFrame with only actionable events
+        """
+        if 'device_id' not in events.columns:
+            return events
+        
+        # Create mask for actionable events
+        mask = events['device_id'].apply(lambda device_id: self._is_actionable_entity(device_id))
+        
+        filtered = events[mask].copy()
+        return filtered
+    
+    def _is_actionable_entity(self, device_id: str) -> bool:
+        """
+        Check if an entity ID represents an actionable (user-controllable) device.
+        
+        Task 2: Filter System Noise
+        
+        Args:
+            device_id: Entity ID to check
+            
+        Returns:
+            True if actionable, False if system noise
+        """
+        # Check prefixes
+        for prefix in EXCLUDED_ENTITY_PREFIXES:
+            if device_id.startswith(prefix):
+                return False
+        
+        # Check patterns (contains)
+        for pattern in EXCLUDED_PATTERNS:
+            if pattern in device_id.lower():
+                return False
+        
+        return True
+    
+    def _is_actionable_pattern(self, device1: str, device2: str) -> bool:
+        """
+        Check if a device pair represents an actionable pattern.
+        
+        Task 2: Filter System Noise
+        
+        Args:
+            device1: First device ID
+            device2: Second device ID
+            
+        Returns:
+            True if both devices are actionable
+        """
+        return self._is_actionable_entity(device1) and self._is_actionable_entity(device2)
     
     def get_pattern_summary(self, patterns: List[Dict]) -> Dict:
         """

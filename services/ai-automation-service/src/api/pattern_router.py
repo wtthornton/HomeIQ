@@ -308,6 +308,28 @@ async def list_patterns(
         )
 
 
+@router.get("/stats")
+async def get_stats(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Get pattern statistics.
+    """
+    try:
+        stats = await get_pattern_stats(db)
+        
+        return {
+            "success": True,
+            "data": stats,
+            "message": "Pattern statistics retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get pattern stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pattern stats: {str(e)}"
+        )
+
+
 @router.get("/{pattern_id}/history")
 async def get_pattern_history(
     pattern_id: int,
@@ -380,28 +402,6 @@ async def get_pattern_trend(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get pattern trend: {str(e)}"
-        )
-
-
-@router.get("/stats")
-async def get_stats(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
-    """
-    Get pattern statistics.
-    """
-    try:
-        stats = await get_pattern_stats(db)
-        
-        return {
-            "success": True,
-            "data": stats,
-            "message": "Pattern statistics retrieved successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get pattern stats: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get pattern stats: {str(e)}"
         )
 
 

@@ -174,6 +174,7 @@ class SequenceDetector(MLPatternDetector):
     def _filter_state_changes(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Filter events to only include state changes (on/off transitions).
+        More flexible: handles non-binary states and missing state data.
         
         Args:
             events_df: Events DataFrame
@@ -181,14 +182,27 @@ class SequenceDetector(MLPatternDetector):
         Returns:
             DataFrame with only state change events
         """
+        if 'state' not in events_df.columns:
+            logger.warning("No 'state' column found, using all events as state changes")
+            return events_df.copy()
+        
         # Group by entity and find state changes
         state_changes = []
         
         for entity_id, entity_events in events_df.groupby('entity_id'):
             entity_events = entity_events.sort_values('time')
             
-            # Find state transitions
+            # If only one event, include it
+            if len(entity_events) == 1:
+                state_changes.append(entity_events.copy())
+                continue
+            
+            # Find state transitions (any change in state value)
             state_transitions = entity_events['state'].ne(entity_events['state'].shift())
+            
+            # Also include first event of each entity
+            state_transitions.iloc[0] = True
+            
             state_changes_events = entity_events[state_transitions].copy()
             
             if not state_changes_events.empty:
@@ -196,8 +210,11 @@ class SequenceDetector(MLPatternDetector):
                 state_changes.append(state_changes_events)
         
         if state_changes:
-            return pd.concat(state_changes, ignore_index=True)
+            result = pd.concat(state_changes, ignore_index=True)
+            logger.debug(f"Filtered to {len(result)} state change events from {len(events_df)} total events")
+            return result
         else:
+            logger.warning("No state changes found, returning empty DataFrame")
             return pd.DataFrame()
     
     def _detect_sequences(self, events_df: pd.DataFrame) -> List[Dict]:

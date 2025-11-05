@@ -11,8 +11,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.simple_health import router as health_router
-from src.integration_endpoints import router as integration_router
+import sys
+import os
+
+# Add shared directory to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
+
+from shared.endpoints import simple_health_router, create_integration_router
+from src.config_manager import config_manager
+
+health_router = simple_health_router
+integration_router = create_integration_router(config_manager)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

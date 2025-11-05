@@ -7,6 +7,7 @@ Endpoints for generating automation suggestions from detected patterns using LLM
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta, timezone
 import logging
 import time
 
@@ -81,6 +82,48 @@ async def generate_suggestions(
         suggestions_stored = []
         errors = []
         
+        # Generate predictive suggestions (NEW - Proactive Opportunities)
+        logger.info("→ Generating predictive automation suggestions...")
+        try:
+            from ..suggestion_generation.predictive_generator import PredictiveAutomationGenerator
+            from ..clients.data_api_client import DataAPIClient
+            
+            # Fetch recent events for predictive analysis
+            predictive_generator = PredictiveAutomationGenerator()
+            end_dt = datetime.now(timezone.utc)
+            start_dt = end_dt - timedelta(days=30)
+            
+            try:
+                events_df = await data_api_client.fetch_events(
+                    start_time=start_dt,
+                    end_time=end_dt,
+                    limit=50000
+                )
+                predictive_suggestions = predictive_generator.generate_predictive_suggestions(events_df)
+                logger.info(f"   ✅ Generated {len(predictive_suggestions)} predictive suggestions")
+                
+                # Store predictive suggestions
+                for pred_sugg in predictive_suggestions:
+                    try:
+                        suggestion_data = {
+                            'pattern_id': None,  # Predictive suggestions don't have patterns
+                            'title': pred_sugg.get('title', 'Predictive Automation'),
+                            'description': pred_sugg.get('description', ''),
+                            'automation_yaml': None,
+                            'confidence': pred_sugg.get('confidence', 0.8),
+                            'category': pred_sugg.get('type', 'convenience'),
+                            'priority': pred_sugg.get('priority', 'medium')
+                        }
+                        stored = await store_suggestion(db, suggestion_data)
+                        suggestions_stored.append(stored)
+                        suggestions_generated += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to store predictive suggestion: {e}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch events for predictive generation: {e}")
+        except Exception as e:
+            logger.warning(f"Predictive suggestion generation failed: {e}")
+        
         for pattern in patterns:
             try:
                 logger.info(f"Processing pattern #{pattern.id}: type={pattern.pattern_type}, device_id={pattern.device_id}")
@@ -123,6 +166,33 @@ async def generate_suggestions(
                 
                 # ==== NEW: Fetch device metadata for friendly names ====
                 device_context = await _build_device_context(pattern_dict)
+                
+                # Generate cascade suggestions (NEW - Progressive Enhancement)
+                try:
+                    from ..suggestion_generation.cascade_generator import CascadeSuggestionGenerator
+                    cascade_generator = CascadeSuggestionGenerator()
+                    cascade_suggestions = cascade_generator.generate_cascade(
+                        base_pattern=pattern_dict,
+                        device_context=device_context
+                    )
+                    logger.info(f"   → Generated {len(cascade_suggestions)} cascade suggestions")
+                    
+                    # Store cascade suggestions (store first level, others as alternatives)
+                    for cascade_sugg in cascade_suggestions[:1]:  # Store first level for now
+                        cascade_data = {
+                            'pattern_id': pattern.id,
+                            'title': cascade_sugg.get('title', ''),
+                            'description': cascade_sugg.get('description', ''),
+                            'automation_yaml': None,
+                            'confidence': cascade_sugg.get('confidence', 0.8),
+                            'category': 'convenience',
+                            'priority': cascade_sugg.get('complexity', 'medium')
+                        }
+                        stored = await store_suggestion(db, cascade_data)
+                        suggestions_stored.append(stored)
+                        suggestions_generated += 1
+                except Exception as e:
+                    logger.warning(f"Cascade generation failed for pattern {pattern.id}: {e}")
                 
                 logger.info(f"Generating suggestion for pattern #{pattern.id}: {pattern.device_id}")
                 

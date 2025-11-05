@@ -28,20 +28,18 @@ from shared.logging_config import (
 from shared.correlation_middleware import FastAPICorrelationMiddleware
 
 from .health_endpoints import HealthEndpoints
-from .stats_endpoints import StatsEndpoints
+from shared.monitoring import StatsEndpoints, MonitoringEndpoints
 from .config_endpoints import ConfigEndpoints
 from .events_endpoints import EventsEndpoints
 from .docker_endpoints import DockerEndpoints
-from .monitoring_endpoints import MonitoringEndpoints
 # WebSocket endpoints removed - using HTTP polling only
-from .integration_endpoints import router as integration_router
+from shared.endpoints import create_integration_router
+from .config_manager import config_manager
 from .devices_endpoints import router as devices_router
 from .metrics_endpoints import create_metrics_router
 from .alert_endpoints import create_alert_router
 from shared.auth import AuthManager  # Moved to shared
-from .logging_service import logging_service
-from .metrics_service import metrics_service
-from .alerting_service import alerting_service
+from shared.monitoring import logging_service, metrics_service, alerting_service
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -99,6 +97,8 @@ class AdminAPIService:
         self.events_endpoints = EventsEndpoints()
         self.docker_endpoints = DockerEndpoints()
         self.monitoring_endpoints = MonitoringEndpoints(self.auth_manager)
+        # Create integration router with service-specific config_manager
+        self.integration_router = create_integration_router(config_manager)
         # WebSocket endpoints removed - using HTTP polling only
         
         # FastAPI app
@@ -336,7 +336,7 @@ class AdminAPIService:
         
         # Integration Management endpoints
         self.app.include_router(
-            integration_router,
+            self.integration_router,
             prefix="/api/v1",
             tags=["Integration Management"]
         )
@@ -467,13 +467,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Failed to initialize InfluxDB: {e}")
         logger.warning("Statistics will fall back to direct service calls")
 
-    # Start WebSocket broadcast loop for real-time dashboard updates
-    try:
-        logger.info("Starting WebSocket broadcast loop...")
-        await admin_api_service.websocket_endpoints.start_broadcast_loop()
-        logger.info("WebSocket broadcast loop started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start WebSocket broadcast loop: {e}")
+    # WebSocket broadcast loop removed - using HTTP polling only
 
     logger.info("Admin API service started on 0.0.0.0:8004")
 
@@ -482,12 +476,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down Admin API service...")
 
-    # Stop WebSocket broadcast loop
-    try:
-        admin_api_service.websocket_endpoints.stop_broadcast_loop()
-        logger.info("WebSocket broadcast loop stopped")
-    except Exception as e:
-        logger.error(f"Error stopping WebSocket broadcast loop: {e}")
+    # WebSocket broadcast loop removed - using HTTP polling only
 
     # Close InfluxDB connection
     try:

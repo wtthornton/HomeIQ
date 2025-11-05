@@ -1,5 +1,6 @@
 """
 Service Controller - Health-based service management
+Shared service controller for admin-api and data-api.
 """
 
 import asyncio

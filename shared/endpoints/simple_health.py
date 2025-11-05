@@ -1,5 +1,6 @@
 """
 Simplified Health Endpoint for Dashboard Integration
+Shared simple health service for admin-api and data-api.
 """
 
 import asyncio

@@ -11,7 +11,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.stats_endpoints import StatsEndpoints
+from shared.monitoring import StatsEndpoints
 
 
 @pytest.mark.asyncio

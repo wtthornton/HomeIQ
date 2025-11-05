@@ -20,7 +20,6 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
 COPY services/ai-core-service/src/ ./src/
-COPY services/ai-core-service/scripts/ ./scripts/
 
 # Set environment variables
 ENV PATH=/root/.local/bin:$PATH

@@ -13,7 +13,16 @@ from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
 
 from shared.influxdb_query_client import InfluxDBQueryClient as AdminAPIInfluxDBClient
-from .metrics_tracker import get_tracker
+
+# Optional metrics_tracker import (only used in admin-api)
+try:
+    from .metrics_tracker import get_tracker
+    HAS_METRICS_TRACKER = True
+except ImportError:
+    HAS_METRICS_TRACKER = False
+    def get_tracker():
+        """Fallback if metrics_tracker not available"""
+        return None
 
 logger = logging.getLogger(__name__)
 
@@ -413,14 +422,18 @@ class StatsEndpoints:
             if "error" in health_data and health_data["error"]:
                 raise Exception(health_data["error"])
             
-            # Get response time from tracker
-            tracker = get_tracker()
-            websocket_stats = await tracker.get_stats("websocket-ingestion")
+            # Get response time from tracker (if available)
+            response_time_ms = 0
+            if HAS_METRICS_TRACKER:
+                tracker = get_tracker()
+                if tracker:
+                    websocket_stats = await tracker.get_stats("websocket-ingestion")
+                    response_time_ms = round(websocket_stats.get('avg', 0), 2)
             
             metrics = {
                 "events_per_minute": 0,
                 "error_rate": 0,
-                "response_time_ms": round(websocket_stats.get('avg', 0), 2),
+                "response_time_ms": response_time_ms,
                 "connection_attempts": 0,
                 "total_events_received": 0
             }

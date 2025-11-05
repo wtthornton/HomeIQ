@@ -86,10 +86,17 @@ class ContextualDetector(MLPatternDetector):
         events_df = self._optimize_dataframe(events_df)
         
         # Extract contextual features
-        context_features = self._extract_contextual_features(events_df)
-        if context_features.empty:
-            logger.info("No contextual features found")
-            return []
+        try:
+            context_features = self._extract_contextual_features(events_df)
+            if context_features.empty:
+                logger.info("No contextual features found after extraction")
+                return []
+        except Exception as e:
+            logger.warning(f"Failed to extract contextual features: {e}, using time-only features")
+            # Fallback to time-only features
+            context_features = self._add_time_features(events_df.copy())
+            if context_features.empty:
+                return []
         
         # Group events by context patterns
         context_groups = self._group_by_context(context_features)
@@ -176,38 +183,58 @@ class ContextualDetector(MLPatternDetector):
         return df
     
     def _add_weather_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add weather-based contextual features."""
-        # Weather features (if available in the data)
+        """Add weather-based contextual features (graceful fallback if missing)."""
+        # Weather features (optional - don't fail if missing)
         weather_columns = ['temperature', 'humidity', 'pressure', 'weather_state', 'wind_speed']
+        weather_available = False
         
         for col in weather_columns:
-            if col not in df.columns:
-                # Create dummy weather data for testing
-                if col == 'temperature':
-                    df[col] = 20.0  # Default temperature
-                elif col == 'humidity':
-                    df[col] = 50.0  # Default humidity
-                elif col == 'pressure':
-                    df[col] = 1013.25  # Default pressure
-                elif col == 'weather_state':
-                    df[col] = 'clear'  # Default weather
-                elif col == 'wind_speed':
-                    df[col] = 0.0  # Default wind speed
+            if col in df.columns:
+                weather_available = True
+                break
         
-        # Weather categories
+        if not weather_available:
+            # No weather data available - use time-based approximations
+            logger.debug("No weather data available, using time-based approximations")
+            # Use time of day to estimate temperature (rough approximation)
+            df['temperature'] = df['hour'].apply(lambda h: 15 + 10 * np.sin((h - 6) * np.pi / 12) if 6 <= h <= 18 else 10)
+            df['humidity'] = 50.0  # Default
+            df['weather_state'] = 'unknown'
+        else:
+            # Fill missing weather columns with defaults
+            for col in weather_columns:
+                if col not in df.columns:
+                    if col == 'temperature':
+                        df[col] = 20.0
+                    elif col == 'humidity':
+                        df[col] = 50.0
+                    elif col == 'pressure':
+                        df[col] = 1013.25
+                    elif col == 'weather_state':
+                        df[col] = 'unknown'
+                    elif col == 'wind_speed':
+                        df[col] = 0.0
+        
+        # Weather categories (only if we have temperature/humidity)
         if 'temperature' in df.columns:
-            df['temp_category'] = pd.cut(
-                df['temperature'],
-                bins=[-np.inf, 0, 15, 25, np.inf],
-                labels=['cold', 'cool', 'warm', 'hot']
-            )
+            try:
+                df['temp_category'] = pd.cut(
+                    df['temperature'],
+                    bins=[-np.inf, 0, 15, 25, np.inf],
+                    labels=['cold', 'cool', 'warm', 'hot']
+                )
+            except Exception:
+                df['temp_category'] = 'unknown'
         
         if 'humidity' in df.columns:
-            df['humidity_category'] = pd.cut(
-                df['humidity'],
-                bins=[0, 30, 60, 80, 100],
-                labels=['dry', 'normal', 'humid', 'very_humid']
-            )
+            try:
+                df['humidity_category'] = pd.cut(
+                    df['humidity'],
+                    bins=[0, 30, 60, 80, 100],
+                    labels=['dry', 'normal', 'humid', 'very_humid']
+                )
+            except Exception:
+                df['humidity_category'] = 'unknown'
         
         return df
     

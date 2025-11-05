@@ -21,7 +21,6 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
 COPY services/ml-service/src/ ./src/
-COPY services/ml-service/scripts/ ./scripts/
 
 # Set environment variables
 ENV PATH=/root/.local/bin:$PATH
