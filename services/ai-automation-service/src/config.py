@@ -1,7 +1,7 @@
 """Configuration management for AI Automation Service"""
 
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -77,7 +77,100 @@ class Settings(BaseSettings):
     
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls
-    
+
+    # Auto-Draft Generation Configuration (Story: Auto-Draft API)
+    auto_draft_suggestions_enabled: bool = True
+    """Enable automatic YAML draft generation during suggestion creation"""
+
+    auto_draft_count: int = 1
+    """Number of top suggestions to auto-generate YAML for (default: 1)
+
+    Rationale:
+    - 1 = Best UX/cost balance (most users approve top suggestion)
+    - 3 = Good for batch reviews
+    - 5+ = Use async pattern (see auto_draft_async_threshold)
+    """
+
+    auto_draft_async_threshold: int = 3
+    """If auto_draft_count > this value, use async background jobs
+
+    Rationale:
+    - ≤3 drafts: Synchronous (200-500ms each = 0.6-1.5s total, acceptable)
+    - >3 drafts: Async to prevent API timeout (>2s would degrade UX)
+    """
+
+    auto_draft_run_safety_validation: bool = False
+    """Run safety validation during auto-draft generation (default: False)
+
+    Rationale:
+    - False = Faster generation, validation runs on approval (recommended)
+    - True = Early validation, but slower API response (adds ~300ms per draft)
+    """
+
+    auto_draft_confidence_threshold: float = 0.70
+    """Minimum confidence score to trigger auto-draft generation
+
+    Only generate YAML for suggestions with confidence >= this threshold.
+    Helps reduce wasted YAML generation for low-quality suggestions.
+    """
+
+    auto_draft_max_retries: int = 2
+    """Max retries for YAML generation if OpenAI call fails"""
+
+    auto_draft_timeout: int = 10
+    """Timeout (seconds) for auto-draft generation per suggestion"""
+
+    # Expert Mode Configuration
+    expert_mode_enabled: bool = True
+    """Enable expert mode for advanced users who want full control over each step"""
+
+    expert_mode_default: bool = False
+    """Default mode if not specified in request: False=auto_draft, True=expert"""
+
+    expert_mode_allow_mode_switching: bool = True
+    """Allow users to switch between Standard and Expert modes mid-flow"""
+
+    expert_mode_yaml_validation_strict: bool = True
+    """Enforce strict YAML validation in expert mode (recommended)"""
+
+    expert_mode_validate_on_save: bool = True
+    """Validate YAML on save rather than on every keystroke (better performance)"""
+
+    expert_mode_show_yaml_diff: bool = True
+    """Show YAML diffs when editing (helpful for experts to track changes)"""
+
+    expert_mode_max_yaml_edits: int = 10
+    """Maximum number of YAML edits allowed per suggestion (prevent abuse)"""
+
+    expert_mode_allow_dangerous_operations: bool = False
+    """Allow potentially dangerous YAML operations (shell_command, python_script, etc.)
+
+    SECURITY: Only enable this for trusted admin users. Dangerous operations include:
+    - shell_command.* (arbitrary shell execution)
+    - python_script.* (arbitrary Python code)
+    - script.turn_on (script execution)
+    - homeassistant.restart (system restart)
+    """
+
+    expert_mode_blocked_services: List[str] = [
+        "shell_command",
+        "python_script",
+        "script.turn_on",
+        "automation.reload",
+        "homeassistant.restart",
+        "homeassistant.stop"
+    ]
+    """Services blocked in expert mode unless allow_dangerous_operations=true"""
+
+    expert_mode_require_approval_services: List[str] = [
+        "notify",
+        "camera",
+        "lock",
+        "cover",
+        "climate"
+    ]
+    """Services that require explicit user confirmation before deployment"""
+
     class Config:
         env_file = "infrastructure/env.ai-automation"
         case_sensitive = False

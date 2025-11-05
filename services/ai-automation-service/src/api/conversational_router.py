@@ -18,10 +18,12 @@ Phase 3-4: Refinement and YAML generation (Coming soon)
 from fastapi import APIRouter, HTTPException, Depends, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
 import logging
 import re
+import yaml as yaml_module
+import difflib
 
 from ..database import get_db
 from ..config import settings
@@ -78,6 +80,19 @@ class GenerateRequest(BaseModel):
     device_id: str
     metadata: Dict[str, Any]
 
+    # Mode selection (NEW: Expert Mode)
+    mode: Literal["auto_draft", "expert"] = Field(
+        "auto_draft",
+        description="Generation mode: 'auto_draft' (fast, automated) or 'expert' (full control)"
+    )
+
+    # Explicit control (overrides mode)
+    auto_generate_yaml: Optional[bool] = Field(
+        None,
+        description="Explicitly control YAML generation. If None, determined by mode. "
+                    "auto_draft mode: default true, expert mode: default false"
+    )
+
 
 class RefineRequest(BaseModel):
     """Request to refine suggestion with natural language"""
@@ -89,6 +104,48 @@ class ApproveRequest(BaseModel):
     """Request to approve and generate YAML"""
     final_description: Optional[str] = None
     user_notes: Optional[str] = None
+    regenerate_yaml: bool = Field(
+        False,
+        description="Force regeneration of YAML even if auto-draft exists. "
+                    "Useful if user edited description and wants fresh YAML"
+    )
+    deploy_immediately: bool = Field(
+        True,
+        description="Deploy to Home Assistant immediately after approval. "
+                    "Set to false to stage without deploying (expert mode)"
+    )
+
+
+class GenerateYAMLRequest(BaseModel):
+    """Request to manually generate YAML (expert mode)"""
+    description: Optional[str] = Field(
+        None,
+        description="Override description to use. If None, uses current suggestion description"
+    )
+    validate_syntax: bool = Field(
+        True,
+        description="Run YAML syntax validation after generation"
+    )
+    run_safety_check: bool = Field(
+        False,
+        description="Run safety validation during generation (adds ~300ms, optional)"
+    )
+
+
+class EditYAMLRequest(BaseModel):
+    """Request to manually edit YAML (expert mode)"""
+    automation_yaml: str = Field(
+        ...,
+        description="Updated YAML content"
+    )
+    validate_on_save: bool = Field(
+        True,
+        description="Validate YAML before saving (recommended)"
+    )
+    user_notes: Optional[str] = Field(
+        None,
+        description="Notes about what was changed"
+    )
 
 
 class DeviceCapability(BaseModel):
@@ -107,6 +164,31 @@ class ValidationResult(BaseModel):
     alternatives: List[str] = []
 
 
+class YAMLValidationReport(BaseModel):
+    """YAML validation results from auto-draft generation"""
+    syntax_valid: bool = Field(description="Whether YAML syntax is valid")
+    safety_score: Optional[int] = Field(
+        None, ge=0, le=100,
+        description="Safety score (0-100). Only present if safety validation ran"
+    )
+    issues: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of validation issues (warnings or errors)"
+    )
+    services_used: List[str] = Field(
+        default_factory=list,
+        description="Home Assistant services used (e.g., ['light.turn_on'])"
+    )
+    entities_referenced: List[str] = Field(
+        default_factory=list,
+        description="Entity IDs referenced in YAML"
+    )
+    advanced_features_used: List[str] = Field(
+        default_factory=list,
+        description="Advanced features used (e.g., ['choose', 'parallel'])"
+    )
+
+
 class SuggestionResponse(BaseModel):
     """Suggestion response"""
     suggestion_id: str
@@ -117,6 +199,53 @@ class SuggestionResponse(BaseModel):
     confidence: float
     status: str
     created_at: str
+
+    # Mode tracking (NEW: Expert Mode)
+    mode: Literal["auto_draft", "expert"] = Field(
+        "auto_draft",
+        description="Mode used to create this suggestion"
+    )
+
+    # Auto-Draft Fields
+    draft_id: Optional[str] = Field(
+        None,
+        description="Draft ID (same as suggestion_id, for semantic clarity)"
+    )
+    automation_yaml: Optional[str] = Field(
+        None,
+        description="Pre-generated Home Assistant YAML automation. "
+                    "Only present if auto_draft_suggestions_enabled=true "
+                    "and this suggestion is in top N (auto_draft_count)"
+    )
+    yaml_validation: Optional[YAMLValidationReport] = Field(
+        None,
+        description="YAML validation report. Only present if automation_yaml was generated"
+    )
+    yaml_generation_error: Optional[str] = Field(
+        None,
+        description="Error message if YAML generation failed. "
+                    "Suggestion is still returned but without YAML"
+    )
+    yaml_generated_at: Optional[str] = Field(
+        None,
+        description="ISO 8601 timestamp when YAML was generated. "
+                    "None if YAML not yet generated"
+    )
+    yaml_generation_status: Optional[str] = Field(
+        None,
+        description="Status of YAML generation: 'completed', 'queued', 'failed', 'not_requested'. "
+                    "Used for async generation when count > async_threshold"
+    )
+
+    # Expert Mode Fields (NEW)
+    yaml_edited_at: Optional[str] = Field(
+        None,
+        description="ISO 8601 timestamp when YAML was manually edited (expert mode)"
+    )
+    yaml_edit_count: int = Field(
+        0,
+        description="Number of manual YAML edits made (expert mode)"
+    )
 
 
 class RefinementResponse(BaseModel):
@@ -1081,6 +1210,382 @@ async def get_suggestion_detail(
     }
     
     return mock_detail
+
+
+# ============================================================================
+# Expert Mode Endpoints (NEW)
+# ============================================================================
+
+@router.post("/{suggestion_id}/generate-yaml")
+async def generate_yaml_expert_mode(
+    suggestion_id: str,
+    request: GenerateYAMLRequest = Body(...),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Generate YAML on-demand for expert mode (Step 3 of expert flow).
+
+    Expert Mode Flow:
+    1. Generate description → 2. Refine description → 3. Generate YAML (HERE) → 4. Edit YAML → 5. Deploy
+
+    This endpoint allows users to manually trigger YAML generation after they're satisfied
+    with the description. It's called when the user clicks "Generate YAML" in expert mode.
+
+    Returns:
+    - automation_yaml: Generated YAML content
+    - yaml_validation: Validation report
+    - status: Updated to 'yaml_generated'
+    """
+    logger.info(f"🔧 Expert Mode: Generating YAML for suggestion {suggestion_id}")
+
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="OpenAI API not configured")
+
+    try:
+        # Step 1: Fetch suggestion
+        try:
+            if suggestion_id.startswith('suggestion-'):
+                db_id = int(suggestion_id.split('-')[1])
+            else:
+                db_id = int(suggestion_id)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
+
+        result = await db.execute(
+            select(SuggestionModel).where(SuggestionModel.id == db_id)
+        )
+        suggestion = result.scalar_one_or_none()
+
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        logger.info(f"📋 Generating YAML for suggestion {suggestion_id} (mode: {suggestion.mode or 'auto_draft'})")
+
+        # Step 2: Use provided description or current suggestion description
+        description_to_use = request.description or suggestion.description_only or suggestion.description or ""
+
+        if not description_to_use:
+            raise HTTPException(status_code=400, detail="No description available for YAML generation")
+
+        # Step 3: Extract entities from description
+        conversation_history = suggestion.conversation_history or []
+        entities = await _extract_entities_from_context(suggestion, conversation_history, db)
+
+        # Step 4: Build suggestion dict for YAML generator
+        suggestion_dict = {
+            'description': description_to_use,
+            'trigger_summary': _extract_trigger_summary(description_to_use),
+            'action_summary': _extract_action_summary(description_to_use),
+            'devices_involved': _extract_devices(suggestion, conversation_history),
+            'device_capabilities': suggestion.device_capabilities or {}
+        }
+
+        # Step 5: Generate YAML using unified generator
+        logger.info("🚀 Calling unified YAML generator...")
+        automation_yaml = await generate_automation_yaml(
+            suggestion=suggestion_dict,
+            original_query=description_to_use,
+            entities=entities if entities else None,
+            db_session=db
+        )
+
+        if not automation_yaml:
+            raise HTTPException(status_code=500, detail="YAML generation returned empty result")
+
+        # Step 6: Validate YAML syntax
+        yaml_valid = False
+        issues = []
+
+        if request.validate_syntax:
+            try:
+                yaml_module.safe_load(automation_yaml)
+                yaml_valid = True
+                logger.info("✅ YAML syntax validation passed")
+            except yaml_module.YAMLError as e:
+                yaml_valid = False
+                issues.append({"type": "error", "message": f"YAML syntax error: {str(e)}"})
+                logger.warning(f"⚠️ YAML syntax validation failed: {e}")
+        else:
+            yaml_valid = True  # Skip validation if requested
+
+        # Step 7: Optional safety validation
+        safety_score = None
+        if request.run_safety_check and ha_client:
+            try:
+                safety_validator = SafetyValidator(ha_client=ha_client)
+                safety_report = await safety_validator.validate_automation(automation_yaml)
+                safety_score = safety_report.get('safety_score', 0)
+                if not safety_report.get('safe', True):
+                    issues.extend(safety_report.get('critical_issues', []))
+                logger.info(f"✅ Safety validation completed (score: {safety_score})")
+            except Exception as e:
+                logger.warning(f"⚠️ Safety validation failed: {e}")
+
+        # Step 8: Build validation report
+        yaml_validation = {
+            "syntax_valid": yaml_valid,
+            "safety_score": safety_score,
+            "issues": issues,
+            "services_used": _extract_services(automation_yaml),
+            "entities_referenced": _extract_entities_from_yaml(automation_yaml),
+            "advanced_features_used": _extract_advanced_features(automation_yaml)
+        }
+
+        # Step 9: Update database with generated YAML
+        suggestion.automation_yaml = automation_yaml
+        suggestion.status = "yaml_generated"
+        suggestion.yaml_generated_at = datetime.utcnow()
+        suggestion.yaml_generation_method = "expert_manual"
+        suggestion.yaml_generation_error = None
+
+        await db.commit()
+        await db.refresh(suggestion)
+
+        logger.info(f"✅ Expert mode YAML generated and stored for suggestion {suggestion_id}")
+
+        # Step 10: Return response
+        return {
+            "suggestion_id": suggestion_id,
+            "automation_yaml": automation_yaml,
+            "yaml_validation": yaml_validation,
+            "status": "yaml_generated",
+            "yaml_generated_at": suggestion.yaml_generated_at.isoformat(),
+            "yaml_generation_method": "expert_manual"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Expert mode YAML generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"YAML generation failed: {str(e)}"
+        )
+
+
+@router.patch("/{suggestion_id}/yaml")
+async def edit_yaml_expert_mode(
+    suggestion_id: str,
+    request: EditYAMLRequest = Body(...),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Edit YAML manually for expert mode (Step 4 of expert flow).
+
+    Expert Mode Flow:
+    1. Generate description → 2. Refine description → 3. Generate YAML → 4. Edit YAML (HERE) → 5. Deploy
+
+    This endpoint allows users to manually edit the generated YAML. It's called when the user
+    edits YAML in a code editor and clicks "Save Changes".
+
+    Returns:
+    - automation_yaml: Updated YAML content
+    - yaml_validation: Validation report for edited YAML
+    - changes: Diff showing what was changed
+    - status: Updated to 'yaml_edited'
+    """
+    logger.info(f"🛠️ Expert Mode: Editing YAML for suggestion {suggestion_id}")
+
+    try:
+        # Step 1: Fetch suggestion
+        try:
+            if suggestion_id.startswith('suggestion-'):
+                db_id = int(suggestion_id.split('-')[1])
+            else:
+                db_id = int(suggestion_id)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
+
+        result = await db.execute(
+            select(SuggestionModel).where(SuggestionModel.id == db_id)
+        )
+        suggestion = result.scalar_one_or_none()
+
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        logger.info(f"📝 Editing YAML for suggestion {suggestion_id}")
+
+        # Step 2: Check edit count limit
+        current_edit_count = suggestion.yaml_edit_count or 0
+        if current_edit_count >= settings.expert_mode_max_yaml_edits:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Maximum YAML edit limit reached ({settings.expert_mode_max_yaml_edits} edits). "
+                       "Create a new suggestion to continue editing."
+            )
+
+        # Step 3: Validate YAML syntax
+        yaml_valid = False
+        issues = []
+
+        if request.validate_on_save:
+            try:
+                yaml_module.safe_load(request.automation_yaml)
+                yaml_valid = True
+                logger.info("✅ Edited YAML syntax validation passed")
+            except yaml_module.YAMLError as e:
+                yaml_valid = False
+                issues.append({"type": "error", "message": f"YAML syntax error: {str(e)}", "line": getattr(e, 'problem_mark', None)})
+                logger.warning(f"⚠️ Edited YAML syntax validation failed: {e}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"YAML syntax error: {str(e)}"
+                )
+        else:
+            yaml_valid = True  # Skip validation if requested (not recommended)
+
+        # Step 4: Check for dangerous operations (security)
+        if not settings.expert_mode_allow_dangerous_operations:
+            dangerous_services = _check_dangerous_services(request.automation_yaml)
+            if dangerous_services:
+                issues.append({
+                    "type": "security",
+                    "message": f"Dangerous services detected: {', '.join(dangerous_services)}",
+                    "services": dangerous_services
+                })
+                logger.warning(f"⚠️ Dangerous services detected in YAML edit: {dangerous_services}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dangerous services not allowed: {', '.join(dangerous_services)}. "
+                           "Contact admin to enable expert_mode_allow_dangerous_operations."
+                )
+
+        # Step 5: Generate YAML diff (show what changed)
+        diff_lines = []
+        if suggestion.automation_yaml and settings.expert_mode_show_yaml_diff:
+            old_lines = suggestion.automation_yaml.splitlines(keepends=True)
+            new_lines = request.automation_yaml.splitlines(keepends=True)
+            diff = difflib.unified_diff(old_lines, new_lines, lineterm='')
+            diff_lines = list(diff)
+
+        diff_text = ''.join(diff_lines) if diff_lines else "No previous YAML to compare"
+
+        # Step 6: Extract modified fields from diff
+        modified_fields = []
+        for line in diff_lines:
+            if line.startswith('+') and not line.startswith('+++'):
+                # Extract field name from added lines
+                match = re.match(r'\+\s*(\w+):', line)
+                if match:
+                    modified_fields.append(match.group(1))
+
+        # Step 7: Build validation report
+        yaml_validation = {
+            "syntax_valid": yaml_valid,
+            "safety_score": None,  # Safety validation runs on deployment
+            "issues": issues,
+            "services_used": _extract_services(request.automation_yaml),
+            "entities_referenced": _extract_entities_from_yaml(request.automation_yaml),
+            "advanced_features_used": _extract_advanced_features(request.automation_yaml)
+        }
+
+        # Step 8: Update database with edited YAML
+        suggestion.automation_yaml = request.automation_yaml
+        suggestion.status = "yaml_edited"
+        suggestion.yaml_edited_at = datetime.utcnow()
+        suggestion.yaml_edit_count = current_edit_count + 1
+        suggestion.yaml_generation_method = "expert_manual_edited"
+
+        # Add user notes to conversation history
+        if request.user_notes:
+            if not suggestion.conversation_history:
+                suggestion.conversation_history = []
+            suggestion.conversation_history.append({
+                "role": "user",
+                "content": request.user_notes,
+                "timestamp": datetime.utcnow().isoformat(),
+                "action": "yaml_edit"
+            })
+
+        await db.commit()
+        await db.refresh(suggestion)
+
+        logger.info(f"✅ Expert mode YAML edited and stored for suggestion {suggestion_id} (edit #{suggestion.yaml_edit_count})")
+
+        # Step 9: Return response with diff
+        return {
+            "suggestion_id": suggestion_id,
+            "automation_yaml": request.automation_yaml,
+            "yaml_validation": yaml_validation,
+            "changes": {
+                "modified_fields": list(set(modified_fields)),
+                "diff": diff_text
+            },
+            "status": "yaml_edited",
+            "yaml_edited_at": suggestion.yaml_edited_at.isoformat(),
+            "edit_count": suggestion.yaml_edit_count
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Expert mode YAML edit failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"YAML edit failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# Helper Functions for Expert Mode
+# ============================================================================
+
+def _extract_services(yaml_content: str) -> List[str]:
+    """Extract Home Assistant service calls from YAML"""
+    services = []
+    for match in re.finditer(r'service:\s+([\w.]+)', yaml_content):
+        service = match.group(1)
+        if service not in services:
+            services.append(service)
+    return services
+
+
+def _extract_entities_from_yaml(yaml_content: str) -> List[str]:
+    """Extract entity IDs from YAML content"""
+    entities = []
+    for match in re.finditer(r'entity_id:\s+([\w.]+)', yaml_content):
+        entity = match.group(1)
+        if entity not in entities:
+            entities.append(entity)
+    return entities
+
+
+def _extract_advanced_features(yaml_content: str) -> List[str]:
+    """Detect advanced HA automation features in YAML"""
+    features = []
+    advanced_keywords = {
+        'choose': 'choose',
+        'parallel': 'parallel',
+        'sequence': 'sequence',
+        'repeat': 'repeat',
+        'wait_template': 'wait_template',
+        'variables': 'variables',
+        'condition:': 'condition'
+    }
+
+    for keyword, feature_name in advanced_keywords.items():
+        if keyword in yaml_content:
+            features.append(feature_name)
+
+    return features
+
+
+def _check_dangerous_services(yaml_content: str) -> List[str]:
+    """Check for dangerous service calls in YAML (security)"""
+    dangerous_found = []
+
+    for blocked_service in settings.expert_mode_blocked_services:
+        # Check for exact match or wildcard
+        if blocked_service.endswith('*'):
+            prefix = blocked_service[:-1]  # Remove asterisk
+            if f"service: {prefix}" in yaml_content:
+                dangerous_found.append(blocked_service)
+        else:
+            if f"service: {blocked_service}" in yaml_content:
+                dangerous_found.append(blocked_service)
+
+    return dangerous_found
 
 
 # ============================================================================
