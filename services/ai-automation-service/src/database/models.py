@@ -89,6 +89,16 @@ class Suggestion(Base):
     deployed_at = Column(DateTime, nullable=True)
     ha_automation_id = Column(String, nullable=True)
     
+    # ===== Expert Mode Fields (NEW - Commit ca86050) =====
+    mode = Column(String(20), nullable=True, server_default='auto_draft',
+                  comment='Suggestion mode: auto_draft or expert')
+    yaml_edited_at = Column(DateTime, nullable=True,
+                            comment='Timestamp when YAML was manually edited in expert mode')
+    yaml_edit_count = Column(Integer, nullable=True, server_default='0',
+                             comment='Number of manual YAML edits made in expert mode')
+    yaml_generation_method = Column(String(50), nullable=True,
+                                    comment='Method: auto_draft, expert_manual, expert_manual_edited, etc.')
+    
     def __repr__(self):
         return f"<Suggestion(id={self.id}, title={self.title}, status={self.status}, refinements={self.refinement_count})>"
     
