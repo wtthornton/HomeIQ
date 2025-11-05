@@ -131,3 +131,4 @@ async def get_top_patterns(
             detail=f"Failed to get top patterns: {str(e)}"
         )
 
+

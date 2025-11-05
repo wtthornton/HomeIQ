@@ -179,24 +179,18 @@ CRITICAL: DEVICE NAMING REQUIREMENTS:
 - DO NOT use group entity names unless the enriched context shows it's a group entity
 - Example: If enriched context shows ["Office light 1", "Office light 2", "Office light 3"], use those exact names
 
-Generate 3-5 {output_mode} that PROGRESS from CLOSE to your request → to CRAZY CREATIVE ideas:
+Generate EXACTLY 2 {output_mode} that PROGRESS from CLOSE to your request → to ENHANCED CREATIVE:
 
 PROGRESSION STRATEGY:
-1. FIRST suggestion(s): Direct, straightforward automation closely matching the request
+1. FIRST suggestion: Direct, straightforward automation closely matching the request
    - Simple implementation
    - Exactly what was asked for
    - High confidence (0.9+)
    
-2. MIDDLE suggestion(s): Enhanced variations building on the request
+2. SECOND suggestion: Enhanced variation building on the request
    - Practical improvements
    - Leverage device capabilities
    - Moderate-high confidence (0.8-0.9)
-   
-3. LAST suggestion(s): Creative, "outside the box" ideas pushing boundaries
-   - Advanced features
-   - Unique combinations
-   - Innovative approaches
-   - Moderate confidence (0.7-0.8)
 
 All suggestions should:
 - Be practical and achievable

@@ -265,3 +265,4 @@ class CommunityPatternLearner:
         )
         return sorted_patterns[:limit]
 
+

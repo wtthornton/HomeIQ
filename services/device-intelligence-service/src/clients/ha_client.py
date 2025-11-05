@@ -400,6 +400,51 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"❌ Failed to subscribe to {event_type} events: {e}")
     
+    async def subscribe_to_registry_updates(
+        self,
+        entity_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
+        device_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+    ):
+        """
+        Subscribe to entity and device registry update events.
+        
+        This enables real-time updates when entities/devices are added, removed, or modified
+        in Home Assistant, keeping the cache fresh without periodic polling.
+        
+        Args:
+            entity_callback: Optional callback for entity_registry_updated events
+            device_callback: Optional callback for device_registry_updated events
+        """
+        try:
+            # Subscribe to entity registry updates
+            if entity_callback:
+                await self.subscribe_to_events("entity_registry_updated", entity_callback)
+            else:
+                # Default handler logs the event
+                async def default_entity_handler(event_data: Dict[str, Any]):
+                    action = event_data.get("event", {}).get("action", "unknown")
+                    entity_id = event_data.get("event", {}).get("entity_id", "unknown")
+                    logger.info(f"📋 Entity registry updated: {action} - {entity_id}")
+                
+                await self.subscribe_to_events("entity_registry_updated", default_entity_handler)
+            
+            # Subscribe to device registry updates
+            if device_callback:
+                await self.subscribe_to_events("device_registry_updated", device_callback)
+            else:
+                # Default handler logs the event
+                async def default_device_handler(event_data: Dict[str, Any]):
+                    action = event_data.get("event", {}).get("action", "unknown")
+                    device_id = event_data.get("event", {}).get("device_id", "unknown")
+                    logger.info(f"📱 Device registry updated: {action} - {device_id}")
+                
+                await self.subscribe_to_events("device_registry_updated", default_device_handler)
+            
+            logger.info("✅ Subscribed to registry update events (entity_registry_updated, device_registry_updated)")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to subscribe to registry updates: {e}")
+    
     async def start_message_handler(self):
         """Start the message handler task."""
         if self.connected and self.websocket:

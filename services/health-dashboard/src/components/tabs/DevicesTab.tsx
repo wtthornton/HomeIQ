@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDevices, Device, Entity } from '../../hooks/useDevices';
+import { dataApi } from '../../services/api';
 import type { TabProps } from './types';
 
 export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
@@ -9,6 +10,8 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [deviceEntities, setDeviceEntities] = useState<Entity[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
 
   // Check for integration context from URL (Phase 1.3)
   React.useEffect(() => {
@@ -81,11 +84,44 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
     return '📦'; // Default
   };
 
-  // Get entities for selected device
-  const deviceEntities = useMemo(() => {
-    if (!selectedDevice) return [];
-    return entities.filter(e => e.device_id === selectedDevice.device_id);
-  }, [selectedDevice, entities]);
+  // Fetch entities for selected device directly from API
+  // Context7 Best Practice: Only depend on selectedDevice, not global entities array
+  useEffect(() => {
+    if (selectedDevice) {
+      console.log(`[DeviceEntities] Fetching entities for device: ${selectedDevice.device_id}`);
+      setLoadingEntities(true);
+      
+      dataApi.getEntities({ device_id: selectedDevice.device_id, limit: 100 })
+        .then(response => {
+          const apiEntities = response.entities || [];
+          
+          // Defensive check: Ensure all entities match device_id (Context7: validate response)
+          const validEntities = apiEntities.filter(
+            e => e.device_id === selectedDevice.device_id
+          );
+          
+          console.log(`[DeviceEntities] Loaded ${validEntities.length} entities for ${selectedDevice.device_id}`);
+          
+          if (validEntities.length !== apiEntities.length) {
+            console.warn(
+              `[DeviceEntities] Filtered ${apiEntities.length - validEntities.length} entities ` +
+              `with mismatched device_id for device ${selectedDevice.device_id}`
+            );
+          }
+          
+          setDeviceEntities(validEntities);
+          setLoadingEntities(false);
+        })
+        .catch(err => {
+          console.error('[DeviceEntities] Failed to fetch device entities:', err);
+          // Don't use fallback - show empty state instead of wrong data
+          setDeviceEntities([]);
+          setLoadingEntities(false);
+        });
+    } else {
+      setDeviceEntities([]);
+    }
+  }, [selectedDevice]); // CRITICAL: Only depend on selectedDevice, not entities
 
   // Loading state
   if (loading && devices.length === 0) {
@@ -321,10 +357,15 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
             {/* Entities */}
             <div className="p-6">
               <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                Entities ({deviceEntities.length})
+                Entities ({loadingEntities ? '...' : deviceEntities.length})
               </h3>
 
-              {deviceEntities.length === 0 ? (
+              {loadingEntities ? (
+                <div className={`text-center py-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="mt-2">Loading entities...</p>
+                </div>
+              ) : deviceEntities.length === 0 ? (
                 <div className={`text-center py-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                   <div className="text-4xl mb-2">🔌</div>
                   <p>No entities found for this device</p>

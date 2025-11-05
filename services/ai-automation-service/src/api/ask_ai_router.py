@@ -42,6 +42,15 @@ from ..prompt_building.entity_context_builder import EntityContextBuilder
 from ..services.component_detector import ComponentDetector
 from ..services.safety_validator import SafetyValidator
 from ..services.yaml_self_correction import YAMLSelfCorrectionService
+from ..services.clarification import (
+    ClarificationDetector,
+    QuestionGenerator,
+    AnswerValidator,
+    ConfidenceCalculator,
+    ClarificationSession,
+    ClarificationQuestion,
+    ClarificationAnswer
+)
 from sqlalchemy import select, update
 import asyncio
 
@@ -402,6 +411,11 @@ class AskAIQueryResponse(BaseModel):
     confidence: float
     processing_time_ms: int
     created_at: str
+    # NEW: Clarification fields
+    clarification_needed: bool = False
+    clarification_session_id: Optional[str] = None
+    questions: Optional[List[Dict[str, Any]]] = None
+    message: Optional[str] = None
 
 
 class QueryRefinementRequest(BaseModel):
@@ -419,9 +433,47 @@ class QueryRefinementResponse(BaseModel):
     refinement_count: int
 
 
+class ClarificationRequest(BaseModel):
+    """Request to provide clarification answers"""
+    session_id: str = Field(..., description="Clarification session ID")
+    answers: List[Dict[str, Any]] = Field(..., description="Answers to clarification questions")
+    
+class ClarificationResponse(BaseModel):
+    """Response from clarification"""
+    session_id: str
+    confidence: float
+    confidence_threshold: float
+    clarification_complete: bool
+    message: str
+    suggestions: Optional[List[Dict[str, Any]]] = None
+    questions: Optional[List[Dict[str, Any]]] = None  # If more questions needed
+
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+# Global clarification service instances
+_clarification_detector: Optional[ClarificationDetector] = None
+_question_generator: Optional[QuestionGenerator] = None
+_answer_validator: Optional[AnswerValidator] = None
+_confidence_calculator: Optional[ConfidenceCalculator] = None
+_clarification_sessions: Dict[str, ClarificationSession] = {}  # In-memory storage (TODO: persist to DB)
+
+def get_clarification_services():
+    """Get or initialize clarification services"""
+    global _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
+    
+    if _clarification_detector is None:
+        _clarification_detector = ClarificationDetector()
+    if _question_generator is None and openai_client:
+        _question_generator = QuestionGenerator(openai_client)
+    if _answer_validator is None:
+        _answer_validator = AnswerValidator()
+    if _confidence_calculator is None:
+        _confidence_calculator = ConfidenceCalculator(default_threshold=0.85)
+    
+    return _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
 
 async def expand_group_entities_to_members(
     entity_ids: List[str],
@@ -2029,6 +2081,423 @@ async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
     return extract_entities_from_query(query)
 
 
+async def build_device_selection_debug_data(
+    devices_involved: List[str],
+    validated_entities: Dict[str, str],
+    enriched_data: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Build debug data explaining why each device was selected.
+    
+    Args:
+        devices_involved: List of device friendly names
+        validated_entities: Mapping of device_name -> entity_id
+        enriched_data: Enriched entity data
+        
+    Returns:
+        List of device debug objects with selection reasoning
+    """
+    device_debug = []
+    
+    for device_name in devices_involved:
+        entity_id = validated_entities.get(device_name)
+        if not entity_id:
+            device_debug.append({
+                'device_name': device_name,
+                'entity_id': None,
+                'selection_reason': 'Not mapped to any entity',
+                'entity_type': None,
+                'entities': [],
+                'capabilities': [],
+                'actions_suggested': []
+            })
+            continue
+        
+        enriched = enriched_data.get(entity_id, {})
+        friendly_name = enriched.get('friendly_name', entity_id)
+        entity_type = enriched.get('entity_type', 'individual')
+        
+        # Build selection reason
+        reasons = []
+        if device_name.lower() == friendly_name.lower():
+            reasons.append(f"Exact match: '{device_name}' matches entity friendly_name")
+        elif device_name.lower() in friendly_name.lower():
+            reasons.append(f"Partial match: '{device_name}' found in '{friendly_name}'")
+        else:
+            reasons.append(f"Fuzzy match: '{device_name}' mapped to '{friendly_name}'")
+        
+        # Get all entities for groups
+        entities = []
+        if entity_type == 'group':
+            member_entities = enriched.get('member_entities', [])
+            entities = [{'entity_id': eid, 'friendly_name': enriched_data.get(eid, {}).get('friendly_name', eid)} 
+                       for eid in member_entities]
+        else:
+            entities = [{'entity_id': entity_id, 'friendly_name': friendly_name}]
+        
+        # Get capabilities
+        capabilities = enriched.get('capabilities', [])
+        capabilities_list = []
+        for cap in capabilities:
+            if isinstance(cap, dict):
+                feature = cap.get('feature', 'unknown')
+                supported = cap.get('supported', False)
+                if supported:
+                    capabilities_list.append(feature)
+            else:
+                capabilities_list.append(str(cap))
+        
+        # Determine suggested actions based on domain and capabilities
+        domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+        actions_suggested = []
+        if domain == 'light':
+            actions_suggested.append('light.turn_on')
+            if 'brightness' in capabilities_list:
+                actions_suggested.append('light.set_brightness')
+            if 'color' in capabilities_list or 'rgb' in capabilities_list:
+                actions_suggested.append('light.set_color')
+        elif domain == 'switch':
+            actions_suggested.append('switch.turn_on')
+            actions_suggested.append('switch.turn_off')
+        elif domain == 'binary_sensor':
+            actions_suggested.append('state_change_trigger')
+        elif domain == 'sensor':
+            actions_suggested.append('state_reading')
+        
+        device_debug.append({
+            'device_name': device_name,
+            'entity_id': entity_id,
+            'selection_reason': '; '.join(reasons),
+            'entity_type': entity_type,
+            'entities': entities,
+            'capabilities': capabilities_list,
+            'actions_suggested': actions_suggested
+        })
+    
+    return device_debug
+
+
+async def generate_technical_prompt(
+    suggestion: Dict[str, Any],
+    validated_entities: Dict[str, str],
+    enriched_data: Dict[str, Dict[str, Any]],
+    query: str
+) -> Dict[str, Any]:
+    """
+    Generate technical prompt for YAML generation.
+    
+    This prompt contains structured information about:
+    - Trigger entities and their states
+    - Action entities and their service calls
+    - Conditions and logic
+    - Entity capabilities and constraints
+    
+    Args:
+        suggestion: Suggestion dictionary
+        validated_entities: Mapping of device_name -> entity_id
+        enriched_data: Enriched entity data
+        query: Original user query
+        
+    Returns:
+        Dictionary with technical prompt details
+    """
+    import re
+    
+    # Extract trigger entities from suggestion
+    trigger_entities = []
+    trigger_summary = suggestion.get('trigger_summary', '').lower()
+    action_summary = suggestion.get('action_summary', '').lower()
+    description = suggestion.get('description', '').lower()
+    
+    # Classify entities as triggers or actions based on domain and summary
+    for device_name, entity_id in validated_entities.items():
+        enriched = enriched_data.get(entity_id, {})
+        if not enriched:
+            continue
+            
+        domain = enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
+        friendly_name = enriched.get('friendly_name', device_name)
+        
+        # Check if this entity is mentioned in trigger context
+        device_lower = device_name.lower()
+        friendly_lower = friendly_name.lower()
+        
+        # Check if entity appears in trigger-related text
+        is_trigger = (
+            device_lower in trigger_summary or 
+            friendly_lower in trigger_summary or
+            device_lower in description or
+            friendly_lower in description
+        ) and (
+            domain in ['binary_sensor', 'sensor', 'button', 'event'] or
+            'sensor' in device_lower or
+            'detect' in trigger_summary or
+            'when' in trigger_summary or
+            'trigger' in trigger_summary
+        )
+        
+        # Check if entity appears in action context
+        is_action = (
+            device_lower in action_summary or 
+            friendly_lower in action_summary or
+            device_lower in description or
+            friendly_lower in description
+        ) and (
+            domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']
+        )
+        
+        # Default: if domain suggests it's a sensor, it's a trigger; if it's a control domain, it's an action
+        if not is_trigger and not is_action:
+            if domain in ['binary_sensor', 'sensor', 'button', 'event']:
+                is_trigger = True
+            elif domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']:
+                is_action = True
+        
+        # Add as trigger entity
+        if is_trigger:
+            trigger_entity = {
+                'entity_id': entity_id,
+                'friendly_name': friendly_name,
+                'domain': domain,
+                'platform': 'state',  # Default
+                'from': None,
+                'to': None
+            }
+            
+            # Extract state transitions from trigger_summary
+            if 'on' in trigger_summary or 'detect' in trigger_summary or 'trigger' in trigger_summary:
+                trigger_entity['to'] = 'on'
+                trigger_entity['from'] = 'off'
+            elif 'off' in trigger_summary:
+                trigger_entity['to'] = 'off'
+                trigger_entity['from'] = 'on'
+            
+            trigger_entities.append(trigger_entity)
+    
+    # Extract action entities and determine service calls
+    action_entities = []
+    all_service_calls = []
+    
+    for device_name, entity_id in validated_entities.items():
+        enriched = enriched_data.get(entity_id, {})
+        if not enriched:
+            continue
+            
+        domain = enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
+        friendly_name = enriched.get('friendly_name', device_name)
+        
+        # Check if this entity should be in actions
+        device_lower = device_name.lower()
+        friendly_lower = friendly_name.lower()
+        
+        is_action_entity = (
+            device_lower in action_summary or 
+            friendly_lower in action_summary or
+            device_lower in description or
+            friendly_lower in description
+        ) or domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']
+        
+        if not is_action_entity:
+            continue
+        
+        # Get capabilities to determine service calls
+        capabilities = enriched.get('capabilities', [])
+        capabilities_list = []
+        for cap in capabilities:
+            if isinstance(cap, dict):
+                # Try different field names for capability name
+                cap_name = cap.get('name') or cap.get('feature') or cap.get('capability_name', '')
+                cap_supported = cap.get('supported', cap.get('exposed', True))
+                if cap_supported and cap_name:
+                    capabilities_list.append(cap_name.lower())
+            elif isinstance(cap, str):
+                capabilities_list.append(cap.lower())
+        
+        # Determine service calls based on domain, capabilities, and action summary
+        service_calls = []
+        
+        if domain == 'light':
+            # Check action summary for specific actions
+            if 'flash' in action_summary or 'flash' in description:
+                service_calls.append({
+                    'service': 'light.turn_on',
+                    'parameters': {'flash': 'short'}
+                })
+            elif 'turn on' in action_summary or 'on' in action_summary or 'activate' in action_summary:
+                service_calls.append({
+                    'service': 'light.turn_on',
+                    'parameters': {}
+                })
+            elif 'turn off' in action_summary or 'off' in action_summary:
+                service_calls.append({
+                    'service': 'light.turn_off',
+                    'parameters': {}
+                })
+            else:
+                # Default: turn on
+                service_calls.append({
+                    'service': 'light.turn_on',
+                    'parameters': {}
+                })
+            
+            # Add brightness if mentioned and capability exists
+            if ('brightness' in action_summary or 'dim' in action_summary or 'bright' in action_summary) and 'brightness' in capabilities_list:
+                brightness_match = re.search(r'(\d+)%', action_summary)
+                brightness_pct = int(brightness_match.group(1)) if brightness_match else 100
+                service_calls.append({
+                    'service': 'light.turn_on',
+                    'parameters': {'brightness_pct': brightness_pct}
+                })
+            
+            # Add color if mentioned and capability exists
+            if ('color' in action_summary or 'rgb' in action_summary or 'multi-color' in action_summary or 'multicolor' in action_summary) and ('color' in capabilities_list or 'rgb' in capabilities_list):
+                service_calls.append({
+                    'service': 'light.turn_on',
+                    'parameters': {'rgb_color': [255, 255, 255]}  # Default white
+                })
+            
+            # Add effect if mentioned (e.g., "fireworks" for WLED)
+            if 'effect' in capabilities_list:
+                action_lower = action_summary.lower() + ' ' + description.lower()
+                # Check for common WLED effects
+                wled_effects = ['fireworks', 'sparkle', 'rainbow', 'strobe', 'pulse', 'cylon', 'bpm', 'chase', 'police', 'twinkle']
+                for effect_name in wled_effects:
+                    if effect_name in action_lower:
+                        service_calls.append({
+                            'service': 'light.turn_on',
+                            'parameters': {'effect': effect_name}
+                        })
+                        logger.info(f"✅ Detected WLED effect '{effect_name}' from action summary")
+                        break
+                
+        elif domain == 'switch':
+            if 'turn on' in action_summary or 'on' in action_summary:
+                service_calls.append({
+                    'service': 'switch.turn_on',
+                    'parameters': {}
+                })
+            elif 'turn off' in action_summary or 'off' in action_summary:
+                service_calls.append({
+                    'service': 'switch.turn_off',
+                    'parameters': {}
+                })
+            else:
+                service_calls.append({
+                    'service': 'switch.turn_on',
+                    'parameters': {}
+                })
+                
+        elif domain == 'fan':
+            if 'turn on' in action_summary or 'on' in action_summary:
+                service_calls.append({
+                    'service': 'fan.turn_on',
+                    'parameters': {}
+                })
+            elif 'turn off' in action_summary or 'off' in action_summary:
+                service_calls.append({
+                    'service': 'fan.turn_off',
+                    'parameters': {}
+                })
+        
+        elif domain == 'climate':
+            if 'turn on' in action_summary or 'on' in action_summary:
+                service_calls.append({
+                    'service': 'climate.turn_on',
+                    'parameters': {}
+                })
+            elif 'turn off' in action_summary or 'off' in action_summary:
+                service_calls.append({
+                    'service': 'climate.turn_off',
+                    'parameters': {}
+                })
+        
+        # If no service calls determined, add default based on domain
+        if not service_calls and domain in ['light', 'switch', 'fan', 'climate']:
+            service_calls.append({
+                'service': f'{domain}.turn_on',
+                'parameters': {}
+            })
+        
+        if service_calls:
+            action_entity = {
+                'entity_id': entity_id,
+                'friendly_name': friendly_name,
+                'domain': domain,
+                'service_calls': service_calls
+            }
+            action_entities.append(action_entity)
+            all_service_calls.extend(service_calls)
+    
+    # Build entity capabilities mapping for ALL entities
+    entity_capabilities = {}
+    for entity_id in validated_entities.values():
+        enriched = enriched_data.get(entity_id, {})
+        if not enriched:
+            continue
+            
+        capabilities = enriched.get('capabilities', [])
+        capabilities_list = []
+        
+        for cap in capabilities:
+            if isinstance(cap, dict):
+                # Try different field names
+                cap_name = cap.get('name') or cap.get('feature') or cap.get('capability_name', '')
+                cap_supported = cap.get('supported', cap.get('exposed', True))
+                if cap_supported and cap_name:
+                    # Include full capability info if available
+                    cap_info = {
+                        'name': cap_name,
+                        'type': cap.get('type', 'unknown'),
+                        'properties': cap.get('properties', {})
+                    }
+                    capabilities_list.append(cap_info)
+            elif isinstance(cap, str):
+                capabilities_list.append({'name': cap, 'type': 'unknown', 'properties': {}})
+        
+        # Also include supported_features if available
+        supported_features = enriched.get('supported_features')
+        if supported_features is not None:
+            # supported_features is typically a bitmask, but we can include it
+            entity_capabilities[entity_id] = {
+                'capabilities': capabilities_list,
+                'supported_features': supported_features,
+                'domain': enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown'),
+                'friendly_name': enriched.get('friendly_name', entity_id),
+                'attributes': enriched.get('attributes', {})
+            }
+        else:
+            entity_capabilities[entity_id] = {
+                'capabilities': capabilities_list,
+                'domain': enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown'),
+                'friendly_name': enriched.get('friendly_name', entity_id),
+                'attributes': enriched.get('attributes', {})
+            }
+    
+    technical_prompt = {
+        'alias': suggestion.get('description', 'AI Generated Automation')[:100],
+        'description': suggestion.get('description', ''),
+        'trigger': {
+            'entities': trigger_entities,
+            'platform': 'state' if trigger_entities else None
+        },
+        'action': {
+            'entities': action_entities,
+            'service_calls': all_service_calls
+        },
+        'conditions': [],
+        'entity_capabilities': entity_capabilities,
+        'metadata': {
+            'query': query,
+            'devices_involved': list(validated_entities.keys()),
+            'confidence': suggestion.get('confidence', 0.8),
+            'trigger_summary': suggestion.get('trigger_summary', ''),
+            'action_summary': suggestion.get('action_summary', '')
+        }
+    }
+    
+    return technical_prompt
+
+
 async def generate_suggestions_from_query(
     query: str, 
     entities: List[Dict[str, Any]], 
@@ -2068,22 +2537,50 @@ async def generate_suggestions_from_query(
                 data_api_client = DataAPIClient()
                 entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
                 
-                # Extract location and domain from query to get ALL matching entities
+                # Extract location and ALL domains from query to get ALL matching entities
                 query_location = entity_validator._extract_location_from_query(query)
-                query_domain = entity_validator._extract_domain_from_query(query)
+                query_domains = entity_validator._extract_all_domains_from_query(query)  # Get ALL domains
+                query_domain = query_domains[0] if query_domains else None  # Keep single domain for logging
                 
-                logger.info(f"🔍 Extracted location='{query_location}', domain='{query_domain}' from query")
+                logger.info(f"🔍 Extracted location='{query_location}', domains={query_domains} from query")
                 
-                # Fetch ALL entities matching the query context (all office lights, not just one)
-                available_entities = await entity_validator._get_available_entities(
-                    domain=query_domain,
-                    area_id=query_location
-                )
+                # Fetch ALL entities matching the query context (all domains, all office lights, all sensors)
+                resolved_entity_ids = []
+                all_available_entities = []
                 
-                if available_entities:
+                # Fetch entities for each domain found in query
+                for domain in query_domains:
+                    available_entities = await entity_validator._get_available_entities(
+                        domain=domain,
+                        area_id=query_location
+                    )
+                    if available_entities:
+                        all_available_entities.extend(available_entities)
+                        logger.info(f"✅ Found {len(available_entities)} entities for domain '{domain}' in location '{query_location}'")
+                
+                # If no domains found, try fetching without domain filter (location only)
+                if not all_available_entities and query_location:
+                    logger.info(f"⚠️ No entities found for specific domains, trying location-only fetch...")
+                    all_available_entities = await entity_validator._get_available_entities(
+                        domain=None,
+                        area_id=query_location
+                    )
+                    if all_available_entities:
+                        logger.info(f"✅ Found {len(all_available_entities)} entities in location '{query_location}' (no domain filter)")
+                
+                if all_available_entities:
                     # Get all entity IDs that match the query context
-                    resolved_entity_ids = [e.get('entity_id') for e in available_entities if e.get('entity_id')]
-                    logger.info(f"✅ Found {len(resolved_entity_ids)} entities matching query context (location={query_location}, domain={query_domain})")
+                    resolved_entity_ids = [e.get('entity_id') for e in all_available_entities if e.get('entity_id')]
+                    # Remove duplicates while preserving order
+                    seen = set()
+                    unique_entity_ids = []
+                    for eid in resolved_entity_ids:
+                        if eid not in seen:
+                            seen.add(eid)
+                            unique_entity_ids.append(eid)
+                    resolved_entity_ids = unique_entity_ids
+                    
+                    logger.info(f"✅ Found {len(resolved_entity_ids)} unique entities matching query context (location={query_location}, domains={query_domains})")
                     logger.debug(f"Resolved entity IDs: {resolved_entity_ids[:10]}...")  # Log first 10
                     
                     # Expand group entities to their individual member entities (generic, no hardcoding)
@@ -2197,10 +2694,59 @@ async def generate_suggestions_from_query(
                         enrichment_context=enrichment_context  # NEW: Add enrichment context
                     )
                     
-                    # Build entity context JSON from enriched data
+                    # OPTIMIZATION: Filter entity context to reduce token usage
+                    # Only include entities that match extracted device names from query
+                    # BUT: Don't filter if extracted names are generic domain terms (e.g., "lights", "sensor", "led")
+                    # This reduces prompt size while still giving AI enough context
+                    filtered_entity_ids_for_prompt = set(resolved_entity_ids)
+                    
+                    # Generic domain terms that should NOT trigger filtering (too broad)
+                    generic_terms = {
+                        'light', 'lights', 'lamp', 'lamps', 'bulb', 'bulbs', 'led', 'leds',
+                        'sensor', 'sensors', 'motion', 'presence', 'occupancy', 'contact',
+                        'switch', 'switches', 'outlet', 'outlets', 'plug', 'plugs',
+                        'door', 'doors', 'window', 'windows', 'blind', 'blinds',
+                        'fan', 'fans', 'climate', 'thermostat', 'thermostats',
+                        'tv', 'television', 'speaker', 'speakers', 'lock', 'locks'
+                    }
+                    
+                    # If we have extracted entities with names, try to match them
+                    if entities:
+                        extracted_device_names = [e.get('name', '').lower().strip() for e in entities if e.get('name')]
+                        if extracted_device_names:
+                            # Check if extracted names are generic domain terms
+                            specific_names = [name for name in extracted_device_names if name not in generic_terms]
+                            
+                            if specific_names:
+                                # We have specific device names, filter to match them
+                                matching_entity_ids = set()
+                                for entity_id in resolved_entity_ids:
+                                    enriched = enriched_data.get(entity_id, {})
+                                    friendly_name = enriched.get('friendly_name', '').lower()
+                                    entity_id_lower = entity_id.lower()
+                                    
+                                    # Check if entity matches any specific extracted device name
+                                    for device_name in specific_names:
+                                        if (device_name in friendly_name or 
+                                            friendly_name in device_name or
+                                            device_name in entity_id_lower):
+                                            matching_entity_ids.add(entity_id)
+                                            break
+                                
+                                # If we found matches, use them; otherwise use all (fallback)
+                                if matching_entity_ids:
+                                    filtered_entity_ids_for_prompt = matching_entity_ids
+                                    logger.info(f"🔍 Filtered entity context: {len(matching_entity_ids)}/{len(resolved_entity_ids)} entities match specific extracted device names: {specific_names}")
+                                else:
+                                    logger.info(f"⚠️ No entities matched specific names {specific_names}, using all {len(resolved_entity_ids)} entities")
+                            else:
+                                # All extracted names are generic terms - don't filter, include all query-context entities
+                                logger.info(f"ℹ️ Extracted names are generic terms {extracted_device_names}, not filtering - using all {len(resolved_entity_ids)} query-context entities")
+                    
+                    # Build entity context JSON from filtered entities
                     # Create entity dicts for context builder from enriched data
                     enriched_entities = []
-                    for entity_id in resolved_entity_ids:
+                    for entity_id in filtered_entity_ids_for_prompt:
                         enriched = enriched_data.get(entity_id, {})
                         enriched_entities.append({
                             'entity_id': entity_id,
@@ -2208,13 +2754,20 @@ async def generate_suggestions_from_query(
                             'name': enriched.get('friendly_name', entity_id.split('.')[-1] if '.' in entity_id else entity_id)
                         })
                     
+                    # Filter enriched_data to only include entities in prompt
+                    filtered_enriched_data_for_prompt = {
+                        entity_id: enriched_data[entity_id]
+                        for entity_id in filtered_entity_ids_for_prompt
+                        if entity_id in enriched_data
+                    }
+                    
                     context_builder = EntityContextBuilder()
                     entity_context_json = await context_builder.build_entity_context_json(
                         entities=enriched_entities,
-                        enriched_data=enriched_data
+                        enriched_data=filtered_enriched_data_for_prompt
                     )
                     
-                    logger.info(f"✅ Built entity context JSON with {len(enriched_data)} enriched entities")
+                    logger.info(f"✅ Built entity context JSON with {len(filtered_enriched_data_for_prompt)}/{len(enriched_data)} enriched entities (filtered for prompt)")
                     logger.debug(f"Entity context JSON: {entity_context_json[:500]}...")
                 else:
                     logger.warning("⚠️ No entity IDs to enrich - skipping enrichment")
@@ -2239,6 +2792,14 @@ async def generate_suggestions_from_query(
         logger.info(f"OpenAI client available: {openai_client is not None}")
         logger.info(f"OpenAI model: {openai_client.model if openai_client else 'None'}")
         
+        # Capture OpenAI prompts for debug panel
+        openai_debug_data = {
+            'system_prompt': prompt_dict.get('system_prompt', ''),
+            'user_prompt': prompt_dict.get('user_prompt', ''),
+            'openai_response': None,
+            'token_usage': None
+        }
+        
         try:
             suggestions_data = await openai_client.generate_with_unified_prompt(
                 prompt_dict=prompt_dict,
@@ -2246,6 +2807,9 @@ async def generate_suggestions_from_query(
                 max_tokens=1200,
                 output_format="json"
             )
+            
+            # Store OpenAI response (parsed JSON)
+            openai_debug_data['openai_response'] = suggestions_data
             
             logger.info(f"OpenAI response received: {suggestions_data}")
             
@@ -2379,6 +2943,114 @@ async def generate_suggestions_from_query(
                     'created_at': datetime.now().isoformat()
                 }
                 
+                # Build device selection debug data
+                device_debug = []
+                if devices_involved and validated_entities and enriched_data:
+                    device_debug = await build_device_selection_debug_data(
+                        devices_involved,
+                        validated_entities,
+                        enriched_data
+                    )
+                
+                # Generate technical prompt for this suggestion
+                technical_prompt = None
+                if validated_entities and enriched_data:
+                    try:
+                        technical_prompt = await generate_technical_prompt(
+                            suggestion,
+                            validated_entities,
+                            enriched_data,
+                            query
+                        )
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to generate technical prompt for suggestion {i+1}: {e}")
+                
+                # Build filtered entity context JSON for this suggestion (only entities actually used)
+                filtered_entity_context_json = None
+                filtered_user_prompt = None
+                entity_context_stats = {
+                    'total_entities_available': len(enriched_data) if enriched_data else 0,
+                    'entities_used_in_suggestion': len(validated_entities) if validated_entities else 0,
+                    'filtered_entity_context_json': None
+                }
+                
+                if validated_entities and enriched_data:
+                    try:
+                        # Filter enriched_data to only validated entities
+                        filtered_enriched_data = {
+                            entity_id: enriched_data[entity_id]
+                            for entity_id in validated_entities.values()
+                            if entity_id in enriched_data
+                        }
+                        
+                        # Rebuild entity context JSON with filtered entities
+                        filtered_enriched_entities = []
+                        for entity_id in validated_entities.values():
+                            if entity_id in enriched_data:
+                                enriched = enriched_data[entity_id]
+                                filtered_enriched_entities.append({
+                                    'entity_id': entity_id,
+                                    'friendly_name': enriched.get('friendly_name', entity_id),
+                                    'name': enriched.get('friendly_name', entity_id.split('.')[-1] if '.' in entity_id else entity_id)
+                                })
+                        
+                        if filtered_enriched_entities:
+                            context_builder = EntityContextBuilder()
+                            filtered_entity_context_json = await context_builder.build_entity_context_json(
+                                entities=filtered_enriched_entities,
+                                enriched_data=filtered_enriched_data
+                            )
+                            
+                            # Build filtered user prompt (replace entity context JSON with filtered version)
+                            original_user_prompt = openai_debug_data.get('user_prompt', '')
+                            if filtered_entity_context_json:
+                                # Try to find and replace the entity context JSON section
+                                # The entity context JSON appears in the "ENRICHED ENTITY CONTEXT" section
+                                import json
+                                import re
+                                
+                                # Try to extract the JSON from the original prompt
+                                # Look for "ENRICHED ENTITY CONTEXT" section
+                                pattern = r'(ENRICHED ENTITY CONTEXT.*?:\n)(\{[\s\S]*?\n\})'
+                                match = re.search(pattern, original_user_prompt, re.MULTILINE)
+                                
+                                if match:
+                                    # Replace the JSON portion with filtered version
+                                    filtered_user_prompt = original_user_prompt[:match.start(2)] + filtered_entity_context_json + original_user_prompt[match.end(2):]
+                                else:
+                                    # Fallback: Try simple replacement
+                                    # Find JSON object in the prompt (look for {...} pattern)
+                                    json_pattern = r'(\{[\s\S]*?"entities"[\s\S]*?\})'
+                                    json_match = re.search(json_pattern, original_user_prompt)
+                                    if json_match:
+                                        filtered_user_prompt = original_user_prompt[:json_match.start(1)] + filtered_entity_context_json + original_user_prompt[json_match.end(1):]
+                                    else:
+                                        # Last fallback: Just append filtered context
+                                        filtered_user_prompt = original_user_prompt + f"\n\n[FILTERED ENTITY CONTEXT - Only entities used in suggestion]:\n{filtered_entity_context_json}"
+                                
+                                # Add note about filtering
+                                note = f"\n\n[NOTE: Entity context filtered to show only {len(validated_entities)} entities used in this suggestion out of {len(enriched_data)} available]"
+                                filtered_user_prompt = filtered_user_prompt + note
+                                
+                                logger.debug(f"✅ Built filtered user prompt for suggestion {i+1}")
+                            
+                            entity_context_stats['filtered_entity_context_json'] = filtered_entity_context_json
+                            logger.info(f"✅ Built filtered entity context for suggestion {i+1}: {len(validated_entities)}/{len(enriched_data)} entities")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to build filtered entity context for suggestion {i+1}: {e}")
+                
+                # Add debug data and technical prompt to suggestion
+                base_suggestion['debug'] = {
+                    'device_selection': device_debug,
+                    'system_prompt': openai_debug_data.get('system_prompt', ''),
+                    'user_prompt': openai_debug_data.get('user_prompt', ''),  # Original full prompt
+                    'filtered_user_prompt': filtered_user_prompt,  # NEW: Filtered prompt (only entities used)
+                    'openai_response': openai_debug_data.get('openai_response'),
+                    'token_usage': openai_debug_data.get('token_usage'),
+                    'entity_context_stats': entity_context_stats  # NEW: Context statistics
+                }
+                base_suggestion['technical_prompt'] = technical_prompt
+                
                 # Enhance suggestion with entity IDs (Phase 1 & 2)
                 try:
                     enhanced_suggestion = await enhance_suggestion_with_entity_ids(
@@ -2387,6 +3059,9 @@ async def generate_suggestions_from_query(
                         enriched_data if enriched_data else None,
                         ha_client if 'ha_client' in locals() else None
                     )
+                    # Ensure debug data and technical prompt are preserved
+                    enhanced_suggestion['debug'] = base_suggestion.get('debug', {})
+                    enhanced_suggestion['technical_prompt'] = base_suggestion.get('technical_prompt')
                     suggestions.append(enhanced_suggestion)
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to enhance suggestion {i+1} with entity IDs: {e}, using base suggestion")
@@ -2438,15 +3113,108 @@ async def process_natural_language_query(
         # Step 1: Extract entities using Home Assistant
         entities = await extract_entities_with_ha(request.query)
         
-        # Step 2: Generate suggestions using OpenAI + entities
-        suggestions = await generate_suggestions_from_query(
-            request.query, 
-            entities, 
-            request.user_id
-        )
+        # Step 1.5: Check for clarification needs (NEW)
+        clarification_detector, question_generator, _, confidence_calculator = get_clarification_services()
         
-        # Step 3: Calculate confidence based on entity extraction and suggestion quality
-        confidence = min(0.9, 0.5 + (len(entities) * 0.1) + (len(suggestions) * 0.1))
+        # Build automation context for clarification detection
+        automation_context = {}
+        try:
+            from ..clients.data_api_client import DataAPIClient
+            data_api_client = DataAPIClient()
+            devices_df = await data_api_client.fetch_devices(limit=100)
+            entities_df = await data_api_client.fetch_entities(limit=200)
+            
+            # Convert to dict format for clarification
+            automation_context = {
+                'devices': devices_df.to_dict('records') if not devices_df.empty else [],
+                'entities': entities_df.to_dict('records') if not entities_df.empty else [],
+                'entities_by_domain': {}
+            }
+            
+            # Organize entities by domain
+            if not entities_df.empty:
+                for _, entity in entities_df.iterrows():
+                    entity_id = entity.get('entity_id', '')
+                    if entity_id:
+                        domain = entity_id.split('.')[0]
+                        if domain not in automation_context['entities_by_domain']:
+                            automation_context['entities_by_domain'][domain] = []
+                        automation_context['entities_by_domain'][domain].append({
+                            'entity_id': entity_id,
+                            'friendly_name': entity.get('friendly_name', entity_id),
+                            'area': entity.get('area_id', 'unknown')
+                        })
+        except Exception as e:
+            logger.warning(f"Failed to build automation context for clarification: {e}")
+            automation_context = {}
+        
+        # Detect ambiguities
+        ambiguities = []
+        questions = []
+        clarification_session_id = None
+        
+        if clarification_detector:
+            try:
+                ambiguities = await clarification_detector.detect_ambiguities(
+                    query=request.query,
+                    extracted_entities=entities,
+                    available_devices=automation_context,
+                    automation_context=automation_context
+                )
+                
+                # Calculate base confidence
+                base_confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+                confidence = confidence_calculator.calculate_confidence(
+                    query=request.query,
+                    extracted_entities=entities,
+                    ambiguities=ambiguities,
+                    base_confidence=base_confidence
+                )
+                
+                # Check if clarification is needed
+                if confidence_calculator.should_ask_clarification(confidence, ambiguities):
+                    # Generate questions
+                    if question_generator:
+                        questions = await question_generator.generate_questions(
+                            ambiguities=ambiguities,
+                            query=request.query,
+                            context=automation_context
+                        )
+                    
+                    # Create clarification session
+                    if questions:
+                        clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
+                        session = ClarificationSession(
+                            session_id=clarification_session_id,
+                            original_query=request.query,
+                            questions=questions,
+                            current_confidence=confidence,
+                            ambiguities=ambiguities,
+                            query_id=query_id
+                        )
+                        _clarification_sessions[clarification_session_id] = session
+                        
+                        logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
+            except Exception as e:
+                logger.error(f"Failed to detect ambiguities: {e}", exc_info=True)
+                # Continue with normal flow if clarification fails
+                confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+        else:
+            # Fallback confidence calculation
+            confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+        
+        # Step 2: Generate suggestions if no clarification needed
+        suggestions = []
+        if not questions:  # Only generate suggestions if clarification not needed
+            suggestions = await generate_suggestions_from_query(
+                request.query, 
+                entities, 
+                request.user_id
+            )
+            
+            # Recalculate confidence with suggestions
+            if suggestions:
+                confidence = min(0.9, confidence + (len(suggestions) * 0.1))
         
         # Step 4: Determine parsed intent
         intent_keywords = {
@@ -2481,6 +3249,28 @@ async def process_natural_language_query(
         await db.commit()
         await db.refresh(query_record)
         
+        # Convert questions to dict format for response
+        questions_dict = None
+        if questions:
+            questions_dict = [
+                {
+                    'id': q.id,
+                    'category': q.category,
+                    'question_text': q.question_text,
+                    'question_type': q.question_type.value,
+                    'options': q.options,
+                    'priority': q.priority,
+                    'related_entities': q.related_entities
+                }
+                for q in questions
+            ]
+        
+        message = None
+        if questions:
+            message = f"I found some ambiguities in your request. Please answer {len(questions)} question(s) to help me create the automation accurately."
+        elif suggestions:
+            message = f"I found {len(suggestions)} automation suggestion(s) for your request."
+        
         response = AskAIQueryResponse(
             query_id=query_id,
             original_query=request.query,
@@ -2489,7 +3279,11 @@ async def process_natural_language_query(
             suggestions=suggestions,
             confidence=confidence,
             processing_time_ms=int(processing_time),
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
+            clarification_needed=bool(questions),
+            clarification_session_id=clarification_session_id,
+            questions=questions_dict,
+            message=message
         )
         
         logger.info(f"✅ Ask AI query processed and saved: {len(suggestions)} suggestions, {confidence:.2f} confidence")
@@ -2503,6 +3297,200 @@ async def process_natural_language_query(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process query: {str(e)}"
+        )
+
+
+@router.post("/clarify", response_model=ClarificationResponse)
+async def provide_clarification(
+    request: ClarificationRequest,
+    db: AsyncSession = Depends(get_db)
+) -> ClarificationResponse:
+    """
+    Provide clarification answers to questions.
+    
+    Processes user answers and either:
+    - Generates more questions if needed
+    - Generates suggestions if confidence threshold is met
+    """
+    logger.info(f"🔍 Processing clarification for session {request.session_id}")
+    
+    try:
+        # Get session
+        session = _clarification_sessions.get(request.session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Clarification session {request.session_id} not found"
+            )
+        
+        # Get clarification services
+        _, _, answer_validator, confidence_calculator = get_clarification_services()
+        
+        # Validate answers
+        validated_answers = []
+        for answer_data in request.answers:
+            question_id = answer_data.get('question_id')
+            question = next((q for q in session.questions if q.id == question_id), None)
+            
+            if not question:
+                logger.warning(f"Question {question_id} not found in session")
+                continue
+            
+            # Create answer object
+            answer = ClarificationAnswer(
+                question_id=question_id,
+                answer_text=answer_data.get('answer_text', ''),
+                selected_entities=answer_data.get('selected_entities')
+            )
+            
+            # Validate answer
+            validated_answer = await answer_validator.validate_answer(
+                answer=answer,
+                question=question,
+                available_entities=None  # TODO: Pass available entities
+            )
+            validated_answers.append(validated_answer)
+        
+        # Add answers to session
+        session.answers.extend(validated_answers)
+        session.rounds_completed += 1
+        
+        # Recalculate confidence with answers
+        session.current_confidence = confidence_calculator.calculate_confidence(
+            query=session.original_query,
+            extracted_entities=[],  # TODO: Get from session
+            ambiguities=session.ambiguities,
+            clarification_answers=validated_answers,
+            base_confidence=session.current_confidence
+        )
+        
+        # Check if we should proceed or ask more questions
+        if (session.current_confidence >= session.confidence_threshold or 
+            session.rounds_completed >= session.max_rounds):
+            # Generate suggestions
+            session.status = "complete"
+            
+            # Generate suggestions using the original query + answers
+            enhanced_query = session.original_query
+            for answer in validated_answers:
+                question = next((q for q in session.questions if q.id == answer.question_id), None)
+                if question:
+                    enhanced_query += f"\n\nClarification: {question.question_text} Answer: {answer.answer_text}"
+            
+            # Extract entities again (with clarification context)
+            entities = await extract_entities_with_ha(enhanced_query)
+            
+            # Generate suggestions
+            suggestions = await generate_suggestions_from_query(
+                enhanced_query,
+                entities,
+                "anonymous"  # TODO: Get from session
+            )
+            
+            # Add conversation history to suggestions
+            for suggestion in suggestions:
+                suggestion['conversation_history'] = {
+                    'original_query': session.original_query,
+                    'questions': [
+                        {
+                            'id': q.id,
+                            'question_text': q.question_text,
+                            'category': q.category
+                        }
+                        for q in session.questions
+                    ],
+                    'answers': [
+                        {
+                            'question_id': a.question_id,
+                            'answer_text': a.answer_text,
+                            'selected_entities': a.selected_entities
+                        }
+                        for a in validated_answers
+                    ]
+                }
+            
+            return ClarificationResponse(
+                session_id=request.session_id,
+                confidence=session.current_confidence,
+                confidence_threshold=session.confidence_threshold,
+                clarification_complete=True,
+                message=f"Great! Based on your answers, I'll create the automation. Confidence: {int(session.current_confidence * 100)}%",
+                suggestions=suggestions
+            )
+        else:
+            # Need more clarification
+            # Generate follow-up questions based on remaining ambiguities
+            answered_ambiguity_ids = {a.question_id for a in validated_answers}
+            remaining_ambiguities = [
+                amb for amb in session.ambiguities
+                if not any(q.ambiguity_id == amb.id for q in session.questions if q.id in answered_ambiguity_ids)
+            ]
+            
+            # Generate new questions if needed
+            new_questions = []
+            _, question_generator, _, _ = get_clarification_services()
+            if remaining_ambiguities and question_generator:
+                # Get automation context
+                automation_context = {}
+                try:
+                    from ..clients.data_api_client import DataAPIClient
+                    data_api_client = DataAPIClient()
+                    devices_df = await data_api_client.fetch_devices(limit=100)
+                    entities_df = await data_api_client.fetch_entities(limit=200)
+                    
+                    automation_context = {
+                        'devices': devices_df.to_dict('records') if not devices_df.empty else [],
+                        'entities': entities_df.to_dict('records') if not entities_df.empty else [],
+                        'entities_by_domain': {}
+                    }
+                except Exception:
+                    pass
+                
+                new_questions = await question_generator.generate_questions(
+                    ambiguities=remaining_ambiguities[:2],  # Limit to 2 more questions
+                    query=session.original_query,
+                    context=automation_context
+                )
+                
+                session.questions.extend(new_questions)
+            
+            questions_dict = None
+            if new_questions:
+                questions_dict = [
+                    {
+                        'id': q.id,
+                        'category': q.category,
+                        'question_text': q.question_text,
+                        'question_type': q.question_type.value,
+                        'options': q.options,
+                        'priority': q.priority
+                    }
+                    for q in new_questions
+                ]
+            
+            message = f"Thanks for your answers! " if validated_answers else ""
+            message += f"Confidence is now {int(session.current_confidence * 100)}% (need {int(session.confidence_threshold * 100)}%)."
+            if new_questions:
+                message += f" I have {len(new_questions)} more question(s)."
+            else:
+                message += " Generating suggestions now..."
+            
+            return ClarificationResponse(
+                session_id=request.session_id,
+                confidence=session.current_confidence,
+                confidence_threshold=session.confidence_threshold,
+                clarification_complete=False,
+                message=message,
+                questions=questions_dict
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to process clarification: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process clarification: {str(e)}"
         )
 
 

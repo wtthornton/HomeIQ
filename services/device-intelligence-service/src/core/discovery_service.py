@@ -87,6 +87,9 @@ class DiscoveryService:
             # Start HA message handler
             await self.ha_client.start_message_handler()
             
+            # Subscribe to registry update events for real-time cache updates
+            await self._subscribe_to_registry_updates()
+            
             # Connect to MQTT broker (optional - can discover HA devices without Zigbee)
             if await self.mqtt_client.connect():
                 logger.info("✅ Connected to MQTT broker")
@@ -193,6 +196,51 @@ class DiscoveryService:
         except Exception as e:
             logger.error(f"❌ Error discovering Home Assistant data: {e}")
             raise
+    
+    async def _subscribe_to_registry_updates(self):
+        """
+        Subscribe to entity and device registry update events.
+        
+        This keeps the cache fresh by triggering discovery when entities/devices
+        are added, removed, or modified in Home Assistant.
+        """
+        try:
+            async def handle_entity_registry_update(event_data: Dict[str, Any]):
+                """Handle entity registry update event."""
+                action = event_data.get("event", {}).get("action", "unknown")
+                entity_id = event_data.get("event", {}).get("entity_id", "unknown")
+                logger.info(f"📋 Entity registry updated: {action} - {entity_id}")
+                
+                # Trigger incremental update for entity changes
+                if action in ["create", "update", "remove"]:
+                    logger.info(f"🔄 Triggering incremental discovery due to entity {action}")
+                    # Perform a lightweight discovery update (just HA entities)
+                    await self._discover_home_assistant()
+                    await self._unify_device_data()
+            
+            async def handle_device_registry_update(event_data: Dict[str, Any]):
+                """Handle device registry update event."""
+                action = event_data.get("event", {}).get("action", "unknown")
+                device_id = event_data.get("event", {}).get("device_id", "unknown")
+                logger.info(f"📱 Device registry updated: {action} - {device_id}")
+                
+                # Trigger incremental update for device changes
+                if action in ["create", "update", "remove"]:
+                    logger.info(f"🔄 Triggering incremental discovery due to device {action}")
+                    # Perform a lightweight discovery update (just HA devices/entities)
+                    await self._discover_home_assistant()
+                    await self._unify_device_data()
+            
+            await self.ha_client.subscribe_to_registry_updates(
+                entity_callback=handle_entity_registry_update,
+                device_callback=handle_device_registry_update
+            )
+            
+            logger.info("✅ Subscribed to registry update events")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to subscribe to registry updates: {e}")
+            # Don't fail startup if subscriptions fail - we still have periodic discovery
     
     async def _refresh_zigbee_data(self):
         """Refresh Zigbee2MQTT data by requesting bridge info."""

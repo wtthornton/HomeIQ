@@ -242,3 +242,4 @@ class PatternHistoryValidator:
             logger.error(f"Failed to update pattern trend cache: {e}", exc_info=True)
             raise
 
+
