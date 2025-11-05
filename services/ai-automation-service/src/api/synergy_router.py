@@ -13,8 +13,12 @@ from typing import Optional, Dict, Any, List
 import logging
 
 from ..database import get_db
-from ..database.crud import get_synergy_opportunities, get_synergy_stats
+from ..database.crud import get_synergy_opportunities, get_synergy_stats, store_synergy_opportunities
 from ..database.models import SynergyOpportunity
+from ..integration.pattern_synergy_validator import PatternSynergyValidator
+from ..synergy_detection.synergy_detector import DeviceSynergyDetector
+from ..clients.data_api_client import DataAPIClient
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,7 @@ router = APIRouter(prefix="/api/synergies", tags=["Synergies"])
 async def list_synergies(
     synergy_type: Optional[str] = Query(default=None, description="Filter by synergy type"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence"),
+    validated_by_patterns: Optional[bool] = Query(default=None, description="Filter by pattern validation (Phase 2)"),
     limit: int = Query(default=100, ge=1, le=500, description="Maximum results"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -49,8 +54,13 @@ async def list_synergies(
         )
         
         # Convert to dict format for JSON response
-        synergies_list = [
-            {
+        synergies_list = []
+        for s in synergies:
+            # Phase 2: Filter by pattern validation if requested
+            if validated_by_patterns is not None and s.validated_by_patterns != validated_by_patterns:
+                continue
+                
+            synergy_dict = {
                 'id': s.id,
                 'synergy_id': s.synergy_id,
                 'synergy_type': s.synergy_type,
@@ -62,8 +72,20 @@ async def list_synergies(
                 'area': s.area,
                 'created_at': s.created_at.isoformat() if s.created_at else None
             }
-            for s in synergies
-        ]
+            
+            # Phase 2: Add pattern validation fields
+            synergy_dict['pattern_support_score'] = s.pattern_support_score
+            synergy_dict['validated_by_patterns'] = s.validated_by_patterns
+            if s.supporting_pattern_ids:
+                import json
+                try:
+                    synergy_dict['supporting_pattern_ids'] = json.loads(s.supporting_pattern_ids)
+                except:
+                    synergy_dict['supporting_pattern_ids'] = []
+            else:
+                synergy_dict['supporting_pattern_ids'] = []
+            
+            synergies_list.append(synergy_dict)
         
         return {
             'success': True,
@@ -152,5 +174,93 @@ async def get_synergy_detail(
         raise
     except Exception as e:
         logger.error(f"Failed to get synergy {synergy_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve synergy: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get synergy detail: {str(e)}")
+
+
+@router.post("/detect")
+async def detect_synergies_realtime(
+    use_patterns: bool = Query(default=True, description="Enable pattern validation (Phase 3)"),
+    min_pattern_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum pattern confidence for validation"),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Real-time synergy detection with optional pattern validation.
+    
+    Phase 3: On-demand synergy detection with pattern cross-validation.
+    
+    Args:
+        use_patterns: Whether to validate synergies against patterns (default: True)
+        min_pattern_confidence: Minimum pattern confidence for validation (default: 0.7)
+        
+    Returns:
+        Detected synergies with pattern validation if enabled
+    """
+    try:
+        from datetime import datetime, timezone
+        
+        logger.info(f"Starting real-time synergy detection (use_patterns={use_patterns})")
+        
+        # Initialize detector
+        data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        detector = DeviceSynergyDetector(
+            data_api_client=data_api_client,
+            ha_client=None  # Can be added if needed
+        )
+        
+        # Detect synergies
+        synergies = await detector.detect_synergies()
+        
+        logger.info(f"Detected {len(synergies)} synergy opportunities")
+        
+        # Store with pattern validation if enabled
+        stored_count = await store_synergy_opportunities(
+            db,
+            synergies,
+            validate_with_patterns=use_patterns,
+            min_pattern_confidence=min_pattern_confidence
+        )
+        
+        # Return results with validation data
+        synergies_list = []
+        for synergy_data in synergies:
+            synergy_dict = {
+                'synergy_id': synergy_data.get('synergy_id'),
+                'synergy_type': synergy_data.get('synergy_type'),
+                'device_ids': synergy_data.get('devices', []),
+                'impact_score': synergy_data.get('impact_score'),
+                'complexity': synergy_data.get('complexity'),
+                'confidence': synergy_data.get('confidence'),
+                'area': synergy_data.get('area'),
+                'opportunity_metadata': synergy_data.get('opportunity_metadata', {})
+            }
+            
+            # If pattern validation was enabled, get validation results
+            if use_patterns:
+                validator = PatternSynergyValidator(db)
+                validation_result = await validator.validate_synergy_with_patterns(
+                    synergy_data, min_pattern_confidence
+                )
+                synergy_dict['pattern_validation'] = {
+                    'pattern_support_score': validation_result.get('pattern_support_score', 0.0),
+                    'validated_by_patterns': validation_result.get('validated_by_patterns', False),
+                    'validation_status': validation_result.get('validation_status', 'invalid'),
+                    'supporting_patterns_count': len(validation_result.get('supporting_patterns', []))
+                }
+            
+            synergies_list.append(synergy_dict)
+        
+        return {
+            'success': True,
+            'data': {
+                'synergies': synergies_list,
+                'count': len(synergies_list),
+                'stored_count': stored_count,
+                'pattern_validation_enabled': use_patterns
+            },
+            'message': f"Detected {len(synergies_list)} synergies{' with pattern validation' if use_patterns else ''}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to detect synergies: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to detect synergies: {str(e)}")
 

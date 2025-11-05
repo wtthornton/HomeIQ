@@ -17,25 +17,12 @@ services:
       - ./data:/app/data
     networks:
       - homeiq_homeiq-network
-    depends_on:
-      - mosquitto
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8019/health/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
-    command: mosquitto -c /mosquitto/config/mosquitto.conf
-    networks:
-      - homeiq_homeiq-network
 
 networks:
   homeiq_homeiq-network:

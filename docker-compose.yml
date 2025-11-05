@@ -46,8 +46,8 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8001"
-    # env_file:
-    #   - infrastructure/env.production
+    env_file:
+      - .env
     environment:
       # Docker container detection for SSL context
       - DOCKER_CONTAINER=true
@@ -120,6 +120,8 @@ services:
     restart: unless-stopped
     ports:
       - "8003:8004"
+    env_file:
+      - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infrastructure:/app/infrastructure:rw
@@ -181,6 +183,8 @@ services:
     restart: unless-stopped
     ports:
       - "8006:8006"
+    env_file:
+      - .env
     environment:
       - DATA_API_HOST=0.0.0.0
       - DATA_API_PORT=8006
@@ -229,6 +233,8 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
@@ -276,6 +282,8 @@ services:
     restart: unless-stopped
     ports:
       - "8010:8010"
+    env_file:
+      - .env
     environment:
       # WattTime Authentication (username/password preferred for auto-refresh)
       - WATTTIME_USERNAME=${WATTTIME_USERNAME:-}
@@ -323,6 +331,8 @@ services:
     restart: unless-stopped
     ports:
       - "8011:8011"
+    env_file:
+      - .env
     environment:
       - PRICING_PROVIDER=${PRICING_PROVIDER:-awattar}
       - PRICING_API_KEY=${PRICING_API_KEY:-}
@@ -364,6 +374,8 @@ services:
     restart: unless-stopped
     ports:
       - "8012:8012"
+    env_file:
+      - .env
     environment:
       - WEATHER_API_KEY=${WEATHER_API_KEY:-}
       - LATITUDE=${LATITUDE:-36.1699}
@@ -408,6 +420,8 @@ services:
     restart: unless-stopped
     ports:
       - "8009:8009"
+    env_file:
+      - .env
     environment:
       - SERVICE_PORT=8009
       - WEATHER_API_KEY=${WEATHER_API_KEY:-}
@@ -549,6 +563,8 @@ services:
     restart: unless-stopped
     ports:
       - "8017:8017"
+    env_file:
+      - .env
     environment:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
@@ -629,6 +645,8 @@ services:
     restart: unless-stopped
     ports:
       - "8015:8015"
+    env_file:
+      - .env
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
@@ -967,6 +985,7 @@ services:
     ports:
       - "8027:8020"
     env_file:
+      - .env
       - infrastructure/.env.websocket
     environment:
       - SERVICE_NAME=ha-setup-service
@@ -1009,24 +1028,6 @@ services:
         max-file: "3"
         labels: "service=ha-setup-service,environment=production"
 
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    container_name: homeiq-mosquitto
-    restart: unless-stopped
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./services/device-intelligence-service/mosquitto.conf:/mosquitto/config/mosquitto.conf
-    networks:
-      - homeiq-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=mosquitto,environment=production"
-
   device-intelligence-service:
     build:
       context: services/device-intelligence-service
@@ -1048,7 +1049,7 @@ services:
       - HA_WS_URL=${HA_WS_URL:-}
       - NABU_CASA_URL=https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa
       - HA_TOKEN=${HA_TOKEN:-}
-      - MQTT_BROKER=${MQTT_BROKER:-mqtt://mosquitto:1883}
+      - MQTT_BROKER=${MQTT_BROKER:-mqtt://192.168.1.86:1883}
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - ZIGBEE2MQTT_BASE_TOPIC=${ZIGBEE2MQTT_BASE_TOPIC:-zigbee2mqtt}

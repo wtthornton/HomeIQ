@@ -2133,54 +2133,53 @@ async def generate_suggestions_from_query(
                         try:
                             logger.info("🌍 Fetching enrichment context (weather, carbon, energy, air quality)...")
                             from ..services.enrichment_context_fetcher import (
-                            EnrichmentContextFetcher,
-                            should_include_weather,
-                            should_include_carbon,
-                            should_include_energy,
-                            should_include_air_quality
-                        )
+                                EnrichmentContextFetcher,
+                                should_include_weather,
+                                should_include_carbon,
+                                should_include_energy,
+                                should_include_air_quality
+                            )
 
-                        # Initialize enrichment fetcher with InfluxDB client
-                        if data_api_client and hasattr(data_api_client, 'influxdb_client'):
-                            enrichment_fetcher = EnrichmentContextFetcher(data_api_client.influxdb_client)
+                            # Initialize enrichment fetcher with InfluxDB client
+                            if data_api_client and hasattr(data_api_client, 'influxdb_client'):
+                                enrichment_fetcher = EnrichmentContextFetcher(data_api_client.influxdb_client)
 
-                            # Selective enrichment based on query and entities
-                            enrichment_tasks = []
-                            enrichment_types = []
-                            entity_id_set = set(resolved_entity_ids)
+                                # Selective enrichment based on query and entities
+                                enrichment_tasks = []
+                                enrichment_types = []
+                                entity_id_set = set(resolved_entity_ids)
 
-                            if should_include_weather(query, entity_id_set):
-                                enrichment_tasks.append(enrichment_fetcher.get_current_weather())
-                                enrichment_types.append('weather')
+                                if should_include_weather(query, entity_id_set):
+                                    enrichment_tasks.append(enrichment_fetcher.get_current_weather())
+                                    enrichment_types.append('weather')
 
-                            if should_include_carbon(query, entity_id_set):
-                                enrichment_tasks.append(enrichment_fetcher.get_carbon_intensity())
-                                enrichment_types.append('carbon')
+                                if should_include_carbon(query, entity_id_set):
+                                    enrichment_tasks.append(enrichment_fetcher.get_carbon_intensity())
+                                    enrichment_types.append('carbon')
 
-                            if should_include_energy(query, entity_id_set):
-                                enrichment_tasks.append(enrichment_fetcher.get_electricity_pricing())
-                                enrichment_types.append('energy')
+                                if should_include_energy(query, entity_id_set):
+                                    enrichment_tasks.append(enrichment_fetcher.get_electricity_pricing())
+                                    enrichment_types.append('energy')
 
-                            if should_include_air_quality(query, entity_id_set):
-                                enrichment_tasks.append(enrichment_fetcher.get_air_quality())
-                                enrichment_types.append('air_quality')
+                                if should_include_air_quality(query, entity_id_set):
+                                    enrichment_tasks.append(enrichment_fetcher.get_air_quality())
+                                    enrichment_types.append('air_quality')
 
-                            # Fetch selected enrichment in parallel
-                            if enrichment_tasks:
-                                import asyncio
-                                results = await asyncio.gather(*enrichment_tasks, return_exceptions=True)
+                                # Fetch selected enrichment in parallel
+                                if enrichment_tasks:
+                                    import asyncio
+                                    results = await asyncio.gather(*enrichment_tasks, return_exceptions=True)
 
-                                enrichment_context = {}
-                                for i, result in enumerate(results):
-                                    if isinstance(result, dict) and result:
-                                        enrichment_context[enrichment_types[i]] = result
+                                    enrichment_context = {}
+                                    for i, result in enumerate(results):
+                                        if isinstance(result, dict) and result:
+                                            enrichment_context[enrichment_types[i]] = result
 
-                                logger.info(f"✅ Fetched {len(enrichment_context)}/{len(enrichment_types)} enrichment types: {list(enrichment_context.keys())}")
+                                    logger.info(f"✅ Fetched {len(enrichment_context)}/{len(enrichment_types)} enrichment types: {list(enrichment_context.keys())}")
+                                else:
+                                    logger.info("ℹ️  No relevant enrichment for this query")
                             else:
-                                logger.info("ℹ️  No relevant enrichment for this query")
-                        else:
-                            logger.warning("⚠️ Data API client or InfluxDB client not available for enrichment")
-
+                                logger.warning("⚠️ Data API client or InfluxDB client not available for enrichment")
                         except Exception as e:
                             logger.warning(f"⚠️ Enrichment context fetch failed (continuing without enrichment): {e}")
                             enrichment_context = None

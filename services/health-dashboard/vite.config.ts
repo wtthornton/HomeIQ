@@ -48,12 +48,12 @@ export default defineConfig(({ command, mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        // Sports API proxy
+        // Sports API proxy - route to data-api (sports-data service was removed)
         '/api/sports': {
-          target: 'http://localhost:8005',
+          target: 'http://localhost:8006',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api\/sports/, '/api/v1'),
+          rewrite: (path) => path.replace(/^\/api\/sports/, '/api/v1/sports'),
         },
         // General API proxy
         '/api': {

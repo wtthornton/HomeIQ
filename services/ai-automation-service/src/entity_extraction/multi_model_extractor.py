@@ -15,6 +15,8 @@ from spacy import load as spacy_load
 
 from .pattern_extractor import extract_entities_from_query
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
+from ..trigger_analysis.trigger_condition_analyzer import TriggerConditionAnalyzer
+from ..trigger_analysis.trigger_device_discovery import TriggerDeviceDiscovery
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +56,21 @@ class MultiModelEntityExtractor:
         self.openai_model = openai_model
         self.openai_api_key = openai_api_key
         
+        # Initialize trigger analysis components
+        self.trigger_condition_analyzer = None
+        self.trigger_device_discovery = None
+        if device_intelligence_client:
+            self.trigger_condition_analyzer = TriggerConditionAnalyzer()
+            self.trigger_device_discovery = TriggerDeviceDiscovery(device_intelligence_client)
+        
         # Performance tracking
         self.stats = {
             'total_queries': 0,
             'ner_success': 0,
             'openai_success': 0,
             'pattern_fallback': 0,
-            'avg_processing_time': 0.0
+            'avg_processing_time': 0.0,
+            'trigger_devices_discovered': 0
         }
         
         logger.info(f"MultiModelEntityExtractor initialized with NER model: {ner_model}")
@@ -160,14 +170,28 @@ class MultiModelEntityExtractor:
             Return JSON with:
             {{
                 "areas": ["office", "kitchen", "bedroom"],
-                "devices": ["lights", "door sensor", "thermostat"],
+                "action_devices": ["lights", "thermostat"],
+                "trigger_conditions": [
+                    {{
+                        "condition": "sit at desk",
+                        "trigger_type": "presence",
+                        "location": "office",
+                        "required_device_class": "occupancy"
+                    }}
+                ],
                 "actions": ["turn on", "flash", "monitor"],
                 "intent": "automation"
             }}
             
             Focus on:
             - Room/area names
-            - Device types (lights, sensors, switches, etc.)
+            - Action devices (devices that will be controlled: lights, switches, etc.)
+            - Trigger conditions (conditions that trigger the automation: "when I sit at desk", "if door opens", etc.)
+              For each trigger condition, identify:
+              * The condition text
+              * Trigger type (presence, motion, door, window, time, temperature, humidity)
+              * Location/area context
+              * Required device class (occupancy, motion, door, window, temperature, humidity)
             - Actions (turn on, flash, monitor, etc.)
             - Time references (morning, evening, sunset, etc.)
             """
@@ -213,7 +237,9 @@ class MultiModelEntityExtractor:
                         'extraction_method': 'openai'
                     })
                 
-                for device in data.get('devices', []):
+                # Handle both 'devices' and 'action_devices' for backward compatibility
+                devices = data.get('action_devices', []) or data.get('devices', [])
+                for device in devices:
                     entities.append({
                         'name': device,
                         'type': 'device',
@@ -221,6 +247,22 @@ class MultiModelEntityExtractor:
                         'confidence': 0.9,
                         'extraction_method': 'openai'
                     })
+                
+                # Store trigger_conditions in a special format for later processing
+                # They will be processed by trigger condition analyzer
+                trigger_conditions = data.get('trigger_conditions', [])
+                if trigger_conditions:
+                    # Store as metadata for trigger discovery
+                    for condition in trigger_conditions:
+                        entities.append({
+                            'name': condition.get('condition', ''),
+                            'type': 'trigger_condition',
+                            'trigger_type': condition.get('trigger_type'),
+                            'location': condition.get('location'),
+                            'required_device_class': condition.get('required_device_class'),
+                            'confidence': 0.9,
+                            'extraction_method': 'openai'
+                        })
                 
                 return entities
         except Exception as e:
@@ -380,13 +422,16 @@ class MultiModelEntityExtractor:
                 # Enhance with device intelligence
                 enhanced_entities = await self._enhance_with_device_intelligence(converted_entities)
                 
+                # Discover trigger devices
+                all_entities = await self._discover_trigger_devices(query, enhanced_entities)
+                
                 processing_time = time.time() - start_time
                 self.stats['avg_processing_time'] = (
                     (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time) 
                     / self.stats['total_queries']
                 )
                 
-                return enhanced_entities
+                return all_entities
             
             # Step 2: Try OpenAI for complex queries (10% of queries)
             if self._is_complex_query(query):
@@ -397,13 +442,16 @@ class MultiModelEntityExtractor:
                     self.stats['openai_success'] += 1
                     enhanced_entities = await self._enhance_with_device_intelligence(openai_entities)
                     
+                    # Discover trigger devices
+                    all_entities = await self._discover_trigger_devices(query, enhanced_entities)
+                    
                     processing_time = time.time() - start_time
                     self.stats['avg_processing_time'] = (
                         (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time) 
                         / self.stats['total_queries']
                     )
                     
-                    return enhanced_entities
+                    return all_entities
             
             # Step 3: Fallback to pattern matching (0% of queries)
             logger.debug("Using pattern matching fallback")
@@ -412,18 +460,101 @@ class MultiModelEntityExtractor:
             pattern_entities = extract_entities_from_query(query)
             enhanced_entities = await self._enhance_with_device_intelligence(pattern_entities)
             
+            # Discover trigger devices
+            all_entities = await self._discover_trigger_devices(query, enhanced_entities)
+            
             processing_time = time.time() - start_time
             self.stats['avg_processing_time'] = (
                 (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time) 
                 / self.stats['total_queries']
             )
             
-            return enhanced_entities
+            return all_entities
             
         except Exception as e:
             logger.error(f"Entity extraction failed: {e}")
             # Emergency fallback to pattern matching
             return extract_entities_from_query(query)
+    
+    async def _discover_trigger_devices(
+        self,
+        query: str,
+        enhanced_entities: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Discover trigger devices based on trigger conditions in the query.
+        
+        Args:
+            query: User query string
+            enhanced_entities: Already extracted and enhanced entities
+            
+        Returns:
+            Combined list of enhanced entities and discovered trigger devices
+        """
+        try:
+            # Skip trigger discovery if components not initialized
+            if not self.trigger_condition_analyzer or not self.trigger_device_discovery:
+                logger.debug("Trigger discovery components not initialized, skipping")
+                return enhanced_entities
+            
+            # Check if OpenAI already extracted trigger conditions
+            openai_trigger_conditions = [
+                e for e in enhanced_entities 
+                if e.get('type') == 'trigger_condition' and e.get('extraction_method') == 'openai'
+            ]
+            
+            # Filter out trigger_condition entities from enhanced_entities (they're metadata, not real entities)
+            action_entities = [
+                e for e in enhanced_entities 
+                if e.get('type') != 'trigger_condition'
+            ]
+            
+            # If OpenAI extracted trigger conditions, use those
+            if openai_trigger_conditions:
+                trigger_conditions = [
+                    {
+                        'type': 'trigger_condition',
+                        'trigger_type': tc.get('trigger_type'),
+                        'condition_text': tc.get('name', ''),
+                        'location': tc.get('location'),
+                        'required_device_class': tc.get('required_device_class'),
+                        'confidence': tc.get('confidence', 0.9),
+                        'extraction_method': 'openai'
+                    }
+                    for tc in openai_trigger_conditions
+                ]
+            else:
+                # Analyze trigger conditions using pattern matching
+                trigger_conditions = await self.trigger_condition_analyzer.analyze_trigger_conditions(
+                    query, action_entities
+                )
+            
+            if not trigger_conditions:
+                logger.debug("No trigger conditions found in query")
+                return action_entities
+            
+            # Discover trigger devices
+            trigger_devices = await self.trigger_device_discovery.discover_trigger_devices(
+                trigger_conditions
+            )
+            
+            if trigger_devices:
+                self.stats['trigger_devices_discovered'] += len(trigger_devices)
+                logger.info(
+                    f"Discovered {len(trigger_devices)} trigger devices: "
+                    f"{[d.get('name', 'unknown') for d in trigger_devices]}"
+                )
+                # Combine entities (action entities + trigger devices, excluding trigger_condition metadata)
+                return action_entities + trigger_devices
+            else:
+                logger.debug("No trigger devices discovered")
+                return action_entities
+                
+        except Exception as e:
+            logger.error(f"Error discovering trigger devices: {e}", exc_info=True)
+            # On error, return original entities (graceful degradation)
+            # Filter out trigger_condition metadata entities
+            return [e for e in enhanced_entities if e.get('type') != 'trigger_condition']
     
     def get_stats(self) -> Dict[str, Any]:
         """Get performance statistics"""

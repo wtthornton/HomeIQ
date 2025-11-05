@@ -127,6 +127,116 @@ class DeviceIntelligenceClient:
             logger.error(f"Error getting all devices: {e}")
             return []
     
+    async def search_sensors_by_condition(
+        self,
+        trigger_type: str,
+        location: Optional[str] = None,
+        device_class: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for sensors matching trigger condition requirements.
+        
+        Args:
+            trigger_type: Type of trigger (presence, motion, door, etc.)
+            location: Optional location/area to search in
+            device_class: Optional device class to filter by (occupancy, motion, door, etc.)
+            
+        Returns:
+            List of matching sensor devices
+        """
+        try:
+            # Get devices from area if location specified, otherwise get all devices
+            if location:
+                devices = await self.get_devices_by_area(location)
+                # If no devices found in area, try broader search
+                if not devices:
+                    logger.debug(f"No devices found in area '{location}', trying broader search")
+                    devices = await self.get_all_devices(limit=200)
+            else:
+                devices = await self.get_all_devices(limit=200)
+            
+            if not devices:
+                logger.debug("No devices available for sensor search")
+                return []
+            
+            # Filter devices by device class and domain
+            matching_devices = []
+            for device in devices:
+                # Skip if device is just a string ID
+                if isinstance(device, str):
+                    continue
+                
+                # Get device information
+                entity_id = device.get('entity_id') or device.get('id', '')
+                device_domain = device.get('domain', '')
+                device_device_class = device.get('device_class', '')
+                
+                # Extract domain from entity_id if not in device dict
+                if not device_domain and '.' in entity_id:
+                    device_domain = entity_id.split('.')[0]
+                
+                # Filter by domain (sensors should be binary_sensor or sensor)
+                if device_domain not in ['binary_sensor', 'sensor']:
+                    continue
+                
+                # Filter by device class if specified
+                if device_class:
+                    device_class_lower = device_class.lower()
+                    device_device_class_lower = device_device_class.lower() if device_device_class else ''
+                    
+                    # Check device_class field
+                    if device_device_class_lower != device_class_lower:
+                        # Also check entity_id for device class keywords
+                        entity_id_lower = entity_id.lower()
+                        if device_class_lower not in entity_id_lower:
+                            # Check trigger type keywords in entity_id
+                            trigger_keywords = {
+                                'presence': ['presence', 'occupancy', 'occupant'],
+                                'motion': ['motion', 'movement', 'pir'],
+                                'door': ['door', 'contact'],
+                                'window': ['window'],
+                                'temperature': ['temperature', 'temp'],
+                                'humidity': ['humidity', 'humid']
+                            }
+                            keywords = trigger_keywords.get(trigger_type, [])
+                            if not any(keyword in entity_id_lower for keyword in keywords):
+                                continue
+                
+                # Check device name for trigger type keywords if device_class not found
+                if not device_device_class:
+                    device_name = (
+                        device.get('name') or 
+                        device.get('friendly_name') or 
+                        entity_id
+                    ).lower()
+                    
+                    trigger_keywords_map = {
+                        'presence': ['presence', 'occupancy', 'occupant'],
+                        'motion': ['motion', 'movement', 'pir'],
+                        'door': ['door', 'contact'],
+                        'window': ['window'],
+                        'temperature': ['temperature', 'temp'],
+                        'humidity': ['humidity', 'humid']
+                    }
+                    
+                    keywords = trigger_keywords_map.get(trigger_type, [])
+                    if not any(keyword in device_name for keyword in keywords):
+                        # Last resort: check entity_id
+                        if not any(keyword in entity_id.lower() for keyword in keywords):
+                            continue
+                
+                matching_devices.append(device)
+            
+            logger.debug(
+                f"Found {len(matching_devices)} matching sensors for "
+                f"trigger_type={trigger_type}, location={location}, device_class={device_class}"
+            )
+            return matching_devices
+            
+        except Exception as e:
+            logger.error(f"Error searching sensors by condition: {e}", exc_info=True)
+            return []
+    
     async def health_check(self) -> bool:
         """Check if device intelligence service is healthy"""
         try:

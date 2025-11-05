@@ -203,8 +203,10 @@ class DevicePairAnalyzer:
         """
         Calculate advanced impact score using usage and area data.
         
+        Phase 4: Enhanced scoring with time-of-day awareness
+        
         Formula:
-            impact = benefit_score * usage_freq * area_traffic * (1 - complexity_penalty)
+            impact = benefit_score * usage_freq * area_traffic * time_weight * (1 - complexity_penalty)
         
         Args:
             synergy: Synergy opportunity from DeviceSynergyDetector
@@ -240,12 +242,20 @@ class DevicePairAnalyzer:
             area = synergy.get('area', 'unknown')
             area_traffic = await self.get_area_traffic(area, entities, days)
             
-            # Calculate final impact
-            impact = base_benefit * usage_freq * area_traffic * (1 - complexity_penalty)
+            # NEW: Time-of-day weighting (Phase 4)
+            time_weight = 1.0  # Default
+            if self.influxdb:
+                peak_usage = await self._check_peak_hours(trigger_entity, action_entity)
+                if peak_usage:
+                    time_weight = 1.2  # Boost impact for peak-hour usage
+            
+            # Calculate final impact with time weighting
+            impact = base_benefit * usage_freq * area_traffic * time_weight * (1 - complexity_penalty)
             
             logger.debug(
                 f"Advanced impact: {trigger_entity} + {action_entity} = {impact:.2f} "
-                f"(benefit={base_benefit}, usage={usage_freq:.2f}, area={area_traffic}, complexity_penalty={complexity_penalty})"
+                f"(benefit={base_benefit}, usage={usage_freq:.2f}, area={area_traffic}, "
+                f"time_weight={time_weight}, complexity_penalty={complexity_penalty})"
             )
             
             return round(impact, 2)
@@ -253,6 +263,75 @@ class DevicePairAnalyzer:
         except Exception as e:
             logger.warning(f"Failed to calculate advanced impact: {e}")
             return synergy.get('impact_score', 0.5)  # Fallback to basic score
+    
+    async def _check_peak_hours(self, trigger_entity: str, action_entity: str) -> bool:
+        """
+        Simple check: Are devices used during peak hours (6-10am or 6-10pm)?
+        
+        Phase 4: Time-of-day weighting enhancement
+        
+        This is a simple InfluxDB query, not complex graph analysis.
+        
+        Args:
+            trigger_entity: Trigger entity ID
+            action_entity: Action entity ID
+        
+        Returns:
+            True if devices are used during peak hours
+        """
+        try:
+            # Query for events during morning peak hours (6-10am) - last 30 days
+            query_morning = f'''
+            from(bucket: "home_assistant_events")
+              |> range(start: -30d)
+              |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
+              |> filter(fn: (r) => r["entity_id"] == "{trigger_entity}" or r["entity_id"] == "{action_entity}")
+              |> filter(fn: (r) => hour(t: r._time) >= 6 and hour(t: r._time) < 10)
+              |> count()
+            '''
+            
+            result_morning = self.influxdb.query_api.query(query_morning, org=self.influxdb.org)
+            
+            # Count events during morning peak
+            morning_events = 0
+            if result_morning and len(result_morning) > 0:
+                for table in result_morning:
+                    for record in table.records:
+                        morning_events += record.get_value()
+            
+            # Query for events during evening peak hours (6-10pm) - last 30 days
+            query_evening = f'''
+            from(bucket: "home_assistant_events")
+              |> range(start: -30d)
+              |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
+              |> filter(fn: (r) => r["entity_id"] == "{trigger_entity}" or r["entity_id"] == "{action_entity}")
+              |> filter(fn: (r) => hour(t: r._time) >= 18 and hour(t: r._time) < 22)
+              |> count()
+            '''
+            
+            result_evening = self.influxdb.query_api.query(query_evening, org=self.influxdb.org)
+            
+            # Count events during evening peak
+            evening_events = 0
+            if result_evening and len(result_evening) > 0:
+                for table in result_evening:
+                    for record in table.records:
+                        evening_events += record.get_value()
+            
+            # If >30 events during peak hours, consider it peak usage
+            total_peak = morning_events + evening_events
+            if total_peak > 30:  # Simple threshold
+                logger.debug(
+                    f"Peak hours detected: {trigger_entity} + {action_entity} "
+                    f"({morning_events} morning + {evening_events} evening = {total_peak} peak events)"
+                )
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Failed to check peak hours: {e}")
+            return False
     
     def clear_cache(self):
         """Clear cached usage data."""
