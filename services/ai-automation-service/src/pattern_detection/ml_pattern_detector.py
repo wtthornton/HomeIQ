@@ -387,6 +387,36 @@ class MLPatternDetector(ABC):
         """Generate unique pattern ID."""
         return f"{pattern_type}_{uuid.uuid4().hex[:8]}"
     
+    def _normalize_column_names(self, events_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize column names to standard format.
+        
+        Args:
+            events_df: Events DataFrame with potentially different column names
+            
+        Returns:
+            DataFrame with normalized column names
+        """
+        df = events_df.copy()
+        
+        # Normalize timestamp column
+        if 'timestamp' in df.columns and 'time' not in df.columns:
+            df['time'] = df['timestamp']
+        elif '_time' in df.columns and 'time' not in df.columns:
+            df['time'] = df['_time']
+        elif 'last_changed' in df.columns and 'time' not in df.columns:
+            df['time'] = df['last_changed']
+        
+        # Normalize entity/device column
+        if 'device_id' in df.columns and 'entity_id' not in df.columns:
+            df['entity_id'] = df['device_id']
+        
+        # Ensure state column exists (default to 'unknown' if missing)
+        if 'state' not in df.columns:
+            df['state'] = 'unknown'
+        
+        return df
+    
     def _optimize_dataframe(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Optimize DataFrame for ML processing.
@@ -397,6 +427,9 @@ class MLPatternDetector(ABC):
         Returns:
             Optimized DataFrame
         """
+        # First normalize column names
+        events_df = self._normalize_column_names(events_df)
+        
         # Convert categorical columns to category dtype for memory efficiency
         categorical_columns = ['entity_id', 'state', 'area']
         for col in categorical_columns:
@@ -422,14 +455,20 @@ class MLPatternDetector(ABC):
         Returns:
             True if valid, False otherwise
         """
-        required_columns = ['time', 'entity_id', 'state']
-        missing_columns = [col for col in required_columns if col not in events_df.columns]
+        # First normalize column names
+        df = self._normalize_column_names(events_df)
         
-        if missing_columns:
-            logger.error(f"Missing required columns: {missing_columns}")
+        # Check for time column (required)
+        if 'time' not in df.columns:
+            logger.error("Missing required 'time' column (checked: timestamp, _time, last_changed)")
             return False
         
-        if events_df.empty:
+        # Check for entity/device column (required)
+        if 'entity_id' not in df.columns and 'device_id' not in df.columns:
+            logger.error("Missing required 'entity_id' or 'device_id' column")
+            return False
+        
+        if df.empty:
             logger.warning("Empty events DataFrame")
             return False
         

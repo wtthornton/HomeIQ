@@ -22,7 +22,6 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
 COPY services/openvino-service/src/ ./src/
-COPY services/openvino-service/scripts/ ./scripts/
 
 # Create models directory
 RUN mkdir -p /app/models

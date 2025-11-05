@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity
+from ..pattern_detection.pattern_filters import validate_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,14 @@ async def store_patterns(db: AsyncSession, patterns: List[Dict]) -> int:
         stored_count = 0
         now = datetime.now(timezone.utc)
         
-        for pattern_data in patterns:
+        # Filter out invalid patterns before storing
+        valid_patterns = [p for p in patterns if validate_pattern(p)]
+        filtered_count = len(patterns) - len(valid_patterns)
+        
+        if filtered_count > 0:
+            logger.info(f"Filtered out {filtered_count} invalid patterns (non-actionable devices, low occurrences, or low confidence)")
+        
+        for pattern_data in valid_patterns:
             # Check if pattern already exists (same type and device)
             query = select(Pattern).where(
                 Pattern.pattern_type == pattern_data['pattern_type'],
@@ -81,7 +89,7 @@ async def store_patterns(db: AsyncSession, patterns: List[Dict]) -> int:
         await db.flush()
         
         # Store history snapshots and update trends
-        for i, pattern_data in enumerate(patterns):
+        for i, pattern_data in enumerate(valid_patterns):
             # Find the pattern we just created/updated
             query = select(Pattern).where(
                 Pattern.pattern_type == pattern_data['pattern_type'],
@@ -208,11 +216,22 @@ async def get_pattern_stats(db: AsyncSession) -> Dict:
         )
         by_type = {row[0]: row[1] for row in type_result.all()}
         
-        # Unique devices
-        devices_result = await db.execute(
-            select(func.count(func.distinct(Pattern.device_id))).select_from(Pattern)
+        # Unique devices - need to handle combined device_ids (e.g., "device1+device2" for co-occurrence patterns)
+        # Fetch all device_ids and split by '+' to get individual devices
+        device_ids_result = await db.execute(
+            select(Pattern.device_id).select_from(Pattern)
         )
-        unique_devices = devices_result.scalar() or 0
+        device_ids = [row[0] for row in device_ids_result.all()]
+        
+        # Split combined device_ids (co-occurrence patterns) and collect unique devices
+        unique_device_set = set()
+        for device_id in device_ids:
+            if device_id:
+                # Split by '+' to handle co-occurrence patterns (e.g., "device1+device2")
+                individual_devices = device_id.split('+')
+                unique_device_set.update(individual_devices)
+        
+        unique_devices = len(unique_device_set)
         
         # Average confidence
         avg_conf_result = await db.execute(

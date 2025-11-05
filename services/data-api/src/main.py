@@ -44,10 +44,10 @@ from .events_endpoints import EventsEndpoints
 from .devices_endpoints import router as devices_router
 from .alert_endpoints import AlertEndpoints
 from .metrics_endpoints import create_metrics_router
-from .integration_endpoints import router as integration_router
+from shared.endpoints import create_integration_router
+from .config_manager import config_manager
 # WebSocket endpoints removed - using HTTP polling only
-from .alerting_service import alerting_service
-from .metrics_service import metrics_service
+from shared.monitoring import alerting_service, metrics_service
 
 # Story 13.4: Sports & HA Automation (Epic 12 Integration)
 from .sports_endpoints import router as sports_router
@@ -242,6 +242,8 @@ app.include_router(
     tags=["Metrics"]
 )
 
+# Create integration router with service-specific config_manager
+integration_router = create_integration_router(config_manager)
 app.include_router(
     integration_router,
     prefix="/api/v1",

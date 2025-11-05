@@ -27,6 +27,7 @@ except ImportError:
 from .config import settings
 from .database.models import init_db
 from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, set_device_intelligence_client
+from .api.community_pattern_router import router as community_pattern_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
@@ -251,6 +252,7 @@ app.include_router(data_router)
 app.include_router(pattern_router)
 app.include_router(suggestion_router)
 app.include_router(synergy_router)  # Epic AI-3, Story AI3.8
+app.include_router(community_pattern_router)  # Community pattern learning
 app.include_router(analysis_router)
 app.include_router(suggestion_management_router)
 app.include_router(deployment_router)

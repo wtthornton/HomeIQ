@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from .logging_service import logging_service
 from .metrics_service import metrics_service
 from .alerting_service import alerting_service
-from .auth import AuthManager
+from shared.auth import AuthManager
 
 
 # Request/Response models
@@ -271,7 +271,7 @@ class MonitoringEndpoints:
                 alert_manager = alerting_service.get_alert_manager()
                 
                 # Convert string parameters to enums if provided
-                from .alerting_service import AlertStatus, AlertSeverity
+                from shared.monitoring.alerting_service import AlertStatus, AlertSeverity
                 status_enum = None
                 severity_enum = None
                 
@@ -517,7 +517,7 @@ class MonitoringEndpoints:
         ):
             """Create a new alert rule."""
             try:
-                from .alerting_service import AlertRule, AlertSeverity
+                from shared.monitoring.alerting_service import AlertRule, AlertSeverity
                 
                 # Validate and create alert rule
                 rule = AlertRule(
@@ -553,7 +553,7 @@ class MonitoringEndpoints:
         ):
             """Update an alert rule."""
             try:
-                from .alerting_service import AlertRule, AlertSeverity
+                from shared.monitoring.alerting_service import AlertRule, AlertSeverity
                 
                 # Validate and create alert rule
                 rule = AlertRule(

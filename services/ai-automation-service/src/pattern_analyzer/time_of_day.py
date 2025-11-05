@@ -123,7 +123,22 @@ class TimeOfDayPatternDetector:
                     
                     if len(cluster_times) >= self.min_occurrences:
                         avg_time = cluster_times.mean()
-                        confidence = len(cluster_times) / len(times)
+                        # Calculate confidence based on occurrence ratio and consistency
+                        occurrence_ratio = len(cluster_times) / len(times)
+                        
+                        # Penalize high variance (less consistent = lower confidence)
+                        std_minutes = float(cluster_times.std() * 60) if len(cluster_times) > 1 else 0.0
+                        variance_penalty = min(std_minutes / 120.0, 0.3)  # Max 30% penalty for high variance
+                        
+                        # Boost for high occurrence count
+                        if len(cluster_times) >= self.min_occurrences * 2:
+                            threshold_boost = 0.1
+                        else:
+                            threshold_boost = 0.0
+                        
+                        # Calculate confidence: occurrence ratio adjusted for variance
+                        confidence = min(0.95, occurrence_ratio * (1 - variance_penalty) + threshold_boost)
+                        confidence = max(0.5, confidence)  # Minimum 50% confidence
                         
                         if confidence >= self.min_confidence:
                             hour = int(avg_time)
@@ -139,12 +154,13 @@ class TimeOfDayPatternDetector:
                                 'minute': minute,
                                 'occurrences': int(len(cluster_times)),
                                 'total_events': int(len(times)),
-                                'confidence': float(confidence),
+                                'confidence': float(confidence),  # Now calculated with variance penalty
                                 'metadata': {
                                     'avg_time_decimal': float(avg_time),
                                     'cluster_id': int(cluster_id),
                                     'std_minutes': std_minutes,
-                                    'time_range': f"{hour:02d}:{minute:02d} ± {int(std_minutes)}min"
+                                    'time_range': f"{hour:02d}:{minute:02d} ± {int(std_minutes)}min",
+                                    'occurrence_ratio': float(occurrence_ratio)
                                 }
                             }
                             

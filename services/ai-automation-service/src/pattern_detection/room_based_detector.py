@@ -90,10 +90,18 @@ class RoomBasedDetector(MLPatternDetector):
         # Optimize DataFrame for processing
         events_df = self._optimize_dataframe(events_df)
         
-        # Ensure area column exists
+        # Ensure area column exists - try to extract from device_id or use device grouping
         if 'area' not in events_df.columns:
-            logger.warning("No 'area' column found, creating default areas")
-            events_df['area'] = 'unknown'
+            logger.info("No 'area' column found, extracting from device_id or using device grouping")
+            # Try to extract area from device_id patterns like "light.bedroom" -> "bedroom"
+            if 'entity_id' in events_df.columns:
+                # Extract area-like patterns from entity_id
+                events_df['area'] = events_df['entity_id'].str.extract(r'\.([^.]+)')[0].fillna('unknown')
+                # If still mostly unknown, use device type as area
+                if events_df['area'].value_counts().get('unknown', 0) > len(events_df) * 0.8:
+                    events_df['area'] = events_df['entity_id'].str.split('.').str[0].fillna('unknown')
+            else:
+                events_df['area'] = 'unknown'
         
         # Detect different types of room patterns
         patterns = []
