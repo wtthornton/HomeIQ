@@ -63,9 +63,10 @@ class Settings(BaseSettings):
     )
     
     # MQTT Configuration
+    # Defaults to Home Assistant's MQTT broker (same server as HA HTTP API)
     MQTT_BROKER: str = Field(
-        default="mqtt://mosquitto:1883",
-        description="MQTT broker URL"
+        default="mqtt://192.168.1.86:1883",
+        description="MQTT broker URL (defaults to HA's MQTT broker)"
     )
     MQTT_USERNAME: Optional[str] = Field(
         default=None,

@@ -94,6 +94,7 @@ class WebSocketIngestionService:
         
         # Note: HA connection validation is now handled by ha_connection_manager
         # The service will check for available connections during startup
+        # Note: Weather enrichment is handled by standalone weather-api service (Epic 31)
     
     @performance_monitor("service_startup")
     async def start(self):
@@ -136,34 +137,8 @@ class WebSocketIngestionService:
             # Register InfluxDB write handler (will be registered after InfluxDB batch writer is initialized)
             # This will be done later in the start() method after InfluxDB components are ready
             
-            # Initialize weather enrichment service
-            if self.weather_api_key and self.weather_enrichment_enabled:
-                self.weather_enrichment = WeatherEnrichmentService(
-                    api_key=self.weather_api_key,
-                    default_location=self.weather_default_location
-                )
-                await self.weather_enrichment.start()
-                log_with_context(
-                    logger, "INFO", "Weather enrichment service initialized",
-                    operation="weather_service_startup",
-                    correlation_id=corr_id,
-                    location=self.weather_default_location
-                )
-            else:
-                log_with_context(
-                    logger, "INFO", "Weather enrichment service disabled",
-                    operation="weather_service_startup",
-                    correlation_id=corr_id,
-                    reason="no_api_key_or_disabled"
-                )
-            
-            # HTTP client is initialized in main() function
-            log_with_context(
-                logger, "INFO", "HTTP client will be initialized in main()",
-                operation="http_client_startup",
-                correlation_id=corr_id,
-                enrichment_url=self.enrichment_service_url
-            )
+            # Note: Weather enrichment is now handled by the standalone weather-api service (Epic 31)
+            # This service only handles WebSocket ingestion and direct InfluxDB writes
             
             # Set up batch processor handler
             self.batch_processor.add_batch_handler(self._process_batch)

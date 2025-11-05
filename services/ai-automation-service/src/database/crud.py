@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta, timezone
 import logging
 
-from .models import Pattern, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity
+from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity
 
 logger = logging.getLogger(__name__)
 
@@ -19,36 +19,95 @@ logger = logging.getLogger(__name__)
 
 async def store_patterns(db: AsyncSession, patterns: List[Dict]) -> int:
     """
-    Store detected patterns in database.
+    Store detected patterns in database with history tracking.
+    
+    Phase 1: Enhanced to track pattern history and update trend cache.
     
     Args:
         db: Database session
         patterns: List of pattern dictionaries from detector
     
     Returns:
-        Number of patterns stored
+        Number of patterns stored/updated
     """
     if not patterns:
         logger.warning("No patterns to store")
         return 0
     
     try:
+        from ..integration.pattern_history_validator import PatternHistoryValidator
+        
+        history_validator = PatternHistoryValidator(db)
         stored_count = 0
+        now = datetime.now(timezone.utc)
         
         for pattern_data in patterns:
-            pattern = Pattern(
-                pattern_type=pattern_data['pattern_type'],
-                device_id=pattern_data['device_id'],
-                pattern_metadata=pattern_data.get('metadata', {}),
-                confidence=pattern_data['confidence'],
-                occurrences=pattern_data['occurrences'],
-                created_at=datetime.now(timezone.utc)
+            # Check if pattern already exists (same type and device)
+            query = select(Pattern).where(
+                Pattern.pattern_type == pattern_data['pattern_type'],
+                Pattern.device_id == pattern_data['device_id']
             )
-            db.add(pattern)
+            result = await db.execute(query)
+            existing_pattern = result.scalar_one_or_none()
+            
+            if existing_pattern:
+                # Update existing pattern
+                existing_pattern.confidence = pattern_data['confidence']
+                existing_pattern.occurrences = pattern_data['occurrences']
+                existing_pattern.pattern_metadata = pattern_data.get('metadata', {})
+                existing_pattern.last_seen = now
+                existing_pattern.updated_at = now
+                pattern = existing_pattern
+                logger.debug(f"Updated existing pattern {pattern.id} for {pattern.device_id}")
+            else:
+                # Create new pattern
+                pattern = Pattern(
+                    pattern_type=pattern_data['pattern_type'],
+                    device_id=pattern_data['device_id'],
+                    pattern_metadata=pattern_data.get('metadata', {}),
+                    confidence=pattern_data['confidence'],
+                    occurrences=pattern_data['occurrences'],
+                    created_at=now,
+                    updated_at=now,
+                    first_seen=now,
+                    last_seen=now,
+                    confidence_history_count=1
+                )
+                db.add(pattern)
+            
             stored_count += 1
         
+        # Commit to get pattern IDs
+        await db.flush()
+        
+        # Store history snapshots and update trends
+        for i, pattern_data in enumerate(patterns):
+            # Find the pattern we just created/updated
+            query = select(Pattern).where(
+                Pattern.pattern_type == pattern_data['pattern_type'],
+                Pattern.device_id == pattern_data['device_id']
+            )
+            result = await db.execute(query)
+            pattern = result.scalar_one_or_none()
+            
+            if pattern:
+                # Store history snapshot
+                try:
+                    await history_validator.store_snapshot(
+                        pattern_id=pattern.id,
+                        confidence=pattern.confidence,
+                        occurrences=pattern.occurrences
+                    )
+                    
+                    # Update trend cache (async, but we'll wait for it)
+                    if pattern.confidence_history_count >= 2:
+                        await history_validator.update_pattern_trend_cache(pattern.id)
+                except Exception as e:
+                    # Log but don't fail if history storage fails
+                    logger.warning(f"Failed to store history for pattern {pattern.id}: {e}")
+        
         await db.commit()
-        logger.info(f"✅ Stored {stored_count} patterns in database")
+        logger.info(f"✅ Stored {stored_count} patterns in database with history tracking")
         return stored_count
         
     except Exception as e:
@@ -636,18 +695,28 @@ async def store_synergy_opportunity(db: AsyncSession, synergy_data: Dict) -> Syn
         raise
 
 
-async def store_synergy_opportunities(db: AsyncSession, synergies: List[Dict]) -> int:
+async def store_synergy_opportunities(
+    db: AsyncSession,
+    synergies: List[Dict],
+    validate_with_patterns: bool = True,
+    min_pattern_confidence: float = 0.7
+) -> int:
     """
-    Store multiple synergy opportunities in database.
+    Store multiple synergy opportunities in database with optional pattern validation.
+    
+    Phase 2: Enhanced to validate synergies against patterns.
     
     Args:
         db: Database session
         synergies: List of synergy dictionaries from detector
+        validate_with_patterns: Whether to validate against patterns (default: True)
+        min_pattern_confidence: Minimum pattern confidence for validation (default: 0.7)
     
     Returns:
         Number of synergies stored
         
     Story AI3.1: Device Synergy Detector Foundation
+    Phase 2: Pattern-Synergy Cross-Validation
     """
     import json
     
@@ -656,7 +725,18 @@ async def store_synergy_opportunities(db: AsyncSession, synergies: List[Dict]) -
         return 0
     
     try:
+        # Import validator if pattern validation is enabled
+        pattern_validator = None
+        if validate_with_patterns:
+            try:
+                from ..integration.pattern_synergy_validator import PatternSynergyValidator
+                pattern_validator = PatternSynergyValidator(db)
+            except ImportError:
+                logger.warning("PatternSynergyValidator not available, skipping pattern validation")
+                validate_with_patterns = False
+        
         stored_count = 0
+        now = datetime.now(timezone.utc)
         
         for synergy_data in synergies:
             # Create metadata dict from synergy data
@@ -669,6 +749,28 @@ async def store_synergy_opportunities(db: AsyncSession, synergies: List[Dict]) -
                 'rationale': synergy_data.get('rationale')
             }
             
+            # Phase 2: Validate with patterns if enabled
+            pattern_support_score = 0.0
+            validated_by_patterns = False
+            supporting_pattern_ids = []
+            
+            if validate_with_patterns and pattern_validator:
+                try:
+                    validation_result = await pattern_validator.validate_synergy_with_patterns(
+                        synergy_data, min_pattern_confidence
+                    )
+                    pattern_support_score = validation_result.get('pattern_support_score', 0.0)
+                    validated_by_patterns = validation_result.get('validated_by_patterns', False)
+                    supporting_patterns = validation_result.get('supporting_patterns', [])
+                    supporting_pattern_ids = [p['pattern_id'] for p in supporting_patterns]
+                    
+                    # Optionally adjust confidence based on pattern support
+                    confidence_adjustment = validation_result.get('recommended_confidence_adjustment', 0.0)
+                    synergy_data['confidence'] = min(1.0, max(0.0, synergy_data['confidence'] + confidence_adjustment))
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to validate synergy {synergy_data.get('synergy_id')} with patterns: {e}")
+            
             synergy = SynergyOpportunity(
                 synergy_id=synergy_data['synergy_id'],
                 synergy_type=synergy_data['synergy_type'],
@@ -678,19 +780,27 @@ async def store_synergy_opportunities(db: AsyncSession, synergies: List[Dict]) -
                 complexity=synergy_data['complexity'],
                 confidence=synergy_data['confidence'],
                 area=synergy_data.get('area'),
-                created_at=datetime.now(timezone.utc)
+                created_at=now,
+                # Phase 2: Pattern validation fields
+                pattern_support_score=pattern_support_score,
+                validated_by_patterns=validated_by_patterns,
+                supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
             )
             
             db.add(synergy)
             stored_count += 1
         
         await db.commit()
-        logger.info(f"Stored {stored_count} synergy opportunities")
+        validated_count = sum(1 for s in synergies if s.get('_validated', False)) if validate_with_patterns else 0
+        logger.info(
+            f"✅ Stored {stored_count} synergy opportunities"
+            + (f" ({validated_count} validated by patterns)" if validate_with_patterns else "")
+        )
         return stored_count
         
     except Exception as e:
         await db.rollback()
-        logger.error(f"Failed to store synergies: {e}", exc_info=True)
+        logger.error(f"❌ Failed to store synergies: {e}", exc_info=True)
         raise
 
 

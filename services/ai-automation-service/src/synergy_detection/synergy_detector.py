@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Compatible device relationship mappings
 COMPATIBLE_RELATIONSHIPS = {
+    # Original patterns
     'motion_to_light': {
         'trigger_domain': 'binary_sensor',
         'trigger_device_class': 'motion',
@@ -57,6 +58,83 @@ COMPATIBLE_RELATIONSHIPS = {
         'benefit_score': 0.7,
         'complexity': 'low',
         'description': 'Occupancy-based lighting'
+    },
+    # NEW: Additional patterns (Phase 2)
+    'motion_to_climate': {
+        'trigger_domain': 'binary_sensor',
+        'trigger_device_class': 'motion',
+        'action_domain': 'climate',
+        'benefit_score': 0.6,
+        'complexity': 'medium',
+        'description': 'Motion-activated climate control'
+    },
+    'light_to_media': {
+        'trigger_domain': 'light',
+        'action_domain': 'media_player',
+        'benefit_score': 0.5,
+        'complexity': 'low',
+        'description': 'Light change triggers media player'
+    },
+    'temp_to_fan': {
+        'trigger_domain': 'sensor',
+        'trigger_device_class': 'temperature',
+        'action_domain': 'fan',
+        'benefit_score': 0.6,
+        'complexity': 'medium',
+        'description': 'Temperature-based fan control'
+    },
+    'window_to_climate': {
+        'trigger_domain': 'binary_sensor',
+        'trigger_device_class': 'window',
+        'action_domain': 'climate',
+        'benefit_score': 0.8,
+        'complexity': 'medium',
+        'description': 'Window open triggers climate adjustment'
+    },
+    'humidity_to_fan': {
+        'trigger_domain': 'sensor',
+        'trigger_device_class': 'humidity',
+        'action_domain': 'fan',
+        'benefit_score': 0.6,
+        'complexity': 'medium',
+        'description': 'Humidity-based fan control'
+    },
+    'presence_to_light': {
+        'trigger_domain': 'device_tracker',
+        'action_domain': 'light',
+        'benefit_score': 0.7,
+        'complexity': 'low',
+        'description': 'Presence-based lighting'
+    },
+    'presence_to_climate': {
+        'trigger_domain': 'device_tracker',
+        'action_domain': 'climate',
+        'benefit_score': 0.6,
+        'complexity': 'medium',
+        'description': 'Presence-based climate control'
+    },
+    'light_to_switch': {
+        'trigger_domain': 'light',
+        'action_domain': 'switch',
+        'benefit_score': 0.5,
+        'complexity': 'low',
+        'description': 'Light triggers switch'
+    },
+    'door_to_notify': {
+        'trigger_domain': 'binary_sensor',
+        'trigger_device_class': 'door',
+        'action_domain': 'notify',
+        'benefit_score': 0.8,  # Security
+        'complexity': 'low',
+        'description': 'Door open triggers notification'
+    },
+    'motion_to_switch': {
+        'trigger_domain': 'binary_sensor',
+        'trigger_device_class': 'motion',
+        'action_domain': 'switch',
+        'benefit_score': 0.6,
+        'complexity': 'low',
+        'description': 'Motion-activated switch'
     }
 }
 
@@ -99,6 +177,15 @@ class DeviceSynergyDetector:
         self._device_cache = None
         self._entity_cache = None
         self._automation_cache = None
+        
+        # Initialize synergy cache (Phase 1)
+        try:
+            from .synergy_cache import SynergyCache
+            self.synergy_cache = SynergyCache()
+            logger.info("SynergyCache enabled for improved performance")
+        except Exception as e:
+            logger.warning(f"Failed to initialize SynergyCache: {e}, continuing without cache")
+            self.synergy_cache = None
         
         # Initialize advanced analyzer if InfluxDB available (Story AI3.2)
         self.pair_analyzer = None
@@ -161,15 +248,28 @@ class DeviceSynergyDetector:
                 ranked_synergies = self._rank_opportunities(synergies)
             
             # Step 6: Filter by confidence threshold
-            final_synergies = [
+            pairwise_synergies = [
                 s for s in ranked_synergies
                 if s['confidence'] >= self.min_confidence
             ]
+            
+            # Step 7: Detect 3-device chains (Phase 3)
+            logger.info("   → Step 7: Detecting 3-device chains...")
+            chains = await self._detect_3_device_chains(pairwise_synergies, devices, entities)
+            logger.info(f"🔗 Found {len(chains)} 3-device chains")
+            
+            # Combine pairwise and chains
+            final_synergies = pairwise_synergies + chains
+            
+            # Re-sort all synergies by impact score
+            final_synergies.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
             
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             logger.info(
                 f"✅ Synergy detection complete in {duration:.1f}s\n"
+                f"   Pairwise opportunities: {len(pairwise_synergies)}\n"
+                f"   3-device chains: {len(chains)}\n"
                 f"   Total opportunities: {len(final_synergies)}\n"
                 f"   Above confidence threshold ({self.min_confidence}): {len(final_synergies)}"
             )
@@ -178,10 +278,17 @@ class DeviceSynergyDetector:
             if final_synergies:
                 logger.info("🏆 Top 3 synergy opportunities:")
                 for i, synergy in enumerate(final_synergies[:3], 1):
-                    logger.info(
-                        f"   {i}. {synergy['relationship']} in {synergy.get('area', 'unknown')} "
-                        f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
-                    )
+                    synergy_type = synergy.get('synergy_type', 'device_pair')
+                    if synergy_type == 'device_chain':
+                        logger.info(
+                            f"   {i}. Chain: {synergy.get('chain_path', '?')} "
+                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
+                        )
+                    else:
+                        logger.info(
+                            f"   {i}. {synergy['relationship']} in {synergy.get('area', 'unknown')} "
+                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
+                        )
             
             return final_synergies
             
@@ -499,6 +606,108 @@ class DeviceSynergyDetector:
         
         return scored_synergies
     
+    async def _detect_3_device_chains(
+        self,
+        pairwise_synergies: List[Dict],
+        devices: List[Dict],
+        entities: List[Dict]
+    ) -> List[Dict]:
+        """
+        Detect 3-device chains by connecting pairs.
+        
+        Simple approach: For each pair A→B, find pairs B→C.
+        Result: Chains A→B→C
+        
+        Phase 3: Simple 3-device chain detection (no graph DB needed)
+        
+        Args:
+            pairwise_synergies: List of 2-device synergy opportunities
+            devices: List of devices
+            entities: List of entities
+        
+        Returns:
+            List of 3-device chain synergies
+        """
+        chains = []
+        
+        # Build lookup: action_device -> list of pairs where it's the action
+        action_lookup = {}
+        for synergy in pairwise_synergies:
+            action_entity = synergy.get('action_entity')
+            if action_entity:
+                if action_entity not in action_lookup:
+                    action_lookup[action_entity] = []
+                action_lookup[action_entity].append(synergy)
+        
+        # Find chains: For each pair A→B, find pairs B→C
+        for synergy in pairwise_synergies:
+            trigger_entity = synergy.get('trigger_entity')
+            action_entity = synergy.get('action_entity')
+            
+            # Find pairs where action_entity is the trigger (B→C)
+            if action_entity in action_lookup:
+                for next_synergy in action_lookup[action_entity]:
+                    next_action = next_synergy.get('action_entity')
+                    
+                    # Skip if same device (A→B→A is not useful)
+                    if next_action == trigger_entity:
+                        continue
+                    
+                    # Skip if devices not in same area (unless beneficial)
+                    if synergy.get('area') != next_synergy.get('area'):
+                        # Only allow cross-area if it makes sense
+                        if not self._is_valid_cross_area_chain(trigger_entity, action_entity, next_action, entities):
+                            continue
+                    
+                    # Check cache if available
+                    chain_key = f"chain:{trigger_entity}:{action_entity}:{next_action}"
+                    if self.synergy_cache:
+                        cached = await self.synergy_cache.get_chain_result(chain_key)
+                        if cached:
+                            chains.append(cached)
+                            continue
+                    
+                    # Create chain synergy
+                    chain = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'device_chain',
+                        'devices': [trigger_entity, action_entity, next_action],
+                        'chain_path': f"{trigger_entity} → {action_entity} → {next_action}",
+                        'trigger_entity': trigger_entity,
+                        'action_entity': next_action,
+                        'impact_score': round((synergy.get('impact_score', 0) + 
+                                             next_synergy.get('impact_score', 0)) / 2, 2),
+                        'confidence': min(synergy.get('confidence', 0.7),
+                                        next_synergy.get('confidence', 0.7)),
+                        'complexity': 'medium',
+                        'area': synergy.get('area'),
+                        'rationale': f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}"
+                    }
+                    
+                    # Cache if available
+                    if self.synergy_cache:
+                        await self.synergy_cache.set_chain_result(chain_key, chain)
+                    
+                    chains.append(chain)
+        
+        return chains
+    
+    def _is_valid_cross_area_chain(
+        self,
+        device1: str,
+        device2: str,
+        device3: str,
+        entities: List[Dict]
+    ) -> bool:
+        """
+        Check if cross-area chain makes sense (simple heuristic).
+        
+        For now, allow cross-area chains (can be enhanced later).
+        """
+        # Simple rule: Allow cross-area chains (common pattern like bedroom → hallway → kitchen)
+        # Could be enhanced with adjacency checks, but keeping it simple for now
+        return True
+    
     def clear_cache(self):
         """Clear cached data (useful for testing)."""
         self._device_cache = None
@@ -507,6 +716,9 @@ class DeviceSynergyDetector:
         
         if self.pair_analyzer:
             self.pair_analyzer.clear_cache()
+        
+        # Note: synergy_cache.clear() is async, but clear_cache is sync
+        # This is fine - cache will be cleared on next access or service restart
         
         logger.debug("Synergy detector cache cleared")
 

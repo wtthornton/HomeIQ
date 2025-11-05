@@ -15,6 +15,7 @@ from ..clients.data_api_client import DataAPIClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..database import get_db, store_patterns, get_patterns, get_pattern_stats, delete_old_patterns
+from ..integration.pattern_history_validator import PatternHistoryValidator
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -279,7 +280,13 @@ async def list_patterns(
                 "metadata": p.pattern_metadata,
                 "confidence": p.confidence,
                 "occurrences": p.occurrences,
-                "created_at": p.created_at.isoformat() if p.created_at else None
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                # Phase 1: History tracking fields
+                "first_seen": p.first_seen.isoformat() if p.first_seen else None,
+                "last_seen": p.last_seen.isoformat() if p.last_seen else None,
+                "trend_direction": p.trend_direction,
+                "trend_strength": p.trend_strength,
+                "confidence_history_count": p.confidence_history_count
             }
             for p in patterns
         ]
@@ -298,6 +305,81 @@ async def list_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list patterns: {str(e)}"
+        )
+
+
+@router.get("/{pattern_id}/history")
+async def get_pattern_history(
+    pattern_id: int,
+    days: int = Query(default=90, ge=1, le=365, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get pattern history for a specific pattern.
+    
+    Phase 1: Returns historical snapshots of pattern confidence and occurrences.
+    """
+    try:
+        validator = PatternHistoryValidator(db)
+        history = await validator.get_pattern_history(pattern_id, days)
+        
+        history_list = [
+            {
+                "id": h.id,
+                "confidence": h.confidence,
+                "occurrences": h.occurrences,
+                "recorded_at": h.recorded_at.isoformat() if h.recorded_at else None
+            }
+            for h in history
+        ]
+        
+        return {
+            "success": True,
+            "data": {
+                "pattern_id": pattern_id,
+                "history": history_list,
+                "count": len(history_list),
+                "days": days
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get pattern history: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pattern history: {str(e)}"
+        )
+
+
+@router.get("/{pattern_id}/trend")
+async def get_pattern_trend(
+    pattern_id: int,
+    days: int = Query(default=90, ge=1, le=365, description="Number of days to analyze"),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get trend analysis for a specific pattern.
+    
+    Phase 1: Analyzes pattern confidence trend over time using linear regression.
+    """
+    try:
+        validator = PatternHistoryValidator(db)
+        trend = await validator.analyze_trend(pattern_id, days)
+        
+        return {
+            "success": True,
+            "data": {
+                "pattern_id": pattern_id,
+                "trend_analysis": trend,
+                "days": days
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get pattern trend: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pattern trend: {str(e)}"
         )
 
 

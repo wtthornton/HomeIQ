@@ -19,7 +19,11 @@ Base = declarative_base()
 
 
 class Pattern(Base):
-    """Detected automation patterns"""
+    """
+    Detected automation patterns with history tracking.
+    
+    Phase 1: Enhanced with history tracking fields for trend analysis.
+    """
     __tablename__ = 'patterns'
     
     id = Column(Integer, primary_key=True)
@@ -29,9 +33,17 @@ class Pattern(Base):
     confidence = Column(Float, nullable=False)
     occurrences = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Phase 1: History tracking fields
+    first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
+    confidence_history_count = Column(Integer, default=1, nullable=False)
+    trend_direction = Column(String(20), nullable=True)  # 'increasing', 'stable', 'decreasing' (cached)
+    trend_strength = Column(Float, default=0.0, nullable=False)  # Cached trend strength (0.0-1.0)
     
     def __repr__(self):
-        return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence})>"
+        return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence}, trend={self.trend_direction})>"
 
 
 class Suggestion(Base):
@@ -209,6 +221,24 @@ class DeviceFeatureUsage(Base):
 # Epic AI-3: Cross-Device Synergy Models (Story AI3.1)
 # ============================================================================
 
+class PatternHistory(Base):
+    """
+    Time-series snapshots of pattern confidence and occurrences.
+    
+    Phase 1: Stores historical data for trend analysis and pattern validation.
+    """
+    __tablename__ = 'pattern_history'
+    
+    id = Column(Integer, primary_key=True)
+    pattern_id = Column(Integer, ForeignKey('patterns.id', ondelete='CASCADE'), nullable=False)
+    confidence = Column(Float, nullable=False)
+    occurrences = Column(Integer, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self):
+        return f"<PatternHistory(id={self.id}, pattern_id={self.pattern_id}, confidence={self.confidence}, recorded_at={self.recorded_at})>"
+
+
 class SynergyOpportunity(Base):
     """
     Cross-device synergy opportunities for automation suggestions.
@@ -218,6 +248,7 @@ class SynergyOpportunity(Base):
     
     Story AI3.1: Device Synergy Detector Foundation
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
+    Phase 2: Enhanced with pattern validation support
     """
     __tablename__ = 'synergy_opportunities'
     
@@ -232,8 +263,14 @@ class SynergyOpportunity(Base):
     area = Column(String(100))  # Area/room where devices are located
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
+    # Phase 2: Pattern validation fields
+    pattern_support_score = Column(Float, default=0.0, nullable=False)
+    validated_by_patterns = Column(Boolean, default=False, nullable=False)
+    supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
+    
     def __repr__(self):
-        return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, area={self.area}, impact={self.impact_score})>"
+        validated = "✓" if self.validated_by_patterns else "✗"
+        return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, area={self.area}, impact={self.impact_score}, validated={validated})>"
 
 
 # Indexes for fast lookups (Epic AI-2)
@@ -241,6 +278,19 @@ Index('idx_capabilities_manufacturer', DeviceCapability.manufacturer)
 Index('idx_capabilities_integration', DeviceCapability.integration_type)
 Index('idx_feature_usage_device', DeviceFeatureUsage.device_id)
 Index('idx_feature_usage_configured', DeviceFeatureUsage.configured)
+
+# Phase 1: Pattern history indexes
+Index('idx_pattern_history_pattern', PatternHistory.pattern_id, PatternHistory.recorded_at)
+Index('idx_pattern_history_recorded', PatternHistory.recorded_at.desc())
+
+# Phase 1: Pattern indexes
+Index('idx_patterns_device', Pattern.device_id)
+Index('idx_patterns_type', Pattern.pattern_type)
+Index('idx_patterns_confidence', Pattern.confidence.desc())
+
+# Phase 2: Synergy pattern validation indexes
+Index('idx_synergy_validated', SynergyOpportunity.validated_by_patterns)
+Index('idx_synergy_pattern_support', SynergyOpportunity.pattern_support_score.desc())
 
 
 # Database engine and session
