@@ -154,8 +154,11 @@ docker-compose up -d ai-automation-service
 - `POST /api/suggestions/batch/reject` - Reject multiple suggestions
 
 ### Synergy Detection (Epic AI-3)
-- `GET /api/synergies` - List detected device synergies
-- `GET /api/synergies/stats` - Get synergy statistics
+- `GET /api/synergies` - List detected device synergies with filtering
+  - Query params: `synergy_type` (device_pair, weather_context, energy_context, event_context)
+  - Query params: `min_confidence`, `validated_by_patterns`, `min_priority`
+  - Results ordered by priority score (impact + confidence + pattern support)
+- `GET /api/synergies/stats` - Get synergy statistics by type and complexity
 - `GET /api/synergies/{id}` - Get detailed synergy information
 
 ### Data Access
@@ -170,12 +173,19 @@ docker-compose up -d ai-automation-service
 1. Phase 1: Device Capability Update (Epic AI-2)
 2. Phase 2: Fetch Events from InfluxDB (Shared)
 3. Phase 3: Pattern Detection (Epic AI-1)
-4. Phase 4: Feature Analysis (Epic AI-2)
-5. Phase 5: **Description-Only Generation** (OpenAI GPT-4o-mini) - Story AI1.24
+4. Phase 3c: **Synergy Detection (Epic AI-3)** - Enhanced
+   - Part A: Device Pair Synergies (cross-device automation opportunities)
+   - Part B: Weather Context Synergies (weather-based automations)
+   - Part C: Energy Context Synergies (cost optimization opportunities) - **NEW**
+   - Part D: Event Context Synergies (entertainment automation) - **NEW**
+   - Priority-based selection with validated pattern boost
+5. Phase 4: Feature Analysis (Epic AI-2)
+6. Phase 5: **Description-Only Generation** (OpenAI GPT-4o-mini) - Story AI1.24
    - Generates human-readable descriptions (NO YAML yet)
    - Saves as status='draft' with automation_yaml=NULL
    - YAML only generated after user approval via UI
-6. Phase 6: Publish MQTT Notification
+   - Combined ranking: Pattern + Feature + Synergy suggestions (top 10)
+7. Phase 6: Publish MQTT Notification
 
 ### 📖 Complete System Documentation
 

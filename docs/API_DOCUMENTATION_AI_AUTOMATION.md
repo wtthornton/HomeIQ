@@ -299,6 +299,12 @@ Returns the capabilities of a specific device.
 
 ## Rate Limiting
 
+### Rate Limit Configuration
+- **External IPs**: 600 requests per minute, 10,000 per hour
+- **Internal Docker Network** (172.x.x.x, 192.168.x.x, 10.x.x.x): 2,000 requests per minute
+- **Health Endpoints** (`/health`, `/api/health`): **Exempt** from rate limiting
+- Rate limiting is per-IP address using token bucket algorithm
+
 ### Refinement Limits
 - Maximum 10 refinements per suggestion
 - Rate limit: 1 refinement per 5 seconds
@@ -308,6 +314,15 @@ Returns the capabilities of a specific device.
 - Maximum 1 analysis per 5 minutes
 - Large analysis requests (90 days) limited to 1 per hour
 - Concurrent analysis requests are queued
+
+### Rate Limit Headers
+When rate limits are applied, the following headers are included:
+```
+X-RateLimit-Limit: 600
+X-RateLimit-Remaining: 550
+X-RateLimit-Reset: 1640995200
+Retry-After: 60
+```
 
 ## MQTT Integration
 

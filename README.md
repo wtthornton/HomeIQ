@@ -57,9 +57,10 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 - **Ask AI Tab**: Natural language automation creation
 - **Pattern Mining**: AI analyzes your usage and suggests automations
+- **Synergy Detection**: Multi-type synergy detection (device pairs, weather, energy, events)
 - **Device Validation**: Intelligent device compatibility checking with post-refinement sanitization
 - **Device Selection & Mapping**: Check/uncheck devices and customize entity mappings with visual interface
-- **Smart Recommendations**: Context-aware automation suggestions
+- **Smart Recommendations**: Context-aware automation suggestions with priority scoring
 - **Self-Healing YAML**: Automatic entity ID correction during refinement
 
 ### 📊 Enterprise Analytics

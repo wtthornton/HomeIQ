@@ -1033,17 +1033,34 @@ Reject multiple suggestions at once.
 ### Synergy Detection (Epic AI-3)
 
 #### GET /api/synergies
-List detected device synergies.
+List detected device synergies with priority-based ordering.
 
 **Query Parameters:**
-- `synergy_type`: Filter by synergy type
-- `min_confidence` (default: 0.7): Minimum confidence
+- `synergy_type`: Filter by synergy type (`device_pair`, `weather_context`, `energy_context`, `event_context`)
+- `min_confidence` (default: 0.7): Minimum confidence score
+- `validated_by_patterns` (boolean): Filter by pattern validation status
+- `min_priority` (float): Minimum priority score (0.0-1.0)
+- `order_by_priority` (boolean, default: true): Order results by priority score
+- `limit` (int): Maximum number of results to return
+
+**Priority Score Calculation:**
+- 40% impact_score
+- 25% confidence
+- 25% pattern_support_score
+- 10% validation bonus (if validated_by_patterns)
+- Complexity adjustment: low=+0.10, medium=0, high=-0.10
+
+**Synergy Types:**
+- `device_pair`: Cross-device automation opportunities
+- `weather_context`: Weather-based automation suggestions
+- `energy_context`: Energy cost optimization opportunities (NEW)
+- `event_context`: Entertainment/event-based automations (NEW)
 
 #### GET /api/synergies/stats
-Get synergy detection statistics.
+Get synergy detection statistics including counts by type, complexity, and validation status.
 
 #### GET /api/synergies/{synergy_id}
-Get detailed synergy information.
+Get detailed synergy information including metadata, devices involved, and opportunity details.
 
 ### Data Access Endpoints
 
@@ -1175,17 +1192,32 @@ Active system alerts sorted by severity.
 
 ### Rate Limiting
 
-API endpoints are rate-limited to prevent abuse:
-- **General endpoints**: 100 requests per minute
-- **Export endpoints**: 10 requests per minute
-- **Configuration endpoints**: 20 requests per minute
-- **AI refinement**: 1 per 5 seconds, max 10 per suggestion
+API endpoints are rate-limited to prevent abuse using a token bucket algorithm:
 
-Rate limit headers:
+**Rate Limits by Client Type:**
+- **External IPs**: 600 requests per minute, 10,000 per hour
+- **Internal Docker Network** (172.x.x.x, 192.168.x.x, 10.x.x.x): 2,000 requests per minute
+- **Health Endpoints** (`/health`, `/api/health`): **Exempt** from rate limiting (always allowed)
+
+**Endpoint-Specific Limits:**
+- **General endpoints**: Subject to IP-based limits above
+- **AI refinement**: 1 per 5 seconds, max 10 per suggestion
+- **Analysis endpoints**: Maximum 1 analysis per 5 minutes
+
+**Rate Limit Headers:**
 ```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
+X-RateLimit-Limit: 600
+X-RateLimit-Remaining: 550
 X-RateLimit-Reset: 1640995200
+Retry-After: 60
+```
+
+**Rate Limit Response (429 Too Many Requests):**
+```json
+{
+  "error": "Rate limit exceeded",
+  "message": "Too many requests. Limit: 600/min, 10000/hour"
+}
 ```
 
 ---
