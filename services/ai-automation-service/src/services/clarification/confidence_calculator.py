@@ -67,26 +67,55 @@ class ConfidenceCalculator:
                 if amb.severity == AmbiguitySeverity.CRITICAL
             ]
             
-            # Count answered critical questions
+            # Count important ambiguities
+            important_ambiguities = [
+                amb for amb in ambiguities
+                if amb.severity == AmbiguitySeverity.IMPORTANT
+            ]
+            
+            # Count answered critical questions (with validation)
             answered_critical = sum(
                 1 for answer in clarification_answers
                 if answer.validated and answer.confidence > 0.7
             )
             
-            total_critical = len(critical_ambiguities)
+            # Count answered important questions
+            answered_important = sum(
+                1 for answer in clarification_answers
+                if answer.validated and answer.confidence > 0.6
+            )
             
+            total_critical = len(critical_ambiguities)
+            total_important = len(important_ambiguities)
+            total_answered = len([a for a in clarification_answers if a.validated])
+            
+            # Calculate completion rate for critical ambiguities
             if total_critical > 0:
                 completion_rate = answered_critical / total_critical
-                # Boost confidence based on completion rate
-                confidence += (1.0 - confidence) * completion_rate * 0.3
+                # Boost confidence based on completion rate (more weight for critical)
+                confidence += (1.0 - confidence) * completion_rate * 0.4
+            
+            # Calculate completion rate for important ambiguities
+            if total_important > 0:
+                completion_rate_important = answered_important / total_important
+                # Boost confidence based on important completion (less weight)
+                confidence += (1.0 - confidence) * completion_rate_important * 0.2
+            
+            # Boost for having any valid answers
+            if total_answered > 0:
+                confidence += (1.0 - confidence) * min(0.2, total_answered * 0.05)
             
             # Average answer confidence boost
-            if clarification_answers:
+            validated_answers = [a for a in clarification_answers if a.validated]
+            if validated_answers:
                 avg_answer_confidence = sum(
-                    a.confidence for a in clarification_answers if a.validated
-                ) / len([a for a in clarification_answers if a.validated])
+                    a.confidence for a in validated_answers
+                ) / len(validated_answers)
                 
+                # Strong boost for high-quality answers
                 if avg_answer_confidence > 0.8:
+                    confidence += (1.0 - confidence) * 0.15
+                elif avg_answer_confidence > 0.6:
                     confidence += (1.0 - confidence) * 0.1
         
         # Adjust based on query clarity

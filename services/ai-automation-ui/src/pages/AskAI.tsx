@@ -276,13 +276,45 @@ export const AskAI: React.FC = () => {
 
       setMessages(prev => [...prev, aiMessage]);
       
+      // Debug logging
+      console.log('🔍 Clarification check:', {
+        clarification_needed: response.clarification_needed,
+        questions_count: response.questions?.length || 0,
+        questions: response.questions,
+        session_id: response.clarification_session_id
+      });
+      
       // Show clarification dialog if needed
-      if (response.clarification_needed && response.questions && response.questions.length > 0) {
+      // Check both clarification_needed flag AND presence of questions
+      const hasQuestions = response.questions && Array.isArray(response.questions) && response.questions.length > 0;
+      const needsClarification = response.clarification_needed === true || response.clarification_needed === 'true';
+      
+      console.log('🔍 Clarification dialog check:', {
+        clarification_needed: response.clarification_needed,
+        needsClarification,
+        hasQuestions,
+        questions_count: response.questions?.length || 0,
+        questions: response.questions,
+        session_id: response.clarification_session_id
+      });
+      
+      if (needsClarification && hasQuestions) {
+        console.log('✅ Showing clarification dialog with questions:', response.questions);
         setClarificationDialog({
           questions: response.questions,
           sessionId: response.clarification_session_id || '',
-          confidence: response.confidence,
+          confidence: response.confidence || 0.5,
           threshold: 0.85  // Default threshold
+        });
+      } else {
+        console.log('❌ NOT showing clarification dialog:', {
+          needsClarification,
+          hasQuestions,
+          clarification_needed: response.clarification_needed,
+          has_questions: !!response.questions,
+          questions_type: typeof response.questions,
+          questions_length: response.questions?.length || 0,
+          questions: response.questions
         });
       }
       

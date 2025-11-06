@@ -34,6 +34,13 @@ Your expertise includes:
 - Considering device health and reliability in recommendations
 - Designing sophisticated automation sequences and patterns
 
+CRITICAL: When clarification context is provided (questions and answers), you MUST:
+- Use the EXACT devices, locations, and preferences specified in the clarification answers
+- Prioritize user-selected entities over generic assumptions
+- Respect all user choices and selections - they override your initial interpretations
+- If the user specified "all four lights in office", find and use exactly those four lights
+- Never substitute different devices than what the user explicitly selected or confirmed
+
 ADVANCED CAPABILITY EXAMPLES:
 
 Numeric Capabilities (with ranges):
@@ -120,7 +127,8 @@ Guidelines:
         query: str,
         entities: List[Dict],
         output_mode: str = "suggestions",  # "suggestions" | "yaml"
-        entity_context_json: Optional[str] = None  # Enriched entity context JSON
+        entity_context_json: Optional[str] = None,  # Enriched entity context JSON
+        clarification_context: Optional[Dict[str, Any]] = None  # NEW: Clarification Q&A context
     ) -> Dict[str, str]:
         """
         Build prompt for Ask AI query-based suggestion generation.
@@ -156,16 +164,66 @@ Use this enriched context to:
 - Create appropriate service calls based on entity attributes
 """
         
+        # Add clarification context if available
+        clarification_section = ""
+        if clarification_context and clarification_context.get('questions_and_answers'):
+            qa_list = []
+            for qa in clarification_context['questions_and_answers']:
+                qa_text = f"Q: {qa['question']}\nA: {qa['answer']}"
+                if qa.get('selected_entities'):
+                    qa_text += f"\nSelected entities: {', '.join(qa['selected_entities'])}"
+                qa_list.append(qa_text)
+            
+            clarification_section = f"""
+
+═══════════════════════════════════════════════════════════════════════════════
+CLARIFICATION CONTEXT (CRITICAL - USER PROVIDED ANSWERS):
+═══════════════════════════════════════════════════════════════════════════════
+The user was asked clarifying questions and provided these specific answers. 
+YOU MUST USE THESE ANSWERS when generating suggestions. DO NOT IGNORE THEM.
+
+{chr(10).join(f'{i+1}. {qa}' for i, qa in enumerate(qa_list))}
+
+CRITICAL REQUIREMENTS (MUST FOLLOW):
+- Use the EXACT devices/locations mentioned in the answers above
+- If the user specified specific devices, use ONLY those devices (e.g., "all four lights in office")
+- If the user selected specific entities, use ONLY those entities from the enriched context
+- Respect the user's choices - do NOT use different devices than what they specified
+- If the user said "all four lights in office", find ALL FOUR lights from the office area in the enriched context
+- If the user selected specific entities, prioritize those exact entities over generic device names
+- The clarification answers OVERRIDE any assumptions you might make from the original query
+- If the user answered "office" for location, use ONLY devices from the office area
+- If the user selected specific entity IDs, use those EXACT entity IDs in devices_involved
+
+DO NOT:
+- Use devices from different locations (e.g., outdoor lights when user said "office")
+- Use generic device names when user specified exact devices
+- Ignore user-selected entities
+- Make assumptions that contradict the clarification answers
+═══════════════════════════════════════════════════════════════════════════════
+"""
+            logger.info(f"📝 Added clarification section to prompt with {len(qa_list)} Q&A pairs")
+        
         # Generate capability-specific examples
         capability_examples = self._generate_capability_examples(entities)
         
         # Build creative query prompt with enhanced examples
-        user_prompt = f"""Based on this query: "{query}"
+        # If clarification context exists, the query should already be enriched
+        # But we'll still show the original query structure for clarity
+        query_display = query
+        if clarification_context and clarification_context.get('questions_and_answers'):
+            # The query passed in should already be enriched, but show original for context
+            original_query = clarification_context.get('original_query', query)
+            query_display = f"{original_query}\n\n(Enriched with user clarifications - see CLARIFICATION CONTEXT below)"
+        
+        user_prompt = f"""Based on this query: "{query_display}"
 
 Available devices and capabilities:
 {entity_section}
 
 {enriched_context_section}
+
+{clarification_section}
 
 CAPABILITY-SPECIFIC AUTOMATION IDEAS:
 {capability_examples}
@@ -208,7 +266,15 @@ IMPORTANT: Return your response as a JSON array of suggestion objects, each with
 - capabilities_used: Array of device capabilities being used
 - confidence: A confidence score between 0 and 1 (higher for conservative, lower for creative)
 
-CRITICAL: For devices_involved, extract the exact "friendly_name" values from the enriched entity context JSON. Do NOT invent generic names like "Device 1" or "office lights". Use the actual device names from the entities array in the enriched context."""
+CRITICAL: For devices_involved, extract the exact "friendly_name" values from the enriched entity context JSON. Do NOT invent generic names like "Device 1" or "office lights". Use the actual device names from the entities array in the enriched context.
+
+⚠️ IMPORTANT: If clarification context is provided:
+- The user has already answered specific questions about their automation request
+- Use the EXACT devices, locations, and preferences specified in the clarification answers
+- If the user selected specific entities in Q&A, use ONLY those entities
+- If the user specified "all four lights in office", find and list all four lights from the office area
+- The clarification answers take PRECEDENCE over any assumptions from the original query
+- DO NOT use different devices than what the user explicitly selected or confirmed in the Q&A"""
 
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,

@@ -26,7 +26,9 @@ class QuestionGenerator:
         self,
         ambiguities: List[Ambiguity],
         query: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        previous_qa: Optional[List[Dict[str, Any]]] = None,  # NEW: Previous Q&A pairs
+        asked_questions: Optional[List['ClarificationQuestion']] = None  # NEW: Previously asked questions
     ) -> List[ClarificationQuestion]:
         """
         Generate questions based on detected ambiguities.
@@ -56,7 +58,7 @@ class QuestionGenerator:
         
         # Build prompt for OpenAI
         prompt = self._build_question_generation_prompt(
-            top_ambiguities, query, context
+            top_ambiguities, query, context, previous_qa, asked_questions
         )
         
         try:
@@ -96,7 +98,9 @@ class QuestionGenerator:
         self,
         ambiguities: List[Ambiguity],
         query: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        previous_qa: Optional[List[Dict[str, Any]]] = None,
+        asked_questions: Optional[List['ClarificationQuestion']] = None
     ) -> str:
         """Build prompt for OpenAI question generation"""
         
@@ -115,6 +119,25 @@ class QuestionGenerator:
                 if 'suggestion' in amb.context:
                     amb_text += f"\n  Suggestion: {amb.context['suggestion']}"
             ambiguities_text.append(amb_text)
+        
+        # NEW: Add previous Q&A context to prompt
+        previous_qa_section = ""
+        if previous_qa:
+            previous_qa_section = "\n\n**PREVIOUS CLARIFICATIONS (User has already answered these - DO NOT repeat):**\n"
+            for i, qa in enumerate(previous_qa, 1):
+                previous_qa_section += f"{i}. Q: {qa.get('question', '')}\n"
+                previous_qa_section += f"   A: {qa.get('answer', '')}\n"
+                if qa.get('selected_entities'):
+                    previous_qa_section += f"   Selected entities: {', '.join(qa['selected_entities'])}\n"
+            previous_qa_section += "\n⚠️ IMPORTANT: Do NOT ask questions that are similar to the ones above. Build on the user's answers to ask NEW questions about remaining ambiguities.\n"
+        
+        # NEW: List already-asked questions to avoid duplicates
+        asked_questions_section = ""
+        if asked_questions:
+            asked_questions_section = "\n\n**ALREADY-ASKED QUESTIONS (DO NOT repeat these):**\n"
+            for i, q in enumerate(asked_questions, 1):
+                asked_questions_section += f"{i}. {q.question_text}\n"
+            asked_questions_section += "\n⚠️ CRITICAL: Generate questions that are DIFFERENT from the ones above. Focus on remaining ambiguities that haven't been addressed yet.\n"
         
         # Format available devices summary
         devices_summary = "Available devices:\n"
@@ -138,13 +161,24 @@ class QuestionGenerator:
 **User Query:**
 "{query}"
 
-**Detected Ambiguities:**
+{previous_qa_section}
+
+{asked_questions_section}
+
+**Detected Ambiguities (REMAINING - need clarification):**
 {chr(10).join(ambiguities_text)}
 
 {devices_summary}
 
 **Task:**
-Generate 1-3 clarification questions that will help clarify the ambiguities above. Prioritize critical ambiguities.
+Generate 1-3 NEW clarification questions that will help clarify the REMAINING ambiguities above. Prioritize critical ambiguities.
+
+**CRITICAL REQUIREMENTS:**
+1. DO NOT repeat any questions that were already asked (see PREVIOUS CLARIFICATIONS and ALREADY-ASKED QUESTIONS above)
+2. Build on the user's previous answers - use their selections to ask more specific follow-up questions
+3. If the user already selected specific devices, ask about OTHER aspects (timing, actions, conditions, etc.)
+4. Focus on ambiguities that haven't been resolved yet
+5. If all ambiguities are about the same topic but different aspects, ask about the NEW aspect
 
 **Guidelines:**
 1. Ask ONE question per critical/important ambiguity (max 3 questions total)
