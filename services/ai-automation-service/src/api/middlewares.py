@@ -1,0 +1,247 @@
+"""
+API Middlewares - Idempotency and Rate Limiting
+"""
+
+from typing import Callable, Optional, Dict
+from fastapi import Request, HTTPException, status
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response, JSONResponse
+import hashlib
+import time
+import logging
+from collections import defaultdict
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
+
+
+# Simple in-memory store for idempotency (can be replaced with Redis)
+_idempotency_store: Dict[str, tuple] = {}  # key -> (response, timestamp)
+
+# Simple token bucket for rate limiting (can be replaced with Redis)
+_rate_limit_buckets: Dict[str, dict] = defaultdict(lambda: {
+    "tokens": 100,  # Default: 100 requests (10x increase)
+    "last_refill": time.time(),
+    "capacity": 100,  # 10x increase: 100 tokens capacity
+    "refill_rate": 10.0  # 10 tokens per second (supports 600/min = 10/sec)
+})
+
+
+class IdempotencyMiddleware(BaseHTTPMiddleware):
+    """
+    Idempotency middleware for POST endpoints.
+    
+    Requires Idempotency-Key header on POST requests.
+    Returns cached response for duplicate keys.
+    """
+    
+    def __init__(self, app, key_header: str = "Idempotency-Key"):
+        super().__init__(app)
+        self.key_header = key_header
+        self.ttl_seconds = 3600  # 1 hour TTL for idempotency keys
+    
+    async def dispatch(self, request: Request, call_next: Callable):
+        # Only apply to POST requests
+        if request.method != "POST":
+            return await call_next(request)
+        
+        # Check for idempotency key
+        idempotency_key = request.headers.get(self.key_header)
+        
+        if idempotency_key:
+            # Generate cache key from method + path + key
+            cache_key = f"{request.method}:{request.url.path}:{idempotency_key}"
+            
+            # Check cache
+            if cache_key in _idempotency_store:
+                cached_response, timestamp = _idempotency_store[cache_key]
+                
+                # Check TTL
+                if time.time() - timestamp < self.ttl_seconds:
+                    logger.info(f"Idempotent request: {idempotency_key}")
+                    return JSONResponse(
+                        content=cached_response,
+                        status_code=status.HTTP_200_OK
+                    )
+                else:
+                    # Expired, remove from cache
+                    del _idempotency_store[cache_key]
+            
+            # Process request
+            response = await call_next(request)
+            
+            # Cache successful responses (only JSON responses)
+            if response.status_code < 400:
+                try:
+                    # Check if response is JSON
+                    content_type = response.headers.get("content-type", "")
+                    if "application/json" in content_type:
+                        # Read response body
+                        response_body = await response.body()
+                        import json
+                        cached_data = json.loads(response_body)
+                        
+                        # Store in cache
+                        _idempotency_store[cache_key] = (cached_data, time.time())
+                        
+                        # Cleanup old entries (simple cleanup)
+                        self._cleanup_old_entries()
+                    else:
+                        logger.debug(f"Skipping idempotency cache for non-JSON response: {content_type}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache idempotent response: {e}")
+            
+            return response
+        else:
+            # No idempotency key, process normally
+            return await call_next(request)
+    
+    def _cleanup_old_entries(self):
+        """Clean up expired entries (simple cleanup every 100 requests)"""
+        if len(_idempotency_store) > 1000:
+            current_time = time.time()
+            expired_keys = [
+                k for k, (_, ts) in _idempotency_store.items()
+                if current_time - ts > self.ttl_seconds
+            ]
+            for k in expired_keys:
+                del _idempotency_store[k]
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Rate limiting middleware using token bucket algorithm.
+    
+    Per-user/IP rate limiting with configurable limits.
+    """
+    
+    def __init__(
+        self,
+        app,
+        requests_per_minute: int = 600,  # External API consumers
+        requests_per_hour: int = 10000,
+        internal_requests_per_minute: int = 2000,  # Internal traffic (Docker network)
+        key_header: str = "X-User-ID"
+    ):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+        self.internal_requests_per_minute = internal_requests_per_minute
+        self.requests_per_hour = requests_per_hour
+        self.key_header = key_header
+        # Internal network prefixes (Docker, private networks)
+        # Context7 Best Practice: Clear configuration for maintainability
+        self.internal_network_prefixes = ['172.', '10.', '192.168.', '127.0.0.1']
+        # Calculate refill rates: requests_per_minute / 60 = tokens per second
+        self.refill_rate = requests_per_minute / 60.0
+        self.internal_refill_rate = internal_requests_per_minute / 60.0
+        # Set capacity to allow 1 minute of burst
+        self.bucket_capacity = requests_per_minute
+        self.internal_bucket_capacity = internal_requests_per_minute
+    
+    async def dispatch(self, request: Request, call_next: Callable):
+        # Exempt health checks and status endpoints from rate limiting
+        # Context7 Best Practice: Early return for exempt paths (performance)
+        exempt_paths = [
+            '/health',
+            '/api/health',
+            '/api/analysis/status',
+            '/api/analysis/schedule'
+        ]
+        
+        if any(request.url.path.startswith(path) for path in exempt_paths):
+            # Process request without rate limiting
+            return await call_next(request)
+        
+        # Get identifier (user ID or IP)
+        identifier = request.headers.get(self.key_header)
+        if not identifier:
+            # Fallback to IP
+            identifier = request.client.host if request.client else "unknown"
+        
+        # Detect internal traffic (Context7: Clear separation of concerns)
+        is_internal = any(identifier.startswith(prefix) for prefix in self.internal_network_prefixes)
+        
+        # Use appropriate limits based on traffic type
+        if is_internal:
+            effective_limit = self.internal_requests_per_minute
+            effective_refill = self.internal_refill_rate
+            effective_capacity = self.internal_bucket_capacity
+        else:
+            effective_limit = self.requests_per_minute
+            effective_refill = self.refill_rate
+            effective_capacity = self.bucket_capacity
+        
+        # Check rate limit with appropriate bucket
+        if not self._check_rate_limit(identifier, effective_refill, effective_capacity):
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "error": "Rate limit exceeded",
+                    "message": f"Too many requests. Limit: {effective_limit}/min, {self.requests_per_hour}/hour"
+                },
+                headers={
+                    "Retry-After": "60"
+                }
+            )
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Add rate limit headers
+        bucket = _rate_limit_buckets[identifier]
+        response.headers["X-RateLimit-Limit"] = str(effective_limit)
+        response.headers["X-RateLimit-Remaining"] = str(int(bucket["tokens"]))
+        
+        return response
+    
+    def _check_rate_limit(
+        self, 
+        identifier: str, 
+        refill_rate: Optional[float] = None,
+        capacity: Optional[int] = None
+    ) -> bool:
+        """
+        Check if request is within rate limit.
+        
+        Context7 Best Practice: Flexible parameters for different rate limit configurations.
+        
+        Args:
+            identifier: Client identifier (IP or user ID)
+            refill_rate: Tokens per second (uses instance default if None)
+            capacity: Maximum bucket capacity (uses instance default if None)
+        
+        Returns:
+            True if request allowed, False if rate limit exceeded
+        """
+        bucket = _rate_limit_buckets[identifier]
+        current_time = time.time()
+        
+        # Use provided refill_rate and capacity, or defaults
+        effective_refill_rate = refill_rate if refill_rate is not None else self.refill_rate
+        effective_capacity = capacity if capacity is not None else self.bucket_capacity
+        
+        # Initialize bucket with correct capacity and refill rate if not set
+        if "capacity" not in bucket or bucket.get("capacity") != effective_capacity:
+            bucket["capacity"] = effective_capacity
+            bucket["tokens"] = min(bucket.get("tokens", effective_capacity), effective_capacity)
+        
+        if "refill_rate" not in bucket or bucket.get("refill_rate") != effective_refill_rate:
+            bucket["refill_rate"] = effective_refill_rate
+        
+        # Refill tokens
+        time_since_refill = current_time - bucket["last_refill"]
+        tokens_to_add = time_since_refill * bucket["refill_rate"]
+        bucket["tokens"] = min(
+            bucket["capacity"],
+            bucket["tokens"] + tokens_to_add
+        )
+        bucket["last_refill"] = current_time
+        
+        # Check if tokens available
+        if bucket["tokens"] >= 1.0:
+            bucket["tokens"] -= 1.0
+            return True
+        else:
+            logger.warning(f"Rate limit exceeded for {identifier}")
+            return False
+

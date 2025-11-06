@@ -3,8 +3,8 @@ CRUD operations for AI Automation Service database
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
-from typing import List, Dict, Optional
+from sqlalchemy import select, func, delete, case
+from typing import List, Dict, Optional, Union, Any
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -12,6 +12,27 @@ from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCap
 from ..pattern_detection.pattern_filters import validate_pattern
 
 logger = logging.getLogger(__name__)
+
+
+def _get_attr_safe(obj: Union[Dict, Any], attr: str, default: Any) -> Any:
+    """
+    Safely get attribute from dict or object.
+    
+    Context7 Best Practice: Type-safe attribute access that handles
+    both dict and SQLAlchemy objects without raising exceptions.
+    
+    Args:
+        obj: Dictionary or object instance (e.g., SQLAlchemy model)
+        attr: Attribute name
+        default: Default value if attribute not found
+    
+    Returns:
+        Attribute value or default
+    """
+    if isinstance(obj, dict):
+        return obj.get(attr, default)
+    else:
+        return getattr(obj, attr, default)
 
 
 # ============================================================================
@@ -743,10 +764,28 @@ async def store_synergy_opportunities(
     Phase 2: Pattern-Synergy Cross-Validation
     """
     import json
+    from sqlalchemy.exc import IntegrityError, PendingRollbackError
     
     if not synergies:
         logger.warning("No synergies to store")
         return 0
+    
+    # Ensure session is in a good state before starting
+    try:
+        # Check if session needs rollback
+        if hasattr(db, 'in_transaction') and db.in_transaction():
+            try:
+                # Try a simple query to check session health
+                await db.execute(select(1))
+            except (PendingRollbackError, Exception):
+                logger.warning("Session in bad state, rolling back before starting")
+                await db.rollback()
+    except Exception as e:
+        logger.warning(f"Error checking session state: {e}, attempting rollback")
+        try:
+            await db.rollback()
+        except Exception:
+            pass  # Ignore rollback errors if session is already closed
     
     try:
         # Import validator if pattern validation is enabled
@@ -760,71 +799,139 @@ async def store_synergy_opportunities(
                 validate_with_patterns = False
         
         stored_count = 0
+        updated_count = 0
+        skipped_count = 0
         now = datetime.now(timezone.utc)
         
         for synergy_data in synergies:
-            # Create metadata dict from synergy data
-            metadata = {
-                'trigger_entity': synergy_data.get('trigger_entity'),
-                'trigger_name': synergy_data.get('trigger_name'),
-                'action_entity': synergy_data.get('action_entity'),
-                'action_name': synergy_data.get('action_name'),
-                'relationship': synergy_data.get('relationship'),
-                'rationale': synergy_data.get('rationale')
-            }
-            
-            # Phase 2: Validate with patterns if enabled
-            pattern_support_score = 0.0
-            validated_by_patterns = False
-            supporting_pattern_ids = []
-            
-            if validate_with_patterns and pattern_validator:
-                try:
-                    validation_result = await pattern_validator.validate_synergy_with_patterns(
-                        synergy_data, min_pattern_confidence
+            try:
+                synergy_id = synergy_data['synergy_id']
+                
+                # Check if synergy already exists (upsert pattern)
+                query = select(SynergyOpportunity).where(
+                    SynergyOpportunity.synergy_id == synergy_id
+                )
+                result = await db.execute(query)
+                existing_synergy = result.scalar_one_or_none()
+                
+                # Create metadata dict from synergy data
+                metadata = {
+                    'trigger_entity': synergy_data.get('trigger_entity'),
+                    'trigger_name': synergy_data.get('trigger_name'),
+                    'action_entity': synergy_data.get('action_entity'),
+                    'action_name': synergy_data.get('action_name'),
+                    'relationship': synergy_data.get('relationship'),
+                    'rationale': synergy_data.get('rationale')
+                }
+                
+                # Phase 2: Validate with patterns if enabled
+                pattern_support_score = 0.0
+                validated_by_patterns = False
+                supporting_pattern_ids = []
+                
+                if validate_with_patterns and pattern_validator:
+                    try:
+                        validation_result = await pattern_validator.validate_synergy_with_patterns(
+                            synergy_data, min_pattern_confidence
+                        )
+                        pattern_support_score = validation_result.get('pattern_support_score', 0.0)
+                        validated_by_patterns = validation_result.get('validated_by_patterns', False)
+                        supporting_patterns = validation_result.get('supporting_patterns', [])
+                        supporting_pattern_ids = [p['pattern_id'] for p in supporting_patterns]
+                        
+                        # Optionally adjust confidence based on pattern support
+                        confidence_adjustment = validation_result.get('recommended_confidence_adjustment', 0.0)
+                        synergy_data['confidence'] = min(1.0, max(0.0, synergy_data['confidence'] + confidence_adjustment))
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to validate synergy {synergy_data.get('synergy_id')} with patterns: {e}")
+                
+                if existing_synergy:
+                    # Update existing synergy
+                    existing_synergy.synergy_type = synergy_data['synergy_type']
+                    existing_synergy.device_ids = json.dumps(synergy_data['devices'])
+                    existing_synergy.opportunity_metadata = metadata
+                    existing_synergy.impact_score = synergy_data['impact_score']
+                    existing_synergy.complexity = synergy_data['complexity']
+                    existing_synergy.confidence = synergy_data['confidence']
+                    existing_synergy.area = synergy_data.get('area')
+                    existing_synergy.pattern_support_score = pattern_support_score
+                    existing_synergy.validated_by_patterns = validated_by_patterns
+                    existing_synergy.supporting_pattern_ids = json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
+                    updated_count += 1
+                    logger.debug(f"Updated existing synergy: {synergy_id}")
+                else:
+                    # Create new synergy
+                    synergy = SynergyOpportunity(
+                        synergy_id=synergy_id,
+                        synergy_type=synergy_data['synergy_type'],
+                        device_ids=json.dumps(synergy_data['devices']),
+                        opportunity_metadata=metadata,
+                        impact_score=synergy_data['impact_score'],
+                        complexity=synergy_data['complexity'],
+                        confidence=synergy_data['confidence'],
+                        area=synergy_data.get('area'),
+                        created_at=now,
+                        # Phase 2: Pattern validation fields
+                        pattern_support_score=pattern_support_score,
+                        validated_by_patterns=validated_by_patterns,
+                        supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
                     )
-                    pattern_support_score = validation_result.get('pattern_support_score', 0.0)
-                    validated_by_patterns = validation_result.get('validated_by_patterns', False)
-                    supporting_patterns = validation_result.get('supporting_patterns', [])
-                    supporting_pattern_ids = [p['pattern_id'] for p in supporting_patterns]
+                    db.add(synergy)
+                    stored_count += 1
+                    logger.debug(f"Added new synergy: {synergy_id}")
                     
-                    # Optionally adjust confidence based on pattern support
-                    confidence_adjustment = validation_result.get('recommended_confidence_adjustment', 0.0)
-                    synergy_data['confidence'] = min(1.0, max(0.0, synergy_data['confidence'] + confidence_adjustment))
-                    
-                except Exception as e:
-                    logger.warning(f"Failed to validate synergy {synergy_data.get('synergy_id')} with patterns: {e}")
-            
-            synergy = SynergyOpportunity(
-                synergy_id=synergy_data['synergy_id'],
-                synergy_type=synergy_data['synergy_type'],
-                device_ids=json.dumps(synergy_data['devices']),
-                opportunity_metadata=metadata,
-                impact_score=synergy_data['impact_score'],
-                complexity=synergy_data['complexity'],
-                confidence=synergy_data['confidence'],
-                area=synergy_data.get('area'),
-                created_at=now,
-                # Phase 2: Pattern validation fields
-                pattern_support_score=pattern_support_score,
-                validated_by_patterns=validated_by_patterns,
-                supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
+            except IntegrityError as e:
+                # Handle duplicate key errors gracefully
+                await db.rollback()
+                skipped_count += 1
+                logger.warning(f"Skipped duplicate synergy {synergy_data.get('synergy_id')}: {e}")
+                # Continue with next synergy
+                continue
+            except Exception as e:
+                # Handle other errors for this specific synergy
+                logger.warning(f"Error processing synergy {synergy_data.get('synergy_id')}: {e}")
+                skipped_count += 1
+                # Rollback this transaction and continue
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
+                continue
+        
+        # Commit all changes
+        try:
+            await db.commit()
+            validated_count = sum(1 for s in synergies if s.get('_validated', False)) if validate_with_patterns else 0
+            logger.info(
+                f"✅ Stored {stored_count} new, updated {updated_count} existing synergy opportunities"
+                + (f" ({validated_count} validated by patterns)" if validate_with_patterns else "")
+                + (f", skipped {skipped_count} duplicates/errors" if skipped_count > 0 else "")
             )
-            
-            db.add(synergy)
-            stored_count += 1
+            return stored_count + updated_count
+        except IntegrityError as e:
+            await db.rollback()
+            logger.error(f"Integrity error during commit: {e}", exc_info=True)
+            # Return partial success
+            return stored_count + updated_count
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to commit synergy opportunities: {e}", exc_info=True)
+            raise
         
-        await db.commit()
-        validated_count = sum(1 for s in synergies if s.get('_validated', False)) if validate_with_patterns else 0
-        logger.info(
-            f"✅ Stored {stored_count} synergy opportunities"
-            + (f" ({validated_count} validated by patterns)" if validate_with_patterns else "")
-        )
-        return stored_count
-        
+    except PendingRollbackError as e:
+        logger.error(f"Session in bad state (PendingRollbackError): {e}", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        raise Exception("Database session error - please retry the request")
     except Exception as e:
-        await db.rollback()
-        logger.error(f"❌ Failed to store synergies: {e}", exc_info=True)
+        logger.error(f"Failed to store synergy opportunities: {e}", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
         raise
 
 
@@ -832,7 +939,9 @@ async def get_synergy_opportunities(
     db: AsyncSession,
     synergy_type: Optional[str] = None,
     min_confidence: float = 0.0,
-    limit: int = 100
+    limit: int = 100,
+    order_by_priority: bool = False,
+    min_priority: Optional[float] = None
 ) -> List[SynergyOpportunity]:
     """
     Retrieve synergy opportunities from database.
@@ -842,11 +951,14 @@ async def get_synergy_opportunities(
         synergy_type: Optional filter by synergy type
         min_confidence: Minimum confidence threshold
         limit: Maximum number of results
+        order_by_priority: If True, order by calculated priority score instead of impact_score
+        min_priority: Optional minimum priority score threshold (only used if order_by_priority=True)
     
     Returns:
         List of SynergyOpportunity instances
         
     Story AI3.1: Device Synergy Detector Foundation
+    Enhanced: Priority-based selection support
     """
     try:
         query = select(SynergyOpportunity).where(
@@ -856,12 +968,47 @@ async def get_synergy_opportunities(
         if synergy_type:
             query = query.where(SynergyOpportunity.synergy_type == synergy_type)
         
-        query = query.order_by(SynergyOpportunity.impact_score.desc()).limit(limit)
+        # Priority-based ordering
+        if order_by_priority:
+            # Calculate priority score in SQL (mirrors Python function logic)
+            # Formula: (impact_score * 0.40) + (confidence * 0.25) + (pattern_support_score * 0.25) 
+            #          + (validated_bonus * 0.10) + complexity_adjustment
+            priority_score = (
+                SynergyOpportunity.impact_score * 0.40 +
+                SynergyOpportunity.confidence * 0.25 +
+                func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.25 +
+                case(
+                    (SynergyOpportunity.validated_by_patterns == True, 0.10),
+                    else_=0.0
+                ) +
+                case(
+                    (SynergyOpportunity.complexity == 'low', 0.10),
+                    (SynergyOpportunity.complexity == 'high', -0.10),
+                    else_=0.0
+                )
+            )
+            
+            # Order by priority score (descending)
+            query = query.order_by(priority_score.desc()).limit(limit * 2 if min_priority else limit)
+        else:
+            # Default: order by impact_score (backward compatible)
+            query = query.order_by(SynergyOpportunity.impact_score.desc()).limit(limit)
         
         result = await db.execute(query)
         synergies = result.scalars().all()
         
-        logger.debug(f"Retrieved {len(synergies)} synergy opportunities")
+        # Filter by min_priority in Python (SQLite compatibility - single home install, acceptable overhead)
+        if order_by_priority and min_priority is not None:
+            filtered_synergies = []
+            for synergy in synergies:
+                priority = calculate_synergy_priority_score(synergy)
+                if priority >= min_priority:
+                    filtered_synergies.append(synergy)
+                if len(filtered_synergies) >= limit:
+                    break
+            synergies = filtered_synergies
+        
+        logger.debug(f"Retrieved {len(synergies)} synergy opportunities (order_by_priority={order_by_priority})")
         return list(synergies)
         
     except Exception as e:
@@ -875,7 +1022,7 @@ async def get_synergy_opportunities(
             )
             # Fallback: Use explicit column selection to avoid Phase 2 columns
             # Note: This will return objects without Phase 2 fields, but they can be accessed safely with getattr
-            from sqlalchemy import select, column
+            # Note: select is already imported at module level, so no need to re-import
             base_columns = [
                 SynergyOpportunity.id,
                 SynergyOpportunity.synergy_id,
@@ -1002,3 +1149,58 @@ async def get_synergy_stats(db: AsyncSession) -> Dict:
         logger.error(f"Failed to get synergy stats: {e}", exc_info=True)
         raise
 
+
+def calculate_synergy_priority_score(synergy: Dict) -> float:
+    """
+    Calculate priority score for a synergy opportunity.
+    
+    Priority score formula:
+    - 40% impact_score
+    - 25% confidence
+    - 25% pattern_support_score
+    - 10% validation bonus (if validated_by_patterns)
+    - Complexity adjustment: low=+0.10, medium=0, high=-0.10
+    
+    Args:
+        synergy: Synergy opportunity dictionary or SynergyOpportunity instance
+                 Must have: impact_score, confidence, complexity
+                 Optional: pattern_support_score, validated_by_patterns
+    
+    Returns:
+        Priority score (0.0-1.0)
+        
+    Example:
+        synergy = {
+            'impact_score': 0.7,
+            'confidence': 0.8,
+            'pattern_support_score': 0.75,
+            'validated_by_patterns': True,
+            'complexity': 'low'
+        }
+        score = calculate_synergy_priority_score(synergy)  # ~0.88
+    """
+    # Extract values safely (works with both dict and object)
+    # Context7 Best Practice: Use helper function for type-safe attribute access
+    impact_score = float(_get_attr_safe(synergy, 'impact_score', 0.5))
+    confidence = float(_get_attr_safe(synergy, 'confidence', 0.7))
+    pattern_support_score = float(_get_attr_safe(synergy, 'pattern_support_score', 0.0))
+    validated_by_patterns = bool(_get_attr_safe(synergy, 'validated_by_patterns', False))
+    complexity = str(_get_attr_safe(synergy, 'complexity', 'medium')).lower()
+    
+    # Base score calculation
+    base_score = (
+        impact_score * 0.40 +
+        confidence * 0.25 +
+        pattern_support_score * 0.25 +
+        (0.10 if validated_by_patterns else 0.0)
+    )
+    
+    # Complexity adjustment
+    if complexity == 'low':
+        base_score += 0.10
+    elif complexity == 'high':
+        base_score -= 0.10
+    # medium complexity: no adjustment
+    
+    # Clamp to 0.0-1.0 range
+    return max(0.0, min(1.0, base_score))
