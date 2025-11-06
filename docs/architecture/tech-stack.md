@@ -144,6 +144,36 @@ The log-aggregator service provides centralized log collection from all running 
 - Group-based socket access (GID 0 via group_add)
 - No privileged mode required
 
+## Rate Limiting Middleware
+
+**Technology:** Custom FastAPI middleware with token bucket algorithm
+
+The AI Automation Service includes rate limiting middleware to prevent API abuse and ensure fair resource usage.
+
+**Key Features:**
+- **Token Bucket Algorithm**: Smooth rate limiting with burst capacity
+- **Per-IP Rate Limiting**: Separate rate limits for each client IP
+- **Internal Network Detection**: Higher limits for Docker internal network traffic
+- **Health Endpoint Exemption**: Health check endpoints bypass rate limits
+- **Configurable Limits**: Different limits for external vs internal clients
+
+**Rate Limit Configuration:**
+- **External IPs**: 600 requests/minute, 10,000 requests/hour
+- **Internal Docker Network** (172.x.x.x, 192.168.x.x, 10.x.x.x): 2,000 requests/minute
+- **Health Endpoints** (`/health`, `/api/health`): Exempt from rate limiting
+
+**Implementation:**
+- Location: `services/ai-automation-service/src/api/middlewares.py`
+- Applied automatically to all API endpoints via FastAPI middleware
+- Returns `429 Too Many Requests` with `Retry-After` header when limit exceeded
+- Includes rate limit headers in all responses (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`)
+
+**Benefits:**
+- **Prevents Abuse**: Protects API from excessive requests
+- **Fair Resource Usage**: Ensures all clients get fair access
+- **Dashboard-Friendly**: Higher limits for internal dashboard polling
+- **Health Monitoring**: Health checks never blocked by rate limits
+
 ## System Status (October 19, 2025)
 
 ### ✅ **CURRENT STATUS: FULLY OPERATIONAL**
@@ -156,7 +186,23 @@ The log-aggregator service provides centralized log collection from all running 
 - **Log Aggregation**: Active and collecting logs from all containers (2150+ entries)
 - **Success Rate**: 100% - No critical issues
 
-### **Recent Fixes Applied (October 2025)**
+### **Recent Fixes Applied (November 2025)**
+- **Rate Limiting**: Enhanced rate limiting middleware with internal network detection
+  - External IPs: 600 req/min, 10,000 req/hour
+  - Internal Docker network: 2,000 req/min
+  - Health endpoints exempt from rate limiting
+  - Prevents dashboard polling issues (429 errors)
+- **Synergy Detection**: Enabled energy and event context synergies in daily batch
+  - Energy context: Cost optimization opportunities ($10-15/month savings)
+  - Event context: Entertainment/event-based automations
+  - Priority-based selection with validated pattern boost
+  - Expected: +500-1,000 new automation opportunities
+- **Priority Score Calculation**: Fixed AttributeError for SQLAlchemy objects
+  - Type-safe attribute access helper
+  - Works with both dict and object types
+  - Daily batch synergy suggestion generation now works correctly
+
+### **Previous Fixes Applied (October 2025)**
 - **Log Aggregator**: Upgraded docker-py to v7.1.0 for urllib3 v2.x compatibility
   - Fixed "http+docker URL scheme" error
   - Removed deprecated requests-unixsocket dependency

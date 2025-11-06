@@ -102,16 +102,26 @@ HomeIQ is an enterprise-grade intelligence layer for Home Assistant featuring **
 │   - Anomaly detection                                    │
 │   Duration: 2-3 min                                      │
 │                                                           │
+│ Phase 3c: Synergy Detection (Epic AI-3) - ENHANCED       │
+│   - Part A: Device Pair Synergies                        │
+│   - Part B: Weather Context Synergies                    │
+│   - Part C: Energy Context Synergies (NEW)               │
+│   - Part D: Event Context Synergies (NEW)                │
+│   - Priority-based selection (500-1,000 opportunities)   │
+│   Duration: 1-2 min                                      │
+│                                                           │
 │ Phase 4: Feature Analysis (Epic AI-2)                    │
 │   - Match devices to capabilities                        │
 │   - Calculate utilization scores                         │
 │   - Identify unused features                             │
 │   Duration: 1-2 min                                      │
 │                                                           │
-│ Phase 5: Combined Suggestions (AI-1 + AI-2)              │
+│ Phase 5: Combined Suggestions (AI-1 + AI-2 + AI-3)       │
 │   - Generate pattern suggestions (OpenAI)                │
 │   - Generate feature suggestions (OpenAI)                │
+│   - Generate synergy suggestions (OpenAI)                │
 │   - Unified ranking (top 10)                             │
+│   - Validated synergies get 1.1x boost                   │
 │   Duration: 2-4 min                                      │
 │                                                           │
 │ Phase 6: Publish & Store                                 │
