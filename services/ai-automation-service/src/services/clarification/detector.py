@@ -84,6 +84,38 @@ class ClarificationDetector:
         # Extract device mentions from query (case-insensitive)
         query_lower = query.lower()
         
+        # Extract location mentions from query (e.g., "in my office", "in the kitchen")
+        location_patterns = [
+            # Pattern 1: "in my office", "at the kitchen", "of the bedroom"
+            r'\b(in|at|of)\s+(?:my|the|a|an)?\s*(\w+(?:\s+\w+)?)',
+            # Pattern 2: Direct location mentions (office, kitchen, etc.)
+            r'\b(office|desk|kitchen|bedroom|living\s+room|bathroom|garage|outdoor|outside|hallway|basement|attic)\b',
+        ]
+        
+        mentioned_locations = []
+        for pattern in location_patterns:
+            matches = re.finditer(pattern, query_lower)
+            for match in matches:
+                # Extract location from match (group 2 if exists, otherwise group 0)
+                if match.lastindex and match.lastindex >= 2:
+                    location = match.group(2)
+                else:
+                    location = match.group(0)
+                
+                # Clean up location (remove "in", "at", "of", "my", "the", etc.)
+                location = re.sub(r'^(in|at|of|my|the|a|an)\s+', '', location, flags=re.IGNORECASE).strip()
+                # Remove trailing "room", "area", "space" if present
+                location = re.sub(r'\s+(room|area|space)$', '', location, flags=re.IGNORECASE).strip()
+                
+                if location and len(location) > 1 and location not in mentioned_locations:
+                    mentioned_locations.append(location.lower())
+        
+        # Extract area entities from extracted entities
+        area_entities = [e for e in extracted_entities if e.get('type') == 'area']
+        mentioned_areas = [e.get('name', '').lower() for e in area_entities if e.get('name')]
+        mentioned_areas.extend(mentioned_locations)
+        mentioned_areas = list(set(mentioned_areas))  # Deduplicate
+        
         # Look for device patterns
         device_patterns = [
             r'\b(light|lights|sensor|sensors|switch|switches|device|devices)\b',
@@ -112,19 +144,128 @@ class ClarificationDetector:
             
             # Check in available devices
             if isinstance(available_devices, dict):
-                for device_id, device_info in available_devices.items():
-                    if isinstance(device_info, dict):
-                        device_name = device_info.get('friendly_name', device_info.get('name', '')).lower()
-                        if mention_lower in device_name:
-                            # Create entity-like dict
-                            entity_dict = {
-                                'entity_id': device_id,
-                                'name': device_info.get('friendly_name', device_id),
-                                'domain': device_id.split('.')[0] if '.' in device_id else 'unknown'
-                            }
-                            # Avoid duplicates
-                            if not any(e.get('entity_id') == device_id for e in matching_entities):
-                                matching_entities.append(entity_dict)
+                # Check entities list (from DataFrame.to_dict('records'))
+                entities_list = available_devices.get('entities', [])
+                if isinstance(entities_list, list):
+                    for entity_info in entities_list:
+                        if isinstance(entity_info, dict):
+                            entity_id = entity_info.get('entity_id', '')
+                            entity_name = entity_info.get('friendly_name', entity_info.get('name', '')).lower()
+                            if mention_lower in entity_name and entity_id:
+                                # Create entity-like dict with area info
+                                entity_dict = {
+                                    'entity_id': entity_id,
+                                    'name': entity_info.get('friendly_name', entity_id),
+                                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+                                    'area_id': entity_info.get('area_id', entity_info.get('area', '')),
+                                    'device_area_id': entity_info.get('device_area_id', '')
+                                }
+                                # Avoid duplicates
+                                if not any(e.get('entity_id') == entity_id for e in matching_entities):
+                                    matching_entities.append(entity_dict)
+                
+                # Also check entities_by_domain (has area info)
+                entities_by_domain = available_devices.get('entities_by_domain', {})
+                if isinstance(entities_by_domain, dict):
+                    for domain, domain_entities in entities_by_domain.items():
+                        if isinstance(domain_entities, list):
+                            for entity_info in domain_entities:
+                                if isinstance(entity_info, dict):
+                                    entity_id = entity_info.get('entity_id', '')
+                                    entity_name = entity_info.get('friendly_name', entity_info.get('name', '')).lower()
+                                    if mention_lower in entity_name and entity_id:
+                                        # Create entity-like dict with area info
+                                        entity_dict = {
+                                            'entity_id': entity_id,
+                                            'name': entity_info.get('friendly_name', entity_id),
+                                            'domain': domain,
+                                            'area_id': entity_info.get('area', entity_info.get('area_id', '')),
+                                            'device_area_id': entity_info.get('device_area_id', '')
+                                        }
+                                        # Avoid duplicates
+                                        if not any(e.get('entity_id') == entity_id for e in matching_entities):
+                                            matching_entities.append(entity_dict)
+                
+                # Check devices list (from DataFrame.to_dict('records'))
+                devices_list = available_devices.get('devices', [])
+                if isinstance(devices_list, list):
+                    for device_info in devices_list:
+                        if isinstance(device_info, dict):
+                            device_id = device_info.get('device_id', device_info.get('id', ''))
+                            device_name = device_info.get('friendly_name', device_info.get('name', '')).lower()
+                            if mention_lower in device_name and device_id:
+                                # Create entity-like dict
+                                entity_dict = {
+                                    'entity_id': device_id,
+                                    'name': device_info.get('friendly_name', device_id),
+                                    'domain': 'device',
+                                    'area_id': device_info.get('area_id', ''),
+                                    'device_area_id': device_info.get('area_id', '')
+                                }
+                                # Avoid duplicates
+                                if not any(e.get('entity_id') == device_id for e in matching_entities):
+                                    matching_entities.append(entity_dict)
+            
+            # NEW: Check for location mismatches
+            if mentioned_areas and matching_entities:
+                location_mismatches = []
+                for entity in matching_entities:
+                    # Get entity area (try multiple fields)
+                    entity_area = (
+                        entity.get('area_id', '') or 
+                        entity.get('device_area_id', '') or 
+                        entity.get('area_name', '') or
+                        entity.get('area', '')
+                    ).lower()
+                    
+                    # Check if entity area matches any mentioned location
+                    area_matches = False
+                    for mentioned_area in mentioned_areas:
+                        # Normalize area names (remove common words, handle partial matches)
+                        normalized_mentioned = re.sub(r'\b(room|area|space)\b', '', mentioned_area).strip()
+                        normalized_entity = re.sub(r'\b(room|area|space)\b', '', entity_area).strip()
+                        
+                        if (mentioned_area in entity_area or 
+                            entity_area in mentioned_area or
+                            normalized_mentioned in normalized_entity or
+                            normalized_entity in normalized_mentioned):
+                            area_matches = True
+                            break
+                    
+                    # If entity has an area but doesn't match mentioned location, flag it
+                    if entity_area and not area_matches:
+                        location_mismatches.append({
+                            'entity': entity,
+                            'entity_area': entity_area,
+                            'mentioned_areas': mentioned_areas
+                        })
+                
+                # If we have location mismatches, create ambiguity
+                if location_mismatches:
+                    mismatched_entities = [m['entity'] for m in location_mismatches]
+                    ambiguities.append(Ambiguity(
+                        id=f"amb-{id_counter}",
+                        type=AmbiguityType.DEVICE,
+                        severity=AmbiguitySeverity.CRITICAL,
+                        description=f"Device '{mention}' matches devices in wrong location. You mentioned: {', '.join(mentioned_areas)}",
+                        context={
+                            'mention': mention,
+                            'mentioned_locations': mentioned_areas,
+                            'mismatches': [
+                                {
+                                    'entity_id': e.get('entity_id'),
+                                    'name': e.get('name', e.get('friendly_name')),
+                                    'actual_area': m['entity_area'],
+                                    'expected_areas': m['mentioned_areas']
+                                }
+                                for e, m in zip(mismatched_entities, location_mismatches)
+                            ]
+                        },
+                        related_entities=[e.get('entity_id') for e in mismatched_entities if e.get('entity_id')],
+                        detected_text=mention
+                    ))
+                    id_counter += 1
+                    continue  # Skip multiple match check if we already flagged location mismatch
             
             # If multiple matches, create ambiguity
             if len(matching_entities) > 1:
@@ -138,7 +279,8 @@ class ClarificationDetector:
                         'matches': [
                             {
                                 'entity_id': e.get('entity_id'),
-                                'name': e.get('name', e.get('friendly_name'))
+                                'name': e.get('name', e.get('friendly_name')),
+                                'area': e.get('area_id') or e.get('device_area_id') or 'unknown'
                             }
                             for e in matching_entities
                         ]

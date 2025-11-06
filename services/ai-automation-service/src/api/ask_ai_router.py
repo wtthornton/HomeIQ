@@ -2501,7 +2501,8 @@ async def generate_technical_prompt(
 async def generate_suggestions_from_query(
     query: str, 
     entities: List[Dict[str, Any]], 
-    user_id: str
+    user_id: str,
+    clarification_context: Optional[Dict[str, Any]] = None  # NEW: Clarification Q&A
 ) -> List[Dict[str, Any]]:
     """Generate automation suggestions based on query and entities"""
     if not openai_client:
@@ -2542,11 +2543,50 @@ async def generate_suggestions_from_query(
                 query_domains = entity_validator._extract_all_domains_from_query(query)  # Get ALL domains
                 query_domain = query_domains[0] if query_domains else None  # Keep single domain for logging
                 
+                # NEW: If clarification context has selected entities, prioritize those
+                qa_selected_entity_ids = []
+                if clarification_context and clarification_context.get('questions_and_answers'):
+                    for qa in clarification_context['questions_and_answers']:
+                        selected = qa.get('selected_entities', [])
+                        if selected:
+                            for entity_ref in selected:
+                                # Check if it's an entity_id (contains '.')
+                                if '.' in entity_ref and (entity_ref.startswith('light.') or 
+                                                          entity_ref.startswith('switch.') or
+                                                          entity_ref.startswith('binary_sensor.') or
+                                                          entity_ref.startswith('sensor.')):
+                                    qa_selected_entity_ids.append(entity_ref)
+                
+                if qa_selected_entity_ids:
+                    logger.info(f"🔍 Found {len(qa_selected_entity_ids)} selected entity IDs from Q&A: {qa_selected_entity_ids}")
+                
                 logger.info(f"🔍 Extracted location='{query_location}', domains={query_domains} from query")
                 
                 # Fetch ALL entities matching the query context (all domains, all office lights, all sensors)
                 resolved_entity_ids = []
                 all_available_entities = []
+                
+                # NEW: If Q&A selected entities exist, start with those
+                if qa_selected_entity_ids:
+                    logger.info(f"🔍 Prioritizing {len(qa_selected_entity_ids)} Q&A-selected entities")
+                    # Verify these entities exist and fetch their details
+                    for entity_id in qa_selected_entity_ids:
+                        try:
+                            # Get entity state to verify it exists
+                            state = await ha_client.get_entity_state(entity_id)
+                            if state:
+                                # Build entity dict from state
+                                attributes = state.get('attributes', {})
+                                entity_dict = {
+                                    'entity_id': entity_id,
+                                    'friendly_name': attributes.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title()),
+                                    'area_id': attributes.get('area_id'),
+                                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                                }
+                                all_available_entities.append(entity_dict)
+                                logger.info(f"✅ Verified Q&A-selected entity: {entity_id} ({entity_dict['friendly_name']})")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Q&A-selected entity {entity_id} not found or invalid: {e}")
                 
                 # Fetch entities for each domain found in query
                 for domain in query_domains:
@@ -2555,7 +2595,11 @@ async def generate_suggestions_from_query(
                         area_id=query_location
                     )
                     if available_entities:
-                        all_available_entities.extend(available_entities)
+                        # Add only if not already in Q&A-selected entities
+                        for entity in available_entities:
+                            entity_id = entity.get('entity_id')
+                            if entity_id and entity_id not in qa_selected_entity_ids:
+                                all_available_entities.append(entity)
                         logger.info(f"✅ Found {len(available_entities)} entities for domain '{domain}' in location '{query_location}'")
                 
                 # If no domains found, try fetching without domain filter (location only)
@@ -2694,8 +2738,145 @@ async def generate_suggestions_from_query(
                         enrichment_context=enrichment_context  # NEW: Add enrichment context
                     )
                     
+                    # ========================================================================
+                    # LOCATION-AWARE ENTITY EXPANSION (NEW)
+                    # ========================================================================
+                    # Extract locations mentioned in query and clarification context
+                    mentioned_locations = set()
+                    query_lower = query.lower()
+                    
+                    # Common location keywords
+                    location_keywords = [
+                        'office', 'living room', 'bedroom', 'kitchen', 'bathroom', 'dining room',
+                        'garage', 'basement', 'attic', 'hallway', 'entryway', 'patio', 'deck',
+                        'outdoor', 'outdoors', 'garden', 'yard', 'backyard', 'front yard'
+                    ]
+                    
+                    # Extract locations from query
+                    for keyword in location_keywords:
+                        if keyword in query_lower:
+                            # Normalize location name (e.g., "living room" -> "living_room")
+                            normalized = keyword.replace(' ', '_')
+                            mentioned_locations.add(normalized)
+                            # Also try the original format
+                            mentioned_locations.add(keyword)
+                    
+                    # Extract locations from clarification context
+                    if clarification_context:
+                        qa_list = clarification_context.get('questions_and_answers', [])
+                        for qa in qa_list:
+                            answer = qa.get('answer', '').lower()
+                            for keyword in location_keywords:
+                                if keyword in answer:
+                                    normalized = keyword.replace(' ', '_')
+                                    mentioned_locations.add(normalized)
+                                    mentioned_locations.add(keyword)
+                    
+                    # Extract device domain/type from query and entities
+                    mentioned_domains = set()
+                    if entities:
+                        for entity in entities:
+                            domain = entity.get('domain', '').lower()
+                            if domain and domain != 'unknown':
+                                mentioned_domains.add(domain)
+                            # Also check name for domain hints
+                            name = entity.get('name', '').lower()
+                            if 'light' in name or 'lamp' in name:
+                                mentioned_domains.add('light')
+                            elif 'sensor' in name:
+                                mentioned_domains.add('binary_sensor')
+                            elif 'switch' in name:
+                                mentioned_domains.add('switch')
+                    
+                    # Expand entities by location if location is mentioned
+                    location_expanded_entity_ids = set(resolved_entity_ids)
+                    if mentioned_locations and ha_client:
+                        logger.info(f"📍 Location-aware expansion: Found locations {mentioned_locations}")
+                        for location in mentioned_locations:
+                            # Try to expand for each mentioned domain
+                            for domain in mentioned_domains:
+                                try:
+                                    area_entities = await ha_client.get_entities_by_area_and_domain(
+                                        area_id=location,
+                                        domain=domain
+                                    )
+                                    if area_entities:
+                                        area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
+                                        location_expanded_entity_ids.update(area_entity_ids)
+                                        logger.info(f"✅ Expanded by location '{location}' + domain '{domain}': Added {len(area_entity_ids)} entities")
+                                        
+                                        # Also enrich these new entities
+                                        for area_entity in area_entities:
+                                            entity_id = area_entity.get('entity_id')
+                                            if entity_id and entity_id not in enriched_data:
+                                                # Add to enriched_data with basic info
+                                                enriched_data[entity_id] = {
+                                                    'entity_id': entity_id,
+                                                    'friendly_name': area_entity.get('friendly_name', entity_id),
+                                                    'area_id': area_entity.get('area_id'),
+                                                    'area_name': area_entity.get('area_id'),  # Use area_id as area_name
+                                                    'domain': domain,
+                                                    'state': area_entity.get('state'),
+                                                    'attributes': area_entity.get('attributes', {})
+                                                }
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Error expanding entities for location '{location}' + domain '{domain}': {e}")
+                            
+                            # If no specific domain, try to get all entities in the area
+                            if not mentioned_domains:
+                                try:
+                                    area_entities = await ha_client.get_entities_by_area_and_domain(
+                                        area_id=location,
+                                        domain=None
+                                    )
+                                    if area_entities:
+                                        area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
+                                        location_expanded_entity_ids.update(area_entity_ids)
+                                        logger.info(f"✅ Expanded by location '{location}' (all domains): Added {len(area_entity_ids)} entities")
+                                        
+                                        # Enrich new entities
+                                        for area_entity in area_entities:
+                                            entity_id = area_entity.get('entity_id')
+                                            if entity_id and entity_id not in enriched_data:
+                                                enriched_data[entity_id] = {
+                                                    'entity_id': entity_id,
+                                                    'friendly_name': area_entity.get('friendly_name', entity_id),
+                                                    'area_id': area_entity.get('area_id'),
+                                                    'area_name': area_entity.get('area_id'),
+                                                    'domain': area_entity.get('domain', 'unknown'),
+                                                    'state': area_entity.get('state'),
+                                                    'attributes': area_entity.get('attributes', {})
+                                                }
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Error expanding entities for location '{location}': {e}")
+                        
+                        # Re-enrich all expanded entities comprehensively
+                        if location_expanded_entity_ids != set(resolved_entity_ids):
+                            new_entity_ids = location_expanded_entity_ids - set(resolved_entity_ids)
+                            logger.info(f"🔄 Re-enriching {len(new_entity_ids)} location-expanded entities")
+                            try:
+                                from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                                new_enriched = await enrich_entities_comprehensively(
+                                    entity_ids=new_entity_ids,
+                                    ha_client=ha_client,
+                                    device_intelligence_client=_device_intelligence_client,
+                                    data_api_client=None,
+                                    include_historical=False,
+                                    enrichment_context=enrichment_context
+                                )
+                                enriched_data.update(new_enriched)
+                            except Exception as e:
+                                logger.warning(f"⚠️ Error re-enriching location-expanded entities: {e}")
+                    
+                    # Update resolved_entity_ids to include location-expanded entities
+                    resolved_entity_ids = list(location_expanded_entity_ids)
+                    
+                    # ========================================================================
+                    # LOCATION-PRIORITY FILTERING (NEW)
+                    # ========================================================================
                     # OPTIMIZATION: Filter entity context to reduce token usage
-                    # Only include entities that match extracted device names from query
+                    # Priority: Location matching > Device name matching
+                    # Only include entities that match location OR extracted device names
                     # BUT: Don't filter if extracted names are generic domain terms (e.g., "lights", "sensor", "led")
                     # This reduces prompt size while still giving AI enough context
                     filtered_entity_ids_for_prompt = set(resolved_entity_ids)
@@ -2710,17 +2891,50 @@ async def generate_suggestions_from_query(
                         'tv', 'television', 'speaker', 'speakers', 'lock', 'locks'
                     }
                     
-                    # If we have extracted entities with names, try to match them
+                    # Step 1: Filter by location if location is mentioned (HIGHEST PRIORITY)
+                    if mentioned_locations:
+                        location_filtered_entity_ids = set()
+                        for entity_id in resolved_entity_ids:
+                            enriched = enriched_data.get(entity_id, {})
+                            # Handle None values: get() returns None if key exists but value is None
+                            entity_area_id_raw = enriched.get('area_id') or ''
+                            entity_area_name_raw = enriched.get('area_name') or ''
+                            entity_area_id = entity_area_id_raw.lower() if isinstance(entity_area_id_raw, str) else ''
+                            entity_area_name = entity_area_name_raw.lower() if isinstance(entity_area_name_raw, str) else ''
+                            
+                            # Check if entity is in any mentioned location
+                            entity_matches_location = False
+                            for location in mentioned_locations:
+                                location_lower = location.lower().replace('_', ' ')
+                                # Check area_id and area_name
+                                if (location_lower in entity_area_id or 
+                                    entity_area_id in location_lower or
+                                    location_lower in entity_area_name or
+                                    entity_area_name in location_lower):
+                                    entity_matches_location = True
+                                    break
+                            
+                            if entity_matches_location:
+                                location_filtered_entity_ids.add(entity_id)
+                        
+                        if location_filtered_entity_ids:
+                            filtered_entity_ids_for_prompt = location_filtered_entity_ids
+                            logger.info(f"📍 Location-filtered: {len(location_filtered_entity_ids)}/{len(resolved_entity_ids)} entities match locations {mentioned_locations}")
+                        else:
+                            logger.warning(f"⚠️ No entities matched locations {mentioned_locations}, using all entities")
+                    
+                    # Step 2: Further filter by device name if specific names are mentioned (SECONDARY)
                     if entities:
                         extracted_device_names = [e.get('name', '').lower().strip() for e in entities if e.get('name')]
                         if extracted_device_names:
                             # Check if extracted names are generic domain terms
                             specific_names = [name for name in extracted_device_names if name not in generic_terms]
                             
-                            if specific_names:
+                            if specific_names and not mentioned_locations:
+                                # Only filter by name if no location was mentioned (location takes priority)
                                 # We have specific device names, filter to match them
                                 matching_entity_ids = set()
-                                for entity_id in resolved_entity_ids:
+                                for entity_id in filtered_entity_ids_for_prompt:
                                     enriched = enriched_data.get(entity_id, {})
                                     friendly_name = enriched.get('friendly_name', '').lower()
                                     entity_id_lower = entity_id.lower()
@@ -2736,12 +2950,40 @@ async def generate_suggestions_from_query(
                                 # If we found matches, use them; otherwise use all (fallback)
                                 if matching_entity_ids:
                                     filtered_entity_ids_for_prompt = matching_entity_ids
-                                    logger.info(f"🔍 Filtered entity context: {len(matching_entity_ids)}/{len(resolved_entity_ids)} entities match specific extracted device names: {specific_names}")
+                                    logger.info(f"🔍 Name-filtered: {len(matching_entity_ids)}/{len(resolved_entity_ids)} entities match specific extracted device names: {specific_names}")
                                 else:
                                     logger.info(f"⚠️ No entities matched specific names {specific_names}, using all {len(resolved_entity_ids)} entities")
+                            elif specific_names and mentioned_locations:
+                                # Location was mentioned, but also check device names within location-filtered entities
+                                # This ensures we don't include wrong device types in the location
+                                device_name_filtered = set()
+                                for entity_id in filtered_entity_ids_for_prompt:
+                                    enriched = enriched_data.get(entity_id, {})
+                                    friendly_name = enriched.get('friendly_name', '').lower()
+                                    entity_id_lower = entity_id.lower()
+                                    
+                                    # Check if entity matches any specific extracted device name
+                                    for device_name in specific_names:
+                                        if (device_name in friendly_name or 
+                                            friendly_name in device_name or
+                                            device_name in entity_id_lower):
+                                            device_name_filtered.add(entity_id)
+                                            break
+                                    
+                                    # Also check if entity domain matches mentioned domains
+                                    entity_domain = enriched.get('domain', '').lower()
+                                    if entity_domain in mentioned_domains:
+                                        device_name_filtered.add(entity_id)
+                                
+                                if device_name_filtered:
+                                    filtered_entity_ids_for_prompt = device_name_filtered
+                                    logger.info(f"🔍 Location + Name filtered: {len(device_name_filtered)} entities match both location and device names")
                             else:
-                                # All extracted names are generic terms - don't filter, include all query-context entities
-                                logger.info(f"ℹ️ Extracted names are generic terms {extracted_device_names}, not filtering - using all {len(resolved_entity_ids)} query-context entities")
+                                # All extracted names are generic terms - don't filter by name
+                                if mentioned_locations:
+                                    logger.info(f"ℹ️ Generic device names {extracted_device_names} but location specified - using location-filtered entities")
+                                else:
+                                    logger.info(f"ℹ️ Extracted names are generic terms {extracted_device_names}, not filtering - using all {len(resolved_entity_ids)} query-context entities")
                     
                     # Build entity context JSON from filtered entities
                     # Create entity dicts for context builder from enriched data
@@ -2784,7 +3026,8 @@ async def generate_suggestions_from_query(
             query=query,
             entities=entities,
             output_mode="suggestions",
-            entity_context_json=entity_context_json  # Pass enriched context
+            entity_context_json=entity_context_json,  # Pass enriched context
+            clarification_context=clarification_context  # NEW: Pass clarification Q&A
         )
         
         # Generate suggestions with unified prompt
@@ -2797,7 +3040,8 @@ async def generate_suggestions_from_query(
             'system_prompt': prompt_dict.get('system_prompt', ''),
             'user_prompt': prompt_dict.get('user_prompt', ''),
             'openai_response': None,
-            'token_usage': None
+            'token_usage': None,
+            'clarification_context': clarification_context  # NEW: Include clarification in debug
         }
         
         try:
@@ -2810,6 +3054,10 @@ async def generate_suggestions_from_query(
             
             # Store OpenAI response (parsed JSON)
             openai_debug_data['openai_response'] = suggestions_data
+            
+            # Capture token usage from last API call
+            if openai_client.last_usage:
+                openai_debug_data['token_usage'] = openai_client.last_usage
             
             logger.info(f"OpenAI response received: {suggestions_data}")
             
@@ -2892,6 +3140,76 @@ async def generate_suggestions_from_query(
                     )
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
+                        
+                        # NEW: Validate location context for matched devices
+                        location_mismatch_detected = False
+                        query_location = None
+                        try:
+                            logger.info(f"🔍 [LOCATION VALIDATION] Starting location validation for suggestion {i+1}")
+                            # Extract location from query
+                            from ..services.entity_validator import EntityValidator
+                            from ..clients.data_api_client import DataAPIClient
+                            data_api_client = DataAPIClient()
+                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_for_mapping)
+                            query_location = entity_validator._extract_location_from_query(query)
+                            logger.info(f"🔍 [LOCATION VALIDATION] Extracted query_location: '{query_location}' from query: '{query}'")
+                            
+                            # Check if any matched devices are in wrong location
+                            if query_location:
+                                logger.info(f"🔍 [LOCATION VALIDATION] Query has location '{query_location}', checking {len(validated_entities)} matched devices")
+                                query_location_lower = query_location.lower()
+                                mismatched_devices = []
+                                
+                                for device_name, entity_id in validated_entities.items():
+                                    entity_data = enriched_data.get(entity_id, {})
+                                    entity_area_raw = (
+                                        entity_data.get('area_id') or 
+                                        entity_data.get('device_area_id') or
+                                        entity_data.get('area_name')
+                                    )
+                                    entity_area = entity_area_raw.lower() if entity_area_raw else ''
+                                    
+                                    logger.info(f"🔍 [LOCATION VALIDATION] Device '{device_name}' (entity_id: {entity_id}) has area: '{entity_area}' (query expects: '{query_location_lower}')")
+                                    
+                                    # Normalize area names for comparison
+                                    import re
+                                    normalized_query = re.sub(r'\b(room|area|space)\b', '', query_location_lower).strip()
+                                    normalized_entity = re.sub(r'\b(room|area|space)\b', '', entity_area).strip()
+                                    
+                                    # Check if entity area matches query location
+                                    area_matches = (
+                                        query_location_lower in entity_area or
+                                        entity_area in query_location_lower or
+                                        normalized_query in normalized_entity or
+                                        normalized_entity in normalized_query
+                                    )
+                                    
+                                    logger.info(f"🔍 [LOCATION VALIDATION] Area match check: entity_area='{entity_area}', query_location='{query_location_lower}', normalized_query='{normalized_query}', normalized_entity='{normalized_entity}', matches={area_matches}")
+                                    
+                                    # If entity has an area but doesn't match, flag it
+                                    if entity_area and not area_matches:
+                                        logger.warning(f"🔍 [LOCATION VALIDATION] MISMATCH DETECTED: Device '{device_name}' is in '{entity_area}' but query expects '{query_location_lower}'")
+                                        mismatched_devices.append({
+                                            'device': device_name,
+                                            'entity_id': entity_id,
+                                            'entity_area': entity_area,
+                                            'expected_location': query_location
+                                        })
+                                        location_mismatch_detected = True
+                                
+                                if location_mismatch_detected:
+                                    logger.warning(
+                                        f"⚠️ LOCATION MISMATCH detected in suggestion {i+1}: "
+                                        f"Query mentions '{query_location}' but matched devices are in different locations: "
+                                        f"{[m['entity_area'] for m in mismatched_devices]}"
+                                    )
+                                    # Lower confidence for location mismatches
+                                    suggestion['confidence'] = max(0.3, suggestion.get('confidence', 0.9) * 0.5)
+                                    logger.info(f"📉 Lowered confidence to {suggestion['confidence']:.2f} due to location mismatch")
+                            else:
+                                logger.info(f"🔍 [LOCATION VALIDATION] No location extracted from query, skipping validation")
+                        except Exception as e:
+                            logger.error(f"❌ Error validating location context: {e}", exc_info=True)
                         
                         # Consolidate devices_involved to remove redundant entries (single-home optimization)
                         devices_involved = consolidate_devices_involved(devices_involved, validated_entities)
@@ -3047,7 +3365,8 @@ async def generate_suggestions_from_query(
                     'filtered_user_prompt': filtered_user_prompt,  # NEW: Filtered prompt (only entities used)
                     'openai_response': openai_debug_data.get('openai_response'),
                     'token_usage': openai_debug_data.get('token_usage'),
-                    'entity_context_stats': entity_context_stats  # NEW: Context statistics
+                    'entity_context_stats': entity_context_stats,  # NEW: Context statistics
+                    'clarification_context': openai_debug_data.get('clarification_context')  # NEW: Clarification Q&A
                 }
                 base_suggestion['technical_prompt'] = technical_prompt
                 
@@ -3120,19 +3439,24 @@ async def process_natural_language_query(
         automation_context = {}
         try:
             from ..clients.data_api_client import DataAPIClient
+            import pandas as pd
             data_api_client = DataAPIClient()
-            devices_df = await data_api_client.fetch_devices(limit=100)
-            entities_df = await data_api_client.fetch_entities(limit=200)
+            devices_result = await data_api_client.fetch_devices(limit=100)
+            entities_result = await data_api_client.fetch_entities(limit=200)
+            
+            # Handle both DataFrame and list responses
+            devices_df = devices_result if isinstance(devices_result, pd.DataFrame) else pd.DataFrame(devices_result if isinstance(devices_result, list) else [])
+            entities_df = entities_result if isinstance(entities_result, pd.DataFrame) else pd.DataFrame(entities_result if isinstance(entities_result, list) else [])
             
             # Convert to dict format for clarification
             automation_context = {
-                'devices': devices_df.to_dict('records') if not devices_df.empty else [],
-                'entities': entities_df.to_dict('records') if not entities_df.empty else [],
+                'devices': devices_df.to_dict('records') if isinstance(devices_df, pd.DataFrame) and not devices_df.empty else (devices_result if isinstance(devices_result, list) else []),
+                'entities': entities_df.to_dict('records') if isinstance(entities_df, pd.DataFrame) and not entities_df.empty else (entities_result if isinstance(entities_result, list) else []),
                 'entities_by_domain': {}
             }
             
             # Organize entities by domain
-            if not entities_df.empty:
+            if isinstance(entities_df, pd.DataFrame) and not entities_df.empty:
                 for _, entity in entities_df.iterrows():
                     entity_id = entity.get('entity_id', '')
                     if entity_id:
@@ -3144,8 +3468,22 @@ async def process_natural_language_query(
                             'friendly_name': entity.get('friendly_name', entity_id),
                             'area': entity.get('area_id', 'unknown')
                         })
+            elif isinstance(entities_result, list):
+                # Handle list response
+                for entity in entities_result:
+                    if isinstance(entity, dict):
+                        entity_id = entity.get('entity_id', '')
+                        if entity_id:
+                            domain = entity_id.split('.')[0]
+                            if domain not in automation_context['entities_by_domain']:
+                                automation_context['entities_by_domain'][domain] = []
+                            automation_context['entities_by_domain'][domain].append({
+                                'entity_id': entity_id,
+                                'friendly_name': entity.get('friendly_name', entity_id),
+                                'area': entity.get('area_id', 'unknown')
+                            })
         except Exception as e:
-            logger.warning(f"Failed to build automation context for clarification: {e}")
+            logger.error(f"❌ Failed to build automation context for clarification: {e}", exc_info=True)
             automation_context = {}
         
         # Detect ambiguities
@@ -3195,6 +3533,10 @@ async def process_natural_language_query(
                         _clarification_sessions[clarification_session_id] = session
                         
                         logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
+                        for i, q in enumerate(questions, 1):
+                            logger.info(f"  Question {i}: {q.question_text if hasattr(q, 'question_text') else str(q)}")
+                    else:
+                        logger.warning(f"⚠️ Clarification needed but no questions generated! Ambiguities: {len(ambiguities)}")
             except Exception as e:
                 logger.error(f"Failed to detect ambiguities: {e}", exc_info=True)
                 # Continue with normal flow if clarification fails
@@ -3215,6 +3557,78 @@ async def process_natural_language_query(
             # Recalculate confidence with suggestions
             if suggestions:
                 confidence = min(0.9, confidence + (len(suggestions) * 0.1))
+                
+                # NEW: Check for location mismatches in generated suggestions
+                # If any suggestion has low confidence due to location mismatch, trigger clarification
+                location_mismatch_found = False
+                query_location = None
+                for suggestion in suggestions:
+                    # Check if confidence was lowered due to location mismatch
+                    # We lowered it to max(0.3, original * 0.5), so if it's <= 0.5, likely a mismatch
+                    if suggestion.get('confidence', 1.0) <= 0.5:
+                        # Check if this is a location mismatch by examining validated_entities
+                        validated_entities = suggestion.get('validated_entities', {})
+                        if validated_entities and clarification_detector:
+                            try:
+                                # Extract location from query
+                                from ..services.entity_validator import EntityValidator
+                                from ..clients.data_api_client import DataAPIClient
+                                data_api_client = DataAPIClient()
+                                ha_client_check = ha_client if 'ha_client' in locals() else get_ha_client()
+                                entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_check)
+                                query_location = entity_validator._extract_location_from_query(request.query)
+                                
+                                if query_location:
+                                    # Check if any matched entities are in wrong location
+                                    location_mismatch_found = True
+                                    logger.warning(
+                                        f"⚠️ Location mismatch detected in suggestions - triggering clarification. "
+                                        f"Query location: '{query_location}'"
+                                    )
+                                    break
+                            except Exception as e:
+                                logger.warning(f"⚠️ Error checking for location mismatch: {e}", exc_info=True)
+                
+                # If location mismatch found, generate clarification questions
+                if location_mismatch_found and not questions and clarification_detector and question_generator and query_location:
+                    try:
+                        # Create a location mismatch ambiguity
+                        from ..services.clarification.models import Ambiguity, AmbiguityType, AmbiguitySeverity
+                        location_ambiguity = Ambiguity(
+                            id="amb-location-mismatch",
+                            type=AmbiguityType.DEVICE,
+                            severity=AmbiguitySeverity.CRITICAL,
+                            description=f"Device location mismatch: Query mentions '{query_location}' but matched devices are in different areas",
+                            context={
+                                'query_location': query_location,
+                                'suggestions_with_mismatch': len([s for s in suggestions if s.get('confidence', 1.0) <= 0.5])
+                            },
+                            detected_text="location mismatch"
+                        )
+                        
+                        # Generate questions for location mismatch
+                        location_questions = await question_generator.generate_questions(
+                            ambiguities=[location_ambiguity],
+                            query=request.query,
+                            context=automation_context
+                        )
+                        
+                        if location_questions:
+                            questions.extend(location_questions)
+                            # Create clarification session
+                            clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
+                            session = ClarificationSession(
+                                session_id=clarification_session_id,
+                                original_query=request.query,
+                                questions=questions,
+                                current_confidence=confidence,
+                                ambiguities=[location_ambiguity],
+                                query_id=query_id
+                            )
+                            _clarification_sessions[clarification_session_id] = session
+                            logger.info(f"🔍 Generated {len(location_questions)} clarification questions for location mismatch")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error generating location mismatch clarification: {e}", exc_info=True)
         
         # Step 4: Determine parsed intent
         intent_keywords = {
@@ -3267,9 +3681,27 @@ async def process_natural_language_query(
         
         message = None
         if questions:
-            message = f"I found some ambiguities in your request. Please answer {len(questions)} question(s) to help me create the automation accurately."
+            # Build a detailed message explaining what was found and what's ambiguous
+            device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
+            area_names = [e.get('name', '') for e in entities if e.get('type') == 'area']
+            
+            device_info = f" I detected these devices: {', '.join(device_names) if device_names else 'none'}." if device_names else ""
+            area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
+            
+            message = f"I found some ambiguities in your request.{device_info}{area_info} Please answer {len(questions)} question(s) to help me create the automation accurately."
         elif suggestions:
-            message = f"I found {len(suggestions)} automation suggestion(s) for your request."
+            device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
+            device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else ""
+            message = f"I found {len(suggestions)} automation suggestion(s) for your request.{device_info}"
+        else:
+            # No suggestions and no questions - explain why
+            device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
+            area_names = [e.get('name', '') for e in entities if e.get('type') == 'area']
+            
+            device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else " I couldn't identify specific devices."
+            area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
+            
+            message = f"I couldn't generate automation suggestions for your request.{device_info}{area_info} Please provide more details about the devices and locations you want to use."
         
         response = AskAIQueryResponse(
             query_id=query_id,
@@ -3286,7 +3718,12 @@ async def process_natural_language_query(
             message=message
         )
         
+        # Log response details for debugging
         logger.info(f"✅ Ask AI query processed and saved: {len(suggestions)} suggestions, {confidence:.2f} confidence")
+        logger.info(f"📋 Response details: clarification_needed={bool(questions)}, questions_count={len(questions) if questions else 0}, message='{message}'")
+        if questions_dict:
+            logger.info(f"📋 Questions being returned: {[q.get('question_text', 'NO TEXT') for q in questions_dict]}")
+        
         return response
         
     except Exception as e:
@@ -3298,6 +3735,251 @@ async def process_natural_language_query(
             status_code=500,
             detail=f"Failed to process query: {str(e)}"
         )
+
+
+def _rebuild_user_query_from_qa(
+    original_query: str,
+    clarification_context: Dict[str, Any]
+) -> str:
+    """
+    Rebuild enriched user query from original question + Q&A answers.
+    
+    This creates a comprehensive prompt that includes:
+    - Original user question
+    - All clarification questions and answers
+    - Selected entities from Q&A answers
+    - Device details from selected entities
+    
+    Args:
+        original_query: Original user question
+        clarification_context: Dictionary with questions_and_answers
+        
+    Returns:
+        Enriched query string with all Q&A information
+    """
+    # Start with original query
+    enriched_parts = [f"Original request: {original_query}"]
+    
+    # Add all Q&A pairs
+    qa_list = clarification_context.get('questions_and_answers', [])
+    if qa_list:
+        enriched_parts.append("\nUser clarifications:")
+        for i, qa in enumerate(qa_list, 1):
+            qa_text = f"{i}. Question: {qa['question']}"
+            qa_text += f"\n   Answer: {qa['answer']}"
+            
+            # Add selected entities if available
+            if qa.get('selected_entities'):
+                entities_str = ', '.join(qa['selected_entities'])
+                qa_text += f"\n   Selected devices/entities: {entities_str}"
+            
+            enriched_parts.append(qa_text)
+    
+    # Build final enriched query
+    enriched_query = "\n".join(enriched_parts)
+    
+    logger.info(f"📝 Rebuilt enriched query from {len(qa_list)} Q&A pairs")
+    logger.debug(f"Enriched query preview: {enriched_query[:200]}...")
+    
+    return enriched_query
+
+
+async def _re_enrich_entities_from_qa(
+    entities: List[Dict[str, Any]],
+    clarification_context: Dict[str, Any],
+    ha_client: Optional[HomeAssistantClient] = None
+) -> List[Dict[str, Any]]:
+    """
+    Re-enrich entities based on selected entities from Q&A answers.
+    
+    This function:
+    - Extracts selected entities from Q&A answers
+    - Detects "all X lights in Y area" patterns and expands to find ALL matching entities
+    - Adds them to the entities list if not already present
+    - Enriches entities with device information from selected entities
+    - Updates entity data with Q&A context
+    
+    Args:
+        entities: List of extracted entities
+        clarification_context: Dictionary with questions_and_answers
+        ha_client: Optional Home Assistant client for location-based expansion
+        
+    Returns:
+        Re-enriched entities list with Q&A information
+    """
+    import re
+    
+    # Collect all selected entities from Q&A answers
+    selected_entity_ids = set()
+    selected_entity_names = []
+    
+    qa_list = clarification_context.get('questions_and_answers', [])
+    for qa in qa_list:
+        # Extract selected entities from answer
+        selected = qa.get('selected_entities', [])
+        if selected:
+            for entity_ref in selected:
+                # Entity ref could be entity_id or friendly_name
+                if entity_ref.startswith('light.') or entity_ref.startswith('switch.') or '.' in entity_ref:
+                    # Likely an entity_id
+                    selected_entity_ids.add(entity_ref)
+                else:
+                    # Likely a friendly_name
+                    selected_entity_names.append(entity_ref)
+        
+        # NEW: Check for "all X lights in Y area" patterns
+        answer_text = qa.get('answer', '').lower()
+        
+        # Pattern: "all four lights in office", "all 4 lights in office", "all the lights in office"
+        # Try patterns in order of specificity
+        patterns_to_try = [
+            # Pattern 1: "all 4 lights in office" or "all four lights in office"
+            (r'all\s+(?:the\s+)?(\d+|four|five|six|seven|eight|nine|ten)\s*(lights?|lamps?|sensors?|switches?|devices?)\s+in\s+([\w\s]+)', 
+             lambda m: (m.group(1) if m.group(1) and m.group(1).isdigit() else {'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10'}.get(m.group(1).lower(), None), m.group(2), m.group(3))),
+            # Pattern 2: "all lights in office" (no count)
+            (r'all\s+(?:the\s+)?(lights?|lamps?|sensors?|switches?|devices?)\s+in\s+([\w\s]+)',
+             lambda m: (None, m.group(1), m.group(2))),
+        ]
+        
+        for pattern, extractor in patterns_to_try:
+            match = re.search(pattern, answer_text)
+            if match:
+                try:
+                    count_str, device_type, area = extractor(match)
+                
+                    if device_type and area:
+                        count = int(count_str) if count_str else None
+                        # Normalize area name
+                        area = area.strip().replace(' ', '_')
+                    
+                        # Map device type to domain
+                        domain_map = {
+                            'light': 'light',
+                            'lights': 'light',
+                            'lamp': 'light',
+                            'lamps': 'light',
+                            'sensor': 'binary_sensor',
+                            'sensors': 'binary_sensor',
+                            'switch': 'switch',
+                            'switches': 'switch',
+                            'device': None,  # All domains
+                            'devices': None  # All domains
+                        }
+                        domain = domain_map.get(device_type.lower(), 'light')
+                        
+                        logger.info(f"🔍 Detected pattern: 'all {count or 'all'} {device_type} in {area}' - expanding entities")
+                        
+                        # Expand to find ALL matching entities in the area
+                        if ha_client:
+                            try:
+                                area_entities = await ha_client.get_entities_by_area_and_domain(
+                                    area_id=area,
+                                    domain=domain
+                                )
+                                
+                                if area_entities:
+                                    # Limit to count if specified
+                                    if count:
+                                        area_entities = area_entities[:count]
+                                    
+                                    # Add entity IDs to selected_entity_ids
+                                    for area_entity in area_entities:
+                                        entity_id = area_entity.get('entity_id')
+                                        if entity_id:
+                                            selected_entity_ids.add(entity_id)
+                                            logger.info(f"✅ Added entity from Q&A expansion: {entity_id}")
+                                    
+                                    logger.info(f"✅ Expanded Q&A pattern to {len(area_entities)} entities in area '{area}'")
+                                else:
+                                    logger.warning(f"⚠️ No entities found in area '{area}' for domain '{domain}'")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Error expanding entities for Q&A pattern 'all {device_type} in {area}': {e}")
+                        break  # Found a match, stop trying other patterns
+                except Exception as e:
+                    logger.warning(f"⚠️ Error processing pattern match: {e}")
+                    continue
+        
+        # Also extract entities mentioned in the answer text (original logic)
+        # Look for entity patterns in answer (e.g., "office lights", "hue light 1")
+        device_patterns = re.findall(r'\b([a-z]+(?:\s+[a-z]+){1,3})\s+(?:light|lights|sensor|sensors|switch|switches|device|devices)\b', answer_text)
+        selected_entity_names.extend(device_patterns)
+    
+    # Create entity lookup from existing entities
+    entity_by_id = {e.get('entity_id'): e for e in entities if e.get('entity_id')}
+    entity_by_name = {e.get('name', '').lower(): e for e in entities if e.get('name')}
+    entity_by_friendly_name = {e.get('friendly_name', '').lower(): e for e in entities if e.get('friendly_name')}
+    
+    # Add selected entities that aren't already in the list
+    new_entities = []
+    for entity_id in selected_entity_ids:
+        if entity_id not in entity_by_id:
+            # Create new entity entry
+            new_entity = {
+                'entity_id': entity_id,
+                'name': entity_id.split('.')[-1] if '.' in entity_id else entity_id,
+                'friendly_name': entity_id.split('.')[-1].replace('_', ' ').title() if '.' in entity_id else entity_id,
+                'type': 'device',
+                'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+                'source': 'qa_selected'
+            }
+            new_entities.append(new_entity)
+            entity_by_id[entity_id] = new_entity
+    
+    # Add entities by name if not found
+    for entity_name in selected_entity_names:
+        entity_name_lower = entity_name.lower()
+        if (entity_name_lower not in entity_by_name and 
+            entity_name_lower not in entity_by_friendly_name):
+            # Try to find by partial match
+            found = False
+            for existing_entity in entities:
+                existing_name = existing_entity.get('name', '').lower()
+                existing_friendly = existing_entity.get('friendly_name', '').lower()
+                if (entity_name_lower in existing_name or 
+                    entity_name_lower in existing_friendly or
+                    existing_name in entity_name_lower):
+                    found = True
+                    break
+            
+            if not found:
+                # Create new entity entry
+                new_entity = {
+                    'name': entity_name,
+                    'friendly_name': entity_name,
+                    'type': 'device',
+                    'domain': 'unknown',
+                    'source': 'qa_mentioned'
+                }
+                new_entities.append(new_entity)
+    
+    # Combine existing and new entities
+    enriched_entities = list(entities) + new_entities
+    
+    # Add Q&A context to entities
+    for entity in enriched_entities:
+        if 'qa_context' not in entity:
+            entity['qa_context'] = {}
+        
+        # Mark entities that were explicitly selected
+        entity_id = entity.get('entity_id', '')
+        entity_name = entity.get('name', '').lower()
+        entity_friendly = entity.get('friendly_name', '').lower()
+        
+        for qa in qa_list:
+            selected = qa.get('selected_entities', [])
+            if selected:
+                for selected_ref in selected:
+                    selected_lower = selected_ref.lower()
+                    if (entity_id and selected_lower == entity_id.lower()) or \
+                       (entity_name and selected_lower in entity_name) or \
+                       (entity_friendly and selected_lower in entity_friendly):
+                        entity['qa_context']['explicitly_selected'] = True
+                        entity['qa_context']['selected_in_qa'] = qa.get('question', '')
+                        break
+    
+    logger.info(f"✅ Re-enriched {len(enriched_entities)} entities ({len(new_entities)} new from Q&A)")
+    
+    return enriched_entities
 
 
 @router.post("/clarify", response_model=ClarificationResponse)
@@ -3355,14 +4037,31 @@ async def provide_clarification(
         session.answers.extend(validated_answers)
         session.rounds_completed += 1
         
-        # Recalculate confidence with answers
+        # NEW: Recalculate confidence with ALL answers (including previous rounds)
+        # This ensures confidence properly reflects all clarification progress
+        
+        # Map answered questions to ambiguities to track which ambiguities are resolved
+        answered_question_ids = {a.question_id for a in session.answers}
+        resolved_ambiguity_ids = set()
+        for question in session.questions:
+            if question.id in answered_question_ids and question.ambiguity_id:
+                resolved_ambiguity_ids.add(question.ambiguity_id)
+        
+        # Find remaining (unresolved) ambiguities for confidence calculation
+        remaining_ambiguities_for_confidence = [
+            amb for amb in session.ambiguities
+            if amb.id not in resolved_ambiguity_ids
+        ]
+        
+        all_answers = session.answers  # Includes all previous answers + new ones
         session.current_confidence = confidence_calculator.calculate_confidence(
             query=session.original_query,
             extracted_entities=[],  # TODO: Get from session
-            ambiguities=session.ambiguities,
-            clarification_answers=validated_answers,
-            base_confidence=session.current_confidence
+            ambiguities=remaining_ambiguities_for_confidence,  # Only count unresolved ambiguities
+            clarification_answers=all_answers,  # Use ALL answers, not just new ones
+            base_confidence=0.5  # Reset base confidence to recalculate from scratch
         )
+        logger.info(f"📊 Confidence recalculated: {session.current_confidence:.2f} (threshold: {session.confidence_threshold:.2f}, answers: {len(all_answers)}, resolved ambiguities: {len(resolved_ambiguity_ids)}, remaining: {len(remaining_ambiguities_for_confidence)})")
         
         # Check if we should proceed or ask more questions
         if (session.current_confidence >= session.confidence_threshold or 
@@ -3370,21 +4069,48 @@ async def provide_clarification(
             # Generate suggestions
             session.status = "complete"
             
-            # Generate suggestions using the original query + answers
-            enhanced_query = session.original_query
-            for answer in validated_answers:
-                question = next((q for q in session.questions if q.id == answer.question_id), None)
-                if question:
-                    enhanced_query += f"\n\nClarification: {question.question_text} Answer: {answer.answer_text}"
+            # Build clarification context for prompt
+            clarification_context = {
+                'original_query': session.original_query,
+                'questions_and_answers': [
+                    {
+                        'question': next((q.question_text for q in session.questions if q.id == answer.question_id), 'Unknown question'),
+                        'answer': answer.answer_text,
+                        'selected_entities': answer.selected_entities,
+                        'category': next((q.category for q in session.questions if q.id == answer.question_id), 'unknown')
+                    }
+                    for answer in validated_answers
+                ]
+            }
+            logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
+            for i, qa in enumerate(clarification_context['questions_and_answers'], 1):
+                logger.info(f"  Q&A {i}: Q: {qa['question']} | A: {qa['answer']} | Entities: {qa.get('selected_entities', [])}")
             
-            # Extract entities again (with clarification context)
-            entities = await extract_entities_with_ha(enhanced_query)
+            # NEW: Rebuild enriched user query from original question + Q&A answers
+            enriched_query = _rebuild_user_query_from_qa(
+                original_query=session.original_query,
+                clarification_context=clarification_context
+            )
+            logger.info(f"📝 Rebuilt enriched query: '{enriched_query}'")
             
-            # Generate suggestions
+            # NEW: Re-extract entities from enriched query (original + Q&A)
+            entities = await extract_entities_with_ha(enriched_query)
+            logger.info(f"🔍 Re-extracted {len(entities)} entities from enriched query")
+            
+            # NEW: Re-enrich devices based on selected entities from Q&A answers
+            entities = await _re_enrich_entities_from_qa(
+                entities=entities,
+                clarification_context=clarification_context,
+                ha_client=ha_client
+            )
+            logger.info(f"✅ Re-enriched entities with Q&A information: {len(entities)} entities")
+            
+            # Generate suggestions WITH enriched query and clarification context
             suggestions = await generate_suggestions_from_query(
-                enhanced_query,
-                entities,
-                "anonymous"  # TODO: Get from session
+                enriched_query,  # NEW: Use enriched query instead of original
+                entities,  # NEW: Re-extracted and re-enriched entities
+                "anonymous",  # TODO: Get from session
+                clarification_context=clarification_context  # Pass structured clarification
             )
             
             # Add conversation history to suggestions
@@ -3419,39 +4145,176 @@ async def provide_clarification(
             )
         else:
             # Need more clarification
-            # Generate follow-up questions based on remaining ambiguities
-            answered_ambiguity_ids = {a.question_id for a in validated_answers}
+            # NEW: Build enriched query from original + all previous answers
+            all_qa_context = {
+                'original_query': session.original_query,
+                'questions_and_answers': [
+                    {
+                        'question': q.question_text,
+                        'answer': next((a.answer_text for a in session.answers if a.question_id == q.id), ''),
+                        'selected_entities': next((a.selected_entities for a in session.answers if a.question_id == q.id), []),
+                        'category': q.category
+                    }
+                    for q in session.questions
+                    if any(a.question_id == q.id for a in session.answers)
+                ]
+            }
+            enriched_query = _rebuild_user_query_from_qa(
+                original_query=session.original_query,
+                clarification_context=all_qa_context
+            )
+            
+            # NEW: Re-detect ambiguities based on enriched query (original + all previous answers)
+            # This ensures we find new ambiguities that may have emerged from the answers
+            clarification_detector, question_generator, _, _ = get_clarification_services()
+            
+            # Re-extract entities from enriched query
+            entities = await extract_entities_with_ha(enriched_query)
+            
+            # Get automation context for re-detection
+            automation_context = {}
+            try:
+                from ..clients.data_api_client import DataAPIClient
+                import pandas as pd
+                data_api_client = DataAPIClient()
+                devices_result = await data_api_client.fetch_devices(limit=100)
+                entities_result = await data_api_client.fetch_entities(limit=200)
+                
+                devices_df = devices_result if isinstance(devices_result, pd.DataFrame) else pd.DataFrame(devices_result if isinstance(devices_result, list) else [])
+                entities_df = entities_result if isinstance(entities_result, pd.DataFrame) else pd.DataFrame(entities_result if isinstance(entities_result, list) else [])
+                
+                automation_context = {
+                    'devices': devices_df.to_dict('records') if isinstance(devices_df, pd.DataFrame) and not devices_df.empty else (devices_result if isinstance(devices_result, list) else []),
+                    'entities': entities_df.to_dict('records') if isinstance(entities_df, pd.DataFrame) and not entities_df.empty else (entities_result if isinstance(entities_result, list) else []),
+                    'entities_by_domain': {}
+                }
+                
+                # Organize entities by domain
+                if isinstance(entities_df, pd.DataFrame) and not entities_df.empty:
+                    for _, entity in entities_df.iterrows():
+                        entity_id = entity.get('entity_id', '')
+                        if entity_id:
+                            domain = entity_id.split('.')[0]
+                            if domain not in automation_context['entities_by_domain']:
+                                automation_context['entities_by_domain'][domain] = []
+                            automation_context['entities_by_domain'][domain].append({
+                                'entity_id': entity_id,
+                                'friendly_name': entity.get('friendly_name', entity_id),
+                                'area': entity.get('area_id', 'unknown')
+                            })
+                elif isinstance(entities_result, list):
+                    for entity in entities_result:
+                        if isinstance(entity, dict):
+                            entity_id = entity.get('entity_id', '')
+                            if entity_id:
+                                domain = entity_id.split('.')[0]
+                                if domain not in automation_context['entities_by_domain']:
+                                    automation_context['entities_by_domain'][domain] = []
+                                automation_context['entities_by_domain'][domain].append({
+                                    'entity_id': entity_id,
+                                    'friendly_name': entity.get('friendly_name', entity_id),
+                                    'area': entity.get('area_id', 'unknown')
+                                })
+            except Exception as e:
+                logger.warning(f"Failed to build automation context for re-detection: {e}")
+            
+            # NEW: Re-detect ambiguities from enriched query (this finds new ambiguities based on answers)
+            new_ambiguities = []
+            if clarification_detector:
+                try:
+                    new_ambiguities = await clarification_detector.detect_ambiguities(
+                        query=enriched_query,
+                        extracted_entities=entities,
+                        available_devices=automation_context,
+                        automation_context=automation_context
+                    )
+                    logger.info(f"🔍 Re-detected {len(new_ambiguities)} ambiguities from enriched query")
+                except Exception as e:
+                    logger.warning(f"Failed to re-detect ambiguities: {e}")
+            
+            # NEW: Find remaining ambiguities by excluding those that have been answered
+            # Track which ambiguities have been answered by checking question-ambiguity mappings
+            answered_question_ids = {a.question_id for a in session.answers}
+            answered_ambiguity_ids = set()
+            
+            # Map answered questions to their ambiguity IDs
+            for question in session.questions:
+                if question.id in answered_question_ids and question.ambiguity_id:
+                    answered_ambiguity_ids.add(question.ambiguity_id)
+            
+            # Also check if ambiguity was resolved by answers (e.g., device selection resolved device ambiguity)
+            for answer in session.answers:
+                question = next((q for q in session.questions if q.id == answer.question_id), None)
+                if question and question.category == 'device' and answer.selected_entities:
+                    # If user selected specific devices, mark device ambiguities as resolved
+                    for amb in session.ambiguities:
+                        if amb.type.value == 'device' and amb.id not in answered_ambiguity_ids:
+                            # Check if this ambiguity is about the same devices
+                            amb_entities = amb.context.get('matches', [])
+                            if amb_entities:
+                                amb_entity_ids = [e.get('entity_id') for e in amb_entities if isinstance(e, dict)]
+                                if any(eid in answer.selected_entities for eid in amb_entity_ids):
+                                    answered_ambiguity_ids.add(amb.id)
+                                    logger.info(f"✅ Marked ambiguity {amb.id} as resolved by device selection")
+            
+            # Combine original and new ambiguities, excluding answered ones
+            all_ambiguities = session.ambiguities + new_ambiguities
             remaining_ambiguities = [
-                amb for amb in session.ambiguities
-                if not any(q.ambiguity_id == amb.id for q in session.questions if q.id in answered_ambiguity_ids)
+                amb for amb in all_ambiguities
+                if amb.id not in answered_ambiguity_ids
             ]
+            
+            # Remove duplicates by ambiguity ID
+            seen_ambiguity_ids = set()
+            unique_remaining = []
+            for amb in remaining_ambiguities:
+                if amb.id not in seen_ambiguity_ids:
+                    seen_ambiguity_ids.add(amb.id)
+                    unique_remaining.append(amb)
+            remaining_ambiguities = unique_remaining
+            
+            logger.info(f"📋 Remaining ambiguities: {len(remaining_ambiguities)} (answered: {len(answered_ambiguity_ids)}, total: {len(all_ambiguities)})")
+            
+            # NEW: Track which questions have already been asked to prevent duplicates
+            asked_question_texts = {q.question_text.lower().strip() for q in session.questions}
             
             # Generate new questions if needed
             new_questions = []
-            _, question_generator, _, _ = get_clarification_services()
             if remaining_ambiguities and question_generator:
-                # Get automation context
-                automation_context = {}
-                try:
-                    from ..clients.data_api_client import DataAPIClient
-                    data_api_client = DataAPIClient()
-                    devices_df = await data_api_client.fetch_devices(limit=100)
-                    entities_df = await data_api_client.fetch_entities(limit=200)
-                    
-                    automation_context = {
-                        'devices': devices_df.to_dict('records') if not devices_df.empty else [],
-                        'entities': entities_df.to_dict('records') if not entities_df.empty else [],
-                        'entities_by_domain': {}
-                    }
-                except Exception:
-                    pass
-                
+                # Generate questions with previous Q&A context
                 new_questions = await question_generator.generate_questions(
                     ambiguities=remaining_ambiguities[:2],  # Limit to 2 more questions
-                    query=session.original_query,
-                    context=automation_context
+                    query=enriched_query,  # Use enriched query instead of original
+                    context=automation_context,
+                    previous_qa=all_qa_context.get('questions_and_answers', []),  # NEW: Pass previous Q&A
+                    asked_questions=session.questions  # NEW: Pass asked questions to prevent duplicates
                 )
                 
+                # Filter out questions that are too similar to already-asked questions
+                filtered_new_questions = []
+                for new_q in new_questions:
+                    new_q_text_lower = new_q.question_text.lower().strip()
+                    # Check if this question is too similar to an already-asked question
+                    is_duplicate = False
+                    for asked_text in asked_question_texts:
+                        # Simple similarity check: if 80% of words match, consider it duplicate
+                        new_words = set(new_q_text_lower.split())
+                        asked_words = set(asked_text.split())
+                        if len(new_words) > 0 and len(asked_words) > 0:
+                            similarity = len(new_words.intersection(asked_words)) / max(len(new_words), len(asked_words))
+                            if similarity > 0.8:
+                                is_duplicate = True
+                                logger.info(f"🚫 Filtered duplicate question: '{new_q.question_text}' (similarity: {similarity:.2f})")
+                                break
+                    
+                    if not is_duplicate:
+                        filtered_new_questions.append(new_q)
+                        asked_question_texts.add(new_q_text_lower)  # Track this question
+                
+                new_questions = filtered_new_questions
+                
+                # Update session with new ambiguities and questions
+                session.ambiguities.extend(new_ambiguities)
                 session.questions.extend(new_questions)
             
             questions_dict = None

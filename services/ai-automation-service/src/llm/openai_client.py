@@ -59,6 +59,7 @@ class OpenAIClient:
         self.total_tokens_used = 0
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self.last_usage = None  # Store last token usage for debug panel
         logger.info(f"OpenAI client initialized with model={model}")
     
     def _parse_automation_response(self, llm_response: str, pattern: Dict) -> AutomationSuggestion:
@@ -358,6 +359,12 @@ action:
             self.total_input_tokens += usage.prompt_tokens
             self.total_output_tokens += usage.completion_tokens
             self.total_tokens_used += usage.total_tokens
+            # Store last usage for debug panel
+            self.last_usage = {
+                'prompt_tokens': usage.prompt_tokens,
+                'completion_tokens': usage.completion_tokens,
+                'total_tokens': usage.total_tokens
+            }
             
             logger.info(
                 f"✅ Unified prompt generation successful: {usage.total_tokens} tokens "
