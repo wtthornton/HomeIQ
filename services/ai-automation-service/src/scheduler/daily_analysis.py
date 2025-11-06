@@ -33,7 +33,7 @@ from ..pattern_detection.seasonal_detector import SeasonalDetector
 from ..pattern_detection.anomaly_detector import AnomalyDetector
 
 from ..llm.openai_client import OpenAIClient
-from ..database.crud import store_patterns, store_suggestion
+from ..database.crud import store_patterns, store_suggestion, get_synergy_opportunities
 from ..database.models import get_db, get_db_session
 from ..config import settings
 
@@ -568,9 +568,71 @@ class DailyAnalysisScheduler:
                     logger.warning(f"     → Continuing with empty weather opportunities list")
                     # Continue without weather opportunities but don't skip the phase
                 
-                logger.info(f"✅ Total synergies (device + weather): {len(synergies)}")
-                logger.info(f"   → Device synergies: {len(synergies) - len(weather_opportunities) if 'weather_opportunities' in locals() else len(synergies)}")
-                logger.info(f"   → Weather synergies: {len(weather_opportunities) if 'weather_opportunities' in locals() else 0}")
+                # ----------------------------------------------------------------
+                # Part C: Energy Opportunities (Epic AI-3, Story AI3.6)
+                # ----------------------------------------------------------------
+                logger.info("  → Part C: Energy opportunity detection (Epic AI-3)...")
+                
+                try:
+                    from ..contextual_patterns import EnergyOpportunityDetector
+                    
+                    energy_detector = EnergyOpportunityDetector(
+                        influxdb_client=data_client.influxdb_client,
+                        data_api_client=data_client,
+                        peak_price_threshold=0.15,  # $/kWh default
+                        min_confidence=0.7
+                    )
+                    
+                    energy_opportunities = await energy_detector.detect_opportunities()
+                    
+                    # Add to synergies list
+                    synergies.extend(energy_opportunities)
+                    
+                    logger.info(f"     ✅ Found {len(energy_opportunities)} energy opportunities")
+                    
+                except Exception as e:
+                    logger.warning(f"     ⚠️ Energy opportunity detection failed: {e}")
+                    logger.warning(f"     → Continuing with empty energy opportunities list")
+                    # Continue without energy opportunities but don't skip the phase
+                
+                # ----------------------------------------------------------------
+                # Part D: Event Opportunities (Epic AI-3, Story AI3.7)
+                # ----------------------------------------------------------------
+                logger.info("  → Part D: Event opportunity detection (Epic AI-3)...")
+                
+                try:
+                    from ..contextual_patterns import EventOpportunityDetector
+                    
+                    event_detector = EventOpportunityDetector(
+                        data_api_client=data_client
+                    )
+                    
+                    event_opportunities = await event_detector.detect_opportunities()
+                    
+                    # Add to synergies list
+                    synergies.extend(event_opportunities)
+                    
+                    logger.info(f"     ✅ Found {len(event_opportunities)} event opportunities")
+                    
+                except Exception as e:
+                    logger.warning(f"     ⚠️ Event opportunity detection failed: {e}")
+                    logger.warning(f"     → Continuing with empty event opportunities list")
+                    # Continue without event opportunities but don't skip the phase
+                
+                # Calculate counts for each type (handle missing variables gracefully)
+                device_count = len(synergies)
+                weather_count = len(weather_opportunities) if 'weather_opportunities' in locals() else 0
+                energy_count = len(energy_opportunities) if 'energy_opportunities' in locals() else 0
+                event_count = len(event_opportunities) if 'event_opportunities' in locals() else 0
+                
+                # Subtract contextual opportunities from device count
+                device_count = device_count - weather_count - energy_count - event_count
+                
+                logger.info(f"✅ Total synergies detected: {len(synergies)}")
+                logger.info(f"   → Device synergies: {device_count}")
+                logger.info(f"   → Weather synergies: {weather_count}")
+                logger.info(f"   → Energy synergies: {energy_count}")
+                logger.info(f"   → Event synergies: {event_count}")
                 
                 # Store synergies in database with Phase 2 pattern validation
                 if synergies:
@@ -822,24 +884,71 @@ class DailyAnalysisScheduler:
             
             synergy_suggestions = []
             
-            if synergies:
-                try:
-                    from ..synergy_detection.synergy_suggestion_generator import SynergySuggestionGenerator
+            try:
+                from ..synergy_detection.synergy_suggestion_generator import SynergySuggestionGenerator
+                
+                # Query synergies from database with priority-based selection
+                async with get_db_session() as db:
+                    if settings.synergy_use_priority_scoring:
+                        logger.info(f"     → Using priority-based selection (min_priority={settings.synergy_min_priority})")
+                        selected_synergies = await get_synergy_opportunities(
+                            db,
+                            order_by_priority=True,
+                            min_priority=settings.synergy_min_priority,
+                            limit=settings.synergy_max_suggestions,
+                            min_confidence=0.7  # Maintain minimum confidence threshold
+                        )
+                        logger.info(f"     → Selected {len(selected_synergies)} synergies by priority score")
+                    else:
+                        # Fallback to impact_score ordering (backward compatible)
+                        logger.info("     → Using impact_score-based selection (priority scoring disabled)")
+                        selected_synergies = await get_synergy_opportunities(
+                            db,
+                            order_by_priority=False,
+                            limit=settings.synergy_max_suggestions,
+                            min_confidence=0.7
+                        )
+                        logger.info(f"     → Selected {len(selected_synergies)} synergies by impact score")
+                
+                if selected_synergies:
+                    # Convert SynergyOpportunity objects to dicts for generator
+                    synergy_dicts = []
+                    for synergy in selected_synergies:
+                        import json
+                        synergy_dict = {
+                            'synergy_id': synergy.synergy_id,
+                            'synergy_type': synergy.synergy_type,
+                            'devices': json.loads(synergy.device_ids) if synergy.device_ids else [],
+                            'impact_score': synergy.impact_score,
+                            'complexity': synergy.complexity,
+                            'confidence': synergy.confidence,
+                            'area': synergy.area,
+                            'opportunity_metadata': synergy.opportunity_metadata or {},
+                            'pattern_support_score': getattr(synergy, 'pattern_support_score', 0.0),
+                            'validated_by_patterns': getattr(synergy, 'validated_by_patterns', False),
+                            'relationship': (synergy.opportunity_metadata or {}).get('relationship', ''),
+                            'trigger_entity': (synergy.opportunity_metadata or {}).get('trigger_entity', ''),
+                            'action_entity': (synergy.opportunity_metadata or {}).get('action_entity', ''),
+                            'trigger_name': (synergy.opportunity_metadata or {}).get('trigger_name', ''),
+                            'action_name': (synergy.opportunity_metadata or {}).get('action_name', ''),
+                            'rationale': (synergy.opportunity_metadata or {}).get('rationale', '')
+                        }
+                        synergy_dicts.append(synergy_dict)
                     
                     synergy_generator = SynergySuggestionGenerator(
                         llm_client=openai_client
                     )
                     
                     synergy_suggestions = await synergy_generator.generate_suggestions(
-                        synergies=synergies,
-                        max_suggestions=5
+                        synergies=synergy_dicts,
+                        max_suggestions=settings.synergy_max_suggestions
                     )
                     logger.info(f"     ✅ Generated {len(synergy_suggestions)} synergy suggestions")
+                else:
+                    logger.info("     ℹ️  No synergies available for suggestions (database query returned empty)")
                     
-                except Exception as e:
-                    logger.error(f"     ❌ Synergy suggestion generation failed: {e}")
-            else:
-                logger.info("     ℹ️  No synergies available for suggestions")
+            except Exception as e:
+                logger.error(f"     ❌ Synergy suggestion generation failed: {e}", exc_info=True)
             
             # ----------------------------------------------------------------
             # Part D: Combine and rank all suggestions
@@ -847,8 +956,23 @@ class DailyAnalysisScheduler:
             logger.info("  → Part D: Combining and ranking all suggestions...")
             
             all_suggestions = pattern_suggestions + feature_suggestions + synergy_suggestions
-            all_suggestions.sort(key=lambda s: s.get('confidence', 0.5), reverse=True)
+            
+            # Apply ranking score with boost for validated synergies
+            for suggestion in all_suggestions:
+                base_confidence = suggestion.get('confidence', 0.5)
+                # Give validated synergies 1.1x boost in ranking
+                if suggestion.get('type', '').startswith('synergy_') and suggestion.get('validated_by_patterns', False):
+                    suggestion['_ranking_score'] = base_confidence * 1.1
+                else:
+                    suggestion['_ranking_score'] = base_confidence
+            
+            all_suggestions.sort(key=lambda s: s.get('_ranking_score', 0.5), reverse=True)
             all_suggestions = all_suggestions[:10]  # Top 10 total
+            
+            # Clean up temporary ranking score
+            for suggestion in all_suggestions:
+                if '_ranking_score' in suggestion:
+                    del suggestion['_ranking_score']
             
             logger.info(f"✅ Combined suggestions: {len(all_suggestions)} total")
             logger.info(f"   - Pattern-based (AI-1): {len(pattern_suggestions)}")
