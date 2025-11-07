@@ -8,7 +8,20 @@ from typing import List, Dict, Optional, Union, Any, Tuple
 from datetime import datetime, timedelta, timezone
 import logging
 
-from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity, ManualRefreshTrigger, AnalysisRunStatus
+from .models import (
+    Pattern,
+    PatternHistory,
+    Suggestion,
+    UserFeedback,
+    DeviceCapability,
+    DeviceFeatureUsage,
+    SynergyOpportunity,
+    ManualRefreshTrigger,
+    AnalysisRunStatus,
+    SystemSettings,
+    TrainingRun,
+    get_system_settings_defaults,
+)
 from ..pattern_detection.pattern_filters import validate_pattern
 
 logger = logging.getLogger(__name__)
@@ -33,6 +46,119 @@ def _get_attr_safe(obj: Union[Dict, Any], attr: str, default: Any) -> Any:
         return obj.get(attr, default)
     else:
         return getattr(obj, attr, default)
+
+
+# ============================================================================
+# System Settings CRUD Operations
+# ============================================================================
+
+_SYSTEM_SETTINGS_FIELDS = {
+    'schedule_enabled',
+    'schedule_time',
+    'min_confidence',
+    'max_suggestions',
+    'enabled_categories',
+    'budget_limit',
+    'notifications_enabled',
+    'notification_email',
+    'soft_prompt_enabled',
+    'soft_prompt_model_dir',
+    'soft_prompt_confidence_threshold',
+    'guardrail_enabled',
+    'guardrail_model_name',
+    'guardrail_threshold',
+}
+
+
+async def get_system_settings(db: AsyncSession) -> SystemSettings:
+    """Fetch persisted system settings, seeding defaults if necessary."""
+
+    result = await db.execute(select(SystemSettings).limit(1))
+    system_settings = result.scalar_one_or_none()
+
+    if not system_settings:
+        defaults = get_system_settings_defaults()
+        system_settings = SystemSettings(**defaults)
+        system_settings.id = 1
+        db.add(system_settings)
+        await db.commit()
+        await db.refresh(system_settings)
+        logger.info("Created default system settings record")
+
+    return system_settings
+
+
+async def update_system_settings(db: AsyncSession, updates: Dict[str, Any]) -> SystemSettings:
+    """Persist new system settings values."""
+
+    settings_record = await get_system_settings(db)
+
+    for field, value in updates.items():
+        if field not in _SYSTEM_SETTINGS_FIELDS:
+            logger.debug("Ignoring unknown system settings field: %s", field)
+            continue
+
+        if field == 'enabled_categories' and isinstance(value, dict):
+            # Merge with defaults to avoid missing keys
+            merged_categories = {**_get_attr_safe(settings_record, 'enabled_categories', {}), **value}
+            setattr(settings_record, field, merged_categories)
+        elif value is not None:
+            setattr(settings_record, field, value)
+
+    settings_record.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(settings_record)
+
+    return settings_record
+
+
+# ============================================================================
+# Training Run CRUD Operations
+# ============================================================================
+
+async def get_active_training_run(db: AsyncSession) -> Optional[TrainingRun]:
+    """Fetch the currently running training run if one exists."""
+
+    result = await db.execute(
+        select(TrainingRun).where(TrainingRun.status == 'running').limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def create_training_run(db: AsyncSession, values: Dict[str, Any]) -> TrainingRun:
+    """Create and persist a new training run entry."""
+
+    run = TrainingRun(**values)
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    return run
+
+
+async def update_training_run(db: AsyncSession, run_id: int, updates: Dict[str, Any]) -> Optional[TrainingRun]:
+    """Update an existing training run record."""
+
+    result = await db.execute(select(TrainingRun).where(TrainingRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if not run:
+        return None
+
+    for field, value in updates.items():
+        if hasattr(run, field):
+            setattr(run, field, value)
+
+    await db.commit()
+    await db.refresh(run)
+    return run
+
+
+async def list_training_runs(db: AsyncSession, limit: int = 20) -> List[TrainingRun]:
+    """Return recent training runs ordered by newest first."""
+
+    result = await db.execute(
+        select(TrainingRun).order_by(TrainingRun.started_at.desc()).limit(limit)
+    )
+    return list(result.scalars().all())
 
 
 # ============================================================================

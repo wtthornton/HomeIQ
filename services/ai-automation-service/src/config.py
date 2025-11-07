@@ -109,6 +109,16 @@ class Settings(BaseSettings):
     creative_temperature: float = 1.0  # For Ask AI - Maximum creativity for crazy ideas
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
+
+    # Soft Prompt Fallback (single-home tuning)
+    soft_prompt_enabled: bool = True
+    soft_prompt_model_dir: str = "data/ask_ai_soft_prompt"
+    soft_prompt_confidence_threshold: float = 0.85
+
+    # Guardrails
+    guardrail_enabled: bool = True
+    guardrail_model_name: str = "unitary/toxic-bert"
+    guardrail_threshold: float = 0.6
     
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls

@@ -85,6 +85,10 @@ homeiq/
 └── README.md                      # Project overview (Updated)
 ```
 
+### Scripts (`scripts/`)
+
+- `train_soft_prompt.py` — launches the CPU-friendly soft prompt fine-tuning pipeline, writing artifacts back to `data/ask_ai_soft_prompt` and recording run metadata in SQLite.
+
 ## Services Directory Structure
 
 > **Epic 13 Note**: The API layer was separated into two services:

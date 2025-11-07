@@ -62,6 +62,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Device Selection & Mapping**: Check/uncheck devices and customize entity mappings with visual interface
 - **Smart Recommendations**: Context-aware automation suggestions with priority scoring
 - **Self-Healing YAML**: Automatic entity ID correction during refinement
+- **Configurable Fallbacks**: Tune guardrail models and soft prompt thresholds directly from the Settings UI (persisted server-side)
 
 ### 📊 Enterprise Analytics
 
@@ -130,7 +131,16 @@ docker-compose up -d
    - Type: "Turn on lights when I arrive home"
    - Review and deploy the automation
 
-3. **Explore APIs**: http://localhost:8003/docs
+3. **Configure AI Settings**: http://localhost:3001/settings
+   - Enable/disable guardrails and soft prompt fallback
+   - Point to your local model directory and tweak thresholds
+   - Save changes directly to the backend (no redeploy required)
+
+4. **Launch Training Runs (Optional)**: http://localhost:3001/admin
+   - Start a soft prompt fine-tuning job with one click
+   - Track status, sample counts, and loss in the training history table
+
+5. **Explore APIs**: http://localhost:8003/docs
    - Interactive API documentation
    - Test endpoints
    - View real-time data
@@ -294,8 +304,9 @@ pytest test_[module_name].py
 ### User Guides
 - [Quick Start Guide](docs/QUICK_START.md)
 - [User Manual](docs/USER_MANUAL.md)
-- [API Documentation](docs/API_DOCUMENTATION.md)
+- [API Reference](docs/api/api_reference.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING_GUIDE.md)
+- [Soft Prompt Training Guide](docs/current/operations/soft-prompt-training.md)
 
 ### Developer Guides
 - [Development Environment Setup](docs/development-environment-setup.md)

@@ -26,7 +26,7 @@ except ImportError:
 
 from .config import settings
 from .database.models import init_db
-from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, set_device_intelligence_client
+from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, settings_router, admin_router, set_device_intelligence_client
 from .api.validation_router import router as validation_router
 from .api.ranking_router import router as ranking_router
 from .api.middlewares import IdempotencyMiddleware, RateLimitMiddleware
@@ -282,6 +282,8 @@ app.include_router(nl_generation_router)  # Story AI1.21: Natural Language
 app.include_router(conversational_router)  # Story AI1.23: Conversational Refinement (Phase 1: Stubs)
 app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interface
 app.include_router(devices_router)  # Devices endpoint
+app.include_router(settings_router)  # System settings management
+app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
 

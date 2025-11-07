@@ -190,6 +190,14 @@ graph TB
     ENRICH_DEPRECATED[❌ Enrichment Pipeline<br/>localhost:8002<br/>DEPRECATED] -.->|Epic 31| INFLUX
 ```
 
+## Soft Prompt Training Pipeline (October 2025)
+
+- **Data Model:** `training_runs` table added to `data/ai_automation.db` tracks job lifecycle (queued → running → completed/failed), dataset size, loss metrics, and captured stderr for troubleshooting.
+- **Execution Path:** `scripts/train_soft_prompt.py` performs CPU-friendly LoRA fine-tuning (PEFT) against labelled Ask AI conversations sourced from `ask_ai_queries`.
+- **Control Plane:** Admin API exposes `/api/v1/admin/training/trigger` and `/api/v1/admin/training/runs`; the AI Automation UI surfaces these endpoints with a one-click launcher and live history table.
+- **Runtime Reload:** Successful runs automatically refresh in-process soft prompt adapters and guardrail checkers—no service restart required.
+- **Configuration:** `/api/v1/settings` consolidates schedule, budget, guardrail, and soft prompt toggles; updates are persisted in SQLite and reflected instantly in running services.
+
 ## Services
 
 ### Core Services
