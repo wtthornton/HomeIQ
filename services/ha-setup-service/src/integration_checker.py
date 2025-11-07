@@ -489,21 +489,35 @@ class IntegrationHealthChecker:
                     if response.status == 200:
                         data = await response.json()
                         ingestor_count = len(data.get('devices', []))
-                        
+
                         if ha_device_count > 0:
                             sync_percentage = (ingestor_count / ha_device_count) * 100
                         else:
                             sync_percentage = 0
-                        
+
                         status = "synced" if sync_percentage >= 90 else "partial" if sync_percentage > 0 else "not_synced"
-                        
+
                         return {
                             "count": ingestor_count,
                             "status": status,
                             "percentage": round(sync_percentage, 1)
                         }
-        except:
-            return {"count": 0, "status": "error", "percentage": 0}
+
+                    # Non-200 responses should still return structured error information
+                    return {
+                        "count": 0,
+                        "status": "error",
+                        "percentage": 0,
+                        "error": f"HTTP {response.status}"
+                    }
+        except Exception as exc:
+            return {
+                "count": 0,
+                "status": "error",
+                "percentage": 0,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            }
     
     async def check_data_api_integration(self) -> CheckResult:
         """Check HA Ingestor Data API status"""

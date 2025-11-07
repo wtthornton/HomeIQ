@@ -220,7 +220,7 @@ class HealthMonitoringService:
                     if response.status == 200:
                         entries = await response.json()
                         mqtt_entry = next((e for e in entries if e.get('domain') == 'mqtt'), None)
-                        
+
                         if mqtt_entry:
                             return {
                                 "name": "MQTT",
@@ -241,6 +241,17 @@ class HealthMonitoringService:
                                 "error_message": "MQTT integration not found",
                                 "last_check": datetime.now()
                             }
+
+                    # Non-200 responses should produce a structured error result
+                    return {
+                        "name": "MQTT",
+                        "type": "mqtt",
+                        "status": IntegrationStatus.ERROR.value,
+                        "is_configured": False,
+                        "is_connected": False,
+                        "error_message": f"Failed to fetch config entries: HTTP {response.status}",
+                        "last_check": datetime.now()
+                    }
         except Exception as e:
             return {
                 "name": "MQTT",
@@ -256,10 +267,7 @@ class HealthMonitoringService:
         """Check Zigbee2MQTT integration status using integration checker"""
         try:
             # Use the integration checker to get real Zigbee2MQTT status
-            integration_checker = IntegrationHealthChecker(
-                ha_url=self.ha_url,
-                ha_token=self.ha_token
-            )
+            integration_checker = IntegrationHealthChecker()
             result = await integration_checker.check_zigbee2mqtt_integration()
             
             return {
@@ -303,6 +311,16 @@ class HealthMonitoringService:
                             "error_message": None,
                             "last_check": datetime.now()
                         }
+                    # Surface non-200 responses as warning/error data instead of None
+                    return {
+                        "name": "Data API",
+                        "type": "homeiq",
+                        "status": IntegrationStatus.WARNING.value,
+                        "is_configured": True,
+                        "is_connected": False,
+                        "error_message": f"Health endpoint returned HTTP {response.status}",
+                        "last_check": datetime.now()
+                    }
         except Exception as e:
             return {
                 "name": "Data API",
