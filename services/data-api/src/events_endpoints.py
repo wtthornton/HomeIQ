@@ -6,7 +6,7 @@ Migrated from admin-api as part of Epic 13 Story 13.2
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import aiohttp
 import os
 import sys
@@ -521,6 +521,14 @@ class EventsEndpoints:
         
         return stream_data
     
+    def _format_flux_time(self, value: datetime) -> str:
+        """Format datetime for Flux queries in UTC."""
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+        return value.isoformat().replace("+00:00", "Z")
+
     async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> List[EventData]:
         """
         Retrieve and transform events from InfluxDB using Flux query language.
@@ -598,9 +606,32 @@ class EventsEndpoints:
             # PROBLEM: Without _field filter, we get one record PER FIELD (state_value, context_id, attributes, etc.)
             # SOLUTION: Filter to EXACTLY ONE field to get one record per event
             #           Tags (entity_id, event_type, domain) are automatically included
-            query = f'''
-            from(bucket: "{influxdb_bucket}")
-              |> range(start: -24h)
+
+            # Determine time range. When callers provide explicit start/end times (e.g., nightly
+            # analytics fetching the last 30 days), honor those values instead of defaulting to a
+            # 24 hour window.
+            if event_filter.start_time or event_filter.end_time:
+                start_dt = event_filter.start_time or (datetime.now(timezone.utc) - timedelta(hours=24))
+                start_iso = self._format_flux_time(start_dt)
+
+                query = f'''
+                from(bucket: "{influxdb_bucket}")
+                  |> range(start: time(v: "{start_iso}"))
+                '''
+
+                if event_filter.end_time:
+                    end_iso = self._format_flux_time(event_filter.end_time)
+                    query = f'''
+                from(bucket: "{influxdb_bucket}")
+                  |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
+                '''
+            else:
+                query = f'''
+                from(bucket: "{influxdb_bucket}")
+                  |> range(start: -24h)
+                '''
+
+            query += '''
               |> filter(fn: (r) => r._measurement == "home_assistant_events")
               |> filter(fn: (r) => r._field == "context_id")
             '''

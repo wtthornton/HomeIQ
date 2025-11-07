@@ -382,54 +382,30 @@ class HomeAssistantClient:
     
     async def deploy_automation(self, automation_yaml: str, automation_id: Optional[str] = None) -> Dict:
         """
-        Deploy an automation to Home Assistant.
-        
-        This uses the automations.yaml file approach via config reload.
-        
+        Deploy (create or update) an automation in Home Assistant.
+
+        This now uses the config API to upsert the automation and enables it
+        immediately, ensuring it appears in Home Assistant rather than just
+        reloading existing entries.
+
         Args:
             automation_yaml: YAML automation config
-            automation_id: Optional specific automation ID to update
-        
+            automation_id: Optional automation entity ID to upsert (e.g. "automation.my_automation")
+
         Returns:
             Dict with success status and automation ID
         """
         try:
-            # Parse YAML to validate and extract automation ID
-            automation_data = yaml.safe_load(automation_yaml)
-            
-            if not isinstance(automation_data, dict):
-                raise ValueError("Invalid automation YAML: must be a dict")
-            
-            # Get or generate automation ID
-            if automation_id is None:
-                # Extract from alias or generate from title
-                alias = automation_data.get('alias', 'ai_suggested_automation')
-                automation_id = f"automation.{alias.lower().replace(' ', '_')}"
-            
-            logger.info(f"🚀 Deploying automation: {automation_id}")
-            
-            # For MVP: Use the automation service to create/update
-            # In production, you'd write to automations.yaml and reload
-            session = await self._get_session()
-            async with session.post(
-                f"{self.ha_url}/api/services/automation/reload",
-                headers=self.headers,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status in [200, 201]:
-                    logger.info(f"✅ Automation deployed: {automation_id}")
-                    return {
-                        "success": True,
-                        "automation_id": automation_id,
-                        "message": "Automation deployed successfully"
-                    }
-                else:
-                    error_text = await response.text()
-                    logger.error(f"❌ Deployment failed ({response.status}): {error_text}")
-                    return {
-                        "success": False,
-                        "error": f"HTTP {response.status}: {error_text}"
-                    }
+            logger.info("🚀 Deploying automation via config API")
+            result = await self.create_automation(automation_yaml, automation_id=automation_id)
+            if result.get("success"):
+                return result
+
+            # create_automation returns success False with an error message when it fails
+            return {
+                "success": False,
+                "error": result.get("error", "Unknown deployment failure")
+            }
         except Exception as e:
             logger.error(f"❌ Error deploying automation: {e}", exc_info=True)
             return {
@@ -685,14 +661,15 @@ class HomeAssistantClient:
         extract_from_dict(automation_data)
         return list(entity_ids)
     
-    async def create_automation(self, automation_yaml: str) -> Dict[str, Any]:
+    async def create_automation(self, automation_yaml: str, automation_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Create a new automation in Home Assistant.
+        Create or update an automation in Home Assistant.
         
         This writes the automation config directly to Home Assistant's configuration.
         
         Args:
             automation_yaml: YAML string for the automation
+            automation_id: Optional automation entity ID to enforce (e.g. "automation.my_automation")
         
         Returns:
             Dict with creation result including automation_id and status
@@ -709,13 +686,18 @@ class HomeAssistantClient:
             
             # Parse YAML
             automation_data = yaml.safe_load(automation_yaml)
-            
-            # Generate automation ID if not present
-            if 'id' not in automation_data:
+
+            if not isinstance(automation_data, dict):
+                raise ValueError("Invalid automation YAML: must be a dict")
+
+            # Generate automation ID if not present or override when provided
+            if automation_id:
+                automation_data['id'] = automation_id.replace('automation.', '')
+            elif 'id' not in automation_data:
                 alias = automation_data.get('alias', 'ai_automation')
                 automation_data['id'] = alias.lower().replace(' ', '_').replace('-', '_')
-            
-            automation_id = f"automation.{automation_data['id']}"
+
+            automation_entity_id = f"automation.{automation_data['id']}"
             
             # Create automation via HA REST API
             # Note: HA doesn't have a direct REST endpoint to create automations
@@ -729,14 +711,14 @@ class HomeAssistantClient:
             ) as response:
                 if response.status in [200, 201]:
                     result = await response.json()
-                    logger.info(f"✅ Automation created: {automation_id}")
+                    logger.info(f"✅ Automation created: {automation_entity_id}")
                     
                     # Enable the automation
-                    await self.enable_automation(automation_id)
+                    await self.enable_automation(automation_entity_id)
                     
                     return {
                         "success": True,
-                        "automation_id": automation_id,
+                        "automation_id": automation_entity_id,
                         "message": "Automation created and enabled successfully",
                         "warnings": validation.get('warnings', [])
                     }
