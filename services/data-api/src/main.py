@@ -58,6 +58,7 @@ from .analytics_endpoints import router as analytics_router
 
 # Energy Correlation Endpoints (Phase 4)
 from .energy_endpoints import router as energy_router
+from .hygiene_endpoints import router as hygiene_router
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -277,6 +278,11 @@ app.include_router(
     energy_router,
     prefix="/api/v1",
     tags=["Energy"]
+)
+
+app.include_router(
+    hygiene_router,
+    tags=["Device Hygiene"]
 )
 
 

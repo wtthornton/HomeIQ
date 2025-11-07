@@ -1,6 +1,6 @@
 """Pydantic schemas for API validation (Context7 best practice)"""
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from enum import Enum
 
@@ -31,6 +31,7 @@ class IntegrationHealthDetail(BaseModel):
     is_configured: bool
     is_connected: bool
     error_message: Optional[str] = None
+    check_details: Optional[Dict[str, Any]] = None
     last_check: Optional[datetime] = None
 
 

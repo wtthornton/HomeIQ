@@ -26,18 +26,43 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
   const fetchHealth = useCallback(async () => {
     try {
       setError(null);
+      setLoading(true);
       const response = await fetch(`${SETUP_SERVICE_URL}/api/health/environment`);
-      
+
+      const bodyText = await response.text();
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let detail = response.statusText;
+
+        if (bodyText) {
+          try {
+            const parsed = JSON.parse(bodyText);
+            detail = parsed?.detail ?? detail;
+          } catch (parseError) {
+            detail = bodyText;
+          }
+        }
+
+        throw new Error(`Setup service error ${response.status}: ${detail}`);
       }
-      
-      const data = await response.json();
-      setHealth(data);
+
+      let parsed: unknown;
+      try {
+        parsed = bodyText ? JSON.parse(bodyText) : null;
+      } catch (parseError) {
+        throw new Error('Received malformed health payload from setup service');
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Setup service returned empty health payload');
+      }
+
+      setHealth(parsed as EnvironmentHealth);
       setLoading(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch health data';
       setError(errorMessage);
+      setHealth(null);
       setLoading(false);
       console.error('Error fetching environment health:', err);
     }
