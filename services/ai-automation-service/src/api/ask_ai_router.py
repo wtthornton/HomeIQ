@@ -34,6 +34,8 @@ from ..clients.ha_client import HomeAssistantClient
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..entity_extraction import extract_entities_from_query, EnhancedEntityExtractor, MultiModelEntityExtractor
 from ..model_services.orchestrator import ModelOrchestrator
+from ..model_services.soft_prompt_adapter import SoftPromptAdapter, get_soft_prompt_adapter
+from ..guardrails.hf_guardrails import get_guardrail_checker
 from ..llm.openai_client import OpenAIClient
 from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel
 from ..utils.capability_utils import normalize_capability, format_capability_for_display
@@ -160,6 +162,8 @@ _enhanced_extractor: Optional[EnhancedEntityExtractor] = None
 _multi_model_extractor: Optional[MultiModelEntityExtractor] = None
 _model_orchestrator: Optional[ModelOrchestrator] = None
 _self_correction_service: Optional[YAMLSelfCorrectionService] = None
+_soft_prompt_adapter_initialized = False
+_guardrail_checker_initialized = False
 
 def get_self_correction_service() -> Optional[YAMLSelfCorrectionService]:
     """Get self-correction service singleton"""
@@ -204,6 +208,88 @@ def get_multi_model_extractor() -> Optional[MultiModelEntityExtractor]:
 def get_model_orchestrator() -> Optional[ModelOrchestrator]:
     """Get model orchestrator instance"""
     return _model_orchestrator
+
+
+def get_soft_prompt() -> Optional[SoftPromptAdapter]:
+    """Get cached soft prompt adapter when enabled."""
+    global _soft_prompt_adapter_initialized
+
+    if _soft_prompt_adapter_initialized:
+        return getattr(get_soft_prompt, "_adapter", None)
+
+    _soft_prompt_adapter_initialized = True
+
+    if not getattr(settings, "soft_prompt_enabled", False):
+        get_soft_prompt._adapter = None
+        return None
+
+    adapter = get_soft_prompt_adapter(settings.soft_prompt_model_dir)
+    if adapter and adapter.is_ready:
+        get_soft_prompt._adapter = adapter
+        logger.info("Soft prompt fallback enabled with model %s", adapter.model_id)
+    else:
+        get_soft_prompt._adapter = None
+        logger.info("Soft prompt fallback disabled - model not available")
+
+    return get_soft_prompt._adapter
+
+
+def reset_soft_prompt_adapter() -> None:
+    """Clear cached soft prompt adapter so it will be reloaded on next access."""
+    global _soft_prompt_adapter_initialized
+    _soft_prompt_adapter_initialized = False
+    if hasattr(get_soft_prompt, "_adapter"):
+        get_soft_prompt._adapter = None
+
+
+def reload_soft_prompt_adapter() -> Optional[SoftPromptAdapter]:
+    """Force reinitialization of the soft prompt adapter."""
+    reset_soft_prompt_adapter()
+    return get_soft_prompt()
+
+
+def get_guardrail_checker_instance():
+    """Initialise or return cached guardrail checker."""
+    global _guardrail_checker_initialized
+
+    if _guardrail_checker_initialized:
+        return getattr(get_guardrail_checker_instance, "_checker", None)
+
+    _guardrail_checker_initialized = True
+
+    if not getattr(settings, "guardrail_enabled", False):
+        get_guardrail_checker_instance._checker = None
+        return None
+
+    checker = get_guardrail_checker(
+        settings.guardrail_model_name,
+        settings.guardrail_threshold
+    )
+    if checker and checker.is_ready:
+        get_guardrail_checker_instance._checker = checker
+        logger.info(
+            "Guardrail checks enabled with model %s",
+            settings.guardrail_model_name
+        )
+    else:
+        get_guardrail_checker_instance._checker = None
+        logger.info("Guardrail checks disabled - model unavailable")
+
+    return get_guardrail_checker_instance._checker
+
+
+def reset_guardrail_checker() -> None:
+    """Clear cached guardrail checker so it reloads with updated config."""
+    global _guardrail_checker_initialized
+    _guardrail_checker_initialized = False
+    if hasattr(get_guardrail_checker_instance, "_checker"):
+        get_guardrail_checker_instance._checker = None
+
+
+def reload_guardrail_checker():
+    """Force guardrail checker to reinitialize."""
+    reset_guardrail_checker()
+    return get_guardrail_checker_instance()
 
 # Create router
 router = APIRouter(prefix="/api/v1/ask-ai", tags=["Ask AI"])
@@ -3556,6 +3642,35 @@ async def generate_suggestions_from_query(
                 'created_at': datetime.now().isoformat()
             }]
         
+        adapter = get_soft_prompt()
+        if adapter:
+            suggestions = adapter.enhance_suggestions(
+                query=query,
+                suggestions=suggestions,
+                context=entity_context_json,
+                threshold=getattr(settings, "soft_prompt_confidence_threshold", 0.85)
+            )
+
+        guardrail_checker = get_guardrail_checker_instance()
+        if guardrail_checker:
+            guardrail_results = guardrail_checker.evaluate_batch(
+                [suggestion.get('description', '') for suggestion in suggestions]
+            )
+
+            flagged_count = 0
+            for suggestion, result in zip(suggestions, guardrail_results):
+                suggestion.setdefault('metadata', {})['guardrail'] = result.to_dict()
+                if result.flagged:
+                    suggestion['status'] = 'needs_review'
+                    flagged_count += 1
+
+            if guardrail_results:
+                logger.info(
+                    "Guardrail check complete: %s/%s suggestions flagged",
+                    flagged_count,
+                    len(guardrail_results)
+                )
+
         logger.info(f"Generated {len(suggestions)} suggestions for query: {query}")
         return suggestions
         

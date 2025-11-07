@@ -9,9 +9,11 @@ This module provides a centralized prompt building system that unifies:
 All prompts leverage device intelligence when available for enhanced context.
 """
 
+import json
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 
 from ..utils.capability_utils import normalize_capability, format_capability_for_display
 
@@ -75,6 +77,9 @@ Guidelines:
 - Use numeric ranges for smooth transitions and graduated effects
 - Leverage enum values for state-specific automations"""
 
+    PATTERN_FILE = Path(__file__).with_name("ask_ai_prompt_patterns.json")
+    _pattern_cache: Optional[Dict[str, Any]] = None
+
     def __init__(self, device_intelligence_client=None):
         """
         Initialize the unified prompt builder.
@@ -83,6 +88,62 @@ Guidelines:
             device_intelligence_client: Optional client for device intelligence service
         """
         self.device_intel_client = device_intelligence_client
+        self.prompt_patterns = self._load_prompt_patterns()
+
+    @classmethod
+    def _load_prompt_patterns(cls) -> Dict[str, Any]:
+        """Load reusable prompt pattern guidance from JSON file."""
+        if cls._pattern_cache is not None:
+            return cls._pattern_cache
+
+        if not cls.PATTERN_FILE.exists():
+            logger.debug("Prompt pattern file not found; using empty registry")
+            cls._pattern_cache = {}
+            return cls._pattern_cache
+
+        try:
+            content = cls.PATTERN_FILE.read_text(encoding="utf-8")
+            cls._pattern_cache = json.loads(content)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to load prompt pattern file %s: %s", cls.PATTERN_FILE, exc)
+            cls._pattern_cache = {}
+
+        return cls._pattern_cache
+
+    def _render_pattern_sections(self, pattern_ids: List[str]) -> str:
+        """Render guideline sections for the provided pattern identifiers."""
+        if not pattern_ids:
+            return ""
+
+        sections: List[str] = []
+        for pattern_id in pattern_ids:
+            pattern = self.prompt_patterns.get(pattern_id)
+            if not pattern:
+                continue
+
+            heading = pattern.get("guideline_heading") or pattern.get("name")
+            if heading:
+                sections.append(heading.upper())
+
+            guidelines = pattern.get("guidelines", [])
+            for guideline in guidelines:
+                sections.append(f"- {guideline}")
+
+            progression = pattern.get("progression")
+            if progression:
+                prog_heading = progression.get("heading")
+                if prog_heading:
+                    sections.append(prog_heading.upper())
+                for step in progression.get("steps", []):
+                    sections.append(f"- {step}")
+
+            sections.append("")
+
+        # Remove trailing empty entry
+        while sections and sections[-1] == "":
+            sections.pop()
+
+        return "\n".join(sections)
         
     async def build_pattern_prompt(
         self, 
@@ -218,6 +279,13 @@ DO NOT:
         # Generate capability-specific examples
         capability_examples = self._generate_capability_examples(entities)
         
+        # Determine which prompt patterns to surface
+        pattern_ids = ["baseline", "safety", "creative"]
+        if clarification_context and clarification_context.get('questions_and_answers'):
+            pattern_ids.insert(1, "clarifier")
+
+        pattern_guidance = self._render_pattern_sections(pattern_ids)
+
         # Build creative query prompt with enhanced examples
         # If clarification context exists, the query should already be enriched
         # But we'll still show the original query structure for clarity
@@ -238,6 +306,9 @@ Available devices and capabilities:
 
 CAPABILITY-SPECIFIC AUTOMATION IDEAS:
 {capability_examples}
+
+PATTERN GUIDANCE:
+{pattern_guidance or 'Follow core Ask AI prompting practices for clarity, safety, and creativity.'}
 
 CRITICAL: DEVICE NAMING REQUIREMENTS:
 - ONLY use devices that are listed in the "Available devices and capabilities" section OR the "ENRICHED ENTITY CONTEXT" section above

@@ -203,6 +203,56 @@ Update integration settings.
 #### POST /api/v1/integrations/{integration_name}/test
 Test integration connectivity.
 
+### Training Endpoints *(October 2025 update)*
+
+#### GET /api/v1/admin/training/runs
+Return recent soft prompt training runs (most recent first).
+
+**Response:**
+```json
+[
+  {
+    "id": 42,
+    "status": "completed",
+    "startedAt": "2025-10-24T14:12:06Z",
+    "finishedAt": "2025-10-24T14:22:44Z",
+    "datasetSize": 1860,
+    "baseModel": "google/flan-t5-small",
+    "outputDir": "data/ask_ai_soft_prompt/run_20251024_1412",
+    "runIdentifier": "run_20251024_1412",
+    "finalLoss": 0.9812,
+    "errorMessage": null,
+    "metadataPath": "data/ask_ai_soft_prompt/run_20251024_1412/training_run.json",
+    "triggeredBy": "admin"
+  }
+]
+```
+
+#### POST /api/v1/admin/training/trigger → `202 Accepted`
+Queue a new soft prompt fine-tuning job. Returns `409 Conflict` if another job is already running.
+
+**Response:**
+```json
+{
+  "id": 43,
+  "status": "queued",
+  "startedAt": "2025-10-24T15:01:11Z",
+  "finishedAt": null,
+  "datasetSize": null,
+  "baseModel": null,
+  "outputDir": "data/ask_ai_soft_prompt/run_20251024_1501",
+  "runIdentifier": "run_20251024_1501",
+  "finalLoss": null,
+  "errorMessage": null,
+  "metadataPath": null,
+  "triggeredBy": "admin"
+}
+```
+
+**Notes:**
+- The training job executes asynchronously; clients can poll `GET /api/v1/admin/training/runs` for status updates.
+- Artifacts (model weights, tokenizer, metadata) are written under `data/ask_ai_soft_prompt/<runIdentifier>` and symlinked to `latest/` when complete.
+
 ### WebSocket
 
 #### WS /ws
@@ -914,6 +964,70 @@ Search available Home Assistant entities for device mapping.
 
 **Use Case:** 
 Used by the frontend Device Mapping Modal to show alternative entities when users want to change which entity_id maps to a friendly_name in an automation suggestion. Entities are enriched with current state and capabilities from Home Assistant.
+
+### System Settings API *(October 2025 update)*
+
+**Base URL:** `/api/v1/settings` (AI Automation Service)
+
+#### GET /api/v1/settings
+Retrieve the persisted system configuration (schedule, confidence thresholds, budget limits, AI model toggles).
+
+**Response:**
+```json
+{
+  "scheduleEnabled": true,
+  "scheduleTime": "03:00",
+  "minConfidence": 70,
+  "maxSuggestions": 10,
+  "enabledCategories": {
+    "energy": true,
+    "comfort": true,
+    "security": true,
+    "convenience": true
+  },
+  "budgetLimit": 10.0,
+  "notificationsEnabled": false,
+  "notificationEmail": "",
+  "softPromptEnabled": true,
+  "softPromptModelDir": "data/ask_ai_soft_prompt",
+  "softPromptConfidenceThreshold": 0.85,
+  "guardrailEnabled": true,
+  "guardrailModelName": "unitary/toxic-bert",
+  "guardrailThreshold": 0.6
+}
+```
+
+#### PUT /api/v1/settings
+Update the system configuration. Validation is applied server-side (e.g., soft prompt directories must exist when enabled, thresholds must be between 0 and 1).
+
+**Request:**
+```json
+{
+  "scheduleEnabled": true,
+  "scheduleTime": "04:30",
+  "minConfidence": 75,
+  "maxSuggestions": 8,
+  "enabledCategories": {
+    "energy": true,
+    "comfort": true,
+    "security": false,
+    "convenience": true
+  },
+  "budgetLimit": 15,
+  "notificationsEnabled": true,
+  "notificationEmail": "alerts@example.com",
+  "softPromptEnabled": true,
+  "softPromptModelDir": "data/ask_ai_soft_prompt",
+  "softPromptConfidenceThreshold": 0.9,
+  "guardrailEnabled": true,
+  "guardrailModelName": "unitary/toxic-bert",
+  "guardrailThreshold": 0.55
+}
+```
+
+**Response:** Updated configuration payload (same schema as GET).
+
+**Validation Errors:** Returns `400 Bad Request` with a list of validation issues (e.g., missing directory, thresholds out of range).
 
 ### Entity Alias Management (October 2025)
 

@@ -5,7 +5,7 @@ Epic AI-1: Pattern detection and automation suggestions
 Epic AI-2: Device intelligence and capability tracking
 """
 
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON, Boolean, Index, UniqueConstraint, event
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON, Boolean, Index, UniqueConstraint, event, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from datetime import datetime
@@ -16,6 +16,37 @@ import uuid
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
+
+
+from ..config import settings as app_settings
+
+
+def _default_enabled_categories() -> dict:
+    return {
+        "energy": True,
+        "comfort": True,
+        "security": True,
+        "convenience": True,
+    }
+
+
+def get_system_settings_defaults() -> dict:
+    return {
+        "schedule_enabled": True,
+        "schedule_time": "03:00",
+        "min_confidence": 70,
+        "max_suggestions": 10,
+        "enabled_categories": _default_enabled_categories(),
+        "budget_limit": 10.0,
+        "notifications_enabled": False,
+        "notification_email": "",
+        "soft_prompt_enabled": getattr(app_settings, "soft_prompt_enabled", True),
+        "soft_prompt_model_dir": getattr(app_settings, "soft_prompt_model_dir", "data/ask_ai_soft_prompt"),
+        "soft_prompt_confidence_threshold": getattr(app_settings, "soft_prompt_confidence_threshold", 0.85),
+        "guardrail_enabled": getattr(app_settings, "guardrail_enabled", True),
+        "guardrail_model_name": getattr(app_settings, "guardrail_model_name", "unitary/toxic-bert"),
+        "guardrail_threshold": getattr(app_settings, "guardrail_threshold", 0.6),
+    }
 
 
 class Pattern(Base):
@@ -44,6 +75,37 @@ class Pattern(Base):
     
     def __repr__(self):
         return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence}, trend={self.trend_direction})>"
+
+
+class SystemSettings(Base):
+    """Persistent system-wide configuration values."""
+
+    __tablename__ = 'system_settings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    schedule_enabled = Column(Boolean, nullable=False, default=True)
+    schedule_time = Column(String, nullable=False, default="03:00")
+    min_confidence = Column(Integer, nullable=False, default=70)
+    max_suggestions = Column(Integer, nullable=False, default=10)
+    enabled_categories = Column(JSON, nullable=False, default=_default_enabled_categories)
+    budget_limit = Column(Float, nullable=False, default=10.0)
+    notifications_enabled = Column(Boolean, nullable=False, default=False)
+    notification_email = Column(String, nullable=False, default="")
+    soft_prompt_enabled = Column(Boolean, nullable=False, default=lambda: getattr(app_settings, "soft_prompt_enabled", True))
+    soft_prompt_model_dir = Column(String, nullable=False, default=lambda: getattr(app_settings, "soft_prompt_model_dir", "data/ask_ai_soft_prompt"))
+    soft_prompt_confidence_threshold = Column(Float, nullable=False, default=lambda: getattr(app_settings, "soft_prompt_confidence_threshold", 0.85))
+    guardrail_enabled = Column(Boolean, nullable=False, default=lambda: getattr(app_settings, "guardrail_enabled", True))
+    guardrail_model_name = Column(String, nullable=False, default=lambda: getattr(app_settings, "guardrail_model_name", "unitary/toxic-bert"))
+    guardrail_threshold = Column(Float, nullable=False, default=lambda: getattr(app_settings, "guardrail_threshold", 0.6))
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('id', name='uq_system_settings_singleton'),
+    )
+
+    def __repr__(self):
+        return f"<SystemSettings(schedule_enabled={self.schedule_enabled}, soft_prompt_enabled={self.soft_prompt_enabled}, guardrail_enabled={self.guardrail_enabled})>"
 
 
 class Suggestion(Base):
@@ -382,6 +444,18 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
+    # Seed default system settings if missing
+    async with async_session() as session:
+        result = await session.execute(select(SystemSettings).limit(1))
+        existing = result.scalar_one_or_none()
+        if not existing:
+            defaults = get_system_settings_defaults()
+            system_settings = SystemSettings(**defaults)
+            system_settings.id = 1
+            session.add(system_settings)
+            await session.commit()
+            logger.info("Seeded default system settings")
+
     logger.info("Database initialized successfully")
     return engine, async_session
 
@@ -517,11 +591,7 @@ class ReverseEngineeringMetrics(Base):
     original_yaml = Column(Text, nullable=True)  # YAML before reverse engineering
     corrected_yaml = Column(Text, nullable=True)  # YAML after reverse engineering
     yaml_changed = Column(Boolean, nullable=True, default=False)  # Did RE change the YAML?
-    
-    # ===== Iteration History (JSON) =====
-    iteration_history_json = Column(JSON, nullable=True)  # Full iteration history
-    
-    # ===== Indexes =====
+
     __table_args__ = (
         Index('idx_re_metrics_query_id', 'query_id'),
         Index('idx_re_metrics_suggestion_id', 'suggestion_id'),
@@ -530,8 +600,41 @@ class ReverseEngineeringMetrics(Base):
         Index('idx_re_metrics_convergence', 'convergence_achieved'),
         Index('idx_re_metrics_automation_created', 'automation_created'),
     )
+
+    def __repr__(self) -> str:
+        return (
+            f"<ReverseEngineeringMetrics(id={self.id}, query_id={self.query_id}, "
+            f"similarity={self.final_similarity:.2%}, iterations={self.iterations_completed}, "
+            f"cost={self.estimated_cost_usd!r})>"
+        )
+
+
+class TrainingRun(Base):
+    """Record of soft prompt training jobs."""
+
+    __tablename__ = 'training_runs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(String(20), nullable=False, default='queued')  # queued, running, completed, failed
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    finished_at = Column(DateTime, nullable=True)
+    dataset_size = Column(Integer, nullable=True)
+    base_model = Column(String, nullable=True)
+    output_dir = Column(String, nullable=True)
+    run_identifier = Column(String, nullable=True, unique=True)
+    final_loss = Column(Float, nullable=True)
+    error_message = Column(Text, nullable=True)
+    metadata_path = Column(String, nullable=True)
+    triggered_by = Column(String, nullable=False, default='admin')
+
+    def __repr__(self) -> str:
+        return f"<TrainingRun(id={self.id}, status={self.status}, started_at={self.started_at})>"
     
-    def __repr__(self):
-        return f"<ReverseEngineeringMetrics(id={self.id}, query_id={self.query_id}, " \
-               f"similarity={self.final_similarity:.2%}, iterations={self.iterations_completed}, " \
-               f"cost=${self.estimated_cost_usd:.4f})>"
+    # ===== Iteration History (JSON) =====
+    iteration_history_json = Column(JSON, nullable=True)  # Full iteration history
+    
+    __table_args__ = (
+        Index('idx_training_runs_status', 'status'),
+        Index('idx_training_runs_started_at', 'started_at'),
+        Index('idx_training_runs_run_identifier', 'run_identifier'),
+    )

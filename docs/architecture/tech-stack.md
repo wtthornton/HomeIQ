@@ -12,6 +12,7 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 | **Backend Language** | Python | 3.11 | WebSocket client and data processing | Simple, proven async support with excellent libraries |
 | **Backend Framework (API)** | FastAPI | 0.104.1 | REST API for admin interface | High performance, automatic OpenAPI docs, excellent async support |
 | **Backend Framework (WebSocket)** | aiohttp | 3.9.1 | WebSocket client + async HTTP | Native async WebSocket + simple HTTP API for real-time streaming |
+| **Fine-Tuning Library** | PEFT | 0.13.2 | Soft prompt / LoRA training pipeline | Lightweight adapter tuning compatible with CPU-only NUC deployments |
 | **Docker SDK** | docker-py | 7.1.0 | Container management & log aggregation | Modern Python Docker SDK with full urllib3 v2.x support (2025) |
 | **API Style** | REST + WebSocket | - | Admin API + Real-time streaming | REST for admin interface, WebSocket for real-time data |
 | **Database (Time-Series)** | InfluxDB | 2.7 | Time-series data storage | Purpose-built for time-series data and Home Assistant events |
@@ -46,6 +47,7 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 - **FastAPI**: High-performance async framework with automatic OpenAPI documentation
 - **aiohttp**: Lightweight async HTTP library perfect for WebSocket connections to Home Assistant
 - **Python 3.11**: Latest stable version with excellent async/await support and performance improvements
+- **PEFT + Transformers**: Enables lightweight soft prompt fine-tuning and runtime adapter reloads for Ask AI suggestions
 
 ### Data & Storage
 - **InfluxDB 2.7**: Purpose-built for time-series data, perfect for Home Assistant sensor data

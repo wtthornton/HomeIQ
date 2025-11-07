@@ -47,6 +47,7 @@ transformers==4.45.2          # HuggingFace models (compatible with optimum-inte
 torch==2.2.2+cpu              # CPU-only PyTorch wheel
 openvino==2024.5.0            # Intel optimization
 optimum-intel==1.20.0         # OpenVINO integration with Transformers
+peft==0.13.2                  # Lightweight LoRA fine-tuning support
 
 # Scheduling
 apscheduler==3.10.4
