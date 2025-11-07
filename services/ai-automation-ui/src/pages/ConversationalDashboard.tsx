@@ -23,7 +23,12 @@ export const ConversationalDashboard: React.FC = () => {
   const [refreshAllowed, setRefreshAllowed] = useState(true);
   const [nextRefreshAt, setNextRefreshAt] = useState<string | null>(null);
   const [refreshLoading, setRefreshLoading] = useState(false);
-  const [analysisRun, setAnalysisRun] = useState<{ status: string; started_at: string; finished_at: string | null } | null>(null);
+  const [analysisRun, setAnalysisRun] = useState<{
+    status: string;
+    started_at: string;
+    finished_at?: string | null;
+    duration_seconds?: number | null;
+  } | null>(null);
 
   const loadSuggestions = async () => {
     try {
@@ -43,7 +48,8 @@ export const ConversationalDashboard: React.FC = () => {
         // Extract device hash from title and replace with friendly name
         const deviceHashMatch = suggestion.title.match(/AI Suggested: ([a-f0-9]{32})/);
         let friendlyTitle = suggestion.title;
-        let friendlyDescription = suggestion.description;
+        const originalDescription = suggestion.description_only || suggestion.description || '';
+        let friendlyDescription = originalDescription;
         
         if (deviceHashMatch) {
           const deviceHash = deviceHashMatch[1];
@@ -70,14 +76,25 @@ export const ConversationalDashboard: React.FC = () => {
           console.log('No device hash match found in title:', suggestion.title);
         }
         
+        const deviceCapabilities = suggestion.device_capabilities || {};
+        const deviceInfoFromCapabilities = Array.isArray(deviceCapabilities?.devices)
+          ? deviceCapabilities.devices
+          : undefined;
+
         const mapped = {
           ...suggestion,
           title: friendlyTitle,
           description: friendlyDescription,
-          description_only: friendlyDescription, // Map description to description_only
-          refinement_count: 0, // Default value
-          conversation_history: [], // Default empty array
-          device_capabilities: {} // Default empty object
+          description_only: friendlyDescription,
+          status: suggestion.status || 'draft',
+          refinement_count: suggestion.refinement_count ?? 0,
+          conversation_history: Array.isArray(suggestion.conversation_history)
+            ? suggestion.conversation_history
+            : [],
+          device_capabilities: deviceCapabilities,
+          device_info: suggestion.device_info || deviceInfoFromCapabilities || [],
+          ha_automation_id: suggestion.ha_automation_id || null,
+          yaml_generated_at: suggestion.yaml_generated_at || null
         };
         console.log('Mapped suggestion:', mapped);
         return mapped;

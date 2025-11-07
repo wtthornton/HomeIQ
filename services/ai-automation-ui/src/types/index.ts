@@ -2,20 +2,42 @@
  * AI Automation UI - Core Types
  */
 
+export interface SuggestionDeviceInfo {
+  friendly_name: string;
+  entity_id: string;
+  domain?: string;
+  area?: string;
+  selected?: boolean;
+}
+
+export interface SuggestionConversationEntry {
+  timestamp: string;
+  user_input: string;
+  updated_description: string;
+  changes?: string[];
+  validation?: Record<string, any> | null;
+}
+
 export interface Suggestion {
   id: number;
-  pattern_id?: number;
+  pattern_id?: number | null;
   title: string;
   description: string;
-  automation_yaml: string;
-  status: 'pending' | 'approved' | 'deployed' | 'rejected';
+  description_only?: string;
+  automation_yaml?: string | null;
+  status: 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected' | 'pending' | 'approved';
   confidence: number;
   category?: 'energy' | 'comfort' | 'security' | 'convenience';
   priority?: 'high' | 'medium' | 'low';
-  created_at: string;
-  updated_at: string;
-  deployed_at?: string;
-  ha_automation_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  deployed_at?: string | null;
+  ha_automation_id?: string | null;
+  yaml_generated_at?: string | null;
+  refinement_count?: number;
+  conversation_history?: SuggestionConversationEntry[];
+  device_capabilities?: Record<string, any>;
+  device_info?: SuggestionDeviceInfo[];
 }
 
 export interface Pattern {

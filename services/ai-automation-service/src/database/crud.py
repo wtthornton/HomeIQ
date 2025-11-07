@@ -277,41 +277,132 @@ async def get_pattern_stats(db: AsyncSession) -> Dict:
 # ============================================================================
 
 async def store_suggestion(db: AsyncSession, suggestion_data: Dict, commit: bool = True) -> Suggestion:
-    """
-    Store automation suggestion in database.
-    
-    Args:
-        db: Database session
-        suggestion_data: Suggestion dictionary
-        commit: Whether to commit immediately (default: True)
-    
-    Returns:
-        Stored Suggestion object
-    """
+    """Store automation suggestion in database with enriched metadata."""
     try:
-        # Story AI1.24: automation_yaml can be NULL for draft suggestions
+        if 'title' not in suggestion_data:
+            raise ValueError("suggestion_data must include a title field")
+        if 'confidence' not in suggestion_data:
+            raise ValueError("suggestion_data must include a confidence field")
+
+        description_text = suggestion_data.get('description_only') or suggestion_data.get('description') or ''
+
+        conversation_history = suggestion_data.get('conversation_history')
+        if isinstance(conversation_history, str):
+            try:
+                import json
+                conversation_history = json.loads(conversation_history)
+            except Exception:
+                conversation_history = []
+        if conversation_history is None:
+            conversation_history = []
+
+        refinement_count = int(suggestion_data.get('refinement_count') or 0)
+
+        status = suggestion_data.get('status', 'draft')
+
+        device_capabilities = suggestion_data.get('device_capabilities') or {}
+
+        device_info = suggestion_data.get('device_info') or []
+        devices_involved = suggestion_data.get('devices_involved') or []
+
+        def _collect_device_ids() -> List[str]:
+            candidates: List[str] = []
+            for key in ('device_id', 'device1', 'device2'):
+                value = suggestion_data.get(key)
+                if isinstance(value, str):
+                    candidates.append(value)
+                elif isinstance(value, list):
+                    candidates.extend([v for v in value if isinstance(v, str)])
+
+            metadata = suggestion_data.get('metadata') or {}
+            if isinstance(metadata, dict):
+                for key in ('device_id', 'device1', 'device2', 'devices'):
+                    value = metadata.get(key)
+                    if isinstance(value, str):
+                        candidates.append(value)
+                    elif isinstance(value, list):
+                        candidates.extend([v for v in value if isinstance(v, str)])
+
+            if isinstance(devices_involved, list):
+                candidates.extend([v for v in devices_involved if isinstance(v, str)])
+
+            return list(dict.fromkeys([c for c in candidates if c]))
+
+        collected_ids = _collect_device_ids()
+
+        if not device_info and collected_ids:
+            def _friendly_name(entity_id: str) -> str:
+                if '.' in entity_id:
+                    name_part = entity_id.split('.', 1)[1]
+                    return name_part.replace('_', ' ').title()
+                return entity_id
+
+            for entity_id in collected_ids:
+                domain = entity_id.split('.', 1)[0] if '.' in entity_id else 'device'
+                device_info.append({
+                    'entity_id': entity_id,
+                    'friendly_name': _friendly_name(entity_id),
+                    'domain': domain,
+                    'selected': True
+                })
+
+        if device_info:
+            # Merge with existing device list stored in device_capabilities if present
+            existing_devices = []
+            if isinstance(device_capabilities, dict):
+                existing_devices = device_capabilities.get('devices', []) or []
+            else:
+                device_capabilities = {}
+
+            merged_devices: Dict[str, Dict[str, Any]] = {}
+            for entry in existing_devices:
+                entity_id = entry.get('entity_id') if isinstance(entry, dict) else None
+                if entity_id:
+                    merged_devices[entity_id] = entry
+            for entry in device_info:
+                entity_id = entry.get('entity_id') if isinstance(entry, dict) else None
+                if entity_id:
+                    merged_devices.setdefault(entity_id, entry)
+            device_capabilities['devices'] = list(merged_devices.values())
+
         suggestion = Suggestion(
             pattern_id=suggestion_data.get('pattern_id'),
             title=suggestion_data['title'],
-            description_only=suggestion_data.get('description', suggestion_data.get('description_only', '')),
-            automation_yaml=suggestion_data.get('automation_yaml'),  # Can be None for drafts
-            status='draft',  # Conversational flow status
+            description_only=description_text,
+            automation_yaml=suggestion_data.get('automation_yaml'),
+            status=status,
             confidence=suggestion_data['confidence'],
             category=suggestion_data.get('category'),
             priority=suggestion_data.get('priority'),
+            conversation_history=conversation_history,
+            refinement_count=refinement_count,
+            device_capabilities=device_capabilities,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
-        
+
+        if suggestion_data.get('ha_automation_id'):
+            suggestion.ha_automation_id = suggestion_data.get('ha_automation_id')
+
+        yaml_generated_at = suggestion_data.get('yaml_generated_at')
+        if yaml_generated_at:
+            if isinstance(yaml_generated_at, datetime):
+                suggestion.yaml_generated_at = yaml_generated_at
+            else:
+                try:
+                    suggestion.yaml_generated_at = datetime.fromisoformat(yaml_generated_at)
+                except Exception:
+                    pass
+
         db.add(suggestion)
-        
+
         if commit:
             await db.commit()
             await db.refresh(suggestion)
-        
+
         logger.info(f"✅ Stored suggestion: {suggestion.title}")
         return suggestion
-        
+
     except Exception as e:
         if commit:
             await db.rollback()

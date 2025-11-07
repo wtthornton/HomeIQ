@@ -177,13 +177,20 @@ async def generate_suggestions(
                 for pred_sugg in predictive_suggestions:
                     try:
                         suggestion_data = {
-                            'pattern_id': None,  # Predictive suggestions don't have patterns
+                            'pattern_id': None,
                             'title': pred_sugg.get('title', 'Predictive Automation'),
                             'description': pred_sugg.get('description', ''),
                             'automation_yaml': None,
                             'confidence': pred_sugg.get('confidence', 0.8),
                             'category': pred_sugg.get('type', 'convenience'),
-                            'priority': pred_sugg.get('priority', 'medium')
+                            'priority': pred_sugg.get('priority', 'medium'),
+                            'status': pred_sugg.get('status', 'draft'),
+                            'device_id': pred_sugg.get('device_id'),
+                            'device1': pred_sugg.get('device1'),
+                            'device2': pred_sugg.get('device2'),
+                            'devices_involved': pred_sugg.get('devices') or pred_sugg.get('device_ids'),
+                            'metadata': pred_sugg.get('metadata', {}),
+                            'device_info': pred_sugg.get('device_info')
                         }
                         stored = await store_suggestion(db, suggestion_data)
                         suggestions_stored.append(stored)
@@ -257,7 +264,15 @@ async def generate_suggestions(
                             'automation_yaml': None,
                             'confidence': cascade_sugg.get('confidence', 0.8),
                             'category': 'convenience',
-                            'priority': cascade_sugg.get('complexity', 'medium')
+                            'priority': cascade_sugg.get('complexity', 'medium'),
+                            'status': cascade_sugg.get('status', 'draft'),
+                            'device_id': cascade_sugg.get('device_id', pattern.device_id),
+                            'device1': cascade_sugg.get('device1') or pattern_dict.get('device1'),
+                            'device2': cascade_sugg.get('device2') or pattern_dict.get('device2'),
+                            'devices_involved': cascade_sugg.get('devices_involved'),
+                            'metadata': cascade_sugg.get('metadata', {}),
+                            'device_capabilities': cascade_sugg.get('device_capabilities'),
+                            'device_info': cascade_sugg.get('device_info')
                         }
                         stored = await store_suggestion(db, cascade_data)
                         suggestions_stored.append(stored)
@@ -310,6 +325,40 @@ async def generate_suggestions(
                         'priority': result.get('priority', 'medium')
                     }
                 
+                # Build device info entries from context
+                device_info_entries = []
+                if device_context:
+                    if isinstance(device_context.get('device_id'), str):
+                        entity_id = device_context['device_id']
+                        device_info_entries.append({
+                            'entity_id': entity_id,
+                            'friendly_name': device_context.get('name', entity_id),
+                            'domain': device_context.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'device'),
+                            'selected': True
+                        })
+                    device1_ctx = device_context.get('device1')
+                    if isinstance(device1_ctx, dict) and isinstance(device1_ctx.get('entity_id'), str):
+                        entity_id = device1_ctx['entity_id']
+                        device_info_entries.append({
+                            'entity_id': entity_id,
+                            'friendly_name': device1_ctx.get('name', entity_id),
+                            'domain': device1_ctx.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'device'),
+                            'selected': True
+                        })
+                    device2_ctx = device_context.get('device2')
+                    if isinstance(device2_ctx, dict) and isinstance(device2_ctx.get('entity_id'), str):
+                        entity_id = device2_ctx['entity_id']
+                        device_info_entries.append({
+                            'entity_id': entity_id,
+                            'friendly_name': device2_ctx.get('name', entity_id),
+                            'domain': device2_ctx.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'device'),
+                            'selected': True
+                        })
+
+                device_capabilities = {}
+                if device_info_entries:
+                    device_capabilities['devices'] = device_info_entries
+
                 # Store in database
                 suggestion_data = {
                     'pattern_id': pattern.id,
@@ -318,7 +367,15 @@ async def generate_suggestions(
                     'automation_yaml': None,  # Story AI1.24: No YAML until approved
                     'confidence': pattern.confidence,
                     'category': description_data['category'],
-                    'priority': description_data['priority']
+                    'priority': description_data['priority'],
+                    'status': 'draft',
+                    'device_id': pattern.device_id,
+                    'device1': pattern_dict.get('device1'),
+                    'device2': pattern_dict.get('device2'),
+                    'devices_involved': [pattern.device_id] if pattern.device_id else None,
+                    'metadata': metadata,
+                    'device_capabilities': device_capabilities if device_capabilities else None,
+                    'device_info': device_info_entries or None
                 }
                 
                 stored_suggestion = await store_suggestion(db, suggestion_data)
@@ -388,26 +445,57 @@ async def list_suggestions(
     List automation suggestions with optional filters.
     """
     try:
-        suggestions = await get_suggestions(db, status=status_filter, limit=limit)
-        
-        # Convert to dictionaries
-        suggestions_list = [
-            {
+        fetch_limit = max(limit * 10, 500)
+        raw_suggestions = await get_suggestions(db, status=status_filter, limit=fetch_limit)
+
+        suggestions_list = []
+        for s in raw_suggestions:
+            device_capabilities = s.device_capabilities or {}
+            if not isinstance(device_capabilities, dict):
+                device_capabilities = {}
+
+            device_info = []
+            if isinstance(device_capabilities, dict):
+                devices_from_capabilities = device_capabilities.get('devices')
+                if isinstance(devices_from_capabilities, list):
+                    for entry in devices_from_capabilities:
+                        if isinstance(entry, dict):
+                            device_info.append(entry)
+                elif isinstance(devices_from_capabilities, dict):
+                    device_info.append(devices_from_capabilities)
+
+            if not device_info and (s.status in ('draft', 'refining')) and not s.automation_yaml:
+                logger.debug(
+                    "Skipping suggestion %s due to missing device information",
+                    s.id
+                )
+                continue
+
+            suggestion_dict = {
                 "id": s.id,
                 "pattern_id": s.pattern_id,
                 "title": s.title,
-                "description": s.description_only,  # Fixed: use description_only field
+                "description": s.description_only,
+                "description_only": s.description_only,
                 "automation_yaml": s.automation_yaml,
                 "status": s.status,
                 "confidence": s.confidence,
                 "category": s.category,
                 "priority": s.priority,
+                "conversation_history": s.conversation_history or [],
+                "refinement_count": s.refinement_count or 0,
+                "device_capabilities": device_capabilities,
+                "device_info": device_info,
+                "ha_automation_id": s.ha_automation_id,
+                "yaml_generated_at": s.yaml_generated_at.isoformat() if s.yaml_generated_at else None,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
                 "deployed_at": s.deployed_at.isoformat() if s.deployed_at else None
             }
-            for s in suggestions
-        ]
-        
+
+            suggestions_list.append(suggestion_dict)
+            if len(suggestions_list) >= limit:
+                break
+
         return {
             "success": True,
             "data": {
