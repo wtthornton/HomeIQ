@@ -115,10 +115,16 @@ async def test_discovery_service_start_failure(mock_settings):
     service = DiscoveryService(mock_settings)
     
     # Mock failed connection
-    with patch.object(service.ha_client, 'connect', return_value=False):
+    with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.connect.return_value = False
+        mock_client_cls.return_value = mock_client
+
         result = await service.start()
+
         assert not result
         assert not service.running
+        mock_client.connect.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -127,13 +133,20 @@ async def test_discovery_service_start_success(mock_settings):
     service = DiscoveryService(mock_settings)
     
     # Mock successful connections
-    with patch.object(service.ha_client, 'connect', return_value=True), \
-         patch.object(service.ha_client, 'start_message_handler', return_value=None), \
+    with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls, \
          patch.object(service.mqtt_client, 'connect', return_value=True):
-        
+
+        mock_client = AsyncMock()
+        mock_client.connect.return_value = True
+        mock_client.start_message_handler.return_value = None
+        mock_client_cls.return_value = mock_client
+
         result = await service.start()
+
         assert result
         assert service.running
+        mock_client.connect.assert_awaited()
+        mock_client.start_message_handler.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -141,6 +154,7 @@ async def test_discovery_service_stop(mock_settings):
     """Test discovery service stop."""
     service = DiscoveryService(mock_settings)
     service.running = True
+    service.ha_client = AsyncMock()
     
     # Create a real task that can be cancelled
     async def dummy_task():
@@ -149,8 +163,7 @@ async def test_discovery_service_stop(mock_settings):
     
     service.discovery_task = asyncio.create_task(dummy_task())
     
-    with patch.object(service.ha_client, 'disconnect', return_value=None), \
-         patch.object(service.mqtt_client, 'disconnect', return_value=None):
+    with patch.object(service.mqtt_client, 'disconnect', return_value=None):
         
         await service.stop()
         assert not service.running
@@ -164,17 +177,18 @@ async def test_get_status(mock_settings):
     service.last_discovery = datetime.now(timezone.utc)
     service.unified_devices = {"device1": MagicMock()}
     service.ha_areas = [MagicMock()]
-    
-    with patch.object(service.ha_client, 'is_connected', return_value=True), \
-         patch.object(service.mqtt_client, 'is_connected', return_value=True):
+
+    service.ha_client = MagicMock()
+    service.ha_client.is_connected.return_value = True
+    service.mqtt_client.is_connected = MagicMock(return_value=True)
         
-        status = service.get_status()
-        
-        assert status.service_running is True
-        assert status.ha_connected is True
-        assert status.mqtt_connected is True
-        assert status.devices_count == 1
-        assert status.areas_count == 1
+    status = service.get_status()
+
+    assert status.service_running is True
+    assert status.ha_connected is True
+    assert status.mqtt_connected is True
+    assert status.devices_count == 1
+    assert status.areas_count == 1
 
 
 @pytest.mark.asyncio

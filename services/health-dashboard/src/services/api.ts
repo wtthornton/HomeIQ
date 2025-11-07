@@ -1,6 +1,31 @@
 import { HealthStatus, Statistics, DataSourceHealth, DataSourceMetrics } from '../types';
 import { ServiceHealthResponse } from '../types/health';
 
+export interface HygieneIssue {
+  issue_key: string;
+  issue_type: string;
+  severity: string;
+  status: string;
+  device_id?: string;
+  entity_id?: string;
+  name?: string;
+  summary?: string;
+  suggested_action?: string;
+  suggested_value?: string;
+  metadata: Record<string, unknown>;
+  detected_at?: string;
+  updated_at?: string;
+  resolved_at?: string | null;
+}
+
+export interface HygieneIssueListResponse {
+  issues: HygieneIssue[];
+  count: number;
+  total: number;
+}
+
+export type HygieneStatus = 'open' | 'ignored' | 'resolved';
+
 // Docker management types
 export interface ContainerInfo {
   name: string;
@@ -376,6 +401,46 @@ class DataApiClient extends BaseApiClient {
 
   async getIntegrations(limit: number = 100): Promise<any> {
     return this.fetchWithErrorHandling<any>(`/api/integrations?limit=${limit}`);
+  }
+
+  async getHygieneIssues(params: {
+    status?: string;
+    severity?: string;
+    issue_type?: string;
+    device_id?: string;
+    limit?: number;
+  } = {}): Promise<HygieneIssueListResponse> {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.severity) queryParams.append('severity', params.severity);
+    if (params.issue_type) queryParams.append('issue_type', params.issue_type);
+    if (params.device_id) queryParams.append('device_id', params.device_id);
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+
+    const url = `/api/v1/hygiene/issues${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.fetchWithErrorHandling<HygieneIssueListResponse>(url);
+  }
+
+  async updateHygieneIssueStatus(issueKey: string, status: HygieneStatus): Promise<HygieneIssue> {
+    return this.fetchWithErrorHandling<HygieneIssue>(
+      `/api/v1/hygiene/issues/${issueKey}/status`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }
+    );
+  }
+
+  async applyHygieneIssueAction(issueKey: string, action: string, value?: string): Promise<HygieneIssue> {
+    return this.fetchWithErrorHandling<HygieneIssue>(
+      `/api/v1/hygiene/issues/${issueKey}/actions/apply`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, value }),
+      }
+    );
   }
 
   // Sports endpoints (Story 13.4 - Coming soon)

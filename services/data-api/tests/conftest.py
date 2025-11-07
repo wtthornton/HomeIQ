@@ -4,14 +4,23 @@ Shared pytest fixtures for Data API service tests
 Following Context7 KB best practices from /pytest-dev/pytest
 """
 
+import os
+import sys
+
 import pytest
-from httpx import AsyncClient
+import pytest_asyncio
+
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[3]
+sys.path.append(str(ROOT_DIR))
+from httpx import ASGITransport, AsyncClient
 from unittest.mock import patch
 from datetime import datetime
 
 
 # ✅ Context7 Best Practice: Shared async HTTP client fixture
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client():
     """
     Async HTTP client for testing Data API endpoints
@@ -21,7 +30,8 @@ async def client():
     """
     from src.main import app
     
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
 

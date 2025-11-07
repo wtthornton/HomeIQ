@@ -7,6 +7,7 @@ Context7 Best Practices Applied:
 - Response model validation
 - Proper exception handling
 """
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +33,7 @@ from .schemas import (
 )
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Global service instances (initialized in lifespan)
 health_services: Dict = {}
@@ -172,16 +174,37 @@ async def get_environment_health(
     try:
         health_service = health_services.get("monitor")
         if not health_service:
+            logger.error(
+                "Environment health requested before monitor initialized",
+                extra={"event": "environment_health", "status": "uninitialized"}
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Health monitoring service not initialized"
             )
         
-        return await health_service.check_environment_health(db)
+        response = await health_service.check_environment_health(db)
+
+        logger.info(
+            "Environment health retrieved",
+            extra={
+                "event": "environment_health",
+                "health_score": response.health_score,
+                "ha_status": str(response.ha_status),
+                "integration_count": len(response.integrations),
+                "issues_detected": len(response.issues_detected),
+            }
+        )
+
+        return response
         
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
+        logger.exception(
+            "Environment health endpoint failed",
+            extra={"event": "environment_health", "error": str(e)}
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error checking environment health: {str(e)}"

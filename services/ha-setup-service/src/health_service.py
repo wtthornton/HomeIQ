@@ -8,7 +8,8 @@ Context7 Best Practices Applied:
 """
 import aiohttp
 import asyncio
-from typing import Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -25,6 +26,7 @@ from .scoring_algorithm import HealthScoringAlgorithm
 from .integration_checker import IntegrationHealthChecker
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class HealthMonitoringService:
@@ -96,15 +98,55 @@ class HealthMonitoringService:
             issues
         )
         
+        # Normalize integrations to schema shape
+        normalized_integrations: List[IntegrationHealthDetail] = []
+        for integration in integrations:
+            status_value: Any = integration.get("status", IntegrationStatus.ERROR.value)
+            if isinstance(status_value, IntegrationStatus):
+                status_value = status_value.value
+
+            detail_data: Dict = {
+                "name": integration.get("name", "Unknown Integration"),
+                "type": integration.get("type", "unknown"),
+                "status": status_value,
+                "is_configured": integration.get("is_configured", False),
+                "is_connected": integration.get("is_connected", False),
+                "error_message": integration.get("error_message"),
+                "last_check": integration.get("last_check")
+            }
+
+            if "check_details" in integration:
+                detail_data["check_details"] = integration.get("check_details")
+
+            try:
+                normalized_integrations.append(IntegrationHealthDetail(**detail_data))
+            except Exception as exc:  # ValidationError or unexpected issue
+                logger.warning(
+                    "Failed to normalize integration detail; using fallback",
+                    extra={
+                        "integration": integration,
+                        "error": str(exc)
+                    }
+                )
+                normalized_integrations.append(
+                    IntegrationHealthDetail(
+                        name=detail_data["name"],
+                        type=detail_data["type"],
+                        status=IntegrationStatus.ERROR,
+                        is_configured=detail_data["is_configured"],
+                        is_connected=detail_data["is_connected"],
+                        error_message=detail_data.get("error_message") or str(exc),
+                        check_details=None,
+                        last_check=detail_data.get("last_check")
+                    )
+                )
+
         # Build response
         return EnvironmentHealthResponse(
             health_score=health_score,
             ha_status=HealthStatus(overall_status),
             ha_version=ha_status.get("version"),
-            integrations=[
-                IntegrationHealthDetail(**integration)
-                for integration in integrations
-            ],
+            integrations=normalized_integrations,
             performance=PerformanceMetrics(**performance),
             issues_detected=issues,
             timestamp=datetime.now()

@@ -151,6 +151,30 @@ class DeviceEntity(Base):
     device: Mapped[Optional["Device"]] = relationship("Device")
 
 
+class DeviceHygieneIssue(Base):
+    """Captured device/entity hygiene issues for remediation."""
+
+    __tablename__ = 'device_hygiene_issues'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_key: Mapped[str] = mapped_column(String, unique=True, index=True)
+    issue_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    severity: Mapped[str] = mapped_column(String, default="medium", index=True)
+    status: Mapped[str] = mapped_column(String, default="open", index=True)
+
+    device_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey('devices.id', ondelete='SET NULL'), index=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey('device_entities.entity_id', ondelete='SET NULL'), index=True)
+
+    name: Mapped[Optional[str]] = mapped_column(String)
+    suggested_action: Mapped[Optional[str]] = mapped_column(String)
+    suggested_value: Mapped[Optional[str]] = mapped_column(String)
+    summary: Mapped[Optional[str]] = mapped_column(Text)
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
+
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
 class DiscoverySession(Base):
     """Discovery session tracking table."""
     __tablename__ = 'discovery_sessions'

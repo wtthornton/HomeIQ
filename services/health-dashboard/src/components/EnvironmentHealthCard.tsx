@@ -10,6 +10,29 @@ import { HealthStatus, IntegrationStatus } from '../types/health';
 export const EnvironmentHealthCard: React.FC = () => {
   const { health, loading, error, refetch } = useEnvironmentHealth();
 
+  const formatCheckDetailLabel = (label: string) =>
+    label
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+  const formatCheckDetailValue = (value: unknown): string => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') return value.toString();
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      return value.length ? value.join(', ') : 'None';
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch (err) {
+      console.warn('Failed to stringify check detail value', err);
+      return 'Unavailable';
+    }
+  };
+
   if (loading && !health) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
@@ -177,10 +200,26 @@ export const EnvironmentHealthCard: React.FC = () => {
                       {integration.error_message}
                     </p>
                   )}
+                {integration.check_details && Object.keys(integration.check_details).length > 0 && (
+                  <dl className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                    {Object.entries(integration.check_details)
+                      .slice(0, 5)
+                      .map(([key, value]) => (
+                        <div key={key} className="flex justify-between gap-2">
+                          <dt className="font-medium text-gray-600 dark:text-gray-300">
+                            {formatCheckDetailLabel(key)}
+                          </dt>
+                          <dd className="text-right text-gray-500 dark:text-gray-400 max-w-[180px] break-words">
+                            {formatCheckDetailValue(value)}
+                          </dd>
+                        </div>
+                      ))}
+                  </dl>
+                )}
                 </div>
               </div>
-              <span className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationStatusColor(integration.status)}`}>
-                {integration.status.replace('_', ' ')}
+            <span className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationStatusColor(integration.status)}`}>
+              {integration.status.replace(/_/g, ' ')}
               </span>
             </div>
           ))}

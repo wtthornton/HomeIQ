@@ -385,6 +385,71 @@ class HomeAssistantClient:
             logger.error(f"❌ Failed to get area registry: {e}")
             return []
     
+    async def update_device_registry_entry(self, device_id: str, **fields: Any) -> Dict[str, Any]:
+        """Update device registry entry with safety checks."""
+        if not device_id:
+            raise ValueError("device_id is required")
+        if not fields:
+            raise ValueError("At least one field must be provided for update")
+
+        payload = {
+            "type": "config/device_registry/update",
+            "device_id": device_id,
+            **fields,
+        }
+
+        response = await self.send_message(payload)
+        if response.get("success"):
+            logger.info("🛠️ Updated device %s with %s", device_id, list(fields.keys()))
+            return response.get("result", {})
+
+        error = response.get("error")
+        logger.error("❌ Failed to update device %s: %s", device_id, error)
+        raise RuntimeError(f"Failed to update device registry: {error}")
+
+    async def update_entity_registry_entry(self, entity_id: str, **fields: Any) -> Dict[str, Any]:
+        """Update entity registry entry in Home Assistant."""
+        if not entity_id:
+            raise ValueError("entity_id is required")
+        if not fields:
+            raise ValueError("At least one field must be provided for update")
+
+        payload = {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            **fields,
+        }
+
+        response = await self.send_message(payload)
+        if response.get("success"):
+            logger.info("🛠️ Updated entity %s with %s", entity_id, list(fields.keys()))
+            return response.get("result", {})
+
+        error = response.get("error")
+        logger.error("❌ Failed to update entity %s: %s", entity_id, error)
+        raise RuntimeError(f"Failed to update entity registry: {error}")
+
+    async def start_config_flow(self, handler: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Initiate a Home Assistant config flow for a given handler."""
+        if not handler:
+            raise ValueError("handler is required to start config flow")
+
+        payload: Dict[str, Any] = {
+            "type": "config_entries/flow/create",
+            "handler": handler,
+        }
+        if data:
+            payload["data"] = data
+
+        response = await self.send_message(payload)
+        if response.get("success"):
+            logger.info("🚀 Started config flow for handler %s", handler)
+            return response.get("result", {})
+
+        error = response.get("error")
+        logger.error("❌ Failed to start config flow for %s: %s", handler, error)
+        raise RuntimeError(f"Failed to start config flow: {error}")
+
     async def subscribe_to_events(self, event_type: str, callback: Callable[[Dict[str, Any]], Awaitable[None]]):
         """Subscribe to Home Assistant events."""
         try:

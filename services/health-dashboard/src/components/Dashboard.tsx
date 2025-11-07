@@ -17,6 +17,7 @@ const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
   energy: Tabs.EnergyTab,
   analytics: Tabs.AnalyticsTab,
   alerts: Tabs.AlertsTab,
+  hygiene: Tabs.HygieneTab,
   configuration: Tabs.ConfigurationTab,
 };
 
@@ -33,6 +34,7 @@ const TAB_CONFIG = [
   { id: 'energy', label: '⚡ Energy', icon: '⚡', shortLabel: 'Energy' },
   { id: 'analytics', label: '📈 Analytics', icon: '📈', shortLabel: 'Analytics' },
   { id: 'alerts', label: '🚨 Alerts', icon: '🚨', shortLabel: 'Alerts' },
+  { id: 'hygiene', label: '🧼 Device Hygiene', icon: '🧼', shortLabel: 'Hygiene' },
   { id: 'configuration', label: '⚙️ Configuration', icon: '⚙️', shortLabel: 'Config' },
 ];
 

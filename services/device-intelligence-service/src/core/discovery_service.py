@@ -16,6 +16,7 @@ from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
 from .device_parser import DeviceParser, UnifiedDevice
 from .cache import get_device_cache
 from ..services.device_service import DeviceService
+from ..services.hygiene_analyzer import DeviceHygieneAnalyzer
 from ..core.database import get_db_session
 from ..config import Settings
 
@@ -166,6 +167,7 @@ class DiscoveryService:
             
             # Parse and unify device data
             await self._unify_device_data()
+            await self._run_hygiene_analysis()
             
             self.last_discovery = datetime.now(timezone.utc)
             logger.info(f"✅ Discovery completed: {len(self.unified_devices)} devices")
@@ -174,6 +176,17 @@ class DiscoveryService:
             logger.error(f"❌ Error during discovery: {e}")
             self.errors.append(f"Discovery error: {str(e)}")
     
+    async def _run_hygiene_analysis(self):
+        """Analyze device hygiene and persist findings."""
+        try:
+            async for session in get_db_session():
+                analyzer = DeviceHygieneAnalyzer(session)
+                await analyzer.analyze(self.ha_devices, self.ha_entities, self.ha_areas)
+                break
+        except Exception as e:
+            logger.error(f"❌ Error during hygiene analysis: {e}")
+            self.errors.append(f"Hygiene analysis error: {str(e)}")
+
     async def _discover_home_assistant(self):
         """Discover devices, entities, and areas from Home Assistant."""
         try:
