@@ -83,6 +83,11 @@ class AutomationParser:
         Returns:
             Number of relationships extracted
         """
+        # Handle None or empty input
+        if not automations:
+            logger.warning("⚠️ No automations provided to parse")
+            return 0
+        
         logger.info(f"🔍 Parsing {len(automations)} automations...")
         
         self._relationships.clear()

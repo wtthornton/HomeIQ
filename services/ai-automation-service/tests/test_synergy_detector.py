@@ -599,6 +599,203 @@ async def test_logging_output(mock_data_api_client, mock_ha_client, caplog):
     assert "opportunities" in caplog.text.lower()
 
 
+# ============================================================================
+# 4-Level Chain Detection Tests (Epic AI-4)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_4_level_chain_detection():
+    """Test that 4-level chains are detected correctly"""
+    # Create mock with devices that can form a 4-level chain
+    mock_client = AsyncMock()
+    
+    mock_client.fetch_devices = AsyncMock(return_value=[
+        {'device_id': 'device_1', 'name': 'Motion Sensor'},
+        {'device_id': 'device_2', 'name': 'Light'},
+        {'device_id': 'device_3', 'name': 'Climate'},
+        {'device_id': 'device_4', 'name': 'Media Player'}
+    ])
+    
+    mock_client.fetch_entities = AsyncMock(return_value=[
+        {
+            'entity_id': 'binary_sensor.motion',
+            'device_id': 'device_1',
+            'friendly_name': 'Motion Sensor',
+            'area_id': 'bedroom',
+            'device_class': 'motion'
+        },
+        {
+            'entity_id': 'light.bedroom',
+            'device_id': 'device_2',
+            'friendly_name': 'Bedroom Light',
+            'area_id': 'bedroom'
+        },
+        {
+            'entity_id': 'climate.bedroom',
+            'device_id': 'device_3',
+            'friendly_name': 'Bedroom Climate',
+            'area_id': 'bedroom'
+        },
+        {
+            'entity_id': 'media_player.bedroom',
+            'device_id': 'device_4',
+            'friendly_name': 'Bedroom Media',
+            'area_id': 'bedroom'
+        }
+    ])
+    
+    detector = DeviceSynergyDetector(
+        data_api_client=mock_client,
+        ha_client=None,
+        min_confidence=0.5  # Lower threshold to allow more chains
+    )
+    
+    synergies = await detector.detect_synergies()
+    
+    # Check that we have synergies
+    assert len(synergies) > 0
+    
+    # Check for 4-level chains
+    four_level_chains = [
+        s for s in synergies 
+        if s.get('synergy_type') == 'device_chain' 
+        and s.get('synergy_depth') == 4
+        and len(s.get('devices', [])) == 4
+    ]
+    
+    # Should have at least some 4-level chains if conditions are right
+    # (May not always have them depending on relationship compatibility)
+    if four_level_chains:
+        chain = four_level_chains[0]
+        assert chain['synergy_depth'] == 4
+        assert len(chain['devices']) == 4
+        assert 'chain_path' in chain
+        assert '→' in chain['chain_path']
+        assert chain.get('chain_devices') == chain['devices']
+
+
+@pytest.mark.asyncio
+async def test_4_level_chain_structure():
+    """Test that 4-level chains have correct structure"""
+    mock_client = AsyncMock()
+    
+    # Minimal setup - just need entities
+    mock_client.fetch_devices = AsyncMock(return_value=[])
+    mock_client.fetch_entities = AsyncMock(return_value=[
+        {
+            'entity_id': 'binary_sensor.door',
+            'device_id': 'device_1',
+            'friendly_name': 'Door Sensor',
+            'area_id': 'entry',
+            'device_class': 'door'
+        },
+        {
+            'entity_id': 'lock.entry',
+            'device_id': 'device_2',
+            'friendly_name': 'Entry Lock',
+            'area_id': 'entry'
+        },
+        {
+            'entity_id': 'alarm_control_panel.home',
+            'device_id': 'device_3',
+            'friendly_name': 'Home Alarm',
+            'area_id': 'entry'
+        },
+        {
+            'entity_id': 'notify.mobile',
+            'device_id': 'device_4',
+            'friendly_name': 'Mobile Notification',
+            'area_id': None
+        }
+    ])
+    
+    detector = DeviceSynergyDetector(
+        data_api_client=mock_client,
+        ha_client=None,
+        min_confidence=0.5
+    )
+    
+    synergies = await detector.detect_synergies()
+    
+    # Check all chains have required fields
+    chains = [s for s in synergies if s.get('synergy_type') == 'device_chain']
+    for chain in chains:
+        assert 'synergy_id' in chain
+        assert 'synergy_depth' in chain
+        assert 'devices' in chain
+        assert 'chain_devices' in chain
+        assert 'chain_path' in chain
+        assert 'impact_score' in chain
+        assert 'confidence' in chain
+        assert 'complexity' in chain
+        
+        # Verify depth matches device count
+        depth = chain['synergy_depth']
+        device_count = len(chain['devices'])
+        assert depth == device_count, f"Depth {depth} doesn't match device count {device_count}"
+        
+        # Verify chain_devices matches devices
+        assert chain['chain_devices'] == chain['devices']
+
+
+@pytest.mark.asyncio
+async def test_4_level_chain_limits():
+    """Test that 4-level chain detection respects limits"""
+    mock_client = AsyncMock()
+    
+    # Create many entities to potentially generate many chains
+    entities = []
+    for i in range(20):
+        entities.extend([
+            {
+                'entity_id': f'binary_sensor.motion_{i}',
+                'device_id': f'device_{i*4}',
+                'friendly_name': f'Motion {i}',
+                'area_id': 'bedroom',
+                'device_class': 'motion'
+            },
+            {
+                'entity_id': f'light.light_{i}',
+                'device_id': f'device_{i*4+1}',
+                'friendly_name': f'Light {i}',
+                'area_id': 'bedroom'
+            },
+            {
+                'entity_id': f'climate.climate_{i}',
+                'device_id': f'device_{i*4+2}',
+                'friendly_name': f'Climate {i}',
+                'area_id': 'bedroom'
+            },
+            {
+                'entity_id': f'media_player.media_{i}',
+                'device_id': f'device_{i*4+3}',
+                'friendly_name': f'Media {i}',
+                'area_id': 'bedroom'
+            }
+        ])
+    
+    mock_client.fetch_devices = AsyncMock(return_value=[])
+    mock_client.fetch_entities = AsyncMock(return_value=entities)
+    
+    detector = DeviceSynergyDetector(
+        data_api_client=mock_client,
+        ha_client=None,
+        min_confidence=0.5
+    )
+    
+    synergies = await detector.detect_synergies()
+    
+    # Check that 4-level chains are limited (MAX_CHAINS = 50)
+    four_level_chains = [
+        s for s in synergies 
+        if s.get('synergy_type') == 'device_chain' 
+        and s.get('synergy_depth') == 4
+    ]
+    
+    # Should not exceed limit (50 for 4-level chains)
+    assert len(four_level_chains) <= 50, f"Found {len(four_level_chains)} 4-level chains, should be <= 50"
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
 

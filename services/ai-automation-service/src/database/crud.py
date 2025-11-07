@@ -3,12 +3,12 @@ CRUD operations for AI Automation Service database
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, case
-from typing import List, Dict, Optional, Union, Any
+from sqlalchemy import select, func, delete, case, and_, or_
+from typing import List, Dict, Optional, Union, Any, Tuple
 from datetime import datetime, timedelta, timezone
 import logging
 
-from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity
+from .models import Pattern, PatternHistory, Suggestion, UserFeedback, DeviceCapability, DeviceFeatureUsage, SynergyOpportunity, ManualRefreshTrigger, AnalysisRunStatus
 from ..pattern_detection.pattern_filters import validate_pattern
 
 logger = logging.getLogger(__name__)
@@ -336,22 +336,155 @@ async def get_suggestions(
         List of Suggestion objects
     """
     try:
-        query = select(Suggestion)
+        feedback_summary = (
+            select(
+                UserFeedback.suggestion_id.label('suggestion_id'),
+                func.sum(
+                    case((UserFeedback.action == 'approved', 1), else_=0)
+                ).label('approvals'),
+                func.sum(
+                    case((UserFeedback.action == 'rejected', 1), else_=0)
+                ).label('rejections'),
+                func.max(UserFeedback.created_at).label('last_feedback')
+            )
+            .group_by(UserFeedback.suggestion_id)
+            .subquery()
+        )
+
+        approval_weight = func.coalesce(feedback_summary.c.approvals, 0)
+        rejection_weight = func.coalesce(feedback_summary.c.rejections, 0)
+        weighted_score = Suggestion.confidence + (approval_weight * 0.1) - (rejection_weight * 0.1)
+
+        query = (
+            select(
+                Suggestion,
+                weighted_score.label('weighted_score'),
+                approval_weight.label('approvals'),
+                rejection_weight.label('rejections'),
+                feedback_summary.c.last_feedback.label('last_feedback')
+            )
+            .outerjoin(feedback_summary, feedback_summary.c.suggestion_id == Suggestion.id)
+        )
         
         if status:
             query = query.where(Suggestion.status == status)
         
-        query = query.order_by(Suggestion.created_at.desc()).limit(limit)
+        query = query.order_by(weighted_score.desc(), Suggestion.created_at.desc()).limit(limit)
         
         result = await db.execute(query)
-        suggestions = result.scalars().all()
+        rows = result.all()
+
+        suggestions: List[Suggestion] = []
+        for suggestion, score, approvals, rejections, last_feedback in rows:
+            suggestion.weighted_score = float(score) if score is not None else float(suggestion.confidence)
+            suggestion.feedback_summary = {
+                'approvals': int(approvals or 0),
+                'rejections': int(rejections or 0),
+                'last_feedback': last_feedback.isoformat() if last_feedback else None
+            }
+            suggestions.append(suggestion)
         
-        logger.info(f"Retrieved {len(suggestions)} suggestions from database")
-        return list(suggestions)
+        logger.info(f"Retrieved {len(suggestions)} suggestions from database (feedback-weighted)")
+        return suggestions
         
     except Exception as e:
         logger.error(f"Failed to retrieve suggestions: {e}", exc_info=True)
         raise
+
+
+# ============================================================================
+# Manual Refresh Audit Operations
+# ============================================================================
+
+async def can_trigger_manual_refresh(
+    db: AsyncSession,
+    cooldown_hours: int = 24
+) -> Tuple[bool, Optional[datetime]]:
+    """
+    Determine whether a manual refresh can be triggered based on cooldown.
+    """
+    result = await db.execute(select(func.max(ManualRefreshTrigger.triggered_at)))
+    last_trigger = result.scalar()
+
+    if not last_trigger:
+        return True, None
+
+    now = datetime.now(timezone.utc)
+    if now - last_trigger >= timedelta(hours=cooldown_hours):
+        return True, last_trigger
+
+    return False, last_trigger
+
+
+async def record_manual_refresh(db: AsyncSession) -> ManualRefreshTrigger:
+    """
+    Record a manual refresh trigger event.
+    """
+    try:
+        trigger = ManualRefreshTrigger(triggered_at=datetime.now(timezone.utc))
+        db.add(trigger)
+        await db.commit()
+        await db.refresh(trigger)
+        logger.info("Manual suggestion refresh recorded")
+        return trigger
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to record manual refresh trigger: {e}", exc_info=True)
+        raise
+
+
+# ============================================================================
+# Analysis Run Status Operations
+# ============================================================================
+
+def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except Exception:
+        logger.debug(f"Failed to parse datetime from value: {value}")
+        return None
+
+
+async def record_analysis_run(db: AsyncSession, job_result: Dict) -> AnalysisRunStatus:
+    """
+    Persist the outcome of an analysis run for telemetry.
+    """
+    try:
+        started_at = _parse_iso_datetime(job_result.get('start_time')) or datetime.now(timezone.utc)
+        finished_at = _parse_iso_datetime(job_result.get('end_time'))
+
+        run = AnalysisRunStatus(
+            status=job_result.get('status', 'unknown'),
+            started_at=started_at,
+            finished_at=finished_at,
+            duration_seconds=job_result.get('duration_seconds'),
+            details=job_result
+        )
+
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+        logger.info("Analysis run status recorded")
+        return run
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to record analysis run status: {e}", exc_info=True)
+        raise
+
+
+async def get_latest_analysis_run(db: AsyncSession) -> Optional[AnalysisRunStatus]:
+    """
+    Retrieve the most recent analysis run record.
+    """
+    result = await db.execute(
+        select(AnalysisRunStatus).order_by(AnalysisRunStatus.started_at.desc()).limit(1)
+    )
+    return result.scalars().first()
 
 
 # ============================================================================
@@ -378,6 +511,13 @@ async def store_feedback(db: AsyncSession, feedback_data: Dict) -> UserFeedback:
         )
         
         db.add(feedback)
+        
+        suggestion = await db.get(Suggestion, feedback_data['suggestion_id'])
+        if suggestion:
+            suggestion.updated_at = feedback.created_at
+            if feedback_data['action'] == 'approved' and not suggestion.approved_at:
+                suggestion.approved_at = feedback.created_at
+        
         await db.commit()
         await db.refresh(feedback)
         
@@ -545,6 +685,62 @@ async def get_all_capabilities(
     except Exception as e:
         logger.error(f"Failed to get capabilities: {e}", exc_info=True)
         raise
+
+
+async def get_capability_freshness(
+    db: AsyncSession,
+    max_age_hours: int = 24
+) -> Dict[str, Any]:
+    """
+    Summarize freshness of capability data.
+
+    Returns overall model counts plus a list of models whose capability
+    snapshots are older than the provided threshold.
+    """
+    now = datetime.now(timezone.utc)
+    threshold = now - timedelta(hours=max_age_hours)
+
+    total_result = await db.execute(select(func.count()).select_from(DeviceCapability))
+    total_models = total_result.scalar() or 0
+
+    if total_models == 0:
+        return {
+            "total_models": 0,
+            "stale_count": 0,
+            "stale_models": [],
+            "threshold_iso": threshold.isoformat()
+        }
+
+    stale_query = await db.execute(
+        select(DeviceCapability.device_model, DeviceCapability.last_updated)
+        .where(
+            or_(
+                DeviceCapability.last_updated.is_(None),
+                DeviceCapability.last_updated < threshold
+            )
+        )
+    )
+    stale_rows = stale_query.all()
+    stale_models = [
+        {
+            "model": row[0],
+            "last_updated": row[1].isoformat() if row[1] else None
+        }
+        for row in stale_rows
+    ]
+
+    newest_result = await db.execute(
+        select(func.max(DeviceCapability.last_updated))
+    )
+    newest_timestamp = newest_result.scalar()
+
+    return {
+        "total_models": total_models,
+        "stale_count": len(stale_models),
+        "stale_models": stale_models,
+        "threshold_iso": threshold.isoformat(),
+        "newest_update": newest_timestamp.isoformat() if newest_timestamp else None
+    }
 
 
 async def initialize_feature_usage(
@@ -846,6 +1042,10 @@ async def store_synergy_opportunities(
                     except Exception as e:
                         logger.warning(f"Failed to validate synergy {synergy_data.get('synergy_id')} with patterns: {e}")
                 
+                # Epic AI-4: Extract n-level synergy fields
+                synergy_depth = synergy_data.get('synergy_depth', 2)  # Default to 2 for pairs
+                chain_devices = synergy_data.get('chain_devices', synergy_data.get('devices', []))
+                
                 if existing_synergy:
                     # Update existing synergy
                     existing_synergy.synergy_type = synergy_data['synergy_type']
@@ -858,6 +1058,9 @@ async def store_synergy_opportunities(
                     existing_synergy.pattern_support_score = pattern_support_score
                     existing_synergy.validated_by_patterns = validated_by_patterns
                     existing_synergy.supporting_pattern_ids = json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
+                    # Epic AI-4: Update n-level fields
+                    existing_synergy.synergy_depth = synergy_depth
+                    existing_synergy.chain_devices = json.dumps(chain_devices) if chain_devices else None
                     updated_count += 1
                     logger.debug(f"Updated existing synergy: {synergy_id}")
                 else:
@@ -875,7 +1078,10 @@ async def store_synergy_opportunities(
                         # Phase 2: Pattern validation fields
                         pattern_support_score=pattern_support_score,
                         validated_by_patterns=validated_by_patterns,
-                        supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
+                        supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None,
+                        # Epic AI-4: N-level synergy fields
+                        synergy_depth=synergy_depth,
+                        chain_devices=json.dumps(chain_devices) if chain_devices else None
                     )
                     db.add(synergy)
                     stored_count += 1
@@ -939,6 +1145,7 @@ async def get_synergy_opportunities(
     db: AsyncSession,
     synergy_type: Optional[str] = None,
     min_confidence: float = 0.0,
+    synergy_depth: Optional[int] = None,
     limit: int = 100,
     order_by_priority: bool = False,
     min_priority: Optional[float] = None
@@ -961,12 +1168,21 @@ async def get_synergy_opportunities(
     Enhanced: Priority-based selection support
     """
     try:
-        query = select(SynergyOpportunity).where(
-            SynergyOpportunity.confidence >= min_confidence
-        )
+        logger.info(f"get_synergy_opportunities called: synergy_type={synergy_type}, min_confidence={min_confidence}, synergy_depth={synergy_depth}, limit={limit}")
+        
+        # Build all conditions in a list, then apply with and_()
+        conditions = [SynergyOpportunity.confidence >= min_confidence]
+        
+        if synergy_depth is not None:
+            conditions.append(SynergyOpportunity.synergy_depth == synergy_depth)
+            logger.info(f"Added synergy_depth filter: {synergy_depth}")
         
         if synergy_type:
-            query = query.where(SynergyOpportunity.synergy_type == synergy_type)
+            conditions.append(SynergyOpportunity.synergy_type == synergy_type)
+            logger.info(f"Added synergy_type filter: {synergy_type}")
+        
+        # Apply all conditions with and_() to ensure proper SQL generation
+        query = select(SynergyOpportunity).where(and_(*conditions))
         
         # Priority-based ordering
         if order_by_priority:
@@ -994,8 +1210,23 @@ async def get_synergy_opportunities(
             # Default: order by impact_score (backward compatible)
             query = query.order_by(SynergyOpportunity.impact_score.desc()).limit(limit)
         
+        # Log the query for debugging - compile to see actual SQL
+        from sqlalchemy.dialects import sqlite
+        compiled_query = query.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True})
+        logger.info(f"Executing query with filters: synergy_type={synergy_type!r}, min_confidence={min_confidence}")
+        logger.info(f"Query SQL: {str(compiled_query)}")
+        
         result = await db.execute(query)
         synergies = result.scalars().all()
+        
+        # Log results
+        if synergies:
+            logger.info(f"Query returned {len(synergies)} results. First result type: {synergies[0].synergy_type if synergies else 'N/A'}")
+            # Log first few types to verify filtering
+            types = [s.synergy_type for s in synergies[:5]]
+            logger.info(f"First 5 result types: {types}")
+        else:
+            logger.info(f"Query returned 0 results")
         
         # Filter by min_priority in Python (SQLite compatibility - single home install, acceptable overhead)
         if order_by_priority and min_priority is not None:

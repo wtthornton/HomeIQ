@@ -15,6 +15,7 @@ from ..clients.ha_client import HomeAssistantClient
 from ..database.models import get_db_session, Suggestion
 from ..safety_validator import get_safety_validator, SafetyResult
 from ..rollback import store_version, rollback_to_previous, get_versions
+from ..observability.trace import create_trace, write_trace
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,16 @@ async def deploy_suggestion(suggestion_id: int, request: DeployRequest = DeployR
                 )
                 logger.info(f"📝 Version stored for rollback capability")
                 
+                # Create decision trace
+                trace = create_trace(
+                    final_plan={"automation_id": automation_id, "yaml": suggestion.automation_yaml},
+                    validation_results={
+                        "safety_score": safety_result.safety_score if safety_result else 100,
+                        "safety_passed": safety_result.passed if safety_result else True
+                    } if safety_result else None
+                )
+                trace_id = write_trace(trace)
+                
                 # Update suggestion status
                 suggestion.status = 'deployed'
                 suggestion.ha_automation_id = automation_id
@@ -145,7 +156,8 @@ async def deploy_suggestion(suggestion_id: int, request: DeployRequest = DeployR
                         "suggestion_id": suggestion_id,
                         "automation_id": automation_id,
                         "status": "deployed",
-                        "title": suggestion.title
+                        "title": suggestion.title,
+                        "trace_id": trace_id
                     }
                 }
                 

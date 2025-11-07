@@ -2081,6 +2081,161 @@ async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
     return extract_entities_from_query(query)
 
 
+async def resolve_entities_to_specific_devices(
+    entities: List[Dict[str, Any]], 
+    ha_client: Optional[HomeAssistantClient] = None
+) -> List[Dict[str, Any]]:
+    """
+    Resolve generic device entities to specific device names by querying Home Assistant.
+    
+    This function expands generic device types (e.g., "hue lights") to specific devices
+    (e.g., "Office Front Left", "Office Front Right") by:
+    1. Extracting area/location from entities
+    2. Extracting device domain/type from entities
+    3. Querying HA for all devices in that area matching the domain
+    4. Adding specific device names to entities list
+    
+    This is called BEFORE ambiguity detection so users can see specific devices in clarification prompts.
+    
+    Args:
+        entities: List of extracted entities (may include generic device types)
+        ha_client: Optional Home Assistant client for querying devices
+        
+    Returns:
+        Updated entities list with specific device information added
+    """
+    if not ha_client or not entities:
+        return entities
+    
+    # Extract location and device type from entities
+    mentioned_locations = []
+    mentioned_domains = set()
+    device_entities = []
+    
+    for entity in entities:
+        entity_type = entity.get('type', '')
+        entity_name = entity.get('name', '').lower()
+        
+        if entity_type == 'area':
+            mentioned_locations.append(entity.get('name', ''))
+        elif entity_type == 'device':
+            device_entities.append(entity)
+            # Extract domain hints from device name
+            if 'light' in entity_name or 'lamp' in entity_name or 'bulb' in entity_name:
+                mentioned_domains.add('light')
+            elif 'sensor' in entity_name:
+                mentioned_domains.add('binary_sensor')
+            elif 'switch' in entity_name:
+                mentioned_domains.add('switch')
+            elif 'hue' in entity_name:
+                mentioned_domains.add('light')  # Hue lights are light domain
+            
+            # Check if entity has domain already
+            domain = entity.get('domain', '').lower()
+            if domain and domain != 'unknown':
+                mentioned_domains.add(domain)
+    
+    # If no location or domains found, return original entities
+    if not mentioned_locations or not mentioned_domains:
+        logger.info(f"ℹ️ Early device resolution: No location ({len(mentioned_locations)}) or domains ({len(mentioned_domains)}) found, skipping")
+        return entities
+    
+    logger.info(f"🔍 Early device resolution: Found locations {mentioned_locations}, domains {mentioned_domains}")
+    
+    # Query HA for specific devices in each location
+    resolved_devices = []
+    for location in mentioned_locations:
+        for domain in mentioned_domains:
+            try:
+                # Normalize location name (try both formats)
+                location_variants = [
+                    location,
+                    location.replace(' ', '_'),
+                    location.replace('_', ' '),
+                    location.lower(),
+                    location.lower().replace(' ', '_'),
+                    location.lower().replace('_', ' ')
+                ]
+                
+                area_entities = None
+                for loc_variant in location_variants:
+                    try:
+                        area_entities = await ha_client.get_entities_by_area_and_domain(
+                            area_id=loc_variant,
+                            domain=domain
+                        )
+                        if area_entities:
+                            logger.info(f"✅ Found {len(area_entities)} {domain} entities in area '{loc_variant}'")
+                            break
+                    except Exception as e:
+                        logger.debug(f"Location variant '{loc_variant}' failed: {e}")
+                        continue
+                
+                if area_entities:
+                    # Add specific devices to resolved_devices
+                    for area_entity in area_entities:
+                        entity_id = area_entity.get('entity_id')
+                        friendly_name = area_entity.get('friendly_name') or entity_id.split('.')[-1] if entity_id else 'unknown'
+                        
+                        # Check if this device is already in entities (avoid duplicates)
+                        already_exists = any(
+                            e.get('type') == 'device' and 
+                            (e.get('name', '').lower() == friendly_name.lower() or 
+                             e.get('entity_id') == entity_id)
+                            for e in entities
+                        )
+                        
+                        if not already_exists:
+                            resolved_devices.append({
+                                'name': friendly_name,
+                                'friendly_name': friendly_name,
+                                'entity_id': entity_id,
+                                'type': 'device',
+                                'domain': domain,
+                                'area_id': area_entity.get('area_id'),
+                                'area_name': location,
+                                'confidence': 0.9,
+                                'extraction_method': 'early_device_resolution',
+                                'resolved_from': device_entities[0].get('name') if device_entities else 'generic'
+                            })
+                            
+            except Exception as e:
+                logger.warning(f"⚠️ Error resolving devices for location '{location}', domain '{domain}': {e}")
+                continue
+    
+    # Merge resolved devices with original entities
+    # Replace generic device entities with specific ones, or add if new
+    if resolved_devices:
+        logger.info(f"✅ Early device resolution: Resolved {len(resolved_devices)} specific devices")
+        
+        # Create updated entities list
+        updated_entities = []
+        generic_device_names = {e.get('name', '').lower() for e in device_entities}
+        
+        for entity in entities:
+            # If this is a generic device entity that was resolved, skip it (we'll add specific ones)
+            if entity.get('type') == 'device':
+                entity_name_lower = entity.get('name', '').lower()
+                # Check if this generic device name was resolved
+                was_resolved = any(
+                    entity_name_lower in resolved_dev.get('resolved_from', '').lower() or
+                    resolved_dev.get('resolved_from', '').lower() in entity_name_lower
+                    for resolved_dev in resolved_devices
+                )
+                if was_resolved:
+                    # Skip generic, will add specific below
+                    continue
+            
+            updated_entities.append(entity)
+        
+        # Add all resolved specific devices
+        updated_entities.extend(resolved_devices)
+        
+        return updated_entities
+    
+    return entities
+
+
 async def build_device_selection_debug_data(
     devices_involved: List[str],
     validated_entities: Dict[str, str],
@@ -3432,7 +3587,19 @@ async def process_natural_language_query(
         # Step 1: Extract entities using Home Assistant
         entities = await extract_entities_with_ha(request.query)
         
-        # Step 1.5: Check for clarification needs (NEW)
+        # Step 1.5: Resolve generic device entities to specific devices BEFORE ambiguity detection
+        # This ensures the ambiguity prompt shows specific device names (e.g., "Office Front Left")
+        # instead of generic types (e.g., "hue lights")
+        try:
+            ha_client_for_resolution = get_ha_client()
+            if ha_client_for_resolution:
+                entities = await resolve_entities_to_specific_devices(entities, ha_client_for_resolution)
+                logger.info(f"✅ Early device resolution completed: {len(entities)} entities (including specific devices)")
+        except (HTTPException, Exception) as e:
+            # HA client not available or resolution failed - continue with generic entities
+            logger.debug(f"ℹ️ Early device resolution skipped (HA client unavailable or failed): {e}")
+        
+        # Step 1.6: Check for clarification needs (NEW)
         clarification_detector, question_generator, _, confidence_calculator = get_clarification_services()
         
         # Build automation context for clarification detection
@@ -3682,10 +3849,25 @@ async def process_natural_language_query(
         message = None
         if questions:
             # Build a detailed message explaining what was found and what's ambiguous
-            device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
+            # Use specific device names from resolved entities (early device resolution)
+            device_names = []
+            for e in entities:
+                if e.get('type') == 'device':
+                    # Prefer friendly_name if available, fallback to name
+                    device_name = e.get('friendly_name') or e.get('name', '')
+                    if device_name and device_name not in device_names:
+                        device_names.append(device_name)
+            
             area_names = [e.get('name', '') for e in entities if e.get('type') == 'area']
             
-            device_info = f" I detected these devices: {', '.join(device_names) if device_names else 'none'}." if device_names else ""
+            # If we have specific devices from early resolution, show them
+            if device_names:
+                device_info = f" I detected these devices: {', '.join(device_names)}."
+            else:
+                # Fallback to generic device types if early resolution didn't work
+                generic_device_names = [e.get('name', '') for e in entities if e.get('type') == 'device']
+                device_info = f" I detected these devices: {', '.join(generic_device_names) if generic_device_names else 'none'}." if generic_device_names else ""
+            
             area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
             
             message = f"I found some ambiguities in your request.{device_info}{area_info} Please answer {len(questions)} question(s) to help me create the automation accurately."

@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-2020-12/schema",
+  "title": "Automation Contract Schema",
+  "description": "Strict schema for LLM-generated automation plans",
+  "type": "object",
+  "required": ["schema_version", "name", "triggers", "conditions", "actions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.0\\.0$",
+      "description": "Schema version (must be 1.0.0)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Automation name/alias"
+    },
+    "triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Trigger"
+      },
+      "description": "List of triggers for the automation"
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Condition"
+      },
+      "description": "Optional conditions that must be met"
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "description": "List of actions to execute"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Human-readable description"
+    },
+    "mode": {
+      "$ref": "#/$defs/AutomationMode",
+      "description": "Automation mode"
+    },
+    "max_exceeded": {
+      "$ref": "#/$defs/MaxExceeded"
+    }
+  },
+  "$defs": {
+    "AutomationMode": {
+      "type": "string",
+      "enum": ["single", "restart", "queued", "parallel"],
+      "default": "single"
+    },
+    "MaxExceeded": {
+      "type": "string",
+      "enum": ["silent", "warning", "error"]
+    },
+    "Trigger": {
+      "type": "object",
+      "required": ["platform"],
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": ["state", "time", "time_pattern", "numeric_state", "sun", "event", "mqtt", "webhook", "zone", "geo_location", "device"]
+        },
+        "entity_id": {
+          "type": ["string", "array"]
+        },
+        "to": {
+          "type": ["string", "array"]
+        },
+        "from": {
+          "type": ["string", "array"]
+        },
+        "for": {
+          "type": ["string", "object"]
+        },
+        "at": {
+          "type": "string"
+        },
+        "hours": {
+          "type": ["string", "integer"]
+        },
+        "minutes": {
+          "type": ["string", "integer"]
+        },
+        "seconds": {
+          "type": ["string", "integer"]
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "event_data": {
+          "type": "object"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "string"
+        },
+        "above": {
+          "type": "number"
+        },
+        "below": {
+          "type": "number"
+        },
+        "value_template": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string",
+          "enum": ["sunrise", "sunset"]
+        },
+        "device_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "subtype": {
+          "type": "string"
+        }
+      }
+    },
+    "Condition": {
+      "type": "object",
+      "required": ["condition"],
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "type": "string",
+          "enum": ["state", "numeric_state", "time", "sun", "template", "zone", "and", "or", "not", "device"]
+        },
+        "entity_id": {
+          "type": ["string", "array"]
+        },
+        "state": {
+          "type": ["string", "array"]
+        },
+        "above": {
+          "type": "number"
+        },
+        "below": {
+          "type": "number"
+        },
+        "after": {
+          "type": "string"
+        },
+        "before": {
+          "type": "string"
+        },
+        "after_offset": {
+          "type": "string"
+        },
+        "before_offset": {
+          "type": "string"
+        },
+        "value_template": {
+          "type": "string"
+        },
+        "zone": {
+          "type": "string"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "device_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "subtype": {
+          "type": "string"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "required": ["service"],
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "string",
+          "pattern": "^[a-z_]+\\.[a-z_]+$",
+          "description": "Service name in format domain.service"
+        },
+        "entity_id": {
+          "type": ["string", "array"]
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "entity_id": {
+              "type": ["string", "array"]
+            },
+            "device_id": {
+              "type": ["string", "array"]
+            },
+            "area_id": {
+              "type": ["string", "array"]
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "description": "Service data (additional properties allowed)"
+        },
+        "service_data": {
+          "type": "object",
+          "description": "Alternative name for service data"
+        },
+        "delay": {
+          "type": ["string", "object"]
+        },
+        "wait_template": {
+          "type": "string"
+        },
+        "repeat": {
+          "type": "object"
+        },
+        "choose": {
+          "type": "array"
+        },
+        "if": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "parallel": {
+          "type": "array"
+        },
+        "sequence": {
+          "type": "array"
+        },
+        "stop": {
+          "type": "string",
+          "enum": ["all", "first"]
+        },
+        "error": {
+          "type": "string",
+          "enum": ["continue", "stop"]
+        }
+      }
+    }
+  }
+}
+

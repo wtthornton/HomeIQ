@@ -53,7 +53,9 @@ class CoOccurrencePatternDetector:
         min_confidence: float = 0.7,
         aggregate_client=None,
         filter_system_noise: bool = True,
-        max_variance_minutes: float = 30.0
+        max_variance_minutes: float = 30.0,
+        domain_support_overrides: Optional[Dict[str, int]] = None,
+        domain_confidence_overrides: Optional[Dict[str, float]] = None
     ):
         """
         Initialize co-occurrence detector.
@@ -72,10 +74,14 @@ class CoOccurrencePatternDetector:
         self.aggregate_client = aggregate_client
         self.filter_system_noise = filter_system_noise
         self.max_variance_minutes = max_variance_minutes
+        self.domain_support_overrides = domain_support_overrides or {}
+        self.domain_confidence_overrides = domain_confidence_overrides or {}
         logger.info(
             f"CoOccurrencePatternDetector initialized: "
             f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}, "
-            f"filter_system_noise={filter_system_noise}, max_variance={max_variance_minutes}min"
+            f"filter_system_noise={filter_system_noise}, max_variance={max_variance_minutes}min, "
+            f"support_overrides={list((domain_support_overrides or {}).keys())}, "
+            f"confidence_overrides={list((domain_confidence_overrides or {}).keys())}"
         )
     
     def detect_patterns(self, events: pd.DataFrame) -> List[Dict]:
@@ -196,8 +202,20 @@ class CoOccurrencePatternDetector:
             # Cap at 1.0 (100%) to prevent values over 100%
             confidence = min(count / min(device1_count, device2_count), 1.0)
             
+            # Determine dynamic thresholds based on device domains
+            domain1 = self._get_domain(device1)
+            domain2 = self._get_domain(device2)
+            support_threshold = min(
+                self._support_threshold_for(domain1),
+                self._support_threshold_for(domain2)
+            )
+            confidence_threshold = min(
+                self._confidence_threshold_for(domain1),
+                self._confidence_threshold_for(domain2)
+            )
+
             # Filter by thresholds
-            if count >= self.min_support and confidence >= self.min_confidence:
+            if count >= support_threshold and confidence >= confidence_threshold:
                 # Task 3: Calculate time variance and filter by threshold
                 time_deltas = pair_time_deltas.get((device1, device2), [])
                 
@@ -240,7 +258,13 @@ class CoOccurrencePatternDetector:
                         'device2_count': int(device2_count),
                         'avg_time_delta_seconds': float(avg_time_delta) if avg_time_delta is not None else None,
                         'time_variance_minutes': float(time_variance_minutes) if time_variance_minutes is not None else None,
-                        'time_std_minutes': float(time_std_minutes) if time_std_minutes is not None else None
+                        'time_std_minutes': float(time_std_minutes) if time_std_minutes is not None else None,
+                        'thresholds': {
+                            'required_support': support_threshold,
+                            'required_confidence': confidence_threshold,
+                            'domain1': domain1,
+                            'domain2': domain2
+                        }
                     }
                 }
                 
@@ -370,6 +394,21 @@ class CoOccurrencePatternDetector:
             logger.info(f"✅ Sampled dataset: {len(events)} events (recent: {len(recent)}, sampled older: {len(older_sampled)})")
         
         return self.detect_patterns(events)
+
+    @staticmethod
+    def _get_domain(device_id: str) -> str:
+        """Extract entity domain (prefix before dot) from a device ID."""
+        if not device_id or '.' not in str(device_id):
+            return 'default'
+        return str(device_id).split('.', 1)[0]
+
+    def _support_threshold_for(self, domain: str) -> int:
+        """Get support threshold for a given domain."""
+        return self.domain_support_overrides.get(domain, self.min_support)
+
+    def _confidence_threshold_for(self, domain: str) -> float:
+        """Get confidence threshold for a given domain."""
+        return self.domain_confidence_overrides.get(domain, self.min_confidence)
     
     def _calculate_avg_time_delta(
         self,

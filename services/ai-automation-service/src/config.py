@@ -1,7 +1,7 @@
 """Configuration management for AI Automation Service"""
 
 from pydantic_settings import BaseSettings
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 class Settings(BaseSettings):
@@ -47,6 +47,41 @@ class Settings(BaseSettings):
     # Scheduling
     analysis_schedule: str = "0 3 * * *"  # 3 AM daily (cron format)
     
+    # Pattern detection thresholds (single-home tuning)
+    time_of_day_min_occurrences: int = 10
+    time_of_day_base_confidence: float = 0.7
+    time_of_day_occurrence_overrides: Dict[str, int] = {
+        "light": 8,
+        "switch": 8,
+        "media_player": 6,
+        "lock": 4
+    }
+    time_of_day_confidence_overrides: Dict[str, float] = {
+        "light": 0.6,
+        "switch": 0.6,
+        "media_player": 0.6,
+        "lock": 0.85,
+        "climate": 0.75
+    }
+    
+    co_occurrence_min_support: int = 10
+    co_occurrence_base_confidence: float = 0.7
+    co_occurrence_support_overrides: Dict[str, int] = {
+        "light": 6,
+        "switch": 6,
+        "media_player": 4,
+        "lock": 4
+    }
+    co_occurrence_confidence_overrides: Dict[str, float] = {
+        "light": 0.6,
+        "switch": 0.6,
+        "media_player": 0.6,
+        "lock": 0.85,
+        "climate": 0.75
+    }
+    
+    manual_refresh_cooldown_hours: int = 24
+    
     # Database
     database_path: str = "/app/data/ai_automation.db"
     database_url: str = "sqlite+aiosqlite:///data/ai_automation.db"
@@ -77,6 +112,35 @@ class Settings(BaseSettings):
     
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls
+    
+    # Synergy Selection Configuration
+    synergy_max_suggestions: int = 7
+    """Maximum number of synergy suggestions to generate in daily batch (default: 7)
+    
+    Increased from hardcoded 5 to better utilize 6,324 available opportunities.
+    Rationale: With 82.6% pattern-validated synergies, we can safely increase
+    the limit to improve suggestion diversity while maintaining quality.
+    """
+    
+    synergy_min_priority: float = 0.6
+    """Minimum priority score threshold for synergy selection (default: 0.6)
+    
+    Only synergies with calculated priority score >= this value will be
+    considered for suggestion generation. Priority score combines:
+    - 40% impact_score
+    - 25% confidence
+    - 25% pattern_support_score
+    - 10% validation bonus
+    - Complexity adjustment
+    """
+    
+    synergy_use_priority_scoring: bool = True
+    """Enable priority-based synergy selection (default: True)
+    
+    When enabled, synergies are selected using calculated priority score
+    instead of simple impact_score ranking. This prioritizes pattern-validated
+    synergies (5,224 out of 6,324) for better suggestion quality.
+    """
 
     # Auto-Draft Generation Configuration (Story: Auto-Draft API)
     auto_draft_suggestions_enabled: bool = True

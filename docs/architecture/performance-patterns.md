@@ -63,6 +63,63 @@ Fast Services (<10ms)           Slow Services (100ms-1s)
 └── metrics endpoints           └── Historical InfluxDB queries
 ```
 
+### 4. Pattern Detector Threshold Overrides (Single-Home Tuning)
+
+**WHY:** Different device domains tolerate different signal-to-noise ratios. Lights should surface ideas with lower confidence than locks or security sensors.
+
+**PATTERN:**
+```
+Domain-Specific Thresholds (config.py)
+├── time_of_day_min_occurrences = 10            # Base requirement
+├── time_of_day_occurrence_overrides = {
+│     "light": 8, "switch": 8, "media_player": 6, "lock": 4
+│   }
+├── time_of_day_confidence_overrides = {
+│     "light": 0.6, "switch": 0.6, "media_player": 0.6, "lock": 0.85
+│   }
+├── co_occurrence_min_support = 10
+├── co_occurrence_support_overrides = {
+│     "light": 6, "switch": 6, "media_player": 4, "lock": 4
+│   }
+└── co_occurrence_confidence_overrides = {
+      "light": 0.6, "switch": 0.6, "lock": 0.85, "climate": 0.75
+   }
+```
+
+**Performance Impact:**
+- Lights & convenience devices surface faster (reduced thresholds).
+- Security devices remain conservative (higher confidence/support).
+- Overrides are all controlled in `config.py` for quick tuning without code changes.
+
+### 5. Manual Refresh Guard & Telemetry
+
+**WHY:** Prevent duplicate OpenAI spend and track nightly batch health.
+
+**PATTERN:**
+```
+Manual Refresh Flow
+┌──────────────────────────────┐
+│ POST /api/suggestions/refresh│
+└──────────────┬──────────────┘
+               │ (cooldown: 24h)
+               ▼
+┌──────────────────────────────┐
+│ manual_refresh_triggers (DB) │  ➜ persists audit trail
+└──────────────┬──────────────┘
+               ▼
+┌──────────────────────────────┐
+│ Scheduler.trigger_manual_run │
+└──────────────┬──────────────┘
+               ▼
+┌──────────────────────────────┐
+│ analysis_run_status (DB)     │  ➜ started_at, status, duration, metrics
+└──────────────────────────────┘
+```
+
+**Outputs:**
+- `/api/suggestions/refresh/status` tells the UI when the next manual refresh is allowed.
+- `/api/analysis/status` now includes `analysis_run` with the most recent batch timestamp and status for dashboards.
+
 ## Database Performance Patterns
 
 ### SQLite Optimization

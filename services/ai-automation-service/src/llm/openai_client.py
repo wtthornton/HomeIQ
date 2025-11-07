@@ -329,7 +329,8 @@ action:
         Generate automation suggestion using unified prompt format.
         
         Args:
-            prompt_dict: {"system_prompt": ..., "user_prompt": ...} from UnifiedPromptBuilder
+            prompt_dict: {"system_prompt": ..., "user_prompt": ..., "pattern_summary": ..., "synergy_context": ..., "feedback_hint": ...}
+                Additional context keys are optional and used to build developer-role messages.
             temperature: Creativity level
             max_tokens: Response limit
             output_format: Expected output format
@@ -344,12 +345,34 @@ action:
         - Parse responses based on expected format
         """
         try:
+            messages = [
+                {"role": "system", "content": prompt_dict["system_prompt"]}
+            ]
+
+            developer_notes = []
+            pattern_summary = prompt_dict.get("pattern_summary")
+            if pattern_summary:
+                developer_notes.append(f"Pattern Summary:\n{pattern_summary}")
+
+            synergy_context = prompt_dict.get("synergy_context")
+            if synergy_context:
+                developer_notes.append(f"Synergy Context:\n{synergy_context}")
+
+            feedback_hint = prompt_dict.get("feedback_hint")
+            if feedback_hint:
+                developer_notes.append(f"Recent Feedback:\n{feedback_hint}")
+
+            if developer_notes:
+                messages.append({
+                    "role": "developer",
+                    "content": "\n\n".join(developer_notes)
+                })
+
+            messages.append({"role": "user", "content": prompt_dict["user_prompt"]})
+
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": prompt_dict["system_prompt"]},
-                    {"role": "user", "content": prompt_dict["user_prompt"]}
-                ],
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens
             )
@@ -377,6 +400,8 @@ action:
             content = response.choices[0].message.content
             logger.info(f"OpenAI response content (length={len(content) if content else 0}): {content[:200] if content else 'None'}")
             
+            pattern_source = prompt_dict.get("pattern_source", {})
+
             if output_format == "json":
                 import json
                 # Handle markdown code blocks
@@ -391,7 +416,7 @@ action:
                 return json.loads(content.strip())
             elif output_format == "yaml":
                 # Parse as full automation suggestion
-                return self._parse_automation_response(content, {})
+                return self._parse_automation_response(content, pattern_source)
             else:  # description
                 # Parse structured description response
                 return self._parse_description_response(content.strip())
@@ -401,6 +426,33 @@ action:
             import traceback
             logger.error(f"Stack trace:\n{traceback.format_exc()}")
             raise
+    
+    async def generate_automation_suggestion(
+        self,
+        pattern: Dict,
+        device_context: Optional[Dict] = None,
+        output_mode: str = "yaml"
+    ):
+        """
+        Convenience wrapper that builds a unified pattern prompt and generates a suggestion.
+        """
+        from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+
+        builder = UnifiedPromptBuilder()
+        prompt_dict = await builder.build_pattern_prompt(
+            pattern=pattern,
+            device_context=device_context,
+            output_mode=output_mode
+        )
+
+        result = await self.generate_with_unified_prompt(
+            prompt_dict=prompt_dict,
+            temperature=0.7,
+            max_tokens=600 if output_mode == "yaml" else 400,
+            output_format="yaml" if output_mode == "yaml" else "description"
+        )
+
+        return result
     
     async def infer_category_and_priority(self, description: str) -> Dict[str, str]:
         """

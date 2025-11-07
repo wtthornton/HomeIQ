@@ -39,12 +39,12 @@ spacy==3.7.2  # For lightweight NER fallback
 # Phase 1 Optimized Model Stack (OpenVINO INT8)
 # Version constraints to avoid conflicts:
 # optimum-intel 1.20.0 requires transformers<4.46 and >=4.36
-# CPU-only PyTorch index (no CUDA - saves 8.5GB!)
+# Use CPU-only torch wheel to avoid NVIDIA dependencies
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
 transformers==4.45.2          # HuggingFace models (compatible with optimum-intel)
-torch                         # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
+torch==2.2.2+cpu              # CPU-only PyTorch wheel
 openvino==2024.5.0            # Intel optimization
 optimum-intel==1.20.0         # OpenVINO integration with Transformers
 

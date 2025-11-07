@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
-import api from '../services/api';
+import api, { APIError } from '../services/api';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 
 export const ConversationalDashboard: React.FC = () => {
@@ -20,6 +20,10 @@ export const ConversationalDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<'draft' | 'refining' | 'yaml_generated' | 'deployed'>('draft');
   const [processingRedeploy, setProcessingRedeploy] = useState<number | null>(null);
+  const [refreshAllowed, setRefreshAllowed] = useState(true);
+  const [nextRefreshAt, setNextRefreshAt] = useState<string | null>(null);
+  const [refreshLoading, setRefreshLoading] = useState(false);
+  const [analysisRun, setAnalysisRun] = useState<{ status: string; started_at: string; finished_at: string | null } | null>(null);
 
   const loadSuggestions = async () => {
     try {
@@ -88,6 +92,25 @@ export const ConversationalDashboard: React.FC = () => {
     }
   };
 
+  const loadRefreshStatus = async () => {
+    try {
+      const status = await api.getRefreshStatus();
+      setRefreshAllowed(status.allowed);
+      setNextRefreshAt(status.next_allowed_at);
+    } catch (error) {
+      console.error('Failed to load refresh status', error);
+    }
+  };
+
+  const loadAnalysisStatus = async () => {
+    try {
+      const status = await api.getAnalysisStatus();
+      setAnalysisRun(status.analysis_run ?? null);
+    } catch (error) {
+      console.error('Failed to load analysis status', error);
+    }
+  };
+
   const generateSampleSuggestion = async () => {
     try {
       setLoading(true);
@@ -144,10 +167,38 @@ export const ConversationalDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    loadSuggestions();
-    const interval = setInterval(loadSuggestions, 30000);
+    const loadAll = async () => {
+      await Promise.all([loadSuggestions(), loadRefreshStatus(), loadAnalysisStatus()]);
+    };
+
+    loadAll();
+
+    const interval = setInterval(() => {
+      loadSuggestions();
+      loadRefreshStatus();
+      loadAnalysisStatus();
+    }, 30000);
     return () => clearInterval(interval);
   }, [selectedStatus]);
+
+  const handleRefreshClick = async () => {
+    try {
+      setRefreshLoading(true);
+      const response = await api.refreshSuggestions();
+      toast.success(response.message || 'Manual refresh queued');
+      await loadRefreshStatus();
+    } catch (error) {
+      if (error instanceof APIError) {
+        toast.error(error.message);
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to queue manual refresh');
+      }
+    } finally {
+      setRefreshLoading(false);
+    }
+  };
 
   const handleRefine = async (id: number, userInput: string) => {
     try {
@@ -296,7 +347,7 @@ export const ConversationalDashboard: React.FC = () => {
       <div className="space-y-6">
       {/* Header */}
       <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} pb-4`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               💡 Automation Suggestions
@@ -305,8 +356,37 @@ export const ConversationalDashboard: React.FC = () => {
               Edit with natural language, approve to create
             </p>
           </div>
-          <div className="text-sm text-gray-500">
-            {suggestions.length} suggestions
+          <div className="flex flex-col sm:items-end gap-2">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {suggestions.length} suggestions
+              </span>
+              <button
+                onClick={handleRefreshClick}
+                disabled={refreshLoading || !refreshAllowed}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                  refreshLoading || !refreshAllowed
+                    ? darkMode
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : darkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                {refreshLoading ? 'Refreshing…' : '🔄 Refresh Suggestions'}
+              </button>
+            </div>
+            {!refreshAllowed && nextRefreshAt && (
+              <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Available after {new Date(nextRefreshAt).toLocaleString()}
+              </span>
+            )}
+            {analysisRun && (
+              <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Last run {new Date(analysisRun.finished_at ?? analysisRun.started_at).toLocaleString()} ({analysisRun.status})
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -27,6 +27,9 @@ except ImportError:
 from .config import settings
 from .database.models import init_db
 from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, set_device_intelligence_client
+from .api.validation_router import router as validation_router
+from .api.ranking_router import router as ranking_router
+from .api.middlewares import IdempotencyMiddleware, RateLimitMiddleware
 from .api.community_pattern_router import router as community_pattern_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
@@ -61,6 +64,14 @@ async def lifespan(app: FastAPI):
     logger.info(f"Home Assistant: {settings.ha_url}")
     logger.info(f"MQTT Broker: {settings.mqtt_broker}:{settings.mqtt_port}")
     logger.info(f"Analysis Schedule: {settings.analysis_schedule}")
+    if settings.analysis_schedule != "0 3 * * *":
+        logger.warning(
+            "⚠️ Analysis schedule deviates from the default 03:00 run (current: %s). "
+            "Confirm capability refresh still precedes the job.",
+            settings.analysis_schedule
+        )
+    else:
+        logger.info("✅ Analysis schedule confirmed for 03:00 daily run")
     logger.info("=" * 60)
 
     # Initialize database
@@ -215,6 +226,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting middleware (before idempotency)
+# 10x increase: 600 requests/min, 10,000 requests/hour (for internal service communication)
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=600,  # 10x increase: 600 requests/min
+    requests_per_hour=10000   # 10x increase: 10,000 requests/hour
+)
+
+# Idempotency middleware
+app.add_middleware(IdempotencyMiddleware)
+
 # Add error handling middleware
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -260,6 +282,8 @@ app.include_router(nl_generation_router)  # Story AI1.21: Natural Language
 app.include_router(conversational_router)  # Story AI1.23: Conversational Refinement (Phase 1: Stubs)
 app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interface
 app.include_router(devices_router)  # Devices endpoint
+app.include_router(validation_router)  # Validation wall endpoint
+app.include_router(ranking_router)  # Heuristic ranking endpoint
 
 # Initialize scheduler
 scheduler = DailyAnalysisScheduler()

@@ -13,7 +13,7 @@ from ..clients.data_api_client import DataAPIClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..llm.openai_client import OpenAIClient
-from ..database.crud import store_patterns, store_suggestion, get_patterns
+from ..database.crud import store_patterns, store_suggestion, get_patterns, get_latest_analysis_run
 from ..database.models import get_db, get_db_session
 from ..config import settings
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
@@ -143,8 +143,10 @@ async def _run_analysis_pipeline(request: AnalysisRequest):
         if request.time_of_day_enabled:
             logger.info("  → Running time-of-day detector...")
             tod_detector = TimeOfDayPatternDetector(
-                min_occurrences=5,
-                min_confidence=request.min_confidence
+                min_occurrences=max(3, settings.time_of_day_min_occurrences // 2),
+                min_confidence=max(settings.time_of_day_base_confidence, request.min_confidence),
+                domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
+                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
             )
             
             # Time-of-day detector doesn't have optimized version
@@ -159,8 +161,10 @@ async def _run_analysis_pipeline(request: AnalysisRequest):
             logger.info("  → Running co-occurrence detector...")
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
-                min_support=5,
-                min_confidence=request.min_confidence
+                min_support=max(3, settings.co_occurrence_min_support // 2),
+                min_confidence=max(settings.co_occurrence_base_confidence, request.min_confidence),
+                domain_support_overrides=dict(settings.co_occurrence_support_overrides),
+                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
             )
             
             if len(events_df) > 50000:
@@ -361,6 +365,8 @@ async def get_analysis_status():
             # Get recent suggestions
             from ..database.crud import get_suggestions
             recent_suggestions = await get_suggestions(db, status='pending', limit=10)
+
+            latest_run = await get_latest_analysis_run(db)
             
             return {
                 'status': 'ready',
@@ -376,7 +382,13 @@ async def get_analysis_status():
                         }
                         for s in recent_suggestions
                     ]
-                }
+                },
+                'analysis_run': {
+                    'status': latest_run.status,
+                    'started_at': latest_run.started_at.isoformat(),
+                    'finished_at': latest_run.finished_at.isoformat() if latest_run.finished_at else None,
+                    'duration_seconds': latest_run.duration_seconds
+                } if latest_run else None
             }
     
     except Exception as e:

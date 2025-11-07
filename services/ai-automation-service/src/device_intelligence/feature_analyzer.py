@@ -12,6 +12,8 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 
+from ..database.crud import get_capability_freshness
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,6 +120,35 @@ class FeatureAnalyzer:
                 "opportunities": []
             }
         
+        # Guard: ensure capability data is fresh before continuing
+        capability_freshness = await self._check_capability_freshness()
+        if capability_freshness["total_models"] == 0:
+            logger.warning(
+                "⚠️ Device capability cache is empty. Skipping feature analysis until "
+                "the nightly capability refresh populates data."
+            )
+            return self._build_skip_result(
+                devices_found=len(devices),
+                reason="no_capabilities",
+                stale_info=capability_freshness
+            )
+
+        if capability_freshness["stale_count"] > 0:
+            stale_preview = capability_freshness["stale_models"][:5]
+            preview_text = ", ".join(model["model"] for model in stale_preview)
+            logger.warning(
+                "⚠️ Device capability cache has %s stale models (threshold: %s). "
+                "Preview: %s",
+                capability_freshness["stale_count"],
+                capability_freshness["threshold_iso"],
+                preview_text or "n/a"
+            )
+            return self._build_skip_result(
+                devices_found=len(devices),
+                reason="capabilities_stale",
+                stale_info=capability_freshness
+            )
+
         total_configured = 0
         total_available = 0
         by_manufacturer = {}
@@ -186,6 +217,7 @@ class FeatureAnalyzer:
         
         return {
             "overall_utilization": overall_utilization,
+            "avg_utilization": overall_utilization,
             "total_devices": len(devices),
             "devices_analyzed": analyzed_count,
             "total_configured": total_configured,
@@ -193,6 +225,32 @@ class FeatureAnalyzer:
             "by_manufacturer": by_manufacturer,
             "opportunities": ranked_opportunities[:20],  # Top 20
             "analysis_duration_seconds": round(duration, 2)
+        }
+
+    async def _check_capability_freshness(self) -> Dict:
+        """Return capability freshness stats using the shared CRUD helper."""
+        async with self.db() as session:
+            return await get_capability_freshness(session)
+
+    def _build_skip_result(
+        self,
+        devices_found: int,
+        reason: str,
+        stale_info: Dict
+    ) -> Dict:
+        """Construct a structured response when analysis is skipped."""
+        return {
+            "overall_utilization": 0.0,
+            "avg_utilization": 0.0,
+            "total_devices": devices_found,
+            "devices_analyzed": 0,
+            "total_configured": 0,
+            "total_available": 0,
+            "by_manufacturer": {},
+            "opportunities": [],
+            "skipped": True,
+            "skip_reason": reason,
+            "stale_capabilities": stale_info
         }
     
     async def analyze_device(self, device_id: str, device_data: Optional[Dict] = None) -> Optional[Dict]:

@@ -153,13 +153,16 @@ docker-compose up -d ai-automation-service
 - `POST /api/suggestions/batch/approve` - Approve multiple suggestions
 - `POST /api/suggestions/batch/reject` - Reject multiple suggestions
 
-### Synergy Detection (Epic AI-3)
+### Synergy Detection (Epic AI-3, AI-4)
 - `GET /api/synergies` - List detected device synergies with filtering
   - Query params: `synergy_type` (device_pair, weather_context, energy_context, event_context)
   - Query params: `min_confidence`, `validated_by_patterns`, `min_priority`
+  - Query params: `synergy_depth` (2=pair, 3=3-chain, 4=4-chain) - **NEW (Epic AI-4)**
   - Results ordered by priority score (impact + confidence + pattern support)
+  - Supports 2-level pairs, 3-level chains, and 4-level chains (Epic AI-4)
 - `GET /api/synergies/stats` - Get synergy statistics by type and complexity
 - `GET /api/synergies/{id}` - Get detailed synergy information
+- `POST /api/synergies/detect` - Real-time synergy detection (includes 4-level chains)
 
 ### Data Access
 - `GET /api/data/health` - Check Data API health
@@ -173,11 +176,14 @@ docker-compose up -d ai-automation-service
 1. Phase 1: Device Capability Update (Epic AI-2)
 2. Phase 2: Fetch Events from InfluxDB (Shared)
 3. Phase 3: Pattern Detection (Epic AI-1)
-4. Phase 3c: **Synergy Detection (Epic AI-3)** - Enhanced
-   - Part A: Device Pair Synergies (cross-device automation opportunities)
+4. Phase 3c: **Synergy Detection (Epic AI-3, AI-4)** - Enhanced
+   - Part A: Device Pair Synergies (2-level: cross-device automation opportunities)
    - Part B: Weather Context Synergies (weather-based automations)
    - Part C: Energy Context Synergies (cost optimization opportunities) - **NEW**
    - Part D: Event Context Synergies (entertainment automation) - **NEW**
+   - Part E: Multi-Hop Chains (3-level and 4-level chains) - **NEW (Epic AI-4)**
+     - 3-level chains: A → B → C
+     - 4-level chains: A → B → C → D (e.g., Door → Lock → Alarm → Notification)
    - Priority-based selection with validated pattern boost
 5. Phase 4: Feature Analysis (Epic AI-2)
 6. Phase 5: **Description-Only Generation** (OpenAI GPT-4o-mini) - Story AI1.24

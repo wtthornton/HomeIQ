@@ -81,7 +81,9 @@ async def detect_time_of_day_patterns(
         logger.info("Running time-of-day pattern detection")
         detector = TimeOfDayPatternDetector(
             min_occurrences=min_occurrences,
-            min_confidence=min_confidence
+            min_confidence=min_confidence,
+            domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
+            domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
         )
         
         patterns = detector.detect_patterns(events_df)
@@ -191,7 +193,9 @@ async def detect_co_occurrence_patterns(
         detector = CoOccurrencePatternDetector(
             window_minutes=window_minutes,
             min_support=min_support,
-            min_confidence=min_confidence
+            min_confidence=min_confidence,
+            domain_support_overrides=dict(settings.co_occurrence_support_overrides),
+            domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
         )
         
         if optimize and len(events_df) > 10000:

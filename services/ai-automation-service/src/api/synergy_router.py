@@ -32,6 +32,7 @@ async def list_synergies(
     synergy_type: Optional[str] = Query(default=None, description="Filter by synergy type"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence"),
     validated_by_patterns: Optional[bool] = Query(default=None, description="Filter by pattern validation (Phase 2)"),
+    synergy_depth: Optional[int] = Query(default=None, ge=2, le=5, description="Filter by chain depth (2=pair, 3=3-chain, 4=4-chain)"),
     limit: int = Query(default=100, ge=1, le=500, description="Maximum results"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -44,12 +45,14 @@ async def list_synergies(
         List of synergy opportunities with metadata
     """
     try:
-        logger.info(f"Listing synergies: type={synergy_type}, min_confidence={min_confidence}")
+        logger.info(f"Listing synergies: type={synergy_type!r}, min_confidence={min_confidence}, validated_by_patterns={validated_by_patterns}")
+        logger.info(f"Router received parameters - synergy_type type: {type(synergy_type)}, value: {repr(synergy_type)}")
         
         synergies = await get_synergy_opportunities(
             db,
             synergy_type=synergy_type,
             min_confidence=min_confidence,
+            synergy_depth=synergy_depth,
             limit=limit
         )
         
@@ -87,6 +90,18 @@ async def list_synergies(
                     synergy_dict['supporting_pattern_ids'] = []
             else:
                 synergy_dict['supporting_pattern_ids'] = []
+            
+            # Epic AI-4: Add n-level synergy fields
+            synergy_dict['synergy_depth'] = getattr(s, 'synergy_depth', 2)
+            chain_devices_value = getattr(s, 'chain_devices', None)
+            if chain_devices_value:
+                import json
+                try:
+                    synergy_dict['chain_devices'] = json.loads(chain_devices_value)
+                except:
+                    synergy_dict['chain_devices'] = []
+            else:
+                synergy_dict['chain_devices'] = synergy_dict.get('device_ids', [])
             
             synergies_list.append(synergy_dict)
         
@@ -200,6 +215,7 @@ async def detect_synergies_realtime(
     """
     try:
         from datetime import datetime, timezone
+        import asyncio
         
         logger.info(f"Starting real-time synergy detection (use_patterns={use_patterns})")
         
@@ -210,8 +226,18 @@ async def detect_synergies_realtime(
             ha_client=None  # Can be added if needed
         )
         
-        # Detect synergies
-        synergies = await detector.detect_synergies()
+        # Detect synergies with timeout protection (max 100 seconds to leave buffer for nginx 120s timeout)
+        try:
+            synergies = await asyncio.wait_for(
+                detector.detect_synergies(),
+                timeout=100.0  # 100 seconds max (nginx timeout is 120s)
+            )
+        except asyncio.TimeoutError:
+            logger.error("Synergy detection timed out after 100 seconds")
+            raise HTTPException(
+                status_code=504,
+                detail="Synergy detection timed out. Try reducing the number of devices or running detection in smaller batches."
+            )
         
         logger.info(f"Detected {len(synergies)} synergy opportunities")
         
@@ -238,17 +264,43 @@ async def detect_synergies_realtime(
             }
             
             # If pattern validation was enabled, get validation results
+            # Note: Validation already happened during storage, so we can skip here
+            # to avoid using a potentially rolled-back session
             if use_patterns:
-                validator = PatternSynergyValidator(db)
-                validation_result = await validator.validate_synergy_with_patterns(
-                    synergy_data, min_pattern_confidence
-                )
-                synergy_dict['pattern_validation'] = {
-                    'pattern_support_score': validation_result.get('pattern_support_score', 0.0),
-                    'validated_by_patterns': validation_result.get('validated_by_patterns', False),
-                    'validation_status': validation_result.get('validation_status', 'invalid'),
-                    'supporting_patterns_count': len(validation_result.get('supporting_patterns', []))
-                }
+                try:
+                    # Check if session is healthy before using it
+                    from sqlalchemy.exc import PendingRollbackError
+                    from sqlalchemy import select
+                    try:
+                        await db.execute(select(1))
+                    except (PendingRollbackError, Exception):
+                        # Session is in bad state, skip validation
+                        logger.warning("Skipping pattern validation - session in bad state")
+                        synergy_dict['pattern_validation'] = {
+                            'pattern_support_score': 0.0,
+                            'validated_by_patterns': False,
+                            'validation_status': 'unknown',
+                            'supporting_patterns_count': 0
+                        }
+                    else:
+                        validator = PatternSynergyValidator(db)
+                        validation_result = await validator.validate_synergy_with_patterns(
+                            synergy_data, min_pattern_confidence
+                        )
+                        synergy_dict['pattern_validation'] = {
+                            'pattern_support_score': validation_result.get('pattern_support_score', 0.0),
+                            'validated_by_patterns': validation_result.get('validated_by_patterns', False),
+                            'validation_status': validation_result.get('validation_status', 'invalid'),
+                            'supporting_patterns_count': len(validation_result.get('supporting_patterns', []))
+                        }
+                except Exception as e:
+                    logger.warning(f"Error getting pattern validation for synergy {synergy_data.get('synergy_id')}: {e}")
+                    synergy_dict['pattern_validation'] = {
+                        'pattern_support_score': 0.0,
+                        'validated_by_patterns': False,
+                        'validation_status': 'error',
+                        'supporting_patterns_count': 0
+                    }
             
             synergies_list.append(synergy_dict)
         

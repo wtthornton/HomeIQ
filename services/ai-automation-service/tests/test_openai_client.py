@@ -81,6 +81,13 @@ class TestOpenAIClient:
             assert suggestion.category in ['energy', 'comfort', 'security', 'convenience']
             assert suggestion.priority in ['high', 'medium', 'low']
             assert suggestion.confidence == 0.93
+
+            call_kwargs = openai_client.client.chat.completions.create.call_args.kwargs
+            messages = call_kwargs['messages']
+            roles = [message['role'] for message in messages]
+            assert 'developer' in roles
+            developer_message = next(msg for msg in messages if msg['role'] == 'developer')
+            assert 'Pattern Summary' in developer_message['content']
     
     @pytest.mark.asyncio
     async def test_generate_co_occurrence_suggestion(self, openai_client):
