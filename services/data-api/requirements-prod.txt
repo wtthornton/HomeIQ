@@ -16,4 +16,5 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 psutil==5.9.6
 requests==2.31.0
+httpx==0.25.1
 
