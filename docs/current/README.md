@@ -57,6 +57,13 @@ The following types of documents are **archived** (not current reference):
 **Need deployment info?** → `docs/DEPLOYMENT_GUIDE.md` (root)  
 **Need user story?** → `docs/stories/`  
 
+### Operations Quick Links
+
+- Manual suggestion refresh: `POST /api/suggestions/refresh` (UI button on Conversational Dashboard, 24h cooldown enforced in `manual_refresh_triggers`)
+- Refresh availability: `GET /api/suggestions/refresh/status`
+- Latest nightly run metrics: `GET /api/analysis/status` → `analysis_run`
+- Context7 MCP quick start: [`docs/current/context7-setup.md`](context7-setup.md)
+
 ### Adding New Documentation
 
 **Reference documentation** (guides, manuals, API docs):

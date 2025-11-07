@@ -1,0 +1,6 @@
+# Context7 Auto-Invoke Rule
+
+Always use context7 when you need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically run
+`resolve-library-id` followed by `get-library-docs` without waiting for the user to
+explicitly ask.

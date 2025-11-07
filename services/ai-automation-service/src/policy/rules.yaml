@@ -1,0 +1,45 @@
+# Policy Rules for Automation Validation
+# Rules define safety and behavior constraints for automations
+
+rules:
+  # Deny rules (block automation)
+  deny:
+    - name: unlock_while_away
+      description: Deny unlocking doors while away unless explicit override
+      condition: |
+        action.service == "lock.unlock" and
+        (not condition.zone or condition.zone != "home")
+      severity: critical
+      message: "Cannot unlock doors while away for security reasons"
+      override: "allow_away_unlock"
+    
+    - name: high_power_during_peak
+      description: Deny high-power loads during utility critical peak unless allow_peak=true
+      condition: |
+        action.service in ["climate.set_temperature", "switch.turn_on"] and
+        is_peak_hours() and
+        (not action.data.allow_peak or action.data.allow_peak != true)
+      severity: warning
+      message: "High-power automation during peak hours requires allow_peak=true"
+      override: "allow_peak"
+  
+  # Warn rules (allow but warn)
+  warn:
+    - name: camera_mic_after_hours
+      description: Warn on camera/mic activation after 22:00
+      condition: |
+        action.service in ["camera.turn_on", "camera.enable_motion_detection"] and
+        time.hour >= 22
+      severity: warning
+      message: "Camera/mic activation after 22:00 may be privacy concern"
+      override: null
+    
+    - name: bulk_device_off
+      description: Warn on turning off multiple devices
+      condition: |
+        len(action.target.entity_id) > 5 or
+        action.target.area_id == "all"
+      severity: warning
+      message: "Turning off multiple devices may affect entire home"
+      override: null
+

@@ -25,6 +25,7 @@ Enhance the existing synergy detection system with simple improvements that don'
 **What we ARE doing:**
 - ✅ Enhance existing pairwise detection
 - ✅ Add simple 3-device chain detection (iterate pairs)
+- ✅ Add 4-device chain detection (extend 3-level chains) - **NEW (Epic AI-4)**
 - ✅ Improve caching (reuse existing patterns)
 - ✅ Add more compatible relationship patterns
 - ✅ Better usage frequency scoring

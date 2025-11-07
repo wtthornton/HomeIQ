@@ -9,6 +9,7 @@ Story AI3.2: Same-Area Device Pair Detection
 """
 
 import logging
+import hashlib
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta, timezone
 
@@ -51,10 +52,10 @@ class DevicePairAnalyzer:
             days: Number of days to analyze (default: 30)
         
         Returns:
-            Usage frequency score (0.0-1.0)
-            - 1.0: Very active (100+ events/day)
-            - 0.5: Moderate (10-100 events/day)
-            - 0.1: Low activity (<10 events/day)
+            Usage frequency score (0.0-1.0) using continuous logarithmic scale
+            - 1.0: Very active (approaches 1.0 for 100+ events/day)
+            - Varies continuously based on actual event frequency
+            - Preserves granular differences (no bucket collisions)
         """
         # Check cache
         cache_key = f"{device_id}_{days}"
@@ -81,21 +82,16 @@ class DevicePairAnalyzer:
                     for record in table.records:
                         event_count += record.get_value()
             
-            # Calculate frequency score
-            events_per_day = event_count / days
+            # Calculate frequency score using continuous logarithmic scale
+            # Eliminates bucket collisions and preserves granular differences
+            events_per_day = event_count / days if days > 0 else 0
             
-            if events_per_day >= 100:
-                frequency = 1.0
-            elif events_per_day >= 50:
-                frequency = 0.9
-            elif events_per_day >= 20:
-                frequency = 0.7
-            elif events_per_day >= 10:
-                frequency = 0.5
-            elif events_per_day >= 5:
-                frequency = 0.3
+            if events_per_day > 0:
+                # Smooth curve: 0 events = 0.05, 100+ events approaches 1.0
+                # Formula: 0.05 + 0.95 * (1 - 1/(1 + events_per_day/15))
+                frequency = min(1.0, 0.05 + 0.95 * (1 - 1 / (1 + events_per_day / 15)))
             else:
-                frequency = 0.1
+                frequency = 0.05  # Minimum for devices with no events
             
             # Cache result
             self._usage_cache[cache_key] = frequency
@@ -198,19 +194,22 @@ class DevicePairAnalyzer:
         self,
         synergy: Dict,
         entities: List[Dict],
+        all_synergies_in_area: Optional[List[Dict]] = None,
         days: int = 30
     ) -> float:
         """
         Calculate advanced impact score using usage and area data.
         
-        Phase 4: Enhanced scoring with time-of-day awareness
+        Phase 4: Enhanced scoring with time-of-day awareness and area normalization
         
         Formula:
-            impact = benefit_score * usage_freq * area_traffic * time_weight * (1 - complexity_penalty)
+            impact = benefit_score * usage_freq * area_traffic * time_weight * health_factor * (1 - complexity_penalty)
+            Then normalized within area if all_synergies_in_area provided
         
         Args:
             synergy: Synergy opportunity from DeviceSynergyDetector
             entities: List of entities for area lookup
+            all_synergies_in_area: Optional list of all synergies in same area for normalization
             days: Days of history to analyze
         
         Returns:
@@ -218,7 +217,14 @@ class DevicePairAnalyzer:
         """
         try:
             # Get base benefit score and complexity from synergy
-            base_benefit = synergy.get('impact_score', 0.7)  # From AI3.1
+            # Prefer relationship_config.benefit_score (raw benefit), fallback to impact_score
+            base_benefit = 0.7  # Default
+            if 'relationship_config' in synergy and isinstance(synergy['relationship_config'], dict):
+                base_benefit = synergy['relationship_config'].get('benefit_score', base_benefit)
+            else:
+                # Fallback: use impact_score (might already have adjustments, but better than default)
+                base_benefit = synergy.get('impact_score', base_benefit)
+            
             complexity = synergy.get('complexity', 'medium')
             
             # Complexity penalty
@@ -235,8 +241,29 @@ class DevicePairAnalyzer:
             trigger_usage = await self.get_device_usage_frequency(trigger_entity, days)
             action_usage = await self.get_device_usage_frequency(action_entity, days)
             
-            # Combined usage frequency (average of both)
-            usage_freq = (trigger_usage + action_usage) / 2.0
+            # Combined usage frequency - use minimum (weakest link principle)
+            # Automation is limited by least active device
+            usage_freq = min(trigger_usage, action_usage)
+            
+            # Get device health scores from entities (if available)
+            trigger_entity_data = next((e for e in entities if e.get('entity_id') == trigger_entity), {})
+            action_entity_data = next((e for e in entities if e.get('entity_id') == action_entity), {})
+            
+            # MinMaxScaler pattern: Normalize 0-100 health score to 0-1 range
+            # Default to 100 if not available (assume healthy device)
+            trigger_health = trigger_entity_data.get('health_score', 100) / 100.0
+            action_health = action_entity_data.get('health_score', 100) / 100.0
+            
+            # Geometric mean for health (both devices must be reasonably healthy)
+            # Geometric mean better for multiplicative factors
+            health_factor = (trigger_health * action_health) ** 0.5
+            
+            # Log health factor for debugging (only if different from 1.0 to avoid spam)
+            if health_factor < 0.99:
+                logger.debug(
+                    f"Health factor < 1.0: trigger={trigger_entity} ({trigger_health:.2f}), "
+                    f"action={action_entity} ({action_health:.2f}), factor={health_factor:.3f}"
+                )
             
             # Get area traffic
             area = synergy.get('area', 'unknown')
@@ -249,16 +276,95 @@ class DevicePairAnalyzer:
                 if peak_usage:
                     time_weight = 1.2  # Boost impact for peak-hour usage
             
-            # Calculate final impact with time weighting
-            impact = base_benefit * usage_freq * area_traffic * time_weight * (1 - complexity_penalty)
+            # Calculate base impact with time weighting and health factor
+            impact = base_benefit * usage_freq * area_traffic * time_weight * health_factor * (1 - complexity_penalty)
+            
+            # Debug logging for first few synergies to understand score calculation
+            if hasattr(self, '_debug_count'):
+                self._debug_count += 1
+            else:
+                self._debug_count = 1
+            
+            if self._debug_count <= 5:
+                logger.info(
+                    f"Advanced scoring sample {self._debug_count}: "
+                    f"trigger={trigger_entity[:30]}, action={action_entity[:30]}, "
+                    f"base={base_benefit:.2f}, usage={usage_freq:.3f}, area_traffic={area_traffic:.3f}, "
+                    f"time={time_weight:.2f}, health={health_factor:.3f}, penalty={complexity_penalty:.2f}, "
+                    f"impact={impact:.4f}"
+                )
+            
+            # Apply area-specific normalization if multiple synergies in same area
+            if all_synergies_in_area and len(all_synergies_in_area) > 1:
+                # Calculate percentile position within area based on base benefit scores
+                # This provides relative ranking without needing full impact calculations
+                area_base_scores = []
+                for s in all_synergies_in_area:
+                    # Try to get benefit_score from relationship_config first (most accurate)
+                    s_base = 0.7  # Default
+                    if 'relationship_config' in s and isinstance(s['relationship_config'], dict):
+                        s_base = s['relationship_config'].get('benefit_score', s_base)
+                    elif 'relationship' in s:
+                        # Fallback: try to get from COMPATIBLE_RELATIONSHIPS if we can
+                        # For now, use impact_score as proxy if available
+                        s_base = s.get('impact_score', s_base)
+                    else:
+                        # Last resort: use impact_score (might already include adjustments)
+                        s_base = s.get('impact_score', s_base)
+                    area_base_scores.append(s_base)
+                
+                # Sort to get percentile position
+                sorted_scores = sorted(area_base_scores, reverse=True)
+                try:
+                    current_base = base_benefit
+                    # Find position in sorted list (handle duplicates)
+                    position = 0
+                    for i, score in enumerate(sorted_scores):
+                        if score <= current_base:
+                            position = i
+                            break
+                    else:
+                        position = len(sorted_scores) - 1
+                    
+                    percentile_position = position / len(sorted_scores) if len(sorted_scores) > 1 else 0.5
+                except (ValueError, ZeroDivisionError, IndexError):
+                    percentile_position = 0.5  # Default to middle if not found
+                
+                # Normalization factor: 0.95-1.05 range based on position
+                # Higher percentile (better base score) = slight boost, lower = slight penalty
+                normalization_factor = 0.95 + (percentile_position * 0.1)
+                impact *= normalization_factor
+                
+                logger.debug(
+                    f"Area normalization: {area} position={percentile_position:.2f}, "
+                    f"factor={normalization_factor:.3f}, area_size={len(all_synergies_in_area)}"
+                )
             
             logger.debug(
-                f"Advanced impact: {trigger_entity} + {action_entity} = {impact:.2f} "
+                f"Advanced impact: {trigger_entity} + {action_entity} = {impact:.3f} "
                 f"(benefit={base_benefit}, usage={usage_freq:.2f}, area={area_traffic}, "
-                f"time_weight={time_weight}, complexity_penalty={complexity_penalty})"
+                f"time_weight={time_weight}, health_factor={health_factor:.2f}, complexity_penalty={complexity_penalty})"
             )
             
-            return round(impact, 2)
+            # Add deterministic tie-breaker and increase precision
+            # Calculate deterministic micro-adjustment (0.0000-0.0099)
+            # Uses MD5 hash for stable, deterministic ordering
+            entity_pair = f"{trigger_entity}{action_entity}"
+            entity_hash = int(hashlib.md5(entity_pair.encode()).hexdigest()[:8], 16)
+            micro_adjust = (entity_hash % 100) / 10000.0  # 0.0000-0.0099
+            
+            # Round to 4 decimals for more precision (handles floating-point precision issues)
+            # Increased from 3 to 4 decimals to show more distinction
+            final_impact = round(impact + micro_adjust, 4)
+            
+            # Log final score with tie-breaker for debugging (first 5 only)
+            if hasattr(self, '_debug_count') and self._debug_count <= 5:
+                logger.info(
+                    f"Final score with tie-breaker: {final_impact:.4f} "
+                    f"(base={impact:.4f}, micro_adjust={micro_adjust:.4f}, entity_hash={entity_hash % 100})"
+                )
+            
+            return final_impact
             
         except Exception as e:
             logger.warning(f"Failed to calculate advanced impact: {e}")

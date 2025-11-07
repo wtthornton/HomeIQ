@@ -33,7 +33,7 @@ from ..pattern_detection.seasonal_detector import SeasonalDetector
 from ..pattern_detection.anomaly_detector import AnomalyDetector
 
 from ..llm.openai_client import OpenAIClient
-from ..database.crud import store_patterns, store_suggestion, get_synergy_opportunities
+from ..database.crud import store_patterns, store_suggestion, get_synergy_opportunities, record_analysis_run
 from ..database.models import get_db, get_db_session
 from ..config import settings
 
@@ -239,9 +239,11 @@ class DailyAnalysisScheduler:
             # Time-of-day patterns (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running time-of-day detector (incremental)...")
             tod_detector = TimeOfDayPatternDetector(
-                min_occurrences=10,  # Increased from 5 to 10 for better quality
-                min_confidence=0.7,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                min_occurrences=settings.time_of_day_min_occurrences,
+                min_confidence=settings.time_of_day_base_confidence,
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
+                domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
+                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
             )
             
             # Use incremental update if enabled and previous run exists
@@ -262,9 +264,11 @@ class DailyAnalysisScheduler:
             logger.info("  → Running co-occurrence detector (incremental)...")
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
-                min_support=10,  # Increased from 5 to 10 for better quality
-                min_confidence=0.7,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                min_support=settings.co_occurrence_min_support,
+                min_confidence=settings.co_occurrence_base_confidence,
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
+                domain_support_overrides=dict(settings.co_occurrence_support_overrides),
+                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
@@ -695,16 +699,28 @@ class DailyAnalysisScheduler:
                 )
                 
                 analysis_result = await feature_analyzer.analyze_all_devices()
-                opportunities = analysis_result.get('opportunities', [])
-                
-                logger.info(f"✅ Feature analysis complete:")
-                logger.info(f"   - Devices analyzed: {analysis_result.get('devices_analyzed', 0)}")
-                logger.info(f"   - Opportunities found: {len(opportunities)}")
-                logger.info(f"   - Average utilization: {analysis_result.get('avg_utilization', 0):.1f}%")
-                
-                job_result['devices_analyzed'] = analysis_result.get('devices_analyzed', 0)
-                job_result['opportunities_found'] = len(opportunities)
-                job_result['avg_utilization'] = analysis_result.get('avg_utilization', 0)
+
+                if analysis_result.get('skipped'):
+                    skip_reason = analysis_result.get('skip_reason', 'unknown')
+                    logger.warning(f"⚠️ Feature analysis skipped: {skip_reason}")
+                    opportunities = []
+                    job_result['feature_analysis_skipped'] = True
+                    job_result['feature_analysis_skip_reason'] = skip_reason
+                    job_result['stale_capabilities'] = analysis_result.get('stale_capabilities', {})
+                    job_result['devices_analyzed'] = 0
+                    job_result['opportunities_found'] = 0
+                    job_result['avg_utilization'] = 0
+                else:
+                    opportunities = analysis_result.get('opportunities', [])
+                    
+                    logger.info(f"✅ Feature analysis complete:")
+                    logger.info(f"   - Devices analyzed: {analysis_result.get('devices_analyzed', 0)}")
+                    logger.info(f"   - Opportunities found: {len(opportunities)}")
+                    logger.info(f"   - Average utilization: {analysis_result.get('avg_utilization', 0):.1f}%")
+                    
+                    job_result['devices_analyzed'] = analysis_result.get('devices_analyzed', 0)
+                    job_result['opportunities_found'] = len(opportunities)
+                    job_result['avg_utilization'] = analysis_result.get('avg_utilization', 0)
                 
             except Exception as e:
                 logger.error(f"⚠️ Feature analysis failed: {e}")
@@ -1093,6 +1109,11 @@ class DailyAnalysisScheduler:
         finally:
             self.is_running = False
             self._store_job_history(job_result)
+            try:
+                async with get_db_session() as db:
+                    await record_analysis_run(db, job_result)
+            except Exception as e:
+                logger.error(f"Failed to persist analysis run summary: {e}")
     
     def _store_job_history(self, job_result: Dict):
         """

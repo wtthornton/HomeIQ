@@ -117,9 +117,20 @@ Guidelines:
         else:
             user_prompt = self._build_generic_pattern_prompt(pattern, device_section, output_mode)
             
+        pattern_summary = self._summarize_pattern(pattern)
+        synergy_context = self._summarize_synergy(pattern)
+        feedback_hint = pattern.get('feedback_hint') or (
+            "No explicit user feedback recorded for this device yet. "
+            "Favor low-friction, easy-to-accept automations."
+        )
+        
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
-            "user_prompt": user_prompt
+            "user_prompt": user_prompt,
+            "pattern_summary": pattern_summary,
+            "synergy_context": synergy_context,
+            "feedback_hint": feedback_hint,
+            "pattern_source": pattern
         }
     
     async def build_query_prompt(
@@ -399,6 +410,81 @@ Focus on practical applications that enhance the user experience."""
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
             "user_prompt": user_prompt
         }
+    
+    def _summarize_pattern(self, pattern: Dict) -> str:
+        """Create a concise summary string for the detected pattern."""
+        if not pattern:
+            return "Pattern details unavailable."
+
+        summary_lines = []
+        pattern_type = pattern.get('pattern_type') or pattern.get('type') or 'unknown'
+        summary_lines.append(f"Type: {pattern_type}")
+
+        device_id = pattern.get('device_id')
+        if device_id:
+            summary_lines.append(f"Primary device: {device_id}")
+
+        # Include paired device info for co-occurrence patterns
+        device1 = pattern.get('device1') or pattern.get('metadata', {}).get('trigger_device_id')
+        device2 = pattern.get('device2') or pattern.get('metadata', {}).get('target_device_id')
+        if device1 and device2:
+            summary_lines.append(f"Device pairing: {device1} → {device2}")
+
+        confidence = pattern.get('confidence')
+        if confidence is not None:
+            summary_lines.append(f"Confidence: {confidence:.2f}")
+
+        occurrences = pattern.get('occurrences') or pattern.get('metadata', {}).get('occurrences')
+        if occurrences:
+            summary_lines.append(f"Occurrences: {occurrences}")
+
+        metadata = pattern.get('metadata') or {}
+        if isinstance(metadata, dict):
+            occurrence_ratio = metadata.get('occurrence_ratio')
+            if occurrence_ratio is not None:
+                summary_lines.append(f"Occurrence ratio: {occurrence_ratio:.2f}")
+
+            std_minutes = metadata.get('std_minutes')
+            if std_minutes is not None:
+                summary_lines.append(f"Time variance: ±{std_minutes:.1f} minutes")
+
+            avg_delta = metadata.get('avg_time_delta_seconds')
+            if avg_delta is not None:
+                summary_lines.append(f"Average delay: {avg_delta:.1f} seconds")
+
+            impact_score = metadata.get('impact_score')
+            if impact_score is not None:
+                summary_lines.append(f"Impact score: {impact_score:.2f}")
+
+        return "\n".join(summary_lines)
+
+    def _summarize_synergy(self, pattern: Dict) -> str:
+        """Create a synergy-specific context summary if available."""
+        metadata = pattern.get('metadata') or {}
+        synergy_meta = metadata if metadata.get('synergy_type') else metadata.get('synergy_metadata', {})
+
+        synergy_lines = []
+        synergy_type = synergy_meta.get('synergy_type') or pattern.get('synergy_type')
+        if synergy_type:
+            synergy_lines.append(f"Synergy type: {synergy_type}")
+
+        chain_devices = synergy_meta.get('chain_devices') or pattern.get('devices')
+        if chain_devices:
+            if isinstance(chain_devices, (list, tuple)):
+                chain_str = " → ".join(chain_devices)
+            else:
+                chain_str = str(chain_devices)
+            synergy_lines.append(f"Device chain: {chain_str}")
+
+        rationale = synergy_meta.get('rationale') or pattern.get('rationale')
+        if rationale:
+            synergy_lines.append(f"Rationale: {rationale}")
+
+        support_score = synergy_meta.get('pattern_support_score')
+        if support_score is not None:
+            synergy_lines.append(f"Pattern support score: {support_score:.2f}")
+
+        return "\n".join(synergy_lines)
     
     async def get_enhanced_device_context(self, pattern: Dict) -> Dict:
         """

@@ -29,10 +29,12 @@ class TimeOfDayPatternDetector:
     """
     
     def __init__(
-        self, 
-        min_occurrences: int = 3, 
+        self,
+        min_occurrences: int = 3,
         min_confidence: float = 0.7,
-        aggregate_client=None
+        aggregate_client=None,
+        domain_occurrence_overrides: Optional[Dict[str, int]] = None,
+        domain_confidence_overrides: Optional[Dict[str, float]] = None
     ):
         """
         Initialize pattern detector.
@@ -45,7 +47,15 @@ class TimeOfDayPatternDetector:
         self.min_occurrences = min_occurrences
         self.min_confidence = min_confidence
         self.aggregate_client = aggregate_client
-        logger.info(f"TimeOfDayPatternDetector initialized: min_occurrences={min_occurrences}, min_confidence={min_confidence}")
+        self.domain_occurrence_overrides = domain_occurrence_overrides or {}
+        self.domain_confidence_overrides = domain_confidence_overrides or {}
+        logger.info(
+            "TimeOfDayPatternDetector initialized: min_occurrences=%s, min_confidence=%s, domain_occurrence_overrides=%s, domain_confidence_overrides=%s",
+            min_occurrences,
+            min_confidence,
+            list((domain_occurrence_overrides or {}).keys()),
+            list((domain_confidence_overrides or {}).keys())
+        )
     
     def detect_patterns(self, events: pd.DataFrame) -> List[Dict]:
         """
@@ -95,6 +105,9 @@ class TimeOfDayPatternDetector:
         
         for device_id in unique_devices:
             device_events = events[events['device_id'] == device_id]
+            domain = self._get_domain(device_id)
+            required_occurrences = self.domain_occurrence_overrides.get(domain, self.min_occurrences)
+            required_confidence = self.domain_confidence_overrides.get(domain, self.min_confidence)
             
             # Need minimum data (5 events to form meaningful clusters)
             if len(device_events) < 5:
@@ -121,7 +134,7 @@ class TimeOfDayPatternDetector:
                     cluster_mask = labels == cluster_id
                     cluster_times = times[cluster_mask]
                     
-                    if len(cluster_times) >= self.min_occurrences:
+                    if len(cluster_times) >= required_occurrences:
                         avg_time = cluster_times.mean()
                         # Calculate confidence based on occurrence ratio and consistency
                         occurrence_ratio = len(cluster_times) / len(times)
@@ -140,7 +153,7 @@ class TimeOfDayPatternDetector:
                         confidence = min(0.95, occurrence_ratio * (1 - variance_penalty) + threshold_boost)
                         confidence = max(0.5, confidence)  # Minimum 50% confidence
                         
-                        if confidence >= self.min_confidence:
+                        if confidence >= required_confidence:
                             hour = int(avg_time)
                             minute = int((avg_time % 1) * 60)
                             
@@ -160,7 +173,12 @@ class TimeOfDayPatternDetector:
                                     'cluster_id': int(cluster_id),
                                     'std_minutes': std_minutes,
                                     'time_range': f"{hour:02d}:{minute:02d} ± {int(std_minutes)}min",
-                                    'occurrence_ratio': float(occurrence_ratio)
+                                    'occurrence_ratio': float(occurrence_ratio),
+                                    'thresholds': {
+                                        'required_occurrences': required_occurrences,
+                                        'required_confidence': required_confidence,
+                                        'domain': domain
+                                    }
                                 }
                             }
                             
@@ -183,6 +201,13 @@ class TimeOfDayPatternDetector:
             self._store_daily_aggregates(patterns, events)
         
         return patterns
+
+    @staticmethod
+    def _get_domain(device_id: str) -> str:
+        """Extract entity domain (prefix before dot) from device ID."""
+        if not device_id or '.' not in str(device_id):
+            return 'default'
+        return str(device_id).split('.', 1)[0]
     
     def _store_daily_aggregates(self, patterns: List[Dict], events: pd.DataFrame) -> None:
         """

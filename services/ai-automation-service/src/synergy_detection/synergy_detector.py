@@ -255,11 +255,16 @@ class DeviceSynergyDetector:
             
             # Step 7: Detect 3-device chains (Phase 3)
             logger.info("   → Step 7: Detecting 3-device chains...")
-            chains = await self._detect_3_device_chains(pairwise_synergies, devices, entities)
-            logger.info(f"🔗 Found {len(chains)} 3-device chains")
+            chains_3 = await self._detect_3_device_chains(pairwise_synergies, devices, entities)
+            logger.info(f"🔗 Found {len(chains_3)} 3-device chains")
             
-            # Combine pairwise and chains
-            final_synergies = pairwise_synergies + chains
+            # Step 8: Detect 4-device chains (Epic AI-4: N-Level Synergy)
+            logger.info("   → Step 8: Detecting 4-device chains...")
+            chains_4 = await self._detect_4_device_chains(chains_3, pairwise_synergies, devices, entities)
+            logger.info(f"🔗 Found {len(chains_4)} 4-device chains")
+            
+            # Combine pairwise, 3-level, and 4-level chains
+            final_synergies = pairwise_synergies + chains_3 + chains_4
             
             # Re-sort all synergies by impact score
             final_synergies.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
@@ -269,7 +274,8 @@ class DeviceSynergyDetector:
             logger.info(
                 f"✅ Synergy detection complete in {duration:.1f}s\n"
                 f"   Pairwise opportunities: {len(pairwise_synergies)}\n"
-                f"   3-device chains: {len(chains)}\n"
+                f"   3-device chains: {len(chains_3)}\n"
+                f"   4-device chains: {len(chains_4)}\n"
                 f"   Total opportunities: {len(final_synergies)}\n"
                 f"   Above confidence threshold ({self.min_confidence}): {len(final_synergies)}"
             )
@@ -280,8 +286,10 @@ class DeviceSynergyDetector:
                 for i, synergy in enumerate(final_synergies[:3], 1):
                     synergy_type = synergy.get('synergy_type', 'device_pair')
                     if synergy_type == 'device_chain':
+                        chain_path = synergy.get('chain_path', '?')
+                        depth = len(synergy.get('devices', []))
                         logger.info(
-                            f"   {i}. Chain: {synergy.get('chain_path', '?')} "
+                            f"   {i}. {depth}-chain: {chain_path} "
                             f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
                         )
                     else:
@@ -326,7 +334,7 @@ class DeviceSynergyDetector:
         entities: List[Dict]
     ) -> List[Dict]:
         """
-        Find device pairs in the same area.
+        Find device pairs in the same area, or without areas.
         
         Args:
             devices: List of devices from data-api
@@ -337,12 +345,15 @@ class DeviceSynergyDetector:
         """
         # Group entities by area
         entities_by_area = {}
+        entities_without_area = []
         for entity in entities:
             area = entity.get('area_id')
             if area:
                 if area not in entities_by_area:
                     entities_by_area[area] = []
                 entities_by_area[area].append(entity)
+            else:
+                entities_without_area.append(entity)
         
         pairs = []
         
@@ -350,7 +361,7 @@ class DeviceSynergyDetector:
         for area, area_entities in entities_by_area.items():
             for i, entity1 in enumerate(area_entities):
                 for entity2 in area_entities[i+1:]:
-                    # Don't pair entity with itself or same domain
+                    # Don't pair entity with itself
                     if entity1['entity_id'] == entity2['entity_id']:
                         continue
                     
@@ -365,6 +376,53 @@ class DeviceSynergyDetector:
                         'domain1': domain1,
                         'domain2': domain2
                     })
+        
+        # Also pair entities without areas (cross-area or no-area synergies)
+        # This allows finding synergies even when area data is missing
+        # OPTIMIZATION: Only pair entities with compatible domains to reduce computation
+        if entities_without_area:
+            logger.info(f"   → Found {len(entities_without_area)} entities without area, pairing compatible domains")
+            # Get compatible domain pairs from relationship configs
+            compatible_domain_pairs = set()
+            for rel_config in COMPATIBLE_RELATIONSHIPS.values():
+                trigger_domain = rel_config['trigger_domain']
+                action_domain = rel_config['action_domain']
+                compatible_domain_pairs.add((trigger_domain, action_domain))
+                compatible_domain_pairs.add((action_domain, trigger_domain))  # Bidirectional
+            
+            # Group entities by domain for efficient pairing
+            entities_by_domain = {}
+            for entity in entities_without_area:
+                domain = entity['entity_id'].split('.')[0]
+                if domain not in entities_by_domain:
+                    entities_by_domain[domain] = []
+                entities_by_domain[domain].append(entity)
+            
+            # Only create pairs for compatible domain combinations
+            processed_pairs = 0
+            for domain1, entities1 in entities_by_domain.items():
+                for domain2, entities2 in entities_by_domain.items():
+                    # Check if this domain pair is compatible
+                    if (domain1, domain2) not in compatible_domain_pairs:
+                        continue
+                    
+                    # Create pairs between these domains
+                    for entity1 in entities1:
+                        for entity2 in entities2:
+                            # Don't pair entity with itself
+                            if entity1['entity_id'] == entity2['entity_id']:
+                                continue
+                            
+                            pairs.append({
+                                'entity1': entity1,
+                                'entity2': entity2,
+                                'area': entity1.get('area_id') or entity2.get('area_id') or None,
+                                'domain1': domain1,
+                                'domain2': domain2
+                            })
+                            processed_pairs += 1
+            
+            logger.info(f"   → Created {processed_pairs} pairs from entities without area (filtered by compatible domains)")
         
         return pairs
     
@@ -553,7 +611,10 @@ class DeviceSynergyDetector:
                 'impact_score': round(impact_score, 2),
                 'complexity': complexity,
                 'confidence': confidence,
-                'rationale': f"{rel_config['description']} - {synergy['trigger_name']} and {synergy['action_name']} in {synergy.get('area', 'same area')} with no automation"
+                'rationale': f"{rel_config['description']} - {synergy['trigger_name']} and {synergy['action_name']} in {synergy.get('area', 'same area')} with no automation",
+                # Epic AI-4: N-level synergy fields
+                'synergy_depth': 2,
+                'chain_devices': [synergy['trigger_entity'], synergy['action_entity']]
             })
         
         # Sort by impact_score descending
@@ -580,14 +641,27 @@ class DeviceSynergyDetector:
         """
         logger.info("📊 Using advanced impact scoring with usage data...")
         
+        # Group synergies by area for area-specific normalization
+        synergies_by_area = {}
+        for s in synergies:
+            area = s.get('area', 'unknown')
+            if area not in synergies_by_area:
+                synergies_by_area[area] = []
+            synergies_by_area[area].append(s)
+        
         scored_synergies = []
         
+        # Calculate scores with area context for normalization
         for synergy in synergies:
             try:
-                # Get advanced impact score from DevicePairAnalyzer
+                area = synergy.get('area', 'unknown')
+                area_synergies = synergies_by_area.get(area, [synergy])
+                
+                # Get advanced impact score from DevicePairAnalyzer with area context
                 advanced_impact = await self.pair_analyzer.calculate_advanced_impact_score(
                     synergy,
-                    entities
+                    entities,
+                    all_synergies_in_area=area_synergies if len(area_synergies) > 1 else None
                 )
                 
                 # Create scored synergy with advanced impact
@@ -597,12 +671,39 @@ class DeviceSynergyDetector:
                 
             except Exception as e:
                 logger.warning(f"Failed advanced scoring for synergy, using basic score: {e}")
+                # Ensure synergy has confidence if advanced scoring failed
+                if 'confidence' not in synergy:
+                    synergy['confidence'] = 0.9 if synergy.get('area') else 0.7
+                # Ensure synergy has impact_score if advanced scoring failed
+                if 'impact_score' not in synergy:
+                    rel_config = synergy.get('relationship_config', {})
+                    if isinstance(rel_config, dict):
+                        benefit_score = rel_config.get('benefit_score', 0.7)
+                        complexity = rel_config.get('complexity', 'medium')
+                        complexity_penalty = {'low': 0.0, 'medium': 0.1, 'high': 0.3}.get(complexity, 0.1)
+                        synergy['impact_score'] = benefit_score * (1 - complexity_penalty)
+                    else:
+                        synergy['impact_score'] = 0.7
                 scored_synergies.append(synergy)
         
         # Sort by advanced impact score descending
         scored_synergies.sort(key=lambda x: x['impact_score'], reverse=True)
         
-        logger.info(f"✅ Advanced scoring complete: top impact = {scored_synergies[0]['impact_score']:.2f}" if scored_synergies else "No synergies to score")
+        if scored_synergies:
+            top_score = scored_synergies[0]['impact_score']
+            # Log score distribution for debugging
+            if len(scored_synergies) > 1:
+                unique_scores = len(set(round(s['impact_score'], 4) for s in scored_synergies))
+                score_range = max(s['impact_score'] for s in scored_synergies) - min(s['impact_score'] for s in scored_synergies)
+                logger.info(
+                    f"✅ Advanced scoring complete: top impact = {top_score:.4f}, "
+                    f"unique scores (4 dec) = {unique_scores}/{len(scored_synergies)}, "
+                    f"score range = {score_range:.4f}"
+                )
+            else:
+                logger.info(f"✅ Advanced scoring complete: top impact = {top_score:.4f}")
+        else:
+            logger.info("No synergies to score")
         
         return scored_synergies
     
@@ -628,6 +729,14 @@ class DeviceSynergyDetector:
         Returns:
             List of 3-device chain synergies
         """
+        # Limit chain detection to prevent timeout with large datasets
+        MAX_CHAINS = 100  # Maximum chains to detect
+        MAX_PAIRWISE_FOR_CHAINS = 500  # Skip chain detection if too many pairs
+        
+        if len(pairwise_synergies) > MAX_PAIRWISE_FOR_CHAINS:
+            logger.info(f"   → Skipping 3-device chain detection: {len(pairwise_synergies)} pairs (limit: {MAX_PAIRWISE_FOR_CHAINS})")
+            return []
+        
         chains = []
         
         # Build lookup: action_device -> list of pairs where it's the action
@@ -640,7 +749,13 @@ class DeviceSynergyDetector:
                 action_lookup[action_entity].append(synergy)
         
         # Find chains: For each pair A→B, find pairs B→C
+        # Limit to prevent exponential growth
+        processed_count = 0
         for synergy in pairwise_synergies:
+            # Early exit if we've found enough chains
+            if len(chains) >= MAX_CHAINS:
+                logger.info(f"   → Reached chain limit ({MAX_CHAINS}), stopping chain detection")
+                break
             trigger_entity = synergy.get('trigger_entity')
             action_entity = synergy.get('action_entity')
             
@@ -681,14 +796,184 @@ class DeviceSynergyDetector:
                                         next_synergy.get('confidence', 0.7)),
                         'complexity': 'medium',
                         'area': synergy.get('area'),
-                        'rationale': f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}"
+                        'rationale': f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}",
+                        # Epic AI-4: N-level synergy fields
+                        'synergy_depth': 3,
+                        'chain_devices': [trigger_entity, action_entity, next_action]
                     }
                     
                     # Cache if available
                     if self.synergy_cache:
-                        await self.synergy_cache.set_chain_result(chain_key, chain)
+                        try:
+                            await self.synergy_cache.set_chain_result(chain_key, chain)
+                        except Exception as e:
+                            logger.debug(f"Cache set failed for chain {chain_key}: {e}")
                     
                     chains.append(chain)
+                    
+                    # Early exit if we've found enough chains
+                    if len(chains) >= MAX_CHAINS:
+                        logger.info(f"   → Reached chain limit ({MAX_CHAINS}), stopping chain detection")
+                        break
+                
+                # Early exit if we've found enough chains
+                if len(chains) >= MAX_CHAINS:
+                    break
+            
+            processed_count += 1
+            # Progress logging for large datasets
+            if processed_count % 100 == 0:
+                logger.debug(f"   → Processed {processed_count}/{len(pairwise_synergies)} pairs for chains, found {len(chains)} chains")
+        
+        return chains
+    
+    async def _detect_4_device_chains(
+        self,
+        three_level_chains: List[Dict],
+        pairwise_synergies: List[Dict],
+        devices: List[Dict],
+        entities: List[Dict]
+    ) -> List[Dict]:
+        """
+        Detect 4-device chains by extending 3-level chains.
+        
+        Simple approach: For each 3-chain A→B→C, find pairs C→D.
+        Result: Chains A→B→C→D
+        
+        Epic AI-4: N-Level Synergy Detection (4-level implementation)
+        Single home focus: Simple extension, no over-engineering
+        
+        Args:
+            three_level_chains: List of 3-device chain synergies
+            pairwise_synergies: List of 2-device synergy opportunities
+            devices: List of devices
+            entities: List of entities
+        
+        Returns:
+            List of 4-device chain synergies
+        """
+        # Reasonable limits for single home (20-50 devices)
+        MAX_CHAINS = 50  # Maximum 4-level chains to detect
+        MAX_3CHAINS_FOR_4 = 200  # Skip 4-level detection if too many 3-chains
+        
+        if len(three_level_chains) > MAX_3CHAINS_FOR_4:
+            logger.info(
+                f"   → Skipping 4-device chain detection: {len(three_level_chains)} 3-chains "
+                f"(limit: {MAX_3CHAINS_FOR_4})"
+            )
+            return []
+        
+        if not three_level_chains:
+            logger.debug("   → No 3-level chains to extend to 4-level")
+            return []
+        
+        chains = []
+        
+        # Build lookup: action_device -> list of pairs where it's the action
+        action_lookup = {}
+        for synergy in pairwise_synergies:
+            action_entity = synergy.get('action_entity')
+            if action_entity:
+                if action_entity not in action_lookup:
+                    action_lookup[action_entity] = []
+                action_lookup[action_entity].append(synergy)
+        
+        # For each 3-chain A→B→C, find pairs C→D
+        processed_count = 0
+        for three_chain in three_level_chains:
+            # Early exit if we've found enough chains
+            if len(chains) >= MAX_CHAINS:
+                logger.info(f"   → Reached 4-level chain limit ({MAX_CHAINS}), stopping detection")
+                break
+            
+            chain_devices = three_chain.get('devices', [])
+            if len(chain_devices) != 3:
+                continue
+            
+            a, b, c = chain_devices
+            
+            # Find pairs where C is the trigger (C→D)
+            if c in action_lookup:
+                for next_synergy in action_lookup[c]:
+                    d = next_synergy.get('action_entity')
+                    
+                    # Skip if D already in chain (prevent circular paths)
+                    if d in chain_devices:
+                        continue
+                    
+                    # Skip if same device (A→B→C→A is not useful)
+                    if d == a:
+                        continue
+                    
+                    # Skip if devices not in same area (unless beneficial)
+                    if three_chain.get('area') != next_synergy.get('area'):
+                        # Use same cross-area validation as 3-level chains
+                        if not self._is_valid_cross_area_chain(a, b, c, entities):
+                            continue
+                        # Also check if adding D makes sense
+                        if not self._is_valid_cross_area_chain(b, c, d, entities):
+                            continue
+                    
+                    # Check cache if available
+                    chain_key = f"chain4:{a}:{b}:{c}:{d}"
+                    if self.synergy_cache:
+                        cached = await self.synergy_cache.get_chain_result(chain_key)
+                        if cached:
+                            chains.append(cached)
+                            continue
+                    
+                    # Create 4-chain synergy
+                    chain = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'device_chain',
+                        'devices': [a, b, c, d],
+                        'chain_path': f"{a} → {b} → {c} → {d}",
+                        'trigger_entity': a,
+                        'action_entity': d,
+                        'impact_score': round((
+                            three_chain.get('impact_score', 0) + 
+                            next_synergy.get('impact_score', 0)
+                        ) / 2, 2),
+                        'confidence': min(
+                            three_chain.get('confidence', 0.7),
+                            next_synergy.get('confidence', 0.7)
+                        ),
+                        'complexity': 'medium',
+                        'area': three_chain.get('area'),
+                        'rationale': (
+                            f"4-device chain: {three_chain.get('rationale', '')} "
+                            f"then {next_synergy.get('rationale', '')}"
+                        ),
+                        # Epic AI-4: N-level synergy fields
+                        'synergy_depth': 4,
+                        'chain_devices': [a, b, c, d]
+                    }
+                    
+                    # Cache if available
+                    if self.synergy_cache:
+                        try:
+                            await self.synergy_cache.set_chain_result(chain_key, chain)
+                        except Exception as e:
+                            logger.debug(f"Cache set failed for 4-chain {chain_key}: {e}")
+                    
+                    chains.append(chain)
+                    
+                    # Early exit if we've found enough chains
+                    if len(chains) >= MAX_CHAINS:
+                        logger.info(f"   → Reached 4-level chain limit ({MAX_CHAINS}), stopping detection")
+                        break
+                
+                # Early exit if we've found enough chains
+                if len(chains) >= MAX_CHAINS:
+                    break
+            
+            processed_count += 1
+            # Progress logging for large datasets
+            if processed_count % 50 == 0:
+                logger.debug(
+                    f"   → Processed {processed_count}/{len(three_level_chains)} 3-chains for 4-level, "
+                    f"found {len(chains)} 4-chains"
+                )
         
         return chains
     

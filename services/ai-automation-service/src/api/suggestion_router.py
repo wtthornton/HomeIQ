@@ -4,7 +4,7 @@ Suggestion Generation Router
 Endpoints for generating automation suggestions from detected patterns using LLM.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Query
+from fastapi import APIRouter, HTTPException, Depends, status, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
@@ -12,7 +12,14 @@ import logging
 import time
 
 from ..llm.openai_client import OpenAIClient
-from ..database import get_db, get_patterns, store_suggestion, get_suggestions
+from ..database import (
+    get_db,
+    get_patterns,
+    store_suggestion,
+    get_suggestions,
+    can_trigger_manual_refresh,
+    record_manual_refresh,
+)
 from ..config import settings
 from ..clients.data_api_client import DataAPIClient
 from ..validation.device_validator import DeviceValidator, ValidationResult
@@ -34,6 +41,70 @@ data_api_client = DataAPIClient(base_url="http://data-api:8006")
 
 # Initialize Device Validator for validating suggestions
 device_validator = DeviceValidator(data_api_client)
+
+
+@router.get("/refresh/status")
+async def refresh_status(
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Return the current manual refresh status and cooldown timer.
+    """
+    cooldown_hours = settings.manual_refresh_cooldown_hours
+    allowed, last_trigger = await can_trigger_manual_refresh(db, cooldown_hours=cooldown_hours)
+
+    next_allowed_at = None
+    if last_trigger and not allowed:
+        next_allowed_at = (last_trigger + timedelta(hours=cooldown_hours)).isoformat()
+
+    return {
+        "allowed": allowed,
+        "last_trigger_at": last_trigger.isoformat() if last_trigger else None,
+        "next_allowed_at": next_allowed_at
+    }
+
+
+@router.post("/refresh", status_code=status.HTTP_202_ACCEPTED)
+async def refresh_suggestions(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Manually trigger the nightly suggestion pipeline with a 1-per-day guard.
+    """
+    cooldown_hours = settings.manual_refresh_cooldown_hours
+    allowed, last_trigger = await can_trigger_manual_refresh(db, cooldown_hours=cooldown_hours)
+
+    if not allowed:
+        next_available = last_trigger + timedelta(hours=cooldown_hours)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Manual refresh already triggered recently.",
+                "next_allowed_at": next_available.isoformat()
+            }
+        )
+
+    # Ensure scheduler is available
+    from .analysis_router import _scheduler  # Local import to avoid circular dependency
+
+    if _scheduler is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Analysis scheduler is not initialized yet."
+        )
+
+    await record_manual_refresh(db)
+    background_tasks.add_task(_scheduler.trigger_manual_run)
+
+    next_window = datetime.now(timezone.utc) + timedelta(hours=cooldown_hours)
+    logger.info("✅ Manual suggestion refresh queued via /api/suggestions/refresh")
+
+    return {
+        "success": True,
+        "message": "Manual refresh queued successfully.",
+        "next_allowed_at": next_window.isoformat()
+    }
 
 
 @router.post("/generate")

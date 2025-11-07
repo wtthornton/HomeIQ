@@ -64,6 +64,12 @@ export interface AnalysisStatus {
       created_at: string;
     }>;
   };
+  analysis_run?: {
+    status: string;
+    started_at: string;
+    finished_at?: string | null;
+    duration_seconds?: number | null;
+  } | null;
 }
 
 export interface UsageStats {

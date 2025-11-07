@@ -57,11 +57,22 @@ class SynergySuggestionGenerator:
             logger.info("ℹ️  No synergies available for suggestion generation")
             return []
         
-        # Take top synergies by impact score
-        top_synergies = sorted(synergies, key=lambda s: s['impact_score'], reverse=True)
-        top_synergies = top_synergies[:max_suggestions]
+        # Synergies are already prioritized (by priority score or impact_score from database query)
+        # Simply take first max_suggestions (already sorted)
+        top_synergies = synergies[:max_suggestions]
         
-        logger.info(f"Processing top {len(top_synergies)} synergies")
+        # Log priority scores if available for debugging
+        if top_synergies and 'pattern_support_score' in top_synergies[0]:
+            priority_info = []
+            for s in top_synergies[:3]:  # Log top 3
+                impact = s.get('impact_score', 0)
+                conf = s.get('confidence', 0)
+                pattern = s.get('pattern_support_score', 0)
+                validated = s.get('validated_by_patterns', False)
+                priority_info.append(f"impact={impact:.2f}, conf={conf:.2f}, pattern={pattern:.2f}, validated={validated}")
+            logger.debug(f"Top synergies priority details: {', '.join(priority_info)}")
+        
+        logger.info(f"Processing top {len(top_synergies)} synergies (already prioritized)")
         
         suggestions = []
         
@@ -369,7 +380,10 @@ PRIORITY: [high|medium|low]
                 'confidence': synergy.get('confidence', 0.85),
                 'complexity': synergy.get('complexity', 'low'),
                 'impact_score': synergy.get('impact_score', 0.7),
-                'devices_involved': synergy.get('devices', [])
+                'devices_involved': synergy.get('devices', []),
+                # Include pattern validation fields for ranking boost
+                'validated_by_patterns': synergy.get('validated_by_patterns', False),
+                'pattern_support_score': synergy.get('pattern_support_score', 0.0)
             }
             
             return suggestion

@@ -157,13 +157,28 @@ class PatternSynergyValidator:
             
             # Use OR to match any condition
             from sqlalchemy import or_
+            # Check if session is in a good state before querying
+            from sqlalchemy.exc import PendingRollbackError
+            try:
+                # Try a simple query to check session health
+                if hasattr(self.db, 'in_transaction') and self.db.in_transaction():
+                    test_query = select(1)
+                    await self.db.execute(test_query)
+            except (PendingRollbackError, Exception) as e:
+                logger.warning(f"Database session in bad state, cannot query patterns: {e}")
+                return []
+            
             query = select(Pattern).where(
                 or_(*conditions),
                 Pattern.confidence >= min_confidence
             )
             
-            result = await self.db.execute(query)
-            patterns = result.scalars().all()
+            try:
+                result = await self.db.execute(query)
+                patterns = result.scalars().all()
+            except (PendingRollbackError, Exception) as e:
+                logger.warning(f"Error querying patterns: {e}")
+                return []
             
             # Filter to only patterns that actually involve these devices
             matching_patterns = []
@@ -345,5 +360,6 @@ class PatternSynergyValidator:
             return 0.0   # Neutral
         else:
             return -0.1  # Reduction
+
 
 

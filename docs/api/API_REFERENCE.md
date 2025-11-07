@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** October 29, 2025  
-**API Version:** v4.2  
+**Last Updated:** November 6, 2025  
+**API Version:** v4.3  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Entity resolution enhancements (fuzzy matching, blocking, user aliases)
+**Recent Updates:** 4-level synergy chain detection (Epic AI-4), entity resolution enhancements (fuzzy matching, blocking, user aliases)
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -1030,18 +1030,25 @@ Approve multiple suggestions at once.
 #### POST /api/suggestions/batch/reject
 Reject multiple suggestions at once.
 
-### Synergy Detection (Epic AI-3)
+### Synergy Detection (Epic AI-3, AI-4)
 
 #### GET /api/synergies
 List detected device synergies with priority-based ordering.
 
 **Query Parameters:**
-- `synergy_type`: Filter by synergy type (`device_pair`, `weather_context`, `energy_context`, `event_context`)
+- `synergy_type`: Filter by synergy type (`device_pair`, `device_chain`, `weather_context`, `energy_context`, `event_context`)
 - `min_confidence` (default: 0.7): Minimum confidence score
 - `validated_by_patterns` (boolean): Filter by pattern validation status
+- `synergy_depth` (int, optional): Filter by chain depth (2=pair, 3=3-chain, 4=4-chain) - **NEW (Epic AI-4)**
 - `min_priority` (float): Minimum priority score (0.0-1.0)
 - `order_by_priority` (boolean, default: true): Order results by priority score
 - `limit` (int): Maximum number of results to return
+
+**Chain Depth Filtering (Epic AI-4):**
+- `synergy_depth=2`: Device pairs (A → B)
+- `synergy_depth=3`: 3-device chains (A → B → C)
+- `synergy_depth=4`: 4-device chains (A → B → C → D)
+- Omit parameter to get all depths
 
 **Priority Score Calculation:**
 - 40% impact_score
@@ -1051,10 +1058,16 @@ List detected device synergies with priority-based ordering.
 - Complexity adjustment: low=+0.10, medium=0, high=-0.10
 
 **Synergy Types:**
-- `device_pair`: Cross-device automation opportunities
+- `device_pair`: Cross-device automation opportunities (2-device pairs)
+- `device_chain`: Multi-device automation chains (3-level or 4-level chains) - **NEW (Epic AI-4)**
 - `weather_context`: Weather-based automation suggestions
 - `energy_context`: Energy cost optimization opportunities (NEW)
 - `event_context`: Entertainment/event-based automations (NEW)
+
+**Response Fields (Epic AI-4):**
+- `synergy_depth`: Number of devices in chain (2, 3, or 4)
+- `chain_devices`: JSON array of entity IDs in the automation chain
+- `chain_path`: Human-readable chain path (e.g., "entity1 → entity2 → entity3 → entity4")
 
 #### GET /api/synergies/stats
 Get synergy detection statistics including counts by type, complexity, and validation status.

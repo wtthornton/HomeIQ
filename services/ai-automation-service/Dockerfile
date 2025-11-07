@@ -29,8 +29,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Hugging Face stack so community pattern features work out of the box
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.2.2+cpu \
+ && pip install --no-cache-dir \
+    transformers==4.45.2 \
+    sentence-transformers==3.3.1 \
+    openvino==2024.5.0 \
+    optimum-intel==1.20.0
+
 # Download spaCy English model for NER fallback
 RUN python -m spacy download en_core_web_sm || echo "spaCy model download failed, will retry on startup"
+
+# Pre-populate Hugging Face cache with NER model (dslim/bert-base-NER)
+RUN python - <<'PY' || echo "Transformers NER model download skipped"
+from transformers import pipeline
+pipeline("ner", model="dslim/bert-base-NER")
+PY
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local

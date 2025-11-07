@@ -278,9 +278,17 @@ class SynergyOpportunity(Base):
     validated_by_patterns = Column(Boolean, default=False, nullable=False)
     supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
     
+    # Epic AI-4: N-level synergy fields
+    synergy_depth = Column(Integer, default=2, nullable=False, server_default='2')  # Number of devices in chain (2 = pair, 3+ = multi-hop)
+    chain_devices = Column(Text, nullable=True)  # JSON array of entity_ids in automation chain
+    embedding_similarity = Column(Float, nullable=True)  # Semantic similarity score from embeddings
+    rerank_score = Column(Float, nullable=True)  # Cross-encoder re-ranking score
+    final_score = Column(Float, nullable=True)  # Combined score (0.5*embedding + 0.5*rerank)
+    
     def __repr__(self):
         validated = "✓" if self.validated_by_patterns else "✗"
-        return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, area={self.area}, impact={self.impact_score}, validated={validated})>"
+        depth = getattr(self, 'synergy_depth', 2)
+        return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, depth={depth}, area={self.area}, impact={self.impact_score}, validated={validated})>"
 
 
 # Indexes for fast lookups (Epic AI-2)
@@ -382,6 +390,26 @@ async def get_db():
     """Dependency for FastAPI routes to get database session"""
     async with async_session() as session:
         yield session
+
+
+class ManualRefreshTrigger(Base):
+    """Audit log for manual suggestion refresh requests."""
+    __tablename__ = 'manual_refresh_triggers'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    triggered_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class AnalysisRunStatus(Base):
+    """Persisted history of analysis runs with summary metrics."""
+    __tablename__ = 'analysis_run_status'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(String, nullable=False)
+    started_at = Column(DateTime, nullable=False, index=True)
+    finished_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+    details = Column(JSON, nullable=True)
 
 
 class AskAIQuery(Base):

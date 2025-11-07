@@ -324,10 +324,17 @@ class HomeAssistantClient:
             result = await self._retry_request('GET', '/api/config/automation/config', return_json=True)
             
             # Handle different response formats
+            if result is None:
+                logger.warning("⚠️ No response from HA automation config endpoint")
+                return []
+            
             if isinstance(result, dict):
                 # Response wrapped in {status, data} format
                 if 'data' in result:
                     configs = result['data']
+                    # Ensure data is not None
+                    if configs is None:
+                        configs = []
                 elif 'status' in result and result['status'] == 200:
                     configs = result.get('data', [])
                 else:
@@ -338,10 +345,14 @@ class HomeAssistantClient:
             else:
                 configs = []
             
+            # Ensure configs is always a list
+            if configs is None:
+                configs = []
+            
             logger.info(f"✅ Retrieved {len(configs)} automation configurations")
             return configs
         except Exception as e:
-            logger.error(f"Error fetching automation configs: {e}")
+            logger.error(f"Error fetching automation configs: {e}", exc_info=True)
             return []
     
     async def list_automations(self) -> List[Dict]:

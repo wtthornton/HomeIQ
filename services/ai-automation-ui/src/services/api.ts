@@ -11,7 +11,7 @@ import type { Suggestion, Pattern, ScheduleInfo, AnalysisStatus, UsageStats, Syn
 // When running via Docker (port 3001), nginx handles the proxy, so use relative /api
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-class APIError extends Error {
+export class APIError extends Error {
   constructor(public status: number, message: string) {
     super(message);
     this.name = 'APIError';
@@ -65,6 +65,16 @@ export const api = {
 
   async getSuggestionByAutomationId(automationId: string): Promise<any> {
     return fetchJSON(`${API_BASE_URL}/v1/suggestions/by-automation/${automationId}`);
+  },
+
+  async getRefreshStatus(): Promise<{ allowed: boolean; last_trigger_at: string | null; next_allowed_at: string | null }> {
+    return fetchJSON(`${API_BASE_URL}/suggestions/refresh/status`);
+  },
+
+  async refreshSuggestions(): Promise<{ success: boolean; message: string; next_allowed_at: string | null }> {
+    return fetchJSON(`${API_BASE_URL}/suggestions/refresh`, {
+      method: 'POST',
+    });
   },
 
   async redeploySuggestion(id: number, finalDescription?: string): Promise<{
@@ -387,15 +397,21 @@ export const api = {
       params.append('validated_by_patterns', validatedByPatterns.toString());
     }
     
-    return fetchJSON(`${API_BASE_URL}/synergies?${params}`);
+    const response = await fetchJSON<{ success: boolean; data: { synergies: SynergyOpportunity[]; count: number } }>(`${API_BASE_URL}/synergies?${params}`);
+    // Unwrap the response to match the expected return type
+    return { data: response.data };
   },
 
   async getSynergyStats(): Promise<{ data: { total_synergies: number; by_type: Record<string, number>; by_complexity: Record<string, number>; avg_impact_score: number } }> {
-    return fetchJSON(`${API_BASE_URL}/synergies/stats`);
+    const response = await fetchJSON<{ success: boolean; data: any }>(`${API_BASE_URL}/synergies/stats`);
+    // Unwrap the response to match the expected return type
+    return { data: response.data };
   },
 
   async getSynergy(synergyId: string): Promise<{ data: { synergy: SynergyOpportunity } }> {
-    return fetchJSON(`${API_BASE_URL}/synergies/${synergyId}`);
+    const response = await fetchJSON<{ success: boolean; data: { synergy: SynergyOpportunity } }>(`${API_BASE_URL}/synergies/${synergyId}`);
+    // Unwrap the response to match the expected return type
+    return { data: response.data };
   },
 
   // Ask AI - Natural Language Query Interface
