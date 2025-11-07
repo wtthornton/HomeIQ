@@ -258,7 +258,14 @@ async def _run_analysis_pipeline(request: AnalysisRequest):
                         'automation_yaml': None,  # Story AI1.24: No YAML until approved
                         'confidence': pattern['confidence'],
                         'category': description_data['category'],
-                        'priority': description_data['priority']
+                        'priority': description_data['priority'],
+                        'status': 'draft',
+                        'device_id': pattern.get('device_id'),
+                        'device1': pattern.get('device1'),
+                        'device2': pattern.get('device2'),
+                        'devices_involved': pattern.get('devices_involved') or ([pattern.get('device_id')] if pattern.get('device_id') else None),
+                        'metadata': pattern.get('metadata') or {},
+                        'device_info': pattern.get('device_info')
                     })
                 
                 suggestions_generated.append({

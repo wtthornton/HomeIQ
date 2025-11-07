@@ -174,7 +174,7 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
             if update_data.title is not None:
                 suggestion.title = update_data.title
             if update_data.description is not None:
-                suggestion.description = update_data.description
+                suggestion.description_only = update_data.description
             if update_data.automation_yaml is not None:
                 suggestion.automation_yaml = update_data.automation_yaml
             if update_data.status is not None:

@@ -28,6 +28,9 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
   isSelected = false
 }) => {
   const [showYaml, setShowYaml] = useState(false);
+  const createdAtLabel = suggestion.created_at
+    ? new Date(suggestion.created_at).toLocaleString()
+    : 'Unknown';
 
   const getCategoryColor = () => {
     const colors = {
@@ -210,7 +213,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
         {/* Metadata Footer */}
         <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} pt-2 mt-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex justify-between">
-            <span>Created: {new Date(suggestion.created_at).toLocaleString()}</span>
+            <span>Created: {createdAtLabel}</span>
             <span>ID: #{suggestion.id}</span>
           </div>
         </div>

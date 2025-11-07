@@ -20,12 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
+import json
 import logging
 import re
 import yaml as yaml_module
 import difflib
 
-from ..database import get_db
+from ..database import get_db, store_suggestion
 from ..config import settings
 
 # Phase 2-4: Import OpenAI components (SIMPLIFIED)
@@ -361,27 +362,31 @@ async def generate_description_only(
             'friendly_capabilities': []
         }
         
-        # Create database record
-        suggestion = SuggestionModel(
-            pattern_id=validated_pattern_id,
-            description_only=description,
-            title=f"Automation: {device_name}",
-            category="convenience",  # Default category
-            confidence=request.metadata.get('confidence', 0.75),
-            device_capabilities=capabilities,
-            status="draft"
+        # Persist suggestion using enriched storage helper
+        suggestion = await store_suggestion(
+            db,
+            {
+                'pattern_id': validated_pattern_id,
+                'title': f"Automation: {device_name}",
+                'description': description,
+                'description_only': description,
+                'automation_yaml': None,
+                'confidence': request.metadata.get('confidence', 0.75),
+                'category': 'convenience',
+                'priority': request.metadata.get('priority'),
+                'status': 'draft',
+                'device_id': request.device_id,
+                'devices_involved': [request.device_id],
+                'device_capabilities': capabilities,
+            }
         )
-        
-        db.add(suggestion)
-        await db.commit()
-        await db.refresh(suggestion)
-        
+
         # Build response
         response = SuggestionResponse(
             suggestion_id=f"suggestion-{suggestion.id}",
             description=description,
-            trigger_summary=_extract_trigger_summary(request),
-            action_summary=_extract_action_summary(request, capabilities),
+            trigger_summary=_extract_trigger_summary_from_request(request),
+            action_summary=_extract_action_summary_from_request(request, capabilities),
             devices_involved=[{
                 "entity_id": capabilities.get('entity_id', request.device_id),
                 "friendly_name": capabilities.get('friendly_name', request.device_id),
@@ -408,7 +413,7 @@ async def generate_description_only(
         )
 
 
-def _extract_trigger_summary(request: GenerateRequest) -> str:
+def _extract_trigger_summary_from_request(request: GenerateRequest) -> str:
     """Extract trigger summary from pattern"""
     if request.pattern_type == 'time_of_day':
         hour = int(request.metadata.get('avg_time_decimal', 0))
@@ -422,7 +427,7 @@ def _extract_trigger_summary(request: GenerateRequest) -> str:
     return "Pattern detected"
 
 
-def _extract_action_summary(request: GenerateRequest, capabilities: Dict) -> str:
+def _extract_action_summary_from_request(request: GenerateRequest, capabilities: Dict) -> str:
     """Extract action summary from pattern and capabilities"""
     device_name = capabilities.get('friendly_name', request.device_id)
     domain = capabilities.get('domain', 'unknown')
@@ -715,6 +720,41 @@ async def _extract_entities_from_context(
                     'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
                 })
             return entities
+
+        # Fallback to stored device metadata when validator finds no matches
+        caps = suggestion.device_capabilities or {}
+        if not isinstance(caps, dict):
+            try:
+                caps = dict(caps)
+            except Exception:
+                caps = {}
+        fallback_entities: List[Dict[str, Any]] = []
+        devices = caps.get('devices') if isinstance(caps, dict) else None
+        if isinstance(devices, list):
+            for entry in devices:
+                if isinstance(entry, dict):
+                    entity_id = entry.get('entity_id')
+                    if entity_id:
+                        fallback_entities.append({
+                            'name': entry.get('friendly_name', entity_id),
+                            'entity_id': entity_id,
+                            'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                        })
+        else:
+            entity_id = caps.get('entity_id') if isinstance(caps, dict) else None
+            if isinstance(entity_id, str):
+                fallback_entities.append({
+                    'name': caps.get('friendly_name', entity_id),
+                    'entity_id': entity_id,
+                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                })
+
+        if fallback_entities:
+            logger.info(
+                "Using fallback device metadata for entity extraction on suggestion %s",
+                suggestion.id
+            )
+            return fallback_entities
     except Exception as e:
         logger.warning(f"⚠️ Failed to extract entities from context: {e}")
     
@@ -810,6 +850,11 @@ async def approve_suggestion(
         conversation_history = suggestion.conversation_history or []
         devices_involved = _extract_devices(suggestion, conversation_history)
         entities = await _extract_entities_from_context(suggestion, conversation_history, db)
+
+        if entities:
+            resolved_entities = [entity.get('entity_id') for entity in entities if entity.get('entity_id')]
+            if resolved_entities:
+                devices_involved = resolved_entities
         
         # Build suggestion dictionary in format expected by generate_automation_yaml
         suggestion_dict = {
@@ -819,6 +864,22 @@ async def approve_suggestion(
             'devices_involved': devices_involved,
             'device_capabilities': suggestion.device_capabilities or {}
         }
+
+        if entities:
+            validated_entities_map = {}
+            for entity in entities:
+                entity_id = entity.get('entity_id')
+                if not entity_id:
+                    continue
+                key = entity.get('name') or entity_id
+                validated_entities_map[key] = entity_id
+
+            if validated_entities_map:
+                suggestion_dict['validated_entities'] = validated_entities_map
+                try:
+                    suggestion_dict['enriched_entity_context'] = json.dumps(entities)
+                except (TypeError, ValueError):
+                    suggestion_dict['enriched_entity_context'] = json.dumps(validated_entities_map)
         
         # Step 4: Generate YAML using unified method (same as Ask-AI page)
         logger.info("🚀 Using unified YAML generation with entity validation...")
