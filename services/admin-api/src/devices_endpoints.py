@@ -91,18 +91,13 @@ async def list_devices(
     Returns devices with their metadata, optionally filtered by manufacturer, model, or area.
     """
     try:
-        # Get Device Intelligence Service client
         device_intelligence_client = get_device_intelligence_client()
-        
-        # Query devices from Device Intelligence Service
         response = await device_intelligence_client.get_devices(
             limit=limit,
             manufacturer=manufacturer,
             model=model,
             area_id=area_id
         )
-        
-        # Convert to response models (Device Intelligence Service already returns compatible format)
         devices = [
             DeviceResponse(
                 device_id=device.get("device_id", ""),
@@ -116,18 +111,39 @@ async def list_devices(
             )
             for device in response.get("devices", [])
         ]
-        
         return DevicesListResponse(
             devices=devices,
             count=response.get("count", len(devices)),
             limit=response.get("limit", limit)
         )
-        
     except Exception as e:
-        logger.error(f"Error listing devices from Device Intelligence Service: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve devices: {str(e)}"
+        logger.warning(f"Device Intelligence unavailable, falling back to InfluxDB: {e}")
+        filters = {}
+        if manufacturer:
+            filters["manufacturer"] = manufacturer
+        if model:
+            filters["model"] = model
+        if area_id:
+            filters["area_id"] = area_id
+        query = _build_devices_query(filters, limit)
+        records = await influxdb_client.query(query)
+        devices = [
+            DeviceResponse(
+                device_id=record.get("device_id", ""),
+                name=record.get("name", "Unknown"),
+                manufacturer=record.get("manufacturer", "Unknown"),
+                model=record.get("model", "Unknown"),
+                sw_version=record.get("sw_version"),
+                area_id=record.get("area_id"),
+                entity_count=record.get("entity_count", 0),
+                timestamp=record.get("time", datetime.now().isoformat())
+            )
+            for record in records
+        ]
+        return DevicesListResponse(
+            devices=devices,
+            count=len(devices),
+            limit=limit
         )
 
 
@@ -143,18 +159,13 @@ async def get_device(device_id: str):
         Device details
     """
     try:
-        # Get Device Intelligence Service client
         device_intelligence_client = get_device_intelligence_client()
-        
-        # Query specific device from Device Intelligence Service
         device_data = await device_intelligence_client.get_device_by_id(device_id)
-        
         if not device_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Device {device_id} not found"
             )
-        
         device = DeviceResponse(
             device_id=device_data.get("device_id", device_id),
             name=device_data.get("name", "Unknown"),
@@ -165,16 +176,28 @@ async def get_device(device_id: str):
             entity_count=device_data.get("entity_count", 0),
             timestamp=device_data.get("timestamp", datetime.now().isoformat())
         )
-        
         return device
-        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting device {device_id} from Device Intelligence Service: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve device: {str(e)}"
+        logger.warning(f"Device Intelligence unavailable for {device_id}, falling back to InfluxDB: {e}")
+        query = _build_devices_query({"device_id": device_id}, limit=1)
+        records = await influxdb_client.query(query)
+        if not records:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device {device_id} not found"
+            )
+        record = records[0]
+        return DeviceResponse(
+            device_id=record.get("device_id", device_id),
+            name=record.get("name", "Unknown"),
+            manufacturer=record.get("manufacturer", "Unknown"),
+            model=record.get("model", "Unknown"),
+            sw_version=record.get("sw_version"),
+            area_id=record.get("area_id"),
+            entity_count=record.get("entity_count", 0),
+            timestamp=record.get("time", datetime.now().isoformat())
         )
 
 
@@ -349,6 +372,8 @@ def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
         query += f'\n    |> filter(fn: (r) => r["model"] == "{filters["model"]}")'
     if filters.get("area_id"):
         query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
+    if filters.get("device_id"):
+        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
     
     query += f'\n    |> last()\n    |> limit(n: {limit})'
     

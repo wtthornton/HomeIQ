@@ -297,23 +297,6 @@ S3_SECRET_KEY=your-s3-secret-key
 S3_REGION=us-east-1
 ```
 
-### **Feature Flags (LangChain / PDL Pilot)**
-
-Add these optional variables to `infrastructure/.env` (or service overrides) to enable the new pipelines gradually:
-
-```bash
-# LangChain prompt templating for Ask AI (default: disabled)
-ENABLE_LANGCHAIN_PROMPT_BUILDER=true
-
-# LangChain-powered pattern detection chain (default: disabled)
-ENABLE_LANGCHAIN_PATTERN_CHAIN=true
-
-# YAML-based PDL workflows for nightly analysis + synergy guardrails (default: disabled)
-ENABLE_PDL_WORKFLOWS=true
-```
-
-Leave the flags unset or `false` to retain the legacy behaviour. Enable them one at a time for easier debugging on single-home installs.
-
 ## 🌐 **Access Points**
 
 ### **Development Environment**

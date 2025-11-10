@@ -7,53 +7,53 @@
 # ============================================================================
 
 # Sentence Transformers - Embedding generation
-sentence-transformers==3.0.0
+sentence-transformers==3.3.2
 
 # HuggingFace Transformers - Model loading and inference
-transformers==4.40.0
+transformers==4.46.1
 
 # Optimum Intel - OpenVINO optimization and INT8 quantization
-optimum[openvino,intel]==1.19.0
+optimum[openvino,intel]==1.21.0
 
 # OpenVINO Runtime - Inference engine
-openvino==2024.0.0
+openvino==2024.6.0
 
 # PyTorch - Model runtime (CPU-only for OpenVINO)
-torch==2.2.0
-torchvision==0.17.0
+torch==2.3.1
+torchvision==0.18.1
 
 # ============================================================================
 # Data Processing
 # ============================================================================
 
 # Numpy - Array operations
-numpy==1.26.4
+numpy==2.0.1
 
 # Pandas - Data manipulation (optional, for analysis)
-pandas==2.2.0
+pandas==2.2.3
 
 # SciPy - Scientific computing (for similarity metrics)
-scipy==1.12.0
+scipy==1.14.0
 
 # ============================================================================
 # Utilities
 # ============================================================================
 
 # Tokenizers - Fast tokenization for transformers
-tokenizers==0.19.0
+tokenizers==0.20.0
 
 # HuggingFace Hub - Model downloading
-huggingface-hub==0.23.0
+huggingface-hub==0.24.5
 
 # SafeTensors - Safe tensor serialization
-safetensors==0.4.0
+safetensors==0.4.3
 
 # ============================================================================
 # Performance & Monitoring (Optional)
 # ============================================================================
 
 # psutil - System and process utilities (for benchmarking)
-psutil==5.9.0
+psutil==6.0.0
 
 # ============================================================================
 # Installation Notes

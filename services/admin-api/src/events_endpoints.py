@@ -100,20 +100,19 @@ class EventsEndpoints:
             try:
                 event = await self._get_event_by_id(event_id)
                 if not event:
-                    raise HTTPException(
+                    return JSONResponse(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Event {event_id} not found"
+                        content={"detail": f"Event {event_id} not found"},
                     )
-                
                 return event
                 
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"Error getting event {event_id}: {e}")
-                raise HTTPException(
+                return JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event"
+                    content={"detail": "Failed to get event"},
                 )
         
         @self.router.post("/events/search", response_model=List[EventData])

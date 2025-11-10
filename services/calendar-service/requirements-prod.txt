@@ -1,7 +1,7 @@
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 influxdb3-python==0.3.0
 pandas==2.1.4
-aiohttp==3.9.1
+aiohttp==3.9.5
 google-auth==2.25.2
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
