@@ -87,13 +87,13 @@ This will test:
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Verify deployment
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### **Step 4: Access Dashboard**
@@ -122,14 +122,14 @@ cp infrastructure/env.example .env
 nano .env  # Edit with your configuration
 
 # Start the system (development)
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Or start production system
-docker-compose -f docker-compose.prod.yml --env-file infrastructure/env.production up -d
+docker compose -f docker-compose.prod.yml --env-file infrastructure/env.production up -d
 
 # Verify deployment
-docker-compose ps
-docker-compose logs -f
+docker compose ps
+docker compose logs -f
 ```
 
 ### **🚀 Optimized Deployment (Recommended)**
@@ -137,8 +137,8 @@ The system now uses optimized Alpine-based Docker images with 71% size reduction
 
 ```bash
 # Build and start optimized system
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
 
 # Validate optimized images
 ./scripts/validate-optimized-images.sh  # Linux/macOS
@@ -208,7 +208,7 @@ cp infrastructure/env.sports.template .env.sports
 # INFLUXDB_TOKEN=your-actual-token-here
 
 # 3. Start services
-docker-compose up -d sports-data influxdb
+docker compose up -d sports-data influxdb
 
 # 4. Verify deployment
 curl http://localhost:8005/health
@@ -297,6 +297,23 @@ S3_SECRET_KEY=your-s3-secret-key
 S3_REGION=us-east-1
 ```
 
+### **Feature Flags (LangChain / PDL Pilot)**
+
+Add these optional variables to `infrastructure/.env` (or service overrides) to enable the new pipelines gradually:
+
+```bash
+# LangChain prompt templating for Ask AI (default: disabled)
+ENABLE_LANGCHAIN_PROMPT_BUILDER=true
+
+# LangChain-powered pattern detection chain (default: disabled)
+ENABLE_LANGCHAIN_PATTERN_CHAIN=true
+
+# YAML-based PDL workflows for nightly analysis + synergy guardrails (default: disabled)
+ENABLE_PDL_WORKFLOWS=true
+```
+
+Leave the flags unset or `false` to retain the legacy behaviour. Enable them one at a time for easier debugging on single-home installs.
+
 ## 🌐 **Access Points**
 
 ### **Development Environment**
@@ -304,7 +321,6 @@ S3_REGION=us-east-1
 - **Admin API**: http://localhost:8000
 - **Data Retention API**: http://localhost:8080
 - **WebSocket Ingestion**: http://localhost:8001
-- **Enrichment Pipeline**: http://localhost:8002
 - **InfluxDB**: http://localhost:8086
 
 ### **Production Environment**
@@ -312,7 +328,6 @@ S3_REGION=us-east-1
 - **Admin API**: http://localhost:8003
 - **Data Retention API**: http://localhost:8080
 - **WebSocket Ingestion**: http://localhost:8001
-- **Enrichment Pipeline**: http://localhost:8002
 - **InfluxDB**: http://localhost:8086
 - **API Documentation**: http://localhost:8003/docs
 - **Health Checks**: http://localhost:8003/api/v1/health
@@ -320,10 +335,10 @@ S3_REGION=us-east-1
 ## 📊 **System Architecture**
 
 ### **Core Services**
-- **websocket-ingestion** - Home Assistant event capture (Alpine-based, ~60MB)
-- **enrichment-pipeline** - Multi-source data enrichment and validation (Alpine-based, ~70MB)
+- **websocket-ingestion** - Home Assistant event capture with inline normalization (Alpine-based, ~60MB)
+- **ai-automation-service** - LangChain/PDL-enabled automation intelligence (Slim Python base, includes optional model downloads)
 - **data-retention** - Enhanced data lifecycle, tiered retention, S3 archival (Alpine-based, ~65MB)
-- **admin-api** - System administration API (Alpine-based, ~50MB)
+- **admin-api** - System administration API with in-memory stubs for local installs (Alpine-based, ~50MB)
 - **health-dashboard** - Web-based administration interface (Alpine-based, ~80MB)
 - **influxdb** - Time-series database (Official image)
 
@@ -357,21 +372,20 @@ S3_REGION=us-east-1
 curl http://localhost:8080/api/v1/health
 
 # View service logs
-docker-compose logs -f websocket-ingestion
-docker-compose logs -f enrichment-pipeline
-docker-compose logs -f admin-api
+docker compose logs -f websocket-ingestion
+docker compose logs -f admin-api
 ```
 
 ### **System Management**
 ```bash
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Restart specific service
-docker-compose restart websocket-ingestion
+docker compose restart websocket-ingestion
 
 # View resource usage
 docker stats
@@ -388,13 +402,13 @@ docker stats
 ### **Log Analysis**
 ```bash
 # View all logs
-docker-compose logs
+docker compose logs
 
 # Filter by service
-docker-compose logs websocket-ingestion | grep ERROR
+docker compose logs websocket-ingestion | grep ERROR
 
 # Follow logs in real-time
-docker-compose logs -f --tail=100
+docker compose logs -f --tail=100
 ```
 
 ## 📈 **Performance Optimization**

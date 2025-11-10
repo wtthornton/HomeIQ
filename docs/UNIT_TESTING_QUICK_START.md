@@ -1,123 +1,45 @@
-# 🧪 Unit Testing Framework - Quick Start Guide
+# 🧪 Unit Testing Quick Start (In Transition)
 
-## 🚀 Quick Commands
+The legacy HomeIQ unit testing framework was retired alongside the LangChain + PDL modernization (November 2025). This quick start guide now reflects the temporary gap while we build a leaner smoke/regression harness.
 
-### Run All Unit Tests
-```bash
-# Simple execution (recommended)
-python scripts/simple-unit-tests.py
+## 🚦 Current Reality
 
-# Cross-platform scripts
-./run-unit-tests.sh                    # Linux/Mac
-.\run-unit-tests.ps1                   # Windows
-```
+- Running `python scripts/simple-unit-tests.py` (or the shell/PowerShell wrappers) will simply exit after collecting **zero tests**.
+- Historical coverage artefacts (`test-results/coverage/*`, `unit-test-report.html`) no longer exist.
+- The massive `tests/` directory tree was deleted; only placeholder folders remain where Docker builds expect them.
 
-### Run Specific Test Types
-```bash
-# Python tests only
-python scripts/simple-unit-tests.py --python-only
+## ✅ What You Can Do Today
 
-# TypeScript tests only
-python scripts/simple-unit-tests.py --typescript-only
-```
+1. **Manual Smoke Checks**
+   - Launch the stack: `docker compose up -d`
+   - Review service health: `docker compose ps` and the Health Dashboard (`http://localhost:3000`)
+   - Exercise Ask AI / nightly analysis flows at `http://localhost:3001`
 
-## 📊 What You'll See
+2. **Create Focused Scripts**
+   - Place exploratory helpers under `scripts/` (e.g. `run_self_improvement_pilot.py`)
+   - Document expected inputs/outputs inside the script
 
-### Visual Progress
-```
-================================================================================
-HomeIQ Unit Testing Framework
-================================================================================
-Started: 2025-10-25 09:19:44
-Results: C:\cursor\ha-ingestor\test-results
-================================================================================
-[INFO] [09:19:44] Starting Python unit tests...
-[PASS] [09:19:45] Python tests completed successfully
+3. **Prototype New Tests**
+   - Add service-specific tests next to the code they cover (e.g. `services/ai-automation-service/src/...`)
+   - Include a TODO comment referencing the upcoming testing rebuild so they can be folded in later
 
-================================================================================
-UNIT TEST SUMMARY
-================================================================================
-[PASS] Python Tests: 150/150 passed (100.0%)
-[PASS] TypeScript Tests: 10/11 passed (90.9%)
-[PASS] Overall: 160/161 passed (99.4%)
-[PASS] All unit tests passed!
-Duration: 45.2 seconds
-================================================================================
-Coverage Reports:
-   Python: test-results/coverage/python/index.html
-   TypeScript: test-results/coverage/typescript/index.html
-================================================================================
-```
+## 🛠️ Rebuilding Roadmap
 
-## 📁 Coverage Reports
+| Milestone | Description | Target |
+|-----------|-------------|--------|
+| **Smoke Harness** | Container health checks + critical HTTP endpoints | In progress |
+| **LangChain/PDL Unit Tests** | Deterministic coverage for new pipelines | Planned |
+| **Regression Fixtures** | YAML/PDL driven scenarios for nightly analysis | Planned |
+| **Optional UI Smoke** | Minimal Playwright/Vitest checks | Deferred |
 
-After running tests, check these locations:
+Progress will be tracked in [`docs/UNIT_TESTING_FRAMEWORK.md`](UNIT_TESTING_FRAMEWORK.md).
 
-- **Python Coverage**: `test-results/coverage/python/index.html`
-- **TypeScript Coverage**: `test-results/coverage/typescript/index.html`
-- **Summary Report**: `test-results/unit-test-report.html`
+## 📣 Need Help?
 
-## 🎯 What Tests Are Included
-
-### Python Unit Tests (272+ tests)
-- **Admin API**: Alerting, auth, config, devices, events, health, logging, metrics, monitoring, stats
-- **AI Automation**: Safety validator, automation parser, co-occurrence detector
-- **Calendar Service**: Event parser
-- **Data API**: Models
-- **Sports Data**: Stats calculator
-- **WebSocket Ingestion**: Event processing, connection management
-- **And many more services...**
-
-### TypeScript Unit Tests
-- **API Usage Calculator**: Utility function tests
-- **Team Preferences Hook**: React hook tests
-- **Statistics Hook**: Statistics hook tests
-
-## ❌ What Tests Are Excluded
-
-The framework automatically excludes:
-- **Integration Tests**: Tests requiring external services
-- **E2E Tests**: End-to-end tests requiring full system
-- **Visual Tests**: Screenshot and visual regression tests
-- **Smoke Tests**: System-wide health checks
-- **Deployment Tests**: Infrastructure tests
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **"No tests found"**
-   - Check that test files match the patterns in configuration
-   - Verify test files are in the correct directories
-
-2. **"Import errors"**
-   - Ensure all dependencies are installed
-   - Check Python path configuration
-
-3. **"Coverage not generated"**
-   - Verify coverage tools are installed (`pytest-cov`, `vitest`)
-   - Check that source files are in the correct locations
-
-4. **"TypeScript tests fail"**
-   - Ensure Node.js and npm are installed
-   - Run `npm install` in the health-dashboard directory
-
-### Debug Mode
-```bash
-# Run with verbose output
-python scripts/simple-unit-tests.py --verbose
-```
-
-## 📚 Full Documentation
-
-For complete documentation, see:
-- [Unit Testing Framework Guide](docs/UNIT_TESTING_FRAMEWORK.md)
-- [Development Environment Setup](docs/development-environment-setup.md)
-
-## 🎉 Success!
-
-If you see `[PASS] All unit tests passed!` - you're good to go! The framework has successfully run all unit tests and generated coverage reports.
+- Open an issue using the “Testing Modernization” template.
+- Ping the maintainers in Slack `#homeiq-dev`.
+- Share manual test notes in `implementation/analysis/` (see `self_improvement_pilot_report.md` for a template).
 
 ---
 
-**Need help?** Check the troubleshooting section above or refer to the full documentation.
+Stay tuned—fresh testing instructions will return once the new harness lands. In the meantime, please avoid reviving the legacy framework; focus on targeted, high-signal checks instead.

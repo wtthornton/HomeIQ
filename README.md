@@ -55,9 +55,9 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 ### 🤖 AI-Powered Automation
 
-- **Ask AI Tab**: Natural language automation creation
+- **Ask AI Tab**: Natural language automation creation, now with optional LangChain prompt templating
 - **Pattern Mining**: AI analyzes your usage and suggests automations
-- **Synergy Detection**: Multi-type synergy detection (device pairs, weather, energy, events)
+- **Synergy Detection**: Multi-type synergy detection (device pairs, weather, energy, events) with optional PDL-governed guardrails
 - **Device Validation**: Intelligent device compatibility checking with post-refinement sanitization
 - **Device Selection & Mapping**: Check/uncheck devices and customize entity mappings with visual interface
 - **Smart Recommendations**: Context-aware automation suggestions with priority scoring
@@ -113,7 +113,7 @@ cp infrastructure/env.example infrastructure/.env
 # - HA_TOKEN=your-long-lived-access-token
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Verify deployment
 ./scripts/verify-deployment.sh
@@ -162,18 +162,12 @@ python -m dotenv run python main.py
 
 ### How to Test
 
-To run tests for a specific service:
+Automated regression coverage is currently being rebuilt to match the new LangChain and PDL pipelines.
 
-```bash
-# Navigate to the service directory
-cd services/[service-name]/tests
-
-# Run all tests in the directory
-pytest .
-
-# Or run a specific test file
-pytest test_[module_name].py
-```
+- ✅ **Current status**: The legacy multi-language test tree has been removed; no automated suites are available right now.
+- 🚧 **Roadmap**: Focused smoke tests and regression checks will ship alongside the new workflows.
+- 🔍 **Manual verification**: Use the Health Dashboard (`http://localhost:3000`) and AI Automation UI (`http://localhost:3001`) to validate critical flows after changes.
+- 🧪 **Prototyping**: If you add new tests, stage them under the relevant service and wire them into fresh tooling instead of reviving the legacy structure.
 
 ---
 
@@ -375,44 +369,11 @@ npm run dev
 
 ### Running Tests
 
-```bash
-# Unit Tests (Recommended) - Runs all unit tests with coverage
-python scripts/simple-unit-tests.py
-
-# Using npm scripts
-npm test                           # Run all unit tests
-npm run test:unit:python          # Python tests only
-npm run test:unit:typescript      # TypeScript tests only
-npm run test:coverage             # Run tests and show coverage info
-
-# Unit Tests with options
-python scripts/simple-unit-tests.py --python-only
-python scripts/simple-unit-tests.py --typescript-only
-
-# Cross-platform scripts
-./run-unit-tests.sh                    # Linux/Mac
-.\run-unit-tests.ps1                    # Windows
-
-# E2E Tests
-npm run test:e2e
-
-# Individual service tests
-cd services/ai-automation-service
-pytest tests/
-
-# Deployment Validation
-npm run validate
-```
+Automated test commands are intentionally absent while the new smoke/regression harness is under construction. Refer to the "[How to Test](#how-to-test)" section above for the current manual verification approach and watch the repo for updates as soon as scripted coverage returns.
 
 ### Test Coverage
 
-The unit testing framework provides comprehensive coverage reports:
-
-- **Python Coverage**: `test-results/coverage/python/index.html`
-- **TypeScript Coverage**: `test-results/coverage/typescript/index.html`
-- **Summary Report**: `test-results/unit-test-report.html`
-
-**Current Coverage**: 272+ unit tests across all services
+Coverage reports are temporarily disabled. Historical artifacts (`test-results/coverage/*` and friends) were removed together with the legacy suites and will reappear once the new smoke/regression harness lands.
 
 ---
 
@@ -456,6 +417,13 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
+### Recent Updates
+
+- **LangChain integrations**: Feature flags allow piloting LCEL-driven Ask AI prompts and pattern-detector chains.
+- **PDL workflows**: YAML-based procedures now orchestrate nightly analysis and synergy guardrails when enabled.
+- **Admin API stubs**: Lightweight in-memory alerting/logging/metrics modules keep imports satisfied without the retired test harness.
+- **Legacy tests removed**: The old multi-language testing tree was deleted as part of this modernization; a slimmer suite will follow.
+
 ## 📊 Project Stats
 
 - **Services**: 26 microservices (24 active + 2 infrastructure)
@@ -463,8 +431,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **Databases**: InfluxDB (time-series) + 5 SQLite databases (metadata)
 - **APIs**: RESTful, WebSocket, MQTT
 - **UI Frameworks**: React 18, Vite, Tailwind CSS
-- **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, Sentence-BERT, scikit-learn
-- **Testing**: 272+ unit tests + 18 E2E tests with comprehensive coverage
+- **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
+- **Testing**: Legacy suites removed; new targeted coverage TBD
 - **Lines of Code**: 50,000+ (reviewed November 2025)
 - **Shared Libraries**: 3,947 lines across 11 core modules
 
