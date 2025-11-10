@@ -5,10 +5,6 @@ import { server } from '../../tests/mocks/server';
 import { http, HttpResponse } from 'msw';
 
 describe('useHealth Hook', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
   afterEach(() => {
     // ✅ Context7 Best Practice: Cleanup after each test
     vi.useRealTimers();
@@ -39,18 +35,18 @@ describe('useHealth Hook', () => {
   it('shows error message when health API returns 500 error', async () => {
     // Mock API to return 500 error
     server.use(
-      http.get('/api/health', () => {
+      http.get('http://localhost:8003/api/health', () => {
         return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
       })
     );
-    
+
     const { result } = renderHook(() => useHealth(1000));
-    
+
     // Wait for error to be set
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     // Verify error state
     expect(result.current.health).toBeNull();
     expect(result.current.error).toBeDefined();
@@ -60,37 +56,39 @@ describe('useHealth Hook', () => {
   it('shows error message when network connection fails', async () => {
     // Mock network failure
     server.use(
-      http.get('/api/health', () => {
+      http.get('http://localhost:8003/api/health', () => {
         return HttpResponse.error();
       })
     );
-    
+
     const { result } = renderHook(() => useHealth(1000));
-    
+
     // Wait for error to be set
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     // Verify error state
     expect(result.current.health).toBeNull();
     expect(result.current.error).toBeDefined();
   });
 
   it('refreshes health data automatically at polling interval', async () => {
-    const { result } = renderHook(() => useHealth(1000));
-    
+    // Use a short polling interval for faster test execution
+    const { result } = renderHook(() => useHealth(100));
+
     // Wait for initial fetch
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     const initialHealth = result.current.health;
     expect(initialHealth).toBeDefined();
-    
+    expect(initialHealth?.overall_status).toBe('healthy');
+
     // Mock a different response for the next fetch
     server.use(
-      http.get('/api/health', () => {
+      http.get('http://localhost:8003/api/health', () => {
         return HttpResponse.json({
           overall_status: 'degraded',
           timestamp: new Date().toISOString(),
@@ -101,14 +99,11 @@ describe('useHealth Hook', () => {
         });
       })
     );
-    
-    // Advance timer to trigger refresh
-    vi.advanceTimersByTime(1000);
-    
-    // Wait for refresh to complete
+
+    // Wait for automatic refresh to complete (should happen after 100ms)
     await waitFor(() => {
       expect(result.current.health?.overall_status).toBe('degraded');
-    });
+    }, { timeout: 1000 });
   });
 });
 
