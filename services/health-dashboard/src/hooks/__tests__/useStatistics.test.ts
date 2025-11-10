@@ -5,10 +5,6 @@ import { server } from '../../tests/mocks/server';
 import { http, HttpResponse } from 'msw';
 
 describe('useStatistics Hook', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
   afterEach(() => {
     // ✅ Context7 Best Practice: Cleanup after each test
     vi.useRealTimers();
@@ -18,17 +14,17 @@ describe('useStatistics Hook', () => {
 
   it('displays statistics data when API responds successfully', async () => {
     const { result } = renderHook(() => useStatistics('1h', 1000));
-    
+
     // Initially loading
     expect(result.current.loading).toBe(true);
     expect(result.current.statistics).toBeNull();
     expect(result.current.error).toBeNull();
-    
+
     // Wait for data to load
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     // Verify statistics data is populated
     expect(result.current.statistics).toBeDefined();
     expect(result.current.statistics?.total_events).toBe(12345);
@@ -39,18 +35,18 @@ describe('useStatistics Hook', () => {
   it('shows error message when statistics API returns error', async () => {
     // Mock API to return 500 error
     server.use(
-      http.get('/api/stats', () => {
+      http.get('http://localhost:8003/api/v1/stats', () => {
         return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
       })
     );
-    
+
     const { result } = renderHook(() => useStatistics('1h', 1000));
-    
+
     // Wait for error to be set
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     // Verify error state
     expect(result.current.statistics).toBeNull();
     expect(result.current.error).toBeDefined();
@@ -59,9 +55,9 @@ describe('useStatistics Hook', () => {
 
   it('passes correct period parameter to API request', async () => {
     let requestedPeriod = '';
-    
+
     server.use(
-      http.get('/api/stats', ({ request }) => {
+      http.get('http://localhost:8003/api/v1/stats', ({ request }) => {
         const url = new URL(request.url);
         requestedPeriod = url.searchParams.get('period') || '';
         return HttpResponse.json({
@@ -71,13 +67,13 @@ describe('useStatistics Hook', () => {
         });
       })
     );
-    
+
     const { result } = renderHook(() => useStatistics('24h', 1000));
-    
+
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     // Verify period parameter was passed correctly
     expect(requestedPeriod).toBe('24h');
   });

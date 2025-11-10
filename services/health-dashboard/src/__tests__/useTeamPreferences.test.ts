@@ -123,20 +123,20 @@ describe('useTeamPreferences', () => {
   });
 
   it('should load from localStorage on init', () => {
-    // Pre-populate localStorage
+    // Pre-populate localStorage with version 2 format
     localStorage.setItem('sports_selected_teams', JSON.stringify({
-      nfl_teams: ['gb', 'kc'],
-      nhl_teams: ['pit'],
+      nfl_teams: ['nfl-gb', 'nfl-kc'],
+      nhl_teams: ['nhl-bos'],
       setup_completed: true,
       last_updated: new Date().toISOString(),
-      version: 1
+      version: 2
     }));
 
     const { result } = renderHook(() => useTeamPreferences());
 
     expect(result.current.loading).toBe(false);
-    expect(result.current.nflTeams).toEqual(['gb', 'kc']);
-    expect(result.current.nhlTeams).toEqual(['pit']);
+    expect(result.current.nflTeams).toEqual(['nfl-gb', 'nfl-kc']);
+    expect(result.current.nhlTeams).toEqual(['nhl-bos']);
     expect(result.current.setupCompleted).toBe(true);
   });
 
