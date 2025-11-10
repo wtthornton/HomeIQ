@@ -1,7 +1,7 @@
-aiohttp==3.9.1
+aiohttp==3.9.5
 asyncio-mqtt==0.16.1
-python-dotenv==1.0.0
-pydantic==2.5.2
-psutil==5.9.6
-pytest==7.4.4
-pytest-asyncio==0.21.1
+python-dotenv==1.0.1
+pydantic==2.8.2
+psutil==6.0.0
+pytest==8.3.3
+pytest-asyncio==0.23.0

@@ -17,13 +17,13 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from commands.system import app as system_app
-from commands.events import app as events_app
-from commands.config import app as config_app
-from commands.export import app as export_app
-from commands.diagnostics import app as diagnostics_app
-from utils.config import load_config
-from utils.api_client import APIClient
+from src.commands.system import app as system_app
+from src.commands.events import app as events_app
+from src.commands.config import app as config_app
+from src.commands.export import app as export_app
+from src.commands.diagnostics import app as diagnostics_app
+from src.utils.config import load_config
+from src.utils.api_client import APIClient
 
 # Initialize Typer app
 app = typer.Typer(

@@ -2,38 +2,38 @@
 # Phase 1 MVP - Keep it simple
 
 # Web Framework
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
+fastapi==0.121.0
+uvicorn==0.38.0
+python-multipart==0.0.20
 
 # Data Validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.8.2
+pydantic-settings==2.4.0
 
 # Database
 sqlalchemy==2.0.25
-aiosqlite==0.19.0
+aiosqlite==0.20.0
 alembic==1.13.1
 
 # MQTT
 paho-mqtt==1.6.1
 
 # HTTP Client
-httpx==0.25.2
-aiohttp==3.9.1
+httpx==0.28.1
+aiohttp==3.9.5
 
 # InfluxDB Client
-influxdb-client==1.38.0
+influxdb-client==1.44.0
 
 # Data Processing
-pandas==2.1.4
-numpy==1.26.2
+pandas==2.2.3
+numpy==2.0.1
 
 # Machine Learning
-scikit-learn==1.3.2
+scikit-learn==1.4.2
 
 # LLM Integration - Multi-Model Entity Extraction
-openai==1.12.0
+openai==1.40.2
 spacy==3.7.2  # For lightweight NER fallback
 
 # Phase 1 Optimized Model Stack (OpenVINO INT8)
@@ -42,25 +42,25 @@ spacy==3.7.2  # For lightweight NER fallback
 # Use CPU-only torch wheel to avoid NVIDIA dependencies
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
-transformers==4.45.2          # HuggingFace models (compatible with optimum-intel)
-torch==2.2.2+cpu              # CPU-only PyTorch wheel
-openvino==2024.5.0            # Intel optimization
-optimum-intel==1.20.0         # OpenVINO integration with Transformers
-peft==0.13.2                  # Lightweight LoRA fine-tuning support
+sentence-transformers==3.3.2  # Embeddings: all-MiniLM-L6-v2
+transformers==4.46.1          # HuggingFace models (compatible with optimum-intel)
+torch==2.3.1+cpu              # CPU-only PyTorch wheel
+openvino==2024.6.0            # Intel optimization
+optimum-intel==1.21.0         # OpenVINO integration with Transformers
+peft==0.14.0                  # Lightweight LoRA fine-tuning support
 
 # Scheduling
 apscheduler==3.10.4
 
 # Utilities
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 tenacity==8.2.3
 pyyaml==6.0.1
 deprecated==1.2.14
 rapidfuzz>=3.0.0  # Fast fuzzy string matching for typo handling
-langchain==0.2.7  # Lightweight orchestration for prompt/tool prototypes
+langchain==0.2.14  # Lightweight orchestration for prompt/tool prototypes
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest==8.3.3
+pytest-asyncio==0.23.0
 

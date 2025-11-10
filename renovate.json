@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "America/Chicago",
+  "schedule": ["before 09:00 on monday"],
+  "pip_requirements": {
+    "fileMatch": ["(^|/)requirements(-prod|-test|-nlevel)?\\.txt$"]
+  },
+  "npm": {
+    "fileMatch": ["(^|/)package\\.json$"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python-dependencies"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend-dependencies"
+    }
+  ]
+}
+

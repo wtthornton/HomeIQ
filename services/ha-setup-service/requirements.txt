@@ -1,11 +1,11 @@
 # FastAPI and core dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+fastapi==0.121.0
+uvicorn[standard]==0.38.0
+pydantic==2.8.2
+pydantic-settings==2.4.0
 
 # Async support
-aiohttp==3.9.1
+aiohttp==3.9.5
 aiosqlite==0.20.0
 
 # Database
@@ -13,10 +13,10 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
+pytest==8.3.3
+pytest-asyncio==0.23.0
+httpx==0.28.1
 
 # Shared utilities (from parent project)
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 

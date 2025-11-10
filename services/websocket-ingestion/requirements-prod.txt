@@ -1,7 +1,7 @@
-aiohttp==3.9.1
+aiohttp==3.9.5
 asyncio-mqtt==0.16.1
-python-dotenv==1.0.0
-pydantic==2.5.2
-psutil==5.9.6
-influxdb-client==1.38.0
+python-dotenv==1.0.1
+pydantic==2.8.2
+psutil==6.0.0
+influxdb-client==1.44.0
 websockets==12.0

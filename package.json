@@ -36,9 +36,9 @@
   },
   "homepage": "https://github.com/wtthornton/HomeIQ#readme",
   "dependencies": {
-    "puppeteer": "^24.25.0"
+    "puppeteer": "^24.31.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.58.0"
   }
 }

@@ -5,11 +5,14 @@ Authentication Manager for Admin API
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
+import calendar
 import secrets
 
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,10 @@ class AuthManager:
         """
         self.api_key = api_key
         self.enable_auth = enable_auth
+        self.secret_key = secrets.token_urlsafe(32)
+        self.algorithm = "HS256"
+        self.access_token_expire_minutes = 30
+        self.pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
         
         # Security scheme
         self.security = HTTPBearer(auto_error=False)
@@ -49,10 +56,22 @@ class AuthManager:
         # Session management
         self.sessions: Dict[str, Dict[str, Any]] = {}
         self.session_timeout = 3600  # 1 hour
+
+        # Demo users (would normally be stored securely)
+        hashed_admin = self.pwd_context.hash("adminpass")
+        self.users_db: Dict[str, Dict[str, Any]] = {
+            "admin": {
+                "username": "admin",
+                "full_name": "Admin User",
+                "email": "admin@example.com",
+                "hashed_password": hashed_admin,
+                "disabled": False,
+            }
+        }
         
         logger.info(f"Authentication manager initialized (enabled: {enable_auth})")
     
-    async def get_current_user(self, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    def get_current_user(self, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
         """
         Get current authenticated user
         
@@ -65,28 +84,26 @@ class AuthManager:
         Raises:
             HTTPException: If authentication fails
         """
+        if isinstance(credentials, str):
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=credentials)
+
         if not self.enable_auth:
-            return self.default_user
-        
+            return None
+
         if not credentials:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Validate API key
-        if not self._validate_api_key(credentials.credentials):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Update last login
-        self.default_user.last_login = datetime.now()
-        
-        return self.default_user
+            return None
+        # First, attempt to treat credentials as JWT token
+        token_user = self.verify_token(credentials.credentials)
+        if token_user:
+            self.default_user.last_login = datetime.now()
+            return token_user
+
+        # Fallback to API key validation
+        if self._validate_api_key(credentials.credentials):
+            self.default_user.last_login = datetime.now()
+            return self.default_user
+
+        return None
     
     def _validate_api_key(self, api_key: str) -> bool:
         """
@@ -103,6 +120,86 @@ class AuthManager:
             return False
         
         return secrets.compare_digest(api_key, self.api_key)
+
+    def validate_api_key(self, api_key: Optional[str]) -> bool:
+        """Public wrapper to validate provided API key values."""
+        if not self.enable_auth:
+            return True
+        if not api_key:
+            return False
+        return self._validate_api_key(api_key)
+
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """Verify a plain password against a hashed password."""
+        try:
+            return self.pwd_context.verify(plain_password, hashed_password)
+        except ValueError:
+            logger.warning("Password verification failed due to invalid hash")
+            return False
+
+    def get_password_hash(self, password: str) -> str:
+        """Generate a password hash using the configured context."""
+        return self.pwd_context.hash(password)
+
+    def get_user(self, username: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a user record from the in-memory database."""
+        return self.users_db.get(username)
+
+    def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
+        """Authenticate a user with username and password credentials."""
+        user = self.get_user(username)
+        if not user:
+            return None
+        if user.get("disabled"):
+            return None
+        if not self.verify_password(password, user["hashed_password"]):
+            return None
+        return user
+
+    def create_access_token(self, data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+        """Create a signed JWT access token."""
+        to_encode = data.copy()
+        expires_delta = expires_delta or timedelta(minutes=self.access_token_expire_minutes)
+        now_utc = datetime.utcnow()
+        expire_utc = now_utc + expires_delta
+        offset_seconds = int(round((datetime.utcnow() - datetime.now()).total_seconds()))
+        exp_epoch = calendar.timegm(expire_utc.timetuple()) + offset_seconds
+        to_encode.update({"exp": exp_epoch})
+        return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+
+    def verify_token(self, token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Verify a JWT token and return the associated user if valid."""
+        if not token:
+            return None
+        try:
+            payload = jwt.decode(
+                token,
+                self.secret_key,
+                algorithms=[self.algorithm],
+                options={"verify_exp": False},
+            )
+        except JWTError as exc:
+            logger.warning("Failed to decode JWT: %s", exc)
+            return None
+
+        exp_value = payload.get("exp")
+        if exp_value:
+            exp_dt: Optional[datetime] = None
+            if isinstance(exp_value, datetime):
+                exp_dt = exp_value
+            elif isinstance(exp_value, (int, float)):
+                offset_seconds = int(round((datetime.utcnow() - datetime.now()).total_seconds()))
+                exp_dt = datetime.utcfromtimestamp(exp_value - offset_seconds)
+            elif isinstance(exp_value, str) and exp_value.isdigit():
+                offset_seconds = int(round((datetime.utcnow() - datetime.now()).total_seconds()))
+                exp_dt = datetime.utcfromtimestamp(int(exp_value) - offset_seconds)
+            if exp_dt and datetime.utcnow() > exp_dt:
+                return None
+
+        username: Optional[str] = payload.get("sub")
+        if not username:
+            return None
+        return self.get_user(username)
     
     def generate_api_key(self) -> str:
         """

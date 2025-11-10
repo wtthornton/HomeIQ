@@ -2,22 +2,22 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.121.0
+uvicorn[standard]==0.38.0
 
 # Data Validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.8.2
+pydantic-settings==2.4.0
 
 # HTTP Client
-httpx==0.25.2
+httpx==0.28.1
 
 # Circuit Breaker
 tenacity==8.2.3
 
 # Utilities
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest==8.3.3
+pytest-asyncio==0.23.0

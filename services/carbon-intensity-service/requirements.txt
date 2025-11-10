@@ -1,4 +1,4 @@
-aiohttp==3.9.1
-python-dotenv==1.0.0
+aiohttp==3.9.5
+python-dotenv==1.0.1
 influxdb3-python==0.3.0
 
