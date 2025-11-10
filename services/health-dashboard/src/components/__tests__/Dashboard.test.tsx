@@ -20,16 +20,16 @@ describe('Dashboard Component', () => {
   it('switches active tab when navigation button is clicked', async () => {
     const user = userEvent.setup();
     render(<Dashboard />);
-    
+
     // Wait for dashboard to load
     await screen.findByRole('heading', { name: /HA Ingestor Dashboard/i });
-    
+
     // Find and click the Services tab
     const servicesTab = screen.getByRole('button', { name: /Services/i });
     await user.click(servicesTab);
-    
-    // Verify the tab is now active (has blue background class)
-    expect(servicesTab).toHaveClass('bg-blue-600');
+
+    // Verify the tab is now active (has blue background class in light mode)
+    expect(servicesTab).toHaveClass('bg-blue-100');
   });
 
   it('toggles dark mode when theme button is clicked', async () => {
