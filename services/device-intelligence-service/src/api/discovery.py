@@ -194,7 +194,7 @@ async def get_devices_summary(
         # Count devices by integration
         devices_by_integration = {}
         for device in devices:
-            integration = device.integration
+            integration = device.integration if isinstance(device.integration, str) and device.integration.strip() else "Unknown"
             devices_by_integration[integration] = devices_by_integration.get(integration, 0) + 1
         
         # Count devices by area

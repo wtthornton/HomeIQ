@@ -608,6 +608,10 @@ class MultiModelEntityExtractor:
         matches = []
         
         for device in all_devices:
+            if not isinstance(device, dict):
+                logger.debug(f"Skipping non-dict device entry during match: {device!r}")
+                continue
+
             device_name = device.get('name', '').lower()
             
             # Exact match

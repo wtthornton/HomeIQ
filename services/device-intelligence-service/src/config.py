@@ -4,10 +4,41 @@ Device Intelligence Service - Configuration Management
 Pydantic Settings for environment variable management and validation.
 """
 
+import json
+import os
+from pathlib import Path
 from typing import Optional
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
-import os
+
+
+CONFIG_FILE_ENV = "MQTT_ZIGBEE_CONFIG_PATH"
+
+
+def _determine_default_path() -> Path:
+    env_override = os.getenv(CONFIG_FILE_ENV)
+    if env_override:
+        return Path(env_override)
+
+    module_path = Path(__file__).resolve()
+    candidates = [
+        Path("/app/infrastructure/config/mqtt_zigbee_config.json"),
+        module_path.parents[2] / "infrastructure" / "config" / "mqtt_zigbee_config.json",
+        module_path.parents[1] / "config" / "mqtt_zigbee_config.json",
+    ]
+
+    for candidate in candidates:
+        try:
+            if candidate.parent.exists():
+                return candidate
+        except IndexError:
+            continue
+
+    return candidates[-1]
+
+
+DEFAULT_CONFIG_PATH = _determine_default_path()
 
 
 class Settings(BaseSettings):
@@ -106,7 +137,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "case_sensitive": True
+        "case_sensitive": True,
+        "extra": "ignore",
     }
         
     @field_validator("LOG_LEVEL")
@@ -126,13 +158,13 @@ class Settings(BaseSettings):
             raise ValueError("DEVICE_INTELLIGENCE_PORT must be between 1 and 65535")
         return v
     
-    @field_validator("HA_URL")
+    @field_validator("HA_URL", mode="after")
     @classmethod
     def validate_ha_url(cls, v):
         """Validate Home Assistant URL format."""
         if not v.startswith(("http://", "https://")):
             raise ValueError("HA_URL must start with http:// or https://")
-        return v
+        return v.rstrip("/")
     
     @field_validator("MQTT_BROKER")
     @classmethod
@@ -141,6 +173,36 @@ class Settings(BaseSettings):
         if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
             raise ValueError("MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://")
         return v
+
+    def apply_overrides(self) -> None:
+        """Apply runtime overrides from the shared MQTT/Zigbee configuration file."""
+        config_path = DEFAULT_CONFIG_PATH
+        overrides = {}
+
+        try:
+            if config_path.exists():
+                with config_path.open("r", encoding="utf-8") as config_file:
+                    overrides = json.load(config_file) or {}
+        except json.JSONDecodeError as exc:
+            # Invalid JSON should not prevent service startup; log and proceed with defaults
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to parse MQTT/Zigbee configuration overrides (%s): %s",
+                config_path,
+                exc,
+            )
+
+        mapping = {
+            "MQTT_BROKER": "MQTT_BROKER",
+            "MQTT_USERNAME": "MQTT_USERNAME",
+            "MQTT_PASSWORD": "MQTT_PASSWORD",
+            "ZIGBEE2MQTT_BASE_TOPIC": "ZIGBEE2MQTT_BASE_TOPIC",
+        }
+
+        for attr_name, override_key in mapping.items():
+            if override_key in overrides and overrides[override_key] not in (None, ""):
+                setattr(self, attr_name, overrides[override_key])
     
     def get_database_url(self) -> str:
         """Get the database URL for SQLAlchemy."""
@@ -179,3 +241,4 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+settings.apply_overrides()

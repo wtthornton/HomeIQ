@@ -2759,6 +2759,7 @@ async def generate_suggestions_from_query(
         entity_context_json = ""
         resolved_entity_ids = []
         enriched_data = {}  # Initialize at function level for use in suggestion building
+        enriched_entities: List[Dict[str, Any]] = []
         
         try:
             logger.info("🔍 Resolving and enriching entities for suggestion generation...")
@@ -3270,6 +3271,25 @@ async def generate_suggestions_from_query(
             entity_context_json=entity_context_json,  # Pass enriched context
             clarification_context=clarification_context  # NEW: Pass clarification Q&A
         )
+
+        if getattr(settings, "enable_langchain_prompt_builder", False):
+            try:
+                from ..langchain_integration.ask_ai_chain import build_prompt_with_langchain
+
+                prompt_dict = build_prompt_with_langchain(
+                    query=query,
+                    entities=enriched_entities or entities,
+                    base_prompt=prompt_dict,
+                    entity_context_json=entity_context_json,
+                    clarification_context=clarification_context,
+                )
+                logger.debug("🧱 LangChain prompt builder applied for Ask AI query.")
+            except Exception as langchain_exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "⚠️ LangChain prompt builder failed (%s), falling back to unified prompt.",
+                    langchain_exc,
+                    exc_info=True,
+                )
         
         # Generate suggestions with unified prompt
         logger.info(f"Generating suggestions for query: {query}")
@@ -3452,17 +3472,21 @@ async def generate_suggestions_from_query(
                         except Exception as e:
                             logger.error(f"❌ Error validating location context: {e}", exc_info=True)
                         
-                        # Consolidate devices_involved to remove redundant entries (single-home optimization)
-                        devices_involved = consolidate_devices_involved(devices_involved, validated_entities)
-                        if len(devices_involved) < original_devices_count:
-                            logger.info(
-                                f"🔄 Optimized devices_involved for suggestion {i+1}: "
-                                f"{original_devices_count} → {len(devices_involved)} entries "
-                                f"({original_devices_count - len(devices_involved)} redundant entries removed)"
-                            )
                     else:
                         logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
                 
+                # Ensure devices are consolidated before user display (even if enrichment skipped)
+                if devices_involved and validated_entities:
+                    before_consolidation_count = len(devices_involved)
+                    consolidated_devices = consolidate_devices_involved(devices_involved, validated_entities)
+                    if len(consolidated_devices) < before_consolidation_count:
+                        logger.info(
+                            f"🔄 Optimized devices_involved for suggestion {i+1}: "
+                            f"{before_consolidation_count} → {len(consolidated_devices)} entries "
+                            f"({before_consolidation_count - len(consolidated_devices)} redundant entries removed)"
+                        )
+                    devices_involved = consolidated_devices
+            
                 # Create base suggestion
                 # FINAL CHECK: Ensure no duplicates in devices_involved before storing
                 devices_set = set()

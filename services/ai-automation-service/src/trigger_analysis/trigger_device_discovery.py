@@ -139,13 +139,26 @@ class TriggerDeviceDiscovery:
         matching_sensors = []
         
         for device in all_devices:
+            if not isinstance(device, dict):
+                logger.debug(f"Skipping non-dict device entry: {device!r}")
+                continue
             # Check if device has entities
             entities = device.get('entities', [])
+            if not isinstance(entities, list):
+                logger.debug(f"Device {device.get('id') or device.get('name')} has non-list entities payload: {type(entities).__name__}")
+                continue
             if not entities:
                 continue
             
             # Filter entities by sensor type and device class
             for entity in entities:
+                if not isinstance(entity, dict):
+                    logger.debug(
+                        "Skipping malformed entity entry for device %s: %r",
+                        device.get('id') or device.get('name'),
+                        entity
+                    )
+                    continue
                 entity_domain = entity.get('domain', '')
                 entity_device_class = entity.get('device_class', '')
                 

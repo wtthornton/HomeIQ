@@ -37,7 +37,7 @@ class HealthMonitoringService:
     """
     
     def __init__(self):
-        self.ha_url = settings.ha_url
+        self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url

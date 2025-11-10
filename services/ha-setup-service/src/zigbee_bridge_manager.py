@@ -81,7 +81,7 @@ class ZigbeeBridgeManager:
     """
     
     def __init__(self):
-        self.ha_url = settings.ha_url
+        self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.integration_checker = IntegrationHealthChecker()
         self.recovery_history: List[RecoveryAttempt] = []

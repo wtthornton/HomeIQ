@@ -1,4 +1,5 @@
 """Configuration management for HA Setup Service"""
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -35,6 +36,12 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
+    @field_validator("ha_url", mode="after")
+    @classmethod
+    def normalize_ha_url(cls, value: str) -> str:
+        """Ensure trailing slashes are removed from the HA URL."""
+        return value.rstrip("/")
 
 
 @lru_cache()

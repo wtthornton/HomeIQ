@@ -90,23 +90,21 @@ Your screenshot shows:
 
 ## 📋 RECOMMENDATIONS
 
-### 🔴 **IMMEDIATE** (Do This Week)
+### ✅ **COMPLETED** – November 10, 2025
 
 #### 1. Pre-Display Consolidation ⭐⭐⭐⭐⭐
-**What:** Run device deduplication BEFORE showing suggestions
+**Status:** Deployed to `ask_ai_router.py`
 
-**Code Change:** ~10 lines in `ask_ai_router.py:2450`
+**Result:**
+- Redundant device chips removed before UI render
+- Typical scenario now shows 2-3 devices instead of 7
+- Confidence logs emit consolidation counts for traceability
 
-**Impact:**
-- Reduces 7 devices → 2-3 devices
-- Zero risk, zero UI changes needed
-- **Effort:** 15 minutes
+**Verification:** Run any Ask AI query involving Hue lights; UI now shows consolidated list without extra chips.
 
-**Example Result:**
-```
-Before: light, wled, Office, LR Front Left, LR Back Right, LR Front Right, LR Back Left
-After:  Office (WLED Strip), Living Room Ceiling Lights
-```
+---
+
+### 🔴 **IMMEDIATE** (Next Target)
 
 ---
 
@@ -199,7 +197,7 @@ if devices_involved and validated_entities:
 
 | Feature | Impact | Effort | When | ROI |
 |---------|--------|--------|------|-----|
-| Pre-display consolidation | ⭐⭐⭐⭐⭐ | 15 min | NOW | HUGE |
+| Pre-display consolidation | ✅ DONE | — | Nov 10 | HUGE |
 | Smart grouping display | ⭐⭐⭐⭐ | 2-3 hrs | This week | HIGH |
 | Click-to-expand details | ⭐⭐⭐ | 4-6 hrs | Next sprint | MEDIUM |
 | Group vs individual toggle | ⭐⭐ | 1-2 days | Backlog | LOW |

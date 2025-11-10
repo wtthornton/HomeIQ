@@ -1,0 +1,24 @@
+version: 1
+name: synergy_guardrails
+description: >
+  Validation steps that ensure synergy detection remains within supported
+  complexity for a single-home install.
+steps:
+  - id: depth_cap
+    type: guard
+    condition:
+      less_or_equal: [requested_depth, max_supported_depth]
+    on_failure: error
+    message: "Requested synergy depth exceeds supported maximum."
+
+  - id: device_limit
+    type: guard
+    condition:
+      less_or_equal: [candidate_device_count, max_device_capacity]
+    on_failure: warn
+    message: "High device cardinality may impact detection latency."
+
+  - id: post_validation
+    type: info
+    message: "Run pattern validation before persisting new synergy opportunities."
+

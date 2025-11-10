@@ -4,12 +4,24 @@ Handles Docker container operations for the HA Ingestor system
 """
 
 import logging
-import docker
+import os
 import asyncio
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
+
+try:
+    import docker
+except ImportError:  # pragma: no cover - optional dependency
+    docker = None
+
+if docker:
+    DockerNotFoundError = docker.errors.NotFound
+else:
+    class DockerNotFoundError(Exception):
+        """Fallback error used when docker SDK is unavailable."""
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -39,40 +51,38 @@ class DockerService:
     
     def __init__(self):
         """Initialize Docker service"""
-        try:
-            # Try to connect to Docker with fallback options
-            docker_host = os.getenv('DOCKER_HOST', 'unix:///var/run/docker.sock')
-            
-            if docker_host.startswith('unix://'):
-                # For Unix socket, try different approaches
-                try:
-                    self.client = docker.from_env()
-                    self.client.ping()
-                    logger.info("Docker service initialized successfully with default connection")
-                except Exception as e1:
-                    logger.warning(f"Default Docker connection failed: {e1}")
-                    try:
-                        # Try with explicit socket path
-                        socket_path = docker_host.replace('unix://', '')
-                        self.client = docker.DockerClient(base_url=f'unix://{socket_path}')
-                        self.client.ping()
-                        logger.info("Docker service initialized successfully with explicit socket path")
-                    except Exception as e2:
-                        logger.error(f"Explicit socket connection also failed: {e2}")
-                        # For now, create a mock client for development
-                        self.client = None
-                        logger.warning("Docker client disabled - running in mock mode")
-            else:
-                # For TCP connection
-                self.client = docker.DockerClient(base_url=docker_host)
-                self.client.ping()
-                logger.info("Docker service initialized successfully with TCP connection")
-                
-        except Exception as e:
-            logger.error(f"Failed to initialize Docker service: {e}")
-            # Create a mock client for development
+        if docker is None:
             self.client = None
-            logger.warning("Docker client disabled - running in mock mode")
+            logger.warning("Docker SDK not installed - running in mock mode")
+        else:
+            try:
+                docker_host = os.getenv('DOCKER_HOST', 'unix:///var/run/docker.sock')
+
+                if docker_host.startswith('unix://'):
+                    try:
+                        self.client = docker.from_env()
+                        self.client.ping()
+                        logger.info("Docker service initialized successfully with default connection")
+                    except Exception as e1:
+                        logger.warning(f"Default Docker connection failed: {e1}")
+                        try:
+                            socket_path = docker_host.replace('unix://', '')
+                            self.client = docker.DockerClient(base_url=f'unix://{socket_path}')
+                            self.client.ping()
+                            logger.info("Docker service initialized successfully with explicit socket path")
+                        except Exception as e2:
+                            logger.error(f"Explicit socket connection also failed: {e2}")
+                            self.client = None
+                            logger.warning("Docker client disabled - running in mock mode")
+                else:
+                    self.client = docker.DockerClient(base_url=docker_host)
+                    self.client.ping()
+                    logger.info("Docker service initialized successfully with TCP connection")
+
+            except Exception as e:
+                logger.error(f"Failed to initialize Docker service: {e}")
+                self.client = None
+                logger.warning("Docker client disabled - running in mock mode")
         
         # Container name mapping - maps service names to Docker container names
         self.container_mapping = {
@@ -188,7 +198,7 @@ class DockerService:
                 logger.warning(f"Container {container_name} may not have started properly")
                 return False, f"Container {container_name} failed to start properly"
                 
-        except docker.errors.NotFound:
+        except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
@@ -234,7 +244,7 @@ class DockerService:
                 logger.warning(f"Container {container_name} may not have stopped properly")
                 return False, f"Container {container_name} failed to stop properly"
                 
-        except docker.errors.NotFound:
+        except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
@@ -277,7 +287,7 @@ class DockerService:
                 logger.warning(f"Container {container_name} may not have restarted properly")
                 return False, f"Container {container_name} failed to restart properly"
                 
-        except docker.errors.NotFound:
+        except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
@@ -312,7 +322,7 @@ class DockerService:
             
             return logs
             
-        except docker.errors.NotFound:
+        except DockerNotFoundError:
             return f"Container not found for service: {service_name}"
         except Exception as e:
             logger.error(f"Error getting logs for {service_name}: {e}")

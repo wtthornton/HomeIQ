@@ -245,6 +245,19 @@ class Settings(BaseSettings):
     ]
     """Services that require explicit user confirmation before deployment"""
 
+    # Experimental Orchestration Flags
+    enable_langchain_prompt_builder: bool = False
+    """Use LangChain-based prompt templating for Ask AI (prototype)."""
+
+    enable_langchain_pattern_chain: bool = False
+    """Run selected pattern detectors through LangChain sequential chain (prototype)."""
+
+    enable_pdl_workflows: bool = False
+    """Execute nightly batch and synergy guardrails through PDL interpreter."""
+
+    enable_self_improvement_pilot: bool = False
+    """Enable weekly self-improvement summary using LangChain templating."""
+
     class Config:
         env_file = "infrastructure/env.ai-automation"
         case_sensitive = False

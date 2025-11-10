@@ -327,6 +327,12 @@ class EventsEndpoints:
     
     async def _get_event_by_id(self, event_id: str) -> Optional[EventData]:
         """Get a specific event by ID"""
+        # First, attempt to fetch the event directly from InfluxDB for rich details
+        event = await self._get_event_from_influxdb(event_id)
+        if event:
+            return event
+        
+        # Fallback: query downstream services (legacy compatibility)
         for service_name, service_url in self.service_urls.items():
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
@@ -344,6 +350,169 @@ class EventsEndpoints:
                 logger.warning(f"Failed to get event {event_id} from {service_name}: {e}")
         
         return None
+
+    async def _get_event_from_influxdb(self, event_id: str) -> Optional[EventData]:
+        """
+        Retrieve a single event from InfluxDB with full detail payload.
+        
+        Strategy:
+            - If the identifier is a context_id (default HA pattern), query by context_id
+            - If the identifier is the synthetic `event_<timestamp>_<entity>` format,
+              parse the timestamp/entity and query within a narrow time range
+        """
+        try:
+            from influxdb_client import InfluxDBClient
+        except ImportError:
+            logger.warning("InfluxDB client unavailable; cannot fetch event detail")
+            return None
+        
+        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+        influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+        influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
+        
+        context_id = None
+        entity_id = None
+        timestamp_window = None
+        
+        if event_id.startswith("event_"):
+            # Synthetic identifier -> parse timestamp and entity_id
+            try:
+                _, ts_part, entity_part = event_id.split("_", 2)
+                event_ts = datetime.fromtimestamp(float(ts_part), tz=timezone.utc)
+                timestamp_window = (
+                    event_ts - timedelta(seconds=5),
+                    event_ts + timedelta(seconds=5)
+                )
+                entity_id = entity_part.replace("_", ".")
+            except Exception as parse_err:
+                logger.debug(f"Failed to parse synthetic event id {event_id}: {parse_err}")
+        else:
+            context_id = event_id
+        
+        client = None
+        try:
+            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+            query_api = client.query_api()
+            
+            if context_id:
+                # Query based on context_id
+                query = f'''
+from(bucket: "{influxdb_bucket}")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
+  |> filter(fn: (r) => r["_field"] == "context_id")
+  |> filter(fn: (r) => r["_value"] == "{context_id}")
+  |> limit(n: 1)
+'''
+                context_result = query_api.query(query)
+                
+                event_time = None
+                event_entity = None
+                
+                for table in context_result:
+                    for record in table.records:
+                        event_time = record.get_time()
+                        event_entity = record.values.get("entity_id")
+                
+                if event_time:
+                    timestamp_window = (
+                        event_time - timedelta(seconds=5),
+                        event_time + timedelta(seconds=5)
+                    )
+                    entity_id = event_entity
+            
+            if not timestamp_window:
+                logger.debug(f"Unable to determine timestamp range for event {event_id}")
+                return None
+            
+            start_iso = self._format_flux_time(timestamp_window[0])
+            stop_iso = self._format_flux_time(timestamp_window[1])
+            
+            filter_entity_clause = ""
+            if entity_id:
+                filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id}")\n'
+            
+            detail_query = f'''
+from(bucket: "{influxdb_bucket}")
+  |> range(start: time(v: "{start_iso}"), stop: time(v: "{stop_iso}"))
+  |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
+{filter_entity_clause}  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: 1)
+'''
+            logger.debug(f"Executing event detail query:\n{detail_query}")
+            detail_result = query_api.query(detail_query)
+            
+            for table in detail_result:
+                for record in table.records:
+                    event_payload = self._build_event_from_record(record, event_id)
+                    if event_payload:
+                        return event_payload
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching event {event_id} from InfluxDB: {e}", exc_info=True)
+            return None
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+    def _build_event_from_record(self, record, fallback_id: str) -> Optional[EventData]:
+        """Build EventData object from a pivoted Flux record."""
+        try:
+            values = record.values
+            timestamp = record.get_time()
+            entity_id = values.get("entity_id", "unknown")
+            event_type = values.get("event_type", "unknown")
+            context_id = values.get("context_id") or fallback_id
+            
+            def _parse_state(state_value: Optional[str]) -> Optional[Dict[str, Any]]:
+                if state_value is None:
+                    return None
+                if isinstance(state_value, dict):
+                    return state_value
+                # Try JSON parsing first
+                if isinstance(state_value, str):
+                    try:
+                        return json.loads(state_value)
+                    except json.JSONDecodeError:
+                        # Best-effort fallback: wrap raw string
+                        return {"raw": state_value}
+                return {"value": state_value}
+            
+            def _parse_attributes(attr_value: Optional[str]) -> Dict[str, Any]:
+                if attr_value is None:
+                    return {}
+                if isinstance(attr_value, dict):
+                    return attr_value
+                if isinstance(attr_value, str):
+                    try:
+                        return json.loads(attr_value)
+                    except json.JSONDecodeError:
+                        return {"raw": attr_value}
+                return {}
+            
+            event = EventData(
+                id=context_id,
+                timestamp=timestamp,
+                entity_id=entity_id,
+                event_type=event_type,
+                old_state=_parse_state(values.get("old_state")),
+                new_state=_parse_state(values.get("state")),
+                attributes=_parse_attributes(values.get("attributes")),
+                tags={
+                    "domain": values.get("domain") or "unknown",
+                    "device_class": values.get("device_class") or "unknown",
+                    "service": "home-assistant"
+                }
+            )
+            return event
+        except Exception as e:
+            logger.error(f"Failed to build EventData from record: {e}", exc_info=True)
+            return None
     
     async def _search_events(self, search: EventSearch) -> List[EventData]:
         """Search events with text query"""
