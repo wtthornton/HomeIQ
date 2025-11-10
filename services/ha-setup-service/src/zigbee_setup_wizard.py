@@ -111,7 +111,7 @@ class Zigbee2MQTTSetupWizard:
     """
     
     def __init__(self):
-        self.ha_url = settings.ha_url
+        self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.integration_checker = IntegrationHealthChecker()
         self.active_wizards: Dict[str, Dict] = {}
@@ -402,7 +402,7 @@ class Zigbee2MQTTSetupWizard:
                 "permit_join": False,
                 "mqtt": {
                     "base_topic": "zigbee2mqtt",
-                    "server": f"mqtt://{settings.ha_url.replace('http://', '').replace('https://', '')}"
+                    "server": f"mqtt://{settings.ha_url.rstrip('/').replace('http://', '').replace('https://', '')}"
                 },
                 "serial": {
                     "port": "/dev/ttyUSB0"  # Default coordinator port

@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { EnvironmentHealthCard } from '../EnvironmentHealthCard';
+import { MqttConfigForm } from '../setup/MqttConfigForm';
 
 export const SetupTab: React.FC = () => {
   return (
@@ -22,6 +23,8 @@ export const SetupTab: React.FC = () => {
 
       {/* Environment Health Card */}
       <EnvironmentHealthCard />
+
+      <MqttConfigForm />
 
       {/* Additional Information */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">

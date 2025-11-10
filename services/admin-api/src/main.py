@@ -35,6 +35,7 @@ from .docker_endpoints import DockerEndpoints
 # WebSocket endpoints removed - using HTTP polling only
 from shared.endpoints import create_integration_router
 from .config_manager import config_manager
+from .mqtt_config_endpoints import router as mqtt_config_router
 from .devices_endpoints import router as devices_router
 from .metrics_endpoints import create_metrics_router
 from .alert_endpoints import create_alert_router
@@ -306,6 +307,14 @@ class AdminAPIService:
             self.config_endpoints.router,
             prefix="/api/v1",
             tags=["Configuration"],
+            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+        )
+
+        # MQTT/Zigbee configuration endpoints
+        self.app.include_router(
+            mqtt_config_router,
+            prefix="/api/v1",
+            tags=["Integrations"],
             dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
         )
         

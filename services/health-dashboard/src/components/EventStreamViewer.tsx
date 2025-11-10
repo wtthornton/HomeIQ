@@ -17,8 +17,13 @@ interface Event {
   type: string;
   severity: 'info' | 'warning' | 'error' | 'debug';
   message: string;
-  details?: any;
 }
+
+type DetailStatus =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'loaded'; data: any }
+  | { status: 'error'; error: string };
 
 interface EventStreamViewerProps {
   darkMode: boolean;
@@ -44,8 +49,7 @@ const mapApiEvent = (apiEvent: any): Event => {
     service: 'home-assistant',
     type: eventType,
     severity: inferSeverity(eventType),
-    message: `${entityId}: ${eventType}`,
-    details: apiEvent
+    message: `${entityId}: ${eventType}`
   };
 };
 
@@ -61,6 +65,7 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+  const [detailState, setDetailState] = useState<Record<string, DetailStatus>>({});
   
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +137,41 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
   const clearEvents = useCallback(() => {
     setEvents([]);
     setError(null);
+    setDetailState({});
+    setExpandedEvent(null);
+  }, []);
+
+  const ensureEventDetails = useCallback(async (eventId: string) => {
+    let shouldFetch = false;
+    setDetailState(prev => {
+      const current = prev[eventId];
+      if (current && (current.status === 'loading' || current.status === 'loaded')) {
+        return prev;
+      }
+      shouldFetch = true;
+      return {
+        ...prev,
+        [eventId]: { status: 'loading' }
+      };
+    });
+
+    if (!shouldFetch) {
+      return;
+    }
+
+    try {
+      const detail = await dataApi.getEventById(eventId);
+      setDetailState(prev => ({
+        ...prev,
+        [eventId]: { status: 'loaded', data: detail }
+      }));
+    } catch (err: any) {
+      const message = err?.message || 'Failed to load event details';
+      setDetailState(prev => ({
+        ...prev,
+        [eventId]: { status: 'error', error: message }
+      }));
+    }
   }, []);
 
   // Filter events
@@ -163,8 +203,28 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
 
   // Copy event to clipboard
   const copyToClipboard = useCallback((event: Event) => {
-    navigator.clipboard.writeText(JSON.stringify(event, null, 2));
-  }, []);
+    const detail = detailState[event.id];
+    const payload = detail && detail.status === 'loaded' ? detail.data : event;
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+  }, [detailState]);
+
+  const handleToggleDetails = useCallback((eventId: string) => {
+    setExpandedEvent(prev => {
+      const next = prev === eventId ? null : eventId;
+      if (next === eventId) {
+        void ensureEventDetails(eventId);
+      }
+      return next;
+    });
+  }, [ensureEventDetails]);
+
+  const handleRetry = useCallback((eventId: string) => {
+    setDetailState(prev => ({
+      ...prev,
+      [eventId]: { status: 'idle' }
+    }));
+    void ensureEventDetails(eventId);
+  }, [ensureEventDetails]);
 
   return (
     <div className="space-y-4">
@@ -331,7 +391,7 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
                   
                   <div className="flex gap-1 flex-shrink-0">
                     <button
-                      onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                      onClick={() => handleToggleDetails(event.id)}
                       className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       title="Toggle details"
                     >
@@ -352,7 +412,35 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
                   <div className={`mt-3 p-3 rounded text-xs font-mono overflow-x-auto ${
                     darkMode ? 'bg-gray-900 text-gray-300' : 'bg-gray-100 text-gray-700'
                   }`}>
-                    <pre>{JSON.stringify(event.details || event, null, 2)}</pre>
+                    {(() => {
+                      const detail = detailState[event.id];
+                      if (!detail || detail.status === 'idle' || detail.status === 'loading') {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="animate-spin">⏳</span>
+                            <span>Loading event details…</span>
+                          </div>
+                        );
+                      }
+                      if (detail.status === 'error') {
+                        return (
+                          <div className="space-y-2">
+                            <div className="text-red-400">
+                              Failed to load details: {detail.error}
+                            </div>
+                            <button
+                              onClick={() => handleRetry(event.id)}
+                              className="btn-secondary text-xs"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <pre>{JSON.stringify(detail.data, null, 2)}</pre>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

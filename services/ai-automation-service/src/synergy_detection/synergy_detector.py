@@ -11,7 +11,10 @@ import logging
 import uuid
 from typing import List, Dict, Optional, Set
 from datetime import datetime, timezone
+from pathlib import Path
 import asyncio
+
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +226,30 @@ class DeviceSynergyDetector:
             
             logger.info(f"📊 Loaded {len(devices)} devices, {len(entities)} entities")
             
+            if getattr(settings, "enable_pdl_workflows", False):
+                try:
+                    from ..pdl.runtime import PDLInterpreter, PDLExecutionError
+
+                    script_path = Path(__file__).resolve().parent.parent / "pdl" / "scripts" / "synergy_guardrails.yaml"
+                    interpreter = PDLInterpreter.from_file(script_path, logger)
+                    await interpreter.run(
+                        {
+                            "requested_depth": 4,  # Current detector supports up to 4-device chains
+                            "max_supported_depth": 4,
+                            "candidate_device_count": len(devices),
+                            "max_device_capacity": 150,  # Single-home practical ceiling
+                        }
+                    )
+                except PDLExecutionError as pdl_exc:
+                    logger.error("❌ Synergy guardrail violation: %s", pdl_exc)
+                    return []
+                except Exception as pdl_exc:  # pragma: no cover - defensive logging
+                    logger.warning(
+                        "⚠️ Failed to execute synergy guardrail PDL script (%s). Continuing with standard workflow.",
+                        pdl_exc,
+                        exc_info=True,
+                    )
+
             # Step 2: Detect device pairs by area
             logger.info("   → Step 2: Finding device pairs...")
             device_pairs = self._find_device_pairs_by_area(devices, entities)

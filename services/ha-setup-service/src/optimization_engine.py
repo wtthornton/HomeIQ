@@ -58,7 +58,7 @@ class PerformanceAnalysisEngine:
     """
     
     def __init__(self):
-        self.ha_url = settings.ha_url
+        self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
     
     async def analyze_performance(self) -> Dict:

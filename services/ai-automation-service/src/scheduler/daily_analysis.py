@@ -9,8 +9,9 @@ Story AI2.5: Unified Daily Batch Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 import asyncio
 
 # Epic AI-1 imports (Pattern Detection)
@@ -150,6 +151,28 @@ class DailyAnalysisScheduler:
             logger.info("=" * 80)
             logger.info(f"Timestamp: {start_time.isoformat()}")
             
+            if getattr(settings, "enable_pdl_workflows", False):
+                try:
+                    from ..pdl.runtime import PDLInterpreter, PDLExecutionError
+
+                    script_path = Path(__file__).resolve().parent.parent / "pdl" / "scripts" / "nightly_batch.yaml"
+                    interpreter = PDLInterpreter.from_file(script_path, logger)
+                    await interpreter.run(
+                        {
+                            "mqtt_connected": bool(self.mqtt_client and getattr(self.mqtt_client, "is_connected", False)),
+                            "incremental_enabled": self.enable_incremental,
+                        }
+                    )
+                except PDLExecutionError as pdl_exc:
+                    logger.error("❌ PDL nightly batch guardrail violation: %s", pdl_exc)
+                    return
+                except Exception as pdl_exc:  # pragma: no cover - defensive logging
+                    logger.warning(
+                        "⚠️ Failed to execute nightly batch PDL script (%s). Continuing with standard workflow.",
+                        pdl_exc,
+                        exc_info=True,
+                    )
+
             # ================================================================
             # Phase 1: Device Capability Update (NEW - Epic AI-2)
             # ================================================================
@@ -245,22 +268,6 @@ class DailyAnalysisScheduler:
                 domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
                 domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
             )
-            
-            # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
-                logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
-                tod_patterns = tod_detector.incremental_update(events_df, self._last_pattern_update_time)
-            else:
-                # Full analysis
-                tod_patterns = tod_detector.detect_patterns(events_df)
-            
-            all_patterns.extend(tod_patterns)
-            logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns (daily aggregates stored)")
-            
-            # Update last pattern update time after first detector
-            self._last_pattern_update_time = datetime.now(timezone.utc)
-            
-            # Co-occurrence patterns (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running co-occurrence detector (incremental)...")
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
@@ -270,19 +277,63 @@ class DailyAnalysisScheduler:
                 domain_support_overrides=dict(settings.co_occurrence_support_overrides),
                 domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
             )
-            # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
-                logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
-                co_patterns = co_detector.incremental_update(events_df, self._last_pattern_update_time)
-            else:
-                # Full analysis
-                if len(events_df) > 10000:
-                    co_patterns = co_detector.detect_patterns_optimized(events_df)
+
+            tod_patterns = []
+            co_patterns = []
+            chain_used = False
+
+            if getattr(settings, "enable_langchain_pattern_chain", False):
+                try:
+                    from ..langchain_integration.pattern_chain import build_pattern_detection_chain
+
+                    chain_inputs = {
+                        "events_df": events_df,
+                        "last_update": self._last_pattern_update_time,
+                        "incremental": self.enable_incremental,
+                        "current_run_time": datetime.now(timezone.utc),
+                    }
+                    pattern_chain = build_pattern_detection_chain(
+                        tod_detector=tod_detector,
+                        co_detector=co_detector,
+                    )
+                    chain_result = await pattern_chain.ainvoke(chain_inputs)
+                    tod_patterns = chain_result.get("time_of_day_patterns", [])
+                    co_patterns = chain_result.get("co_occurrence_patterns", [])
+                    self._last_pattern_update_time = chain_result.get("last_update", datetime.now(timezone.utc))
+                    chain_used = True
+                    logger.info("🧱 LangChain pattern chain executed for time-of-day and co-occurrence detectors.")
+                except Exception as chain_exc:  # pragma: no cover - defensive logging
+                    logger.warning(
+                        "⚠️ LangChain pattern chain failed (%s); reverting to legacy detection.",
+                        chain_exc,
+                        exc_info=True,
+                    )
+
+            if not chain_used:
+                if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
+                    logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                    tod_patterns = tod_detector.incremental_update(events_df, self._last_pattern_update_time)
                 else:
-                    co_patterns = co_detector.detect_patterns(events_df)
-            
+                    tod_patterns = tod_detector.detect_patterns(events_df)
+
+                self._last_pattern_update_time = datetime.now(timezone.utc)
+
+                if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
+                    logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                    co_patterns = co_detector.incremental_update(events_df, self._last_pattern_update_time)
+                else:
+                    if len(events_df) > 10000:
+                        co_patterns = co_detector.detect_patterns_optimized(events_df)
+                    else:
+                        co_patterns = co_detector.detect_patterns(events_df)
+
+                logger.info(f"    ✅ Legacy detectors found {len(tod_patterns)} time-of-day patterns and {len(co_patterns)} co-occurrence patterns")
+
+            all_patterns.extend(tod_patterns)
+            logger.info(f"    ✅ Total time-of-day patterns appended: {len(tod_patterns)}")
+
             all_patterns.extend(co_patterns)
-            logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns (daily aggregates stored)")
+            logger.info(f"    ✅ Total co-occurrence patterns appended: {len(co_patterns)}")
             
             # ML-Enhanced Pattern Detection (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running ML-enhanced pattern detectors (incremental)...")
@@ -1031,6 +1082,8 @@ class DailyAnalysisScheduler:
             job_result['synergy_suggestions'] = len(synergy_suggestions)
             job_result['openai_tokens'] = openai_client.total_tokens_used
             job_result['openai_cost_usd'] = round(openai_cost, 6)
+
+            await self._maybe_run_self_improvement(job_result)
             
             # ================================================================
             # Phase 6: Publish Notification & Results (MQTT)
@@ -1164,4 +1217,30 @@ class DailyAnalysisScheduler:
         """
         logger.info("🔧 Manual analysis run triggered")
         asyncio.create_task(self.run_daily_analysis())
+
+    async def _maybe_run_self_improvement(self, job_result: Dict[str, Any]) -> None:
+        """Run weekly LangChain-backed self-improvement summary."""
+        if not getattr(settings, "enable_self_improvement_pilot", False):
+            return
+
+        run_time = datetime.now(timezone.utc)
+        if run_time.weekday() != 0:
+            logger.debug("Self-improvement pilot runs on Mondays; skipping for %s.", run_time.date())
+            return
+
+        try:
+            from ..langchain_integration.self_improvement import generate_prompt_tuning_report
+
+            report = await generate_prompt_tuning_report(get_db_session)
+            job_result["self_improvement"] = {
+                "generated_at": run_time.isoformat(),
+                "recommendations": report.get("recommendations", []),
+            }
+            logger.info("📈 Self-improvement pilot recommendations:\n%s", report.get("plan_text", ""))
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "⚠️ Self-improvement pilot could not generate recommendations (%s).",
+                exc,
+                exc_info=True,
+            )
 
