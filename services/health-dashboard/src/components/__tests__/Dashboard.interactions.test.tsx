@@ -77,9 +77,10 @@ describe('Dashboard User Interactions', () => {
     // Test navigating to each tab
     const tabs = [
       'Overview',
-      'Custom',
+      'Setup',
       'Services',
       'Dependencies',
+      'Devices',
       'Events',
       'Logs',
       'Sports',
@@ -88,9 +89,9 @@ describe('Dashboard User Interactions', () => {
     for (const tabName of tabs) {
       const tab = screen.getByRole('button', { name: new RegExp(tabName, 'i') });
       await user.click(tab);
-      
-      // Verify tab is active
-      expect(tab).toHaveClass('bg-blue-600');
+
+      // Verify tab is active (has blue background class in light mode)
+      expect(tab).toHaveClass('bg-blue-100');
     }
   });
 });
