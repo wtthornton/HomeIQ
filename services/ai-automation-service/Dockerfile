@@ -44,8 +44,12 @@ RUN python -m spacy download en_core_web_sm || echo "spaCy model download failed
 
 # Pre-populate Hugging Face cache with NER model (dslim/bert-base-NER)
 RUN python - <<'PY' || echo "Transformers NER model download skipped"
+from pathlib import Path
 from transformers import pipeline
-pipeline("ner", model="dslim/bert-base-NER")
+
+cache_dir = Path("/app/models")
+cache_dir.mkdir(parents=True, exist_ok=True)
+pipeline("ner", model="dslim/bert-base-NER", cache_dir=str(cache_dir))
 PY
 
 # Copy Python dependencies from builder
@@ -55,16 +59,17 @@ COPY --from=builder /root/.local /root/.local
 COPY services/ai-automation-service/src/ ./src/
 COPY services/ai-automation-service/alembic/ ./alembic/
 COPY services/ai-automation-service/alembic.ini ./
-COPY services/ai-automation-service/tests/ ./tests/
 
 # Copy shared logging (for imports)
 COPY shared/ ./shared/
 
 # Make sure scripts are in PATH
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/root/.local/bin:$PATH \
+    HF_HOME=/app/models
 
 # Create data and models directories
-RUN mkdir -p /app/data /app/models
+RUN mkdir -p /app/data /app/models \
+ && rm -rf /root/.cache/huggingface
 
 # Pre-download Phase 1 models (optional - can also lazy-load on first use)
 # Uncomment to pre-download during build (increases build time but faster first run)

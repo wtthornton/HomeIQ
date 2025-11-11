@@ -7,6 +7,13 @@
 
 ## 🚀 Top 5 Quick Wins
 
+### Latest Completed Actions (November 2025)
+- ✅ `ner-service` rebuilt with CPU-only multi-stage Dockerfile; image reduced from ~12.6 GB to ~1.6 GB (models cached in `/app/model-cache`).
+- ✅ `ai-automation-service` now stores transformer caches in `/app/models` and prunes Hugging Face caches during build; image holds steady at ~6.1 GB despite bundled models.
+- ✅ `openvino-service` converted to multi-stage build with pip installs in builder layer; final runtime image trimmed while keeping INT8 model support.
+
+Use the sections below to continue iterating on additional services.
+
 ### 1. Add BuildKit Cache Mounts (Immediate ~60% Speed Boost)
 
 ```dockerfile

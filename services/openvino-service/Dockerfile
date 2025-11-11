@@ -2,34 +2,43 @@
 # Phase 1: Containerized AI Models
 # Models: all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small (INT8)
 
-FROM python:3.11-slim
+FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies for OpenVINO
+# Copy requirements first for better caching
+COPY services/openvino-service/requirements.txt .
+
+# Install Python dependencies with CPU-only torch wheels
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir --user -r requirements.txt
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies for OpenVINO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY services/openvino-service/requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /root/.local
 
 # Copy application code
 COPY services/openvino-service/src/ ./src/
 
-# Create models directory
-RUN mkdir -p /app/models
-
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app/src
-ENV MODELS_DIR=/app/models
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONPATH=/app/src \
+    MODELS_DIR=/app/models \
+    HF_HOME=/app/models
+
+# Create models directory and prune pip caches
+RUN mkdir -p /app/models \
+ && rm -rf /root/.cache/pip
 
 # Expose port
 EXPOSE 8019
