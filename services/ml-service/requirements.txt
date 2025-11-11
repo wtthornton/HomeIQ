@@ -10,12 +10,12 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 
 # HTTP Client
-httpx==0.28.1
+httpx==0.27.2
 
 # Machine Learning
 scikit-learn==1.4.2
 pandas==2.2.3
-numpy==2.0.1
+numpy==1.26.4
 
 # Data Processing
 scipy==1.12.0

@@ -12,6 +12,11 @@
 
 This comprehensive optimization plan addresses Docker deployment efficiency, security, and performance for the HA Ingestor platform. Based on analysis of current infrastructure, official Docker documentation, and 2025 best practices, this plan will reduce image sizes by 40-60%, improve build times by 50-70%, enhance security posture, and streamline deployment workflows.
 
+### Progress Log (Nov 2025)
+- ✅ `services/ai-automation-service/Dockerfile` refactored to retain model caches under `/app/models` and prune Hugging Face artifacts after build.
+- ✅ `services/ai-automation-service/docker/ner-service.Dockerfile` converted to CPU-only multi-stage build; image now ~1.6 GB (down from ~12.6 GB).
+- ✅ `services/openvino-service/Dockerfile` upgraded to multi-stage builder pattern with dependency installs isolated in the first stage.
+
 ### Current State Assessment
 
 **Strengths:**

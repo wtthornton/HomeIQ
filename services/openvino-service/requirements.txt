@@ -10,7 +10,7 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 
 # HTTP Client
-httpx==0.28.1
+httpx==0.27.2
 
 # Data Processing
 pandas==2.2.3
@@ -20,7 +20,7 @@ numpy==2.0.1
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers==3.3.2  # Embeddings: all-MiniLM-L6-v2
+sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
 transformers==4.46.1          # HuggingFace models (compatible with sentence-transformers)
 torch==2.3.1+cpu              # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
 sentencepiece                 # Required for T5 tokenizer

@@ -11,7 +11,7 @@ python-multipart==0.0.20
 # HTTP client
 aiohttp==3.9.5
 requests==2.32.3
-httpx==0.28.1
+httpx==0.27.2
 
 # Environment and configuration
 python-dotenv==1.0.1
