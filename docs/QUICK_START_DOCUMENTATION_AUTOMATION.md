@@ -18,8 +18,10 @@
 ### What Gets Updated
 
 - ✅ **CHANGELOG.md** - Automatically adds categorized entries
+- ✅ **README.md** - Updates "Latest Code Review" date and adds to "Recent Updates"
+- ✅ **docs/DOCUMENTATION_INDEX.md** - Updates "Last Updated" date
+- ✅ **CLAUDE.md** - Updates "Last Updated" date
 - ⚠️ **Version files** - Detected but not auto-updated (can be enabled)
-- ℹ️ **Documentation index** - Placeholder for future updates
 
 ## Testing
 

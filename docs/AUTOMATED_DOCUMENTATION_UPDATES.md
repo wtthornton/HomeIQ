@@ -70,6 +70,22 @@ The script automatically:
   - **Security**: Security patches
 - Includes commit hash, author, and date
 
+### README.md
+
+The script automatically updates:
+- **Latest Code Review** date - Updated to current date on each merge
+- **Recent Updates** section - Adds notable features/fixes automatically (only for significant commits)
+
+### docs/DOCUMENTATION_INDEX.md
+
+The script automatically updates:
+- **Last Updated** date - Updated to current date on each merge
+
+### CLAUDE.md
+
+The script automatically updates:
+- **Last Updated** date - Updated to current date on each merge
+
 ### Version Files
 
 Currently, version files are detected but not automatically updated. To enable automatic version bumping:
