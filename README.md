@@ -298,7 +298,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 ### User Guides
 - [Quick Start Guide](docs/QUICK_START.md)
 - [User Manual](docs/USER_MANUAL.md)
-- [API Reference](docs/api/api_reference.md)
+- [API Reference](docs/api/API_REFERENCE.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING_GUIDE.md)
 - [Soft Prompt Training Guide](docs/current/operations/soft-prompt-training.md)
 
@@ -410,7 +410,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Code Quality
 
-- Follow [code quality standards](docs/CODE_QUALITY.md)
+- Follow [code quality standards](docs/CODE_QUALITY.md) ([coding standards](docs/architecture/coding-standards.md))
 - Write tests for new features
 - Update documentation
 - Run linters before committing
@@ -476,10 +476,10 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: support@homeiq.example.com
 - 🐛 Issues: [GitHub Issues](https://github.com/wtthornton/HomeIQ/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/wtthornton/HomeIQ/discussions)
 - 📚 Wiki: [Project Wiki](https://github.com/wtthornton/HomeIQ/wiki)
+- 📖 Documentation: [Full Documentation](docs/)
 
 ---
 
