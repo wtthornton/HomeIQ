@@ -210,11 +210,11 @@ docker-compose ps
 **Total: 25/25 stories completed (100%)**
 
 ### **🧪 Test Coverage**
-- **Overall Test Coverage**: 95%+
-- **Unit Tests**: 600+ tests across all services
-- **Integration Tests**: Complete end-to-end coverage
-- **E2E Tests**: Playwright testing implemented
-- **Performance Tests**: Load and stress testing
+- **Status**: Test infrastructure being rebuilt (November 2025)
+- **Legacy Tests**: Removed to accommodate LangChain/PDL refactor
+- **Current Testing**: Manual validation via Health Dashboard (http://localhost:3000) and AI Automation UI (http://localhost:3001)
+- **Roadmap**: New focused smoke/regression harness under development
+- **See**: [Testing section in main README](../README.md#how-to-test) for current approach
 
 ## 📚 **Documentation**
 
