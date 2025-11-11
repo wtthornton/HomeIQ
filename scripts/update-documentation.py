@@ -4,9 +4,11 @@ Automated Documentation Update Script
 
 This script updates documentation files when code is merged to master.
 It handles:
-- CHANGELOG.md updates
-- Version number updates (if needed)
-- Documentation index updates
+- CHANGELOG.md updates (categorized commit entries)
+- README.md updates (latest code review date, recent updates section)
+- docs/DOCUMENTATION_INDEX.md updates (last updated date)
+- CLAUDE.md updates (last updated date)
+- Version number updates (if configured)
 - Other documentation maintenance tasks
 
 Usage:
@@ -199,15 +201,111 @@ class DocumentationUpdater:
         return changed
     
     def update_documentation_index(self) -> bool:
-        """Update documentation index if it exists."""
+        """Update documentation index last updated date."""
         index_path = self.repo_path / "docs" / "DOCUMENTATION_INDEX.md"
         
         if not index_path.exists():
             return False
         
-        # For now, just touch the file to update timestamp
-        # Full index regeneration could be added here
-        print(f"ℹ️  Documentation index exists at {index_path}")
+        content = index_path.read_text()
+        today = datetime.now().strftime("%B %d, %Y")
+        
+        # Update "Last Updated" date
+        # Pattern: **Last Updated:** October 24, 2025
+        pattern = r'\*\*Last Updated:\*\*\s*[^\n]+'
+        replacement = f"**Last Updated:** {today}"
+        
+        if re.search(pattern, content):
+            content = re.sub(pattern, replacement, content)
+            index_path.write_text(content)
+            self.changes_made = True
+            print(f"✅ Updated docs/DOCUMENTATION_INDEX.md last updated date")
+            return True
+        
+        return False
+    
+    def update_readme(self, commits: List[git.Commit]) -> bool:
+        """Update README.md with latest code review date and recent updates."""
+        readme_path = self.repo_path / "README.md"
+        
+        if not readme_path.exists():
+            return False
+        
+        content = readme_path.read_text()
+        today = datetime.now().strftime("%B %d, %Y")
+        changed = False
+        
+        # Update "Latest Code Review" date
+        # Pattern: **Latest Code Review:** November 4, 2025
+        pattern = r'\*\*Latest Code Review:\*\*\s*[^\n]+'
+        replacement = f"**Latest Code Review:** {today}"
+        
+        if re.search(pattern, content):
+            content = re.sub(pattern, replacement, content)
+            changed = True
+            print(f"✅ Updated README.md latest code review date")
+        
+        # Optionally add to "Recent Updates" section if there are significant changes
+        # This is conservative - only add if there are notable features/fixes
+        recent_updates_pattern = r'(### Recent Updates\n)'
+        if re.search(recent_updates_pattern, content) and commits:
+            # Check if we have notable commits (features or fixes)
+            notable_commits = [
+                c for c in commits 
+                if any(re.match(pattern, c.message.strip().split('\n')[0].lower()) 
+                      for patterns in [
+                          [r"^feat", r"^add", r"^implement"],
+                          [r"^fix", r"^bug"]
+                      ] for pattern in patterns)
+            ]
+            
+            if notable_commits and len(notable_commits) > 0:
+                # Get the most significant commit
+                top_commit = notable_commits[0]
+                clean_message = re.sub(
+                    r'^(feat|fix|chore|docs|style|refactor|test|perf|ci|build|revert):\s*', 
+                    '', top_commit.message.strip().split('\n')[0], 
+                    flags=re.IGNORECASE
+                )
+                
+                # Add bullet point to Recent Updates
+                new_update = f"- **{clean_message}** ({today})\n"
+                content = re.sub(
+                    recent_updates_pattern,
+                    r'\1' + new_update,
+                    content
+                )
+                changed = True
+                print(f"✅ Added recent update to README.md")
+        
+        if changed:
+            readme_path.write_text(content)
+            self.changes_made = True
+        
+        return changed
+    
+    def update_claude_md(self) -> bool:
+        """Update CLAUDE.md last updated date."""
+        claude_path = self.repo_path / "CLAUDE.md"
+        
+        if not claude_path.exists():
+            return False
+        
+        content = claude_path.read_text()
+        today = datetime.now().strftime("%B %d, %Y")
+        
+        # Update "Last Updated" date
+        # Pattern: **Last Updated:** October 24, 2025
+        pattern = r'\*\*Last Updated:\*\*\s*[^\n]+'
+        replacement = f"**Last Updated:** {today}"
+        
+        if re.search(pattern, content):
+            content = re.sub(pattern, replacement, content)
+            claude_path.write_text(content)
+            self.changes_made = True
+            print(f"✅ Updated CLAUDE.md last updated date")
+            return True
+        
         return False
     
     def run(self, commit_range: str, merged_branch: Optional[str] = None, 
@@ -241,11 +339,17 @@ class DocumentationUpdater:
         # Update changelog
         self.update_changelog(categories, merged_branch)
         
-        # Update version (if needed)
-        self.update_version_if_needed()
+        # Update README.md (latest code review date, recent updates)
+        self.update_readme(commits)
         
         # Update documentation index
         self.update_documentation_index()
+        
+        # Update CLAUDE.md
+        self.update_claude_md()
+        
+        # Update version (if needed)
+        self.update_version_if_needed()
         
         if self.changes_made:
             print("\n✅ Documentation update complete!")
