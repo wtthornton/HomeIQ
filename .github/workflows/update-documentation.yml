@@ -1,0 +1,121 @@
+name: Update Documentation on Merge to Master
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    
+    # Run on push to master/main (will check for merge commits in the script)
+    # Skip if this is a documentation-only commit to avoid loops
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+    
+    permissions:
+      contents: write  # Required to commit changes
+      pull-requests: read  # Required to read PR information
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch full history for changelog generation
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install gitpython pyyaml
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Extract merge information
+        id: merge-info
+        run: |
+          # Extract merged branch name from commit message (handles various merge formats)
+          MERGE_COMMIT_MSG="${{ github.event.head_commit.message }}"
+          
+          # Try to extract branch name from different merge commit formats
+          # Format 1: "Merge pull request #123 from owner/branch-name"
+          # Format 2: "Merge branch 'branch-name' into master"
+          # Format 3: Squash merge (no merge commit, use PR title)
+          MERGED_BRANCH=$(echo "$MERGE_COMMIT_MSG" | grep -oP 'Merge pull request #\d+ from [^/]+/\K[^\s]+' || \
+                         echo "$MERGE_COMMIT_MSG" | grep -oP "Merge branch '[^']+' into" | sed "s/Merge branch '\([^']*\)' into.*/\1/" || \
+                         echo "")
+          
+          # Get commit range (last tag to HEAD, or last 50 commits)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            # Use last 50 commits if no tag exists
+            COMMIT_RANGE="HEAD~50..HEAD"
+          else
+            # Use commits since last tag
+            COMMIT_RANGE="$LAST_TAG..HEAD"
+          fi
+          
+          echo "merged_branch=$MERGED_BRANCH" >> $GITHUB_OUTPUT
+          echo "commit_range=$COMMIT_RANGE" >> $GITHUB_OUTPUT
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          
+          echo "📋 Merge Information:"
+          echo "   Branch: $MERGED_BRANCH"
+          echo "   Commit Range: $COMMIT_RANGE"
+          echo "   Last Tag: $LAST_TAG"
+      
+      - name: Update documentation
+        run: |
+          python scripts/update-documentation.py \
+            --commit-range "${{ steps.merge-info.outputs.commit_range }}" \
+            --merged-branch "${{ steps.merge-info.outputs.merged_branch }}" \
+            --last-tag "${{ steps.merge-info.outputs.last_tag }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ github.sha }}"
+      
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet HEAD; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No documentation changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Documentation changes detected"
+            git diff --stat
+          fi
+      
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git add -A
+          git commit -m "docs: Auto-update documentation after merge to master [skip ci]"
+          git push origin master || git push origin main
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Documentation Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-changes.outputs.changed }}" == "true" ]; then
+            echo "✅ Documentation updated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Files Changed:" >> $GITHUB_STEP_SUMMARY
+            git diff --name-only HEAD~1 HEAD | grep -E '\.(md|yml|yaml|json)$' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY || echo "- No markdown/YAML files changed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No documentation updates needed" >> $GITHUB_STEP_SUMMARY
+          fi
