@@ -13,6 +13,7 @@ import yaml
 import json
 
 from .clients.data_api_client import DataAPIClient
+from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .llm.openai_client import OpenAIClient
 from .safety_validator import SafetyValidator, SafetyResult
 
@@ -56,19 +57,22 @@ class NLAutomationGenerator:
         self,
         data_api_client: DataAPIClient,
         openai_client: OpenAIClient,
-        safety_validator: SafetyValidator
+        safety_validator: SafetyValidator,
+        device_intelligence_client: Optional[DeviceIntelligenceClient] = None
     ):
         """
         Initialize NL automation generator.
-        
+
         Args:
             data_api_client: Client for fetching device/entity data
             openai_client: Client for OpenAI API calls
             safety_validator: Safety validation engine
+            device_intelligence_client: Optional client for device intelligence (Team Tracker, etc.)
         """
         self.data_api_client = data_api_client
         self.openai_client = openai_client
         self.safety_validator = safety_validator
+        self.device_intelligence_client = device_intelligence_client or DeviceIntelligenceClient()
     
     async def generate(
         self,
@@ -156,40 +160,51 @@ class NLAutomationGenerator:
         """
         try:
             logger.debug("Fetching device context from data-api")
-            
+
             # Fetch devices and entities
             devices = await self.data_api_client.fetch_devices(limit=100)
             entities = await self.data_api_client.fetch_entities(limit=200)
-            
+
             # Organize entities by domain for easier reference
             entities_by_domain = {}
-            
+
             if not entities.empty:
                 for _, entity in entities.iterrows():
                     entity_id = entity.get('entity_id', '')
                     if not entity_id:
                         continue
-                    
+
                     domain = entity_id.split('.')[0]
                     if domain not in entities_by_domain:
                         entities_by_domain[domain] = []
-                    
+
                     entities_by_domain[domain].append({
                         'entity_id': entity_id,
                         'friendly_name': entity.get('friendly_name', entity_id),
                         'area': entity.get('area_id', 'unknown')
                     })
-            
-            logger.info(f"Built context with {len(devices)} devices, {len(entities)} entities")
-            
+
+            # Fetch Team Tracker teams if available
+            team_tracker_teams = []
+            try:
+                teams = await self.device_intelligence_client.get_team_tracker_teams(active_only=True)
+                if teams:
+                    logger.info(f"Found {len(teams)} active Team Tracker teams")
+                    team_tracker_teams = teams
+            except Exception as e:
+                logger.debug(f"Team Tracker not available: {e}")
+
+            logger.info(f"Built context with {len(devices)} devices, {len(entities)} entities, {len(team_tracker_teams)} teams")
+
             return {
                 'devices': devices.to_dict('records') if not devices.empty else [],
                 'entities_by_domain': entities_by_domain,
-                'domains': list(entities_by_domain.keys())
+                'domains': list(entities_by_domain.keys()),
+                'team_tracker_teams': team_tracker_teams
             }
         except Exception as e:
             logger.error(f"Failed to fetch automation context: {e}")
-            return {'devices': [], 'entities_by_domain': {}, 'domains': []}
+            return {'devices': [], 'entities_by_domain': {}, 'domains': [], 'team_tracker_teams': []}
     
     def _build_prompt(
         self,
@@ -232,6 +247,31 @@ class NLAutomationGenerator:
 - Numeric State: `trigger: numeric_state` with `entity_id`, `above`/`below`
 - Sun: `trigger: sun` with `event: sunset` or `sunrise`, optional `offset`
 - Template: `trigger: template` with `value_template` (advanced)
+
+**Team Tracker Integration (Sports Team Sensors):**
+If Team Tracker teams are available (see Available Devices above), you can create automations based on sports events:
+- Entity platform: `sensor.teamtracker_*` (e.g., `sensor.team_tracker_cowboys`, `sensor.team_tracker_saints`)
+- States: `PRE` (pre-game), `IN` (in-progress), `POST` (post-game), `BYE` (bye week), `NOT_FOUND`
+- Key attributes for triggers and conditions:
+  - `team_score` (integer) - Your team's score
+  - `opponent_score` (integer) - Opponent's score
+  - `team_name` (string) - Team name (e.g., "Cowboys", "Saints")
+  - `opponent_name` (string) - Opponent name
+  - `last_play` (string) - Description of most recent play
+  - `possession` (string) - Which team has the ball
+  - `date` and `kickoff_in` - Game timing
+
+**Team Tracker Trigger Examples:**
+- Game starts: `trigger: state, entity_id: sensor.team_tracker_cowboys, to: "IN"`
+- Team scores (attribute change): `trigger: template, value_template: "{{{{ state_attr('sensor.team_tracker_cowboys', 'team_score') | int > state_attr('sensor.team_tracker_cowboys', 'team_score') | int }}}}"` (Note: Use numeric_state for simpler score triggers)
+- Game ends: `trigger: state, entity_id: sensor.team_tracker_cowboys, from: "IN", to: "POST"`
+- Score change during game: Monitor attribute changes with template triggers
+
+**Team Tracker Action Examples:**
+- Flash lights when team scores (use template to check score increased)
+- Send notification with current score using trigger variables
+- Play celebration sounds/music when team wins
+- Change lighting colors to team colors during game
 
 **Common Condition Types:**
 - Time: `condition: time` with `after`, `before`, optional `weekday`
@@ -361,33 +401,47 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
     def _summarize_devices(self, automation_context: Dict) -> str:
         """Create human-readable summary of available devices"""
         summary_lines = []
-        
+
         entities_by_domain = automation_context.get('entities_by_domain', {})
-        
+
         # Priority domains (most commonly used)
         priority_domains = [
             'light', 'switch', 'climate', 'cover', 'lock',
             'binary_sensor', 'sensor', 'fan', 'camera'
         ]
-        
+
         for domain in priority_domains:
             if domain in entities_by_domain:
                 entities = entities_by_domain[domain]
                 count = len(entities)
-                
+
                 # Show first 5 examples
                 examples = [e['friendly_name'] for e in entities[:5]]
-                
+
                 summary_lines.append(
                     f"- {domain.replace('_', ' ').title()}s ({count}): {', '.join(examples)}"
                     + (f", and {count - 5} more" if count > 5 else "")
                 )
-        
+
         # Add other domains
         other_domains = [d for d in entities_by_domain.keys() if d not in priority_domains]
         if other_domains:
             summary_lines.append(f"- Other: {', '.join(other_domains)}")
-        
+
+        # Add Team Tracker teams if available
+        team_tracker_teams = automation_context.get('team_tracker_teams', [])
+        if team_tracker_teams:
+            team_names = [
+                f"{t.get('team_name')} ({t.get('league_id')}) - {t.get('entity_id', 'N/A')}"
+                for t in team_tracker_teams[:5]
+            ]
+            count = len(team_tracker_teams)
+            summary_lines.append(
+                f"\n**Team Tracker Sports Teams ({count}):**\n  " +
+                "\n  ".join(team_names) +
+                (f"\n  and {count - 5} more" if count > 5 else "")
+            )
+
         return "\n".join(summary_lines) if summary_lines else "No devices found (using default HA entities)"
     
     async def _call_openai(self, prompt: str, temperature: float = 0.3) -> str:

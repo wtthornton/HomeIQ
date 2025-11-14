@@ -25,6 +25,7 @@ from .api.predictions_router import router as predictions_router
 from .api.recommendations_router import router as recommendations_router
 from .api.database_management import router as database_management_router
 from .api.hygiene_router import router as hygiene_router
+from .api.team_tracker_router import router as team_tracker_router
 from .core.database import initialize_database
 from .core.predictive_analytics import PredictiveAnalyticsEngine
 
@@ -136,6 +137,7 @@ app.include_router(predictions_router, tags=["Predictions"])
 app.include_router(recommendations_router, tags=["Recommendations"])
 app.include_router(database_management_router, prefix="/api", tags=["Database Management"])
 app.include_router(hygiene_router)
+app.include_router(team_tracker_router, tags=["Team Tracker"])
 
 # Root endpoint
 @app.get("/")
