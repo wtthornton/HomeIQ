@@ -249,6 +249,40 @@ class NLAutomationGenerator:
 - If/Then: `if` with `conditions`, `then`, optional `else`
 - Parallel: `parallel` with list of actions to run simultaneously
 
+**Trigger Variables (Dynamic Data in Actions):**
+Access trigger information in actions using templates:
+- `{{{{ trigger.to_state.state }}}}` - New state value
+- `{{{{ trigger.from_state.state }}}}` - Previous state value
+- `{{{{ trigger.to_state.attributes.friendly_name }}}}` - Device friendly name
+- `{{{{ trigger.to_state.attributes.<attr> }}}}` - Any attribute (temperature, brightness, etc.)
+- `{{{{ trigger.entity_id }}}}` - Entity ID that triggered the automation
+- `{{{{ trigger.platform }}}}` - Trigger type (state, time, numeric_state, etc.)
+
+**Example - Dynamic Notification:**
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door
+    to: "on"
+actions:
+  - action: notify.mobile_app
+    data:
+      message: "{{{{ trigger.to_state.attributes.friendly_name }}}} opened at {{{{ now().strftime('%H:%M') }}}}"
+
+**Error Handling:**
+- `continue_on_error: true` - Continue executing remaining actions even if this action fails
+- Useful for optional actions or when controlling multiple devices
+- Default is false (automation stops on first error)
+
+**Example - Resilient Multi-Device Control:**
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bedroom
+    continue_on_error: true  # Continue even if bedroom light fails
+  - action: light.turn_on
+    target:
+      entity_id: light.hallway
+
 **Output Format (JSON):**
 {{
     "yaml": "id: '1234567890'\\nalias: 'Morning Kitchen Light'\\ndescription: 'Turn on kitchen light at 7 AM'\\nmode: single\\ntriggers:\\n  - trigger: time\\n    at: '07:00:00'\\nconditions: []\\nactions:\\n  - action: light.turn_on\\n    target:\\n      entity_id: light.kitchen\\n    data:\\n      brightness: 255",
@@ -257,6 +291,16 @@ class NLAutomationGenerator:
     "explanation": "Detailed explanation of triggers, conditions, and actions",
     "clarification": null,
     "confidence": 0.95
+}}
+
+**Advanced Example with Trigger Variables:**
+{{
+    "yaml": "id: '2345678901'\\nalias: 'Door Open Notification'\\ndescription: 'Send notification when any door opens'\\nmode: single\\ntriggers:\\n  - trigger: state\\n    entity_id: binary_sensor.front_door\\n    to: 'on'\\nconditions: []\\nactions:\\n  - action: notify.mobile_app\\n    data:\\n      title: 'Door Alert'\\n      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} opened at {{{{ now().strftime(\\\"%H:%M\\\") }}}}'",
+    "title": "Door Open Notification",
+    "description": "Dynamic notification using trigger data",
+    "explanation": "Uses trigger variables to show which door opened and when",
+    "clarification": null,
+    "confidence": 0.90
 }}
 
 **Safety Guidelines:**
