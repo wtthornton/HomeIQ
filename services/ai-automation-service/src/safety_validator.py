@@ -139,8 +139,9 @@ class SafetyValidator:
     def _check_climate_extremes(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 1: No extreme climate changes"""
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -238,11 +239,12 @@ class SafetyValidator:
               new bulk operation patterns.
         """
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
-        
+
         for action in actions:
             service = action.get('service', '')
             data = action.get('data', {}) or action.get('service_data', {})
@@ -284,8 +286,9 @@ class SafetyValidator:
     def _check_security_disable(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 3: Never disable security automations"""
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -376,8 +379,9 @@ class SafetyValidator:
         destructive_services = [
             'turn_off', 'close', 'lock', 'set_hvac_mode', 'disable'
         ]
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -401,8 +405,9 @@ class SafetyValidator:
     def _check_excessive_triggers(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 5: Warn on high-frequency triggers"""
         issues = []
-        
-        triggers = automation.get('trigger', [])
+
+        # Support both modern (triggers) and legacy (trigger) syntax
+        triggers = automation.get('triggers', automation.get('trigger', []))
         if not isinstance(triggers, list):
             triggers = [triggers]
         
@@ -450,8 +455,9 @@ class SafetyValidator:
             'system.reboot',
             'system.shutdown',
         ]
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -480,12 +486,13 @@ class SafetyValidator:
         - Overlapping device control
         """
         issues = []
-        
-        new_triggers = new_automation.get('trigger', [])
+
+        # Support both modern (triggers/actions) and legacy (trigger/action) syntax
+        new_triggers = new_automation.get('triggers', new_automation.get('trigger', []))
         if not isinstance(new_triggers, list):
             new_triggers = [new_triggers]
-        
-        new_actions = new_automation.get('action', [])
+
+        new_actions = new_automation.get('actions', new_automation.get('action', []))
         if not isinstance(new_actions, list):
             new_actions = [new_actions]
         

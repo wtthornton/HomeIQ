@@ -213,7 +213,12 @@ class NLAutomationGenerator:
 "{request.request_text}"
 
 **Instructions:**
-1. Generate a COMPLETE, VALID Home Assistant automation in YAML format
+1. Generate a COMPLETE, VALID Home Assistant automation in YAML format with:
+   - Unique id (use random 10-digit number like '1234567890')
+   - Descriptive alias (quoted string)
+   - Brief description field
+   - mode field (use 'single' unless user wants parallel/queued/restart)
+   - triggers, conditions, actions sections (all plural forms)
 2. Use ONLY devices that exist in the available devices list above
 3. If the request is ambiguous, ask for clarification in the 'clarification' field
 4. Include appropriate triggers, conditions (if needed), and actions
@@ -221,9 +226,32 @@ class NLAutomationGenerator:
 6. Add time constraints or conditions for safety where appropriate
 7. Explain how the automation works in plain language
 
+**Common Trigger Types:**
+- Time: `trigger: time` with `at: "HH:MM:SS"`
+- State: `trigger: state` with `entity_id`, optionally `from`/`to`/`for`
+- Numeric State: `trigger: numeric_state` with `entity_id`, `above`/`below`
+- Sun: `trigger: sun` with `event: sunset` or `sunrise`, optional `offset`
+- Template: `trigger: template` with `value_template` (advanced)
+
+**Common Condition Types:**
+- Time: `condition: time` with `after`, `before`, optional `weekday`
+- State: `condition: state` with `entity_id` and `state`
+- Numeric: `condition: numeric_state` with `entity_id`, `above`/`below`
+- Logical AND: `condition: and` with nested `conditions` list
+- Logical OR: `condition: or` with nested `conditions` list
+- Logical NOT: `condition: not` with nested `conditions`
+- Sun: `condition: sun` with `after`/`before` sunset/sunrise
+
+**Common Action Types:**
+- Service Call: `action: domain.service` with `target` and optional `data`
+- Delay: `delay: {{seconds: 30}}` or `{{minutes: 5}}`
+- Choose (if/then/else): `choose` with `conditions`, `sequence`, optional `default`
+- If/Then: `if` with `conditions`, `then`, optional `else`
+- Parallel: `parallel` with list of actions to run simultaneously
+
 **Output Format (JSON):**
 {{
-    "yaml": "alias: Automation Name\\ntrigger:\\n  - platform: time\\n    at: '07:00:00'\\naction:\\n  - service: light.turn_on\\n    target:\\n      entity_id: light.kitchen",
+    "yaml": "id: '1234567890'\\nalias: 'Morning Kitchen Light'\\ndescription: 'Turn on kitchen light at 7 AM'\\nmode: single\\ntriggers:\\n  - trigger: time\\n    at: '07:00:00'\\nconditions: []\\nactions:\\n  - action: light.turn_on\\n    target:\\n      entity_id: light.kitchen\\n    data:\\n      brightness: 255",
     "title": "Brief title (max 60 chars)",
     "description": "One sentence description of what it does",
     "explanation": "Detailed explanation of triggers, conditions, and actions",
@@ -234,10 +262,18 @@ class NLAutomationGenerator:
 **Safety Guidelines:**
 - NEVER disable security systems, alarms, or locks
 - Avoid extreme climate changes (keep 60-80°F range)
-- Add time or condition constraints for destructive actions (turn_off, close, lock)
+- Add time or condition constraints for destructive actions (turn_off, close, lock):
+  * Time-based: `condition: time, after: "07:00", before: "23:00"`
+  * State-based: `condition: state, entity_id: person.user, state: "home"`
+  * Sun-based: `condition: sun, after: sunset`
 - Use reasonable defaults (brightness: 50%, temperature: 70°F)
 - Avoid "turn off all" unless explicitly requested
-- Add debounce ('for' duration) for frequently-changing sensors
+- Add debounce ('for' duration) for frequently-changing sensors like temperature
+
+**Multi-Step Automation Examples:**
+- Delay between actions: `delay: {{seconds: 30}}`
+- Conditional logic: Use `if` with `conditions`, `then`, `else` for simple cases
+- Complex branching: Use `choose` with multiple condition/sequence pairs
 
 **If the request is unclear or missing information:**
 - Set "clarification" to a question asking for specific details
