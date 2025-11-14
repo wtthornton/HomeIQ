@@ -5,7 +5,52 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-14 (from claude/yaml-creation-review-015hVPWiKoFaPAXfdtQscDBd)
+## [Unreleased] - 2025-11-14 (from claude/testing-mhz5jkapa25i9keu-01W48Xb6oxVckmTSyKR96avh)
+
+### Added
+
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
+- **Add automated documentation updates** (77b7063) - Cursor Agent
+- **integrate langchain pdl and remove legacy tests** (fb25ffe) - wtthornton
+- **Add device hygiene analysis and remediation feature** (7877900) - wtthornton
+- **add ask ai soft prompt training and admin controls** (816b7cf) - wtthornton
+- **unblock-conversational-approvals** (eecd602) - wtthornton
+- **Add conversational clarification system to Ask AI** (e13a2ef) - wtthornton
+- **Add Ask AI enhancements, device entity fixes, and automation improvements - Add Ask AI clarification dialog and prompt filtering - Fix device entities popup and selection issues - Implement automation enhancements (phases 1-3) - Add pattern synergy integration and validation - Update various service endpoints and UI components - Add implementation documentation and analysis reports** (c1c2fd2) - wtthornton
+- **Add expert mode fields to Suggestion model (mode, yaml_edited_at, yaml_edit_count, yaml_generation_method)** (48aa006) - wtthornton
+- **Add Expert Mode for full user control over automation creation** (150ccd2) - Claude
+- **Add auto-draft YAML generation to Suggestion API** (e5dc130) - Claude
+- **Integrate enrichment data (weather, carbon, energy, air quality) into Ask AI** (f9c0250) - Claude
+- **Add device information buttons and improve button sizing across UI** (9ae982a) - wtthornton
+- **Implement Modern & Manly Design System across entire UI** (9426654) - wtthornton
+
+### Changed
+
+- **Update HA deployment to create automations via config API** (95db822) - wtthornton
+- **Update documentation for energy/event synergies and rate limiting** (082a972) - wtthornton
+- **Update AI automation service with patterns, synergies, and trigger device discovery features** (c810f75) - wtthornton
+- **Update AI automation service and add graph database synergy documentation** (86f397f) - wtthornton
+- **Update AI automation system: enhance pattern detection, UI components, and add Admin page** (f581d27) - wtthornton
+- **Update AI automation service: entity validation fixes, approval flow improvements, and documentation** (215da66) - wtthornton
+
+### Fixed
+
+- **restore test infrastructure and fix all unit tests after upgrade** (90d7483) - Claude
+- **Fix HA setup health monitoring error handling** (fa72367) - wtthornton
+- **Fix rate limiting issues and priority score calculation bug** (58fbf27) - wtthornton
+- **Fix debug panel and location-aware entity expansion** (42837c4) - wtthornton
+- **Fix Phase 2 pattern-synergy integration: Add missing database columns and UI support** (456c684) - wtthornton
+- **Fix Dockerfile build issues and add automation enhancements** (844db85) - wtthornton
+- **Fix health endpoint and devices API routing** (2770ea3) - wtthornton
+- **Fix discovery service: database schema and MQTT topic configuration** (54c8f25) - wtthornton
+- **Fix dashboard device count display - resolve nginx DNS caching issue** (657a764) - wtthornton
+- **Fix entity ID validation error on approve - rebuild validated_entities** (15e2fb4) - wtthornton
+- **Initialize validated_entities to prevent NameError in YAML generation** (319f420) - wtthornton
+- **Replace undefined variable in YAML generation prompt with placeholder** (f038928) - wtthornton
+- **Fix nginx DNS caching issue causing 502 errors for devices/entities API** (810fe6a) - wtthornton
+- **Remove hardcoded entity IDs and enforce validated entities only** (dca6f9e) - wtthornton
+
 
 ### Added
 
