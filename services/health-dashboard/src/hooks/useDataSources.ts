@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { DataSourceHealth } from '../types';
+import { DataSourcesHealthMap } from '../types';
 
 export const useDataSources = (refreshInterval: number = 30000) => {
-  const [dataSources, setDataSources] = useState<{
-    weather: DataSourceHealth | null;
-    carbonIntensity: DataSourceHealth | null;
-    electricityPricing: DataSourceHealth | null;
-    airQuality: DataSourceHealth | null;
-    calendar: DataSourceHealth | null;
-    smartMeter: DataSourceHealth | null;
-  } | null>(null);
+  const [dataSources, setDataSources] = useState<DataSourcesHealthMap | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

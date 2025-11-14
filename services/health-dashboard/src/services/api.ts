@@ -1,5 +1,5 @@
-import { HealthStatus, Statistics, DataSourceHealth, DataSourceMetrics } from '../types';
-import { ServiceHealthResponse } from '../types/health';
+import { HealthStatus, Statistics, DataSourceHealth, DataSourceMetrics, DataSourcesHealthMap } from '../types';
+import { ServiceHealthResponse, ServicesHealthResponse } from '../types/health';
 
 export interface HygieneIssue {
   issue_key: string;
@@ -25,6 +25,15 @@ export interface HygieneIssueListResponse {
 }
 
 export type HygieneStatus = 'open' | 'ignored' | 'resolved';
+
+const createEmptyDataSources = (): DataSourcesHealthMap => ({
+  weather: null,
+  carbonIntensity: null,
+  electricityPricing: null,
+  airQuality: null,
+  calendar: null,
+  smartMeter: null,
+});
 
 // Docker management types
 export interface ContainerInfo {
@@ -115,8 +124,8 @@ class AdminApiClient extends BaseApiClient {
     return this.fetchWithErrorHandling<Statistics>(`${this.baseUrl}/api/v1/stats?period=${period}`);
   }
 
-  async getServicesHealth(): Promise<{ [key: string]: any }> {
-    return this.fetchWithErrorHandling<{ [key: string]: any }>(`${this.baseUrl}/api/v1/stats`);
+  async getServicesHealth(): Promise<ServicesHealthResponse> {
+    return this.fetchWithErrorHandling<ServicesHealthResponse>(`${this.baseUrl}/api/v1/health/services`);
   }
 
   // New data source health endpoints
@@ -129,74 +138,53 @@ class AdminApiClient extends BaseApiClient {
     }
   }
 
-  async getAllDataSources(): Promise<{
-    weather: DataSourceHealth | null;
-    carbonIntensity: DataSourceHealth | null;
-    electricityPricing: DataSourceHealth | null;
-    airQuality: DataSourceHealth | null;
-    calendar: DataSourceHealth | null;
-    smartMeter: DataSourceHealth | null;
-  }> {
+  async getAllDataSources(): Promise<DataSourcesHealthMap> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/health/services`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const servicesData = await response.json();
-      
+      const servicesData = await this.getServicesHealth();
+
       // Map backend service names to frontend expected names
-      const serviceMapping = {
+      const serviceMapping: Record<string, keyof DataSourcesHealthMap> = {
         'carbon-intensity-service': 'carbonIntensity',
-        'electricity-pricing-service': 'electricityPricing', 
+        'electricity-pricing-service': 'electricityPricing',
         'air-quality-service': 'airQuality',
         'calendar-service': 'calendar',
         'smart-meter-service': 'smartMeter',
         'weather-api': 'weather'
       };
-      
-      const result = {
-        weather: null,
-        carbonIntensity: null,
-        electricityPricing: null,
-        airQuality: null,
-        calendar: null,
-        smartMeter: null,
-      };
-      
+
+      const result: DataSourcesHealthMap = createEmptyDataSources();
+
       // Map the services data to our expected format
       for (const [backendName, frontendName] of Object.entries(serviceMapping)) {
-        if (servicesData[backendName]) {
-          const serviceData = servicesData[backendName];
-          result[frontendName as keyof typeof result] = {
-            status: serviceData.status === 'healthy' ? 'healthy' : 
-              serviceData.status === 'pass' ? 'healthy' :
-                serviceData.status === 'degraded' ? 'degraded' :
-                  serviceData.status === 'unhealthy' ? 'error' : 'unknown',
-            service: serviceData.name,
-            uptime_seconds: 0, // Not provided by admin-api health check
-            last_successful_fetch: null, // Not provided by admin-api health check
-            total_fetches: 0, // Not provided by admin-api health check
-            failed_fetches: 0, // Not provided by admin-api health check
-            success_rate: 1.0, // Not provided by admin-api health check
-            timestamp: serviceData.last_check,
-            error_message: serviceData.error_message || null
-          };
-        }
+        const serviceData = servicesData[backendName];
+        if (!serviceData) continue;
+
+        const normalizedStatus: DataSourceHealth['status'] =
+          serviceData.status === 'healthy' || serviceData.status === 'pass'
+            ? 'healthy'
+            : serviceData.status === 'degraded'
+              ? 'degraded'
+              : serviceData.status === 'unhealthy' || serviceData.status === 'error'
+                ? 'error'
+                : 'unknown';
+
+        result[frontendName] = {
+          status: normalizedStatus,
+          service: serviceData.name || backendName,
+          uptime_seconds: 0, // Not provided by admin-api health check
+          last_successful_fetch: null, // Not provided by admin-api health check
+          total_fetches: 0, // Not provided by admin-api health check
+          failed_fetches: 0, // Not provided by admin-api health check
+          success_rate: 1.0, // Not provided by admin-api health check
+          timestamp: serviceData.last_check || new Date().toISOString(),
+          error_message: serviceData.error_message || null,
+        };
       }
-      
+
       return result;
     } catch (error) {
       console.error('Failed to fetch data sources:', error);
-      // Return null for all services on error
-      return {
-        weather: null,
-        carbonIntensity: null,
-        electricityPricing: null,
-        airQuality: null,
-        calendar: null,
-        smartMeter: null,
-      };
+      return createEmptyDataSources();
     }
   }
 
