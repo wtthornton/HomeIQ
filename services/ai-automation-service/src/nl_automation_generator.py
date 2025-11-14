@@ -245,9 +245,39 @@ class NLAutomationGenerator:
 **Common Action Types:**
 - Service Call: `action: domain.service` with `target` and optional `data`
 - Delay: `delay: {{seconds: 30}}` or `{{minutes: 5}}`
+- Wait for Trigger: `wait_for_trigger` with trigger list, `timeout`, optional `continue_on_timeout`
 - Choose (if/then/else): `choose` with `conditions`, `sequence`, optional `default`
 - If/Then: `if` with `conditions`, `then`, optional `else`
 - Parallel: `parallel` with list of actions to run simultaneously
+
+**Wait for Trigger (Advanced Action):**
+Pause automation until a specific trigger occurs, with optional timeout:
+- `wait_for_trigger` - List of triggers to wait for (same format as automation triggers)
+- `timeout` - Maximum wait time (e.g., "00:05:00" or {{minutes: 5}})
+- `continue_on_timeout: true` - Continue if timeout expires (default: stop automation)
+
+**Example - Motion Light with Auto-Off:**
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.porch
+  - wait_for_trigger:
+      - trigger: state
+        entity_id: binary_sensor.motion_porch
+        to: "off"
+        for:
+          minutes: 5
+    timeout: "00:10:00"
+    continue_on_timeout: true
+  - action: light.turn_off
+    target:
+      entity_id: light.porch
+
+**Common wait_for_trigger Use Cases:**
+- Motion lights: Turn on → wait for no motion → turn off
+- Door alerts: Detect open → wait for close or timeout → alert if still open
+- Sequences: Start appliance → wait for completion state → notify
+- Safety delays: Trigger action → wait for confirmation → proceed or abort
 
 **Trigger Variables (Dynamic Data in Actions):**
 Access trigger information in actions using templates:
