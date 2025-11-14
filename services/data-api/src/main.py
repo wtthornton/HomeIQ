@@ -37,6 +37,8 @@ from shared.influxdb_query_client import InfluxDBQueryClient
 
 # Story 22.1: SQLite database
 from .database import init_db, check_db_health
+from .cache import cache
+from .rate_limiter import rate_limiter, rate_limit_middleware
 import pathlib
 
 # Import endpoint routers (Stories 13.2-13.4)
@@ -92,16 +94,18 @@ class DataAPIService:
     
     def __init__(self):
         """Initialize Data API service"""
-        # Configuration
+        # Configuration - Configurable via environment variables
         self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')
         self.api_port = int(os.getenv('DATA_API_PORT', '8006'))
+        self.request_timeout = int(os.getenv('REQUEST_TIMEOUT', '30'))  # seconds
+        self.db_query_timeout = int(os.getenv('DB_QUERY_TIMEOUT', '10'))  # seconds
         self.api_title = 'Data API - Feature Data Hub'
         self.api_version = '1.0.0'
         self.api_description = 'Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)'
         
-        # Security
+        # Security - AUTH ENABLED BY DEFAULT for production
         self.api_key = os.getenv('API_KEY')
-        self.enable_auth = os.getenv('ENABLE_AUTH', 'false').lower() == 'true'  # Auth optional for data-api
+        self.enable_auth = os.getenv('ENABLE_AUTH', 'true').lower() == 'true'  # Auth enabled by default
         
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
@@ -109,10 +113,14 @@ class DataAPIService:
         # Initialize components
         self.auth_manager = AuthManager(api_key=self.api_key, enable_auth=self.enable_auth)
         self.influxdb_client = InfluxDBQueryClient()
-        
+
         # Service state
         self.start_time = datetime.now()
         self.is_running = False
+
+        # Error tracking for metrics
+        self.total_requests = 0
+        self.failed_requests = 0
         
         logger.info(f"Data API Service initialized (auth enabled: {self.enable_auth})")
     
@@ -214,6 +222,9 @@ app.add_middleware(
 # Add correlation middleware
 app.add_middleware(FastAPICorrelationMiddleware)
 
+# Add rate limiting middleware
+app.middleware("http")(rate_limit_middleware)
+
 
 # Register endpoint routers (Stories 13.2-13.3)
 # Story 13.2: Events & Devices
@@ -307,19 +318,32 @@ async def root():
 async def health_check():
     """
     Health check endpoint
-    
+
     Returns service health status including InfluxDB and SQLite connections
+    Plus error rate metrics for monitoring
     """
     uptime = (datetime.now() - data_api_service.start_time).total_seconds()
     influxdb_status = data_api_service.influxdb_client.get_connection_status()
     sqlite_status = await check_db_health()
-    
+
+    # Calculate error rate
+    error_rate = 0.0
+    if data_api_service.total_requests > 0:
+        error_rate = (data_api_service.failed_requests / data_api_service.total_requests) * 100
+
     return {
         "status": "healthy" if data_api_service.is_running else "unhealthy",
         "service": "data-api",
         "version": data_api_service.api_version,
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": uptime,
+        "metrics": {
+            "total_requests": data_api_service.total_requests,
+            "failed_requests": data_api_service.failed_requests,
+            "error_rate_percent": round(error_rate, 2)
+        },
+        "cache": cache.get_stats(),
+        "rate_limiter": rate_limiter.get_stats(),
         "dependencies": {
             "influxdb": {
                 "status": "connected" if influxdb_status["is_connected"] else "disconnected",
@@ -359,10 +383,14 @@ async def api_info():
     )
 
 
-# Exception handlers
+# Exception handlers with request tracking
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
-    """Handle HTTP exceptions"""
+    """Handle HTTP exceptions and track error metrics"""
+    data_api_service.total_requests += 1
+    if exc.status_code >= 400:
+        data_api_service.failed_requests += 1
+
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
@@ -374,7 +402,10 @@ async def http_exception_handler(request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc: Exception):
-    """Handle general exceptions"""
+    """Handle general exceptions and track error metrics"""
+    data_api_service.total_requests += 1
+    data_api_service.failed_requests += 1
+
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
