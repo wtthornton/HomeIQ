@@ -239,14 +239,17 @@ class OpenAIClient:
         if pattern_type == 'time_of_day':
             hour = pattern.get('hour', 0)
             minute = pattern.get('minute', 0)
-            
-            return f"""alias: "AI Suggested: {device_id} at {hour:02d}:{minute:02d}"
+
+            return f"""id: '{hash(f"{device_id}_{hour}_{minute}") % 10000000000}'
+alias: "AI Suggested: {device_id} at {hour:02d}:{minute:02d}"
 description: "Activate device at consistent time"
-trigger:
-  - platform: time
+mode: single
+triggers:
+  - trigger: time
     at: "{hour:02d}:{minute:02d}:00"
-action:
-  - service: homeassistant.turn_on
+conditions: []
+actions:
+  - action: homeassistant.turn_on
     target:
       entity_id: {device_id}
 """
@@ -254,31 +257,37 @@ action:
         elif pattern_type == 'co_occurrence':
             device1 = pattern.get('device1', 'unknown')
             device2 = pattern.get('device2', 'unknown')
-            
+
             # Try to extract friendly names for fallback
             device1_name = device1.split('.')[-1].replace('_', ' ').title() if '.' in device1 else device1
             device2_name = device2.split('.')[-1].replace('_', ' ').title() if '.' in device2 else device2
-            
-            return f"""alias: "AI Suggested: Turn On {device2_name} When {device1_name} Activates"
+
+            return f"""id: '{hash(f"{device1}_{device2}") % 10000000000}'
+alias: "AI Suggested: Turn On {device2_name} When {device1_name} Activates"
 description: "Activate {device2_name} when {device1_name} changes"
-trigger:
-  - platform: state
+mode: single
+triggers:
+  - trigger: state
     entity_id: {device1}
     to: 'on'
-action:
-  - service: homeassistant.turn_on
+conditions: []
+actions:
+  - action: homeassistant.turn_on
     target:
       entity_id: {device2}
 """
         
         else:
-            return f"""alias: "AI Suggested Automation"
+            return f"""id: '{hash(device_id) % 10000000000}'
+alias: "AI Suggested Automation"
 description: "Pattern-based automation"
-trigger:
-  - platform: state
+mode: single
+triggers:
+  - trigger: state
     entity_id: {device_id}
-action:
-  - service: homeassistant.turn_on
+conditions: []
+actions:
+  - action: homeassistant.turn_on
     target:
       entity_id: {device_id}
 """
