@@ -419,6 +419,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
 - **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 14, 2025)
 - **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
 - **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
