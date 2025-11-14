@@ -21,7 +21,7 @@ export interface HealthStatus {
 }
 
 export interface DataSourceHealth {
-  status: 'healthy' | 'degraded';
+  status: 'healthy' | 'degraded' | 'error' | 'unknown';
   status_detail?: string;  // 'operational' | 'credentials_missing' | 'degraded' | 'starting'
   service: string;
   uptime_seconds: number;
@@ -32,6 +32,20 @@ export interface DataSourceHealth {
   timestamp: string;
   oauth_valid?: boolean;
   credentials_configured?: boolean;  // For services requiring external API credentials
+  api_usage?: {
+    calls_today: number;
+    quota_limit?: number;
+    quota_percentage?: number;
+  };
+}
+
+export interface DataSourcesHealthMap {
+  weather: DataSourceHealth | null;
+  carbonIntensity: DataSourceHealth | null;
+  electricityPricing: DataSourceHealth | null;
+  airQuality: DataSourceHealth | null;
+  calendar: DataSourceHealth | null;
+  smartMeter: DataSourceHealth | null;
 }
 
 export interface DataSourceMetrics {
