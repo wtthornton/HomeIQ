@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 describe('useStatistics Hook', () => {
   afterEach(() => {
     // ✅ Context7 Best Practice: Cleanup after each test
+    server.resetHandlers();
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
