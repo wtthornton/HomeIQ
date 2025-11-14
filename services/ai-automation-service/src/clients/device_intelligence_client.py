@@ -251,6 +251,48 @@ class DeviceIntelligenceClient:
             logger.warning(f"Device intelligence service health check error: {e}")
             return False
     
+    async def get_team_tracker_status(self) -> Optional[Dict[str, Any]]:
+        """Get Team Tracker integration status"""
+        try:
+            response = await self.client.get(f"{self.base_url}/api/team-tracker/status", timeout=5.0)
+            if response.status_code == 200:
+                status = response.json()
+                logger.debug(f"Team Tracker status: {status.get('installation_status')}")
+                return status
+            else:
+                logger.warning(f"Failed to get Team Tracker status: {response.status_code}")
+                return None
+        except Exception as e:
+            logger.debug(f"Team Tracker not available: {e}")
+            return None
+
+    async def get_team_tracker_teams(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """
+        Get configured Team Tracker teams for automation context.
+
+        Args:
+            active_only: If True, only return active teams
+
+        Returns:
+            List of configured teams with metadata
+        """
+        try:
+            response = await self.client.get(
+                f"{self.base_url}/api/team-tracker/teams",
+                params={"active_only": active_only},
+                timeout=5.0
+            )
+            if response.status_code == 200:
+                teams = response.json()
+                logger.debug(f"Retrieved {len(teams)} Team Tracker teams (active_only={active_only})")
+                return teams
+            else:
+                logger.warning(f"Failed to get Team Tracker teams: {response.status_code}")
+                return []
+        except Exception as e:
+            logger.debug(f"Team Tracker teams not available: {e}")
+            return []
+
     async def close(self):
         """Close the HTTP client"""
         await self.client.aclose()
