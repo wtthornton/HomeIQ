@@ -14,7 +14,7 @@ from datetime import datetime
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from fastapi import APIRouter, HTTPException, status, Query, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from starlette.requests import Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,41 +27,6 @@ from .models import Device, Entity
 from .cache import cache
 
 logger = logging.getLogger(__name__)
-
-# Internal service authentication
-INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
-
-async def verify_internal_service(x_internal_token: str = Header(None)):
-    """
-    Verify internal service authentication for /internal/* endpoints
-
-    Security: Protects internal endpoints from unauthorized access
-
-    Args:
-        x_internal_token: Internal service token from request header
-
-    Raises:
-        HTTPException: If token is missing or invalid
-    """
-    if not INTERNAL_SERVICE_TOKEN:
-        logger.warning("INTERNAL_SERVICE_TOKEN not configured - internal endpoints unprotected!")
-        return  # Allow in dev/test if not configured
-
-    if not x_internal_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Internal service token required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if x_internal_token != INTERNAL_SERVICE_TOKEN:
-        logger.warning("Invalid internal service token attempted")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid internal service token"
-        )
-
-    return True
 
 
 def sanitize_flux_value(value: str) -> str:
@@ -793,15 +758,15 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
 
 
 # Internal bulk upsert endpoints (called by websocket-ingestion)
+# Note: No authentication needed for home use - services run on internal Docker network
 @router.post("/internal/devices/bulk_upsert")
 async def bulk_upsert_devices(
     devices: List[Dict[str, Any]],
-    db: AsyncSession = Depends(get_db),
-    _: bool = Depends(verify_internal_service)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert devices from HA discovery
-    
+
     Uses INSERT OR REPLACE for reliable upsert without SQLAlchemy metadata issues
     """
     try:
@@ -873,12 +838,11 @@ async def bulk_upsert_devices(
 @router.post("/internal/entities/bulk_upsert")
 async def bulk_upsert_entities(
     entities: List[Dict[str, Any]],
-    db: AsyncSession = Depends(get_db),
-    _: bool = Depends(verify_internal_service)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert entities from HA discovery
-    
+
     Simple approach: Loop and merge (SQLAlchemy handles upsert logic)
     """
     try:
@@ -930,8 +894,7 @@ async def bulk_upsert_entities(
 
 @router.delete("/internal/devices/clear")
 async def clear_all_devices(
-    db: AsyncSession = Depends(get_db),
-    _: bool = Depends(verify_internal_service)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Delete all devices and entities from the database (for reload/reset)
