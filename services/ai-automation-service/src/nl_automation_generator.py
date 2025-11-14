@@ -245,9 +245,73 @@ class NLAutomationGenerator:
 **Common Action Types:**
 - Service Call: `action: domain.service` with `target` and optional `data`
 - Delay: `delay: {{seconds: 30}}` or `{{minutes: 5}}`
+- Wait for Trigger: `wait_for_trigger` with trigger list, `timeout`, optional `continue_on_timeout`
 - Choose (if/then/else): `choose` with `conditions`, `sequence`, optional `default`
 - If/Then: `if` with `conditions`, `then`, optional `else`
 - Parallel: `parallel` with list of actions to run simultaneously
+
+**Wait for Trigger (Advanced Action):**
+Pause automation until a specific trigger occurs, with optional timeout:
+- `wait_for_trigger` - List of triggers to wait for (same format as automation triggers)
+- `timeout` - Maximum wait time (e.g., "00:05:00" or {{minutes: 5}})
+- `continue_on_timeout: true` - Continue if timeout expires (default: stop automation)
+
+**Example - Motion Light with Auto-Off:**
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.porch
+  - wait_for_trigger:
+      - trigger: state
+        entity_id: binary_sensor.motion_porch
+        to: "off"
+        for:
+          minutes: 5
+    timeout: "00:10:00"
+    continue_on_timeout: true
+  - action: light.turn_off
+    target:
+      entity_id: light.porch
+
+**Common wait_for_trigger Use Cases:**
+- Motion lights: Turn on → wait for no motion → turn off
+- Door alerts: Detect open → wait for close or timeout → alert if still open
+- Sequences: Start appliance → wait for completion state → notify
+- Safety delays: Trigger action → wait for confirmation → proceed or abort
+
+**Trigger Variables (Dynamic Data in Actions):**
+Access trigger information in actions using templates:
+- `{{{{ trigger.to_state.state }}}}` - New state value
+- `{{{{ trigger.from_state.state }}}}` - Previous state value
+- `{{{{ trigger.to_state.attributes.friendly_name }}}}` - Device friendly name
+- `{{{{ trigger.to_state.attributes.<attr> }}}}` - Any attribute (temperature, brightness, etc.)
+- `{{{{ trigger.entity_id }}}}` - Entity ID that triggered the automation
+- `{{{{ trigger.platform }}}}` - Trigger type (state, time, numeric_state, etc.)
+
+**Example - Dynamic Notification:**
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door
+    to: "on"
+actions:
+  - action: notify.mobile_app
+    data:
+      message: "{{{{ trigger.to_state.attributes.friendly_name }}}} opened at {{{{ now().strftime('%H:%M') }}}}"
+
+**Error Handling:**
+- `continue_on_error: true` - Continue executing remaining actions even if this action fails
+- Useful for optional actions or when controlling multiple devices
+- Default is false (automation stops on first error)
+
+**Example - Resilient Multi-Device Control:**
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bedroom
+    continue_on_error: true  # Continue even if bedroom light fails
+  - action: light.turn_on
+    target:
+      entity_id: light.hallway
 
 **Output Format (JSON):**
 {{
@@ -257,6 +321,16 @@ class NLAutomationGenerator:
     "explanation": "Detailed explanation of triggers, conditions, and actions",
     "clarification": null,
     "confidence": 0.95
+}}
+
+**Advanced Example with Trigger Variables:**
+{{
+    "yaml": "id: '2345678901'\\nalias: 'Door Open Notification'\\ndescription: 'Send notification when any door opens'\\nmode: single\\ntriggers:\\n  - trigger: state\\n    entity_id: binary_sensor.front_door\\n    to: 'on'\\nconditions: []\\nactions:\\n  - action: notify.mobile_app\\n    data:\\n      title: 'Door Alert'\\n      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} opened at {{{{ now().strftime(\\\"%H:%M\\\") }}}}'",
+    "title": "Door Open Notification",
+    "description": "Dynamic notification using trigger data",
+    "explanation": "Uses trigger variables to show which door opened and when",
+    "clarification": null,
+    "confidence": 0.90
 }}
 
 **Safety Guidelines:**

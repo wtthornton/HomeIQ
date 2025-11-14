@@ -20,6 +20,21 @@ from .models import ParsedAutomation, AutomationMetadata
 logger = logging.getLogger(__name__)
 
 
+# Add custom YAML constructor for !input tag (blueprint variable references)
+def _input_constructor(loader, node):
+    """
+    Handle !input tags in blueprint YAML.
+
+    Converts !input references to strings so they can be parsed without error.
+    The actual resolution happens during device extraction.
+    """
+    return f"!input {loader.construct_scalar(node)}"
+
+
+# Register the constructor globally for SafeLoader
+yaml.add_constructor('!input', _input_constructor, Loader=yaml.SafeLoader)
+
+
 class AutomationParser:
     """Parse and normalize Home Assistant automations"""
     
@@ -67,48 +82,187 @@ class AutomationParser:
     def parse_yaml(self, yaml_str: str) -> Optional[Dict[str, Any]]:
         """
         Parse YAML automation structure
-        
+
         Args:
             yaml_str: YAML string to parse
-        
+
         Returns:
             Parsed automation dictionary or None if invalid
         """
         try:
             data = yaml.safe_load(yaml_str)
-            
+
             # Handle blueprint format
             if isinstance(data, dict) and 'blueprint' in data:
-                # Extract blueprint automation
-                blueprint = data.get('blueprint', {})
-                return blueprint
-            
+                # Parse blueprint to extract variables and automation structure
+                return self.parse_blueprint(data)
+
             return data
-        
+
         except yaml.YAMLError as e:
             logger.warning(f"Failed to parse YAML: {e}")
             return None
+
+    def parse_blueprint(self, yaml_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse blueprint YAML format to extract automation structure.
+
+        Blueprints have the structure:
+            blueprint:
+              name: "..."
+              input:
+                motion_sensor:
+                  selector:
+                    entity:
+                      domain: binary_sensor
+            trigger:  # <- At root level
+              - platform: state
+                entity_id: !input motion_sensor
+            action:   # <- At root level
+              - service: light.turn_on
+
+        Args:
+            yaml_data: Parsed YAML data with 'blueprint' key
+
+        Returns:
+            Dictionary with automation structure and extracted variables
+        """
+        blueprint_meta = yaml_data.get('blueprint', {})
+        inputs = blueprint_meta.get('input', {})
+
+        # Extract variable definitions from blueprint inputs
+        variables = {}
+        devices = set()
+
+        for input_name, input_def in inputs.items():
+            selector = input_def.get('selector', {})
+
+            # Extract domain and device_class from selector
+            if 'entity' in selector:
+                entity_selector = selector['entity']
+                domain = entity_selector.get('domain', 'unknown')
+                device_class = entity_selector.get('device_class')
+
+                devices.add(domain)
+                variables[input_name] = {
+                    'domain': domain,
+                    'device_class': device_class,
+                    'name': input_def.get('name', input_name)
+                }
+
+            elif 'device' in selector:
+                device_selector = selector['device']
+                integration = device_selector.get('integration')
+                if integration:
+                    devices.add(integration)
+                variables[input_name] = {
+                    'type': 'device',
+                    'integration': integration,
+                    'name': input_def.get('name', input_name)
+                }
+
+            elif 'target' in selector:
+                # Target selector can reference entities or devices
+                variables[input_name] = {
+                    'type': 'target',
+                    'name': input_def.get('name', input_name)
+                }
+
+        # Extract automation structure from root level (not from blueprint block)
+        triggers = yaml_data.get('trigger', [])
+        conditions = yaml_data.get('condition', [])
+        actions = yaml_data.get('action', [])
+
+        # Resolve !input references in triggers/actions to extract more devices
+        devices.update(self._extract_devices_from_structure(triggers))
+        devices.update(self._extract_devices_from_structure(actions))
+
+        # Return normalized automation structure
+        return {
+            'trigger': triggers if isinstance(triggers, list) else [triggers] if triggers else [],
+            'condition': conditions if isinstance(conditions, list) else [conditions] if conditions else [],
+            'action': actions if isinstance(actions, list) else [actions] if actions else [],
+            '_blueprint_variables': variables,
+            '_blueprint_devices': sorted(list(devices)),
+            '_blueprint_metadata': blueprint_meta
+        }
+
+    def _extract_devices_from_structure(self, structure: Any) -> set:
+        """
+        Extract device domains from automation structure.
+
+        Handles both direct entity_id references and service calls.
+
+        Args:
+            structure: Triggers, conditions, or actions structure
+
+        Returns:
+            Set of device domains found
+        """
+        devices = set()
+
+        def recurse(obj):
+            if isinstance(obj, dict):
+                # Check for service calls (e.g., "light.turn_on" -> "light")
+                if 'service' in obj or 'action' in obj:
+                    service = obj.get('service') or obj.get('action', '')
+                    if '.' in service:
+                        domain = service.split('.')[0]
+                        if domain in self.DEVICE_TYPES:
+                            devices.add(domain)
+
+                # Check for entity_id references
+                if 'entity_id' in obj:
+                    entity_id = obj['entity_id']
+                    if isinstance(entity_id, str) and '.' in entity_id:
+                        # Skip !input references (they're placeholders)
+                        if not entity_id.startswith('!input'):
+                            domain = entity_id.split('.')[0]
+                            if domain in self.DEVICE_TYPES:
+                                devices.add(domain)
+
+                # Recurse into nested structures
+                for value in obj.values():
+                    recurse(value)
+
+            elif isinstance(obj, list):
+                for item in obj:
+                    recurse(item)
+
+        recurse(structure)
+        return devices
     
     def extract_devices(self, automation: Dict[str, Any]) -> List[str]:
         """
         Extract device types from automation
-        
+
         Looks for device types in entity IDs (e.g., light.bedroom -> light)
+        For blueprints, uses pre-extracted devices from parse_blueprint()
+
+        Args:
+            automation: Parsed automation dictionary
+
+        Returns:
+            Sorted list of device domains
         """
+        # If this is a parsed blueprint, use pre-extracted devices
+        if '_blueprint_devices' in automation:
+            return automation['_blueprint_devices']
+
         devices = set()
-        
+
         def extract_from_entity(entity_id: str):
             """Extract device type from entity_id"""
             if not entity_id or not isinstance(entity_id, str):
                 return
-            
+
             # Entity format: domain.object_id
             parts = entity_id.split('.')
             if len(parts) >= 1:
                 domain = parts[0]
                 if domain in self.DEVICE_TYPES:
                     devices.add(domain)
-        
+
         def recurse_dict(d):
             """Recursively search for entity IDs"""
             if isinstance(d, dict):
@@ -124,9 +278,9 @@ class AutomationParser:
             elif isinstance(d, list):
                 for item in d:
                     recurse_dict(item)
-        
+
         recurse_dict(automation)
-        
+
         return sorted(list(devices))
     
     def extract_integrations(self, automation: Dict[str, Any]) -> List[str]:
