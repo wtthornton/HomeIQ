@@ -193,7 +193,7 @@ class DiscoverySession(Base):
 class CacheStats(Base):
     """Cache statistics table."""
     __tablename__ = 'cache_stats'
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cache_type: Mapped[str] = mapped_column(String, nullable=False)  # redis, memory, etc.
     hit_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -203,3 +203,49 @@ class CacheStats(Base):
     memory_usage: Mapped[Optional[str]] = mapped_column(String)
     key_count: Mapped[int] = mapped_column(Integer, default=0)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), index=True)
+
+
+class TeamTrackerIntegration(Base):
+    """Team Tracker integration status and configuration."""
+    __tablename__ = 'team_tracker_integration'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    is_installed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    installation_status: Mapped[str] = mapped_column(String, default="not_installed")  # not_installed, detected, configured
+    version: Mapped[Optional[str]] = mapped_column(String)
+    last_checked: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+
+
+class TeamTrackerTeam(Base):
+    """Configured Team Tracker teams for automation context."""
+    __tablename__ = 'team_tracker_teams'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    team_id: Mapped[str] = mapped_column(String, nullable=False)  # Team abbreviation (e.g., "DAL", "NO")
+    league_id: Mapped[str] = mapped_column(String, nullable=False, index=True)  # NFL, NBA, MLB, etc.
+    team_name: Mapped[str] = mapped_column(String, nullable=False)  # Dallas Cowboys, New Orleans Saints
+    team_long_name: Mapped[Optional[str]] = mapped_column(String)  # Full team name with city
+    entity_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)  # sensor.team_tracker_cowboys
+    sensor_name: Mapped[Optional[str]] = mapped_column(String)  # Custom sensor name from config
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Team metadata for AI context
+    sport: Mapped[Optional[str]] = mapped_column(String)  # football, basketball, baseball, etc.
+    team_abbreviation: Mapped[Optional[str]] = mapped_column(String)  # Short code
+    team_logo: Mapped[Optional[str]] = mapped_column(String)  # Logo URL
+    league_logo: Mapped[Optional[str]] = mapped_column(String)  # League logo URL
+
+    # Configuration tracking
+    configured_in_ha: Mapped[bool] = mapped_column(Boolean, default=False)  # Is this team configured in HA?
+    last_detected: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))  # Last time entity was seen
+
+    # User preferences
+    user_notes: Mapped[Optional[str]] = mapped_column(Text)  # User notes about the team
+    priority: Mapped[int] = mapped_column(Integer, default=0)  # Priority for automation suggestions
+
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
