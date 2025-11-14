@@ -173,12 +173,15 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 
 ## 🏗️ Architecture
 
-### System Overview (Epic 31 Architecture - 26 Microservices)
+### System Overview (Epic 31 Architecture - 24 Active Microservices)
+
+**Note:** Plus InfluxDB infrastructure = 25 total containers in production
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                     26 Microservices                         │
+│                  24 Active Microservices                     │
+│              (+ InfluxDB = 25 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -211,21 +214,23 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │      ├─ device_intelligence.db (7 tables)                   │
 │      └─ webhooks.db                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Data Enrichment Layer (6 services - Epic 31 Direct Writes) │
+│  Data Enrichment (5 active + 1 disabled - Epic 31 Direct)   │
 │  ├─ Weather API              :8009 → InfluxDB               │
 │  ├─ Carbon Intensity         :8010 → InfluxDB               │
 │  ├─ Electricity Pricing      :8011 → InfluxDB               │
 │  ├─ Air Quality              :8012 → InfluxDB               │
-│  ├─ Calendar Service         :8013 → InfluxDB               │
+│  ├─ Calendar Service ⏸️      :8013 → InfluxDB (disabled)    │
 │  └─ Smart Meter              :8014 → InfluxDB               │
 ├─────────────────────────────────────────────────────────────┤
-│  Processing & Infrastructure (7 services)                   │
+│  Processing & Infrastructure (4 services)                   │
 │  ├─ Data Retention                      :8080               │
 │  ├─ Energy Correlator                   :8017               │
 │  ├─ Log Aggregator                      :8015               │
-│  ├─ HA Setup Service                    :8027→8020          │
-│  ├─ HA Simulator (dev only)             :8123               │
-│  ├─ Mosquitto (MQTT broker)             :1883, :9001        │
+│  └─ HA Setup Service                    :8027→8020          │
+├─────────────────────────────────────────────────────────────┤
+│  Dev/External (not HomeIQ services)                         │
+│  ├─ HA Simulator (dev only)             :8123 (not deployed)│
+│  ├─ MQTT Broker (external)     mqtt://192.168.1.86:1883     │
 │  └─ ❌ Enrichment Pipeline (DEPRECATED)  :8002 (Epic 31)     │
 └─────────────────────────────────────────────────────────────┘
                             ▲
@@ -284,11 +289,13 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Carbon Intensity** | Grid carbon footprint | 8010 | 8010 | Python, FastAPI | ✅ Active |
 | **Electricity Pricing** | Real-time pricing | 8011 | 8011 | Python, FastAPI | ✅ Active |
 | **Air Quality** | AQI monitoring | 8012 | 8012 | Python, FastAPI | ✅ Active |
+| **Calendar Service** | Event correlation | 8013 | 8013 | Python, FastAPI | ⏸️ Disabled |
 | **Smart Meter** | Energy consumption | 8014 | 8014 | Python, FastAPI | ✅ Active |
 | **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
 | **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
 | **InfluxDB** | Time-series database | 8086 | 8086 | InfluxDB 2.7 | ✅ Active |
-| **Mosquitto** | MQTT broker | 1883, 9001 | 1883, 9001 | Eclipse Mosquitto | ✅ Active |
+| **HA Simulator** | Dev environment HA instance | 8123 | 8123 | Python, FastAPI | 🚧 Dev only |
+| **External MQTT Broker** | MQTT messaging (not HomeIQ) | 1883 | 1883 | Eclipse Mosquitto | ℹ️ External |
 | **❌ Enrichment Pipeline** | **DEPRECATED** (Epic 31) | 8002 | - | Python, FastAPI | ❌ Deprecated |
 
 ---
@@ -433,10 +440,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📊 Project Stats
 
-- **Services**: 26 microservices (24 active + 2 infrastructure)
+- **Services**: 24 active microservices (+ InfluxDB infrastructure = 25 containers)
 - **Languages**: Python, TypeScript, JavaScript
 - **Databases**: InfluxDB (time-series) + 5 SQLite databases (metadata)
-- **APIs**: RESTful, WebSocket, MQTT
+- **APIs**: RESTful, WebSocket, MQTT (external)
 - **UI Frameworks**: React 18, Vite, Tailwind CSS
 - **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
 - **Testing**: Legacy suites removed; new targeted coverage TBD
@@ -495,7 +502,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 **Latest Code Review:** November 14, 2025
 
 See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
-- Complete service inventory (26 microservices)
+- Complete service inventory (24 active microservices)
 - Database architecture analysis (5 SQLite + InfluxDB)
 - Shared libraries documentation (3,947 lines, 11 modules)
 - Infrastructure and deployment patterns

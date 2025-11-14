@@ -8,7 +8,7 @@
 
 ## 🎯 Quick Reference
 
-**What is HomeIQ?** AI-powered Home Assistant intelligence platform with 26 microservices
+**What is HomeIQ?** AI-powered Home Assistant intelligence platform with 24 active microservices (plus InfluxDB infrastructure)
 **Architecture:** Hybrid database (InfluxDB + 5 SQLite), distributed AI services, microservices
 **Languages:** Python 3.11+ (backend), TypeScript/React 18 (frontend)
 **Documentation:** See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)
@@ -48,14 +48,16 @@ HomeIQ/
 ├── infrastructure/        # Docker, env configs
 ├── scripts/               # Deployment & utility scripts
 ├── tests/                 # Test suites (being rebuilt)
-└── docker-compose.yml     # Production deployment (26 services)
+└── docker-compose.yml     # Production deployment (24 services + InfluxDB)
 ```
 
 ---
 
 ## 🏗️ System Architecture
 
-### 26 Microservices Overview
+### 24 Active Microservices Overview
+
+**Note:** Plus InfluxDB infrastructure = 25 total containers in production
 
 **Web Layer (2 services):**
 - Health Dashboard (React) - Port 3000
@@ -85,21 +87,23 @@ HomeIQ/
   - device_intelligence.db (7 tables)
   - webhooks.db
 
-**Data Enrichment Layer (6 services - Epic 31 Direct Writes):**
+**Data Enrichment Layer (5 active + 1 disabled - Epic 31 Direct Writes):**
 - Weather API - Port 8009 → InfluxDB
 - Carbon Intensity - Port 8010 → InfluxDB
 - Electricity Pricing - Port 8011 → InfluxDB
 - Air Quality - Port 8012 → InfluxDB
-- Calendar Service - Port 8013 → InfluxDB
+- ⏸️ Calendar Service - Port 8013 → InfluxDB (currently disabled in docker-compose)
 - Smart Meter - Port 8014 → InfluxDB
 
-**Processing & Infrastructure (7 services):**
+**Processing & Infrastructure (4 services):**
 - Data Retention - Port 8080
 - Energy Correlator - Port 8017
 - Log Aggregator - Port 8015
-- HA Setup Service - Port 8027
-- HA Simulator (dev) - Port 8123
-- Mosquitto MQTT - Ports 1883, 9001
+- HA Setup Service - Port 8027→8020
+
+**Development/External Dependencies:**
+- HA Simulator - Port 8123 (dev environment only, not in production docker-compose)
+- External MQTT Broker - mqtt://192.168.1.86:1883 (not a HomeIQ service)
 - ❌ Enrichment Pipeline (DEPRECATED - Epic 31)
 
 ---
