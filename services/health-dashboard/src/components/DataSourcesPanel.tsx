@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDataSources } from '../hooks/useDataSources';
-import { DataSourceHealth } from '../types';
+import { DataSourcesHealthMap } from '../types';
 import { SkeletonCard } from './skeletons';
 
 interface DataSourcesPanelProps {
@@ -15,7 +15,9 @@ interface DataSourcesPanelProps {
 }
 
 // Data source definitions for display
-const DATA_SOURCE_DEFINITIONS = [
+type DataSourceKey = keyof DataSourcesHealthMap;
+
+const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: string; }> = [
   { id: 'weather', name: 'Weather API', icon: '☁️' },
   { id: 'carbonIntensity', name: 'Carbon Intensity', icon: '🌱' },
   { id: 'airQuality', name: 'Air Quality', icon: '💨' },
@@ -196,9 +198,12 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
       {/* Data Source Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {DATA_SOURCE_DEFINITIONS.map(sourceDef => {
-          const source = dataSources?.[sourceDef.id as keyof typeof dataSources];
+          const source = dataSources?.[sourceDef.id] ?? null;
           const status = source?.status || 'unknown';
-          
+          const statusDetail = source?.status_detail;
+          const credentialsConfigured = source?.credentials_configured;
+          const apiUsage = source?.api_usage;
+
           return (
             <div
               key={sourceDef.id}
@@ -215,9 +220,9 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
                       {sourceDef.name}
                     </h3>
                     <div className={`flex items-center gap-2 text-sm ${getStatusColor(status)}`}>
-                      <span>{getStatusIcon(status, source.status_detail, source.credentials_configured)}</span>
+                      <span>{getStatusIcon(status, statusDetail, credentialsConfigured)}</span>
                       <span className="capitalize">
-                        {source.status_detail === 'credentials_missing' || source.credentials_configured === false
+                        {statusDetail === 'credentials_missing' || credentialsConfigured === false
                           ? 'Credentials Needed'
                           : status}
                       </span>
@@ -247,37 +252,37 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
               )}
 
               {/* API Usage */}
-              {source.api_usage && (
+              {apiUsage && (
                 <div className="mb-4">
                   <div className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   API Usage Today
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {source.api_usage.calls_today}
+                      {apiUsage.calls_today}
                     </span>
-                    {source.api_usage.quota_limit && (
+                    {apiUsage.quota_limit && (
                       <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      / {source.api_usage.quota_limit}
+                      / {apiUsage.quota_limit}
                       </span>
                     )}
                   </div>
-                  {source.api_usage.quota_percentage !== undefined && source.api_usage.quota_percentage > 0 && (
+                  {apiUsage.quota_percentage !== undefined && apiUsage.quota_percentage > 0 && (
                     <div className="mt-2">
                       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            source.api_usage.quota_percentage > 80
+                            apiUsage.quota_percentage > 80
                               ? 'bg-red-500'
-                              : source.api_usage.quota_percentage > 60
+                              : apiUsage.quota_percentage > 60
                                 ? 'bg-yellow-500'
                                 : 'bg-green-500'
                           }`}
-                          style={{ width: `${source.api_usage.quota_percentage}%` }}
+                          style={{ width: `${apiUsage.quota_percentage}%` }}
                         />
                       </div>
                       <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {source.api_usage.quota_percentage}% of quota used
+                        {apiUsage.quota_percentage}% of quota used
                       </span>
                     </div>
                   )}
