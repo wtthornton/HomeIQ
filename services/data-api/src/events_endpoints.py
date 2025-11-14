@@ -5,6 +5,7 @@ Migrated from admin-api as part of Epic 13 Story 13.2
 
 import json
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
 import aiohttp
@@ -18,6 +19,31 @@ from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_flux_value(value: str) -> str:
+    """
+    Sanitize values for Flux queries to prevent injection attacks
+
+    Security: Prevents Flux query injection by escaping special characters
+
+    Args:
+        value: Raw input value
+
+    Returns:
+        Sanitized value safe for Flux queries
+    """
+    if value is None:
+        return ""
+
+    # Remove or escape potentially dangerous characters
+    # Allow alphanumeric, spaces, dots, hyphens, underscores
+    sanitized = re.sub(r'[^\w\s.\-]', '', str(value))
+
+    # Escape double quotes
+    sanitized = sanitized.replace('"', '\\"')
+
+    return sanitized
 
 
 class EventData(BaseModel):
@@ -291,9 +317,11 @@ class EventsEndpoints:
             return events
         except Exception as e:
             logger.error(f"Error getting events from InfluxDB: {e}", exc_info=True)
-            # Return mock data for now to prevent 503 errors
-            logger.warning(f"Returning mock events due to InfluxDB error")
-            return self._get_mock_events(limit)
+            # Return proper error instead of mock data
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"InfluxDB service unavailable: {str(e)}"
+            )
     
     async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> List[EventData]:
         """Get events from a specific service"""
@@ -805,25 +833,31 @@ from(bucket: "{influxdb_bucket}")
               |> filter(fn: (r) => r._field == "context_id")
             '''
             
-            # Add tag-based filters (these are indexed and efficient)
+            # Add tag-based filters (these are indexed and efficient) - SANITIZED
             if event_filter.entity_id:
-                query += f'  |> filter(fn: (r) => r.entity_id == "{event_filter.entity_id}")\n'
+                entity_id_safe = sanitize_flux_value(event_filter.entity_id)
+                query += f'  |> filter(fn: (r) => r.entity_id == "{entity_id_safe}")\n'
             if event_filter.event_type:
-                query += f'  |> filter(fn: (r) => r.event_type == "{event_filter.event_type}")\n'
-            
-            # Epic 23.2: Add device_id and area_id filtering for spatial analytics
+                event_type_safe = sanitize_flux_value(event_filter.event_type)
+                query += f'  |> filter(fn: (r) => r.event_type == "{event_type_safe}")\n'
+
+            # Epic 23.2: Add device_id and area_id filtering for spatial analytics - SANITIZED
             if event_filter.device_id:
-                query += f'  |> filter(fn: (r) => r.device_id == "{event_filter.device_id}")\n'
+                device_id_safe = sanitize_flux_value(event_filter.device_id)
+                query += f'  |> filter(fn: (r) => r.device_id == "{device_id_safe}")\n'
             if event_filter.area_id:
-                query += f'  |> filter(fn: (r) => r.area_id == "{event_filter.area_id}")\n'
-            
-            # Epic 23.4: Add entity_category filtering
+                area_id_safe = sanitize_flux_value(event_filter.area_id)
+                query += f'  |> filter(fn: (r) => r.area_id == "{area_id_safe}")\n'
+
+            # Epic 23.4: Add entity_category filtering - SANITIZED
             if event_filter.entity_category:
-                query += f'  |> filter(fn: (r) => r.entity_category == "{event_filter.entity_category}")\n'
-            
-            # Epic 23.4: Add exclude_category filtering (commonly used to hide diagnostic entities)
+                category_safe = sanitize_flux_value(event_filter.entity_category)
+                query += f'  |> filter(fn: (r) => r.entity_category == "{category_safe}")\n'
+
+            # Epic 23.4: Add exclude_category filtering (commonly used to hide diagnostic entities) - SANITIZED
             if event_filter.exclude_category:
-                query += f'  |> filter(fn: (r) => r.entity_category != "{event_filter.exclude_category}")\n'
+                exclude_safe = sanitize_flux_value(event_filter.exclude_category)
+                query += f'  |> filter(fn: (r) => r.entity_category != "{exclude_safe}")\n'
             
             # Group all tag-based series together, then get distinct records
             query += f'  |> group()\n'
@@ -1023,24 +1057,4 @@ from(bucket: "{influxdb_bucket}")
             import traceback
             logger.error(traceback.format_exc())
             return []
-    
-    def _get_mock_events(self, limit: int) -> List[EventData]:
-        """Generate mock events for testing when InfluxDB is unavailable"""
-        import uuid
-        
-        mock_events = []
-        for i in range(min(limit, 10)):  # Limit mock events to 10
-            event = EventData(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.now() - timedelta(minutes=i),
-                entity_id=f"sensor.temperature_{i % 3}",
-                event_type="state_changed",
-                old_state={"state": "20.5"},
-                new_state={"state": "21.0"},
-                attributes={"unit_of_measurement": "°C", "friendly_name": f"Temperature {i % 3}"},
-                tags={"domain": "sensor", "device_class": "temperature"}
-            )
-            mock_events.append(event)
-        
-        return mock_events
 

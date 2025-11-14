@@ -20,9 +20,9 @@ class Device(Base):
     # Device metadata
     name = Column(String, nullable=False)
     name_by_user = Column(String)  # User-customized device name
-    manufacturer = Column(String)
-    model = Column(String)
-    sw_version = Column(String)
+    manufacturer = Column(String, default="Unknown")
+    model = Column(String, default="Unknown")
+    sw_version = Column(String, default="Unknown")
     area_id = Column(String, index=True)  # Room/area location
     integration = Column(String, index=True)  # HA integration source
     entry_type = Column(String)  # Entry type (service, config_entry, etc.)
