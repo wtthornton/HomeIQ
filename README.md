@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
 - **feat(mcp): add AI Automation MCP endpoint for pattern detection** (November 15, 2025)
 - **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (November 15, 2025)
 - **feat(ai-automation-ui): comprehensive production-ready updates** (November 15, 2025)
