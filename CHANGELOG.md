@@ -5,7 +5,45 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-15 (from claude/review-github-actions-tests-01SY2Ng3zs3TxbcU1G5TKrHx)
+## [Unreleased] - 2025-11-15 (from claude/review-langchain-dependencies-01CdqopgzKaF27zA8BSNAtz3)
+
+### Added
+
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (b8f768d) - Claude
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (e106be7) - Claude
+- **feat(automation-miner): implement Blueprint YAML parsing** (a85d367) - Claude
+- **feat(ai-automation): integrate automation-miner for community-powered pattern discovery** (74eed43) - Claude
+- **feat(ai-automation): implement Common Patterns Library for instant automation generation** (48518ae) - Claude
+- **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
+- **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
+- **Add automated documentation updates** (77b7063) - Cursor Agent
+- **integrate langchain pdl and remove legacy tests** (fb25ffe) - wtthornton
+- **Add device hygiene analysis and remediation feature** (7877900) - wtthornton
+- **add ask ai soft prompt training and admin controls** (816b7cf) - wtthornton
+- **unblock-conversational-approvals** (eecd602) - wtthornton
+- **Add conversational clarification system to Ask AI** (e13a2ef) - wtthornton
+- **Add Ask AI enhancements, device entity fixes, and automation improvements - Add Ask AI clarification dialog and prompt filtering - Fix device entities popup and selection issues - Implement automation enhancements (phases 1-3) - Add pattern synergy integration and validation - Update various service endpoints and UI components - Add implementation documentation and analysis reports** (c1c2fd2) - wtthornton
+
+### Changed
+
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+- **Remove unused beforeEach from useStatistics test** (959415d) - Cursor Agent
+- **Update HA deployment to create automations via config API** (95db822) - wtthornton
+- **Update documentation for energy/event synergies and rate limiting** (082a972) - wtthornton
+
+### Fixed
+
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+- **Fix service health API mapping** (d652225) - wtthornton
+- **restore test infrastructure and fix all unit tests after upgrade** (90d7483) - Claude
+- **Fix HA setup health monitoring error handling** (fa72367) - wtthornton
+- **Fix rate limiting issues and priority score calculation bug** (58fbf27) - wtthornton
+- **Fix debug panel and location-aware entity expansion** (42837c4) - wtthornton
+- **Fix Phase 2 pattern-synergy integration: Add missing database columns and UI support** (456c684) - wtthornton
+
 
 ### Added
 
