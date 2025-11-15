@@ -47,8 +47,8 @@ ENV PATH=/root/.local/bin:$PATH \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:8019/health || exit 1
+  CMD curl -f http://localhost:8031/health || exit 1
 
-EXPOSE 8019
+EXPOSE 8031
 
-CMD ["python", "-m", "uvicorn", "ner_service:app", "--host", "0.0.0.0", "--port", "8019"]
+CMD ["python", "-m", "uvicorn", "ner_service:app", "--host", "0.0.0.0", "--port", "8031"]

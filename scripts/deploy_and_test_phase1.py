@@ -19,7 +19,7 @@ SERVICES = {
     "openvino": "http://localhost:8019",
     "ml": "http://localhost:8021", 
     "ai_core": "http://localhost:8018",
-    "ner": "http://localhost:8019",
+    "ner": "http://localhost:8031",
     "openai": "http://localhost:8020",
     "ai_automation": "http://localhost:8017"
 }

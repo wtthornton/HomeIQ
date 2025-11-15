@@ -22,7 +22,7 @@ class ServiceModelManager:
         # Service URLs from environment
         self.openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
         self.ml_url = os.getenv("ML_SERVICE_URL", "http://ml-service:8020")
-        self.ner_url = os.getenv("NER_SERVICE_URL", "http://ner-service:8019")
+        self.ner_url = os.getenv("NER_SERVICE_URL", "http://ner-service:8031")
         self.openai_url = os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
         self.ai_core_url = os.getenv("AI_CORE_SERVICE_URL", "http://ai-core-service:8018")
         

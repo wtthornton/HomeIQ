@@ -3,9 +3,11 @@ AI Core Service Tests
 Tests for the orchestrator service
 """
 
-import pytest
+import os
+from typing import Any, Dict, List
+
 import httpx
-from typing import List, Dict, Any
+import pytest
 
 # Test configuration
 AI_CORE_SERVICE_URL = "http://localhost:8018"
@@ -18,6 +20,12 @@ class TestAICoreService:
         """HTTP client for testing"""
         async with httpx.AsyncClient() as client:
             yield client
+
+    @pytest.fixture
+    def auth_headers(self):
+        """Authentication headers required for protected endpoints"""
+        api_key = os.getenv("AI_CORE_API_KEY", "test-key")
+        return {"X-API-Key": api_key}
     
     @pytest.fixture
     def sample_analysis_data(self):
@@ -58,9 +66,12 @@ class TestAICoreService:
         assert "services" in data
     
     @pytest.mark.asyncio
-    async def test_service_status(self, client):
+    async def test_service_status(self, client, auth_headers):
         """Test service status endpoint"""
-        response = await client.get(f"{AI_CORE_SERVICE_URL}/services/status")
+        response = await client.get(
+            f"{AI_CORE_SERVICE_URL}/services/status",
+            headers=auth_headers,
+        )
         assert response.status_code == 200
         
         data = response.json()
@@ -77,7 +88,7 @@ class TestAICoreService:
             assert isinstance(service["healthy"], bool)
     
     @pytest.mark.asyncio
-    async def test_data_analysis(self, client, sample_analysis_data):
+    async def test_data_analysis(self, client, sample_analysis_data, auth_headers):
         """Test comprehensive data analysis"""
         response = await client.post(
             f"{AI_CORE_SERVICE_URL}/analyze",
@@ -88,7 +99,8 @@ class TestAICoreService:
                     "n_clusters": 3,
                     "contamination": 0.1
                 }
-            }
+            },
+            headers=auth_headers,
         )
         
         assert response.status_code == 200
@@ -101,14 +113,15 @@ class TestAICoreService:
         assert data["processing_time"] > 0
     
     @pytest.mark.asyncio
-    async def test_pattern_detection(self, client, sample_pattern_data):
+    async def test_pattern_detection(self, client, sample_pattern_data, auth_headers):
         """Test pattern detection"""
         response = await client.post(
             f"{AI_CORE_SERVICE_URL}/patterns",
             json={
                 "patterns": sample_pattern_data,
                 "detection_type": "full"
-            }
+            },
+            headers=auth_headers,
         )
         
         assert response.status_code == 200
@@ -122,7 +135,7 @@ class TestAICoreService:
         assert data["processing_time"] > 0
     
     @pytest.mark.asyncio
-    async def test_suggestion_generation(self, client):
+    async def test_suggestion_generation(self, client, auth_headers):
         """Test AI suggestion generation"""
         context = {
             "user_preferences": ["energy_saving", "comfort"],
@@ -135,7 +148,8 @@ class TestAICoreService:
             json={
                 "context": context,
                 "suggestion_type": "automation_improvements"
-            }
+            },
+            headers=auth_headers,
         )
         
         assert response.status_code == 200
@@ -149,7 +163,7 @@ class TestAICoreService:
         assert data["processing_time"] > 0
     
     @pytest.mark.asyncio
-    async def test_error_handling(self, client):
+    async def test_error_handling(self, client, auth_headers):
         """Test error handling for invalid requests"""
         # Test with invalid analysis type
         response = await client.post(
@@ -158,14 +172,15 @@ class TestAICoreService:
                 "data": [],
                 "analysis_type": "invalid_type",
                 "options": {}
-            }
+            },
+            headers=auth_headers,
         )
         
         # Should handle gracefully (may succeed with fallback or return error)
         assert response.status_code in [200, 400, 500]
     
     @pytest.mark.asyncio
-    async def test_service_fallback(self, client):
+    async def test_service_fallback(self, client, auth_headers):
         """Test service fallback mechanisms"""
         # This test assumes some services might be unavailable
         # The orchestrator should handle this gracefully
@@ -175,14 +190,15 @@ class TestAICoreService:
                 "data": [{"description": "test pattern"}],
                 "analysis_type": "basic",
                 "options": {}
-            }
+            },
+            headers=auth_headers,
         )
         
         # Should either succeed with available services or fail gracefully
         assert response.status_code in [200, 503]
     
     @pytest.mark.asyncio
-    async def test_performance(self, client):
+    async def test_performance(self, client, auth_headers):
         """Test performance with larger datasets"""
         # Generate larger test data
         large_data = [
@@ -196,7 +212,8 @@ class TestAICoreService:
                 "data": large_data,
                 "analysis_type": "pattern_detection",
                 "options": {"n_clusters": 5}
-            }
+            },
+            headers=auth_headers,
         )
         
         if response.status_code == 200:
