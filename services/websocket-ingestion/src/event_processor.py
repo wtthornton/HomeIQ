@@ -96,7 +96,7 @@ class EventProcessor:
                 data = event_data["data"]
                 if not isinstance(data, dict):
                     return False, "data field must be a dictionary"
-                
+
                 # Check for entity_id in data
                 entity_id = data.get("entity_id")
                 if not entity_id:
@@ -105,6 +105,9 @@ class EventProcessor:
                 if not isinstance(entity_id, str) or "." not in entity_id:
                     return False, "entity_id must be a string in format 'domain.entity'"
                 
+                if "new_state" not in data:
+                    return False, "new_state key must be present (can be null)"
+
                 # Check new_state in data
                 # NOTE: In Home Assistant, new_state can be None when an entity is deleted
                 # This is a valid event structure
@@ -130,7 +133,10 @@ class EventProcessor:
                 old_state = event_data.get("old_state")
                 if old_state is not None and not isinstance(old_state, dict):
                     return False, "old_state must be a dictionary or null"
-                
+
+                if "new_state" not in event_data:
+                    return False, "new_state key must be present (can be null)"
+
                 # Check new_state
                 # NOTE: In Home Assistant, new_state can be None when an entity is deleted
                 new_state = event_data.get("new_state")
@@ -210,23 +216,28 @@ class EventProcessor:
         Returns:
             Dictionary with extracted state_changed data
         """
+        time_fired = event_data.get("time_fired")
+        origin = event_data.get("origin")
+        context = event_data.get("context", {})
+
         # Handle Home Assistant event structure with data field
         if "data" in event_data:
-            data = event_data["data"]
+            data = event_data.get("data") or {}
             entity_id = data.get("entity_id")
-            old_state = data.get("old_state")
-            new_state = data.get("new_state")  # Can be None for deleted entities
-            time_fired = event_data.get("time_fired")
-            origin = event_data.get("origin")
-            context = event_data.get("context", {})
+            raw_old_state = data.get("old_state")
+            raw_new_state = data.get("new_state")  # Can be None for deleted entities
         else:
             # Fallback for legacy structure
+            data = event_data
             entity_id = event_data.get("entity_id")
-            old_state = event_data.get("old_state")
-            new_state = event_data.get("new_state")  # Can be None for deleted entities
-            time_fired = event_data.get("time_fired")
-            origin = event_data.get("origin")
-            context = event_data.get("context", {})
+            raw_old_state = event_data.get("old_state")
+            raw_new_state = event_data.get("new_state")  # Can be None for deleted entities
+
+        old_state = raw_old_state if isinstance(raw_old_state, dict) else None
+        new_state = raw_new_state if isinstance(raw_new_state, dict) else None
+
+        if not entity_id:
+            entity_id = (new_state or {}).get("entity_id") or (old_state or {}).get("entity_id")
         
         # Epic 23.1: Extract context.parent_id for automation causality tracking
         context_id = context.get("id") if context else None
@@ -301,9 +312,11 @@ class EventProcessor:
             "old_state": old_state,  # Keep original structure
             "new_state": new_state,  # Keep original structure
             "state_change": {
-                "from": old_state.get("state") if old_state else None,
-                "to": new_state.get("state"),
-                "changed": old_state.get("state") != new_state.get("state") if old_state else True
+                "from": old_state.get("state") if isinstance(old_state, dict) else None,
+                "to": new_state.get("state") if isinstance(new_state, dict) else None,
+                "changed": (old_state.get("state") if isinstance(old_state, dict) else None) != (
+                    new_state.get("state") if isinstance(new_state, dict) else None
+                )
             }
         }
     
