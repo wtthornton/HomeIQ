@@ -1,8 +1,9 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: weather-api
 created: 2025-11-15
+closed: 2025-11-15
 labels: [critical, performance, reliability]
 ---
 
@@ -200,28 +201,13 @@ params = {
 
 ---
 
-## Summary
+## Resolution Summary
 
-**3 CRITICAL issues** that can cause service failures or performance degradation
-**1 HIGH issue** affecting operational visibility
-**2 MODERATE issues** affecting data integrity and security
+- Added guarded background task orchestration with explicit cancellation handling and surfaced task health via `/health` and `/metrics`.
+- Converted blocking InfluxDB writes to `asyncio.to_thread` with 3-attempt exponential backoff retries and added null checks before use.
+- Hardened OpenWeatherMap client with session validation plus configurable `WEATHER_API_AUTH_MODE` (header default) to keep API keys out of URLs.
+- Upgraded health reporting to 2025 format with component states, cache metrics, and background task visibility; `/metrics` now mirrors the JSON payload.
+- Updated documentation (service README) to describe the new auth mode, retries, and health output; bumped service version to 2.2.0.
+- Tests adjusted to reflect new interfaces; suite currently skips when `influxdb_client_3` wheel is unavailable.
 
----
-
-## Recommended Priority
-
-1. **IMMEDIATE:** Fix CRITICAL #1 (blocking writes) - immediate performance impact
-2. **IMMEDIATE:** Fix CRITICAL #2 (background task) - prevents silent failures
-3. **HIGH:** Fix HIGH #4 (health checks) - enables proper monitoring
-4. **HIGH:** Fix CRITICAL #3 (null checks) - prevents crashes
-5. **MEDIUM:** Fix MODERATE #5 (retry logic) - prevents data loss
-6. **LOW:** Consider MODERATE #6 (API key) - minor security improvement
-
----
-
-## References
-- CLAUDE.md - Async Patterns & Performance Optimization
-- CLAUDE.md - Circuit Breaker Pattern (websocket-ingestion example)
-- Service location: `/services/weather-api/`
-- Port: 8009
-- External API: OpenWeatherMap
+All six tracked issues are remediated following 2025 architecture patterns for the single-home deployment.
