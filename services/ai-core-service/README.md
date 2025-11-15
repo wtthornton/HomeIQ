@@ -128,3 +128,50 @@ Metrics exposed for:
 - AI service availability
 - Circuit breaker state
 - Request routing decisions
+
+## Troubleshooting
+
+### Service Orchestration Issues
+
+**Symptoms:**
+- Requests timing out
+- Circuit breaker open
+
+**Solutions:**
+- Check managed service health: `curl http://openvino-service:8019/health`
+- Review circuit breaker state
+- Check service logs for routing decisions
+
+## Related Documentation
+
+- [OpenVINO Service](../openvino-service/README.md) - Model inference
+- [ML Service](../ml-service/README.md) - Classical ML
+- [AI Automation Service](../ai-automation-service/README.md) - Consumer
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Service orchestration patterns documented
+- Circuit breaker configuration reference
+- Managed services comprehensive guide
+
+### 2.0 (October 2025)
+- AI service orchestration
+- Circuit breaker patterns
+- Fallback mechanisms
+- Unified API for all AI operations
+
+### 1.0 (Initial Release)
+- Basic AI service routing
+- Request coordination
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8021
+**Managed Services:** OpenVINO (8019), ML (8020), NER (8019), OpenAI (8020)

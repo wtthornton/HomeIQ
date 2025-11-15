@@ -903,6 +903,46 @@ services:
       retries: 3
       start_period: 40s
 
+  ai-code-executor:
+    build:
+      context: .
+      dockerfile: services/ai-code-executor/Dockerfile
+    container_name: ai-code-executor
+    restart: unless-stopped
+    ports:
+      - "8030:8030"
+    environment:
+      - EXECUTION_TIMEOUT=30
+      - MAX_MEMORY_MB=128
+      - MAX_CPU_PERCENT=50.0
+      - MCP_WORKSPACE_DIR=/tmp/mcp_workspace
+      - LOG_LEVEL=INFO
+    depends_on:
+      data-api:
+        condition: service_healthy
+      ai-automation-service:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8030/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-code-executor,environment=production"
+
   ai-automation-ui:
     build:
       context: .
