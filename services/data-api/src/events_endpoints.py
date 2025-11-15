@@ -5,7 +5,6 @@ Migrated from admin-api as part of Epic 13 Story 13.2
 
 import json
 import logging
-import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
 import aiohttp
@@ -17,33 +16,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
+from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
 
-
-def sanitize_flux_value(value: str) -> str:
-    """
-    Sanitize values for Flux queries to prevent injection attacks
-
-    Security: Prevents Flux query injection by escaping special characters
-
-    Args:
-        value: Raw input value
-
-    Returns:
-        Sanitized value safe for Flux queries
-    """
-    if value is None:
-        return ""
-
-    # Remove or escape potentially dangerous characters
-    # Allow alphanumeric, spaces, dots, hyphens, underscores
-    sanitized = re.sub(r'[^\w\s.\-]', '', str(value))
-
-    # Escape double quotes
-    sanitized = sanitized.replace('"', '\\"')
-
-    return sanitized
 
 
 class EventData(BaseModel):
@@ -136,7 +112,12 @@ class EventsEndpoints:
         
         @self.router.get("/events/stream", response_model=Dict[str, Any])
         async def get_events_stream(
-            duration: int = Query(60, description="Stream duration in seconds"),
+            duration: int = Query(
+                60,
+                description="Stream duration in seconds (max 1 hour)",
+                ge=10,
+                le=3600
+            ),
             entity_id: Optional[str] = Query(None, description="Filter by entity ID")
         ):
             """Get real-time event stream"""
@@ -425,12 +406,13 @@ class EventsEndpoints:
             
             if context_id:
                 # Query based on context_id
+                context_value = sanitize_flux_value(context_id)
                 query = f'''
 from(bucket: "{influxdb_bucket}")
   |> range(start: -30d)
   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
   |> filter(fn: (r) => r["_field"] == "context_id")
-  |> filter(fn: (r) => r["_value"] == "{context_id}")
+  |> filter(fn: (r) => r["_value"] == "{context_value}")
   |> limit(n: 1)
 '''
                 context_result = query_api.query(query)
@@ -459,7 +441,9 @@ from(bucket: "{influxdb_bucket}")
             
             filter_entity_clause = ""
             if entity_id:
-                filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id}")\n'
+                entity_id_safe = sanitize_flux_value(entity_id)
+                if entity_id_safe:
+                    filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
             
             detail_query = f'''
 from(bucket: "{influxdb_bucket}")
@@ -783,6 +767,7 @@ from(bucket: "{influxdb_bucket}")
             - Field filter reduces duplicate records
             - Limit/offset support for large result sets
         """
+        client = None
         try:
             # Import InfluxDB client
             from influxdb_client import InfluxDBClient
@@ -921,7 +906,6 @@ from(bucket: "{influxdb_bucket}")
                     )
                     events.append(event)
             
-            client.close()
             logger.info(f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)")
             
             # PRAGMATIC FIX: Python-level deduplication as final safety net
@@ -942,6 +926,12 @@ from(bucket: "{influxdb_bucket}")
         except Exception as e:
             logger.error(f"Error querying InfluxDB: {e}")
             return []
+        finally:
+            if client:
+                try:
+                    client.close()
+                except Exception as close_err:
+                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
     
     async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> List[Dict[str, Any]]:
         """
@@ -957,6 +947,7 @@ from(bucket: "{influxdb_bucket}")
         Returns:
             List of events in the automation chain
         """
+        client = None
         try:
             from influxdb_client import InfluxDBClient
             
@@ -983,12 +974,17 @@ from(bucket: "{influxdb_bucket}")
                 visited_contexts.add(current_context)
                 
                 # Query for events with this context_parent_id (children)
+                current_context_safe = sanitize_flux_value(current_context)
+                if not current_context_safe:
+                    logger.warning("Invalid context_id supplied for automation trace; aborting traversal")
+                    break
+                
                 query = f'''
                 from(bucket: "{influxdb_bucket}")
                     |> range(start: -30d)
                     |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
                     |> filter(fn: (r) => r["_field"] == "context_parent_id")
-                    |> filter(fn: (r) => r["_value"] == "{current_context}")
+                    |> filter(fn: (r) => r["_value"] == "{current_context_safe}")
                     |> limit(n: 100)
                 '''
                 
@@ -1004,11 +1000,15 @@ from(bucket: "{influxdb_bucket}")
                         
                         if include_details:
                             # Query full event details
+                            event_context_safe = sanitize_flux_value(event_context_id) if event_context_id else ""
+                            if not event_context_safe:
+                                logger.warning("Skipping automation trace detail due to invalid context_id")
+                                continue
                             event_detail_query = f'''
                             from(bucket: "{influxdb_bucket}")
                                 |> range(start: -30d)
                                 |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-                                |> filter(fn: (r) => r["context_id"] == "{event_context_id}")
+                                |> filter(fn: (r) => r["context_id"] == "{event_context_safe}")
                                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                                 |> limit(n: 1)
                             '''
@@ -1047,8 +1047,6 @@ from(bucket: "{influxdb_bucket}")
                 current_context = next_context
                 depth += 1
             
-            client.close()
-            
             logger.info(f"Traced automation chain for {context_id}: {len(chain)} events, {depth} levels deep")
             return chain
             
@@ -1057,4 +1055,10 @@ from(bucket: "{influxdb_bucket}")
             import traceback
             logger.error(traceback.format_exc())
             return []
+        finally:
+            if client:
+                try:
+                    client.close()
+                except Exception as close_err:
+                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
