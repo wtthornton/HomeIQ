@@ -97,20 +97,24 @@ class BatchProcessor:
         Returns:
             True if event was added successfully, False otherwise
         """
+        batch_to_process: Optional[List[Dict[str, Any]]] = None
+
         async with self.batch_lock:
             # Add event to current batch
             self.current_batch.append(event_data)
-            
+
             # Check if batch is full
             if len(self.current_batch) >= self.batch_size:
-                await self._process_current_batch()
-                return True
-            
+                batch_to_process = self._drain_current_batch_locked()
+
             # Set batch start time if this is the first event
-            if self.batch_start_time is None:
+            elif self.batch_start_time is None:
                 self.batch_start_time = datetime.now()
-            
-            return True
+
+        if batch_to_process:
+            await self._process_batch_with_metrics(batch_to_process)
+
+        return True
     
     async def _processing_loop(self):
         """Main processing loop"""
@@ -120,9 +124,7 @@ class BatchProcessor:
                 await asyncio.sleep(self.batch_timeout)
                 
                 # Process current batch if it has events
-                async with self.batch_lock:
-                    if self.current_batch:
-                        await self._process_current_batch()
+                await self._process_current_batch()
                 
             except asyncio.CancelledError:
                 break
@@ -131,31 +133,41 @@ class BatchProcessor:
     
     async def _process_current_batch(self):
         """Process the current batch"""
-        if not self.current_batch:
+        batch_to_process = await self._drain_current_batch()
+        if not batch_to_process:
             return
-        
+
+        await self._process_batch_with_metrics(batch_to_process)
+
+    async def _drain_current_batch(self) -> List[Dict[str, Any]]:
+        async with self.batch_lock:
+            return self._drain_current_batch_locked()
+
+    def _drain_current_batch_locked(self) -> List[Dict[str, Any]]:
         batch_to_process = self.current_batch.copy()
         self.current_batch.clear()
         self.batch_start_time = None
-        
+        return batch_to_process
+
+    async def _process_batch_with_metrics(self, batch_to_process: List[Dict[str, Any]]):
         if not batch_to_process:
             return
-        
+
         # Process the batch
         start_time = datetime.now()
         success = await self._process_batch(batch_to_process)
         processing_time = (datetime.now() - start_time).total_seconds()
-        
+
         # Update statistics
         self.batch_processing_times.append(processing_time)
         self.batch_sizes.append(len(batch_to_process))
-        
+
         if success:
             self.total_batches_processed += 1
             self.total_events_processed += len(batch_to_process)
         else:
             self.total_events_failed += len(batch_to_process)
-        
+
         # Calculate processing rate
         if processing_time > 0:
             rate = len(batch_to_process) / processing_time

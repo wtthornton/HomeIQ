@@ -36,7 +36,19 @@ class HomeAssistantWebSocketClient:
         self.on_disconnect: Optional[Callable] = None
         self.on_message: Optional[Callable] = None
         self.on_error: Optional[Callable] = None
-    
+
+    async def _ensure_single_session(self) -> ClientSession:
+        """Ensure we only keep one aiohttp session alive at a time."""
+        if self.session and not self.session.closed:
+            logger.warning("Closing pre-existing aiohttp session before reconnecting")
+            await self.session.close()
+            self.session = None
+
+        if not self.session or self.session.closed:
+            self.session = ClientSession()
+
+        return self.session
+
     async def connect(self) -> bool:
         """
         Establish WebSocket connection with Home Assistant
@@ -60,8 +72,8 @@ class HomeAssistantWebSocketClient:
             logger.info("WebSocket tracing enabled for debugging")
             
             # Create session
-            self.session = ClientSession()
-            
+            await self._ensure_single_session()
+
             # Build WebSocket URL (if base_url already has ws:// and /api/websocket, use it as-is)
             if self.base_url.startswith('ws://') or self.base_url.startswith('wss://'):
                 ws_url = self.base_url
