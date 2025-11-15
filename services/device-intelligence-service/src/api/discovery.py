@@ -79,6 +79,17 @@ async def get_discovery_service() -> DiscoveryService:
     return _discovery_service
 
 
+async def shutdown_discovery_service():
+    """Stop the global discovery service if it is running."""
+    global _discovery_service
+    
+    if _discovery_service:
+        try:
+            await _discovery_service.stop()
+        finally:
+            _discovery_service = None
+
+
 @router.get("/status", response_model=DiscoveryStatusResponse)
 async def get_discovery_status(
     discovery_service: DiscoveryService = Depends(get_discovery_service)

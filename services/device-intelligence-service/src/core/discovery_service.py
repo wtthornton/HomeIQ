@@ -295,7 +295,7 @@ class DiscoveryService:
             # Invalidate cache for all updated devices (device-level invalidation)
             cache = get_device_cache()
             for device in unified_devices:
-                cache.delete(device.id)
+                await cache.delete(device.id)
             
             if unified_devices:
                 logger.info(f"✅ Unified {len(self.unified_devices)} devices and invalidated cache")
@@ -312,8 +312,14 @@ class DiscoveryService:
             # Convert UnifiedDevice objects to database format
             devices_data = []
             capabilities_data = []
+            missing_integrations = []
             
             for device in unified_devices:
+                integration_value = (device.integration or "").strip()
+                if not integration_value:
+                    missing_integrations.append(device.id)
+                    integration_value = "unknown"
+
                 device_data = {
                     "id": device.id,
                     "name": device.name,
@@ -321,7 +327,7 @@ class DiscoveryService:
                     "model": device.model,
                     "area_id": device.area_id,
                     "area_name": device.area_name,  # Include area_name
-                    "integration": device.integration if device.integration else "unknown",  # Provide default for NOT NULL constraint
+                    "integration": integration_value,
                     "device_class": device.device_class,
                     "sw_version": device.sw_version,
                     "hw_version": device.hw_version,
@@ -358,13 +364,20 @@ class DiscoveryService:
                             "device_id": device.id,
                             "capability_name": capability.get("name", ""),
                             "capability_type": capability.get("type", ""),
-                            "properties": json.dumps(capability.get("properties", {})),
+                            "properties": capability.get("properties", {}),
                             "exposed": capability.get("exposed", True),
                             "configured": capability.get("configured", True),
                             "source": capability.get("source", "unknown"),
                             "last_updated": datetime.now(timezone.utc)
                         }
                         capabilities_data.append(capability_data)
+            
+            if missing_integrations:
+                logger.warning(
+                    "⚠️ %d devices missing integration metadata (showing up to 5 IDs): %s",
+                    len(missing_integrations),
+                    missing_integrations[:5],
+                )
             
             # Store in database using DeviceService
             async for session in get_db_session():
@@ -373,7 +386,7 @@ class DiscoveryService:
                 
                 # Store capabilities if any
                 if capabilities_data:
-                    await device_service.bulk_upsert_capabilities(session, capabilities_data)
+                    await device_service.bulk_upsert_capabilities(capabilities_data)
                 
                 break  # Only need one session
             

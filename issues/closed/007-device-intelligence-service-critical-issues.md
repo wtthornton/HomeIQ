@@ -1,9 +1,11 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: device-intelligence-service
 created: 2025-11-15
 labels: [critical, bug, reliability]
+closed: 2025-11-15
+resolution: Completed
 ---
 
 # [CRITICAL] Device Intelligence Service - Code Errors and Resource Leaks
@@ -14,6 +16,15 @@ labels: [critical, bug, reliability]
 The device-intelligence-service has **10 issues** including missing imports, incorrect async usage, and resource leaks that will cause immediate failures and data corruption.
 
 ---
+
+## Resolution Summary (2025-11-15)
+- ✅ Restored SQLAlchemy `bindparam` import and converted capability/property writes to native JSON payloads, eliminating NameErrors and schema mismatches.
+- ✅ All cache invalidation paths await asynchronous operations, preventing stale device entries after discovery.
+- ✅ `DeviceService` now uses SQLite UPSERT-style bulk commits and capability upserts, ensuring single-transaction durability with warning visibility when integrations are missing.
+- ✅ Discovery storage logs missing integrations without hiding them behind silent `"unknown"` defaults, with README updates documenting the requirement.
+- ✅ FastAPI lifespan now validates `HA_TOKEN`, restricts CORS origins, and tears down analytics, discovery, and database resources cleanly on shutdown.
+- ✅ Home Assistant WebSocket client enforces recv timeouts, prunes pending futures, and cancels on disconnect to eliminate memory and socket leaks.
+- ✅ README documents the stricter configuration (required HA token and `ALLOWED_ORIGINS`) so single-home deployments know how to configure NUC hosts.
 
 ## CRITICAL Issues
 
