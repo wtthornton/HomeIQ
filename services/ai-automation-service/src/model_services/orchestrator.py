@@ -23,7 +23,7 @@ class ModelOrchestrator:
     """
     
     def __init__(self,
-                 ner_service_url: str = "http://ner-service:8019",
+                 ner_service_url: str = "http://ner-service:8031",
                  openai_service_url: str = "http://openai-service:8020",
                  timeout: float = 5.0):
         """

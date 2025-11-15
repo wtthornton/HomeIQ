@@ -73,7 +73,7 @@ HomeIQ/
 - AI Core Service - Port 8018 (orchestrator)
 - OpenVINO Service - Port 8026→8019 (embeddings, re-ranking)
 - ML Service - Port 8025→8020 (clustering, anomaly detection)
-- NER Service - Port 8019 (entity recognition)
+- NER Service - Port 8031 (entity recognition)
 - OpenAI Service - Port 8020 (GPT-4o-mini)
 - Device Intelligence - Port 8028 (capability discovery)
 - Automation Miner - Port 8029 (community mining)

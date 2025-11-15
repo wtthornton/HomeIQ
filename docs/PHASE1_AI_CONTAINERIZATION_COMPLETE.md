@@ -18,7 +18,7 @@ Phase 1 AI Services Containerization successfully transformed the monolithic AI 
 |---------|------|---------|--------|--------|
 | **OpenVINO Service** | 8022 | Embeddings, re-ranking, classification | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
 | **ML Service** | 8021 | K-Means clustering, anomaly detection | scikit-learn algorithms | ✅ Active |
-| **NER Service** | 8019 | Named Entity Recognition | dslim/bert-base-NER | ✅ Active |
+| **NER Service** | 8031 | Named Entity Recognition | dslim/bert-base-NER | ✅ Active |
 | **OpenAI Service** | 8020 | GPT-4o-mini API client | GPT-4o-mini | ✅ Active |
 | **AI Core Service** | 8018 | Multi-model orchestration | Service coordinator | ✅ Active |
 
@@ -72,7 +72,7 @@ AI Automation Service (Port 8017)
 AI Core Service (Port 8018)
     ├─ OpenVINO Service (Port 8019) - Embeddings, re-ranking
     ├─ ML Service (Port 8020) - Clustering, anomaly detection
-    ├─ NER Service (Port 8019) - Entity extraction
+    ├─ NER Service (Port 8031) - Entity extraction
     └─ OpenAI Service (Port 8020) - Language processing
 ```
 
@@ -175,7 +175,7 @@ python test_phase1_simple.py
 ```bash
 curl http://localhost:8022/health  # OpenVINO
 curl http://localhost:8021/health  # ML Service
-curl http://localhost:8019/health  # NER Service
+curl http://localhost:8031/health  # NER Service
 curl http://localhost:8020/health  # OpenAI Service
 curl http://localhost:8018/health  # AI Core Service
 ```
