@@ -1,150 +1,125 @@
-# HomeIQ Issues Tracker
+# HomeIQ Test Coverage Issues
 
-**Created:** 2025-11-15
-**Total Issues:** 12
-**Status:** All Open
+This directory contains 13 individual issue files for test coverage improvements across the HomeIQ codebase.
 
----
+## Quick Overview
 
-## Issue Index
+**Total Estimated Effort:** 65-93 hours (~2-3 sprint cycles)
 
-All issues are currently in **Open** status and marked as **Critical** priority.
+### Priority Breakdown
 
-| # | Issue | Service | Priority | Key Labels |
-|---|-------|---------|----------|------------|
-| [001](001-websocket-ingestion-critical-issues.md) | WebSocket Ingestion Service - Multiple Critical Issues | websocket-ingestion | Critical | reliability, security, performance |
-| [002](002-data-api-critical-issues.md) | Data API Service - Security Vulnerabilities and Resource Leaks | data-api | Critical | security, injection |
-| [003](003-ai-automation-service-critical-issues.md) | AI Automation Service - Security Vulnerabilities | ai-automation-service | Critical | security, authentication |
-| [004](004-admin-api-critical-issues.md) | Admin API Service - Authentication Bypass and Security Vulnerabilities | admin-api | Critical | security, authentication |
-| [005](005-ai-core-service-critical-issues.md) | AI Core Service - Security and Reliability Issues | ai-core-service | Critical | security, reliability |
-| [006](006-ml-service-critical-issues.md) | ML Service - Memory Leaks and Security Vulnerabilities | ml-service | Critical | memory-leak, security |
-| [007](007-device-intelligence-service-critical-issues.md) | Device Intelligence Service - Code Errors and Resource Leaks | device-intelligence-service | Critical | bug, reliability |
-| [008](008-openvino-service-critical-issues.md) | OpenVINO Service - Race Conditions and Memory Management Issues | openvino-service | Critical | race-condition, memory-leak |
-| [009](009-weather-api-critical-issues.md) | Weather API Service - Blocking I/O and Silent Failures | weather-api | Critical | performance, reliability |
-| [010](010-health-dashboard-critical-issues.md) | Health Dashboard - Deployment Blockers and Security Issues | health-dashboard | Critical | deployment, security |
-| [011](011-energy-correlator-critical-issues.md) | Energy Correlator Service - N+1 Query Problem and Performance Issues | energy-correlator | Critical | performance, n+1-query |
-| [012](012-ai-code-executor-critical-issues.md) | AI Code Executor Service - Multiple Security Vulnerabilities | ai-code-executor | Critical | security, sandbox-escape, **do-not-deploy** |
+**🔴 P0 - Critical (5 issues, 30-42 hours):**
+1. `01-ai-automation-ui-tests.md` - AI Automation UI test suite (0% coverage)
+2. `02-openvino-ml-tests.md` - OpenVINO Service ML validation (29% coverage)
+3. `03-ml-service-algorithm-tests.md` - ML Service algorithms (52% coverage)
+4. `04-ai-core-orchestration-tests.md` - AI Core orchestration logic
+5. `05-ai-code-executor-security-tests.md` - 🚨 CRITICAL security tests
 
----
+**🟡 P1 - High (4 issues, 20-30 hours):**
+6. `06-integration-tests-testcontainers.md` - Integration tests with real dependencies
+7. `07-performance-test-suite.md` - Performance regression tests
+8. `08-database-migration-tests.md` - Alembic migration tests
+9. `09-health-dashboard-frontend-tests.md` - Health Dashboard expansion
 
-## Issues by Category
+**🟢 P2 - Medium (4 issues, 15-21 hours):**
+10. `10-log-aggregator-tests.md` - Log Aggregator testing
+11. `11-disaster-recovery-tests.md` - Backup/restore procedures
+12. `12-cicd-test-pipeline.md` - GitHub Actions workflow
+13. `13-mutation-testing-baseline.md` - Mutation testing setup
 
-### 🔐 Security (8 issues)
-- [002](002-data-api-critical-issues.md) - Flux injection vulnerabilities
-- [003](003-ai-automation-service-critical-issues.md) - No authentication, safety bypass
-- [004](004-admin-api-critical-issues.md) - Authentication bypass
-- [005](005-ai-core-service-critical-issues.md) - No auth, CORS misconfiguration
-- [006](006-ml-service-critical-issues.md) - No input validation, DoS
-- [010](010-health-dashboard-critical-issues.md) - Token exposure, deployment blockers
-- [012](012-ai-code-executor-critical-issues.md) - **⚠️ DO NOT DEPLOY** - Sandbox escape
+## Status Legend
 
-### ⚡ Performance (4 issues)
-- [001](001-websocket-ingestion-critical-issues.md) - Memory growth, lock contention
-- [009](009-weather-api-critical-issues.md) - Blocking I/O in async
-- [011](011-energy-correlator-critical-issues.md) - N+1 query explosion
+- 🟢 **Open** - Ready to start
+- 🟡 **In Progress** - Work has begun
+- ✅ **Completed** - Tests implemented and merged
+- 🔴 **Blocked** - Cannot proceed due to dependencies
 
-### 💾 Memory Leaks (3 issues)
-- [006](006-ml-service-critical-issues.md) - StandardScaler state accumulation
-- [008](008-openvino-service-critical-issues.md) - Model cleanup, race conditions
+## Using These Files
 
-### 🐛 Code Errors (2 issues)
-- [001](001-websocket-ingestion-critical-issues.md) - Entity deletion crash
-- [007](007-device-intelligence-service-critical-issues.md) - Missing imports, incorrect async
+### Option 1: Create GitHub Issues
 
-### 🚀 Deployment Blockers (2 issues)
-- [001](001-websocket-ingestion-critical-issues.md) - Missing dependency
-- [010](010-health-dashboard-critical-issues.md) - Hardcoded localhost URLs
+Each file can be directly copied into GitHub's issue creation interface:
 
----
+1. Go to https://github.com/wtthornton/HomeIQ/issues/new
+2. Copy the filename as the issue title (e.g., "[P0] Add AI Automation UI Test Suite")
+3. Copy the file contents into the description
+4. Add appropriate labels: `testing`, `P0`/`P1`/`P2`, `enhancement`
+5. Submit the issue
 
-## Priority Actions
+### Option 2: Use as Implementation Guide
 
-### IMMEDIATE (Will cause crashes/failures)
-1. **[001]** Fix entity deletion crash in websocket-ingestion
-2. **[001]** Add missing InfluxDB dependency
-3. **[007]** Fix missing `bindparam` import in device-intelligence
-4. **[010]** Fix hardcoded localhost URLs in health-dashboard
-5. **[012]** DO NOT DEPLOY ai-code-executor (12 security flaws)
+These files serve as comprehensive implementation guides:
 
-### URGENT (Security vulnerabilities)
-1. **[002]** Fix Flux injection in data-api (15+ locations)
-2. **[003]** Add authentication to ai-automation-service
-3. **[004]** Fix authentication bypass in admin-api
-4. **[005]** Add authentication to ai-core-service
-5. **[006]** Add input validation to ml-service
+- Complete acceptance criteria with checkboxes
+- Modern 2025 testing patterns
+- Code templates ready to use
+- Success metrics and references
 
-### HIGH (Performance/Reliability)
-1. **[011]** Fix N+1 query explosion in energy-correlator
-2. **[008]** Fix race conditions in openvino-service
-3. **[006]** Fix memory leaks in ml-service
-4. **[009]** Fix blocking I/O in weather-api
+### Option 3: Track Progress Locally
 
----
+Update the `**Status:**` field in each file as work progresses:
 
-## Issue File Format
+```markdown
+**Status:** 🟡 In Progress  # Change from 🟢 Open
+```
 
-Each issue file contains:
-- **Frontmatter metadata** (YAML)
-  - `status`: Current status (Open/In Progress/Closed)
-  - `priority`: Priority level (Critical/High/Medium/Low)
-  - `service`: Affected service name
-  - `created`: Date created
-  - `labels`: Categorization tags
-- **Issue title**
-- **Overview** - Summary of issues found
-- **Detailed findings** - Specific issues with locations, severity, impact, and fixes
-- **Recommended actions** - Prioritized action items
-- **References** - Related documentation and service info
+Check off acceptance criteria as completed:
 
----
+```markdown
+- [x] Vitest configuration setup (`vitest.config.ts`)  # Mark complete
+- [ ] Test coverage >70% for components  # Still pending
+```
 
-## How to Update Issue Status
+## Modern 2025 Testing Patterns Used
 
-To mark an issue as resolved:
+These issues incorporate the latest testing best practices:
 
-1. Open the issue file (e.g., `001-websocket-ingestion-critical-issues.md`)
-2. Update the frontmatter:
-   ```yaml
-   ---
-   status: Closed
-   priority: Critical
-   service: websocket-ingestion
-   created: 2025-11-15
-   resolved: 2025-11-XX
-   labels: [critical, reliability, security, performance]
-   ---
-   ```
-3. Add resolution notes at the end of the file
-4. Commit the changes
+- **pytest-asyncio 1.0+** - Modern async testing (removed event_loop fixture)
+- **Vitest** - 4× faster than Jest for React
+- **Property-based testing** - Hypothesis for edge case discovery
+- **Testcontainers** - Real dependencies instead of mocks
+- **DeepEval** - LLM/AI testing framework
+- **MSW 2.0** - Modern API mocking
+- **pytest-benchmark** - Performance regression detection
+- **Mutation testing** - Test quality validation
 
----
+## Recommended Implementation Order
 
-## Statistics
+1. **Start with P0 security:** Issue #5 (AI Code Executor Security)
+2. **Follow with P0 UI:** Issue #1 (AI Automation UI)
+3. **Continue P0 AI services:** Issues #2, #3, #4
+4. **Move to P1 integration:** Issues #6, #7, #8, #9
+5. **Complete P2 infrastructure:** Issues #10, #11, #12, #13
 
-**Total Issues:** 12
-**Open:** 12
-**In Progress:** 0
-**Closed:** 0
+## Dependencies
 
-**By Priority:**
-- Critical: 12
-- High: 0
-- Medium: 0
-- Low: 0
+- **Issue #12 (CI/CD)** depends on issues #1-9 being complete
+- **Issue #13 (Mutation Testing)** depends on issues #1-9 being complete
+- All other issues are independent and can be worked in parallel
 
-**By Service Type:**
-- Core Services: 3 (websocket-ingestion, data-api, admin-api)
-- AI Services: 5 (ai-automation, ai-core, ml-service, openvino, ai-code-executor)
-- Infrastructure: 2 (device-intelligence, energy-correlator)
-- Frontend: 1 (health-dashboard)
-- Data Enrichment: 1 (weather-api)
+## Related Documentation
+
+- **GITHUB_ISSUES.md** - Original consolidated documentation
+- **tests/shared/README.md** - Shared library test suite (already implemented)
+- **CLAUDE.md** - Testing standards and performance targets
+- **requirements-test.txt** - Modern testing dependencies
+
+## Updating This Directory
+
+When an issue is completed:
+
+1. Update the status in the individual file: `**Status:** ✅ Completed`
+2. Add completion date and PR reference
+3. Update this README with actual effort vs estimated
+
+When tracking progress:
+
+1. Update status to `🟡 In Progress` when starting
+2. Check off acceptance criteria as completed
+3. Note any blockers or changes to scope
 
 ---
 
-## References
-
-- **Source Analysis:** `.github-issues/` directory
-- **CLAUDE.md:** HomeIQ coding standards and patterns
-- **Service Documentation:** `docs/api/API_REFERENCE.md`
-
-**Note:** Use 2025 patterns, architecture and versions for decisions and ensure the Readme files are up to date.
+**Created:** November 15, 2025
+**Last Updated:** November 15, 2025
+**Maintainer:** HomeIQ Development Team
