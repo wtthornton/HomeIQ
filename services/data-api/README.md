@@ -338,7 +338,7 @@ curl -X POST http://localhost:8006/api/v1/ha/webhooks/register \
 | `SQLITE_TIMEOUT` | Connection timeout (seconds) | `30` |
 | `SQLITE_CACHE_SIZE` | Cache size (KB, negative) | `-64000` (64MB) |
 | `LOG_LEVEL` | Logging level | `INFO` |
-| `ENABLE_AUTH` | Enable API authentication | `false` |
+| `ENABLE_AUTH` | Enable API authentication | `true` (invalid values default to `true`) |
 | `API_KEY` | API key (if auth enabled) | - |
 | `CORS_ORIGINS` | Allowed CORS origins | `*` |
 
@@ -348,6 +348,7 @@ curl -X POST http://localhost:8006/api/v1/ha/webhooks/register \
 # Data API Configuration
 DATA_API_HOST=0.0.0.0
 DATA_API_PORT=8006
+# Supported values: true, false, 1, 0, yes, no, on, off
 ENABLE_AUTH=false
 
 # InfluxDB Configuration

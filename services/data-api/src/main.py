@@ -108,7 +108,17 @@ class DataAPIService:
         
         # Security - AUTH ENABLED BY DEFAULT for production
         self.api_key = os.getenv('API_KEY')
-        self.enable_auth = os.getenv('ENABLE_AUTH', 'true').lower() == 'true'  # Auth enabled by default
+        enable_auth_raw = os.getenv('ENABLE_AUTH', 'true').strip().lower()
+        if enable_auth_raw in {"false", "0", "no", "off"}:
+            self.enable_auth = False
+        elif enable_auth_raw in {"true", "1", "yes", "on"}:
+            self.enable_auth = True
+        else:
+            self.enable_auth = True  # Fail closed
+            logger.warning(
+                "ENABLE_AUTH value '%s' is invalid; defaulting to secure state (auth enabled)",
+                enable_auth_raw
+            )
         
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
