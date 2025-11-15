@@ -30,11 +30,11 @@ pandas==2.3.3
 numpy==2.3.4
 
 # Machine Learning
-scikit-learn==1.4.2
+scikit-learn==1.7.2
 
 # LLM Integration - Multi-Model Entity Extraction
 openai==1.40.2
-spacy==3.7.2  # For lightweight NER fallback
+spacy==3.8.9  # For lightweight NER fallback
 
 # Phase 1 Optimized Model Stack (OpenVINO INT8)
 # Version constraints to avoid conflicts:
@@ -42,11 +42,11 @@ spacy==3.7.2  # For lightweight NER fallback
 # Use CPU-only torch wheel to avoid NVIDIA dependencies
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
-transformers==4.46.1          # HuggingFace models (compatible with optimum-intel)
-torch==2.3.1+cpu              # CPU-only PyTorch wheel
-openvino==2024.6.0            # Intel optimization
-optimum-intel==1.21.0         # OpenVINO integration with Transformers
+sentence-transformers>=3.3.1,<4.0.0  # Embeddings: all-MiniLM-L6-v2 (PINNED - Phase 3B, see EMBEDDING_TEST_README.md)
+transformers==4.57.1          # HuggingFace models (compatible with optimum-intel)
+torch==2.9.1+cpu              # CPU-only PyTorch wheel
+openvino==2025.3.0            # Intel optimization
+optimum-intel==1.26.1         # OpenVINO integration with Transformers
 peft==0.14.0                  # Lightweight LoRA fine-tuning support
 
 # Scheduling
