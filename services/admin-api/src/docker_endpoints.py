@@ -7,11 +7,12 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel
 
 from .docker_service import DockerService, ContainerInfo, ContainerStatus
 from .api_key_service import APIKeyService, APIKeyInfo, APIKeyStatus
+from shared.auth import AuthManager, User
 
 logger = logging.getLogger(__name__)
 
@@ -61,21 +62,30 @@ class APIKeyTestResponse(BaseModel):
 class DockerEndpoints:
     """Docker management endpoints"""
     
-    def __init__(self):
+    def __init__(self, auth_manager: AuthManager):
         """Initialize Docker endpoints"""
         self.router = APIRouter(prefix="/api/v1/docker", tags=["docker"])
         self.docker_service = DockerService()
         self.api_key_service = APIKeyService()
+        self.auth_manager = auth_manager
+        self.allowed_services = set(self.docker_service.container_mapping.keys())
         self._add_routes()
     
     def _add_routes(self):
         """Add Docker management routes"""
         
         @self.router.get("/containers", response_model=List[ContainerResponse])
-        async def list_containers():
+        async def list_containers(
+            current_user: User = Depends(self.auth_manager.get_current_user),
+        ):
             """List all project containers with their status"""
             try:
                 containers = await self.docker_service.list_containers()
+                logger.info(
+                    "User %s requested container listing (%d containers)",
+                    getattr(current_user, "username", "unknown"),
+                    len(containers),
+                )
                 
                 response = []
                 for container in containers:
@@ -100,11 +110,19 @@ class DockerEndpoints:
         
         @self.router.post("/containers/{service_name}/start", response_model=ContainerOperationResponse)
         async def start_container(
-            service_name: str = Path(..., description="Service name to start")
+            service_name: str = Path(..., description="Service name to start"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Start a Docker container"""
             try:
+                self._ensure_allowed_service(service_name)
                 success, message = await self.docker_service.start_container(service_name)
+                logger.info(
+                    "User %s requested start for %s: %s",
+                    getattr(current_user, "username", "unknown"),
+                    service_name,
+                    message,
+                )
                 
                 return ContainerOperationResponse(
                     success=success,
@@ -121,11 +139,19 @@ class DockerEndpoints:
         
         @self.router.post("/containers/{service_name}/stop", response_model=ContainerOperationResponse)
         async def stop_container(
-            service_name: str = Path(..., description="Service name to stop")
+            service_name: str = Path(..., description="Service name to stop"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Stop a Docker container"""
             try:
+                self._ensure_allowed_service(service_name)
                 success, message = await self.docker_service.stop_container(service_name)
+                logger.warning(
+                    "User %s requested stop for %s: %s",
+                    getattr(current_user, "username", "unknown"),
+                    service_name,
+                    message,
+                )
                 
                 return ContainerOperationResponse(
                     success=success,
@@ -142,11 +168,19 @@ class DockerEndpoints:
         
         @self.router.post("/containers/{service_name}/restart", response_model=ContainerOperationResponse)
         async def restart_container(
-            service_name: str = Path(..., description="Service name to restart")
+            service_name: str = Path(..., description="Service name to restart"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Restart a Docker container"""
             try:
+                self._ensure_allowed_service(service_name)
                 success, message = await self.docker_service.restart_container(service_name)
+                logger.warning(
+                    "User %s requested restart for %s: %s",
+                    getattr(current_user, "username", "unknown"),
+                    service_name,
+                    message,
+                )
                 
                 return ContainerOperationResponse(
                     success=success,
@@ -164,11 +198,19 @@ class DockerEndpoints:
         @self.router.get("/containers/{service_name}/logs")
         async def get_container_logs(
             service_name: str = Path(..., description="Service name"),
-            tail: int = Query(100, description="Number of log lines to return")
+            tail: int = Query(100, ge=1, le=500, description="Number of log lines to return"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Get container logs"""
             try:
+                self._ensure_allowed_service(service_name)
                 logs = await self.docker_service.get_container_logs(service_name, tail)
+                logger.info(
+                    "User %s accessed logs for %s (tail=%s)",
+                    getattr(current_user, "username", "unknown"),
+                    service_name,
+                    tail,
+                )
                 return {"logs": logs}
                 
             except Exception as e:
@@ -180,10 +222,12 @@ class DockerEndpoints:
         
         @self.router.get("/containers/{service_name}/stats", response_model=ContainerStatsResponse)
         async def get_container_stats(
-            service_name: str = Path(..., description="Service name")
+            service_name: str = Path(..., description="Service name"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Get container resource usage statistics"""
             try:
+                self._ensure_allowed_service(service_name)
                 stats = await self.docker_service.get_container_stats(service_name)
                 
                 if stats is None:
@@ -206,7 +250,9 @@ class DockerEndpoints:
         # API Key Management Endpoints
         
         @self.router.get("/api-keys", response_model=List[APIKeyResponse])
-        async def get_api_keys():
+        async def get_api_keys(
+            current_user: User = Depends(self.auth_manager.get_current_user),
+        ):
             """Get current API key status for all services"""
             try:
                 api_keys = await self.api_key_service.get_api_keys()
@@ -234,7 +280,8 @@ class DockerEndpoints:
         @self.router.put("/api-keys/{service}", response_model=ContainerOperationResponse)
         async def update_api_key(
             service: str = Path(..., description="Service name"),
-            request: APIKeyUpdateRequest = None
+            request: APIKeyUpdateRequest = None,
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Update API key for a service"""
             try:
@@ -245,6 +292,12 @@ class DockerEndpoints:
                     )
                 
                 success, message = await self.api_key_service.update_api_key(service, request.api_key)
+                logger.warning(
+                    "User %s attempted to update API key for %s: %s",
+                    getattr(current_user, "username", "unknown"),
+                    service,
+                    message,
+                )
                 
                 return ContainerOperationResponse(
                     success=success,
@@ -252,6 +305,11 @@ class DockerEndpoints:
                     timestamp=datetime.now().isoformat()
                 )
                 
+            except PermissionError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                )
             except HTTPException:
                 raise
             except Exception as e:
@@ -264,7 +322,8 @@ class DockerEndpoints:
         @self.router.post("/api-keys/{service}/test", response_model=APIKeyTestResponse)
         async def test_api_key(
             service: str = Path(..., description="Service name"),
-            request: APIKeyUpdateRequest = None
+            request: APIKeyUpdateRequest = None,
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Test an API key without saving it"""
             try:
@@ -275,7 +334,13 @@ class DockerEndpoints:
                     )
                 
                 success, message = await self.api_key_service.test_api_key(service, request.api_key)
-                
+                logger.info(
+                    "User %s tested API key for %s: %s",
+                    getattr(current_user, "username", "unknown"),
+                    service,
+                    message,
+                )
+
                 return APIKeyTestResponse(
                     success=success,
                     message=message,
@@ -293,7 +358,8 @@ class DockerEndpoints:
         
         @self.router.get("/api-keys/{service}/status")
         async def get_api_key_status(
-            service: str = Path(..., description="Service name")
+            service: str = Path(..., description="Service name"),
+            current_user: User = Depends(self.auth_manager.get_current_user),
         ):
             """Get API key status for a specific service"""
             try:
@@ -306,3 +372,12 @@ class DockerEndpoints:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get API key status: {str(e)}"
                 )
+
+    def _ensure_allowed_service(self, service_name: str) -> None:
+        """Validate that the requested container belongs to the HomeIQ project."""
+        if service_name not in self.allowed_services:
+            logger.warning("Blocked Docker action against unknown service '%s'", service_name)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Service '{service_name}' is not managed by admin-api",
+            )
