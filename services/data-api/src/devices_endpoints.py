@@ -7,7 +7,6 @@ Story 22.2: Updated to use SQLite storage
 import logging
 import sys
 import os
-import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -20,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from shared.influxdb_query_client import InfluxDBQueryClient
+from .flux_utils import sanitize_flux_value
 
 # Story 22.2: SQLite models and database
 from .database import get_db
@@ -29,29 +29,6 @@ from .cache import cache
 logger = logging.getLogger(__name__)
 
 
-def sanitize_flux_value(value: str) -> str:
-    """
-    Sanitize values for Flux queries to prevent injection attacks
-
-    Security: Prevents Flux query injection by escaping special characters
-
-    Args:
-        value: Raw input value
-
-    Returns:
-        Sanitized value safe for Flux queries
-    """
-    if value is None:
-        return ""
-
-    # Remove or escape potentially dangerous characters
-    # Allow alphanumeric, spaces, dots, hyphens, underscores
-    sanitized = re.sub(r'[^\w\s.\-]', '', str(value))
-
-    # Escape double quotes
-    sanitized = sanitized.replace('"', '\\"')
-
-    return sanitized
 
 
 # Response Models
@@ -267,6 +244,7 @@ async def get_device_reliability(
     - Coverage percentage (% of events with device metadata)
     - Top manufacturers/models by event volume
     """
+    client = None
     try:
         from influxdb_client import InfluxDBClient
         
@@ -283,6 +261,11 @@ async def get_device_reliability(
         # Build query based on group_by parameter (sanitized)
         field_name = sanitize_flux_value("manufacturer" if group_by == "manufacturer" else "model")
         period_sanitized = sanitize_flux_value(period)
+        if not period_sanitized:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid period supplied"
+            )
 
         query = f'''
         from(bucket: "{influxdb_bucket}")
@@ -322,7 +305,7 @@ async def get_device_reliability(
         # FIX: Add _field filter to count unique events, not field instances
         total_query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
           |> count()
@@ -336,8 +319,6 @@ async def get_device_reliability(
         
         # Calculate coverage
         coverage = round((total_events / all_events_count) * 100, 2) if all_events_count > 0 else 0
-        
-        client.close()
         
         return {
             "period": period,
@@ -357,6 +338,12 @@ async def get_device_reliability(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device reliability metrics: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
@@ -569,8 +556,6 @@ async def get_integration_performance(
         
         discovery_status = "active" if recent_discoveries > 0 else "paused"
         
-        client.close()
-        
         return {
             "platform": platform,
             "period": period,
@@ -598,6 +583,12 @@ async def get_integration_performance(
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/api/integrations/{platform}/analytics")
@@ -725,11 +716,17 @@ def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
     
     # Add filters
     if filters.get("manufacturer"):
-        query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{filters["manufacturer"]}")'
+        manufacturer = sanitize_flux_value(filters["manufacturer"])
+        if manufacturer:
+            query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{manufacturer}")'
     if filters.get("model"):
-        query += f'\n    |> filter(fn: (r) => r["model"] == "{filters["model"]}")'
+        model = sanitize_flux_value(filters["model"])
+        if model:
+            query += f'\n    |> filter(fn: (r) => r["model"] == "{model}")'
     if filters.get("area_id"):
-        query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
+        area_id = sanitize_flux_value(filters["area_id"])
+        if area_id:
+            query += f'\n    |> filter(fn: (r) => r["area_id"] == "{area_id}")'
     
     query += f'\n    |> last()\n    |> limit(n: {limit})'
     
@@ -746,11 +743,17 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
     
     # Add filters
     if filters.get("domain"):
-        query += f'\n    |> filter(fn: (r) => r["domain"] == "{filters["domain"]}")'
+        domain = sanitize_flux_value(filters["domain"])
+        if domain:
+            query += f'\n    |> filter(fn: (r) => r["domain"] == "{domain}")'
     if filters.get("platform"):
-        query += f'\n    |> filter(fn: (r) => r["platform"] == "{filters["platform"]}")'
+        platform_value = sanitize_flux_value(filters["platform"])
+        if platform_value:
+            query += f'\n    |> filter(fn: (r) => r["platform"] == "{platform_value}")'
     if filters.get("device_id"):
-        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
+        device_id = sanitize_flux_value(filters["device_id"])
+        if device_id:
+            query += f'\n    |> filter(fn: (r) => r["device_id"] == "{device_id}")'
     
     query += f'\n    |> last()\n    |> limit(n: {limit})'
     

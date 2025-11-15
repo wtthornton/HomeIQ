@@ -1,5 +1,5 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: data-api
 created: 2025-11-15
@@ -165,3 +165,12 @@ self.enable_auth = os.getenv('ENABLE_AUTH', 'true').lower() == 'true'
 - OWASP Top 10 - Injection Attacks
 - CLAUDE.md - Database Optimization & Security Patterns
 - Service location: `/services/data-api/`
+
+---
+
+## Resolution Summary (2025-11-15)
+
+- Added centralized Flux sanitization helper and enforced it across `events_endpoints.py`, `devices_endpoints.py`, and `energy_endpoints.py`.
+- Wrapped every InfluxDB client usage in defensive `try/finally` blocks to prevent leaked connections.
+- Hardened request validation (`duration` limits, analytics time-range literal enforcement) and fail-closed auth parsing in `main.py`.
+- Updated database session rollback handling and documented the new security defaults in `services/data-api/README.md`.
