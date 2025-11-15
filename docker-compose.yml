@@ -688,7 +688,7 @@ services:
     container_name: homeiq-ner-service
     restart: unless-stopped
     ports:
-      - "8019:8019"
+      - "8031:8031"
     networks:
       - homeiq-network
     deploy:
@@ -698,7 +698,7 @@ services:
         reservations:
           memory: 512M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8031/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -816,7 +816,7 @@ services:
     environment:
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
-      - NER_SERVICE_URL=http://ner-service:8019
+      - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
     depends_on:
       openvino-service:
@@ -860,7 +860,7 @@ services:
       - infrastructure/env.ai-automation
     environment:
       - DATA_API_URL=http://data-api:8006
-      - NER_SERVICE_URL=http://ner-service:8019
+      - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020

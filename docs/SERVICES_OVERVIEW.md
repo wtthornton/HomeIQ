@@ -615,7 +615,7 @@ TABLE webhook_deliveries (
 ---
 
 ### 19. NER Service
-**Port:** 8019 (external)
+**Port:** 8031 (external)
 **Technology:** Python 3.11, Transformers, FastAPI
 **Purpose:** Named Entity Recognition
 
@@ -630,7 +630,7 @@ TABLE webhook_deliveries (
 **Endpoints:**
 - `POST /extract` - Extract named entities
 
-**Health Check:** `http://localhost:8019/health`
+**Health Check:** `http://localhost:8031/health`
 
 **README:** [services/ner-service/README.md](../services/ner-service/README.md)
 
@@ -800,7 +800,7 @@ TABLE webhook_deliveries (
 
 AI Services (8018-8028):                Integration Services (8009-8014):
 ├─ AI Core (8018)                       ├─ Weather API (8009)      → InfluxDB
-├─ NER Service (8019)                   ├─ Carbon Intensity (8010) → InfluxDB
+├─ NER Service (8031)                   ├─ Carbon Intensity (8010) → InfluxDB
 ├─ OpenAI Service (8020)                ├─ Electricity Pricing (8011) → InfluxDB
 ├─ ML Service (8025)                    ├─ Air Quality (8012)      → InfluxDB
 ├─ OpenVINO Service (8026)              ├─ Smart Meter (8014)      → InfluxDB
@@ -972,7 +972,7 @@ AI Automation Service (Port 8024 external, 8018 internal)
 AI Core Service (Port 8018)
     ├─ OpenVINO Service (Port 8026 external, 8019 internal) - Embeddings, re-ranking
     ├─ ML Service (Port 8025 external, 8020 internal) - Clustering, anomaly detection
-    ├─ NER Service (Port 8019) - Entity extraction
+    ├─ NER Service (Port 8031) - Entity extraction
     ├─ OpenAI Service (Port 8020) - Language processing
     └─ Device Intelligence (Port 8028 external, 8019 internal) - Device capabilities
 ```

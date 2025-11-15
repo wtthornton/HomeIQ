@@ -199,7 +199,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ AI Core Service                     :8018               │
 │  ├─ OpenVINO Service                    :8026→8019          │
 │  ├─ ML Service                          :8025→8020          │
-│  ├─ NER Service                         :8019               │
+│  ├─ NER Service                         :8031               │
 │  ├─ OpenAI Service                      :8020               │
 │  ├─ Device Intelligence Service         :8028→8019          │
 │  └─ Automation Miner                    :8029→8019          │
@@ -253,7 +253,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  AI Core Service (Orchestrator)           :8018             │
 │  ├─ OpenVINO Service (Embeddings)         :8026 (ext→8019)  │
 │  ├─ ML Service (Clustering)               :8025 (ext→8020)  │
-│  ├─ NER Service (Entity Recognition)      :8019             │
+│  ├─ NER Service (Entity Recognition)      :8031             │
 │  ├─ OpenAI Service (GPT-4o-mini)          :8020             │
 │  ├─ AI Automation Service                 :8024 (ext→8018)  │
 │  ├─ Device Intelligence Service           :8028 (ext→8019)  │
@@ -265,7 +265,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 |------------|---------|---------------|---------------|--------|--------|
 | **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
 | **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
-| **NER Service** | Named Entity Recognition | 8019 | 8019 | dslim/bert-base-NER | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8031 | 8031 | dslim/bert-base-NER | ✅ Active |
 | **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
 | **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
 | **AI Automation Service** | Pattern detection & automation | 8024 | 8018 | Orchestrator | ✅ Active |
