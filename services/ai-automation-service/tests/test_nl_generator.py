@@ -16,6 +16,7 @@ from src.nl_automation_generator import (
     get_nl_generator
 )
 from src.safety_validator import SafetyValidator, SafetyLevel, SafetyResult, SafetyIssue
+from src.config import settings
 
 
 class TestNLAutomationGenerator:
@@ -338,12 +339,14 @@ class TestGetNLGenerator:
             openai_client=mock_openai_client,
             safety_validator=mock_safety_validator
         )
-        
+
         assert generator is not None
         assert isinstance(generator, NLAutomationGenerator)
         assert generator.data_api_client == mock_data_api_client
         assert generator.openai_client == mock_openai_client
         assert generator.safety_validator == mock_safety_validator
+        assert generator.device_intelligence_client is not None
+        assert generator.device_intelligence_client.base_url == settings.device_intelligence_url
 
 
 # Shared Fixtures
