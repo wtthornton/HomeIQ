@@ -10,6 +10,13 @@ The Admin API Service is a FastAPI-based REST API that provides comprehensive ad
 
 ## Features
 
+### Security & Authentication
+- API key authentication is always enforced (`ADMIN_API_API_KEY` or `API_KEY`)
+- All API calls must include `Authorization: Bearer <api-key>` (or a short-lived JWT issued via the shared AuthManager)
+- Per-IP rate limiting (default 60 req/min, burst 20) protects the admin surface
+- Sensitive configuration values are never returned over the API; endpoints return masked values only
+- Remote updates to secrets/API keys are disabled unless `ADMIN_API_ALLOW_SECRET_WRITES=true`
+
 ### System Monitoring
 - Health check endpoints for all services
 - Real-time system metrics and statistics
@@ -19,8 +26,8 @@ The Admin API Service is a FastAPI-based REST API that provides comprehensive ad
 
 ### Integration Management
 - Configuration management for external services
-- Read/write service configuration (.env files)
-- Secure credential management with masked values
+- Read/write service configuration (.env files) with automatic secret masking
+- Secure credential management with masked values (no plaintext secrets over the wire)
 - Support for Home Assistant, Weather API, and InfluxDB configurations
 - MQTT/Zigbee configuration endpoints
 
@@ -47,6 +54,17 @@ The Admin API Service is a FastAPI-based REST API that provides comprehensive ad
 - Device and entity metadata queries
 - Device discovery and management
 - Entity state tracking
+
+## Configuration
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `ADMIN_API_API_KEY` | Required API key for all requests (falls back to `API_KEY`) | _None_ |
+| `ADMIN_API_ALLOW_ANONYMOUS` | Allows test instances to start without a key (not for production) | `false` |
+| `ADMIN_API_RATE_LIMIT_PER_MIN` | Requests per minute allowed per IP | `60` |
+| `ADMIN_API_RATE_LIMIT_BURST` | Burst tokens available immediately | `20` |
+| `ADMIN_API_ALLOW_SECRET_WRITES` | Permit remote updates to secrets/API keys | `false` |
+| `ADMIN_API_ENABLE_DOCS` | Expose FastAPI docs for troubleshooting | `false` |
 
 ## API Endpoints
 

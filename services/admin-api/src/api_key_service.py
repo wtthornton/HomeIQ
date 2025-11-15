@@ -41,6 +41,7 @@ class APIKeyService:
         """Initialize API key service"""
         self.config_file = "/app/infrastructure/.env.production"
         self.config_dir = "/app/infrastructure"
+        self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
         
         # API key configuration for each service
         self.api_key_config = {
@@ -317,6 +318,10 @@ class APIKeyService:
             value: New value
         """
         try:
+            if not self.allow_secret_writes:
+                raise PermissionError(
+                    "Updating stored API keys remotely is disabled. Use infrastructure secrets instead."
+                )
             # Read current config file
             config_path = os.path.join(self.config_dir, '.env.production')
             
