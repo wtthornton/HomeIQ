@@ -4,7 +4,7 @@ Deploy approved automations to Home Assistant
 Story AI1.11: Home Assistant Integration
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
@@ -17,6 +17,7 @@ from ..safety_validator import get_safety_validator, SafetyResult
 from ..rollback import store_version, rollback_to_previous, get_versions
 from ..observability.trace import create_trace, write_trace
 from sqlalchemy import select
+from .dependencies.auth import require_authenticated_user
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,11 @@ class DeployRequest(BaseModel):
 
 
 @router.post("/{suggestion_id}")
-async def deploy_suggestion(suggestion_id: int, request: DeployRequest = DeployRequest()):
+async def deploy_suggestion(
+    suggestion_id: int,
+    request: DeployRequest = DeployRequest(),
+    auth=Depends(require_authenticated_user)
+):
     """
     Deploy an approved suggestion to Home Assistant.
     
@@ -62,29 +67,44 @@ async def deploy_suggestion(suggestion_id: int, request: DeployRequest = DeployR
                     status_code=400, 
                     detail=f"Cannot deploy suggestion with status '{suggestion.status}'. Must be 'approved'."
                 )
+            if request.skip_validation and auth.role != "admin":
+                raise HTTPException(status_code=403, detail="skip_validation is restricted to admin users")
             
             logger.info(f"🚀 Deploying suggestion {suggestion_id}: {suggestion.title}")
             
             # SAFETY VALIDATION (AI1.19)
-            if not request.force_deploy:
-                logger.info(f"🛡️ Running safety validation for suggestion {suggestion_id}")
-                
-                # Get existing automations for conflict detection
-                existing_automations = await ha_client.list_automations()
-                
-                # Run safety validation
-                safety_result: SafetyResult = await safety_validator.validate(
-                    suggestion.automation_yaml,
-                    existing_automations
-                )
-                
-                if not safety_result.passed:
+            logger.info(f"🛡️ Running safety validation for suggestion {suggestion_id}")
+            
+            # Get existing automations for conflict detection
+            existing_automations = await ha_client.list_automations()
+            
+            # Run safety validation
+            safety_result: SafetyResult = await safety_validator.validate(
+                suggestion.automation_yaml,
+                existing_automations
+            )
+            
+            if not safety_result.passed:
+                if request.force_deploy:
+                    if auth.role != "admin":
+                        raise HTTPException(
+                            status_code=403,
+                            detail="force_deploy requires admin privileges"
+                        )
+                    if not getattr(settings, "safety_allow_override", False):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="force_deploy overrides are disabled by configuration"
+                        )
+                    logger.warning(
+                        f"⚠️ Admin override: Safety validation failed for suggestion {suggestion_id} "
+                        f"(score={safety_result.safety_score}). Proceeding due to force_deploy."
+                    )
+                else:
                     logger.warning(
                         f"⚠️ Safety validation failed for suggestion {suggestion_id}: "
                         f"{safety_result.summary}"
                     )
-                    
-                    # Return detailed safety validation error
                     raise HTTPException(
                         status_code=400,
                         detail={
@@ -101,17 +121,14 @@ async def deploy_suggestion(suggestion_id: int, request: DeployRequest = DeployR
                             ],
                             "can_override": safety_result.can_override,
                             "summary": safety_result.summary,
-                            "suggestion": "Review issues and fix automation, or use force_deploy=true to override (if allowed)"
+                            "suggestion": "Review issues and fix automation, or request an admin override"
                         }
                     )
-                
+            else:
                 logger.info(
                     f"✅ Safety validation passed: score={safety_result.safety_score}/100, "
                     f"issues={len(safety_result.issues)}"
                 )
-            else:
-                logger.warning(f"⚠️ FORCE DEPLOY: Skipping safety validation for suggestion {suggestion_id}")
-                safety_result = None
             
             # Deploy to Home Assistant
             deployment_result = await ha_client.deploy_automation(

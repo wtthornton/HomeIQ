@@ -19,6 +19,7 @@ from ..integration.pattern_synergy_validator import PatternSynergyValidator
 from ..synergy_detection.synergy_detector import DeviceSynergyDetector
 from ..clients.data_api_client import DataAPIClient
 from ..config import settings
+from .dependencies.auth import require_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +200,8 @@ async def get_synergy_detail(
 async def detect_synergies_realtime(
     use_patterns: bool = Query(default=True, description="Enable pattern validation (Phase 3)"),
     min_pattern_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum pattern confidence for validation"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
 ) -> Dict[str, Any]:
     """
     Real-time synergy detection with optional pattern validation.
