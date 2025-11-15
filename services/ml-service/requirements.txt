@@ -2,7 +2,7 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi==0.121.0
+fastapi==0.121.2
 uvicorn[standard]==0.38.0
 
 # Data Validation
@@ -21,7 +21,7 @@ numpy==1.26.4
 scipy==1.12.0
 
 # Utilities
-python-dotenv==1.0.1
+python-dotenv==1.2.1
 tenacity==8.2.3
 
 # Testing
