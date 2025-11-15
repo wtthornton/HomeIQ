@@ -119,4 +119,6 @@ jscpd-report/
 # Temporary test files
 test_nabu_casa_connection.py
 ai_automation_backup.db
-ha_events.log
+ha_events.logembedding_test_env/
+embedding_tests/
+embedding_test_output.log
