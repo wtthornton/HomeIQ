@@ -1,8 +1,9 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: openvino-service
 created: 2025-11-15
+closed: 2025-11-15
 labels: [critical, race-condition, memory-leak]
 ---
 
@@ -12,6 +13,21 @@ labels: [critical, race-condition, memory-leak]
 
 ## Overview
 The OpenVINO service has **8 CRITICAL issues** that pose significant risks to service stability, including race conditions, memory leaks, and unhandled failures that can cause container OOM kills.
+
+---
+
+## Resolution (2025-11-15)
+
+- Added per-model `asyncio.Lock` instances, centralized `_run_blocking` helper, and hardened exception handling / timeouts for all model loading paths (`services/openvino-service/src/models/openvino_manager.py`).
+- Implemented deterministic cleanup (`gc.collect`, optional cache purge, torch cache eviction) plus explicit tensor deletion and executor-based inference with bounded `OPENVINO_INFERENCE_TIMEOUT`.
+- Introduced request guardrails and health-aware readiness reporting in `services/openvino-service/src/main.py` (input limits, sanitized errors, preload flag, enriched `/health` surface).
+- Updated `services/openvino-service/README.md` with 2025 safety patterns, new endpoints (`/embeddings`), configuration knobs, and guardrail documentation.
+- Issue file moved to `issues/closed/` with status updated to `Closed`.
+
+## Validation
+
+- Code formatting / lint: `cursor:read_lints` (no findings for updated modules).
+- Functional tests not executed because model downloads would require multi-GB HuggingFace artifacts on the CI runner; manual verification recommended once container images are rebuilt.
 
 ---
 

@@ -17,7 +17,9 @@ The OpenVINO Service provides transformer-based model inference for embeddings, 
 - **Text Embeddings** - all-MiniLM-L6-v2 for semantic similarity
 - **Re-ranking** - BGE reranker for search result ranking
 - **Classification** - FLAN-T5 for pattern categorization
-- **Lazy Loading** - Models load on first request (fast startup)
+- **Concurrency-Safe Loading** - Async locks prevent duplicate downloads and OOM spikes
+- **Guardrails & Timeouts** - Input limits plus inference timeouts to prevent hangs/DoS
+- **Lazy Loading** - Models load on first request (fast startup) with optional preloading
 - **CPU Optimized** - PyTorch CPU-only (no CUDA, saves 8.5GB)
 - **Low Latency** - <100ms for most operations
 - **Batch Processing** - Efficient multi-text processing
@@ -71,11 +73,11 @@ curl http://localhost:8019/health
 
 ### Text Embeddings
 
-#### `POST /embed`
-Convert text to 384-dimensional embeddings
+#### `POST /embeddings`
+Convert text to 384-dimensional embeddings (max 100 texts, 4,000 chars each by default)
 
 ```bash
-curl -X POST http://localhost:8019/embed \
+curl -X POST http://localhost:8019/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "texts": ["office light", "bedroom lamp"],
@@ -103,7 +105,7 @@ curl -X POST http://localhost:8019/embed \
 ### Candidate Re-ranking
 
 #### `POST /rerank`
-Re-rank candidates based on query relevance
+Re-rank candidates based on query relevance (max 200 candidates / top_k capped at 50)
 
 ```bash
 curl -X POST http://localhost:8019/rerank \
@@ -145,7 +147,7 @@ curl -X POST http://localhost:8019/rerank \
 ### Pattern Classification
 
 #### `POST /classify`
-Classify automation patterns
+Classify automation patterns (pattern description up to 4,000 chars by default)
 
 ```bash
 curl -X POST http://localhost:8019/classify \
@@ -172,6 +174,21 @@ curl -X POST http://localhost:8019/classify \
 }
 ```
 
+## Safety Guardrails (2025)
+
+- **Request Limits**  
+  - Embeddings: up to `OPENVINO_MAX_EMBEDDING_TEXTS` (default 100) texts, 4,000 characters each  
+  - Re-rank: up to `OPENVINO_MAX_RERANK_CANDIDATES` (default 200) candidates, `top_k` capped at 50  
+  - Classify: pattern descriptions limited to 4,000 characters
+- **Inference Timeouts**  
+  `OPENVINO_MODEL_LOAD_TIMEOUT` and `OPENVINO_INFERENCE_TIMEOUT` prevent hung downloads or forward passes (default 180s / 30s)
+- **Concurrency Locks**  
+  Async `asyncio.Lock` per model prevents duplicate loads that previously caused OOM spikes
+- **Deterministic Cleanup**  
+  Explicit tensor deletion + `gc.collect()` and optional cache purge (`OPENVINO_CLEAR_CACHE_ON_CLEANUP`) keep the 1.5 GB container within limits
+- **Health Reporting**  
+  `/health` now reports `ready`, `warming`, and per-model state so upstream services can gate requests correctly
+
 ## Configuration
 
 ### Environment Variables
@@ -182,6 +199,15 @@ curl -X POST http://localhost:8019/classify \
 | `MODEL_CACHE_DIR` | `/app/models` | Model storage directory |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `DEVICE` | `CPU` | Device for inference |
+| `OPENVINO_PRELOAD_MODELS` | `false` | Pre-load models during startup instead of lazy loading |
+| `OPENVINO_MODEL_LOAD_TIMEOUT` | `180` | Seconds to wait for model downloads/compilation |
+| `OPENVINO_INFERENCE_TIMEOUT` | `30` | Seconds to wait for inference before aborting |
+| `OPENVINO_MAX_EMBEDDING_TEXTS` | `100` | Max texts accepted by `/embeddings` |
+| `OPENVINO_MAX_TEXT_LENGTH` | `4000` | Max characters per text / query |
+| `OPENVINO_MAX_RERANK_CANDIDATES` | `200` | Max candidates accepted by `/rerank` |
+| `OPENVINO_MAX_RERANK_TOP_K` | `50` | Hard cap on `top_k` for reranking |
+| `OPENVINO_MAX_PATTERN_LENGTH` | `4000` | Max characters accepted by `/classify` |
+| `OPENVINO_CLEAR_CACHE_ON_CLEANUP` | `false` | Purge cached HuggingFace artifacts on shutdown |
 
 ### Example `.env`
 
@@ -190,6 +216,9 @@ PORT=8019
 MODEL_CACHE_DIR=/app/models
 LOG_LEVEL=INFO
 DEVICE=CPU
+OPENVINO_PRELOAD_MODELS=false
+OPENVINO_INFERENCE_TIMEOUT=30
+OPENVINO_MAX_EMBEDDING_TEXTS=100
 ```
 
 ## Architecture
@@ -238,17 +267,16 @@ DEVICE=CPU
 
 ### Model Loading Strategy
 
-**Lazy Loading** (default):
-- Models DON'T load on service startup
-- First request triggers model load (~2-5s delay)
-- Subsequent requests are fast (<100ms)
-- Reduces startup time from 5 minutes to <5 seconds
+**Lazy Loading** (default / `OPENVINO_PRELOAD_MODELS=false`):
+- Models DON'T load on service startup (service responds immediately)
+- First request per model triggers download/compile (~2-5s delay)
+- Async locks guarantee only one download per model to avoid double allocation
+- Subsequent requests stay <100 ms with in-memory cache
 
-**Pre-loading** (optional):
-```python
-# Uncomment in main.py to pre-load all models
-await model_manager.initialize()
-```
+**Pre-loading** (optional / `OPENVINO_PRELOAD_MODELS=true`):
+- Models load once during FastAPI startup via the lifespan hook
+- Guarantees `/health` reports `ready` before other services connect
+- Recommended if you prefer predictable cold-start latency and can tolerate longer container boot time (~3-5 minutes)
 
 ## Use Cases
 
