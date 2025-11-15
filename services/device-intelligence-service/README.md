@@ -1,190 +1,541 @@
 # Device Intelligence Service
 
-**Port:** 8017
-**Purpose:** Centralized device discovery and intelligence processing
-**Status:** Production Ready
+**Centralized Device Discovery and Intelligence Processing for HomeIQ**
+
+**Port:** 8028
+**Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, scikit-learn 1.4
+**Container:** `homeiq-device-intelligence`
+**Database:** SQLite (device_intelligence.db - 7 tables)
 
 ## Overview
 
-The Device Intelligence Service provides comprehensive device discovery, predictive analytics, and intelligent recommendations for Home Assistant devices. It maintains a SQLite database of discovered devices and their metadata, enabling fast lookups and pattern recognition.
+The Device Intelligence Service provides comprehensive device discovery, capability analysis, and intelligent recommendations for Home Assistant devices. It powers **Epic AI-2 (Device Intelligence)** by maintaining a SQLite database of discovered devices, their capabilities, and usage patterns, enabling fast lookups and predictive analytics.
 
-## Key Features
+### Key Features
 
-- **Device Discovery**: Automatic discovery and metadata collection from Home Assistant
-- **Predictive Analytics**: ML-powered predictions for device behavior and failures
-- **Recommendations Engine**: Intelligent suggestions for device optimization
-- **Health Monitoring**: Track device health metrics and detect anomalies
-- **Data Hygiene**: Automated cleanup and database maintenance
-- **WebSocket Support**: Real-time device updates and notifications
+- **Universal Device Discovery** - 6,000+ Zigbee device models with full capability mapping
+- **Capability Analysis** - Feature extraction and utilization tracking
+- **Predictive Analytics** - ML-powered predictions for device behavior and failures
+- **Recommendations Engine** - Intelligent suggestions for device optimization
+- **Health Monitoring** - Track device health metrics and detect anomalies
+- **Data Hygiene** - Automated cleanup and database maintenance
+- **WebSocket Support** - Real-time device updates and notifications
+- **Feature Suggestions** - LED notifications, power monitoring, unused capabilities
 
-## Database
+## Quick Start
 
-Uses SQLite for device metadata storage:
-- **Location**: `/app/data/device_intelligence.db`
-- **Schema**: Devices, entities, predictions, recommendations
-- **Performance**: <10ms metadata queries
+### Prerequisites
+
+- Python 3.11+
+- SQLite 3.x
+- Home Assistant API access
+
+### Running Locally
+
+```bash
+cd services/device-intelligence-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run database migrations
+alembic upgrade head
+
+# Start service
+uvicorn src.main:app --reload --port 8028
+```
+
+### Running with Docker
+
+```bash
+# Build and start
+docker compose up -d device-intelligence-service
+
+# View logs
+docker compose logs -f device-intelligence-service
+
+# Check health
+curl http://localhost:8028/health
+```
 
 ## API Endpoints
 
 ### Health & Status
-```
-GET /health
-GET /api/health
+
+#### `GET /health`
+Service health check
+```bash
+curl http://localhost:8028/health
 ```
 
-### Device Discovery
+#### `GET /api/health`
+Enhanced health with database stats
+```bash
+curl http://localhost:8028/api/health
 ```
-GET /api/devices
-POST /api/devices/discover
-GET /api/devices/{device_id}
+
+### Device Discovery (Epic AI-2)
+
+#### `GET /api/devices`
+List all discovered devices
+```bash
+curl http://localhost:8028/api/devices
+```
+
+#### `POST /api/devices/discover`
+Trigger device discovery from Home Assistant
+```bash
+curl -X POST http://localhost:8028/api/devices/discover
+```
+
+#### `GET /api/devices/{device_id}`
+Get specific device details with capabilities
+```bash
+curl http://localhost:8028/api/devices/abc123
+```
+
+#### `GET /api/devices/{device_id}/capabilities`
+Get device capabilities and utilization
+```bash
+curl http://localhost:8028/api/devices/abc123/capabilities
 ```
 
 ### Predictions
-```
-GET /api/predictions
-POST /api/predictions/generate
-GET /api/predictions/{device_id}
+
+#### `GET /api/predictions`
+List all predictions
+```bash
+curl http://localhost:8028/api/predictions
 ```
 
-### Recommendations
+#### `POST /api/predictions/generate`
+Generate predictions for all devices
+```bash
+curl -X POST http://localhost:8028/api/predictions/generate
 ```
-GET /api/recommendations
-POST /api/recommendations/generate
+
+#### `GET /api/predictions/{device_id}`
+Get predictions for specific device
+```bash
+curl http://localhost:8028/api/predictions/{device_id}
+```
+
+### Recommendations (Epic AI-2)
+
+#### `GET /api/recommendations`
+List all recommendations
+```bash
+curl http://localhost:8028/api/recommendations
+```
+
+#### `POST /api/recommendations/generate`
+Generate recommendations for all devices
+```bash
+curl -X POST http://localhost:8028/api/recommendations/generate
 ```
 
 ### Database Management
+
+#### `POST /api/database/cleanup`
+Clean up old records
+```bash
+curl -X POST http://localhost:8028/api/database/cleanup
 ```
-POST /api/database/cleanup
-POST /api/database/optimize
-GET /api/database/stats
+
+#### `POST /api/database/optimize`
+Optimize database (VACUUM, ANALYZE)
+```bash
+curl -X POST http://localhost:8028/api/database/optimize
+```
+
+#### `GET /api/database/stats`
+Get database statistics
+```bash
+curl http://localhost:8028/api/database/stats
 ```
 
 ### Data Hygiene
+
+#### `POST /api/hygiene/run`
+Run data hygiene tasks
+```bash
+curl -X POST http://localhost:8028/api/hygiene/run
 ```
-POST /api/hygiene/run
-GET /api/hygiene/status
+
+#### `GET /api/hygiene/status`
+Get hygiene task status
+```bash
+curl http://localhost:8028/api/hygiene/status
 ```
 
 ### WebSocket
-```
-WS /ws
+
+#### `WS /ws`
+Real-time device updates
+```bash
+wscat -c ws://localhost:8028/ws
 ```
 
-## Environment Variables
+## Configuration
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DEVICE_INTELLIGENCE_PORT` | `8017` | Service port |
+| `DEVICE_INTELLIGENCE_PORT` | `8028` | Service port |
 | `DATABASE_PATH` | `/app/data/device_intelligence.db` | SQLite database path |
 | `HA_URL` | `http://homeassistant:8123` | Home Assistant URL |
+| `HA_TOKEN` | - | Home Assistant access token |
 | `LOG_LEVEL` | `INFO` | Logging level |
+| `DISCOVERY_INTERVAL` | `3600` | Discovery interval (seconds) |
+| `PREDICTION_INTERVAL` | `7200` | Prediction interval (seconds) |
+
+### Example `.env`
+
+```bash
+DEVICE_INTELLIGENCE_PORT=8028
+DATABASE_PATH=/app/data/device_intelligence.db
+HA_URL=http://homeassistant:8123
+HA_TOKEN=your-token-here
+LOG_LEVEL=INFO
+DISCOVERY_INTERVAL=3600
+PREDICTION_INTERVAL=7200
+```
 
 ## Architecture
 
+### Data Flow
+
 ```
-┌──────────────────────────┐
-│ Device Intelligence Svc  │
-│      (Port 8017)         │
-└───────────┬──────────────┘
+┌──────────────────────────────┐
+│ Home Assistant               │
+│ Device & Entity Registry     │
+└───────────┬──────────────────┘
             │
-     ┌──────┴──────┐
-     │             │
-     ▼             ▼
-┌─────────┐   ┌──────────────┐
-│ SQLite  │   │ Home         │
-│ Device  │   │ Assistant    │
-│ Database│   │ API          │
-└─────────┘   └──────────────┘
+            │ Discovery (on demand / interval)
+            ↓
+┌──────────────────────────────┐
+│ Device Intelligence Service  │
+│ (Port 8028)                  │
+│                              │
+│ ┌────────────────────────┐  │
+│ │ Capability Parser      │  │
+│ │ 6,000+ Zigbee models   │  │
+│ └────────────────────────┘  │
+│                              │
+│ ┌────────────────────────┐  │
+│ │ Predictive Analytics   │  │
+│ │ scikit-learn ML        │  │
+│ └────────────────────────┘  │
+└───────────┬──────────────────┘
+            │
+            ↓
+┌──────────────────────────────┐
+│ SQLite Database              │
+│ device_intelligence.db       │
+│ - devices (7 tables)         │
+│ - capabilities               │
+│ - predictions                │
+│ - recommendations            │
+└──────────────────────────────┘
+            │
+            ↓
+┌──────────────────────────────┐
+│ AI Automation Service        │
+│ Uses capabilities for        │
+│ feature suggestions          │
+└──────────────────────────────┘
 ```
 
-## Data Flow
+### Component Architecture
 
-1. **Discovery Phase**: Poll Home Assistant for devices/entities
-2. **Storage**: Store metadata in SQLite database
-3. **Analysis**: Run predictive analytics on device patterns
-4. **Recommendations**: Generate intelligent suggestions
-5. **Hygiene**: Periodic cleanup and optimization
+```
+src/
+├── main.py                    # FastAPI application
+├── config.py                  # Pydantic settings
+├── api/
+│   ├── devices.py             # Device endpoints
+│   ├── predictions.py         # Prediction endpoints
+│   ├── recommendations.py     # Recommendation endpoints
+│   └── database.py            # Database management
+├── core/
+│   ├── database.py            # SQLAlchemy setup
+│   ├── models.py              # Database models (7 tables)
+│   └── schemas.py             # Pydantic schemas
+├── services/
+│   ├── discovery.py           # Device discovery from HA
+│   ├── capability_parser.py   # Capability extraction
+│   ├── predictions.py         # ML predictions
+│   ├── recommendations.py     # Recommendation engine
+│   └── hygiene.py             # Data cleanup
+└── ml/
+    ├── models.py              # ML model definitions
+    └── training.py            # Model training
+```
+
+## Database Schema
+
+### 7 Tables
+
+1. **devices** - Device registry
+   - device_id (PK), friendly_name, manufacturer, model, area_id
+   - last_seen, health_score, capabilities_json
+
+2. **device_capabilities** - Capability metadata (Epic AI-2)
+   - id (PK), device_id (FK), capability_name, capability_type
+   - utilization_score, last_used, created_at
+
+3. **feature_usage** - Feature utilization tracking
+   - id (PK), device_id (FK), feature_name, usage_count
+   - last_used, created_at
+
+4. **predictions** - ML predictions
+   - id (PK), device_id (FK), prediction_type, confidence
+   - predicted_at, expires_at
+
+5. **recommendations** - Intelligent suggestions
+   - id (PK), device_id (FK), recommendation_type, priority
+   - status (pending/accepted/rejected), created_at
+
+6. **device_health** - Health tracking
+   - id (PK), device_id (FK), health_score, last_check
+   - issues_json, created_at
+
+7. **discovery_runs** - Discovery job tracking
+   - id (PK), started_at, completed_at, devices_found
+   - status, errors_json
+
+### Indexes
+
+- `devices.area_id`, `devices.manufacturer`
+- `device_capabilities.device_id`, `device_capabilities.capability_type`
+- `predictions.device_id`, `predictions.expires_at`
+- `recommendations.device_id`, `recommendations.status`
+
+## Performance
+
+### Performance Targets
+
+| Operation | Target | Acceptable | Investigation |
+|-----------|--------|------------|---------------|
+| Device queries | <10ms | <50ms | >100ms |
+| Discovery (full) | 1-2s | <5s | >10s |
+| Predictions | 100-500ms | <1s | >2s |
+| Recommendations | 200-800ms | <1.5s | >3s |
+
+### Resource Usage
+
+- **Memory:** ~200-400MB (with ML models loaded)
+- **CPU:** <10% typical, <50% during discovery
+- **Disk:** <50MB database (typical)
+
+### Optimization
+
+**SQLite Optimizations:**
+```sql
+PRAGMA journal_mode=WAL;
+PRAGMA synchronous=NORMAL;
+PRAGMA cache_size=-64000;  # 64MB cache
+PRAGMA temp_store=MEMORY;
+PRAGMA foreign_keys=ON;
+```
 
 ## Development
 
-### Running Locally
-```bash
-cd services/device-intelligence-service
-docker-compose up --build
-```
-
 ### Database Migrations
+
 ```bash
-# Database is initialized automatically on startup
-# Manual initialization (if needed):
-docker exec device-intelligence-service python -c "from src.core.database import initialize_database; import asyncio; asyncio.run(initialize_database())"
+# Create new migration
+alembic revision --autogenerate -m "Add new table"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback migration
+alembic downgrade -1
 ```
 
 ### Testing
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with coverage
+pytest --cov=src --cov-report=html tests/
+
+# Run specific test
+pytest tests/test_discovery.py -v
+```
+
+### Manual Testing
+
 ```bash
 # Health check
-curl http://localhost:8017/health
+curl http://localhost:8028/health
 
 # Discover devices
-curl -X POST http://localhost:8017/api/devices/discover
+curl -X POST http://localhost:8028/api/devices/discover
 
 # Get recommendations
-curl http://localhost:8017/api/recommendations
+curl http://localhost:8028/api/recommendations
+
+# Database stats
+curl http://localhost:8028/api/database/stats
+```
+
+## Monitoring
+
+### Structured Logging
+
+Logs include:
+- Request/response timing
+- Database query performance
+- Discovery results and statistics
+- Prediction accuracy metrics
+- Health check status
+- Error tracking with stack traces
+
+### Metrics
+
+- Devices discovered per run
+- Predictions generated
+- Recommendations created
+- Database size and query times
+- API response times
+
+## Troubleshooting
+
+### Service Won't Start
+
+**Check logs:**
+```bash
+docker compose logs device-intelligence-service
+```
+
+**Common issues:**
+- Database file permissions → Check `/app/data/` permissions
+- Home Assistant unreachable → Verify `HA_URL` and `HA_TOKEN`
+- Port 8028 in use → Change `DEVICE_INTELLIGENCE_PORT`
+- Missing migrations → Run `alembic upgrade head`
+
+### Discovery Not Working
+
+**Check Home Assistant connection:**
+```bash
+curl -H "Authorization: Bearer $HA_TOKEN" http://homeassistant:8123/api/
+```
+
+**Manually trigger discovery:**
+```bash
+curl -X POST http://localhost:8028/api/devices/discover
+```
+
+### Database Locked
+
+**Symptoms:**
+- "database is locked" errors
+- Slow queries
+
+**Solutions:**
+```bash
+# Check WAL mode
+sqlite3 data/device_intelligence.db "PRAGMA journal_mode;"
+
+# Optimize database
+curl -X POST http://localhost:8028/api/database/optimize
 ```
 
 ## Dependencies
 
-- FastAPI (web framework)
-- SQLAlchemy (ORM)
-- aiosqlite (async SQLite)
-- scikit-learn (ML predictions)
-- pydantic (data validation)
+### Core
 
-## Database Schema
+```
+fastapi==0.121.2           # Web framework
+uvicorn[standard]==0.38.0  # ASGI server
+pydantic==2.12.4           # Data validation
+pydantic-settings==2.12.0  # Settings management
+```
 
-### Devices Table
-- `device_id` (PK): Unique device identifier
-- `friendly_name`: User-facing name
-- `manufacturer`: Device manufacturer
-- `model`: Device model
-- `area_id`: Location/room
-- `last_seen`: Last activity timestamp
-- `health_score`: Computed health metric (0-100)
+### Database
 
-### Predictions Table
-- `id` (PK): Prediction identifier
-- `device_id` (FK): Associated device
-- `prediction_type`: Type of prediction
-- `confidence`: Confidence score (0-1)
-- `predicted_at`: Timestamp
-- `expires_at`: Expiration timestamp
+```
+sqlalchemy==2.0.44         # ORM
+aiosqlite==0.21.0          # Async SQLite
+alembic==1.17.2            # Migrations
+```
 
-### Recommendations Table
-- `id` (PK): Recommendation identifier
-- `device_id` (FK): Associated device
-- `recommendation_type`: Type of recommendation
-- `priority`: Priority level (low/medium/high)
-- `status`: Status (pending/accepted/rejected)
-- `created_at`: Timestamp
+### HTTP & WebSocket
 
-## Performance
+```
+httpx==0.27.2              # HTTP client
+aiohttp==3.13.2            # Async HTTP
+websockets==12.0           # WebSocket server
+paho-mqtt==1.6.1           # MQTT client
+```
 
-- **Device Queries**: <10ms (SQLite)
-- **Discovery**: 1-2s (full scan)
-- **Predictions**: 100-500ms
-- **Recommendations**: 200-800ms
+### Machine Learning
 
-## Monitoring
+```
+scikit-learn==1.4.2        # ML predictions
+pandas==2.3.3              # Data analysis
+numpy==2.3.4               # Numerical computing
+joblib==1.4.2              # Model persistence
+```
 
-Logs structured JSON with:
-- Request/response timing
-- Database query performance
-- Discovery results
-- Prediction accuracy
-- Health check status
+### Development
 
-## Related Services
+```
+pytest==8.3.3              # Testing
+pytest-asyncio==0.23.0     # Async tests
+pytest-cov==5.0.0          # Coverage
+black==23.11.0             # Code formatting
+mypy==1.7.1                # Type checking
+```
 
-- [Admin API](../admin-api/README.md) - System monitoring
-- [Data API](../data-api/README.md) - Historical data queries
-- [AI Automation Service](../ai-automation-service/README.md) - Automation suggestions
+## Related Documentation
+
+- [Epic AI-2: Device Intelligence](../../docs/stories/epic-ai2-device-intelligence.md)
+- [AI Automation Service](../ai-automation-service/README.md)
+- [Data API](../data-api/README.md)
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+
+## Support
+
+- **Issues:** https://github.com/wtthornton/HomeIQ/issues
+- **Documentation:** `/docs` directory
+- **Health Check:** http://localhost:8028/health
+- **API Docs:** http://localhost:8028/docs
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Updated documentation to 2025 standards
+- Corrected port from 8017 to 8028
+- Enhanced dependency documentation
+- Added comprehensive API endpoint documentation
+- Improved troubleshooting section
+- Added Epic AI-2 context
+
+### 2.0 (September 2025)
+- Added 6,000+ Zigbee device capability mapping
+- Feature utilization tracking
+- Enhanced recommendation engine
+
+### 1.0 (Initial Release)
+- Device discovery from Home Assistant
+- Basic predictive analytics
+- SQLite database storage
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8028
+**Epic:** AI-2 (Device Intelligence)

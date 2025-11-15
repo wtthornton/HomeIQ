@@ -234,3 +234,28 @@ The service logs its own operations:
 - Reduce `MAX_LOGS_MEMORY` value
 - Implement log rotation
 - Archive old logs to external storage
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Docker integration documented
+- WebSocket streaming detailed
+- Performance characteristics documented
+
+### 2.0 (October 2025)
+- Docker API integration
+- Real-time log collection
+- In-memory buffer (10,000 logs)
+- WebSocket streaming support
+
+### 1.0 (Initial Release)
+- Basic log aggregation
+- File persistence
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8022 (Note: Port conflict - update to 8015 in deployment)

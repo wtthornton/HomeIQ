@@ -276,3 +276,35 @@ docker-compose up ha-simulator
 
 Part of the homeiq project. See main project license.
 
+
+## Related Documentation
+
+- [WebSocket Ingestion](../websocket-ingestion/README.md) - Primary consumer
+- [Docker Compose Development](../../docker-compose.dev.yml)
+- [CLAUDE.md](../../CLAUDE.md)
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- WebSocket API compatibility documented
+- Event generation patterns reference
+- Docker integration guide
+
+### 2.0 (October 2025)
+- Realistic event generation from real HA logs
+- Configurable entities via YAML
+- Multi-client support
+- Health monitoring endpoints
+
+### 1.0 (Initial Release)
+- Basic Home Assistant WebSocket simulation
+- Simple event generation
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Development Only (Not in Production) 🔧
+**Port:** 8123 (Development environment only)
+**Note:** For development/testing only - not deployed in production docker-compose

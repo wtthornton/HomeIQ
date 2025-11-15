@@ -31,6 +31,7 @@ from .api.validation_router import router as validation_router
 from .api.ranking_router import router as ranking_router
 from .api.middlewares import IdempotencyMiddleware, RateLimitMiddleware
 from .api.community_pattern_router import router as community_pattern_router
+from .api.mcp_router import router as mcp_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
@@ -286,6 +287,7 @@ app.include_router(settings_router)  # System settings management
 app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
+app.include_router(mcp_router)  # MCP Code Execution Tools
 
 # Initialize scheduler
 scheduler = DailyAnalysisScheduler()

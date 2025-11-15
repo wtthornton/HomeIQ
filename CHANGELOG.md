@@ -5,7 +5,106 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-15 (from claude/update-health-dashboard-01L5piT2h3T9JwZCzcNv67Rk)
+## [Unreleased] - 2025-11-15 (from claude/update-service-readmes-01XSYw89dPrc4UKhbx2zvkEJ)
+
+### Added
+
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (edf63cc) - Claude
+- **feat(tooling): add Python script for creating GitHub issues via API** (d629dc3) - Claude
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (ebc2abb) - Claude
+- **feat(mcp): enable AI Code Executor service for 90%+ token savings** (2016504) - Claude
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (8060f10) - Claude
+- **feat(ai-automation-ui): comprehensive production-ready updates** (5bd1915) - Claude
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (590985e) - Claude
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (b8f768d) - Claude
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (e106be7) - Claude
+- **feat(automation-miner): implement Blueprint YAML parsing** (a85d367) - Claude
+- **feat(ai-automation): integrate automation-miner for community-powered pattern discovery** (74eed43) - Claude
+- **feat(ai-automation): implement Common Patterns Library for instant automation generation** (48518ae) - Claude
+- **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
+- **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
+- **Add automated documentation updates** (77b7063) - Cursor Agent
+
+### Changed
+
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+- **Remove unused beforeEach from useStatistics test** (959415d) - Cursor Agent
+
+### Fixed
+
+- **fix(gitignore): properly format Phase 3 test artifact entries** (574006a) - Claude
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+- **Fix service health API mapping** (d652225) - wtthornton
+
+
+### Added
+
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (edf63cc) - Claude
+- **feat(tooling): add Python script for creating GitHub issues via API** (d629dc3) - Claude
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (ebc2abb) - Claude
+- **feat(mcp): enable AI Code Executor service for 90%+ token savings** (2016504) - Claude
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (8060f10) - Claude
+- **feat(ai-automation-ui): comprehensive production-ready updates** (5bd1915) - Claude
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (590985e) - Claude
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (b8f768d) - Claude
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (e106be7) - Claude
+- **feat(automation-miner): implement Blueprint YAML parsing** (a85d367) - Claude
+- **feat(ai-automation): integrate automation-miner for community-powered pattern discovery** (74eed43) - Claude
+- **feat(ai-automation): implement Common Patterns Library for instant automation generation** (48518ae) - Claude
+- **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
+- **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
+- **Add automated documentation updates** (77b7063) - Cursor Agent
+
+### Changed
+
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+- **Remove unused beforeEach from useStatistics test** (959415d) - Cursor Agent
+
+### Fixed
+
+- **fix(gitignore): properly format Phase 3 test artifact entries** (574006a) - Claude
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+- **Fix service health API mapping** (d652225) - wtthornton
+- **restore test infrastructure and fix all unit tests after upgrade** (90d7483) - Claude
+
+
+### Added
+
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (ebc2abb) - Claude
+- **feat(mcp): enable AI Code Executor service for 90%+ token savings** (2016504) - Claude
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (8060f10) - Claude
+- **feat(ai-automation-ui): comprehensive production-ready updates** (5bd1915) - Claude
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (590985e) - Claude
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (b8f768d) - Claude
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (e106be7) - Claude
+- **feat(automation-miner): implement Blueprint YAML parsing** (a85d367) - Claude
+- **feat(ai-automation): integrate automation-miner for community-powered pattern discovery** (74eed43) - Claude
+- **feat(ai-automation): implement Common Patterns Library for instant automation generation** (48518ae) - Claude
+- **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
+- **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
+- **Add automated documentation updates** (77b7063) - Cursor Agent
+
+### Changed
+
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+- **Remove unused beforeEach from useStatistics test** (959415d) - Cursor Agent
+
+### Fixed
+
+- **fix(gitignore): properly format Phase 3 test artifact entries** (574006a) - Claude
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+- **Fix service health API mapping** (d652225) - wtthornton
+- **restore test infrastructure and fix all unit tests after upgrade** (90d7483) - Claude
+
 
 ### Added
 
