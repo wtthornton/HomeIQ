@@ -22,12 +22,14 @@ logger = logging.getLogger(__name__)
 class InfluxDBBatchWriter:
     """High-performance batch writer for InfluxDB"""
     
-    def __init__(self, 
+    def __init__(self,
                  connection_manager: InfluxDBConnectionManager,
                  batch_size: int = 1000,
                  batch_timeout: float = 5.0,
                  max_retries: int = 3,
-                 retry_delay: float = 1.0):
+                 retry_delay: float = 1.0,
+                 max_pending_points: int = 20000,
+                 overflow_strategy: str = "drop_oldest"):
         """
         Initialize InfluxDB batch writer
         
@@ -43,6 +45,8 @@ class InfluxDBBatchWriter:
         self.batch_timeout = batch_timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.max_pending_points = max_pending_points
+        self.overflow_strategy = overflow_strategy
         
         # Schema for point creation
         self.schema = InfluxDBSchema()
@@ -69,6 +73,8 @@ class InfluxDBBatchWriter:
         
         # Error handling
         self.error_callbacks: List[Callable] = []
+        self.queue_overflow_events = 0
+        self.dropped_points = 0
     
     async def start(self):
         """Start the batch writer"""
@@ -121,20 +127,7 @@ class InfluxDBBatchWriter:
                 logger.warning("Failed to create InfluxDB point from event data")
                 return False
             
-            # Add point to current batch
-            async with self.batch_lock:
-                self.current_batch.append(point)
-                
-                # Check if batch is full
-                if len(self.current_batch) >= self.batch_size:
-                    await self._process_current_batch()
-                    return True
-                
-                # Set batch start time if this is the first point
-                if self.batch_start_time is None:
-                    self.batch_start_time = datetime.now()
-                
-                return True
+            return await self._enqueue_point(point)
                 
         except Exception as e:
             logger.error(f"Error writing event to InfluxDB: {e}")
@@ -158,20 +151,7 @@ class InfluxDBBatchWriter:
                 logger.warning("Failed to create InfluxDB point from weather data")
                 return False
             
-            # Add point to current batch
-            async with self.batch_lock:
-                self.current_batch.append(point)
-                
-                # Check if batch is full
-                if len(self.current_batch) >= self.batch_size:
-                    await self._process_current_batch()
-                    return True
-                
-                # Set batch start time if this is the first point
-                if self.batch_start_time is None:
-                    self.batch_start_time = datetime.now()
-                
-                return True
+            return await self._enqueue_point(point)
                 
         except Exception as e:
             logger.error(f"Error writing weather data to InfluxDB: {e}")
@@ -183,45 +163,109 @@ class InfluxDBBatchWriter:
             try:
                 # Wait for batch timeout
                 await asyncio.sleep(self.batch_timeout)
-                
+
                 # Process current batch if it has points
-                async with self.batch_lock:
-                    if self.current_batch:
-                        await self._process_current_batch()
-                
+                await self._process_current_batch()
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Error in processing loop: {e}")
-    
+
     async def _process_current_batch(self):
         """Process the current batch"""
-        if not self.current_batch:
+        batch_to_process = await self._drain_current_batch()
+        if not batch_to_process:
             return
-        
+
+        await self._process_batch_with_metrics(batch_to_process)
+
+    async def _enqueue_point(self, point: Point) -> bool:
+        batch_to_process: Optional[List[Point]] = None
+
+        async with self.batch_lock:
+            if not self._apply_backpressure_locked():
+                logger.error(
+                    "InfluxDB batch queue is full; dropping new point per overflow strategy %s",
+                    self.overflow_strategy,
+                )
+                return False
+
+            self.current_batch.append(point)
+
+            if len(self.current_batch) >= self.batch_size:
+                batch_to_process = self._drain_current_batch_locked()
+            elif self.batch_start_time is None:
+                self.batch_start_time = datetime.now()
+
+        if batch_to_process:
+            await self._process_batch_with_metrics(batch_to_process)
+
+        return True
+
+    async def _drain_current_batch(self) -> List[Point]:
+        async with self.batch_lock:
+            return self._drain_current_batch_locked()
+
+    def _drain_current_batch_locked(self) -> List[Point]:
         batch_to_process = self.current_batch.copy()
         self.current_batch.clear()
         self.batch_start_time = None
-        
+        return batch_to_process
+
+    def _apply_backpressure_locked(self) -> bool:
+        if self.max_pending_points <= 0:
+            return True
+
+        if len(self.current_batch) < self.max_pending_points:
+            return True
+
+        self.queue_overflow_events += 1
+
+        overflow = len(self.current_batch) - self.max_pending_points + 1
+        if self.overflow_strategy == "drop_oldest":
+            dropped = min(overflow, len(self.current_batch))
+            self.dropped_points += dropped
+            del self.current_batch[:dropped]
+            logger.warning(
+                "Backpressure triggered: dropped %s oldest points to stay under %s pending limit",
+                dropped,
+                self.max_pending_points,
+            )
+            return True
+
+        if self.overflow_strategy == "drop_new":
+            self.dropped_points += 1
+            logger.error(
+                "Backpressure triggered: rejecting newest point because queue exceeded %s entries",
+                self.max_pending_points,
+            )
+            return False
+
+        logger.warning(
+            "Unknown overflow strategy %s; defaulting to drop_oldest",
+            self.overflow_strategy,
+        )
+        self.overflow_strategy = "drop_oldest"
+        return self._apply_backpressure_locked()
+
+    async def _process_batch_with_metrics(self, batch_to_process: List[Point]):
         if not batch_to_process:
             return
-        
-        # Process the batch
+
         start_time = datetime.now()
         success = await self._write_batch(batch_to_process)
         write_time = (datetime.now() - start_time).total_seconds()
-        
-        # Update statistics
+
         self.batch_write_times.append(write_time)
         self.batch_sizes.append(len(batch_to_process))
-        
+
         if success:
             self.total_batches_written += 1
             self.total_points_written += len(batch_to_process)
         else:
             self.total_points_failed += len(batch_to_process)
-        
-        # Calculate write rate
+
         if write_time > 0:
             rate = len(batch_to_process) / write_time
             self.write_rates.append(rate)
@@ -363,9 +407,13 @@ class InfluxDBBatchWriter:
             "uptime_seconds": round(uptime, 2),
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
-            "error_callbacks_count": len(self.error_callbacks)
+            "error_callbacks_count": len(self.error_callbacks),
+            "max_pending_points": self.max_pending_points,
+            "overflow_strategy": self.overflow_strategy,
+            "queue_overflow_events": self.queue_overflow_events,
+            "dropped_points": self.dropped_points
         }
-    
+
     def reset_statistics(self):
         """Reset writing statistics"""
         self.total_batches_written = 0
@@ -375,4 +423,19 @@ class InfluxDBBatchWriter:
         self.batch_write_times.clear()
         self.batch_sizes.clear()
         self.write_rates.clear()
+        self.queue_overflow_events = 0
+        self.dropped_points = 0
         logger.info("InfluxDB batch writer statistics reset")
+
+    def configure_queue_limits(self, max_pending_points: int, overflow_strategy: str = "drop_oldest"):
+        """Update queue/backpressure configuration"""
+        if max_pending_points <= 0:
+            raise ValueError("max_pending_points must be positive")
+
+        self.max_pending_points = max_pending_points
+        self.overflow_strategy = overflow_strategy
+        logger.info(
+            "Updated queue limits: max_pending_points=%s, overflow_strategy=%s",
+            max_pending_points,
+            overflow_strategy,
+        )

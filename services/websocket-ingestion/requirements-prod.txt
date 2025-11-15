@@ -3,5 +3,5 @@ asyncio-mqtt==0.16.1
 python-dotenv==1.0.1
 pydantic==2.8.2
 psutil==6.0.0
-influxdb-client==1.44.0
+influxdb-client==1.48.0
 websockets==12.0
