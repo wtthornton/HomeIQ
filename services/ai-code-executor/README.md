@@ -356,3 +356,29 @@ For issues, questions, or improvements:
 **Version:** 1.0.0
 **Last Updated:** November 15, 2025
 **Maintainer:** HomeIQ Development Team
+
+## Version History
+
+### 1.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- MCP (Model Context Protocol) pattern documented
+- Security layers comprehensive reference
+- Token savings examples (90%+ reduction)
+- Troubleshooting guide expanded
+
+### 1.0 (November 2025)
+- Secure Python code execution sandbox
+- MCP tool integration (Data API, AI Automation, Device Intelligence)
+- RestrictedPython security (no eval, exec, open, __import__)
+- Resource limits (128MB, 30s timeout, 50% CPU)
+- Docker isolation
+- Prometheus metrics
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 1.1
+**Status:** Production Ready ✅
+**Port:** 8030
+**Security:** Multi-layer sandbox (RestrictedPython + Docker + Resource Limits)
+**Performance:** 90-99% token savings vs traditional tool calling
