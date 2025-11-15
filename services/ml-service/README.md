@@ -103,11 +103,11 @@ curl -X POST http://localhost:8020/cluster \
 
 ### Anomaly Detection
 
-#### `POST /detect-anomalies`
+#### `POST /anomaly`
 Identify outliers in data
 
 ```bash
-curl -X POST http://localhost:8020/detect-anomalies \
+curl -X POST http://localhost:8020/anomaly \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 1.0], [1.2, 1.1], [10.0, 10.0]],
@@ -135,11 +135,11 @@ curl -X POST http://localhost:8020/detect-anomalies \
 
 ### Batch Processing
 
-#### `POST /batch`
+#### `POST /batch/process`
 Process multiple operations efficiently
 
 ```bash
-curl -X POST http://localhost:8020/batch \
+curl -X POST http://localhost:8020/batch/process \
   -H "Content-Type: application/json" \
   -d '{
     "operations": [
@@ -168,7 +168,13 @@ curl -X POST http://localhost:8020/batch \
 |----------|---------|-------------|
 | `PORT` | `8020` | Service port |
 | `LOG_LEVEL` | `INFO` | Logging level |
-| `MAX_BATCH_SIZE` | `100` | Maximum operations per batch |
+| `ML_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001` | Comma-separated list of trusted frontends |
+| `ML_MAX_BATCH_SIZE` | `100` | Maximum operations per batch request |
+| `ML_MAX_PAYLOAD_BYTES` | `10MB` | Maximum data payload per operation |
+| `ML_MAX_DIMENSIONS` | `1000` | Maximum features per row |
+| `ML_MAX_CLUSTERS` | `100` | Safety cap for requested clusters |
+| `ML_MAX_DATA_POINTS` | `50000` | Upper bound on rows per request |
+| `ML_ALGORITHM_TIMEOUT_SECONDS` | `8` | Timeout for CPU-bound operations |
 
 ## Architecture
 
@@ -257,6 +263,15 @@ features = [
 # Result: {"importance": [0.4, 0.3, 0.2, 0.1]}
 # Age and usage are most important
 ```
+
+## Safety Guardrails (2025)
+
+- **Per-request normalization** – new `StandardScaler` instances are created for every operation to prevent cross-request contamination.
+- **Thread offloading** – CPU-heavy sklearn calls now run in a background executor so the FastAPI event loop remains responsive.
+- **Strict validation** – the API enforces 10MB payload limits, ≤1000 dimensions, ≤100 clusters, and ≤100 operations per batch before any processing occurs.
+- **Time-limited execution** – clustering and anomaly detection calls time out (default 8s) to avoid runaway workloads on the NUC.
+- **Restricted CORS** – only explicitly allowed dashboard origins can issue browser calls; override via `ML_ALLOWED_ORIGINS` if needed.
+- **Sanitized errors** – responses never leak stack traces or sklearn internals; see logs for details.
 
 ## Performance
 
@@ -411,6 +426,12 @@ pytest-asyncio==0.23.0    # Async test support
 - **API Docs:** http://localhost:8020/docs
 
 ## Version History
+
+### 2.2 (November 15, 2025)
+- Added strict payload validation (10MB cap, 1000 dimensions, 100 clusters) and enforced documented batch limits
+- Routed CPU-bound sklearn workloads through thread executors with per-request scalers to eliminate memory leaks
+- Restricted CORS origins, added operation timeouts, and sanitized error responses to prevent information disclosure
+- Updated `/anomaly` and `/batch/process` documentation plus new environment variables for guardrails
 
 ### 2.1 (November 15, 2025)
 - Updated documentation to 2025 standards

@@ -4,89 +4,106 @@ Provides KMeans and DBSCAN clustering for pattern detection
 """
 
 import logging
-import numpy as np
 from typing import List, Tuple, Optional
-from sklearn.cluster import KMeans, DBSCAN
+
+import numpy as np
+from sklearn.cluster import DBSCAN, KMeans
 from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
 class ClusteringManager:
     """
-    Manages clustering algorithms for pattern detection
+    Manages clustering algorithms for pattern detection.
+
+    Heavy numerical operations remain synchronous and should be executed in a
+    thread or process pool by the caller to avoid blocking the event loop.
     """
-    
+
     def __init__(self):
-        self.scaler = StandardScaler()
         logger.info("ClusteringManager initialized")
-    
-    async def kmeans_cluster(self, data: List[List[float]], n_clusters: Optional[int] = None) -> Tuple[List[int], int]:
+
+    @staticmethod
+    def _scale_features(data: List[List[float]]) -> np.ndarray:
         """
-        Perform KMeans clustering
-        
+        Scale the provided data using a fresh StandardScaler per request.
+
+        Using per-request scalers prevents data leakage between different calls
+        and ensures garbage collection can reclaim memory when the call exits.
+        """
+        scaler = StandardScaler()
+        return scaler.fit_transform(np.array(data, dtype=np.float64))
+
+    def kmeans_cluster(
+        self,
+        data: List[List[float]],
+        n_clusters: Optional[int] = None,
+        max_clusters: int = 100,
+    ) -> Tuple[List[int], int]:
+        """
+        Perform KMeans clustering.
+
         Args:
             data: List of data points to cluster
             n_clusters: Number of clusters (auto-detect if None)
-        
-        Returns:
-            Tuple of (labels, n_clusters_found)
+            max_clusters: Upper bound for allowed clusters (safety cap)
         """
         if not data:
             return [], 0
-        
-        # Convert to numpy array
-        X = np.array(data)
-        
-        # Standardize features
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # Auto-detect number of clusters if not specified
+
+        X_scaled = self._scale_features(data)
+
         if n_clusters is None:
-            n_clusters = min(8, max(2, len(data) // 10))
-        
-        # Perform KMeans clustering
+            auto_clusters = max(2, len(data) // 10)
+            n_clusters = auto_clusters or 2
+
+        n_clusters = max(2, min(max_clusters, n_clusters, len(data)))
+
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         labels = kmeans.fit_predict(X_scaled)
-        
-        logger.info(f"KMeans clustering completed: {n_clusters} clusters, {len(data)} points")
-        
+        del kmeans
+
+        logger.info(
+            "KMeans clustering completed",
+            extra={"clusters": n_clusters, "points": len(data)},
+        )
         return labels.tolist(), n_clusters
-    
-    async def dbscan_cluster(self, data: List[List[float]], eps: Optional[float] = None) -> Tuple[List[int], int]:
+
+    def dbscan_cluster(
+        self,
+        data: List[List[float]],
+        eps: Optional[float] = None,
+    ) -> Tuple[List[int], int]:
         """
-        Perform DBSCAN clustering
-        
+        Perform DBSCAN clustering.
+
         Args:
             data: List of data points to cluster
             eps: Epsilon parameter (auto-detect if None)
-        
-        Returns:
-            Tuple of (labels, n_clusters_found)
         """
         if not data:
             return [], 0
-        
-        # Convert to numpy array
-        X = np.array(data)
-        
-        # Standardize features
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # Auto-detect epsilon if not specified
+
+        X_scaled = self._scale_features(data)
+
         if eps is None:
-            # Use a simple heuristic: 0.5 * mean distance to nearest neighbor
-            from sklearn.neighbors import NearestNeighbors
-            nbrs = NearestNeighbors(n_neighbors=2).fit(X_scaled)
-            distances, _ = nbrs.kneighbors(X_scaled)
-            eps = 0.5 * np.mean(distances[:, 1])
-        
-        # Perform DBSCAN clustering
+            if len(X_scaled) < 2:
+                eps = 0.5
+            else:
+                from sklearn.neighbors import NearestNeighbors
+
+                nbrs = NearestNeighbors(n_neighbors=2).fit(X_scaled)
+                distances, _ = nbrs.kneighbors(X_scaled)
+                eps = max(1e-3, 0.5 * float(np.mean(distances[:, 1])))
+
         dbscan = DBSCAN(eps=eps, min_samples=2)
         labels = dbscan.fit_predict(X_scaled)
-        
-        # Count clusters (excluding noise points labeled as -1)
+        del dbscan
+
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-        
-        logger.info(f"DBSCAN clustering completed: {n_clusters} clusters, {len(data)} points, eps={eps:.3f}")
-        
+
+        logger.info(
+            "DBSCAN clustering completed",
+            extra={"clusters": n_clusters, "points": len(data), "eps": float(eps)},
+        )
         return labels.tolist(), n_clusters
