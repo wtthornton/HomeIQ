@@ -1,9 +1,11 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: websocket-ingestion
 created: 2025-11-15
 labels: [critical, reliability, security, performance]
+closed: 2025-02-15
+resolution: Completed
 ---
 
 # [CRITICAL] WebSocket Ingestion Service - Multiple Critical Issues
@@ -11,7 +13,15 @@ labels: [critical, reliability, security, performance]
 **Use 2025 patterns, architecture and versions for decisions and ensure the Readme files are up to date.**
 
 ## Overview
-Analysis of the websocket-ingestion service has identified **6 CRITICAL issues** that require immediate attention to prevent service crashes, data loss, and resource exhaustion.
+Analysis of the websocket-ingestion service has identified **6 CRITICAL issues** that required immediate attention to prevent service crashes, data loss, and resource exhaustion.
+
+## Resolution Summary (2025-02-15)
+- ✅ Entity deletions now keep `new_state` optional-safe within `event_processor.py`, preventing AttributeErrors and preserving state diffs.
+- ✅ `influxdb-client` dependency is included in both development and production requirement manifests to avoid import/runtime failures.
+- ✅ `HomeAssistantWebSocketClient` enforces a single `aiohttp.ClientSession`, closing stale sessions before reconnects to eliminate descriptor leaks.
+- ✅ `BatchProcessor` drains batches before invoking handlers, so the lock is never held while handlers run; regression tests cover the scenario.
+- ✅ `InfluxDBBatchWriter` gained bounded queues + overflow strategies plus env-tunable limits, delivering deterministic backpressure when InfluxDB is degraded.
+- ✅ The shared module path in `main.py` is now environment-driven, so deployments without `/app/shared` boot successfully.
 
 ---
 

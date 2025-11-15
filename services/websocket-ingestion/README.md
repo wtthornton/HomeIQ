@@ -25,6 +25,8 @@ The WebSocket Ingestion Service connects to Home Assistant's WebSocket API to ca
 - 🎯 **Epic 23 Enhancements** - Context tracking, spatial analytics, duration tracking
 - ⚡ **High Performance** - 10,000+ events/second throughput capability
 - 🛡️ **Circuit Breaker** - Prevents cascading failures during outages
+- 🧰 **Shared Module Auto-Discovery** - Override shared path via `HOMEIQ_SHARED_PATH`
+- 🧊 **Backpressure-Protected Influx Writes** - Configurable queue + overflow strategies stop runaway memory usage
 
 ## Network Resilience
 
@@ -180,7 +182,6 @@ INFLUXDB_URL=http://influxdb:8086
 INFLUXDB_TOKEN=your-influxdb-token
 INFLUXDB_ORG=homeiq
 INFLUXDB_BUCKET=home_assistant_events
-
 # Network Resilience (Defaults shown)
 WEBSOCKET_MAX_RETRIES=-1  # Infinite retry
 WEBSOCKET_MAX_RETRY_DELAY=300  # 5 minutes max delay
@@ -191,6 +192,9 @@ WEBSOCKET_MAX_RETRY_DELAY=300  # 5 minutes max delay
 ```bash
 # Device Discovery Storage
 STORE_DEVICE_HISTORY_IN_INFLUXDB=false  # Optional InfluxDB history
+
+# Shared module import override (defaults to repo ./shared directory)
+HOMEIQ_SHARED_PATH=/app/shared
 
 # Weather Enrichment (DEPRECATED - Use weather-api service)
 WEATHER_API_KEY=your_openweathermap_api_key
@@ -209,6 +213,10 @@ LOG_OUTPUT=both
 
 # Performance
 MAX_MEMORY_MB=500  # Memory limit before alerts
+
+# InfluxDB write queue controls
+INFLUXDB_MAX_PENDING_POINTS=20000
+INFLUXDB_OVERFLOW_STRATEGY=drop_oldest  # drop_oldest | drop_new
 ```
 
 ## API Endpoints
