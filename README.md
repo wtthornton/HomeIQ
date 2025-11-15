@@ -429,6 +429,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **Implement API key authentication and admin roles** (November 15, 2025)
 - **Implement API key authentication and admin roles** (November 15, 2025)
 - **Implement API key authentication and admin roles** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
 - **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
 - **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
 - **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
