@@ -16,6 +16,7 @@ from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .llm.openai_client import OpenAIClient
 from .safety_validator import SafetyValidator, SafetyResult
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -656,7 +657,8 @@ Generate a valid automation now (JSON only):"""
 def get_nl_generator(
     data_api_client: DataAPIClient,
     openai_client: OpenAIClient,
-    safety_validator: SafetyValidator
+    safety_validator: SafetyValidator,
+    device_intelligence_client: Optional[DeviceIntelligenceClient] = None
 ) -> NLAutomationGenerator:
     """
     Factory function to create NL automation generator.
@@ -669,9 +671,15 @@ def get_nl_generator(
     Returns:
         Configured NLAutomationGenerator
     """
+    if device_intelligence_client is None and getattr(settings, "device_intelligence_enabled", True):
+        device_intelligence_client = DeviceIntelligenceClient(
+            base_url=getattr(settings, "device_intelligence_url", "http://device-intelligence-service:8021")
+        )
+
     return NLAutomationGenerator(
         data_api_client=data_api_client,
         openai_client=openai_client,
-        safety_validator=safety_validator
+        safety_validator=safety_validator,
+        device_intelligence_client=device_intelligence_client
     )
 
