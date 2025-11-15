@@ -60,11 +60,14 @@ export const App: React.FC = () => {
                 Powered by OpenAI GPT-4o-mini • Machine Learning Pattern Detection • Cost: ~$0.075/month
               </div>
               <div className="mt-4 flex justify-center gap-4">
-                <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
-                  🔧 Admin Dashboard
+                <a href="/admin" className="hover:text-blue-500 transition-colors">
+                  🔧 Admin Panel
                 </a>
-                <a href="http://localhost:8018/docs" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
                   📚 API Docs
+                </a>
+                <a href="https://github.com/wtthornton/HomeIQ" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                  📖 Documentation
                 </a>
               </div>
             </div>

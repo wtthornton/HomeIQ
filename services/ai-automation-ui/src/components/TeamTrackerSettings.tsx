@@ -8,9 +8,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
+import { API_CONFIG } from '../config/api';
 
 // API Base URL
-const DEVICE_INTELLIGENCE_API = 'http://localhost:8028/api/team-tracker';
+const DEVICE_INTELLIGENCE_API = `${API_CONFIG.DEVICE_INTELLIGENCE}/team-tracker`;
 
 // Types
 interface TeamTrackerStatus {
