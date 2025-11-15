@@ -93,7 +93,7 @@ The system now includes **containerized AI microservices** for advanced automati
 **Containerized AI Models:**
 - **OpenVINO Service** (Port 8026 external, 8019 internal): Embeddings, re-ranking, classification using all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small
 - **ML Service** (Port 8025 external, 8020 internal): Classical machine learning with K-Means clustering and Isolation Forest anomaly detection
-- **NER Service** (Port 8019): Named Entity Recognition using BERT (dslim/bert-base-NER)
+- **NER Service** (Port 8031): Named Entity Recognition using BERT (dslim/bert-base-NER)
 - **OpenAI Service** (Port 8020): GPT-4o-mini API client for advanced language processing
 - **AI Core Service** (Port 8018): Orchestrator for complex AI workflows and multi-model coordination
 - **AI Automation Service** (Port 8024 external, 8018 internal): Pattern detection & automation suggestions

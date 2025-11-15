@@ -13,10 +13,11 @@ This service provides access to feature data including:
 import asyncio
 import logging
 import os
+import secrets
 import sys
-from typing import Dict, Any, Optional
-from datetime import datetime
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +39,7 @@ from shared.influxdb_query_client import InfluxDBQueryClient
 # Story 22.1: SQLite database
 from .database import init_db, check_db_health
 from .cache import cache
-from .rate_limiter import rate_limiter, rate_limit_middleware
+from shared.rate_limiter import RateLimiter, rate_limit_middleware
 import pathlib
 
 # Import endpoint routers (Stories 13.2-13.4)
@@ -106,25 +107,30 @@ class DataAPIService:
         self.api_version = '1.0.0'
         self.api_description = 'Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)'
         
-        # Security - AUTH ENABLED BY DEFAULT for production
-        self.api_key = os.getenv('API_KEY')
-        enable_auth_raw = os.getenv('ENABLE_AUTH', 'true').strip().lower()
-        if enable_auth_raw in {"false", "0", "no", "off"}:
-            self.enable_auth = False
-        elif enable_auth_raw in {"true", "1", "yes", "on"}:
-            self.enable_auth = True
-        else:
-            self.enable_auth = True  # Fail closed
+        # Security - authentication always enforced
+        self.api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
+        self.allow_anonymous = os.getenv('DATA_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
+        rate_limit_per_minute = int(os.getenv('DATA_API_RATE_LIMIT_PER_MIN', '100'))
+        burst = int(os.getenv('DATA_API_RATE_LIMIT_BURST', '20'))
+        self.rate_limiter = RateLimiter(rate=rate_limit_per_minute, per=60, burst=burst)
+
+        if not self.api_key:
+            if not self.allow_anonymous:
+                raise RuntimeError("DATA_API_API_KEY (or API_KEY) must be configured for data-api")
+            self.api_key = secrets.token_urlsafe(48)
             logger.warning(
-                "ENABLE_AUTH value '%s' is invalid; defaulting to secure state (auth enabled)",
-                enable_auth_raw
+                "Data API started in anonymous mode for local testing only. "
+                "Set DATA_API_API_KEY to enforce authentication."
             )
         
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
         
         # Initialize components
-        self.auth_manager = AuthManager(api_key=self.api_key, enable_auth=self.enable_auth)
+        self.auth_manager = AuthManager(
+            api_key=self.api_key,
+            allow_anonymous=self.allow_anonymous,
+        )
         self.influxdb_client = InfluxDBQueryClient()
 
         # Service state
@@ -135,7 +141,7 @@ class DataAPIService:
         self.total_requests = 0
         self.failed_requests = 0
         
-        logger.info(f"Data API Service initialized (auth enabled: {self.enable_auth})")
+        logger.info("Data API Service initialized (anonymous=%s)", self.allow_anonymous)
     
     async def startup(self):
         """Start the Data API service"""
@@ -236,7 +242,9 @@ app.add_middleware(
 app.add_middleware(FastAPICorrelationMiddleware)
 
 # Add rate limiting middleware
-app.middleware("http")(rate_limit_middleware)
+@app.middleware("http")
+async def apply_rate_limit(request, call_next):
+    return await rate_limit_middleware(request, call_next, data_api_service.rate_limiter)
 
 
 # Register endpoint routers (Stories 13.2-13.3)
@@ -362,7 +370,7 @@ async def health_check():
             "error_rate_percent": round(error_rate, 2)
         },
         "cache": cache.get_stats(),
-        "rate_limiter": rate_limiter.get_stats(),
+        "rate_limiter": data_api_service.rate_limiter.get_stats(),
         "dependencies": {
             "influxdb": {
                 "status": "connected" if influxdb_status["is_connected"] else "disconnected",
@@ -374,7 +382,7 @@ async def health_check():
             "sqlite": sqlite_status
         },
         "authentication": {
-            "enabled": data_api_service.enable_auth
+            "api_key_required": not data_api_service.allow_anonymous
         }
     }
 

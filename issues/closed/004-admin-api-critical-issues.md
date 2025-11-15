@@ -1,8 +1,9 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: admin-api
 created: 2025-11-15
+closed: 2025-11-15
 labels: [critical, security, authentication]
 ---
 
@@ -12,6 +13,12 @@ labels: [critical, security, authentication]
 
 ## Overview
 The admin-api service has **CRITICAL** security vulnerabilities including authentication bypass, unauthenticated Docker control, and credential exposure that enable complete system takeover.
+
+## Resolution Summary (2025-11-15)
+- Shared `AuthManager` hardened with mandatory API keys, JWT/session support, and environment-driven user provisioning; legacy `ENABLE_AUTH` toggle removed
+- Admin API now enforces per-router authentication dependencies, per-IP rate limiting, and Docker/config endpoints include explicit allowlists plus audit logging
+- Configuration and API-key management endpoints mask secrets and block remote writes unless `ADMIN_API_ALLOW_SECRET_WRITES=true`
+- README updated with new security requirements and configuration table; issue moved to `issues/closed/`
 
 ---
 

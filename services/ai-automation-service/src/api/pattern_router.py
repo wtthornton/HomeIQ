@@ -17,6 +17,7 @@ from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..database import get_db, store_patterns, get_patterns, get_pattern_stats, delete_old_patterns
 from ..integration.pattern_history_validator import PatternHistoryValidator
 from ..config import settings
+from .dependencies.auth import require_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ async def detect_time_of_day_patterns(
     min_occurrences: int = Query(default=3, ge=1, le=10, description="Minimum pattern occurrences"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence threshold"),
     limit: int = Query(default=10000, ge=100, le=50000, description="Maximum events to fetch"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
 ) -> Dict[str, Any]:
     """
     Detect time-of-day patterns from historical data.
@@ -141,7 +143,8 @@ async def detect_co_occurrence_patterns(
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence threshold"),
     limit: int = Query(default=10000, ge=100, le=50000, description="Maximum events to fetch"),
     optimize: bool = Query(default=True, description="Use optimized version for large datasets"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
 ) -> Dict[str, Any]:
     """
     Detect co-occurrence patterns from historical data.
@@ -412,7 +415,8 @@ async def get_pattern_trend(
 @router.delete("/cleanup")
 async def cleanup_old_patterns(
     days_old: int = Query(default=30, ge=7, le=365, description="Delete patterns older than this many days"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
 ) -> Dict[str, Any]:
     """
     Delete old patterns to manage database size.
@@ -440,7 +444,8 @@ async def cleanup_old_patterns(
 @router.post("/incremental-update")
 async def incremental_pattern_update(
     hours: int = Query(default=1, ge=1, le=24, description="Hours of new events to process"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
 ) -> Dict[str, Any]:
     """
     Perform incremental pattern update using only recent events.

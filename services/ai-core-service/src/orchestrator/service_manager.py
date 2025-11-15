@@ -3,68 +3,96 @@ Service Manager - Orchestrates calls to containerized AI services
 Implements circuit breaker patterns and fallback mechanisms
 """
 
+import json
 import logging
+from typing import Any, Dict, List, Optional, Tuple
+
 import httpx
-from typing import List, Dict, Any, Optional, Tuple
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
+
 
 class ServiceManager:
     """
     Manages communication with containerized AI services
     Implements circuit breaker patterns and fallback mechanisms
     """
-    
+
     def __init__(self, openvino_url: str, ml_url: str, ner_url: str, openai_url: str):
         self.openvino_url = openvino_url
         self.ml_url = ml_url
         self.ner_url = ner_url
         self.openai_url = openai_url
-        
+
         # HTTP client with timeout
-        self.client = httpx.AsyncClient(timeout=30.0)
-        
+        self.client: Optional[httpx.AsyncClient] = httpx.AsyncClient(timeout=30.0)
+
         # Service health status
         self.service_health = {
             "openvino": False,
             "ml": False,
             "ner": False,
-            "openai": False
+            "openai": False,
         }
-        
-        logger.info(f"ServiceManager initialized with URLs: OpenVINO={openvino_url}, ML={ml_url}, NER={ner_url}, OpenAI={openai_url}")
-    
+
+        logger.info(
+            "ServiceManager initialized with URLs: OpenVINO=%s, ML=%s, NER=%s, OpenAI=%s",
+            openvino_url,
+            ml_url,
+            ner_url,
+            openai_url,
+        )
+
     async def initialize(self):
         """Initialize service manager and check service health"""
         logger.info("🔄 Initializing service manager...")
-        
+
         # Check all services
-        await self._check_all_services()
-        
+        await self._check_all_services(fail_on_unhealthy=True)
+
         logger.info("✅ Service manager initialized")
-    
-    async def _check_all_services(self):
+
+    async def aclose(self) -> None:
+        """Close underlying HTTP client."""
+        if self.client is not None:
+            await self.client.aclose()
+            self.client = None
+
+    async def _check_all_services(self, fail_on_unhealthy: bool = False):
         """Check health of all services"""
         services = [
             ("openvino", self.openvino_url),
             ("ml", self.ml_url),
             ("ner", self.ner_url),
-            ("openai", self.openai_url)
+            ("openai", self.openai_url),
         ]
-        
+
+        unavailable: List[str] = []
+
         for service_name, url in services:
             try:
-                response = await self.client.get(f"{url}/health", timeout=5.0)
+                response = await self.client.get(f"{url}/health", timeout=5.0)  # type: ignore[union-attr]
                 if response.status_code == 200:
                     self.service_health[service_name] = True
-                    logger.info(f"✅ {service_name} service is healthy")
+                    logger.info("✅ %s service is healthy", service_name)
                 else:
                     self.service_health[service_name] = False
-                    logger.warning(f"⚠️ {service_name} service health check failed: {response.status_code}")
+                    unavailable.append(service_name)
+                    logger.warning(
+                        "⚠️ %s service health check failed: %s",
+                        service_name,
+                        response.status_code,
+                    )
             except Exception as e:
                 self.service_health[service_name] = False
-                logger.warning(f"❌ {service_name} service is unavailable: {e}")
+                unavailable.append(service_name)
+                logger.warning("❌ %s service is unavailable: %s", service_name, e)
+
+        if fail_on_unhealthy and unavailable:
+            raise RuntimeError(
+                f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}"
+            )
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get detailed status of all services"""
@@ -268,20 +296,22 @@ class ServiceManager:
     
     def _parse_suggestions(self, response: str) -> List[Dict[str, Any]]:
         """Parse OpenAI response into structured suggestions"""
-        # Simple parsing - in production, use more robust JSON parsing
         try:
-            import json
-            return json.loads(response)
-        except:
-            # Fallback parsing
-            return [
-                {
-                    "title": "AI Suggestion",
-                    "description": response,
-                    "priority": "medium",
-                    "category": "convenience"
-                }
-            ]
+            parsed = json.loads(response)
+            if isinstance(parsed, list):
+                return parsed
+        except (json.JSONDecodeError, ValueError, TypeError) as decode_error:
+            logger.debug("Failed to parse OpenAI suggestions as JSON: %s", decode_error)
+
+        # Fallback parsing
+        return [
+            {
+                "title": "AI Suggestion",
+                "description": response,
+                "priority": "medium",
+                "category": "convenience",
+            }
+        ]
     
     def _generate_fallback_suggestions(self, context: Dict[str, Any], suggestion_type: str) -> List[Dict[str, Any]]:
         """Generate fallback suggestions when AI services are unavailable"""

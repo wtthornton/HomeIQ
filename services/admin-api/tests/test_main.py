@@ -8,6 +8,9 @@ from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 
+import os
+os.environ.setdefault("API_KEY", "test-admin-api-key")
+
 from src.main import AdminAPIService, app
 
 
@@ -24,7 +27,7 @@ class TestAdminAPIService:
         assert self.service.api_port == 8000
         assert self.service.api_title == "Home Assistant Ingestor Admin API"
         assert self.service.api_version == "1.0.0"
-        assert self.service.enable_auth is True
+        assert self.service.allow_anonymous is False
         assert self.service.is_running is False
         assert self.service.app is None
         assert self.service.server_task is None
@@ -122,7 +125,7 @@ class TestFastAPIApp:
         assert "title" in data["data"]
         assert "version" in data["data"]
         assert "endpoints" in data["data"]
-        assert "authentication" in data["data"]
+        assert data["data"]["authentication"]["api_key_required"] is True
         assert "cors_enabled" in data["data"]
     
     def test_health_endpoint(self):
