@@ -89,6 +89,16 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     
+    # Authentication / Authorization
+    enable_authentication: bool = True
+    ai_automation_api_key: str = "change-me"
+    ai_automation_admin_api_key: Optional[str] = None
+    
+    # Rate limiting (single-home defaults)
+    rate_limit_requests_per_minute: int = 120
+    rate_limit_requests_per_hour: int = 2400
+    rate_limit_internal_requests_per_minute: int = 600
+    
     # Safety Validation (AI1.19)
     safety_level: str = "moderate"  # strict, moderate, or permissive
     safety_allow_override: bool = True  # Allow force_deploy override
@@ -257,6 +267,10 @@ class Settings(BaseSettings):
 
     enable_self_improvement_pilot: bool = False
     """Enable weekly self-improvement summary using LangChain templating."""
+
+    # Admin / training safeguards
+    training_script_path: str = "scripts/train_soft_prompt.py"
+    training_script_sha256: Optional[str] = None
 
     class Config:
         env_file = "infrastructure/env.ai-automation"

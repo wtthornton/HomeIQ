@@ -1,9 +1,11 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: ai-automation-service
 created: 2025-11-15
 labels: [critical, security, authentication]
+closed: 2025-11-15
+resolution: Completed
 ---
 
 # [CRITICAL] AI Automation Service - Security Vulnerabilities
@@ -158,23 +160,14 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
 
 ---
 
-## Summary
-
-**Critical Issues:** 2 (No authentication, Safety bypass)
-**High Severity:** 3 (Prompt injection, DB access, Subprocess execution)
-**Medium Severity:** 2 (Rate limiting, YAML validation)
-
----
-
-## IMMEDIATE ACTIONS REQUIRED
-
-1. Implement authentication/authorization system
-2. Remove or severely restrict `force_deploy` flag (require admin role + approval)
-3. Add input sanitization for all user-provided text sent to OpenAI
-4. Add authorization checks before all database mutations
-5. Validate YAML on all updates (not just deployment)
-
-**The service is currently NOT SAFE for production use without these fixes.**
+## Resolution Summary (2025-11-15)
+- ✅ Added API-key authentication middleware (user vs admin keys) plus documented new headers/env vars.
+- ✅ Force deployments now require admin role, always run safety validation, and log overrides (no bypass).
+- ✅ Natural language generator sanitizes untrusted input and reminds the model to ignore prompt injection attempts.
+- ✅ Suggestion, pattern, and synergy mutation endpoints now require admin credentials; YAML edits re-run safety validation.
+- ✅ Admin training endpoint verifies script path + hash before launching subprocesses.
+- ✅ Rate limiter enforces tighter single-home defaults with both per-minute and per-hour caps.
+- ✅ Issue moved to `issues/closed/` after README + env templates were updated.
 
 ---
 
