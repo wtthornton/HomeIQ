@@ -480,7 +480,7 @@ Phase 6: Publish MQTT Notification
 ---
 
 ### 3.5 NER Service
-**Port:** 8019
+**Port:** 8031
 **Technology:** Python 3.11 + Transformers + FastAPI
 **Purpose:** Named Entity Recognition
 
@@ -867,7 +867,7 @@ curl http://localhost:8024/health  # AI Automation Service
 curl http://localhost:8018/health  # AI Core Service
 curl http://localhost:8026/health  # OpenVINO Service
 curl http://localhost:8025/health  # ML Service
-curl http://localhost:8019/health  # NER Service
+curl http://localhost:8031/health  # NER Service
 curl http://localhost:8020/health  # OpenAI Service
 curl http://localhost:8028/health  # Device Intelligence Service
 curl http://localhost:8029/health  # Automation Miner

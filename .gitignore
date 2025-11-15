@@ -64,7 +64,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 infrastructure/env.production
-infrastructure/env.ai-automation
 infrastructure/.env*
 *.env
 !*.env.example

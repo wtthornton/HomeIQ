@@ -1,8 +1,9 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: ai-core-service
 created: 2025-11-15
+closed: 2025-11-15
 labels: [critical, security, reliability]
 ---
 
@@ -212,20 +213,30 @@ except Exception as e:
 
 ## Immediate Actions Required
 
-1. Fix missing environment file
-2. Implement authentication/authorization
-3. Restrict CORS origins
-4. Add resource cleanup
-5. Fix port documentation mismatch
-6. Fix bare except clause
-7. Implement dependency health checks
-8. Sanitize error messages
-9. Add rate limiting
-10. Resolve port conflicts
+1. ✅ Fix missing environment file
+2. ✅ Implement authentication/authorization
+3. ✅ Restrict CORS origins
+4. ✅ Add resource cleanup
+5. ✅ Fix port documentation mismatch
+6. ✅ Fix bare except clause
+7. ✅ Implement dependency health checks
+8. ✅ Sanitize error messages
+9. ✅ Add rate limiting
+10. ✅ Resolve port conflicts
+
+---
+
+## Resolution (2025-11-15)
+
+- Created a real `infrastructure/env.ai-automation` file (and updated the template) so docker-compose references always resolve, eliminating the missing env-file failure.
+- Added API key authentication, per-client rate limiting, sanitized error messages, and restricted CORS defaults in `services/ai-core-service/src/main.py`; dependency health now fails fast and the HTTP client shuts down cleanly.
+- Hardened `ServiceManager` with explicit exception handling, safe JSON parsing, and a cleanup hook.
+- Updated docker-compose, ai-core/ai-automation service code, and supporting scripts/docs to move the NER service to a dedicated port (`8031`) and document the ai-core port as 8018.
+- Refreshed service documentation (ai-core README, root README, CLAUDE, architecture/service references) with the new security requirements and accurate port mappings.
 
 ---
 
 ## References
 - CLAUDE.md - Security and Performance Patterns
 - Service location: `/services/ai-core-service/`
-- Port: 8018 (NOT 8021 as documented)
+- Port: 8018
