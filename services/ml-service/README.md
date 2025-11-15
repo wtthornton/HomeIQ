@@ -1,118 +1,224 @@
 # ML Service
 
+**Classical Machine Learning for Pattern Detection and Analysis**
+
 **Port:** 8020
-**Purpose:** Classical machine learning algorithms for pattern detection
-**Status:** Production Ready
+**Technology:** Python 3.11+, FastAPI 0.121, scikit-learn 1.4, pandas 2.3
+**Container:** `homeiq-ml-service`
 
 ## Overview
 
-The ML Service provides classical machine learning algorithms for clustering, anomaly detection, and feature analysis. It complements the deep learning models in the OpenVINO service by offering traditional ML algorithms that are faster and more interpretable for certain tasks.
+The ML Service provides classical machine learning algorithms for clustering, anomaly detection, and feature analysis. It complements deep learning models with traditional ML algorithms that are faster, more interpretable, and don't require pre-training for certain tasks.
 
-## Key Features
+### Key Features
 
-- **Clustering Algorithms**: KMeans, DBSCAN for pattern grouping
-- **Anomaly Detection**: Isolation Forest for outlier detection
-- **Feature Importance**: Random Forest for feature ranking
-- **Batch Processing**: Efficient processing of multiple operations
-- **No Pre-training Required**: Classical algorithms don't need model downloads
-- **Fast Inference**: <100ms for most operations
-- **Interpretable Results**: Understandable decision processes
+- **Clustering Algorithms** - KMeans, DBSCAN for pattern grouping
+- **Anomaly Detection** - Isolation Forest for outlier detection
+- **Feature Importance** - Random Forest for feature ranking
+- **Batch Processing** - Efficient multi-operation processing
+- **Fast Inference** - <100ms for most operations
+- **No Pre-training** - Classical algorithms ready to use
+- **Interpretable Results** - Understandable decision processes
 
-## Supported Algorithms
+## Quick Start
 
-### Clustering
-- **KMeans**: Partition data into K clusters
-- **DBSCAN**: Density-based clustering for arbitrary shapes
+### Prerequisites
 
-### Anomaly Detection
-- **Isolation Forest**: Identify outliers in high-dimensional data
-- **Local Outlier Factor**: Detect local density deviations
+- Python 3.11+
+- scikit-learn 1.4+
 
-### Feature Analysis
-- **Random Forest**: Feature importance ranking
-- **Principal Component Analysis**: Dimensionality reduction
+### Running Locally
+
+```bash
+cd services/ml-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start service
+uvicorn src.main:app --reload --port 8020
+```
+
+### Running with Docker
+
+```bash
+# Build and start
+docker compose up -d ml-service
+
+# View logs
+docker compose logs -f ml-service
+
+# Check health
+curl http://localhost:8020/health
+```
 
 ## API Endpoints
 
-### Health Check
-```
-GET /health
+### Health & Status
+
+#### `GET /health`
+Service health check
+```bash
+curl http://localhost:8020/health
 ```
 
 ### Clustering
+
+#### `POST /cluster`
+Group data points into clusters
+
+```bash
+curl -X POST http://localhost:8020/cluster \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [[1.0, 2.0], [1.5, 1.8], [5.0, 8.0], [5.5, 8.5]],
+    "algorithm": "kmeans",
+    "n_clusters": 2
+  }'
 ```
-POST /cluster
-Body: {
+
+**Request:**
+```json
+{
   "data": [[1.0, 2.0], [1.5, 1.8], ...],
   "algorithm": "kmeans|dbscan",
-  "n_clusters": 3,  // for KMeans
-  "eps": 0.5        // for DBSCAN
+  "n_clusters": 3,    // for KMeans
+  "eps": 0.5          // for DBSCAN
 }
-Response: {
-  "labels": [0, 0, 1, 2, ...],
-  "n_clusters": 3,
+```
+
+**Response:**
+```json
+{
+  "labels": [0, 0, 1, 1],
+  "n_clusters": 2,
   "algorithm": "kmeans",
   "processing_time": 0.045
 }
 ```
 
 ### Anomaly Detection
+
+#### `POST /detect-anomalies`
+Identify outliers in data
+
+```bash
+curl -X POST http://localhost:8020/detect-anomalies \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [[1.0, 1.0], [1.2, 1.1], [10.0, 10.0]],
+    "contamination": 0.1
+  }'
 ```
-POST /detect-anomalies
-Body: {
+
+**Request:**
+```json
+{
   "data": [[1.0, 2.0], [1.5, 1.8], ...],
   "contamination": 0.1  // expected outlier proportion
 }
-Response: {
-  "labels": [1, 1, -1, 1, ...],  // 1=normal, -1=anomaly
+```
+
+**Response:**
+```json
+{
+  "labels": [1, 1, -1, 1],      // 1=normal, -1=anomaly
   "scores": [0.3, 0.2, 0.9, ...],
-  "n_anomalies": 5,
+  "n_anomalies": 1,
   "processing_time": 0.032
 }
 ```
 
 ### Batch Processing
+
+#### `POST /batch`
+Process multiple operations efficiently
+
+```bash
+curl -X POST http://localhost:8020/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [
+      {"type": "cluster", "data": [[1,2],[3,4]], "algorithm": "kmeans", "n_clusters": 2},
+      {"type": "anomaly", "data": [[1,1],[10,10]], "contamination": 0.1}
+    ]
+  }'
 ```
-POST /batch
-Body: {
-  "operations": [
-    {"type": "cluster", "data": [...], "algorithm": "kmeans", "n_clusters": 3},
-    {"type": "anomaly", "data": [...], "contamination": 0.1}
-  ]
-}
-Response: {
+
+**Response:**
+```json
+{
   "results": [
-    {"labels": [...], "n_clusters": 3},
-    {"labels": [...], "n_anomalies": 5}
+    {"labels": [0, 1], "n_clusters": 2},
+    {"labels": [1, -1], "n_anomalies": 1}
   ],
   "processing_time": 0.087
 }
 ```
 
-## Environment Variables
+## Configuration
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8020` | Service port |
 | `LOG_LEVEL` | `INFO` | Logging level |
-| `MAX_BATCH_SIZE` | `100` | Maximum operations per batch request |
+| `MAX_BATCH_SIZE` | `100` | Maximum operations per batch |
 
 ## Architecture
 
+### Component Architecture
+
 ```
-┌─────────────────┐
-│   ML Service    │
-│   (Port 8020)   │
-└────────┬────────┘
-         │
-    ┌────┴────┬──────────┬──────────┐
-    │         │          │          │
-    ▼         ▼          ▼          ▼
-┌─────────┐ ┌────────┐ ┌─────────┐ ┌──────┐
-│KMeans   │ │DBSCAN  │ │Isolation│ │Random│
-│Clustering│ │Cluster │ │Forest   │ │Forest│
-└─────────┘ └────────┘ └─────────┘ └──────┘
+┌─────────────────────────────┐
+│      ML Service             │
+│      (Port 8020)            │
+│                             │
+│  ┌───────────────────────┐ │
+│  │ Algorithm Manager     │ │
+│  └───────────┬───────────┘ │
+│              │             │
+│  ┌───────────┼───────────┐ │
+│  │           │           │ │
+│  ▼           ▼           ▼ │
+│ ┌────┐    ┌────┐    ┌────┐│
+│ │KMea│    │DBSC│    │Iso ││
+│ │ns  │    │AN  │    │For ││
+│ └────┘    └────┘    └────┘│
+└─────────────────────────────┘
 ```
+
+### Supported Algorithms
+
+**Clustering:**
+- **KMeans** - Partition data into K clusters
+  - Best for: Well-separated, spherical clusters
+  - Parameters: `n_clusters` (number of clusters)
+  - Time complexity: O(n × k × i)
+
+- **DBSCAN** - Density-based clustering
+  - Best for: Arbitrary shapes, noisy data
+  - Parameters: `eps` (radius), `min_samples`
+  - Time complexity: O(n log n)
+
+**Anomaly Detection:**
+- **Isolation Forest** - Outlier detection
+  - Best for: High-dimensional data
+  - Parameters: `contamination` (outlier proportion)
+  - Time complexity: O(n log n)
+
+- **Local Outlier Factor** - Density deviation detection
+  - Best for: Local density anomalies
+  - Parameters: `n_neighbors`, `contamination`
+
+**Feature Analysis:**
+- **Random Forest** - Feature importance ranking
+- **PCA** - Dimensionality reduction
 
 ## Use Cases
 
@@ -152,20 +258,34 @@ features = [
 # Age and usage are most important
 ```
 
+## Performance
+
+### Performance Targets
+
+| Operation | Target | Acceptable | Investigation |
+|-----------|--------|------------|---------------|
+| KMeans (1000 pts) | <40ms | <100ms | >200ms |
+| DBSCAN (1000 pts) | <60ms | <150ms | >300ms |
+| Isolation Forest | <35ms | <100ms | >200ms |
+| Batch (10 ops) | <150ms | <300ms | >500ms |
+
+### Throughput
+
+| Algorithm | Points/Second |
+|-----------|---------------|
+| KMeans | ~25,000 |
+| DBSCAN | ~16,000 |
+| Isolation Forest | ~30,000 |
+
 ## Development
 
-### Running Locally
-```bash
-cd services/ml-service
-docker-compose up --build
-```
-
 ### Testing
+
 ```bash
 # Health check
 curl http://localhost:8020/health
 
-# Clustering
+# Test clustering
 curl -X POST http://localhost:8020/cluster \
   -H "Content-Type: application/json" \
   -d '{
@@ -174,7 +294,7 @@ curl -X POST http://localhost:8020/cluster \
     "n_clusters": 2
   }'
 
-# Anomaly detection
+# Test anomaly detection
 curl -X POST http://localhost:8020/detect-anomalies \
   -H "Content-Type: application/json" \
   -d '{
@@ -183,57 +303,88 @@ curl -X POST http://localhost:8020/detect-anomalies \
   }'
 ```
 
-## Dependencies
-
-- FastAPI (web framework)
-- scikit-learn (ML algorithms)
-- numpy (numerical computing)
-- pydantic (data validation)
-
-## Performance
-
-| Operation | Latency | Throughput |
-|-----------|---------|------------|
-| KMeans (1000 points) | 20-40ms | ~25,000 points/sec |
-| DBSCAN (1000 points) | 30-60ms | ~16,000 points/sec |
-| Isolation Forest | 15-35ms | ~30,000 points/sec |
-| Batch (10 ops) | 50-150ms | Varies |
-
-## Algorithm Details
-
-### KMeans
-- **Best for**: Well-separated, spherical clusters
-- **Parameters**: `n_clusters` (number of clusters)
-- **Time complexity**: O(n * k * i) where n=points, k=clusters, i=iterations
-- **Output**: Cluster labels (0 to k-1)
-
-### DBSCAN
-- **Best for**: Arbitrary shapes, noisy data
-- **Parameters**: `eps` (neighborhood radius), `min_samples` (min points per cluster)
-- **Time complexity**: O(n log n) with spatial indexing
-- **Output**: Cluster labels (-1 for noise)
-
-### Isolation Forest
-- **Best for**: High-dimensional anomaly detection
-- **Parameters**: `contamination` (expected outlier proportion)
-- **Time complexity**: O(n log n)
-- **Output**: Binary labels (1=normal, -1=anomaly) + anomaly scores
-
 ## Monitoring
 
-Metrics exposed for:
+### Metrics Exposed
+
 - Request latency per algorithm
 - Algorithm usage distribution
 - Batch processing efficiency
 - Error rates
+- Processing time histograms
 
-## Related Services
+## Dependencies
 
-- [AI Core Service](../ai-core-service/README.md) - Orchestrates ML operations
-- [OpenVINO Service](../openvino-service/README.md) - Deep learning models
-- [Automation Miner](../automation-miner/README.md) - Consumer of clustering
+### Core
 
-## When to Use ML Service vs OpenVINO Service
+```
+fastapi==0.121.2          # Web framework
+uvicorn[standard]==0.38.0 # ASGI server
+pydantic==2.12.4          # Data validation
+pydantic-settings==2.12.0 # Settings management
+```
+
+### Machine Learning
+
+```
+scikit-learn==1.4.2       # ML algorithms
+pandas==2.3.3             # Data analysis
+numpy==2.3.4              # Numerical computing
+scipy==1.16.3             # Scientific computing
+```
+
+### Utilities
+
+```
+httpx==0.27.2             # HTTP client
+python-dotenv==1.2.1      # Environment variables
+tenacity==8.2.3           # Retry logic
+```
+
+### Testing
+
+```
+pytest==8.3.3             # Testing framework
+pytest-asyncio==0.23.0    # Async test support
+```
+
+## Troubleshooting
+
+### Poor Clustering Results
+
+**Symptoms:**
+- Unexpected cluster assignments
+- Too many/few clusters
+
+**Solutions:**
+- Normalize/scale input data
+- Try different `n_clusters` values
+- Switch algorithm (KMeans → DBSCAN)
+- Visualize data to understand structure
+
+### Too Many/Few Anomalies
+
+**Symptoms:**
+- Anomaly count doesn't match expectations
+
+**Solutions:**
+- Adjust `contamination` parameter
+- Check data distribution
+- Consider ensemble methods
+- Verify data quality
+
+### Slow Performance
+
+**Symptoms:**
+- Operations taking >200ms
+
+**Solutions:**
+- Reduce data dimensionality (PCA)
+- Use batch processing
+- Consider sampling for large datasets
+- Check resource usage (CPU/memory)
+
+## ML Service vs OpenVINO Service
 
 | Use ML Service | Use OpenVINO Service |
 |----------------|---------------------|
@@ -244,20 +395,39 @@ Metrics exposed for:
 | Fast prototyping | Production inference |
 | No training data available | Have pre-trained models |
 
-## Troubleshooting
+## Related Documentation
 
-### Poor clustering results
-- Normalize/scale input data
-- Try different `n_clusters` values
-- Switch algorithm (KMeans → DBSCAN)
-- Visualize data to understand structure
+- [AI Core Service](../ai-core-service/README.md) - Orchestrates ML operations
+- [OpenVINO Service](../openvino-service/README.md) - Deep learning models
+- [Automation Miner](../automation-miner/README.md) - Consumer of clustering
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
 
-### Too many/few anomalies
-- Adjust `contamination` parameter
-- Check data distribution
-- Consider ensemble methods
+## Support
 
-### Slow performance
-- Reduce data dimensionality (PCA)
-- Use batch processing
-- Consider sampling for large datasets
+- **Issues:** https://github.com/wtthornton/HomeIQ/issues
+- **Documentation:** `/docs` directory
+- **Health Check:** http://localhost:8020/health
+- **API Docs:** http://localhost:8020/docs
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Updated documentation to 2025 standards
+- Enhanced dependency documentation
+- Added comprehensive troubleshooting
+- Performance targets and metrics added
+- Improved API endpoint documentation
+
+### 2.0 (Initial Release)
+- KMeans and DBSCAN clustering
+- Isolation Forest anomaly detection
+- Batch processing support
+- FastAPI implementation
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8020
