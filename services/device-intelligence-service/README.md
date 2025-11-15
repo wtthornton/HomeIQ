@@ -189,10 +189,13 @@ wscat -c ws://localhost:8028/ws
 | `DEVICE_INTELLIGENCE_PORT` | `8028` | Service port |
 | `DATABASE_PATH` | `/app/data/device_intelligence.db` | SQLite database path |
 | `HA_URL` | `http://homeassistant:8123` | Home Assistant URL |
-| `HA_TOKEN` | - | Home Assistant access token |
+| `HA_TOKEN` | _required_ | Home Assistant access token (validated on startup) |
+| `ALLOWED_ORIGINS` | `["http://localhost:3000", ...]` | JSON/CSV list of trusted CORS origins |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `DISCOVERY_INTERVAL` | `3600` | Discovery interval (seconds) |
 | `PREDICTION_INTERVAL` | `7200` | Prediction interval (seconds) |
+
+> **Note:** The service now validates `HA_TOKEN` during startup and will exit early if it is missing, ensuring clearer diagnostics for single-home deployments.
 
 ### Example `.env`
 
@@ -201,10 +204,13 @@ DEVICE_INTELLIGENCE_PORT=8028
 DATABASE_PATH=/app/data/device_intelligence.db
 HA_URL=http://homeassistant:8123
 HA_TOKEN=your-token-here
+ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:3001"]
 LOG_LEVEL=INFO
 DISCOVERY_INTERVAL=3600
 PREDICTION_INTERVAL=7200
 ```
+
+Set `ALLOWED_ORIGINS` to a JSON array (or comma-separated list) that matches the dashboards you trust (for example, the health dashboard at `http://localhost:3000`).
 
 ## Architecture
 

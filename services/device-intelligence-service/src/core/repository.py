@@ -8,7 +8,7 @@ Based on Context7 best practices for SQLite performance.
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Tuple
-from sqlalchemy import select, update, delete, insert, func, and_, or_
+from sqlalchemy import select, update, delete, insert, func, and_, or_, bindparam
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
