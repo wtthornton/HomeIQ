@@ -405,7 +405,10 @@ export const Admin: React.FC = () => {
             <strong>⚙️ Configuration:</strong> Manage system settings, API keys, and security options.
           </p>
           <p className="text-xs opacity-70">
-            💡 For detailed system monitoring, visit the health dashboard at http://localhost:3000
+            💡 For detailed system monitoring, visit the{' '}
+            <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-400">
+              health dashboard
+            </a>
           </p>
         </div>
       </div>
