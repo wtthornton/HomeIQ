@@ -1,7 +1,7 @@
 # Device Intelligence Service Dependencies
 
 # FastAPI and ASGI server
-fastapi==0.121.0
+fastapi==0.121.2
 uvicorn[standard]==0.38.0
 
 # Pydantic for settings and data validation
@@ -9,13 +9,13 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 
 # Database and ORM
-sqlalchemy==2.0.25
+sqlalchemy==2.0.44
 aiosqlite==0.20.0
 alembic==1.13.1
 
 # HTTP client for external APIs
 httpx==0.27.2
-aiohttp==3.9.5
+aiohttp==3.13.2
 
 # WebSocket client
 websockets==12.0

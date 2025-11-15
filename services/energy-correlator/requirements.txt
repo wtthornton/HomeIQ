@@ -1,4 +1,4 @@
-aiohttp==3.9.5
-influxdb-client==1.44.0
-python-dotenv==1.0.1
+aiohttp==3.13.2
+influxdb-client==1.49.0
+python-dotenv==1.2.1
 
