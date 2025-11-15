@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **fix(gitignore): properly format Phase 3 test artifact entries** (November 15, 2025)
 - **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
 - **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
 - **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
