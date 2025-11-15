@@ -1,0 +1,59 @@
+# Modern 2025 Testing Dependencies for HomeIQ
+# Last Updated: November 15, 2025
+
+# Core Testing Framework
+pytest>=8.0.0
+pytest-asyncio>=1.0.0          # Modern async testing (removed event_loop fixture)
+pytest-xdist>=3.5.0            # Parallel test execution
+pytest-cov>=5.0.0              # Coverage with branch tracking
+pytest-timeout>=2.5.0          # Test timeout protection
+pytest-benchmark>=4.0.0        # Performance regression testing
+
+# Property-Based Testing
+hypothesis>=6.98.0             # Property-based testing for edge cases
+
+# Test Doubles & Mocking
+pytest-mock>=3.12.0            # Advanced mocking
+responses>=0.24.0              # HTTP mocking
+aioresponses>=0.7.6            # Async HTTP mocking
+
+# Integration Testing
+testcontainers>=4.0.0          # Real dependencies (InfluxDB, MQTT)
+pytest-docker>=3.0.0           # Docker container management
+
+# AI/LLM Testing
+deepeval>=0.21.0               # LLM testing framework
+pytest-llm>=0.2.0              # LLM evaluation helpers
+
+# Mutation Testing
+mutmut>=2.4.0                  # Find weak tests
+
+# Code Quality
+pytest-clarity>=1.0.1          # Better test output
+pytest-sugar>=1.0.0            # Beautiful test output
+pytest-html>=4.1.0             # HTML test reports
+
+# Performance & Profiling
+pytest-profiling>=1.7.0        # Profile slow tests
+memory-profiler>=0.61.0        # Memory profiling
+
+# Fixtures & Utilities
+pytest-factoryboy>=2.6.0       # Test factories
+faker>=22.0.0                  # Fake data generation
+freezegun>=1.4.0               # Time mocking
+
+# WebSocket Testing
+websockets>=12.0               # WebSocket client for testing
+pytest-websocket>=0.0.1        # WebSocket testing utilities
+
+# Database Testing
+sqlalchemy>=2.0.0              # For SQLite test fixtures
+
+# Application Dependencies (for testing)
+aiohttp>=3.9.0
+influxdb-client>=1.40.0
+psutil>=5.9.0
+pydantic>=2.5.0
+
+# Coverage Visualization
+coverage-badge>=1.1.0          # Generate coverage badges
