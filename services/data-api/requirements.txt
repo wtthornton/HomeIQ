@@ -12,12 +12,12 @@ aiohttp==3.13.2
 # Database
 influxdb-client==1.49.0
 sqlalchemy==2.0.44
-aiosqlite==0.20.0
-alembic==1.13.1
+aiosqlite==0.21.0
+alembic==1.17.2
 
 # Data Validation
-pydantic==2.8.2
-pydantic-settings==2.4.0
+pydantic==2.12.4
+pydantic-settings==2.12.0
 
 # Configuration
 python-dotenv==1.2.1
