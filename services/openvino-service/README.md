@@ -1,68 +1,126 @@
 # OpenVINO Service
 
+**Transformer-Based Embeddings and Re-ranking Service**
+
 **Port:** 8019
-**Purpose:** Optimized model inference using Intel OpenVINO INT8 quantization
-**Status:** Production Ready
+**Technology:** Python 3.11+, FastAPI 0.121, sentence-transformers 3.3, PyTorch 2.3 (CPU)
+**Container:** `homeiq-openvino-service`
 
 ## Overview
 
-The OpenVINO Service provides hardware-accelerated, optimized inference for transformer-based models using Intel's OpenVINO toolkit. All models are quantized to INT8 for 3-4x faster inference with minimal accuracy loss compared to full-precision models.
+The OpenVINO Service provides transformer-based model inference for embeddings, re-ranking, and classification tasks. Originally designed for Intel OpenVINO optimization, it currently uses sentence-transformers with CPU-optimized PyTorch for broad compatibility.
 
-## Key Features
+**Note:** Service name retained for API compatibility. OpenVINO quantization temporarily removed due to dependency conflicts; currently using standard sentence-transformers models.
 
-- **INT8 Quantization**: 3-4x faster inference than FP32
-- **Model Optimization**: OpenVINO's graph optimization for CPUs
-- **Lazy Loading**: Models load on first request (fast startup)
-- **Three Optimized Models**: Embeddings, re-ranking, classification
-- **Batch Processing**: Efficient batch inference support
-- **Low Latency**: <100ms for most operations
-- **Small Memory Footprint**: INT8 models are 4x smaller
+### Key Features
 
-## Optimized Models
+- **Text Embeddings** - all-MiniLM-L6-v2 for semantic similarity
+- **Re-ranking** - BGE reranker for search result ranking
+- **Classification** - FLAN-T5 for pattern categorization
+- **Lazy Loading** - Models load on first request (fast startup)
+- **CPU Optimized** - PyTorch CPU-only (no CUDA, saves 8.5GB)
+- **Low Latency** - <100ms for most operations
+- **Batch Processing** - Efficient multi-text processing
 
-### 1. all-MiniLM-L6-v2 (INT8) - Embeddings
-- **Purpose**: Convert text to 384-dimensional embeddings
-- **Size**: ~23MB (vs ~90MB FP32)
-- **Latency**: 20-50ms per batch
-- **Use case**: Semantic similarity, entity matching
+## Quick Start
 
-### 2. bge-reranker-base (INT8) - Re-ranking
-- **Purpose**: Re-rank candidates based on query relevance
-- **Size**: ~100MB (vs ~400MB FP32)
-- **Latency**: 30-80ms per batch
-- **Use case**: Search result ranking, entity disambiguation
+### Prerequisites
 
-### 3. flan-t5-small (INT8) - Classification
-- **Purpose**: Pattern classification and categorization
-- **Size**: ~77MB (vs ~300MB FP32)
-- **Latency**: 40-100ms per inference
-- **Use case**: Pattern category detection, intent classification
+- Python 3.11+
+- PyTorch 2.3+ (CPU)
+- sentence-transformers 3.3+
+
+### Running Locally
+
+```bash
+cd services/openvino-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start service
+uvicorn src.main:app --reload --port 8019
+```
+
+### Running with Docker
+
+```bash
+# Build and start
+docker compose up -d openvino-service
+
+# View logs
+docker compose logs -f openvino-service
+
+# Check health
+curl http://localhost:8019/health
+```
 
 ## API Endpoints
 
-### Health Check
-```
-GET /health
+### Health & Status
+
+#### `GET /health`
+Service health check
+```bash
+curl http://localhost:8019/health
 ```
 
 ### Text Embeddings
+
+#### `POST /embed`
+Convert text to 384-dimensional embeddings
+
+```bash
+curl -X POST http://localhost:8019/embed \
+  -H "Content-Type: application/json" \
+  -d '{
+    "texts": ["office light", "bedroom lamp"],
+    "normalize": true
+  }'
 ```
-POST /embed
-Body: {
+
+**Request:**
+```json
+{
   "texts": ["office light", "living room lamp"],
   "normalize": true
 }
-Response: {
+```
+
+**Response:**
+```json
+{
   "embeddings": [[0.1, -0.3, ...], [0.2, 0.1, ...]],
-  "model_name": "all-MiniLM-L6-v2-int8",
+  "model_name": "all-MiniLM-L6-v2",
   "processing_time": 0.035
 }
 ```
 
 ### Candidate Re-ranking
+
+#### `POST /rerank`
+Re-rank candidates based on query relevance
+
+```bash
+curl -X POST http://localhost:8019/rerank \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "office light 1",
+    "candidates": [
+      {"entity_id": "light.office_1", "name": "Office Front Left"},
+      {"entity_id": "light.bedroom_1", "name": "Bedroom Light"}
+    ],
+    "top_k": 5
+  }'
 ```
-POST /rerank
-Body: {
+
+**Request:**
+```json
+{
   "query": "office light 1",
   "candidates": [
     {"entity_id": "light.office_1", "name": "Office Front Left"},
@@ -70,58 +128,115 @@ Body: {
   ],
   "top_k": 5
 }
-Response: {
+```
+
+**Response:**
+```json
+{
   "ranked_candidates": [
-    {"entity_id": "light.office_1", "score": 0.92, ...},
-    {"entity_id": "light.bedroom_1", "score": 0.34, ...}
+    {"entity_id": "light.office_1", "score": 0.92, "name": "Office Front Left"},
+    {"entity_id": "light.bedroom_1", "score": 0.34, "name": "Bedroom Light"}
   ],
-  "model_name": "bge-reranker-base-int8",
+  "model_name": "bge-reranker-base",
   "processing_time": 0.058
 }
 ```
 
 ### Pattern Classification
+
+#### `POST /classify`
+Classify automation patterns
+
+```bash
+curl -X POST http://localhost:8019/classify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pattern_description": "Turn on office lights at 6 PM on weekdays"
+  }'
 ```
-POST /classify
-Body: {
+
+**Request:**
+```json
+{
   "pattern_description": "Turn on office lights at 6 PM on weekdays"
 }
-Response: {
+```
+
+**Response:**
+```json
+{
   "category": "time_based_automation",
   "priority": "medium",
-  "model_name": "flan-t5-small-int8",
+  "model_name": "flan-t5-small",
   "processing_time": 0.067
 }
 ```
 
-## Environment Variables
+## Configuration
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8019` | Service port |
-| `MODEL_CACHE_DIR` | `/app/models` | Directory for model storage |
+| `MODEL_CACHE_DIR` | `/app/models` | Model storage directory |
 | `LOG_LEVEL` | `INFO` | Logging level |
-| `DEVICE` | `CPU` | OpenVINO device (CPU/GPU) |
+| `DEVICE` | `CPU` | Device for inference |
+
+### Example `.env`
+
+```bash
+PORT=8019
+MODEL_CACHE_DIR=/app/models
+LOG_LEVEL=INFO
+DEVICE=CPU
+```
 
 ## Architecture
 
+### Component Architecture
+
 ```
-┌──────────────────────┐
-│  OpenVINO Service    │
-│    (Port 8019)       │
-└──────────┬───────────┘
-           │
-    ┌──────┴─────┬─────────┐
-    │            │         │
-    ▼            ▼         ▼
-┌─────────┐  ┌────────┐  ┌──────────┐
-│MiniLM   │  │BGE     │  │FLAN-T5   │
-│INT8     │  │Reranker│  │Small INT8│
-│Embedding│  │INT8    │  │Classifier│
-└─────────┘  └────────┘  └──────────┘
+┌──────────────────────────────┐
+│   OpenVINO Service           │
+│   (Port 8019)                │
+│                              │
+│  ┌────────────────────────┐ │
+│  │ Model Manager          │ │
+│  │ (Lazy Loading)         │ │
+│  └───────────┬────────────┘ │
+│              │              │
+│  ┌───────────┼────────────┐ │
+│  │           │            │ │
+│  ▼           ▼            ▼ │
+│ ┌────┐    ┌────┐    ┌─────┐│
+│ │Mini│    │BGE │    │FLAN ││
+│ │LM  │    │Rank│    │T5   ││
+│ └────┘    └────┘    └─────┘│
+└──────────────────────────────┘
 ```
 
-## Model Loading Strategy
+### Supported Models
+
+#### 1. all-MiniLM-L6-v2 - Embeddings
+- **Purpose:** Text to 384-dim embeddings
+- **Size:** ~90MB
+- **Latency:** 20-50ms per batch
+- **Use case:** Semantic similarity, entity matching
+
+#### 2. bge-reranker-base - Re-ranking
+- **Purpose:** Re-rank candidates by relevance
+- **Size:** ~400MB
+- **Latency:** 30-80ms per batch
+- **Use case:** Search ranking, disambiguation
+
+#### 3. flan-t5-small - Classification
+- **Purpose:** Pattern classification
+- **Size:** ~300MB
+- **Latency:** 40-100ms per inference
+- **Use case:** Category detection, intent classification
+
+### Model Loading Strategy
 
 **Lazy Loading** (default):
 - Models DON'T load on service startup
@@ -132,30 +247,60 @@ Response: {
 **Pre-loading** (optional):
 ```python
 # Uncomment in main.py to pre-load all models
-await openvino_manager.initialize()
+await model_manager.initialize()
+```
+
+## Use Cases
+
+### 1. Entity Resolution (Embeddings)
+Convert entity names to embeddings for similarity matching:
+```python
+texts = ["Office Front Left", "Office light 1"]
+embeddings = await get_embeddings(texts)
+similarity = cosine_similarity(embeddings[0], embeddings[1])
+# Result: 0.87 (high similarity)
+```
+
+### 2. Search Re-ranking (BGE Reranker)
+Re-rank Home Assistant entities by relevance:
+```python
+query = "office light 1"
+candidates = [
+  {"entity_id": "light.hue_go_1", "name": "Office Front Left"},
+  {"entity_id": "light.garage_2", "name": "Garage Light 2"}
+]
+ranked = await rerank(query, candidates)
+# Result: light.hue_go_1 (0.92), light.garage_2 (0.15)
+```
+
+### 3. Pattern Classification (FLAN-T5)
+Classify automation pattern type:
+```python
+description = "Turn on office lights when motion detected"
+category = await classify(description)
+# Result: {"category": "motion_triggered", "priority": "high"}
 ```
 
 ## Performance
 
-| Operation | Cold Start | Warm Inference | Speedup vs FP32 |
-|-----------|-----------|----------------|-----------------|
-| Embeddings (10 texts) | 2-3s | 20-50ms | 3.5x |
-| Re-ranking (20 candidates) | 3-5s | 30-80ms | 4.2x |
-| Classification | 2-4s | 40-100ms | 3.8x |
+### Performance Targets
 
-**Memory Usage**:
-- Idle: ~100MB
-- All models loaded: ~400MB (vs ~1.5GB FP32)
+| Operation | Cold Start | Warm Inference | Target |
+|-----------|-----------|----------------|--------|
+| Embeddings (10 texts) | 2-3s | 20-50ms | <100ms |
+| Re-ranking (20 candidates) | 3-5s | 30-80ms | <150ms |
+| Classification | 2-4s | 40-100ms | <200ms |
+
+### Resource Usage
+
+- **Idle:** ~100MB
+- **All models loaded:** ~800MB
+- **CPU:** <10% typical, <50% during inference
 
 ## Development
 
-### Running Locally
-```bash
-cd services/openvino-service
-docker-compose up --build
-```
-
 ### Testing
+
 ```bash
 # Health check
 curl http://localhost:8019/health
@@ -163,7 +308,7 @@ curl http://localhost:8019/health
 # Generate embeddings
 curl -X POST http://localhost:8019/embed \
   -H "Content-Type: application/json" \
-  -d '{"texts": ["office light", "bedroom lamp"]}'
+  -d '{"texts": ["office light", "bedroom lamp"], "normalize": true}'
 
 # Re-rank candidates
 curl -X POST http://localhost:8019/rerank \
@@ -184,78 +329,107 @@ curl -X POST http://localhost:8019/classify \
 
 ## Dependencies
 
-- FastAPI (web framework)
-- openvino (Intel OpenVINO toolkit)
-- optimum-intel (Hugging Face OpenVINO integration)
-- transformers (model loading)
-- numpy (numerical operations)
+### Core
 
-## Quantization Details
-
-### INT8 vs FP32
-
-| Metric | FP32 (Full Precision) | INT8 (Quantized) |
-|--------|----------------------|------------------|
-| **Model Size** | 100% | 25% |
-| **Inference Speed** | 1x | 3-4x |
-| **Memory** | 100% | 25% |
-| **Accuracy** | 100% | 98-99% |
-| **Hardware** | Any | CPU optimized |
-
-### Quantization Process
-Models are quantized using OpenVINO's Post-Training Quantization (PTQ):
-1. Load FP32 model from Hugging Face
-2. Calibrate on representative dataset
-3. Convert to OpenVINO IR format (INT8)
-4. Optimize graph for CPU inference
-
-## Use Cases
-
-### 1. Entity Resolution (Embeddings)
-```python
-# Convert entity names to embeddings for similarity matching
-texts = ["Office Front Left", "Office light 1"]
-embeddings = await get_embeddings(texts)
-similarity = cosine_similarity(embeddings[0], embeddings[1])
-# Result: 0.87 (high similarity)
+```
+fastapi==0.121.2              # Web framework
+uvicorn[standard]==0.38.0     # ASGI server
+pydantic==2.12.4              # Data validation
+pydantic-settings==2.12.0     # Settings management
 ```
 
-### 2. Search Re-ranking (BGE Reranker)
-```python
-# Re-rank Home Assistant entities by relevance
-query = "office light 1"
-candidates = [
-  {"entity_id": "light.hue_go_1", "name": "Office Front Left"},
-  {"entity_id": "light.garage_2", "name": "Garage Light 2"}
-]
-ranked = await rerank(query, candidates)
-# Result: light.hue_go_1 (0.92), light.garage_2 (0.15)
+### Machine Learning
+
+```
+sentence-transformers==3.3.1  # Embeddings (all-MiniLM-L6-v2)
+transformers==4.46.1          # HuggingFace models
+torch==2.3.1+cpu              # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
+sentencepiece                 # T5 tokenizer
 ```
 
-### 3. Pattern Classification (FLAN-T5)
-```python
-# Classify automation pattern type
-description = "Turn on office lights when motion detected"
-category = await classify(description)
-# Result: {"category": "motion_triggered", "priority": "high"}
+### Data Processing
+
+```
+pandas==2.3.3                 # Data analysis
+numpy==2.3.4                  # Numerical computing
+```
+
+### Utilities
+
+```
+httpx==0.27.2                 # HTTP client
+python-dotenv==1.2.1          # Environment variables
+tenacity==8.2.3               # Retry logic
+```
+
+### Testing
+
+```
+pytest==8.3.3                 # Testing framework
+pytest-asyncio==0.23.0        # Async test support
 ```
 
 ## Monitoring
 
-Logs structured JSON with:
+### Structured Logging
+
+Logs include:
 - Model load times (cold start)
 - Inference latency (per model)
 - Batch sizes
 - Error rates
 - Memory usage
 
-## Related Services
+### Metrics
 
-- [AI Core Service](../ai-core-service/README.md) - Orchestrates OpenVINO calls
-- [ML Service](../ml-service/README.md) - Classical ML algorithms
-- [AI Automation Service](../ai-automation-service/README.md) - Consumer of embeddings
+- Request latency per model
+- Model usage distribution
+- Batch processing efficiency
+- Error rates
 
-## When to Use OpenVINO vs ML Service
+## Troubleshooting
+
+### Slow First Request
+
+**Symptoms:**
+- First request takes 2-5 seconds
+
+**Solution:**
+- Expected behavior (lazy loading)
+- Consider pre-loading models if needed
+- Warm up models on startup with dummy requests
+
+### High Memory Usage
+
+**Symptoms:**
+- Service using >1GB memory
+
+**Solutions:**
+- All 3 models loaded: ~800MB expected
+- Check for memory leaks with `docker stats`
+- Restart service if memory grows unbounded
+
+### Poor Embedding Quality
+
+**Symptoms:**
+- Low similarity scores for similar text
+
+**Solutions:**
+- Ensure text is clean (no special characters)
+- Use descriptive text (not just IDs)
+- Normalize embeddings for cosine similarity
+
+### Model Loading Errors
+
+**Symptoms:**
+- Models fail to download or load
+
+**Solutions:**
+- Check internet connectivity (models download from HuggingFace)
+- Verify disk space in `MODEL_CACHE_DIR`
+- Check HuggingFace API status
+
+## OpenVINO Service vs ML Service
 
 | Use OpenVINO Service | Use ML Service |
 |---------------------|----------------|
@@ -267,30 +441,49 @@ Logs structured JSON with:
 
 ## Optimization Tips
 
-1. **Batch Requests**: Process multiple texts together for better throughput
-2. **Normalize Embeddings**: Set `normalize=true` for cosine similarity
-3. **Limit Top-K**: Re-ranking 5-10 candidates is optimal
-4. **Cache Embeddings**: Store frequently used embeddings in Redis
-5. **Monitor Cold Starts**: First request is slow (model loading)
+1. **Batch Requests** - Process multiple texts together for better throughput
+2. **Normalize Embeddings** - Set `normalize=true` for cosine similarity
+3. **Limit Top-K** - Re-ranking 5-10 candidates is optimal
+4. **Cache Embeddings** - Store frequently used embeddings in Redis
+5. **Monitor Cold Starts** - First request is slow (model loading)
 
-## Troubleshooting
+## Related Documentation
 
-### Slow first request
-- Expected behavior (lazy loading)
-- Consider pre-loading models if needed
-- Warm up models on startup with dummy requests
+- [AI Core Service](../ai-core-service/README.md) - Orchestrates OpenVINO calls
+- [ML Service](../ml-service/README.md) - Classical ML algorithms
+- [AI Automation Service](../ai-automation-service/README.md) - Consumer of embeddings
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
 
-### High memory usage
-- All 3 models loaded: ~400MB expected
-- Check for memory leaks with `docker stats`
-- Restart service if memory grows unbounded
+## Support
 
-### Poor embedding quality
-- Ensure text is clean (no special characters)
-- Use descriptive text (not just IDs)
-- Normalize embeddings for cosine similarity
+- **Issues:** https://github.com/wtthornton/HomeIQ/issues
+- **Documentation:** `/docs` directory
+- **Health Check:** http://localhost:8019/health
+- **API Docs:** http://localhost:8019/docs
 
-### Low accuracy
-- INT8 quantization: 98-99% of FP32 accuracy expected
-- Check if calibration dataset matches use case
-- Consider FP32 models if accuracy critical
+## Version History
+
+### 2.1 (November 15, 2025)
+- Updated documentation to 2025 standards
+- Noted OpenVINO removal (dependency conflicts)
+- Now using sentence-transformers with CPU-optimized PyTorch
+- Enhanced troubleshooting and dependency documentation
+- Corrected model sizes and performance characteristics
+
+### 2.0 (October 2025)
+- INT8 quantization with OpenVINO (deprecated)
+- 3-4x performance improvements
+- Three optimized models
+
+### 1.0 (Initial Release)
+- Standard transformer models
+- Basic embedding and re-ranking
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8019
+**Note:** OpenVINO quantization temporarily removed; using sentence-transformers
