@@ -426,6 +426,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
 - **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
 - **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
 - **feat(data-api): comprehensive security and performance improvements** (November 14, 2025)
