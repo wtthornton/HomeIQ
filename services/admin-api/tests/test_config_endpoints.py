@@ -44,9 +44,8 @@ class TestConfigEndpoints:
         """Test config endpoint with include_sensitive parameter"""
         response = self.client.get("/config?include_sensitive=true")
         
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, dict)
+        assert response.status_code == 403
+        assert "detail" in response.json()
     
     def test_config_endpoint_with_invalid_service(self):
         """Test config endpoint with invalid service"""
@@ -72,8 +71,8 @@ class TestConfigEndpoints:
         
         response = self.client.put("/config/websocket-ingestion", json=updates)
         
-        # Should handle gracefully (may return 500 if service is not available)
-        assert response.status_code in [200, 500]
+        # Should handle gracefully (may return 403/500 if service is not available)
+        assert response.status_code in [200, 403, 500]
     
     def test_update_configuration_endpoint_with_invalid_service(self):
         """Test update configuration endpoint with invalid service"""

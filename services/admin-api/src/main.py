@@ -5,12 +5,13 @@ Admin REST API Service
 import asyncio
 import logging
 import os
+import secrets
 import sys
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -40,7 +41,8 @@ from .devices_endpoints import router as devices_router
 from .metrics_endpoints import create_metrics_router
 from .alert_endpoints import create_alert_router
 from shared.auth import AuthManager  # Moved to shared
-from shared.monitoring import logging_service, metrics_service, alerting_service
+from shared.monitoring import alerting_service, logging_service, metrics_service
+from shared.rate_limiter import RateLimiter, rate_limit_middleware
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -81,8 +83,24 @@ class AdminAPIService:
         self.api_description = os.getenv('API_DESCRIPTION', 'Admin API for Home Assistant Ingestor')
         
         # Security
-        self.api_key = os.getenv('API_KEY')
-        self.enable_auth = os.getenv('ENABLE_AUTH', 'true').lower() == 'true'
+        self.api_key = os.getenv('ADMIN_API_API_KEY') or os.getenv('API_KEY')
+        self.allow_anonymous = os.getenv('ADMIN_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
+        self.docs_enabled = os.getenv('ADMIN_API_ENABLE_DOCS', 'false').lower() == 'true'
+        self.openapi_enabled = os.getenv('ADMIN_API_ENABLE_OPENAPI', 'false').lower() == 'true'
+        rate_limit_per_minute = int(os.getenv('ADMIN_API_RATE_LIMIT_PER_MIN', '60'))
+        burst = int(os.getenv('ADMIN_API_RATE_LIMIT_BURST', '20'))
+        self.rate_limiter = RateLimiter(rate=rate_limit_per_minute, per=60, burst=burst)
+
+        if not self.api_key:
+            if not self.allow_anonymous:
+                raise RuntimeError(
+                    "API_KEY (or ADMIN_API_API_KEY) must be set before starting admin-api"
+                )
+            self.api_key = secrets.token_urlsafe(48)
+            logger.warning(
+                "Admin API started in anonymous mode for local testing only. "
+                "Set ADMIN_API_API_KEY to enforce authentication."
+            )
         
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
@@ -91,12 +109,15 @@ class AdminAPIService:
         
         # Initialize components
         self.start_time = datetime.now()  # Add start time for uptime calculation
-        self.auth_manager = AuthManager(api_key=self.api_key, enable_auth=self.enable_auth)
+        self.auth_manager = AuthManager(
+            api_key=self.api_key,
+            allow_anonymous=self.allow_anonymous,
+        )
         self.health_endpoints = HealthEndpoints()
         self.stats_endpoints = StatsEndpoints()
         self.config_endpoints = ConfigEndpoints()
         self.events_endpoints = EventsEndpoints()
-        self.docker_endpoints = DockerEndpoints()
+        self.docker_endpoints = DockerEndpoints(self.auth_manager)
         self.monitoring_endpoints = MonitoringEndpoints(self.auth_manager)
         # Create integration router with service-specific config_manager
         self.integration_router = create_integration_router(config_manager)
@@ -189,6 +210,11 @@ class AdminAPIService:
             allow_headers=self.cors_headers
         )
         
+        # Rate limiting middleware
+        @self.app.middleware("http")
+        async def apply_rate_limit(request, call_next):
+            return await rate_limit_middleware(request, call_next, self.rate_limiter)
+
         # Request logging middleware
         @self.app.middleware("http")
         async def log_requests(request, call_next):
@@ -226,7 +252,7 @@ class AdminAPIService:
             try:
                 uptime_seconds = (datetime.now() - self.start_time).total_seconds()
                 
-                # Create basic dependency health data
+                # Create basic dependency health data (updated for Epic 31)
                 dependencies = [
                     {
                         "name": "InfluxDB",
@@ -237,19 +263,20 @@ class AdminAPIService:
                     },
                     {
                         "name": "WebSocket Ingestion",
-                        "type": "websocket",
+                        "type": "service",
                         "status": "healthy",
                         "response_time_ms": 12.1,
                         "last_check": datetime.now().isoformat()
                     },
                     {
-                        "name": "Enrichment Pipeline",
+                        "name": "Data API",
                         "type": "service",
                         "status": "healthy",
-                        "response_time_ms": 8.7,
+                        "response_time_ms": 9.4,
                         "last_check": datetime.now().isoformat()
                     }
                 ]
+                rate_limiter_stats = self.rate_limiter.get_stats()
                 
                 return {
                     "status": "healthy",
@@ -259,6 +286,11 @@ class AdminAPIService:
                     "uptime_human": f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s",
                     "uptime_percentage": 100.0,
                     "dependencies": dependencies,
+                    "security": {
+                        "api_key_required": not self.allow_anonymous,
+                        "docs_enabled": self.docs_enabled,
+                        "rate_limit": rate_limiter_stats,
+                    },
                     "metrics": {
                         "uptime_human": f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s",
                         "uptime_percentage": 100.0,
@@ -287,6 +319,8 @@ class AdminAPIService:
                 "timestamp": datetime.now().isoformat()
             }
         
+        secure_dependency = [Depends(self.auth_manager.get_current_user)]
+
         # Health endpoints
         self.app.include_router(
             self.health_endpoints.router,
@@ -299,7 +333,7 @@ class AdminAPIService:
             self.stats_endpoints.router,
             prefix="/api/v1",
             tags=["Statistics"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
         
         # Configuration endpoints
@@ -307,7 +341,7 @@ class AdminAPIService:
             self.config_endpoints.router,
             prefix="/api/v1",
             tags=["Configuration"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
 
         # MQTT/Zigbee configuration endpoints
@@ -315,14 +349,14 @@ class AdminAPIService:
             mqtt_config_router,
             prefix="/api/v1",
             tags=["Integrations"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
         
         # Docker management endpoints
         self.app.include_router(
             self.docker_endpoints.router,
             tags=["Docker Management"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
         
         # Events endpoints
@@ -330,7 +364,7 @@ class AdminAPIService:
             self.events_endpoints.router,
             prefix="/api/v1",
             tags=["Events"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
         
         # Monitoring endpoints
@@ -338,7 +372,7 @@ class AdminAPIService:
             self.monitoring_endpoints.router,
             prefix="/api/v1/monitoring",
             tags=["Monitoring"],
-            dependencies=[Depends(self.auth_manager.get_current_user)] if self.enable_auth else []
+            dependencies=secure_dependency
         )
         
         # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
@@ -347,27 +381,31 @@ class AdminAPIService:
         self.app.include_router(
             self.integration_router,
             prefix="/api/v1",
-            tags=["Integration Management"]
+            tags=["Integration Management"],
+            dependencies=secure_dependency
         )
         
         # Devices & Entities endpoints
         self.app.include_router(
             devices_router,
-            tags=["Devices & Entities"]
+            tags=["Devices & Entities"],
+            dependencies=secure_dependency
         )
         
         # Metrics endpoints (Epic 17.3)
         self.app.include_router(
             create_metrics_router(),
             prefix="/api/v1",
-            tags=["Metrics"]
+            tags=["Metrics"],
+            dependencies=secure_dependency
         )
         
         # Alert endpoints (Epic 17.4)
         self.app.include_router(
             create_alert_router(),
             prefix="/api/v1",
-            tags=["Alerts"]
+            tags=["Alerts"],
+            dependencies=secure_dependency
         )
         
         # Root health endpoint (for Docker health checks)
@@ -413,8 +451,15 @@ class AdminAPIService:
                         "config": "/api/v1/config",
                         "events": "/api/v1/events"
                     },
-                    "authentication": self.enable_auth,
-                    "cors_enabled": True
+                  "authentication": {
+                      "api_key_required": not self.allow_anonymous,
+                      "docs_enabled": self.docs_enabled
+                  },
+                  "rate_limit": {
+                      "requests_per_minute": self.rate_limiter.rate,
+                      "burst": self.rate_limiter.burst
+                  },
+                  "cors_enabled": True
                 },
                 message="API information retrieved successfully"
             )
@@ -506,9 +551,9 @@ app = FastAPI(
     title=admin_api_service.api_title,
     version=admin_api_service.api_version,
     description=admin_api_service.api_description,
-    docs_url="/docs" if not admin_api_service.enable_auth else None,
-    redoc_url="/redoc" if not admin_api_service.enable_auth else None,
-    openapi_url="/openapi.json" if not admin_api_service.enable_auth else None,
+    docs_url="/docs" if admin_api_service.docs_enabled else None,
+    redoc_url="/redoc" if admin_api_service.docs_enabled else None,
+    openapi_url="/openapi.json" if (admin_api_service.docs_enabled or admin_api_service.openapi_enabled) else None,
     lifespan=lifespan
 )
 
