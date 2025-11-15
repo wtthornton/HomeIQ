@@ -1,41 +1,37 @@
 # Carbon Intensity Service
 
-Fetches real-time grid carbon intensity data from WattTime API and stores it in InfluxDB for carbon-aware automation.
+**Grid Carbon Intensity Data for Carbon-Aware Automation**
 
-## Purpose
+**Port:** 8010
+**Technology:** Python 3.11+, FastAPI 0.121, aiohttp 3.13, InfluxDB 3.0
+**Container:** `homeiq-carbon-intensity`
+**Epic:** 31 (Direct InfluxDB Writes)
 
-Enable Home Assistant automations to schedule energy-intensive tasks during periods of clean energy (low carbon intensity), reducing environmental impact and potentially saving costs during renewable energy peaks.
+## Overview
 
-## Features
+The Carbon Intensity Service fetches real-time grid carbon intensity data from WattTime API and writes directly to InfluxDB, enabling Home Assistant automations to schedule energy-intensive tasks during periods of clean energy (low carbon intensity), reducing environmental impact and potentially saving costs.
 
-- Fetches carbon intensity every 15 minutes
-- Caches data with 15-minute TTL
-- Graceful fallback to cached data if API unavailable
-- Stores data in InfluxDB with forecasts
-- Health check endpoint for monitoring
-- Automatic retry on failures
+### Key Features
 
-## Environment Variables
+- **15-Minute Updates** - Carbon intensity data every 15 minutes
+- **Forecasting** - 1-hour and 24-hour forecasts
+- **Smart Caching** - 15-minute TTL with graceful fallback
+- **Direct InfluxDB Writes** - Epic 31 architecture pattern
+- **Renewable Tracking** - Percentage of renewable energy in the grid
+- **Health Monitoring** - Comprehensive health checks with fetch statistics
 
-Required:
-- `WATTTIME_API_TOKEN` - WattTime API authentication token
-- `INFLUXDB_TOKEN` - InfluxDB authentication token
+## Quick Start
 
-Optional:
-- `GRID_REGION` - Grid region code (default: "CAISO_NORTH")
-- `INFLUXDB_URL` - InfluxDB URL (default: "http://influxdb:8086")
-- `INFLUXDB_ORG` - InfluxDB organization (default: "home_assistant")
-- `INFLUXDB_BUCKET` - InfluxDB bucket (default: "events")
-- `SERVICE_PORT` - Health check port (default: "8010")
+### Prerequisites
 
-## Setup
+- Python 3.11+
+- WattTime API token (free from https://www.watttime.org/api-documentation/)
+- InfluxDB 2.x or 3.x
 
-### 1. Get WattTime API Token
+### Get WattTime API Token
 
 ```bash
-# Register for free account at https://www.watttime.org/api-documentation/
-# Free tier: 100 calls/day (sufficient for 15-min intervals = 96 calls/day)
-
+# Register (free tier: 100 calls/day, sufficient for 15-min intervals)
 curl -X POST https://api.watttime.org/register \
   -d '{"username":"your_email@example.com","password":"your_password","email":"your_email@example.com","org":"your_org"}'
 
@@ -44,17 +40,64 @@ curl -X POST https://api.watttime.org/login \
   -d '{"username":"your_email@example.com","password":"your_password"}'
 ```
 
-### 2. Configure Environment
+### Running Locally
 
-Add to `.env`:
 ```bash
-WATTTIME_API_TOKEN=your_token_here
-GRID_REGION=CAISO_NORTH  # or your region
+cd services/carbon-intensity-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start service
+uvicorn src.main:app --reload --port 8010
 ```
 
-### 3. Run with Docker Compose
+### Running with Docker
 
-Service is included in main `docker-compose.yml`.
+```bash
+# Build and start
+docker compose up -d carbon-intensity-service
+
+# View logs
+docker compose logs -f carbon-intensity-service
+
+# Check health
+curl http://localhost:8010/health
+```
+
+## API Endpoints
+
+### `GET /health`
+Service health check with fetch statistics
+
+### `GET /current-intensity`
+Get current carbon intensity data
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WATTTIME_API_TOKEN` | - | WattTime API token (required) |
+| `GRID_REGION` | `CAISO_NORTH` | Grid region code |
+| `SERVICE_PORT` | `8010` | Service port |
+| `INFLUXDB_URL` | `http://influxdb:8086` | InfluxDB URL |
+| `INFLUXDB_TOKEN` | - | InfluxDB auth token |
+| `INFLUXDB_ORG` | `homeiq` | InfluxDB organization |
+| `INFLUXDB_BUCKET` | `carbon_data` | InfluxDB bucket |
+
+### Example `.env`
+
+```bash
+WATTTIME_API_TOKEN=your_token_here
+GRID_REGION=CAISO_NORTH
+SERVICE_PORT=8010
+```
 
 ## InfluxDB Schema
 
@@ -71,64 +114,25 @@ Service is included in main `docker-compose.yml`.
 - `forecast_1h` (float) - Forecast for next hour
 - `forecast_24h` (float) - Forecast for 24 hours ahead
 
-## Query Examples
+## Grid Regions
 
-### Get Current Carbon Intensity
+Common WattTime region codes:
+- `CAISO_NORTH` - Northern California
+- `CAISO_SOUTH` - Southern California
+- `ERCOT` - Texas
+- `PJM` - Mid-Atlantic and Midwest
+- `MISO` - Midwest
+- `NYISO` - New York
+- `ISONE` - New England
+- `SPP` - Southwest Power Pool
 
-```flux
-from(bucket: "events")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r._measurement == "carbon_intensity")
-  |> filter(fn: (r) => r._field == "carbon_intensity_gco2_kwh")
-  |> last()
-```
-
-### Find Low-Carbon Periods
-
-```flux
-from(bucket: "events")
-  |> range(start: -24h)
-  |> filter(fn: (r) => r._measurement == "carbon_intensity")
-  |> filter(fn: (r) => r._field == "carbon_intensity_gco2_kwh")
-  |> filter(fn: (r) => r._value < 200)
-```
-
-### Get Daily Average Renewable Percentage
-
-```flux
-from(bucket: "events")
-  |> range(start: -30d)
-  |> filter(fn: (r) => r._measurement == "carbon_intensity")
-  |> filter(fn: (r) => r._field == "renewable_percentage")
-  |> aggregateWindow(every: 1d, fn: mean)
-```
+See WattTime API documentation for complete list.
 
 ## Automation Examples
 
-### Home Assistant YAML
+### Charge EV During Clean Energy
 
 ```yaml
-# Create sensor for carbon intensity
-sensor:
-  - platform: influxdb
-    api_version: 2
-    host: influxdb
-    port: 8086
-    token: !secret influxdb_token
-    organization: home_assistant
-    bucket: events
-    queries:
-      - name: "Grid Carbon Intensity"
-        query: >
-          from(bucket: "events")
-            |> range(start: -1h)
-            |> filter(fn: (r) => r._measurement == "carbon_intensity")
-            |> filter(fn: (r) => r._field == "carbon_intensity_gco2_kwh")
-            |> last()
-        value_template: "{{ value }}"
-        unit_of_measurement: "gCO2/kWh"
-
-# Automation: Charge EV during clean energy
 automation:
   - alias: "Charge EV During Clean Energy"
     trigger:
@@ -150,82 +154,62 @@ automation:
           message: "EV charging started - grid is clean ({{ states('sensor.grid_carbon_intensity') }} gCO2/kWh)"
 ```
 
-## Health Check
+## Query Examples
 
-```bash
-curl http://localhost:8010/health
+### Get Current Carbon Intensity
 
-# Response:
-{
-  "status": "healthy",
-  "service": "carbon-intensity-service",
-  "uptime_seconds": 3600,
-  "last_successful_fetch": "2025-10-10T15:30:00",
-  "total_fetches": 96,
-  "failed_fetches": 2,
-  "success_rate": 0.979,
-  "timestamp": "2025-10-10T16:00:00"
-}
+```flux
+from(bucket: "carbon_data")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "carbon_intensity")
+  |> filter(fn: (r) => r._field == "carbon_intensity_gco2_kwh")
+  |> last()
 ```
 
-## Troubleshooting
+### Find Low-Carbon Periods
 
-### API Token Issues
-
-```bash
-# Test WattTime API manually
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  "https://api.watttime.org/v3/forecast?region=CAISO_NORTH"
+```flux
+from(bucket: "carbon_data")
+  |> range(start: -24h)
+  |> filter(fn: (r) => r._measurement == "carbon_intensity")
+  |> filter(fn: (r) => r._field == "carbon_intensity_gco2_kwh")
+  |> filter(fn: (r) => r._value < 200)
 ```
 
-### View Service Logs
+## Related Documentation
 
-```bash
-docker-compose logs carbon-intensity-service
-```
+- [Epic 31: Direct InfluxDB Writes](../../docs/prd/epic-31-weather-api-service-migration.md)
+- [Weather API](../weather-api/README.md) - Similar Epic 31 pattern
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
 
-### Verify Data in InfluxDB
+## Support
 
-```bash
-# Access InfluxDB UI
-open http://localhost:8086
+- **Issues:** https://github.com/wtthornton/HomeIQ/issues
+- **Documentation:** `/docs` directory
+- **Health Check:** http://localhost:8010/health
+- **API Docs:** http://localhost:8010/docs
 
-# Or query via CLI
-docker exec -it influxdb influx query \
-  'from(bucket:"events") |> range(start:-1h) |> filter(fn: (r) => r._measurement == "carbon_intensity")'
-```
+## Version History
 
-## Grid Regions
+### 2.1 (November 15, 2025)
+- Updated documentation to 2025 standards
+- Enhanced API endpoint documentation
+- Added grid region reference
+- Epic 31 architecture context
 
-Common WattTime region codes:
-- `CAISO_NORTH` - Northern California
-- `CAISO_SOUTH` - Southern California
-- `ERCOT` - Texas
-- `PJM` - Mid-Atlantic and Midwest
-- `MISO` - Midwest
-- `NYISO` - New York
-- `ISONE` - New England
-- `SPP` - Southwest Power Pool
+### 2.0 (October 2025)
+- Epic 31 migration to direct InfluxDB writes
+- Added 1-hour and 24-hour forecasts
 
-See WattTime API documentation for complete list.
+### 1.0 (Initial Release)
+- WattTime API integration
+- 15-minute carbon intensity fetching
 
-## Development
+---
 
-### Run Tests
-
-```bash
-cd services/carbon-intensity-service
-pytest tests/ -v
-```
-
-### Run Locally
-
-```bash
-cd services/carbon-intensity-service
-python -m src.main
-```
-
-## License
-
-MIT License - See main project LICENSE file
-
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8010
+**Epic:** 31 (Direct InfluxDB Writes)
