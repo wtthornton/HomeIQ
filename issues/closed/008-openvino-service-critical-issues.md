@@ -1,9 +1,11 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: openvino-service
 created: 2025-11-15
 labels: [critical, race-condition, memory-leak]
+closed: 2025-11-15
+resolution: Completed
 ---
 
 # [CRITICAL] OpenVINO Service - Race Conditions and Memory Management Issues
@@ -12,6 +14,18 @@ labels: [critical, race-condition, memory-leak]
 
 ## Overview
 The OpenVINO service has **8 CRITICAL issues** that pose significant risks to service stability, including race conditions, memory leaks, and unhandled failures that can cause container OOM kills.
+
+---
+
+## Resolution Summary (2025-11-15)
+
+- Added per-model asyncio locks to every `_load_*_model` path to eliminate concurrent downloads and cold-start races.
+- Hardened model lifecycle management with deterministic tensor cleanup, forced garbage collection, optional cache purging, and configurable preload/timeout controls.
+- Wrapped all CPU-bound inference calls in executor threads guarded by `asyncio.wait_for`, surfacing `504` responses on stalled workloads instead of hanging workers.
+- Enforced strict payload validation limits for embeddings, reranking, and classification endpoints to prevent DoS/OOM inputs on the 1.5 GB NUC deployment.
+- Upgraded FastAPI handlers to use `_require_manager()`, structured validation helpers, and `logger.exception()` so stack traces are preserved while clients receive safe errors.
+- Fixed readiness reporting by marking lazy-load mode as initialized, exposing richer `/health` + `/models/status` metadata, and moving the issue doc to `issues/closed`.
+- Updated `services/openvino-service/README.md` with the new guardrails, environment flags, and troubleshooting guidance per 2025 documentation standards.
 
 ---
 
