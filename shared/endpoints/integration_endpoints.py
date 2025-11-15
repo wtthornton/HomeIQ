@@ -78,11 +78,12 @@ def create_integration_router(config_manager: Any) -> APIRouter:
         """Get configuration for a service"""
         try:
             config = config_manager.read_config(service)
+            safe_config = config_manager.sanitize_config(config)
             template = config_manager.get_config_template(service)
             
             return {
                 "service": service,
-                "settings": config,
+                "settings": safe_config,
                 "template": template
             }
         except FileNotFoundError:
@@ -116,13 +117,14 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             
             # Update configuration
             updated_config = config_manager.write_config(service, update.settings)
+            sanitized_config = config_manager.sanitize_config(updated_config)
             
             return {
                 "success": True,
                 "service": service,
                 "message": "Configuration updated successfully. Restart service to apply changes.",
                 "restart_required": True,
-                "settings": updated_config,
+                "settings": sanitized_config,
                 "warnings": validation["warnings"]
             }
         
@@ -130,6 +132,11 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Configuration not found for service: {service}"
+            )
+        except PermissionError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=str(exc),
             )
         except HTTPException:
             raise
