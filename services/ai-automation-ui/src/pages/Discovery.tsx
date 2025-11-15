@@ -22,8 +22,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
     const fetchDevices = async () => {
       try {
         // Fetch entities to get unique domains (device types)
-        // Note: ai-automation-service runs on port 8024 (mapped from 8018)
-        const entitiesResponse = await fetch('http://localhost:8024/api/data/entities?limit=10000');
+        // Note: using proxied API endpoint
+        const entitiesResponse = await fetch('/api/data/entities?limit=10000');
         if (!entitiesResponse.ok) {
           throw new Error('Failed to fetch entities');
         }
@@ -39,7 +39,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
           setLoading(false);
         } else {
           // Fallback: try to get from devices
-          const devicesResponse = await fetch('http://localhost:8024/api/data/devices');
+          const devicesResponse = await fetch('/api/data/devices');
           if (devicesResponse.ok) {
             // Use demo devices as fallback if no entities found
             setUserDevices(['light', 'switch', 'sensor']);
