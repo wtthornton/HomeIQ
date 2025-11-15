@@ -19,7 +19,7 @@
 ## Direct Service Calls
 
 ### 1. NER Service Calls
-**Service:** NER Service (Port 8019)  
+**Service:** NER Service (Port 8031)  
 **Pattern:** Direct  
 **Use Case:** Entity extraction from natural language queries
 

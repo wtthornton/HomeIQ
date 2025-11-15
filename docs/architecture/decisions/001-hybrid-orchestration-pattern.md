@@ -10,7 +10,7 @@
 ## Context
 
 HomeIQ integrates AI capabilities through containerized microservices:
-- NER Service (Port 8019) - Entity recognition
+- NER Service (Port 8031) - Entity recognition
 - OpenAI Service (Port 8020) - Language generation
 - OpenVINO Service (Port 8022) - Embeddings, re-ranking
 - ML Service (Port 8025 external, 8020 internal) - Clustering, anomaly detection

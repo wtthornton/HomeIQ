@@ -616,7 +616,7 @@ def set_device_intelligence_client(client: DeviceIntelligenceClient):
         )
         # Initialize model orchestrator for containerized approach
         _model_orchestrator = ModelOrchestrator(
-            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8019"),
+            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8031"),
             openai_service_url=os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
         )
     logger.info("Device Intelligence client set for Ask AI router")

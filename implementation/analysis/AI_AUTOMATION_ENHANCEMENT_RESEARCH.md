@@ -219,7 +219,7 @@ POST /classify - Classify patterns by category
 - Detect anomalous usage that needs automation
 - Group devices by usage similarity
 
-#### **NER Service (Port 8019)**
+#### **NER Service (Port 8031)**
 **Model:** `dslim/bert-base-NER`  
 **Capabilities:**
 - ✅ Named Entity Recognition
