@@ -1,8 +1,8 @@
 """
-API Middlewares - Idempotency and Rate Limiting
+API Middlewares - Authentication, Idempotency and Rate Limiting
 """
 
-from typing import Callable, Optional, Dict
+from typing import Callable, Optional, Dict, List
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response, JSONResponse
@@ -11,6 +11,9 @@ import time
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
+
+from ..config import settings
+from .dependencies.auth import AuthContext
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                         cached_data = json.loads(response_body)
                         
                         # Store in cache
-                        _idempotency_store[cache_key] = (cached_data, time.time())
+    _idempotency_store[cache_key] = (cached_data, time.time())
                         
                         # Cleanup old entries (simple cleanup)
                         self._cleanup_old_entries()
@@ -237,11 +240,100 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         )
         bucket["last_refill"] = current_time
         
-        # Check if tokens available
-        if bucket["tokens"] >= 1.0:
+        # Reset hourly counters if needed
+        hour_start = bucket.get("hour_start", current_time)
+        if current_time - hour_start >= 3600:
+            bucket["hour_start"] = current_time
+            bucket["requests_this_hour"] = 0
+
+        bucket.setdefault("requests_this_hour", 0)
+
+        # Check both token bucket (per-minute) and hourly allowance
+        if bucket["tokens"] >= 1.0 and bucket["requests_this_hour"] < self.requests_per_hour:
             bucket["tokens"] -= 1.0
+            bucket["requests_this_hour"] += 1
             return True
-        else:
-            logger.warning(f"Rate limit exceeded for {identifier}")
-            return False
+
+        logger.warning(f"Rate limit exceeded for {identifier}")
+        return False
+
+
+class AuthenticationMiddleware(BaseHTTPMiddleware):
+    """Simple API key authentication with optional admin key."""
+
+    def __init__(
+        self,
+        app,
+        enabled: bool = True,
+        public_paths: Optional[List[str]] = None,
+        header_name: str = "X-HomeIQ-API-Key",
+    ):
+        super().__init__(app)
+        self.enabled = enabled and bool(settings.ai_automation_api_key)
+        self.header_name = header_name
+        self.public_paths = public_paths or [
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/metrics",
+        ]
+        self.api_key = settings.ai_automation_api_key
+        self.admin_key = settings.ai_automation_admin_api_key or self.api_key
+
+        if not self.enabled:
+            logger.warning("Authentication middleware disabled. Set ENABLE_AUTHENTICATION=true to enable.")
+        elif self.api_key == "change-me":
+            logger.warning(
+                "Authentication middleware enabled but default API key is still 'change-me'. "
+                "Update infrastructure/env.ai-automation."
+            )
+
+    async def dispatch(self, request: Request, call_next: Callable):
+        if not self.enabled or self._is_public_path(request.url.path):
+            return await call_next(request)
+
+        provided_key = self._extract_api_key(request)
+        if not provided_key:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "error": "Unauthorized",
+                    "detail": f"Missing {self.header_name} or Authorization header",
+                },
+            )
+
+        role = self._determine_role(provided_key)
+        if role is None:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "error": "Unauthorized",
+                    "detail": "Invalid API key",
+                },
+            )
+
+        request.state.auth_context = AuthContext(role=role, token=provided_key)
+        return await call_next(request)
+
+    def _is_public_path(self, path: str) -> bool:
+        return any(path == public or path.startswith(f"{public}/") for public in self.public_paths)
+
+    def _extract_api_key(self, request: Request) -> Optional[str]:
+        api_key = request.headers.get(self.header_name)
+        if api_key:
+            return api_key.strip()
+
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            return auth_header.split(" ", 1)[1].strip()
+
+        return None
+
+    def _determine_role(self, key: str) -> Optional[str]:
+        if key == self.admin_key:
+            return "admin"
+        if key == self.api_key:
+            return "user"
+        return None
 

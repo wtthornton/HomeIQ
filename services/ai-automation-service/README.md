@@ -107,6 +107,11 @@ MQTT_PASSWORD=your-mqtt-password
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_MODEL=gpt-4o-mini
 
+# Authentication
+ENABLE_AUTHENTICATION=true
+AI_AUTOMATION_API_KEY=generate-a-random-user-key
+AI_AUTOMATION_ADMIN_API_KEY=generate-a-separate-admin-key
+
 # Analysis Schedule
 ANALYSIS_SCHEDULE=0 3 * * *                  # 3 AM daily (cron format)
 
@@ -153,6 +158,8 @@ curl http://localhost:8024/health
 ```
 
 ## API Endpoints
+
+> 🔐 All endpoints (except `/health`, `/docs`, and `/redoc`) require the `X-HomeIQ-API-Key` header. Use the admin key for deployment, admin, and suggestion-management routes.
 
 ### Health & System
 

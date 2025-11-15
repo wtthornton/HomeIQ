@@ -62,6 +62,12 @@ class ConfigEndpoints:
         ):
             """Get configuration for services"""
             try:
+                if include_sensitive:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Sensitive configuration values cannot be retrieved via API.",
+                    )
+
                 if service and service in self.service_urls:
                     # Get config for specific service
                     config = await self._get_service_config(service, include_sensitive)
@@ -128,6 +134,11 @@ class ConfigEndpoints:
                 
             except HTTPException:
                 raise
+            except PermissionError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                )
             except Exception as e:
                 logger.error(f"Error updating configuration: {e}")
                 return JSONResponse(
