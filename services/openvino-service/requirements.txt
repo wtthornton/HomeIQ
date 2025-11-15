@@ -20,7 +20,7 @@ numpy==2.3.4
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers>=3.3.1,<4.0.0  # Embeddings: all-MiniLM-L6-v2 (PINNED - Phase 3B, see EMBEDDING_TEST_README.md)
+sentence-transformers==5.1.2  # Embeddings: all-MiniLM-L6-v2 (Phase 3A - full upgrade)
 transformers==4.57.1          # HuggingFace models (compatible with sentence-transformers)
 torch==2.9.1+cpu              # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
 sentencepiece                 # Required for T5 tokenizer
