@@ -62,6 +62,9 @@ from .analytics_endpoints import router as analytics_router
 from .energy_endpoints import router as energy_router
 from .hygiene_endpoints import router as hygiene_router
 
+# MCP Code Execution Tools
+from .api.mcp_router import router as mcp_router
+
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
@@ -294,6 +297,12 @@ app.include_router(
 app.include_router(
     hygiene_router,
     tags=["Device Hygiene"]
+)
+
+# MCP Code Execution Tools
+app.include_router(
+    mcp_router,
+    tags=["MCP Tools"]
 )
 
 
