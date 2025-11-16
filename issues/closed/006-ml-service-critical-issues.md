@@ -1,8 +1,9 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: ml-service
 created: 2025-11-15
+closed: 2025-11-15
 labels: [critical, memory-leak, security]
 ---
 
@@ -200,3 +201,12 @@ result = await loop.run_in_executor(None, self._fit_kmeans, X_scaled)
 - CLAUDE.md - Async Best Practices & Performance Patterns
 - Service location: `/services/ml-service/`
 - Port: 8025 → 8020
+
+---
+
+## Resolution - November 15, 2025
+
+1. **Per-request safety:** Replaced shared `StandardScaler` and async sklearn calls with synchronous helpers executed via FastAPI's thread pool, eliminating cross-request contamination and freeing models immediately after use.
+2. **Resource guardrails:** Added 10MB payload caps, ≤1000 dimensions, ≤100 clusters, ≤100 batch operations, and configurable timeouts to prevent DoS vectors. Requests exceeding limits are rejected before compute begins.
+3. **Secure API surface:** Restricted CORS to trusted dashboards, sanitized all error responses, and enforced consistent validation within batch operations.
+4. **Documentation + tracking:** Updated `services/ml-service/README.md` with the new guardrails/env vars and closed issue 006 under `issues/closed/`.

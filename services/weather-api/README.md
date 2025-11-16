@@ -18,8 +18,10 @@ The Weather API Service provides real-time and historical weather data through a
 - **Historical Queries** - Access past weather data from InfluxDB
 - **Smart Caching** - 15-minute TTL to reduce API calls and costs
 - **Direct InfluxDB Writes** - Epic 31 architecture pattern
-- **Prometheus Metrics** - Performance and cache statistics
-- **Health Monitoring** - Comprehensive health checks with component status
+- **Async Writes + Retries** - Non-blocking InfluxDB writes using thread executors
+- **Guarded Background Fetch** - Exception-safe polling with task health reporting
+- **Secure API Key Handling** - Header-based authentication avoids leaking secrets
+- **Health Monitoring** - Component-level health plus cache metrics
 
 ## Quick Start
 
@@ -81,19 +83,25 @@ Response:
   "service": "weather-api",
   "timestamp": "2025-11-15T12:00:00Z",
   "components": {
-    "openweathermap": "healthy",
+    "api": "healthy",
+    "weather_client": "healthy",
+    "cache": "healthy",
     "influxdb": "healthy",
-    "cache": "healthy"
+    "background_task": "running"
   },
-  "cache_stats": {
-    "hit_rate": 0.92,
-    "size": 5
+  "metrics": {
+    "cache_hits": 920,
+    "cache_misses": 80,
+    "cache_age_seconds": 42,
+    "cache_ttl_seconds": 900,
+    "last_successful_fetch": "2025-11-15T11:59:18Z",
+    "last_influx_write": "2025-11-15T11:59:19Z"
   }
 }
 ```
 
 #### `GET /metrics`
-Prometheus-compatible metrics
+Lightweight JSON metrics (mirror of `/health` data, Prometheus wrapper planned)
 ```bash
 curl http://localhost:8009/metrics
 ```
@@ -182,6 +190,7 @@ Response:
 |----------|---------|-------------|
 | `WEATHER_API_KEY` | - | OpenWeatherMap API key (required) |
 | `WEATHER_LOCATION` | `Las Vegas` | Default location for queries |
+| `WEATHER_API_AUTH_MODE` | `header` | `header` to send `X-API-Key`, `query` to append `appid` (legacy) |
 | `SERVICE_PORT` | `8009` | Service port |
 | `CACHE_TTL_SECONDS` | `900` | Cache TTL (15 minutes) |
 | `FETCH_INTERVAL_SECONDS` | `300` | Background fetch interval (5 minutes) |
@@ -189,6 +198,7 @@ Response:
 | `INFLUXDB_TOKEN` | - | InfluxDB auth token |
 | `INFLUXDB_ORG` | `homeiq` | InfluxDB organization |
 | `INFLUXDB_BUCKET` | `weather_data` | InfluxDB bucket |
+| `INFLUXDB_WRITE_RETRIES` | `3` | Retry attempts for writes (exponential backoff) |
 | `LOG_LEVEL` | `INFO` | Logging level |
 
 ### Example `.env`
@@ -197,6 +207,7 @@ Response:
 # OpenWeatherMap API
 WEATHER_API_KEY=your_api_key_here
 WEATHER_LOCATION=Las Vegas
+WEATHER_API_AUTH_MODE=header  # header or query
 
 # Cache Configuration
 CACHE_TTL_SECONDS=900  # 15 minutes
@@ -210,6 +221,7 @@ INFLUXDB_URL=http://influxdb:8086
 INFLUXDB_TOKEN=your_token
 INFLUXDB_ORG=homeiq
 INFLUXDB_BUCKET=weather_data
+INFLUXDB_WRITE_RETRIES=3
 
 # Logging
 LOG_LEVEL=INFO
@@ -457,6 +469,12 @@ httpx==0.27.2               # HTTP testing client
 
 ## Version History
 
+### 2.2 (November 15, 2025)
+- Added guarded background fetch task with exception handling and health visibility
+- Switched to header-first API key authentication with configurable fallback
+- Added async InfluxDB writes with exponential backoff retries
+- Expanded `/health` + `/metrics` responses with component + cache metrics and version 2.2.0 alignment
+
 ### 2.1 (November 15, 2025)
 - Updated documentation to 2025 standards
 - Enhanced dependency documentation
@@ -479,7 +497,7 @@ httpx==0.27.2               # HTTP testing client
 ---
 
 **Last Updated:** November 15, 2025
-**Version:** 2.1
+**Version:** 2.2
 **Status:** Production Ready ✅
 **Port:** 8009
 **Epic:** 31 (Direct InfluxDB Writes)
