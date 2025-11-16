@@ -265,8 +265,8 @@ class TestEventCorrelationFlow:
             assert correlator_instance.correlations_found == 1
             assert correlator_instance.correlations_written == 1
 
-            # Verify write_point was called
-            assert correlator_instance.client.write_point.called
+            # Verify write_points was called
+            assert correlator_instance.client.write_points.called
 
     @pytest.mark.asyncio
     async def test_correlate_negative_delta(self, correlator_instance):

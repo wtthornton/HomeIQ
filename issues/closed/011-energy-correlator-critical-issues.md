@@ -1,9 +1,11 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: energy-correlator
 created: 2025-11-15
 labels: [critical, performance, n+1-query]
+closed: 2025-11-16
+resolution: Fixed
 ---
 
 # [CRITICAL] Energy Correlator Service - N+1 Query Problem and Performance Issues
@@ -14,6 +16,14 @@ labels: [critical, performance, n+1-query]
 The energy-correlator service has **CRITICAL performance issues** including massive N+1 query explosion, blocking I/O in async context, and resource leaks that will cause it to fail under production load.
 
 ---
+
+## Resolution Summary (2025-11-16)
+
+- Added configurable limits and batch-processing pipeline: events are capped per cycle, smart_meter data is hydrated once into an in-memory cache, and correlations flush via async batch writes, eliminating the N+1 query amplification.
+- Reworked `InfluxDBWrapper` to execute queries in thread pools, use the async write API, and raise on critical failures to avoid silent data loss; correlation writes now batch and propagate errors up to the service loop.
+- Implemented deferred retry handling so events missing power data are reprocessed within a bounded queue, preventing permanent gaps when meter readings arrive late.
+- Hardened startup/shutdown to close resources on failure, exposed new environment toggles (batch limits, retry windows, padding), and corrected README port + documentation to match the 2025 architecture.
+- Verified fixes via `python3 -m pytest services/energy-correlator/tests/unit` (53 tests) with asyncio+coverage enabled.
 
 ## CRITICAL Issues
 
