@@ -75,7 +75,9 @@ export const Dashboard: React.FC = () => {
       const oldLayout = localStorage.getItem('dashboard-layout');
       if (oldLayout) {
         localStorage.removeItem('dashboard-layout');
-        console.log('✅ Cleaned up deprecated Custom tab layout from localStorage');
+        if (import.meta.env.MODE !== 'production') {
+          console.log('✅ Cleaned up deprecated Custom tab layout from localStorage');
+        }
       }
       localStorage.setItem(cleanupKey, 'true');
     }

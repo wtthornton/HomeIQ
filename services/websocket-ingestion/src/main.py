@@ -42,7 +42,7 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.append(str(shared_path))
 elif not shared_path:
-    print("[websocket-ingestion] Warning: could not locate 'shared' directory in expected locations", file=sys.stderr)
+    logging.warning("[websocket-ingestion] Warning: could not locate 'shared' directory in expected locations")
 
 from shared.logging_config import (
     setup_logging, get_logger, log_with_context, log_performance, 

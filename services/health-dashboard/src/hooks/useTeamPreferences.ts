@@ -66,13 +66,17 @@ export const useTeamPreferences = () => {
         
         // Check if migration is needed
         if (parsed.version < CURRENT_VERSION) {
-          console.log('🔄 Migrating team IDs to new format...');
+          if (import.meta.env.MODE !== 'production') {
+            console.log('🔄 Migrating team IDs to new format...');
+          }
           
           // Migrate NFL teams
           const migratedNflTeams = parsed.nfl_teams.map(teamId => {
             const newId = migrationMap[teamId];
             if (newId) {
-              console.log(`✅ Migrated NFL: ${teamId} → ${newId}`);
+              if (import.meta.env.MODE !== 'production') {
+                console.log(`✅ Migrated NFL: ${teamId} → ${newId}`);
+              }
               return newId;
             }
             return teamId;
@@ -82,7 +86,9 @@ export const useTeamPreferences = () => {
           const migratedNhlTeams = parsed.nhl_teams.map(teamId => {
             const newId = migrationMap[teamId];
             if (newId) {
-              console.log(`✅ Migrated NHL: ${teamId} → ${newId}`);
+              if (import.meta.env.MODE !== 'production') {
+                console.log(`✅ Migrated NHL: ${teamId} → ${newId}`);
+              }
               return newId;
             }
             return teamId;
@@ -100,7 +106,9 @@ export const useTeamPreferences = () => {
           // Save migrated data
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedPreferences));
           setPreferences(migratedPreferences);
-          console.log('🎉 Team ID migration complete!');
+          if (import.meta.env.MODE !== 'production') {
+            console.log('🎉 Team ID migration complete!');
+          }
         } else {
           setPreferences(parsed);
         }

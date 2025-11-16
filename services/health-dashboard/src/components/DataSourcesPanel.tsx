@@ -44,7 +44,9 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
           setCurrentWeather(await res.json());
         }
       } catch (e) {
-        console.log('Weather API unavailable');
+        if (import.meta.env.MODE !== 'production') {
+          console.log('Weather API unavailable');
+        }
       }
     };
 
