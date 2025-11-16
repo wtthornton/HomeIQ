@@ -40,6 +40,7 @@ from .mqtt_config_endpoints import router as mqtt_config_router
 from .devices_endpoints import router as devices_router
 from .metrics_endpoints import create_metrics_router
 from .alert_endpoints import create_alert_router
+from .ha_proxy_endpoints import router as ha_proxy_router
 from shared.auth import AuthManager  # Moved to shared
 from shared.monitoring import alerting_service, logging_service, metrics_service
 from shared.rate_limiter import RateLimiter, rate_limit_middleware
@@ -389,6 +390,13 @@ class AdminAPIService:
         self.app.include_router(
             devices_router,
             tags=["Devices & Entities"],
+            dependencies=secure_dependency
+        )
+
+        # Home Assistant proxy endpoints
+        self.app.include_router(
+            ha_proxy_router,
+            tags=["Home Assistant Proxy"],
             dependencies=secure_dependency
         )
         

@@ -39,6 +39,7 @@ const TAB_CONFIG = [
 ];
 
 export const Dashboard: React.FC = () => {
+  const automationUiUrl = import.meta.env.VITE_AI_AUTOMATION_UI_URL;
   // State management
   const [darkMode, setDarkMode] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
@@ -141,17 +142,19 @@ export const Dashboard: React.FC = () => {
                 <option value="7d">7d</option>
               </select>
               
-              {/* AI Automation UI Link */}
-              <a
-                href={import.meta.env.VITE_AI_AUTOMATION_UI_URL || 'http://localhost:3001'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`px-3 py-2 rounded-lg border text-sm min-h-[44px] flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-500 text-white hover:from-blue-500 hover:to-blue-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-400 text-white hover:from-blue-600 hover:to-blue-700'} transition-all duration-200`}
-                title="Open AI Automation UI"
-              >
-                <span className="text-lg">🤖</span>
-                <span className="hidden sm:inline font-semibold">AI Automations</span>
-              </a>
+                {/* AI Automation UI Link */}
+                {automationUiUrl && (
+                  <a
+                    href={automationUiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`px-3 py-2 rounded-lg border text-sm min-h-[44px] flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-500 text-white hover:from-blue-500 hover:to-blue-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-400 text-white hover:from-blue-600 hover:to-blue-700'} transition-all duration-200`}
+                    title="Open AI Automation UI"
+                  >
+                    <span className="text-lg">🤖</span>
+                    <span className="hidden sm:inline font-semibold">AI Automations</span>
+                  </a>
+                )}
               
               {/* Last Updated - Hidden on mobile */}
               <div className="text-right hidden md:block">

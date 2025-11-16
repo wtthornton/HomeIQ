@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EnvironmentHealth } from '../types/health';
 
-const SETUP_SERVICE_URL = 'http://localhost:8027';  // Port 8027 (container internal port is 8020, external is 8027)
+const SETUP_SERVICE_URL = '/setup-service';  // Proxied through nginx to ha-setup-service
 const POLL_INTERVAL = 30000; // 30 seconds
 
 interface UseEnvironmentHealthReturn {

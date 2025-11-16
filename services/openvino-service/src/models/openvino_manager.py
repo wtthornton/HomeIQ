@@ -24,6 +24,7 @@ import numpy as np
 
 T = TypeVar("T")
 
+MODEL_LOAD_TIMEOUT_SECONDS = float(os.getenv("OPENVINO_MODEL_LOAD_TIMEOUT", "180"))
 INFERENCE_TIMEOUT_SECONDS = float(os.getenv("OPENVINO_INFERENCE_TIMEOUT", "30"))
 CLEAN_CACHE_ON_SHUTDOWN = os.getenv("OPENVINO_CLEAN_CACHE_ON_SHUTDOWN", "true").lower() not in {"false", "0", "no"}
 
@@ -52,18 +53,13 @@ class OpenVINOManager:
         self._reranker_lock: Optional[asyncio.Lock] = None
         self._classifier_lock: Optional[asyncio.Lock] = None
         
-        self.model_load_timeout = MODEL_LOAD_TIMEOUT
-        self.inference_timeout = INFERENCE_TIMEOUT
-        self.clear_cache_on_cleanup = CLEAR_CACHE_ON_CLEANUP
-        
-        self._embed_lock = asyncio.Lock()
-        self._reranker_lock = asyncio.Lock()
-        self._classifier_lock = asyncio.Lock()
+        self.model_load_timeout = MODEL_LOAD_TIMEOUT_SECONDS
+        self.inference_timeout = INFERENCE_TIMEOUT_SECONDS
+        self.clear_cache_on_cleanup = CLEAN_CACHE_ON_SHUTDOWN
         
         self.use_openvino = False  # Use standard models for compatibility
         self._initialized = True  # Ready for lazy loading immediately
         self._startup_strategy = "lazy"
-        self.inference_timeout = INFERENCE_TIMEOUT_SECONDS
         
         logger.info("OpenVINOManager initialized (models will load on first use)")
     
@@ -471,7 +467,7 @@ Priority:"""
 
     def _purge_model_cache(self) -> None:
         """Optionally clear cached model files to reclaim disk space."""
-        if not CLEAN_CACHE_ON_SHUTDOWN or not self.models_dir.exists():
+        if not self.clear_cache_on_cleanup or not self.models_dir.exists():
             return
 
         for child in list(self.models_dir.iterdir()):
