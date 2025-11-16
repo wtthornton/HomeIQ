@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Implement MQTT subscription for Zigbee2MQTT health monitoring** (November 16, 2025)
 - **Complete ML model update infrastructure for Device Intelligence Service** (November 16, 2025)
 - **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (November 16, 2025)
 - **fix(device-intelligence): resolve integration field and critical bugs** (November 16, 2025)
