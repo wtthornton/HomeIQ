@@ -5,19 +5,165 @@ NUC-optimized: Minimal resource overhead, single-process isolation.
 
 import sys
 import io
-import contextlib
 import asyncio
-import resource
-import signal
-from typing import Dict, Any, Optional
+import importlib
+import multiprocessing
+import queue
+from typing import Dict, Any, Optional, Set
 from dataclasses import dataclass
 from datetime import datetime
+from types import MappingProxyType
 import traceback
 from RestrictedPython import compile_restricted
 import psutil
 import logging
+import resource
+import contextlib
 
 logger = logging.getLogger(__name__)
+
+SAFE_VALUE_TYPES = (str, int, float, bool, type(None))
+MAX_CONTEXT_DEPTH = 4
+
+
+def _safe_import_factory(allowed_modules: Set[str]):
+    """Build a safe __import__ implementation that enforces module whitelist."""
+
+    allowed = set(allowed_modules)
+
+    def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if level != 0:
+            raise ImportError("Relative imports are not permitted inside the sandbox")
+
+        root_name = name.split(".")[0]
+        if root_name not in allowed:
+            raise ImportError(f"Import '{root_name}' is not allowed in sandbox")
+
+        module = importlib.import_module(name)
+
+        if fromlist:
+            for attr in fromlist:
+                if attr.startswith("_"):
+                    raise ImportError("Access to private attributes is blocked")
+
+        return module
+
+    return _safe_import
+
+
+def _build_safe_builtins(allowed_imports: Set[str]) -> MappingProxyType:
+    """Create immutable mapping of safe builtins."""
+    safe_import = _safe_import_factory(allowed_imports)
+    builtins = {
+        "print": print,
+        "len": len,
+        "range": range,
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list": list,
+        "dict": dict,
+        "set": set,
+        "tuple": tuple,
+        "frozenset": frozenset,
+        "min": min,
+        "max": max,
+        "sum": sum,
+        "sorted": sorted,
+        "enumerate": enumerate,
+        "zip": zip,
+        "map": map,
+        "filter": filter,
+        "any": any,
+        "all": all,
+        "abs": abs,
+        "round": round,
+        "pow": pow,
+        "reversed": reversed,
+        "Exception": Exception,
+        "ValueError": ValueError,
+        "__import__": safe_import,
+    }
+    return MappingProxyType(builtins)
+
+
+def _build_execution_env(context: Dict[str, Any], allowed_imports: Set[str]) -> Dict[str, Any]:
+    """Construct the execution globals for sandbox runs."""
+    env: Dict[str, Any] = {
+        "__builtins__": _build_safe_builtins(allowed_imports),
+        "__name__": "__sandbox__",
+        "__package__": None,
+    }
+    env.update(context)
+    return env
+
+
+def _apply_resource_limits(config: Dict[str, Any]):
+    """Apply strict Linux resource limits inside sandbox process."""
+    # These limits are only enforced on Linux; caller already ensures Linux
+    max_memory_bytes = config["max_memory_mb"] * 1024 * 1024
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (max_memory_bytes, max_memory_bytes))
+        resource.setrlimit(resource.RLIMIT_DATA, (max_memory_bytes, max_memory_bytes))
+        resource.setrlimit(resource.RLIMIT_STACK, (8 * 1024 * 1024, 8 * 1024 * 1024))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        if hasattr(resource, "RLIMIT_NPROC"):
+            resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
+        cpu_limit_fraction = max(0.1, min(config.get("max_cpu_percent", 100.0), 100.0) / 100.0)
+        cpu_seconds = max(1, int(config["timeout_seconds"] * cpu_limit_fraction))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+    except Exception as exc:
+        # The sandbox will still run, but we log the failure in the parent
+        raise RuntimeError(f"Failed to set resource limits: {exc}") from exc
+
+
+def _sandbox_process_worker(
+    code: str,
+    context: Dict[str, Any],
+    config: Dict[str, Any],
+    result_queue: multiprocessing.Queue,
+):
+    """Worker process that compiles and executes user code."""
+    stdout_capture = io.StringIO()
+    stderr_capture = io.StringIO()
+    start_time = datetime.now()
+    process = psutil.Process()
+    initial_memory = process.memory_info().rss / 1024 / 1024
+
+    def _write_result(success: bool, return_value: Any, error: Optional[str]):
+        execution_time = (datetime.now() - start_time).total_seconds()
+        final_memory = process.memory_info().rss / 1024 / 1024
+        memory_used = max(0, final_memory - initial_memory)
+        result_queue.put(
+            {
+                "success": success,
+                "stdout": stdout_capture.getvalue(),
+                "stderr": stderr_capture.getvalue(),
+                "return_value": return_value,
+                "execution_time": execution_time,
+                "memory_used_mb": memory_used,
+                "error": error,
+            }
+        )
+
+    try:
+        _apply_resource_limits(config)
+
+        byte_code = compile_restricted(code, filename="<sandbox>", mode="exec")
+        if byte_code.errors:
+            _write_result(False, None, f"Compilation errors: {byte_code.errors}")
+            return
+
+        safe_env = _build_execution_env(context, set(config["allowed_imports"]))
+
+        with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
+            exec(byte_code.code, safe_env)
+
+        _write_result(True, safe_env.get("_", None), None)
+    except Exception as exc:
+        _write_result(False, None, str(exc))
 
 
 @dataclass
@@ -40,14 +186,29 @@ class SandboxConfig:
         timeout_seconds: int = 30,
         max_memory_mb: int = 128,  # Conservative for NUC
         max_cpu_percent: float = 50.0,  # Don't hog NUC resources
-        allowed_imports: set = None
+        allowed_imports: Optional[Set[str]] = None,
     ):
         self.timeout_seconds = timeout_seconds
         self.max_memory_mb = max_memory_mb
         self.max_cpu_percent = max_cpu_percent
-        self.allowed_imports = allowed_imports or {
-            'json', 'datetime', 'math', 're', 'typing',
-            'collections', 'itertools', 'functools'
+        self.allowed_imports = set(allowed_imports or {
+            "json",
+            "datetime",
+            "math",
+            "re",
+            "typing",
+            "collections",
+            "itertools",
+            "functools",
+        })
+
+    def as_payload(self) -> Dict[str, Any]:
+        """Serialize configuration for subprocess usage."""
+        return {
+            "timeout_seconds": self.timeout_seconds,
+            "max_memory_mb": self.max_memory_mb,
+            "allowed_imports": list(self.allowed_imports),
+            "max_cpu_percent": self.max_cpu_percent,
         }
 
 
@@ -64,6 +225,7 @@ class PythonSandbox:
 
     def __init__(self, config: SandboxConfig = None):
         self.config = config or SandboxConfig()
+        self._mp_context = multiprocessing.get_context("spawn")
 
     async def execute(self, code: str, context: Dict[str, Any] = None) -> ExecutionResult:
         """
@@ -76,154 +238,94 @@ class PythonSandbox:
         Returns:
             ExecutionResult with output, errors, metrics
         """
-        start_time = datetime.now()
-        process = psutil.Process()
-        initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+        if sys.platform != "linux":
+            raise RuntimeError("Sandbox execution is only supported on Linux hosts")
 
-        # Capture stdout/stderr
-        stdout_capture = io.StringIO()
-        stderr_capture = io.StringIO()
+        sanitized_context = self._sanitize_context(context or {})
 
         try:
-            # Compile code with RestrictedPython
-            byte_code = compile_restricted(
+            result_payload = await asyncio.to_thread(
+                self._run_in_subprocess,
                 code,
-                filename='<sandbox>',
-                mode='exec'
+                sanitized_context,
             )
-
-            if byte_code.errors:
-                return ExecutionResult(
-                    success=False,
-                    stdout="",
-                    stderr="",
-                    return_value=None,
-                    execution_time=0,
-                    memory_used_mb=0,
-                    error=f"Compilation errors: {byte_code.errors}"
-                )
-
-            # Build safe execution environment
-            safe_env = self._build_safe_environment(context or {})
-
-            # Execute with timeout and resource limits
-            with contextlib.redirect_stdout(stdout_capture), \
-                 contextlib.redirect_stderr(stderr_capture):
-
-                # Set resource limits (Linux only)
-                self._set_resource_limits()
-
-                # Execute code with timeout
-                try:
-                    result = await asyncio.wait_for(
-                        self._execute_code(byte_code.code, safe_env),
-                        timeout=self.config.timeout_seconds
-                    )
-                except asyncio.TimeoutError:
-                    raise TimeoutError(
-                        f"Execution exceeded {self.config.timeout_seconds}s timeout"
-                    )
-
-            # Calculate metrics
-            end_time = datetime.now()
-            execution_time = (end_time - start_time).total_seconds()
-            final_memory = process.memory_info().rss / 1024 / 1024
-            memory_used = max(0, final_memory - initial_memory)
-
-            return ExecutionResult(
-                success=True,
-                stdout=stdout_capture.getvalue(),
-                stderr=stderr_capture.getvalue(),
-                return_value=result,
-                execution_time=execution_time,
-                memory_used_mb=memory_used
-            )
-
-        except Exception as e:
-            logger.error(f"Sandbox execution error: {e}\n{traceback.format_exc()}")
-
-            end_time = datetime.now()
-            execution_time = (end_time - start_time).total_seconds()
-
+        except Exception as exc:
+            logger.error("Sandbox execution error: %s\n%s", exc, traceback.format_exc())
             return ExecutionResult(
                 success=False,
-                stdout=stdout_capture.getvalue(),
-                stderr=stderr_capture.getvalue(),
+                stdout="",
+                stderr="",
                 return_value=None,
-                execution_time=execution_time,
+                execution_time=0,
                 memory_used_mb=0,
-                error=str(e)
+                error=str(exc),
             )
 
-    def _build_safe_environment(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Build safe execution environment with restricted globals"""
-        safe_env = {
-            '__builtins__': {
-                # Safe built-ins only
-                'print': print,
-                'len': len,
-                'range': range,
-                'str': str,
-                'int': int,
-                'float': float,
-                'bool': bool,
-                'list': list,
-                'dict': dict,
-                'set': set,
-                'tuple': tuple,
-                'min': min,
-                'max': max,
-                'sum': sum,
-                'sorted': sorted,
-                'enumerate': enumerate,
-                'zip': zip,
-                'map': map,
-                'filter': filter,
-                'any': any,
-                'all': all,
-                'isinstance': isinstance,
-                'type': type,
-                'abs': abs,
-                'round': round,
-                # NO: open, eval, exec, compile, __import__
-            }
-        }
+        return ExecutionResult(
+            success=result_payload["success"],
+            stdout=result_payload["stdout"],
+            stderr=result_payload["stderr"],
+            return_value=result_payload["return_value"],
+            execution_time=result_payload["execution_time"],
+            memory_used_mb=result_payload["memory_used_mb"],
+            error=result_payload["error"],
+        )
 
-        # Add context (MCP tool functions)
-        safe_env.update(context)
+    def _sanitize_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure user-provided context only contains JSON-serializable primitives."""
 
-        return safe_env
+        def _sanitize(value: Any, depth: int = 0):
+            if depth > MAX_CONTEXT_DEPTH:
+                raise ValueError("Context nesting exceeds allowed depth")
 
-    def _set_resource_limits(self):
-        """Set resource limits for execution (Linux only)"""
-        if sys.platform != 'linux':
-            logger.warning("Resource limits only supported on Linux")
-            return
+            if isinstance(value, SAFE_VALUE_TYPES):
+                return value
+
+            if isinstance(value, (list, tuple)):
+                return [_sanitize(item, depth + 1) for item in value]
+
+            if isinstance(value, dict):
+                sanitized_dict = {}
+                for key, val in value.items():
+                    if not isinstance(key, str):
+                        raise ValueError("Context dictionary keys must be strings")
+                    sanitized_dict[key] = _sanitize(val, depth + 1)
+                return sanitized_dict
+
+            raise ValueError("Only JSON-serializable context values are permitted")
+
+        sanitized: Dict[str, Any] = {}
+        for key, value in context.items():
+            if key in {"__builtins__", "__name__", "__package__"}:
+                raise ValueError(f"Context key '{key}' is reserved")
+            sanitized[key] = _sanitize(value)
+
+        return sanitized
+
+    def _run_in_subprocess(self, code: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute user code inside an isolated subprocess."""
+        result_queue: multiprocessing.Queue = self._mp_context.Queue(maxsize=1)
+        config_payload = self.config.as_payload()
+
+        process = self._mp_context.Process(
+            target=_sandbox_process_worker,
+            args=(code, context, config_payload, result_queue),
+            daemon=True,
+        )
+
+        process.start()
+        process.join(self.config.timeout_seconds + 1)
+
+        if process.is_alive():
+            process.terminate()
+            process.join()
+            raise TimeoutError(f"Execution exceeded {self.config.timeout_seconds}s timeout")
 
         try:
-            # Memory limit (soft, hard)
-            max_memory_bytes = self.config.max_memory_mb * 1024 * 1024
-            resource.setrlimit(
-                resource.RLIMIT_AS,
-                (max_memory_bytes, max_memory_bytes)
-            )
+            result_payload = result_queue.get_nowait()
+        except queue.Empty as exc:
+            raise RuntimeError("Sandbox process produced no output") from exc
+        finally:
+            result_queue.close()
 
-            # CPU time limit
-            resource.setrlimit(
-                resource.RLIMIT_CPU,
-                (self.config.timeout_seconds, self.config.timeout_seconds)
-            )
-        except Exception as e:
-            logger.warning(f"Failed to set resource limits: {e}")
-
-    async def _execute_code(self, code, env: Dict[str, Any]) -> Any:
-        """Execute compiled code in safe environment"""
-        # Run in executor to avoid blocking event loop
-        loop = asyncio.get_event_loop()
-
-        def _run():
-            exec(code, env)
-            # Return the last expression result if available
-            return env.get('_', None)
-
-        return await loop.run_in_executor(None, _run)
+        return result_payload

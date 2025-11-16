@@ -3,7 +3,7 @@ AI Code Executor Service - FastAPI application
 Secure Python code execution for MCP (Model Context Protocol) pattern.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
@@ -12,6 +12,11 @@ import logging
 
 from .executor.mcp_sandbox import MCPSandbox, SandboxConfig
 from .config import settings
+from .security.code_validator import (
+    CodeValidator,
+    CodeValidatorConfig,
+    CodeValidationError,
+)
 
 # Setup logging
 logging.basicConfig(
@@ -20,14 +25,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global sandbox instance
+# Global sandbox + validator instances
 sandbox: Optional[MCPSandbox] = None
+code_validator: Optional[CodeValidator] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize sandbox on startup"""
-    global sandbox
+    global sandbox, code_validator
 
     logger.info("=" * 60)
     logger.info("AI Code Executor Service Starting Up")
@@ -42,16 +48,32 @@ async def lifespan(app: FastAPI):
 
     try:
         # Initialize MCP sandbox
+        sandbox_config = SandboxConfig(
+            timeout_seconds=settings.execution_timeout,
+            max_memory_mb=settings.max_memory_mb,
+            max_cpu_percent=settings.max_cpu_percent,
+        )
         sandbox = MCPSandbox(
-            config=SandboxConfig(
-                timeout_seconds=settings.execution_timeout,
-                max_memory_mb=settings.max_memory_mb,
-                max_cpu_percent=settings.max_cpu_percent
-            ),
-            workspace_dir=settings.mcp_workspace_dir
+            config=sandbox_config,
+            workspace_dir=settings.mcp_workspace_dir,
+            max_concurrent_executions=settings.max_concurrent_executions,
+            enable_network_tools=settings.enable_mcp_network_tools,
         )
         await sandbox.initialize()
         logger.info("✅ MCP sandbox initialized successfully")
+
+        code_validator = CodeValidator(
+            CodeValidatorConfig(
+                max_bytes=settings.max_code_bytes,
+                max_ast_nodes=settings.max_ast_nodes,
+                allowed_imports=sandbox_config.allowed_imports,
+            )
+        )
+        logger.info(
+            "✅ Code validator ready (max_bytes=%s, max_ast_nodes=%s)",
+            settings.max_code_bytes,
+            settings.max_ast_nodes,
+        )
     except Exception as e:
         logger.error(f"❌ Failed to initialize sandbox: {e}")
         raise
@@ -70,14 +92,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add CORS middleware with explicit allow-list
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.allowed_origins,
+    allow_credentials=False,
+    allow_methods=["POST", "OPTIONS", "GET"],
+    allow_headers=["Authorization", "Content-Type", "X-Executor-Token"],
 )
+
+
+def verify_api_token(x_executor_token: Optional[str] = Header(default=None, alias="X-Executor-Token")):
+    """Simple header-based authentication for execute endpoint."""
+    if not settings.api_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="API token not configured",
+        )
+
+    if not x_executor_token or x_executor_token != settings.api_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing executor token",
+        )
 
 
 class ExecuteRequest(BaseModel):
@@ -111,7 +148,11 @@ async def health_check():
     }
 
 
-@app.post("/execute", response_model=ExecuteResponse)
+@app.post(
+    "/execute",
+    response_model=ExecuteResponse,
+    dependencies=[Depends(verify_api_token)],
+)
 async def execute_code(request: ExecuteRequest):
     """
     Execute Python code in secure sandbox with MCP tool access.
@@ -123,8 +164,13 @@ async def execute_code(request: ExecuteRequest):
     }
     ```
     """
-    if sandbox is None:
+    if sandbox is None or code_validator is None:
         raise HTTPException(status_code=503, detail="Sandbox not initialized")
+
+    try:
+        code_validator.validate(request.code)
+    except CodeValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         logger.info(f"Executing code ({len(request.code)} chars)")
