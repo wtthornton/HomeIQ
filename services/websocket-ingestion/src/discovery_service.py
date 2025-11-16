@@ -378,6 +378,7 @@ class DiscoveryService:
         try:
             # Primary storage: SQLite via data-api (simple HTTP POST)
             data_api_url = os.getenv('DATA_API_URL', 'http://homeiq-data-api:8006')
+            api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
             
             # Create session with proper connector (disable SSL for internal HTTP)
             connector = aiohttp.TCPConnector(ssl=False)
@@ -390,6 +391,7 @@ class DiscoveryService:
                         async with session.post(
                             f"{data_api_url}/internal/devices/bulk_upsert",
                             json=devices_data,
+                            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
                             timeout=aiohttp.ClientTimeout(total=30)
                         ) as response:
                             if response.status == 200:
@@ -407,6 +409,7 @@ class DiscoveryService:
                         async with session.post(
                             f"{data_api_url}/internal/entities/bulk_upsert",
                             json=entities_data,
+                            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
                             timeout=aiohttp.ClientTimeout(total=30)
                         ) as response:
                             if response.status == 200:

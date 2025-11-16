@@ -5,6 +5,7 @@ Provides access to historical Home Assistant data via InfluxDB and Data API serv
 """
 
 import httpx
+import os
 import pandas as pd
 from typing import List, Dict, Optional, Any
 import logging
@@ -39,10 +40,17 @@ class DataAPIClient:
             influxdb_bucket: InfluxDB bucket name
         """
         self.base_url = base_url.rstrip('/')
+        # Optional API key for authenticated Data API access
+        api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
+        default_headers = {}
+        if api_key:
+            default_headers["Authorization"] = f"Bearer {api_key}"
+        
         self.client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            headers=default_headers
         )
         
         # Initialize InfluxDB client for direct event queries
