@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (November 16, 2025)
 - **fix(device-intelligence): resolve integration field and critical bugs** (November 16, 2025)
 - **Fix dashboard CSP and API authentication issues** (November 16, 2025)
 - **Add comprehensive OpenVINO ML tests** (November 16, 2025)
