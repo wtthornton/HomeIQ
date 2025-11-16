@@ -23,6 +23,7 @@ The OpenVINO Service provides transformer-based model inference for embeddings, 
 - **CPU Optimized** - PyTorch CPU-only (no CUDA, saves 8.5GB)
 - **Low Latency** - <100ms for most operations
 - **Batch Processing** - Efficient multi-text processing
+- **Resource Guardrails** - Strict input validation, inference timeouts, and deterministic cleanup prevent OOM kills
 
 ## Quick Start
 
@@ -199,15 +200,15 @@ curl -X POST http://localhost:8019/classify \
 | `MODEL_CACHE_DIR` | `/app/models` | Model storage directory |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `DEVICE` | `CPU` | Device for inference |
-| `OPENVINO_PRELOAD_MODELS` | `false` | Pre-load models during startup instead of lazy loading |
-| `OPENVINO_MODEL_LOAD_TIMEOUT` | `180` | Seconds to wait for model downloads/compilation |
-| `OPENVINO_INFERENCE_TIMEOUT` | `30` | Seconds to wait for inference before aborting |
-| `OPENVINO_MAX_EMBEDDING_TEXTS` | `100` | Max texts accepted by `/embeddings` |
-| `OPENVINO_MAX_TEXT_LENGTH` | `4000` | Max characters per text / query |
-| `OPENVINO_MAX_RERANK_CANDIDATES` | `200` | Max candidates accepted by `/rerank` |
-| `OPENVINO_MAX_RERANK_TOP_K` | `50` | Hard cap on `top_k` for reranking |
-| `OPENVINO_MAX_PATTERN_LENGTH` | `4000` | Max characters accepted by `/classify` |
-| `OPENVINO_CLEAR_CACHE_ON_CLEANUP` | `false` | Purge cached HuggingFace artifacts on shutdown |
+| `OPENVINO_INFERENCE_TIMEOUT` | `30` | Max seconds to wait for any model inference before aborting |
+| `OPENVINO_MAX_TEXTS` | `100` | Maximum texts per embedding request |
+| `OPENVINO_MAX_TEXT_LENGTH` | `10000` | Maximum characters per text input |
+| `OPENVINO_MAX_RERANK_CANDIDATES` | `200` | Maximum number of candidates per rerank call |
+| `OPENVINO_MAX_TOP_K` | `50` | Maximum `top_k` allowed per rerank call |
+| `OPENVINO_MAX_QUERY_LENGTH` | `2000` | Maximum characters for rerank query text |
+| `OPENVINO_MAX_PATTERN_LENGTH` | `8000` | Maximum characters for classification payloads |
+| `OPENVINO_PRELOAD_MODELS` | `false` | Preload all models on startup (true/false) |
+| `OPENVINO_CLEAN_CACHE_ON_SHUTDOWN` | `true` | Remove cached Hugging Face artifacts during shutdown |
 
 ### Example `.env`
 
@@ -424,7 +425,7 @@ Logs include:
 
 **Solution:**
 - Expected behavior (lazy loading)
-- Consider pre-loading models if needed
+- Set `OPENVINO_PRELOAD_MODELS=true` to force warm load when the container starts
 - Warm up models on startup with dummy requests
 
 ### High Memory Usage
@@ -435,7 +436,8 @@ Logs include:
 **Solutions:**
 - All 3 models loaded: ~800MB expected
 - Check for memory leaks with `docker stats`
-- Restart service if memory grows unbounded
+- Per-request tensor cleanup is automatic; if memory still grows, restart service
+- Cached Hugging Face artifacts are removed on shutdown by default (`OPENVINO_CLEAN_CACHE_ON_SHUTDOWN`)
 
 ### Poor Embedding Quality
 

@@ -15,15 +15,17 @@ import functools
 import gc
 import logging
 import os
+import shutil
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 import numpy as np
 
-MODEL_LOAD_TIMEOUT = float(os.getenv("OPENVINO_MODEL_LOAD_TIMEOUT", "180"))
-INFERENCE_TIMEOUT = float(os.getenv("OPENVINO_INFERENCE_TIMEOUT", "30"))
-CLEAR_CACHE_ON_CLEANUP = os.getenv("OPENVINO_CLEAR_CACHE_ON_CLEANUP", "0").lower() in {"1", "true", "yes"}
+T = TypeVar("T")
+
+INFERENCE_TIMEOUT_SECONDS = float(os.getenv("OPENVINO_INFERENCE_TIMEOUT", "30"))
+CLEAN_CACHE_ON_SHUTDOWN = os.getenv("OPENVINO_CLEAN_CACHE_ON_SHUTDOWN", "true").lower() not in {"false", "0", "no"}
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,11 @@ class OpenVINOManager:
         self._reranker_tokenizer = None
         self._classifier_model = None
         self._classifier_tokenizer = None
+
+        # Asyncio locks (created lazily once an event loop is running)
+        self._embed_lock: Optional[asyncio.Lock] = None
+        self._reranker_lock: Optional[asyncio.Lock] = None
+        self._classifier_lock: Optional[asyncio.Lock] = None
         
         self.model_load_timeout = MODEL_LOAD_TIMEOUT
         self.inference_timeout = INFERENCE_TIMEOUT
@@ -54,8 +61,9 @@ class OpenVINOManager:
         self._classifier_lock = asyncio.Lock()
         
         self.use_openvino = False  # Use standard models for compatibility
-        self._initialized = False
-        self._last_ready_state = False
+        self._initialized = True  # Ready for lazy loading immediately
+        self._startup_strategy = "lazy"
+        self.inference_timeout = INFERENCE_TIMEOUT_SECONDS
         
         logger.info("OpenVINOManager initialized (models will load on first use)")
     
@@ -75,10 +83,11 @@ class OpenVINOManager:
             await self._load_classifier_model()
             
             self._initialized = True
+            self._startup_strategy = "preloaded"
             logger.info("✅ All OpenVINO models loaded successfully")
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize OpenVINO models: {e}")
+            logger.exception("❌ Failed to initialize OpenVINO models")
             raise
     
     async def cleanup(self):
@@ -94,78 +103,27 @@ class OpenVINOManager:
         self._classifier_tokenizer = None
         
         self._initialized = False
-        self._last_ready_state = False
-        
-        gc.collect()
-        self._cleanup_torch_cache()
-        
-        if self.clear_cache_on_cleanup:
-            self._purge_model_cache()
-        
+        self._startup_strategy = "lazy"
+
+        self._force_memory_cleanup()
+        self._purge_model_cache()
+
         logger.info("✅ OpenVINO models cleaned up")
     
-    def _models_ready(self) -> bool:
-        return all([
-            self._embed_model is not None,
-            self._reranker_model is not None,
-            self._classifier_model is not None
-        ])
-    
-    def _refresh_initialized_flag(self) -> None:
-        ready = self._models_ready()
-        if ready != self._last_ready_state:
-            state = "ready" if ready else "not fully loaded"
-            logger.info("OpenVINO models now %s", state)
-            self._last_ready_state = ready
-        self._initialized = ready
-    
-    async def _run_blocking(self, func, *args, timeout: Optional[float] = None, **kwargs):
-        """
-        Run blocking CPU-bound work in the default executor with a timeout.
-        """
-        loop = asyncio.get_running_loop()
-        bound = functools.partial(func, *args, **kwargs)
-        return await asyncio.wait_for(
-            loop.run_in_executor(None, bound),
-            timeout=timeout or self.model_load_timeout
-        )
-    
-    def _cleanup_torch_cache(self) -> None:
-        with suppress(ImportError):
-            import torch  # type: ignore
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-    
-    def _purge_model_cache(self) -> None:
-        logger.info("Clearing cached model artifacts from %s", self.models_dir)
-        for artifact in self.models_dir.glob("*"):
-            with suppress(OSError):
-                if artifact.is_file():
-                    artifact.unlink(missing_ok=True)
-                else:
-                    for child in sorted(artifact.glob("**/*"), reverse=True):
-                        if child.is_file():
-                            with suppress(OSError):
-                                child.unlink()
-                        else:
-                            with suppress(OSError):
-                                child.rmdir()
-                    with suppress(OSError):
-                        artifact.rmdir()
-    
     def is_ready(self) -> bool:
-        """Check if service is ready"""
-        return self._models_ready()
+        """Check if service is ready to accept requests (lazy or preloaded)."""
+        return self._initialized
     
     async def _load_embedding_model(self):
         """Load embedding model (lazy load)"""
         if self._embed_model is not None:
             return
-        
-        async with self._embed_lock:
+
+        lock = self._get_lock("_embed_lock")
+        async with lock:
             if self._embed_model is not None:
                 return
-            
+
             logger.info("Loading embedding model: all-MiniLM-L6-v2...")
             
             try:
@@ -212,21 +170,20 @@ class OpenVINOManager:
                 )
                 self._embed_tokenizer = None
                 logger.info("✅ Loaded standard embedding model (80MB)")
-            except (OSError, RuntimeError, MemoryError, asyncio.TimeoutError) as exc:
-                logger.exception("❌ Failed to load embedding model: %s", exc)
-                raise
-            finally:
-                self._refresh_initialized_flag()
+            except Exception as exc:
+                logger.exception("Failed to load embedding model")
+                raise RuntimeError("Failed to load embedding model") from exc
     
     async def _load_reranker_model(self):
         """Load re-ranker model (lazy load)"""
         if self._reranker_model is not None:
             return
-        
-        async with self._reranker_lock:
+
+        lock = self._get_lock("_reranker_lock")
+        async with lock:
             if self._reranker_model is not None:
                 return
-            
+
             logger.info("Loading re-ranker model: bge-reranker-base...")
             
             try:
@@ -274,21 +231,20 @@ class OpenVINOManager:
                     timeout=self.model_load_timeout
                 )
                 logger.info("✅ Loaded standard re-ranker (1.1GB)")
-            except (OSError, RuntimeError, MemoryError, asyncio.TimeoutError) as exc:
-                logger.exception("❌ Failed to load reranker model: %s", exc)
-                raise
-            finally:
-                self._refresh_initialized_flag()
+            except Exception as exc:
+                logger.exception("Failed to load reranker model")
+                raise RuntimeError("Failed to load reranker model") from exc
     
     async def _load_classifier_model(self):
         """Load classifier model (lazy load)"""
         if self._classifier_model is not None:
             return
-        
-        async with self._classifier_lock:
+
+        lock = self._get_lock("_classifier_lock")
+        async with lock:
             if self._classifier_model is not None:
                 return
-            
+
             logger.info("Loading classifier model: flan-t5-small...")
             
             try:
@@ -337,11 +293,9 @@ class OpenVINOManager:
                     timeout=self.model_load_timeout
                 )
                 logger.info("✅ Loaded standard classifier (300MB)")
-            except (OSError, RuntimeError, MemoryError, asyncio.TimeoutError) as exc:
-                logger.exception("❌ Failed to load classifier model: %s", exc)
-                raise
-            finally:
-                self._refresh_initialized_flag()
+            except Exception as exc:
+                logger.exception("Failed to load classifier model")
+                raise RuntimeError("Failed to load classifier model") from exc
     
     async def generate_embeddings(self, texts: List[str], normalize: bool = True) -> np.ndarray:
         """
@@ -355,12 +309,12 @@ class OpenVINOManager:
         
         if self.use_openvino and self._embed_tokenizer is not None:
             # OpenVINO path
-            def _encode_openvino():
+            def _encode_openvino() -> np.ndarray:
                 inputs = self._embed_tokenizer(
                     texts,
                     padding=True,
                     truncation=True,
-                    return_tensors="pt",
+                    return_tensors='pt',
                     max_length=256
                 )
                 outputs = None
@@ -373,20 +327,16 @@ class OpenVINOManager:
                     if outputs is not None:
                         del outputs
                     gc.collect()
-            
-            embeddings = await self._run_blocking(
-                _encode_openvino,
-                timeout=self.inference_timeout
-            )
+
+            embeddings = await self._run_blocking(_encode_openvino)
         else:
             # Standard sentence-transformers path
-            def _encode_standard():
-                return self._embed_model.encode(texts, convert_to_numpy=True)
-            
             embeddings = await self._run_blocking(
-                _encode_standard,
-                timeout=self.inference_timeout
+                self._embed_model.encode,
+                texts,
+                convert_to_numpy=True
             )
+            gc.collect()
         
         # Normalize for dot-product scoring
         if normalize:
@@ -414,19 +364,15 @@ class OpenVINOManager:
             return []
         
         await self._load_reranker_model()
-        
-        def _rerank_sync():
+        top_k = min(top_k, len(candidates))
+
+        def _rerank() -> List[Dict]:
             scores = []
             for candidate in candidates:
-                text = candidate.get("description") or candidate.get("name") or str(candidate)
+                text = candidate.get('description', str(candidate))
                 pair = f"{query} [SEP] {text}"
                 
-                inputs = self._reranker_tokenizer(
-                    pair,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=512
-                )
+                inputs = self._reranker_tokenizer(pair, return_tensors='pt', truncation=True, max_length=512)
                 outputs = None
                 try:
                     outputs = self._reranker_model(**inputs)
@@ -439,12 +385,9 @@ class OpenVINOManager:
                     gc.collect()
             
             ranked = sorted(scores, key=lambda x: x[1], reverse=True)
-            return [candidate for candidate, score in ranked[:top_k]]
-        
-        return await self._run_blocking(
-            _rerank_sync,
-            timeout=self.inference_timeout
-        )
+            return [candidate for candidate, _ in ranked[:top_k]]
+
+        return await self._run_blocking(_rerank)
     
     async def classify_pattern(self, pattern_description: str) -> Dict[str, str]:
         """
@@ -460,38 +403,31 @@ class OpenVINOManager:
             raise ValueError("Pattern description is required for classification")
         
         await self._load_classifier_model()
-        
-        def _classify_sync():
-            # Classify category
-            category_prompt = f"""Classify this smart home pattern into ONE category: energy, comfort, security, or convenience.
+
+        category_prompt = f"""Classify this smart home pattern into ONE category: energy, comfort, security, or convenience.
 
 Pattern: {pattern_description}
 
 Respond with only the category name (one word).
 
 Category:"""
-            
+
+        def _classify() -> Dict[str, str]:
             def _generate(prompt: str) -> str:
-                inputs = self._classifier_tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    max_length=512,
-                    truncation=True
-                )
-                outputs = None
+                local_inputs = self._classifier_tokenizer(prompt, return_tensors='pt', max_length=512, truncation=True)
+                local_outputs = None
                 try:
-                    outputs = self._classifier_model.generate(**inputs, max_new_tokens=5)
-                    return self._classifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                    local_outputs = self._classifier_model.generate(**local_inputs, max_new_tokens=5)
+                    return self._classifier_tokenizer.decode(local_outputs[0], skip_special_tokens=True)
                 finally:
-                    del inputs
-                    if outputs is not None:
-                        del outputs
+                    del local_inputs
+                    if local_outputs is not None:
+                        del local_outputs
                     gc.collect()
-            
+
             category_raw = _generate(category_prompt)
             category = self._parse_category(category_raw)
-            
-            # Classify priority
+
             priority_prompt = f"""Rate priority (high, medium, or low) for this smart home pattern.
 
 Pattern: {pattern_description}
@@ -500,19 +436,54 @@ Category: {category}
 Respond with only the priority level (one word).
 
 Priority:"""
-            
+
             priority_raw = _generate(priority_prompt)
             priority = self._parse_priority(priority_raw)
-            
+
             return {
-                "category": category,
-                "priority": priority
+                'category': category,
+                'priority': priority
             }
-        
-        return await self._run_blocking(
-            _classify_sync,
-            timeout=self.inference_timeout
-        )
+
+        return await self._run_blocking(_classify)
+
+    async def _run_blocking(self, func: Callable[..., T], *args, timeout: Optional[float] = None, **kwargs) -> T:
+        """Run blocking model operations in a thread pool with a timeout."""
+        loop = asyncio.get_running_loop()
+        bound = functools.partial(func, *args, **kwargs)
+        return await asyncio.wait_for(loop.run_in_executor(None, bound), timeout or self.inference_timeout)
+
+    def _get_lock(self, attr_name: str) -> asyncio.Lock:
+        """Create or return an asyncio lock for the given attribute name."""
+        lock = getattr(self, attr_name)
+        if lock is None:
+            lock = asyncio.Lock()
+            setattr(self, attr_name, lock)
+        return lock
+
+    def _force_memory_cleanup(self) -> None:
+        """Force Python and torch garbage collection to free tensor memory."""
+        gc.collect()
+        with suppress(ImportError, Exception):
+            import torch  # type: ignore
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    def _purge_model_cache(self) -> None:
+        """Optionally clear cached model files to reclaim disk space."""
+        if not CLEAN_CACHE_ON_SHUTDOWN or not self.models_dir.exists():
+            return
+
+        for child in list(self.models_dir.iterdir()):
+            try:
+                if child.is_file() or child.is_symlink():
+                    child.unlink()
+                else:
+                    shutil.rmtree(child)
+            except Exception as exc:
+                logger.warning("Unable to remove cached model %s: %s", child, exc)
+
+        self.models_dir.mkdir(parents=True, exist_ok=True)
     
     def _parse_category(self, text: str) -> str:
         """Parse flan-t5 output to valid category with fallback"""
@@ -553,23 +524,20 @@ Priority:"""
                 return priority
         
         return 'medium'  # Default fallback
-    
+
     def get_model_status(self) -> Dict[str, Any]:
-        """Get information about loaded models"""
+        """Return a detailed snapshot of model readiness."""
         return {
-            "embedding_model": "all-MiniLM-L6-v2",
-            "embedding_loaded": self._embed_model is not None,
-            "reranker_model": "bge-reranker-base",
-            "reranker_loaded": self._reranker_model is not None,
-            "classifier_model": "flan-t5-small",
-            "classifier_loaded": self._classifier_model is not None,
-            "openvino_enabled": self.use_openvino,
-            "models_dir": str(self.models_dir),
-            "model_load_timeout_sec": self.model_load_timeout,
-            "inference_timeout_sec": self.inference_timeout,
-            "clear_cache_on_cleanup": self.clear_cache_on_cleanup,
-            "all_models_loaded": self._models_ready(),
-            "initialized": self._initialized,
-            "lazy_loading": True,
-            "ready_for_requests": True
+            'embedding_model': 'all-MiniLM-L6-v2',
+            'embedding_loaded': self._embed_model is not None,
+            'reranker_model': 'bge-reranker-base',
+            'reranker_loaded': self._reranker_model is not None,
+            'classifier_model': 'flan-t5-small',
+            'classifier_loaded': self._classifier_model is not None,
+            'startup_strategy': self._startup_strategy,
+            'ready_for_requests': self.is_ready(),
+            'openvino_enabled': self.use_openvino,
+            'inference_timeout_seconds': self.inference_timeout,
+            'model_cache_dir': str(self.models_dir)
         }
+    

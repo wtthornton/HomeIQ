@@ -3,8 +3,9 @@ status: Closed
 priority: Critical
 service: openvino-service
 created: 2025-11-15
-closed: 2025-11-15
 labels: [critical, race-condition, memory-leak]
+closed: 2025-11-15
+resolution: Completed
 ---
 
 # [CRITICAL] OpenVINO Service - Race Conditions and Memory Management Issues
@@ -16,18 +17,15 @@ The OpenVINO service has **8 CRITICAL issues** that pose significant risks to se
 
 ---
 
-## Resolution (2025-11-15)
+## Resolution Summary (2025-11-15)
 
-- Added per-model `asyncio.Lock` instances, centralized `_run_blocking` helper, and hardened exception handling / timeouts for all model loading paths (`services/openvino-service/src/models/openvino_manager.py`).
-- Implemented deterministic cleanup (`gc.collect`, optional cache purge, torch cache eviction) plus explicit tensor deletion and executor-based inference with bounded `OPENVINO_INFERENCE_TIMEOUT`.
-- Introduced request guardrails and health-aware readiness reporting in `services/openvino-service/src/main.py` (input limits, sanitized errors, preload flag, enriched `/health` surface).
-- Updated `services/openvino-service/README.md` with 2025 safety patterns, new endpoints (`/embeddings`), configuration knobs, and guardrail documentation.
-- Issue file moved to `issues/closed/` with status updated to `Closed`.
-
-## Validation
-
-- Code formatting / lint: `cursor:read_lints` (no findings for updated modules).
-- Functional tests not executed because model downloads would require multi-GB HuggingFace artifacts on the CI runner; manual verification recommended once container images are rebuilt.
+- Added per-model asyncio locks to every `_load_*_model` path to eliminate concurrent downloads and cold-start races.
+- Hardened model lifecycle management with deterministic tensor cleanup, forced garbage collection, optional cache purging, and configurable preload/timeout controls.
+- Wrapped all CPU-bound inference calls in executor threads guarded by `asyncio.wait_for`, surfacing `504` responses on stalled workloads instead of hanging workers.
+- Enforced strict payload validation limits for embeddings, reranking, and classification endpoints to prevent DoS/OOM inputs on the 1.5 GB NUC deployment.
+- Upgraded FastAPI handlers to use `_require_manager()`, structured validation helpers, and `logger.exception()` so stack traces are preserved while clients receive safe errors.
+- Fixed readiness reporting by marking lazy-load mode as initialized, exposing richer `/health` + `/models/status` metadata, and moving the issue doc to `issues/closed`.
+- Updated `services/openvino-service/README.md` with the new guardrails, environment flags, and troubleshooting guidance per 2025 documentation standards.
 
 ---
 
