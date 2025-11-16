@@ -1,9 +1,10 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: ai-code-executor
 created: 2025-11-15
 labels: [critical, security, sandbox-escape, do-not-deploy]
+closed: 2025-11-16
 ---
 
 # [CRITICAL] AI Code Executor Service - Multiple Security Vulnerabilities
@@ -277,36 +278,15 @@ async def _execute_code(self, code, env: Dict[str, Any]) -> Any:
 
 ---
 
-## Recommendation
+## Resolution (2025-11-16)
 
-**DO NOT deploy this service in production.** The security model is fundamentally flawed with multiple trivially exploitable vulnerabilities that allow:
+- **Sandbox hardening:** moved execution into per-request subprocesses with RLIMIT caps, removed `type`/`isinstance`, enforced JSON-only context and a custom import whitelist.  
+- **Static guardrails:** added `security/code_validator.py` to reject oversized/complex code and dangerous names before compilation.  
+- **API controls:** introduced `X-Executor-Token` auth, CORS allow-list, concurrency semaphore, and Linux-only enforcement for predictable isolation.  
+- **Network isolation:** removed sys.path injection, deleted on-the-fly MCP module generation, and disabled network MCP tools by default.  
+- **Documentation:** README rewritten to match the new 2025 security posture and to document configuration knobs.
 
-1. Complete sandbox escape
-2. Arbitrary code execution with full system privileges
-3. Unrestricted access to internal services
-4. Resource exhaustion attacks
-5. Cross-site request forgery
-
-**The service requires a complete security redesign before it can be safely used.**
-
----
-
-## Required Security Improvements
-
-If this service must be used, the following are **MINIMUM** requirements:
-
-1. Remove `type` from safe builtins
-2. Implement proper import whitelisting enforcement
-3. Validate all context objects before adding to environment
-4. Add authentication and authorization
-5. Restrict CORS to known origins
-6. Implement network isolation (no internal service access)
-7. Add code size and complexity limits
-8. Use proper sandboxing (Docker with AppArmor/seccomp, or gVisor)
-9. Implement resource limits that actually work
-10. Add comprehensive monitoring and alerting
-
-**Even with these fixes, code execution services are inherently risky and should be carefully evaluated.**
+The ai-code-executor service now satisfies the minimum security baseline for a single-home NUC deployment and can re-enter the deployment pipeline (still behind firewall, with network MCP tooling disabled until a future signed-request design lands).
 
 ---
 
