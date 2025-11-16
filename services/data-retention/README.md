@@ -453,3 +453,25 @@ docker build -t data-retention-service .
 ## License
 
 This service is part of the Home Assistant Ingestor project and follows the same license terms.
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Comprehensive API endpoint documentation
+- Backup and restore workflows documented
+- Storage monitoring and alerts
+
+### 2.0 (Initial Production Release)
+- Data retention policies
+- Storage monitoring
+- Data compression
+- Backup & restore operations
+- Cleanup automation
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8080

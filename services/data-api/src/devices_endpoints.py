@@ -19,12 +19,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from shared.influxdb_query_client import InfluxDBQueryClient
+from .flux_utils import sanitize_flux_value
 
 # Story 22.2: SQLite models and database
 from .database import get_db
 from .models import Device, Entity
+from .cache import cache
 
 logger = logging.getLogger(__name__)
+
+
 
 
 # Response Models
@@ -101,11 +105,20 @@ async def list_devices(
 ):
     """
     List all discovered devices from Home Assistant (SQLite storage)
-    
+
     Story 22.2: Simple, fast SQLite queries with JOIN for entity counts
     Enhanced: Platform filtering support for Top Integrations feature
+    Cached: 5-minute cache for improved performance
     """
     try:
+        # Create cache key from query parameters
+        cache_key = f"devices:{limit}:{manufacturer}:{model}:{area_id}:{platform}"
+
+        # Try to get from cache
+        cached_result = await cache.get(cache_key)
+        if cached_result is not None:
+            logger.debug(f"Cache hit for {cache_key}")
+            return cached_result
         # Build query with entity count
         if platform:
             # Join with entities to filter by platform
@@ -149,12 +162,17 @@ async def list_devices(
             for device, entity_count in rows
         ]
         
-        return DevicesListResponse(
+        result = DevicesListResponse(
             devices=device_responses,
             count=len(device_responses),
             limit=limit
         )
-        
+
+        # Cache the result
+        await cache.set(cache_key, result, ttl=300)  # 5 minutes
+
+        return result
+
     except Exception as e:
         logger.error(f"Error listing devices from SQLite: {e}")
         raise HTTPException(
@@ -226,6 +244,7 @@ async def get_device_reliability(
     - Coverage percentage (% of events with device metadata)
     - Top manufacturers/models by event volume
     """
+    client = None
     try:
         from influxdb_client import InfluxDBClient
         
@@ -239,12 +258,18 @@ async def get_device_reliability(
         client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
         query_api = client.query_api()
         
-        # Build query based on group_by parameter
-        field_name = "manufacturer" if group_by == "manufacturer" else "model"
-        
+        # Build query based on group_by parameter (sanitized)
+        field_name = sanitize_flux_value("manufacturer" if group_by == "manufacturer" else "model")
+        period_sanitized = sanitize_flux_value(period)
+        if not period_sanitized:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid period supplied"
+            )
+
         query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r["_field"] == "{field_name}")
           |> group(columns: ["_value"])
@@ -280,7 +305,7 @@ async def get_device_reliability(
         # FIX: Add _field filter to count unique events, not field instances
         total_query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
           |> count()
@@ -294,8 +319,6 @@ async def get_device_reliability(
         
         # Calculate coverage
         coverage = round((total_events / all_events_count) * 100, 2) if all_events_count > 0 else 0
-        
-        client.close()
         
         return {
             "period": period,
@@ -315,6 +338,12 @@ async def get_device_reliability(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device reliability metrics: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
@@ -444,12 +473,15 @@ async def get_integration_performance(
         # Calculate events per minute
         # Event rate query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events, not field instances
+        platform_sanitized = sanitize_flux_value(platform)
+        period_sanitized = sanitize_flux_value(period)
+
         event_rate_query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
-          |> filter(fn: (r) => r["platform"] == "{platform}")
+          |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
         '''
         
@@ -473,10 +505,10 @@ async def get_integration_performance(
         # FIX: Add _field filter to count unique events with errors
         error_query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
-          |> filter(fn: (r) => r["platform"] == "{platform}")
+          |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> filter(fn: (r) => exists r["error"])
           |> count()
         '''
@@ -494,10 +526,10 @@ async def get_integration_performance(
         # FIX: Filter by response_time field specifically
         response_time_query = f'''
         from(bucket: "{influxdb_bucket}")
-          |> range(start: -{period})
+          |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "response_time")
-          |> filter(fn: (r) => r["platform"] == "{platform}")
+          |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> mean()
         '''
         
@@ -512,7 +544,7 @@ async def get_integration_performance(
         from(bucket: "{influxdb_bucket}")
           |> range(start: -5m)
           |> filter(fn: (r) => r["_measurement"] == "devices")
-          |> filter(fn: (r) => r["platform"] == "{platform}")
+          |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
         '''
         
@@ -523,8 +555,6 @@ async def get_integration_performance(
                 recent_discoveries += record.get_value()
         
         discovery_status = "active" if recent_discoveries > 0 else "paused"
-        
-        client.close()
         
         return {
             "platform": platform,
@@ -553,6 +583,12 @@ async def get_integration_performance(
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/api/integrations/{platform}/analytics")
@@ -680,11 +716,17 @@ def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
     
     # Add filters
     if filters.get("manufacturer"):
-        query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{filters["manufacturer"]}")'
+        manufacturer = sanitize_flux_value(filters["manufacturer"])
+        if manufacturer:
+            query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{manufacturer}")'
     if filters.get("model"):
-        query += f'\n    |> filter(fn: (r) => r["model"] == "{filters["model"]}")'
+        model = sanitize_flux_value(filters["model"])
+        if model:
+            query += f'\n    |> filter(fn: (r) => r["model"] == "{model}")'
     if filters.get("area_id"):
-        query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
+        area_id = sanitize_flux_value(filters["area_id"])
+        if area_id:
+            query += f'\n    |> filter(fn: (r) => r["area_id"] == "{area_id}")'
     
     query += f'\n    |> last()\n    |> limit(n: {limit})'
     
@@ -701,11 +743,17 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
     
     # Add filters
     if filters.get("domain"):
-        query += f'\n    |> filter(fn: (r) => r["domain"] == "{filters["domain"]}")'
+        domain = sanitize_flux_value(filters["domain"])
+        if domain:
+            query += f'\n    |> filter(fn: (r) => r["domain"] == "{domain}")'
     if filters.get("platform"):
-        query += f'\n    |> filter(fn: (r) => r["platform"] == "{filters["platform"]}")'
+        platform_value = sanitize_flux_value(filters["platform"])
+        if platform_value:
+            query += f'\n    |> filter(fn: (r) => r["platform"] == "{platform_value}")'
     if filters.get("device_id"):
-        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
+        device_id = sanitize_flux_value(filters["device_id"])
+        if device_id:
+            query += f'\n    |> filter(fn: (r) => r["device_id"] == "{device_id}")'
     
     query += f'\n    |> last()\n    |> limit(n: {limit})'
     
@@ -713,6 +761,7 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
 
 
 # Internal bulk upsert endpoints (called by websocket-ingestion)
+# Note: No authentication needed for home use - services run on internal Docker network
 @router.post("/internal/devices/bulk_upsert")
 async def bulk_upsert_devices(
     devices: List[Dict[str, Any]],
@@ -720,7 +769,7 @@ async def bulk_upsert_devices(
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert devices from HA discovery
-    
+
     Uses INSERT OR REPLACE for reliable upsert without SQLAlchemy metadata issues
     """
     try:
@@ -796,7 +845,7 @@ async def bulk_upsert_entities(
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert entities from HA discovery
-    
+
     Simple approach: Loop and merge (SQLAlchemy handles upsert logic)
     """
     try:

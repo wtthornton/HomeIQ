@@ -173,12 +173,15 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 
 ## 🏗️ Architecture
 
-### System Overview (Epic 31 Architecture - 26 Microservices)
+### System Overview (Epic 31 Architecture - 24 Active Microservices)
+
+**Note:** Plus InfluxDB infrastructure = 25 total containers in production
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                     26 Microservices                         │
+│                  24 Active Microservices                     │
+│              (+ InfluxDB = 25 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -196,7 +199,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ AI Core Service                     :8018               │
 │  ├─ OpenVINO Service                    :8026→8019          │
 │  ├─ ML Service                          :8025→8020          │
-│  ├─ NER Service                         :8019               │
+│  ├─ NER Service                         :8031               │
 │  ├─ OpenAI Service                      :8020               │
 │  ├─ Device Intelligence Service         :8028→8019          │
 │  └─ Automation Miner                    :8029→8019          │
@@ -211,21 +214,23 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │      ├─ device_intelligence.db (7 tables)                   │
 │      └─ webhooks.db                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Data Enrichment Layer (6 services - Epic 31 Direct Writes) │
+│  Data Enrichment (5 active + 1 disabled - Epic 31 Direct)   │
 │  ├─ Weather API              :8009 → InfluxDB               │
 │  ├─ Carbon Intensity         :8010 → InfluxDB               │
 │  ├─ Electricity Pricing      :8011 → InfluxDB               │
 │  ├─ Air Quality              :8012 → InfluxDB               │
-│  ├─ Calendar Service         :8013 → InfluxDB               │
+│  ├─ Calendar Service ⏸️      :8013 → InfluxDB (disabled)    │
 │  └─ Smart Meter              :8014 → InfluxDB               │
 ├─────────────────────────────────────────────────────────────┤
-│  Processing & Infrastructure (7 services)                   │
+│  Processing & Infrastructure (4 services)                   │
 │  ├─ Data Retention                      :8080               │
 │  ├─ Energy Correlator                   :8017               │
 │  ├─ Log Aggregator                      :8015               │
-│  ├─ HA Setup Service                    :8027→8020          │
-│  ├─ HA Simulator (dev only)             :8123               │
-│  ├─ Mosquitto (MQTT broker)             :1883, :9001        │
+│  └─ HA Setup Service                    :8027→8020          │
+├─────────────────────────────────────────────────────────────┤
+│  Dev/External (not HomeIQ services)                         │
+│  ├─ HA Simulator (dev only)             :8123 (not deployed)│
+│  ├─ MQTT Broker (external)     mqtt://192.168.1.86:1883     │
 │  └─ ❌ Enrichment Pipeline (DEPRECATED)  :8002 (Epic 31)     │
 └─────────────────────────────────────────────────────────────┘
                             ▲
@@ -248,7 +253,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  AI Core Service (Orchestrator)           :8018             │
 │  ├─ OpenVINO Service (Embeddings)         :8026 (ext→8019)  │
 │  ├─ ML Service (Clustering)               :8025 (ext→8020)  │
-│  ├─ NER Service (Entity Recognition)      :8019             │
+│  ├─ NER Service (Entity Recognition)      :8031             │
 │  ├─ OpenAI Service (GPT-4o-mini)          :8020             │
 │  ├─ AI Automation Service                 :8024 (ext→8018)  │
 │  ├─ Device Intelligence Service           :8028 (ext→8019)  │
@@ -260,7 +265,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 |------------|---------|---------------|---------------|--------|--------|
 | **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
 | **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
-| **NER Service** | Named Entity Recognition | 8019 | 8019 | dslim/bert-base-NER | ✅ Active |
+| **NER Service** | Named Entity Recognition | 8031 | 8031 | dslim/bert-base-NER | ✅ Active |
 | **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
 | **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
 | **AI Automation Service** | Pattern detection & automation | 8024 | 8018 | Orchestrator | ✅ Active |
@@ -284,11 +289,13 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Carbon Intensity** | Grid carbon footprint | 8010 | 8010 | Python, FastAPI | ✅ Active |
 | **Electricity Pricing** | Real-time pricing | 8011 | 8011 | Python, FastAPI | ✅ Active |
 | **Air Quality** | AQI monitoring | 8012 | 8012 | Python, FastAPI | ✅ Active |
+| **Calendar Service** | Event correlation | 8013 | 8013 | Python, FastAPI | ⏸️ Disabled |
 | **Smart Meter** | Energy consumption | 8014 | 8014 | Python, FastAPI | ✅ Active |
 | **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
 | **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
 | **InfluxDB** | Time-series database | 8086 | 8086 | InfluxDB 2.7 | ✅ Active |
-| **Mosquitto** | MQTT broker | 1883, 9001 | 1883, 9001 | Eclipse Mosquitto | ✅ Active |
+| **HA Simulator** | Dev environment HA instance | 8123 | 8123 | Python, FastAPI | 🚧 Dev only |
+| **External MQTT Broker** | MQTT messaging (not HomeIQ) | 1883 | 1883 | Eclipse Mosquitto | ℹ️ External |
 | **❌ Enrichment Pipeline** | **DEPRECATED** (Epic 31) | 8002 | - | Python, FastAPI | ❌ Deprecated |
 
 ---
@@ -418,6 +425,40 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix critical issues and improve reliability** (November 16, 2025)
+- **Fix critical issues and improve reliability** (November 16, 2025)
+- **Fix critical issues and improve reliability** (November 15, 2025)
+- **Fix critical issues and improve reliability** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
+- **Implement API key authentication and admin roles** (November 15, 2025)
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (November 15, 2025)
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (November 15, 2025)
+- **feat(ai-automation-ui): comprehensive production-ready updates** (November 15, 2025)
+- **fix(gitignore): properly format Phase 3 test artifact entries** (November 15, 2025)
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
+- **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
+- **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
+- **feat(data-api): comprehensive security and performance improvements** (November 14, 2025)
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (November 14, 2025)
+- **Fix service health API mapping** (November 14, 2025)
+- **Fix service health API mapping** (November 14, 2025)
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
+- **feat(automation-miner): implement Blueprint YAML parsing** (November 14, 2025)
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 14, 2025)
+- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
 - **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
 
 - **LangChain integrations**: Feature flags allow piloting LCEL-driven Ask AI prompts and pattern-detector chains.
@@ -427,10 +468,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📊 Project Stats
 
-- **Services**: 26 microservices (24 active + 2 infrastructure)
+- **Services**: 24 active microservices (+ InfluxDB infrastructure = 25 containers)
 - **Languages**: Python, TypeScript, JavaScript
 - **Databases**: InfluxDB (time-series) + 5 SQLite databases (metadata)
-- **APIs**: RESTful, WebSocket, MQTT
+- **APIs**: RESTful, WebSocket, MQTT (external)
 - **UI Frameworks**: React 18, Vite, Tailwind CSS
 - **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
 - **Testing**: Legacy suites removed; new targeted coverage TBD
@@ -486,10 +527,10 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📝 Documentation Updates
 
-**Latest Code Review:** November 11, 2025
+**Latest Code Review:** November 16, 2025
 
 See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
-- Complete service inventory (26 microservices)
+- Complete service inventory (24 active microservices)
 - Database architecture analysis (5 SQLite + InfluxDB)
 - Shared libraries documentation (3,947 lines, 11 modules)
 - Infrastructure and deployment patterns

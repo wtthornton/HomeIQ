@@ -3,7 +3,7 @@ Safety Validation Engine
 Story AI1.19: Safety Validation Engine
 
 Validates automation safety before deployment to Home Assistant.
-Implements 6 core safety rules and conflict detection.
+Implements 7 core safety rules and conflict detection.
 """
 
 from typing import Dict, List, Optional
@@ -45,7 +45,7 @@ class SafetyResult:
 class SafetyValidator:
     """
     Validates automation safety before allowing deployment.
-    
+
     Core Safety Rules:
     1. No extreme climate changes (>5°F/2.5°C at once)
     2. No bulk device shutoffs without confirmation
@@ -53,6 +53,7 @@ class SafetyValidator:
     4. Detect conflicting automations
     5. Require time/condition constraints for destructive actions
     6. Warn on high-frequency triggers (>20 per hour)
+    7. Validate timeout values for wait_for_trigger actions
     """
     
     def __init__(self, safety_level: SafetyLevel = SafetyLevel.MODERATE):
@@ -70,6 +71,7 @@ class SafetyValidator:
             self._check_time_constraints,
             self._check_excessive_triggers,
             self._check_destructive_actions,
+            self._check_timeout_values,
         ]
     
     async def validate(
@@ -139,8 +141,9 @@ class SafetyValidator:
     def _check_climate_extremes(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 1: No extreme climate changes"""
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -238,11 +241,12 @@ class SafetyValidator:
               new bulk operation patterns.
         """
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
-        
+
         for action in actions:
             service = action.get('service', '')
             data = action.get('data', {}) or action.get('service_data', {})
@@ -284,8 +288,9 @@ class SafetyValidator:
     def _check_security_disable(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 3: Never disable security automations"""
         issues = []
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -376,8 +381,9 @@ class SafetyValidator:
         destructive_services = [
             'turn_off', 'close', 'lock', 'set_hvac_mode', 'disable'
         ]
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -401,8 +407,9 @@ class SafetyValidator:
     def _check_excessive_triggers(self, automation: Dict) -> List[SafetyIssue]:
         """Rule 5: Warn on high-frequency triggers"""
         issues = []
-        
-        triggers = automation.get('trigger', [])
+
+        # Support both modern (triggers) and legacy (trigger) syntax
+        triggers = automation.get('triggers', automation.get('trigger', []))
         if not isinstance(triggers, list):
             triggers = [triggers]
         
@@ -450,8 +457,9 @@ class SafetyValidator:
             'system.reboot',
             'system.shutdown',
         ]
-        
-        actions = automation.get('action', [])
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
         if not isinstance(actions, list):
             actions = [actions]
         
@@ -466,7 +474,99 @@ class SafetyValidator:
                 ))
         
         return issues
-    
+
+    def _check_timeout_values(self, automation: Dict) -> List[SafetyIssue]:
+        """Rule 7: Validate timeout values for wait_for_trigger actions"""
+        issues = []
+
+        # Support both modern (actions) and legacy (action) syntax
+        actions = automation.get('actions', automation.get('action', []))
+        if not isinstance(actions, list):
+            actions = [actions]
+
+        for action in actions:
+            # Check if this action uses wait_for_trigger
+            if 'wait_for_trigger' in action:
+                timeout = action.get('timeout')
+
+                # Validate timeout is present
+                if not timeout:
+                    issues.append(SafetyIssue(
+                        rule="timeout_validation",
+                        severity="warning",
+                        message="wait_for_trigger action missing timeout - could wait indefinitely",
+                        suggested_fix="Add timeout field (e.g., timeout: '00:10:00' or timeout: {minutes: 10})"
+                    ))
+                    continue
+
+                # Parse timeout value to check if it's reasonable
+                timeout_seconds = self._parse_timeout_to_seconds(timeout)
+
+                if timeout_seconds is not None:
+                    # Warn if timeout is too short (< 30 seconds)
+                    if timeout_seconds < 30:
+                        issues.append(SafetyIssue(
+                            rule="timeout_validation",
+                            severity="warning",
+                            message=f"Timeout is very short ({timeout_seconds}s) - may not give enough time",
+                            suggested_fix="Consider timeout of at least 30 seconds"
+                        ))
+
+                    # Warn if timeout is unreasonably long (> 1 hour)
+                    if timeout_seconds > 3600:
+                        issues.append(SafetyIssue(
+                            rule="timeout_validation",
+                            severity="warning",
+                            message=f"Timeout is very long ({timeout_seconds}s / {timeout_seconds//60} min) - automation may appear stuck",
+                            suggested_fix="Consider shorter timeout with continue_on_timeout: true"
+                        ))
+
+                    # Critical if timeout is extremely long (> 24 hours)
+                    if timeout_seconds > 86400:
+                        issues.append(SafetyIssue(
+                            rule="timeout_validation",
+                            severity="critical",
+                            message=f"Timeout is excessively long (>{timeout_seconds//3600} hours) - likely error",
+                            suggested_fix="Use reasonable timeout (seconds/minutes/hours, not days)"
+                        ))
+
+        return issues
+
+    def _parse_timeout_to_seconds(self, timeout) -> Optional[int]:
+        """
+        Parse timeout value to seconds for validation.
+
+        Supports:
+        - String format: "HH:MM:SS" or "MM:SS"
+        - Dict format: {hours: 1, minutes: 30, seconds: 0}
+        - Direct integer (seconds)
+
+        Returns:
+            Number of seconds, or None if can't parse
+        """
+        if isinstance(timeout, int):
+            return timeout
+
+        if isinstance(timeout, dict):
+            hours = timeout.get('hours', 0)
+            minutes = timeout.get('minutes', 0)
+            seconds = timeout.get('seconds', 0)
+            return hours * 3600 + minutes * 60 + seconds
+
+        if isinstance(timeout, str):
+            try:
+                parts = timeout.split(':')
+                if len(parts) == 3:  # HH:MM:SS
+                    h, m, s = map(int, parts)
+                    return h * 3600 + m * 60 + s
+                elif len(parts) == 2:  # MM:SS
+                    m, s = map(int, parts)
+                    return m * 60 + s
+            except (ValueError, AttributeError):
+                pass
+
+        return None
+
     async def check_conflicts(
         self,
         new_automation: Dict,
@@ -480,12 +580,13 @@ class SafetyValidator:
         - Overlapping device control
         """
         issues = []
-        
-        new_triggers = new_automation.get('trigger', [])
+
+        # Support both modern (triggers/actions) and legacy (trigger/action) syntax
+        new_triggers = new_automation.get('triggers', new_automation.get('trigger', []))
         if not isinstance(new_triggers, list):
             new_triggers = [new_triggers]
-        
-        new_actions = new_automation.get('action', [])
+
+        new_actions = new_automation.get('actions', new_automation.get('action', []))
         if not isinstance(new_actions, list):
             new_actions = [new_actions]
         

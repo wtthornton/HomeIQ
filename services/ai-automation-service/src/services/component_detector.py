@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DetectedComponent:
     """Represents a detected component that was stripped for testing"""
-    component_type: str  # 'delay', 'repeat', 'time_condition', queue', 'numeric_state'
+    # component_type behaves like an enum; keep the documentation in sync with
+    # the actual supported values to avoid confusion elsewhere in the service.
+    component_type: str  # One of: 'delay', 'repeat', 'time_condition', 'queue', 'numeric_state'
     original_value: str  # Original text/value from description or YAML
     detected_from: str  # 'description' or 'yaml'
     confidence: float  # 0.0-1.0 confidence score

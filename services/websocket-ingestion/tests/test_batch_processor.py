@@ -144,6 +144,34 @@ class TestBatchProcessorEventHandling:
         assert len(processed_batches) >= 1
         assert processor.total_events_processed == 2
 
+    @pytest.mark.asyncio
+    async def test_lock_released_before_handler_runs(self):
+        """Slow handlers shouldn't block new events from being enqueued"""
+        processor = BatchProcessor(batch_size=2)
+
+        release_handler = asyncio.Event()
+
+        async def slow_handler(batch):
+            await release_handler.wait()
+
+        processor.add_batch_handler(slow_handler)
+
+        await processor.add_event({"id": 1})
+        second_event = asyncio.create_task(processor.add_event({"id": 2}))
+
+        # Give the handler time to start
+        await asyncio.sleep(0.05)
+
+        third_event = asyncio.create_task(processor.add_event({"id": 3}))
+
+        # Without the lock release, this task would hang until release_handler is set
+        await asyncio.sleep(0.05)
+        assert third_event.done(), "Batch lock was not released before handler awaited"
+
+        release_handler.set()
+        await second_event
+        await third_event
+
 
 class TestBatchProcessorHandlers:
     """Test batch handler management"""

@@ -394,3 +394,13 @@ class PredictiveAnalyticsEngine:
             "feature_columns": self.feature_columns,
             "last_updated": datetime.utcnow().isoformat()
         }
+    
+    async def shutdown(self):
+        """Release any resources held by the analytics engine."""
+        self.models = {key: None for key in self.models}
+        self.scalers = {
+            "failure_prediction": StandardScaler(),
+            "anomaly_detection": StandardScaler(),
+        }
+        self.is_trained = False
+        logger.info("🧹 Predictive analytics engine shut down")

@@ -4,7 +4,7 @@ CRUD operations for managing automation suggestions
 Story AI1.10: Suggestion Management API
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, timezone
@@ -13,10 +13,19 @@ import logging
 from ..database.crud import get_suggestions, store_suggestion
 from ..database.models import get_db_session, Suggestion
 from sqlalchemy import select, update, delete
+from ..config import settings
+from ..safety_validator import get_safety_validator
+from .dependencies.auth import require_admin_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/suggestions", tags=["suggestion-management"])
+safety_validator = get_safety_validator(getattr(settings, 'safety_level', 'moderate'))
+
+router = APIRouter(
+    prefix="/api/suggestions",
+    tags=["suggestion-management"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 class UpdateSuggestionRequest(BaseModel):
@@ -176,7 +185,28 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
             if update_data.description is not None:
                 suggestion.description_only = update_data.description
             if update_data.automation_yaml is not None:
+                safety_result = await safety_validator.validate(update_data.automation_yaml)
+                if not safety_result.passed:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "error": "Safety validation failed",
+                            "safety_score": safety_result.safety_score,
+                            "issues": [
+                                {
+                                    "rule": issue.rule,
+                                    "severity": issue.severity,
+                                    "message": issue.message,
+                                    "suggested_fix": issue.suggested_fix
+                                }
+                                for issue in safety_result.issues
+                            ]
+                        }
+                    )
                 suggestion.automation_yaml = update_data.automation_yaml
+                suggestion.safety_score = safety_result.safety_score
+                suggestion.yaml_edited_at = datetime.now(timezone.utc)
+                suggestion.yaml_edit_count = (suggestion.yaml_edit_count or 0) + 1
             if update_data.status is not None:
                 suggestion.status = update_data.status
             if update_data.category is not None:

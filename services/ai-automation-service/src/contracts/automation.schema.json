@@ -238,6 +238,21 @@
         "wait_template": {
           "type": "string"
         },
+        "wait_for_trigger": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Trigger"
+          },
+          "description": "Wait for specified triggers before continuing"
+        },
+        "timeout": {
+          "type": ["string", "object"],
+          "description": "Timeout for wait_for_trigger (e.g., '00:05:00' or {minutes: 5})"
+        },
+        "continue_on_timeout": {
+          "type": "boolean",
+          "description": "Continue sequence if wait_for_trigger times out"
+        },
         "repeat": {
           "type": "object"
         },

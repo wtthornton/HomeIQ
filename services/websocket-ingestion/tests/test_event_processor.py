@@ -109,7 +109,22 @@ class TestEventProcessor:
         assert extracted["state_change"]["from"] == "off"
         assert extracted["state_change"]["to"] == "on"
         assert extracted["state_change"]["changed"] is True
-    
+
+    def test_extract_event_data_handles_deleted_entity(self):
+        """Ensure entity deletions with null new_state don't crash"""
+        event_data = {
+            "event_type": "state_changed",
+            "old_state": {"state": "on", "entity_id": "sensor.kitchen_motion"},
+            "new_state": None
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["entity_id"] == "sensor.kitchen_motion"
+        assert extracted["state_change"]["from"] == "on"
+        assert extracted["state_change"]["to"] is None
+        assert extracted["state_change"]["changed"] is True
+
     def test_extract_event_data_call_service(self):
         """Test extracting data from call_service event"""
         event_data = {

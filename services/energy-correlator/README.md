@@ -334,3 +334,28 @@ curl -X POST http://localhost:8015/statistics/reset
 
 MIT License
 
+
+## Version History
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Event-energy correlation algorithm documented
+- Performance characteristics documented
+- InfluxDB schema comprehensive reference
+
+### 2.0 (October 2025)
+- Temporal correlation within ±10s window
+- Multi-domain support (switches, lights, climate, fans, covers)
+- Threshold filtering (>10W default)
+- Statistics tracking
+
+### 1.0 (Initial Release)
+- Basic event correlation
+- Power delta calculation
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.1
+**Status:** Production Ready ✅
+**Port:** 8017

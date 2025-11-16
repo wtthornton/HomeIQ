@@ -3,9 +3,8 @@ Tests for Main Application
 Epic 31, Story 31.1
 """
 
-import pytest
 from fastapi.testclient import TestClient
-from src.main import app
+from src.main import SERVICE_NAME, SERVICE_VERSION, app
 
 
 client = TestClient(app)
@@ -17,8 +16,8 @@ def test_root_endpoint():
     
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "weather-api"
-    assert data["version"] == "1.0.0"
+    assert data["service"] == SERVICE_NAME
+    assert data["version"] == SERVICE_VERSION
     assert data["status"] == "running"
     assert "endpoints" in data
 
@@ -30,7 +29,7 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "weather-api"
+    assert data["service"] == SERVICE_NAME
     assert "uptime" in data
 
 
@@ -40,7 +39,7 @@ def test_metrics_endpoint():
     
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "weather-api"
+    assert data["service"] == SERVICE_NAME
     assert "uptime_seconds" in data
     assert data["status"] == "healthy"
 
@@ -67,5 +66,5 @@ def test_openapi_json():
     assert response.status_code == 200
     schema = response.json()
     assert schema["info"]["title"] == "Weather API Service"
-    assert schema["info"]["version"] == "1.0.0"
+    assert schema["info"]["version"] == SERVICE_VERSION
 

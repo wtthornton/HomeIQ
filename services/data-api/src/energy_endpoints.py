@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Query, HTTPException, status
 from pydantic import BaseModel
+from .flux_utils import sanitize_flux_value
 
 from influxdb_client import InfluxDBClient
 
@@ -97,6 +98,7 @@ async def get_energy_correlations(
     Shows which events caused significant power changes
     """
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
@@ -108,9 +110,21 @@ async def get_energy_correlations(
         # Build filters
         filters = []
         if entity_id:
-            filters.append(f'r["entity_id"] == "{entity_id}"')
+            entity_id_safe = sanitize_flux_value(entity_id)
+            if not entity_id_safe:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid entity_id supplied"
+                )
+            filters.append(f'r["entity_id"] == "{entity_id_safe}"')
         if domain:
-            filters.append(f'r["domain"] == "{domain}"')
+            domain_safe = sanitize_flux_value(domain)
+            if not domain_safe:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid domain supplied"
+                )
+            filters.append(f'r["domain"] == "{domain_safe}"')
         
         filter_clause = " and ".join(filters) if filters else "true"
         
@@ -141,7 +155,6 @@ async def get_energy_correlations(
                     power_delta_pct=record.values.get("power_delta_pct", 0)
                 ))
         
-        client.close()
         return correlations
         
     except Exception as e:
@@ -150,12 +163,19 @@ async def get_energy_correlations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"Failed to query correlations: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/current", response_model=PowerReading)
 async def get_current_power():
     """Get current power consumption from smart meter"""
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
@@ -187,8 +207,6 @@ async def get_current_power():
                 elif field == "daily_kwh":
                     daily_kwh = float(value)
         
-        client.close()
-        
         return PowerReading(
             timestamp=timestamp,
             total_power_w=power_w,
@@ -201,6 +219,12 @@ async def get_current_power():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query power: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/circuits", response_model=List[CircuitPowerReading])
@@ -209,6 +233,7 @@ async def get_circuit_power(
 ):
     """Get circuit-level power readings"""
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
@@ -237,7 +262,6 @@ async def get_circuit_power(
                     percentage=record.values.get("percentage", 0.0)
                 ))
         
-        client.close()
         return circuits
         
     except Exception as e:
@@ -246,6 +270,12 @@ async def get_circuit_power(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query circuits: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/device-impact/{entity_id}", response_model=DeviceEnergyImpact)
@@ -262,9 +292,16 @@ async def get_device_energy_impact(
     - Usage patterns and cost estimates
     """
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
+        entity_id_safe = sanitize_flux_value(entity_id)
+        if not entity_id_safe:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid entity_id supplied"
+            )
         
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         start_time = datetime.utcnow() - timedelta(days=days)
@@ -274,7 +311,7 @@ async def get_device_energy_impact(
         from(bucket: "{bucket}")
           |> range(start: {start_time.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
-          |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
+          |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["state"] == "on")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> mean()
@@ -285,7 +322,7 @@ async def get_device_energy_impact(
         from(bucket: "{bucket}")
           |> range(start: {start_time.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
-          |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
+          |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["state"] == "off")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> mean()
@@ -296,7 +333,7 @@ async def get_device_energy_impact(
         from(bucket: "{bucket}")
           |> range(start: {start_time.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
-          |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
+          |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> count()
         '''
@@ -337,8 +374,6 @@ async def get_device_energy_impact(
         # Estimate monthly cost (assuming $0.12/kWh)
         monthly_cost = daily_kwh * 30 * 0.12
         
-        client.close()
-        
         return DeviceEnergyImpact(
             entity_id=entity_id,
             domain=domain,
@@ -355,6 +390,12 @@ async def get_device_energy_impact(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query device impact: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/statistics", response_model=EnergyStatistics)
@@ -363,6 +404,7 @@ async def get_energy_statistics(
 ):
     """Get overall energy statistics"""
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
@@ -444,8 +486,6 @@ async def get_energy_statistics(
             for record in table.records:
                 total_correlations = int(record.get_value())
         
-        client.close()
-        
         return EnergyStatistics(
             current_power_w=current_power,
             daily_kwh=daily_kwh,
@@ -461,6 +501,12 @@ async def get_energy_statistics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query statistics: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
 @router.get("/top-consumers", response_model=List[DeviceEnergyImpact])
@@ -474,6 +520,7 @@ async def get_top_energy_consumers(
     Returns devices sorted by estimated daily energy consumption
     """
     
+    client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
@@ -517,7 +564,6 @@ async def get_top_energy_consumers(
                     estimated_monthly_cost=monthly_cost
                 ))
         
-        client.close()
         return devices
         
     except Exception as e:
@@ -526,4 +572,10 @@ async def get_top_energy_consumers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query top consumers: {str(e)}"
         )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
 

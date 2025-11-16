@@ -8,13 +8,21 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, Any
 from aiohttp import web
 import aiohttp
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
-sys.path.append('/app/shared')
+shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+default_shared_path = Path(__file__).resolve().parents[3] / 'shared'
+shared_path = Path(shared_path_override).expanduser().resolve() if shared_path_override else default_shared_path
+
+if shared_path.exists() and str(shared_path) not in sys.path:
+    sys.path.append(str(shared_path))
+elif not shared_path.exists():
+    print(f"[websocket-ingestion] Warning: shared path {shared_path} not found", file=sys.stderr)
 
 from shared.logging_config import (
     setup_logging, get_logger, log_with_context, log_performance, 
@@ -88,6 +96,8 @@ class WebSocketIngestionService:
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'homeassistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
+        self.influxdb_max_pending_points = int(os.getenv('INFLUXDB_MAX_PENDING_POINTS', '20000'))
+        self.influxdb_overflow_strategy = os.getenv('INFLUXDB_OVERFLOW_STRATEGY', 'drop_oldest').lower()
         
         # Historical event counter for persistent totals
         self.historical_counter = None
@@ -172,7 +182,9 @@ class WebSocketIngestionService:
             self.influxdb_batch_writer = InfluxDBBatchWriter(
                 connection_manager=self.influxdb_manager,
                 batch_size=1000,
-                batch_timeout=5.0
+                batch_timeout=5.0,
+                max_pending_points=self.influxdb_max_pending_points,
+                overflow_strategy=self.influxdb_overflow_strategy
             )
             await self.influxdb_batch_writer.start()
             log_with_context(

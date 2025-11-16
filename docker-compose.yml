@@ -688,7 +688,7 @@ services:
     container_name: homeiq-ner-service
     restart: unless-stopped
     ports:
-      - "8019:8019"
+      - "8031:8031"
     networks:
       - homeiq-network
     deploy:
@@ -698,7 +698,7 @@ services:
         reservations:
           memory: 512M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8031/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -816,7 +816,7 @@ services:
     environment:
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
-      - NER_SERVICE_URL=http://ner-service:8019
+      - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
     depends_on:
       openvino-service:
@@ -860,7 +860,7 @@ services:
       - infrastructure/env.ai-automation
     environment:
       - DATA_API_URL=http://data-api:8006
-      - NER_SERVICE_URL=http://ner-service:8019
+      - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
@@ -902,6 +902,46 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  ai-code-executor:
+    build:
+      context: .
+      dockerfile: services/ai-code-executor/Dockerfile
+    container_name: ai-code-executor
+    restart: unless-stopped
+    ports:
+      - "8030:8030"
+    environment:
+      - EXECUTION_TIMEOUT=30
+      - MAX_MEMORY_MB=128
+      - MAX_CPU_PERCENT=50.0
+      - MCP_WORKSPACE_DIR=/tmp/mcp_workspace
+      - LOG_LEVEL=INFO
+    depends_on:
+      data-api:
+        condition: service_healthy
+      ai-automation-service:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8030/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-code-executor,environment=production"
 
   ai-automation-ui:
     build:

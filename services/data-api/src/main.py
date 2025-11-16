@@ -13,10 +13,11 @@ This service provides access to feature data including:
 import asyncio
 import logging
 import os
+import secrets
 import sys
-from typing import Dict, Any, Optional
-from datetime import datetime
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +38,8 @@ from shared.influxdb_query_client import InfluxDBQueryClient
 
 # Story 22.1: SQLite database
 from .database import init_db, check_db_health
+from .cache import cache
+from shared.rate_limiter import RateLimiter, rate_limit_middleware
 import pathlib
 
 # Import endpoint routers (Stories 13.2-13.4)
@@ -59,6 +62,9 @@ from .analytics_endpoints import router as analytics_router
 # Energy Correlation Endpoints (Phase 4)
 from .energy_endpoints import router as energy_router
 from .hygiene_endpoints import router as hygiene_router
+
+# MCP Code Execution Tools
+from .api.mcp_router import router as mcp_router
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -92,29 +98,50 @@ class DataAPIService:
     
     def __init__(self):
         """Initialize Data API service"""
-        # Configuration
+        # Configuration - Configurable via environment variables
         self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')
         self.api_port = int(os.getenv('DATA_API_PORT', '8006'))
+        self.request_timeout = int(os.getenv('REQUEST_TIMEOUT', '30'))  # seconds
+        self.db_query_timeout = int(os.getenv('DB_QUERY_TIMEOUT', '10'))  # seconds
         self.api_title = 'Data API - Feature Data Hub'
         self.api_version = '1.0.0'
         self.api_description = 'Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)'
         
-        # Security
-        self.api_key = os.getenv('API_KEY')
-        self.enable_auth = os.getenv('ENABLE_AUTH', 'false').lower() == 'true'  # Auth optional for data-api
+        # Security - authentication always enforced
+        self.api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
+        self.allow_anonymous = os.getenv('DATA_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
+        rate_limit_per_minute = int(os.getenv('DATA_API_RATE_LIMIT_PER_MIN', '100'))
+        burst = int(os.getenv('DATA_API_RATE_LIMIT_BURST', '20'))
+        self.rate_limiter = RateLimiter(rate=rate_limit_per_minute, per=60, burst=burst)
+
+        if not self.api_key:
+            if not self.allow_anonymous:
+                raise RuntimeError("DATA_API_API_KEY (or API_KEY) must be configured for data-api")
+            self.api_key = secrets.token_urlsafe(48)
+            logger.warning(
+                "Data API started in anonymous mode for local testing only. "
+                "Set DATA_API_API_KEY to enforce authentication."
+            )
         
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
         
         # Initialize components
-        self.auth_manager = AuthManager(api_key=self.api_key, enable_auth=self.enable_auth)
+        self.auth_manager = AuthManager(
+            api_key=self.api_key,
+            allow_anonymous=self.allow_anonymous,
+        )
         self.influxdb_client = InfluxDBQueryClient()
-        
+
         # Service state
         self.start_time = datetime.now()
         self.is_running = False
+
+        # Error tracking for metrics
+        self.total_requests = 0
+        self.failed_requests = 0
         
-        logger.info(f"Data API Service initialized (auth enabled: {self.enable_auth})")
+        logger.info("Data API Service initialized (anonymous=%s)", self.allow_anonymous)
     
     async def startup(self):
         """Start the Data API service"""
@@ -214,6 +241,11 @@ app.add_middleware(
 # Add correlation middleware
 app.add_middleware(FastAPICorrelationMiddleware)
 
+# Add rate limiting middleware
+@app.middleware("http")
+async def apply_rate_limit(request, call_next):
+    return await rate_limit_middleware(request, call_next, data_api_service.rate_limiter)
+
 
 # Register endpoint routers (Stories 13.2-13.3)
 # Story 13.2: Events & Devices
@@ -285,6 +317,12 @@ app.include_router(
     tags=["Device Hygiene"]
 )
 
+# MCP Code Execution Tools
+app.include_router(
+    mcp_router,
+    tags=["MCP Tools"]
+)
+
 
 # Root endpoint
 @app.get("/", response_model=APIResponse)
@@ -307,19 +345,32 @@ async def root():
 async def health_check():
     """
     Health check endpoint
-    
+
     Returns service health status including InfluxDB and SQLite connections
+    Plus error rate metrics for monitoring
     """
     uptime = (datetime.now() - data_api_service.start_time).total_seconds()
     influxdb_status = data_api_service.influxdb_client.get_connection_status()
     sqlite_status = await check_db_health()
-    
+
+    # Calculate error rate
+    error_rate = 0.0
+    if data_api_service.total_requests > 0:
+        error_rate = (data_api_service.failed_requests / data_api_service.total_requests) * 100
+
     return {
         "status": "healthy" if data_api_service.is_running else "unhealthy",
         "service": "data-api",
         "version": data_api_service.api_version,
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": uptime,
+        "metrics": {
+            "total_requests": data_api_service.total_requests,
+            "failed_requests": data_api_service.failed_requests,
+            "error_rate_percent": round(error_rate, 2)
+        },
+        "cache": cache.get_stats(),
+        "rate_limiter": data_api_service.rate_limiter.get_stats(),
         "dependencies": {
             "influxdb": {
                 "status": "connected" if influxdb_status["is_connected"] else "disconnected",
@@ -331,7 +382,7 @@ async def health_check():
             "sqlite": sqlite_status
         },
         "authentication": {
-            "enabled": data_api_service.enable_auth
+            "api_key_required": not data_api_service.allow_anonymous
         }
     }
 
@@ -359,10 +410,14 @@ async def api_info():
     )
 
 
-# Exception handlers
+# Exception handlers with request tracking
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
-    """Handle HTTP exceptions"""
+    """Handle HTTP exceptions and track error metrics"""
+    data_api_service.total_requests += 1
+    if exc.status_code >= 400:
+        data_api_service.failed_requests += 1
+
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
@@ -374,7 +429,10 @@ async def http_exception_handler(request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc: Exception):
-    """Handle general exceptions"""
+    """Handle general exceptions and track error metrics"""
+    data_api_service.total_requests += 1
+    data_api_service.failed_requests += 1
+
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

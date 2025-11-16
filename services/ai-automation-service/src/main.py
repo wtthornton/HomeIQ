@@ -29,8 +29,9 @@ from .database.models import init_db
 from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, settings_router, admin_router, set_device_intelligence_client
 from .api.validation_router import router as validation_router
 from .api.ranking_router import router as ranking_router
-from .api.middlewares import IdempotencyMiddleware, RateLimitMiddleware
+from .api.middlewares import AuthenticationMiddleware, IdempotencyMiddleware, RateLimitMiddleware
 from .api.community_pattern_router import router as community_pattern_router
+from .api.mcp_router import router as mcp_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
@@ -226,12 +227,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Authentication middleware (API key with optional admin override)
+app.add_middleware(
+    AuthenticationMiddleware,
+    enabled=settings.enable_authentication
+)
+
 # Rate limiting middleware (before idempotency)
-# 10x increase: 600 requests/min, 10,000 requests/hour (for internal service communication)
 app.add_middleware(
     RateLimitMiddleware,
-    requests_per_minute=600,  # 10x increase: 600 requests/min
-    requests_per_hour=10000   # 10x increase: 10,000 requests/hour
+    requests_per_minute=settings.rate_limit_requests_per_minute,
+    requests_per_hour=settings.rate_limit_requests_per_hour,
+    internal_requests_per_minute=settings.rate_limit_internal_requests_per_minute,
+    key_header="X-HomeIQ-API-Key"
 )
 
 # Idempotency middleware
@@ -286,6 +294,7 @@ app.include_router(settings_router)  # System settings management
 app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
+app.include_router(mcp_router)  # MCP Code Execution Tools
 
 # Initialize scheduler
 scheduler = DailyAnalysisScheduler()

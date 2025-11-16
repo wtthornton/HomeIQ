@@ -14,6 +14,7 @@ import {
   updateSettings,
   type SettingsPayload,
 } from '../api/settings';
+import { TeamTrackerSettings } from '../components/TeamTrackerSettings';
 
 export const Settings: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -473,6 +474,9 @@ export const Settings: React.FC = () => {
             Refreshing settings…
           </div>
         )}
+
+        {/* Team Tracker Integration */}
+        <TeamTrackerSettings />
 
         {/* Action Buttons */}
         <div className="flex gap-4">

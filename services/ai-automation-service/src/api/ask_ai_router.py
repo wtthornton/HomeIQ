@@ -196,7 +196,7 @@ def set_device_intelligence_client(client: DeviceIntelligenceClient):
         )
         # Initialize model orchestrator for containerized approach
         _model_orchestrator = ModelOrchestrator(
-            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8019"),
+            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8031"),
             openai_service_url=os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
         )
     logger.info("Device Intelligence client set for Ask AI router")
@@ -1739,14 +1739,16 @@ Advanced YAML Examples (NOTE: Replace entity IDs with validated ones from above)
 
 Example 1 - Simple time trigger (CORRECT):
 ```yaml
+id: '1234567890'
 alias: Morning Light
 description: Turn on light at 7 AM
 mode: single
-trigger:
-  - platform: time
+triggers:
+  - trigger: time
     at: '07:00:00'
-action:
-  - service: light.turn_on
+conditions: []
+actions:
+  - action: light.turn_on
     target:
       entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
     data:
@@ -1755,18 +1757,19 @@ action:
 
 Example 2 - State trigger with condition (CORRECT):
 ```yaml
+id: '1234567891'
 alias: Motion-Activated Light
 description: Turn on light when motion detected after 6 PM
 mode: single
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: {example_motion_sensor if example_motion_sensor else '{{REPLACE_WITH_VALIDATED_MOTION_SENSOR}}'}
     to: 'on'
-condition:
+conditions:
   - condition: time
     after: '18:00:00'
-action:
-  - service: light.turn_on
+actions:
+  - action: light.turn_on
     target:
       entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
     data:
@@ -1776,23 +1779,25 @@ action:
 
 Example 3 - Repeat with sequence (CORRECT):
 ```yaml
+id: '1234567892'
 alias: Flash Pattern
 description: Flash lights 3 times
 mode: single
-trigger:
-  - platform: event
+triggers:
+  - trigger: event
     event_type: test_trigger
-action:
+conditions: []
+actions:
   - repeat:
       count: 3
       sequence:
-        - service: light.turn_on
+        - action: light.turn_on
           target:
             entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
           data:
             brightness_pct: 100
         - delay: '00:00:01'
-        - service: light.turn_off
+        - action: light.turn_off
           target:
             entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
         - delay: '00:00:01'
@@ -1800,29 +1805,30 @@ action:
 
 Example 4 - Choose with multiple triggers (CORRECT):
 ```yaml
+id: '1234567893'
 alias: Color-Coded Door Notifications
 description: Different colors for different doors
 mode: single
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_1}}'}
     to: 'on'
     id: front_door
-  - platform: state
+  - trigger: state
     entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_2}}'}
     to: 'on'
     id: back_door
-condition:
+conditions:
   - condition: time
     after: "18:00:00"
     before: "06:00:00"
-action:
+actions:
   - choose:
       - conditions:
           - condition: trigger
             id: front_door
         sequence:
-          - service: light.turn_on
+          - action: light.turn_on
             target:
               entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
             data:
@@ -1832,14 +1838,14 @@ action:
           - condition: trigger
             id: back_door
         sequence:
-          - service: light.turn_on
+          - action: light.turn_on
             target:
               entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
             data:
               brightness_pct: 100
               color_name: blue
     default:
-      - service: light.turn_on
+      - action: light.turn_on
         target:
           entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
         data:
