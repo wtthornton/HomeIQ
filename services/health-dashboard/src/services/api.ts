@@ -84,6 +84,36 @@ export interface APIKeyTestResponse {
 // Epic 13 Story 13.2: Separated API clients for admin vs data APIs
 const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+/**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) => 
+      key.toLowerCase() !== 'authorization'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
 
 /**
  * Base API client with error handling
@@ -94,6 +124,9 @@ class BaseApiClient {
   protected async fetchWithErrorHandling<T>(url: string, options: RequestInit = {}): Promise<T> {
     const method = (options.method || 'GET').toUpperCase();
     const requestOptions = { ...options };
+
+    // Add authentication headers for all requests
+    requestOptions.headers = withAuthHeaders(requestOptions.headers);
 
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       requestOptions.headers = withCsrfHeader(requestOptions.headers);

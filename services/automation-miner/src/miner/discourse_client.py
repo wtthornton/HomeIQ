@@ -10,7 +10,7 @@ Implements async HTTP client for community.home-assistant.io with:
 import asyncio
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import httpx
@@ -179,7 +179,15 @@ class DiscourseClient:
                 updated_at = datetime.fromisoformat(
                     topic.get("last_posted_at", "").replace("Z", "+00:00")
                 )
-                if updated_at < since:
+                # Ensure both datetimes are timezone-aware for comparison
+                since_aware = since
+                if since_aware.tzinfo is None:
+                    # If since is naive, assume UTC (create new datetime to avoid modifying parameter)
+                    since_aware = since_aware.replace(tzinfo=timezone.utc)
+                if updated_at.tzinfo is None:
+                    # If updated_at is naive, assume UTC
+                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                if updated_at < since_aware:
                     continue
             
             filtered_topics.append({

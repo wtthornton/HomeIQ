@@ -583,3 +583,7 @@ class HomeAssistantClient:
     def is_connected(self) -> bool:
         """Check if connected to Home Assistant."""
         return self.connected and self.websocket is not None
+
+
+# Alias for backward compatibility
+HAClient = HomeAssistantClient
