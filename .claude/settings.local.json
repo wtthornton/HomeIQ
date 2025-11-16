@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash($null)",
+      "mcp__ide__getDiagnostics",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Bash(docker logs homeiq-device-intelligence --tail 50)",
+      "Bash(python -m json.tool:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker compose build:*)",
+      "Bash(docker compose restart:*)",
+      "Bash(docker compose:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git log:*)",
+      "Bash(GIT_TRACE=1 git commit:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

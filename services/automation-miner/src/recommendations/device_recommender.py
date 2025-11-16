@@ -60,18 +60,47 @@ class DeviceRecommender:
         self.device_costs = self._load_device_costs()
     
     def _load_device_costs(self) -> Dict[str, Tuple[int, int]]:
-        """Load device cost estimates from JSON file"""
+        """
+        Load device cost estimates from JSON file
+        
+        Returns:
+            Dictionary mapping device types to (min_cost, max_cost) tuples
+            Falls back to default costs if file cannot be loaded
+        """
         costs_file = Path(__file__).parent.parent.parent / "data" / "device_costs.json"
         
+        if not costs_file.exists():
+            logger.warning(f"Device costs file not found: {costs_file}. Using default costs.")
+            return {}
+        
         try:
-            with open(costs_file, 'r') as f:
+            with open(costs_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # Convert to tuple format
-            return {k: tuple(v) for k, v in data.items()}
+            # Validate and convert to tuple format
+            costs = {}
+            for k, v in data.items():
+                if isinstance(v, list) and len(v) == 2:
+                    try:
+                        min_cost = int(v[0])
+                        max_cost = int(v[1])
+                        if min_cost > 0 and max_cost >= min_cost:
+                            costs[k] = (min_cost, max_cost)
+                        else:
+                            logger.warning(f"Invalid cost range for {k}: {v}. Skipping.")
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid cost format for {k}: {v}. Skipping.")
+                else:
+                    logger.warning(f"Invalid cost entry for {k}: {v}. Expected [min, max]. Skipping.")
+            
+            logger.info(f"Loaded {len(costs)} device cost entries from {costs_file}")
+            return costs
         
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse device costs JSON file {costs_file}: {e}. Using default costs.")
+            return {}
         except Exception as e:
-            logger.warning(f"Failed to load device costs: {e}")
+            logger.error(f"Failed to load device costs from {costs_file}: {e}. Using default costs.", exc_info=True)
             return {}
     
     async def recommend_devices(

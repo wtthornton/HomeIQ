@@ -25,7 +25,6 @@ class DockerComposeTester:
         self.services = [
             "influxdb",
             "websocket-ingestion", 
-            "enrichment-pipeline",
             "weather-api",
             "admin-api",
             "data-retention",
@@ -136,7 +135,7 @@ class TestDockerComposeOrchestration:
         assert self.tester.wait_for_service_health("influxdb"), "InfluxDB failed to become healthy"
         
         # Start dependent services
-        dependent_services = ["websocket-ingestion", "enrichment-pipeline", "admin-api", "data-retention"]
+        dependent_services = ["websocket-ingestion", "admin-api", "data-retention"]
         
         for service in dependent_services:
             result = self.tester.run_docker_compose(f"up -d {service}")
@@ -167,7 +166,6 @@ class TestDockerComposeOrchestration:
         connectivity_tests = [
             ("influxdb", 8086, "/health"),
             ("websocket-ingestion", 8001, "/health"),
-            ("enrichment-pipeline", 8002, "/health"),
             ("admin-api", 8003, "/api/v1/health"),
             ("data-retention", 8080, "/health"),
             ("health-dashboard", 3000, "/"),

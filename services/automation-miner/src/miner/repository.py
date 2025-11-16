@@ -6,7 +6,7 @@ Uses SQLAlchemy async session management (Context7 pattern).
 """
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,7 +66,7 @@ class CorpusRepository:
             existing.quality_score = metadata.quality_score
             existing.vote_count = metadata.vote_count
             existing.updated_at = metadata.updated_at
-            existing.last_crawled = datetime.utcnow()
+            existing.last_crawled = datetime.now(timezone.utc)
             existing.extra_metadata = metadata.metadata
             
             logger.debug(f"Updated automation: {existing.id} - {metadata.title}")
@@ -88,7 +88,7 @@ class CorpusRepository:
                 vote_count=metadata.vote_count,
                 created_at=metadata.created_at,
                 updated_at=metadata.updated_at,
-                last_crawled=datetime.utcnow(),
+                last_crawled=datetime.now(timezone.utc),
                 extra_metadata=metadata.metadata
             )
             self.session.add(existing)
@@ -335,9 +335,9 @@ class CorpusRepository:
         
         if state:
             state.value = value
-            state.updated_at = datetime.utcnow()
+            state.updated_at = datetime.now(timezone.utc)
         else:
-            state = MinerState(key=key, value=value, updated_at=datetime.utcnow())
+            state = MinerState(key=key, value=value, updated_at=datetime.now(timezone.utc))
             self.session.add(state)
         
         await self.session.commit()
@@ -375,6 +375,52 @@ class CorpusRepository:
         """
         existing = await self.get_by_source_id(metadata.source, metadata.source_id)
         return existing is not None
+    
+    async def prune_low_quality(
+        self,
+        quality_threshold: float,
+        age_days: int
+    ) -> int:
+        """
+        Prune low-quality automations that are old
+        
+        Removes automations that:
+        - Have quality_score < quality_threshold
+        - Are older than age_days
+        
+        Args:
+            quality_threshold: Minimum quality score to keep
+            age_days: Minimum age in days for pruning (only prune old low-quality items)
+        
+        Returns:
+            Number of automations pruned
+        """
+        from datetime import timedelta
+        
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=age_days)
+        
+        # Find automations to prune
+        stmt = select(CommunityAutomation).where(
+            and_(
+                CommunityAutomation.quality_score < quality_threshold,
+                CommunityAutomation.created_at < cutoff_date
+            )
+        )
+        
+        result = await self.session.execute(stmt)
+        to_prune = result.scalars().all()
+        
+        # Delete them
+        pruned_count = 0
+        for automation in to_prune:
+            await self.session.delete(automation)
+            pruned_count += 1
+        
+        if pruned_count > 0:
+            await self.session.commit()
+            logger.info(f"Pruned {pruned_count} low-quality automations (quality < {quality_threshold}, age > {age_days} days)")
+        
+        return pruned_count
     
     def _to_dict(self, automation: CommunityAutomation) -> Dict[str, Any]:
         """Convert CommunityAutomation to dictionary"""

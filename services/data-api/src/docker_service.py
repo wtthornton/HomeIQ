@@ -77,7 +77,6 @@ class DockerService:
         # Container name mapping - maps service names to Docker container names
         self.container_mapping = {
             'websocket-ingestion': 'homeiq-websocket',
-            'enrichment-pipeline': 'homeiq-enrichment', 
             'admin-api': 'homeiq-admin',
             'health-dashboard': 'homeiq-dashboard',
             'influxdb': 'homeiq-influxdb',
@@ -409,9 +408,9 @@ class DockerService:
         # Create mock data for all known services
         for service_name, container_name in self.container_mapping.items():
             # Mock different statuses for variety
-            if service_name in ['influxdb', 'websocket-ingestion', 'enrichment-pipeline']:
+            if service_name in ['influxdb', 'websocket-ingestion']:
                 status = ContainerStatus.RUNNING
-                ports = {'8086/tcp': '8086'} if service_name == 'influxdb' else {'8001/tcp': '8001'} if service_name == 'websocket-ingestion' else {'8002/tcp': '8002'}
+                ports = {'8086/tcp': '8086'} if service_name == 'influxdb' else {'8001/tcp': '8001'}
             elif service_name in ['weather-api', 'carbon-intensity-service']:
                 status = ContainerStatus.STOPPED
                 ports = {}

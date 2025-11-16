@@ -4,10 +4,12 @@ Database Models and Session Management
 SQLAlchemy async models for automation corpus storage.
 """
 import json
-from datetime import datetime
+import os
+from pathlib import Path
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Index, JSON
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Index, JSON, UniqueConstraint
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 
@@ -30,7 +32,12 @@ class CommunityAutomation(Base):
     
     # Source tracking
     source = Column(String(20), nullable=False, index=True)  # 'discourse' or 'github'
-    source_id = Column(String(200), nullable=False, unique=True)  # Unique post/repo ID
+    source_id = Column(String(200), nullable=False)  # Post/repo ID (unique per source)
+    
+    # Composite unique constraint: source + source_id must be unique together
+    __table_args__ = (
+        UniqueConstraint('source', 'source_id', name='uq_source_source_id'),
+    )
     
     # Core fields
     title = Column(String(200), nullable=False)
@@ -54,7 +61,7 @@ class CommunityAutomation(Base):
     # Timestamps
     created_at = Column(DateTime, nullable=False)  # Original creation
     updated_at = Column(DateTime, nullable=False)  # Last update
-    last_crawled = Column(DateTime, nullable=False, default=datetime.utcnow)  # Last crawl
+    last_crawled = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))  # Last crawl
     
     # Additional metadata (JSON) - renamed to avoid SQLAlchemy reserved name
     extra_metadata = Column(JSON, nullable=True)
@@ -80,7 +87,7 @@ class MinerState(Base):
     
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     
     def __repr__(self):
         return f"<MinerState(key='{self.key}', value='{self.value}')>"
@@ -98,6 +105,21 @@ class Database:
             db_path: Path to SQLite database file (default from settings)
         """
         self.db_path = db_path or settings.miner_db_path
+        
+        # Validate and create database directory if needed
+        db_file = Path(self.db_path)
+        db_dir = db_file.parent
+        
+        # Create directory if it doesn't exist
+        if not db_dir.exists():
+            try:
+                db_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise RuntimeError(f"Failed to create database directory {db_dir}: {e}")
+        
+        # Check if directory is writable
+        if not os.access(db_dir, os.W_OK):
+            raise RuntimeError(f"Database directory is not writable: {db_dir}")
         
         # Create async engine
         self.engine = create_async_engine(
