@@ -36,7 +36,7 @@ describe('AdminApiClient service health utilities', () => {
 
     const response = await apiService.getServicesHealth();
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8003/api/v1/health/services', undefined);
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/health/services', undefined);
     expect(response).toEqual(mockServicesHealth);
   });
 

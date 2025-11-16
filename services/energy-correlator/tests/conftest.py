@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 def mock_influxdb_client():
     """Mock InfluxDB client for testing"""
     client = MagicMock()
-    client.query = MagicMock(return_value=[])
-    client.write_point = MagicMock()
+    client.query = AsyncMock(return_value=[])
+    client.write_points = AsyncMock()
     client.connect = MagicMock()
     client.close = MagicMock()
 
@@ -114,7 +114,7 @@ def sample_small_power_change() -> Dict:
 
 
 @pytest.fixture
-async def correlator_instance(mock_influxdb_client):
+def correlator_instance(mock_influxdb_client):
     """Create correlator instance with mocked dependencies"""
     from src.correlator import EnergyEventCorrelator
 

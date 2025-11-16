@@ -8,12 +8,11 @@ This directory contains 13 individual issue files for test coverage improvements
 
 ### Priority Breakdown
 
-**🔴 P0 - Critical (5 issues, 30-42 hours):**
+**🔴 P0 - Critical (4 issues, 24-34 hours):**
 1. `01-ai-automation-ui-tests.md` - AI Automation UI test suite (0% coverage)
-2. `02-openvino-ml-tests.md` - OpenVINO Service ML validation (29% coverage)
-3. `03-ml-service-algorithm-tests.md` - ML Service algorithms (52% coverage)
-4. `04-ai-core-orchestration-tests.md` - AI Core orchestration logic
-5. `05-ai-code-executor-security-tests.md` - 🚨 CRITICAL security tests
+2. `03-ml-service-algorithm-tests.md` - ML Service algorithms (52% coverage)
+3. `04-ai-core-orchestration-tests.md` - AI Core orchestration logic
+4. `05-ai-code-executor-security-tests.md` - 🚨 CRITICAL security tests
 
 **🟡 P1 - High (4 issues, 20-30 hours):**
 6. `06-integration-tests-testcontainers.md` - Integration tests with real dependencies
@@ -111,6 +110,7 @@ When an issue is completed:
 1. Update the status in the individual file: `**Status:** ✅ Completed`
 2. Add completion date and PR reference
 3. Update this README with actual effort vs estimated
+4. Move the issue file to `issues/closed/` (e.g., `010-openvino-ml-tests.md`) so agents can focus on the remaining open backlog
 
 When tracking progress:
 

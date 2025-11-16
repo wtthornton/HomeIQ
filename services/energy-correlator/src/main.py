@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Optional
 from aiohttp import web
 from dotenv import load_dotenv
 
@@ -37,13 +38,25 @@ class EnergyCorrelatorService:
         # Service configuration
         self.processing_interval = int(os.getenv('PROCESSING_INTERVAL', '60'))  # 1 minute
         self.lookback_minutes = int(os.getenv('LOOKBACK_MINUTES', '5'))  # Process last 5 minutes
+        self.max_events_per_interval = int(os.getenv('MAX_EVENTS_PER_INTERVAL', '500'))
+        self.max_retry_queue_size = int(os.getenv('MAX_RETRY_QUEUE_SIZE', '250'))
+        self.retry_window_minutes = int(os.getenv('RETRY_WINDOW_MINUTES', str(self.lookback_minutes)))
+        self.correlation_window_seconds = int(os.getenv('CORRELATION_WINDOW_SECONDS', '10'))
+        self.power_lookup_padding_seconds = int(os.getenv('POWER_LOOKUP_PADDING_SECONDS', '30'))
+        self.min_power_delta = float(os.getenv('MIN_POWER_DELTA', '10.0'))
         
         # Components
         self.correlator = EnergyEventCorrelator(
             self.influxdb_url,
             self.influxdb_token,
             self.influxdb_org,
-            self.influxdb_bucket
+            self.influxdb_bucket,
+            correlation_window_seconds=self.correlation_window_seconds,
+            min_power_delta=self.min_power_delta,
+            max_events_per_interval=self.max_events_per_interval,
+            power_lookup_padding_seconds=self.power_lookup_padding_seconds,
+            max_retry_queue_size=self.max_retry_queue_size,
+            retry_window_minutes=self.retry_window_minutes
         )
         
         self.health_handler = HealthCheckHandler()
@@ -151,6 +164,10 @@ async def main():
     """Main entry point"""
     logger.info("Starting Energy Correlator Service...")
     
+    service: Optional[EnergyCorrelatorService] = None
+    runner: Optional[web.AppRunner] = None
+    site: Optional[web.TCPSite] = None
+    
     try:
         # Create service
         service = EnergyCorrelatorService()
@@ -181,11 +198,14 @@ async def main():
             service="energy-correlator",
             error=str(e)
         )
+        raise
     finally:
-        if 'service' in locals():
-            await service.shutdown()
-        if 'runner' in locals():
+        if site:
+            await site.stop()
+        if runner:
             await runner.cleanup()
+        if service:
+            await service.shutdown()
 
 
 if __name__ == "__main__":

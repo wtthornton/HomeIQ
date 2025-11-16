@@ -621,7 +621,7 @@ def mock_influxdb_client():
 
     client = MagicMock()
     client.query = AsyncMock()
-    client.write_point = MagicMock()
+    client.write_points = MagicMock()
     client.connect = MagicMock()
     client.close = MagicMock()
 
