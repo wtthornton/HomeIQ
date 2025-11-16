@@ -5,7 +5,40 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-16 (from cursor/address-energy-correlator-critical-issues-4a5c)
+## [Unreleased] - 2025-11-16 (from cursor/address-openvino-ml-tests-and-update-documentation-2998)
+
+### Added
+
+- **Add comprehensive OpenVINO ML tests** (f99d1c9) - Cursor Agent
+- **Implement API key authentication and admin roles** (80516eb) - Cursor Agent
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (edf63cc) - Claude
+- **feat(tooling): add Python script for creating GitHub issues via API** (d629dc3) - Claude
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (ebc2abb) - Claude
+- **feat(mcp): enable AI Code Executor service for 90%+ token savings** (2016504) - Claude
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (8060f10) - Claude
+- **feat(ai-automation-ui): comprehensive production-ready updates** (5bd1915) - Claude
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (590985e) - Claude
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+
+### Changed
+
+- **Address critical performance and reliability issues** (fc68762) - Cursor Agent
+- **Harden AI code executor security and configuration** (51c8559) - Cursor Agent
+- **Address OpenVINO critical issues and improve stability** (c288a21) - Cursor Agent
+- **Address critical weather-api issues and update docs** (d6bcf15) - Cursor Agent
+- **Harden OpenVINO service with critical fixes** (8b9285f) - Cursor Agent
+- **Address ML service critical issues and improve security** (4ae0954) - Cursor Agent
+- **Harden admin-api security and auth** (d97e06c) - Cursor Agent
+- **Update NER service port and enhance AI Core security** (a8bcc65) - Cursor Agent
+- **Improve security and resource management in data-api** (d83c68f) - Cursor Agent
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+
+### Fixed
+
+- **Fix critical issues and improve reliability** (3d6b31b) - Cursor Agent
+- **fix(gitignore): properly format Phase 3 test artifact entries** (574006a) - Claude
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+
 
 ### Added
 
