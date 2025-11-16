@@ -42,7 +42,6 @@ class MetricsEndpoints:
         self.metrics_collector = metrics_collector or get_metrics_collector("admin-api")
         self.service_urls = {
             "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://localhost:8001"),
-            "enrichment-pipeline": os.getenv("ENRICHMENT_PIPELINE_URL", "http://localhost:8002"),
             "data-retention": os.getenv("DATA_RETENTION_URL", "http://localhost:8080"),
             "log-aggregator": os.getenv("LOG_AGGREGATOR_URL", "http://localhost:8015"),
         }

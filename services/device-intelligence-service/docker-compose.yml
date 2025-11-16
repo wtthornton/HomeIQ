@@ -2,7 +2,7 @@ services:
   device-intelligence-service:
     build: .
     ports:
-      - "8021:8019"
+      - "8028:8019"
     env_file:
       - ../../.env
     environment:

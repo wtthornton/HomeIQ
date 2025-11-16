@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     min_quality_score: float = 0.4
     target_avg_quality: float = 0.7
     dedup_similarity_threshold: float = 0.85
+    pruning_quality_threshold: float = 0.3  # Automations below this will be pruned
+    pruning_age_days: int = 365  # Automations older than this with low quality will be pruned
     
     # Logging
     log_level: str = "INFO"

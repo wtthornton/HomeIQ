@@ -126,10 +126,12 @@ class WeeklyRefreshJob:
                     # Step 4: Prune low-quality entries
                     logger.info(f"[{correlation_id}] Step 3: Pruning low-quality entries...")
                     
-                    # This would require additional repository methods
-                    # For now, log placeholder
-                    logger.info(f"[{correlation_id}]   Pruning: Not implemented yet")
-                    pruned_count = 0
+                    pruned_count = await repo.prune_low_quality(
+                        quality_threshold=settings.pruning_quality_threshold,
+                        age_days=settings.pruning_age_days
+                    )
+                    
+                    logger.info(f"[{correlation_id}]   Pruned: {pruned_count} low-quality automations")
                     
                     # Step 5: Update last crawl timestamp (use timezone-aware)
                     await repo.set_last_crawl_timestamp(datetime.now(timezone.utc))

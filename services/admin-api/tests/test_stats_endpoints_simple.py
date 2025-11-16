@@ -32,10 +32,6 @@ def test_calculate_alerts_no_errors():
         "websocket-ingestion": {
             "success_rate": 100,
             "processing_time_ms": 50
-        },
-        "enrichment-pipeline": {
-            "success_rate": 100,
-            "processing_time_ms": 75
         }
     }
     

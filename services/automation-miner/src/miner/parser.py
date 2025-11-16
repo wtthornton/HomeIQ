@@ -13,7 +13,7 @@ import re
 import yaml
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .models import ParsedAutomation, AutomationMetadata
 
@@ -524,10 +524,16 @@ class AutomationParser:
         
         # Calculate quality score
         votes = post_data.get('likes', 0)
-        created_at = datetime.fromisoformat(
-            post_data.get('created_at', datetime.utcnow().isoformat()).replace('Z', '+00:00')
-        )
-        age_days = (datetime.now(created_at.tzinfo) - created_at).days
+        created_at_str = post_data.get('created_at', datetime.now(timezone.utc).isoformat())
+        if created_at_str.endswith('Z'):
+            created_at_str = created_at_str.replace('Z', '+00:00')
+        created_at = datetime.fromisoformat(created_at_str)
+        
+        # Ensure timezone-aware
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        
+        age_days = (datetime.now(timezone.utc) - created_at).days
         
         quality_score = self.calculate_quality_score(
             votes=votes,

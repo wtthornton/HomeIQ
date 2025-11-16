@@ -23,6 +23,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Global state for initialization tracking
+_initialization_in_progress = False
+_initialization_complete = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,8 +62,11 @@ async def lifespan(app: FastAPI):
                     reason = "empty corpus"
                     logger.info("🔍 Corpus is empty - will run initial population on startup")
                 elif last_crawl:
-                    from datetime import datetime, timedelta
-                    days_since = (datetime.utcnow() - last_crawl).days
+                    from datetime import datetime, timedelta, timezone
+                    # Ensure timezone-aware comparison
+                    if last_crawl.tzinfo is None:
+                        last_crawl = last_crawl.replace(tzinfo=timezone.utc)
+                    days_since = (datetime.now(timezone.utc) - last_crawl).days
                     if days_since > 7:
                         should_initialize = True
                         reason = f"stale corpus ({days_since} days old)"
@@ -71,6 +78,9 @@ async def lifespan(app: FastAPI):
                 
                 # Run initialization if needed
                 if should_initialize:
+                    global _initialization_in_progress
+                    _initialization_in_progress = True
+                    
                     logger.info(f"🚀 Starting corpus initialization ({reason})...")
                     logger.info("   This will run in background during API startup")
                     
@@ -79,10 +89,23 @@ async def lifespan(app: FastAPI):
                     
                     # Import asyncio to run in background
                     import asyncio
-                    asyncio.create_task(job.run())
+                    
+                    async def run_init_and_track():
+                        global _initialization_in_progress, _initialization_complete
+                        try:
+                            await job.run()
+                            _initialization_complete = True
+                        except Exception as e:
+                            logger.error(f"Initialization failed: {e}", exc_info=True)
+                        finally:
+                            _initialization_in_progress = False
+                    
+                    asyncio.create_task(run_init_and_track())
                     
                     logger.info("✅ Corpus initialization started in background")
                 else:
+                    global _initialization_complete
+                    _initialization_complete = True
                     logger.info(f"✅ Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})")
         
         except Exception as e:
@@ -165,10 +188,17 @@ async def health_check():
             stats = await repo.get_stats()
             last_crawl = await repo.get_last_crawl_timestamp()
             
+            # Check initialization status
+            init_status = "complete" if _initialization_complete else ("in_progress" if _initialization_in_progress else "not_started")
+            
             return {
                 "status": "healthy",
                 "service": "automation-miner",
                 "version": "0.1.0",
+                "initialization": {
+                    "status": init_status,
+                    "in_progress": _initialization_in_progress
+                },
                 "corpus": {
                     "total_automations": stats['total'],
                     "avg_quality": stats['avg_quality'],

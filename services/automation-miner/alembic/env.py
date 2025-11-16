@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.miner.models import Base
+from src.miner.database import Base
 
 # this is the Alembic Config object
 config = context.config

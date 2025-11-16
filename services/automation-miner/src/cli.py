@@ -6,7 +6,7 @@ Provides manual crawl triggers and management commands.
 import asyncio
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import click
@@ -14,7 +14,6 @@ import click
 from .config import settings
 from .miner.discourse_client import DiscourseClient
 from .miner.parser import AutomationParser
-from .miner.deduplicator import Deduplicator
 from .miner.database import get_database
 from .miner.repository import CorpusRepository
 
@@ -51,7 +50,6 @@ async def run_initial_crawl(
     await db.create_tables()
     
     parser = AutomationParser()
-    dedup = Deduplicator()
     
     # Statistics
     stats = {
@@ -65,10 +63,6 @@ async def run_initial_crawl(
     async with DiscourseClient() as client:
         async with db.get_session() as db_session:
             repo = CorpusRepository(db_session)
-            
-            # Get existing automations for deduplication
-            existing = await repo.get_all() if not dry_run else []
-            existing_metadata = []  # Would need to convert to AutomationMetadata
             
             # Fetch blueprints in batches
             page = 0
@@ -167,7 +161,7 @@ async def run_initial_crawl(
             
             # Update last crawl timestamp
             if not dry_run:
-                await repo.set_last_crawl_timestamp(datetime.utcnow())
+                await repo.set_last_crawl_timestamp(datetime.now(timezone.utc))
             
             # Final stats
             logger.info(f"[{correlation_id}] ✅ Initial crawl complete!")

@@ -27,6 +27,10 @@ COPY --from=builder /root/.local /root/.local
 # Copy application source
 COPY src/ /app/src/
 
+# Copy models directory (create directory first, then copy if exists)
+RUN mkdir -p /app/models
+COPY models/ /app/models/ 2>/dev/null || echo "Models directory not found, skipping"
+
 # Set working directory
 WORKDIR /app
 
@@ -38,7 +42,7 @@ EXPOSE 8019
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8019/api/health || exit 1
+    CMD curl -f http://localhost:8019/health/ || exit 1
 
 # Run the application
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8019"]

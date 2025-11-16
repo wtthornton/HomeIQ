@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column('last_crawled', sa.DateTime(), nullable=False),
         sa.Column('extra_metadata', sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('source_id')
+        sa.UniqueConstraint('source', 'source_id', name='uq_source_source_id')
     )
     
     # Create indexes
