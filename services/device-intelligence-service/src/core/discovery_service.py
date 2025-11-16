@@ -64,6 +64,7 @@ class DiscoveryService:
         self.ha_devices: List[HADevice] = []
         self.ha_entities: List[HAEntity] = []
         self.ha_areas: List[HAArea] = []
+        self.ha_config_entries: Dict[str, str] = {}  # Maps config_entry_id -> domain/integration
         self.zigbee_devices: Dict[str, ZigbeeDevice] = {}
         self.zigbee_groups: Dict[int, ZigbeeGroup] = {}
     
@@ -168,9 +169,10 @@ class DiscoveryService:
             # Parse and unify device data
             await self._unify_device_data()
             await self._run_hygiene_analysis()
-            
+
+            # Update last discovery timestamp
             self.last_discovery = datetime.now(timezone.utc)
-            logger.info(f"✅ Discovery completed: {len(self.unified_devices)} devices")
+            logger.info(f"✅ Discovery completed at {self.last_discovery.isoformat()}: {len(self.unified_devices)} devices")
             
         except Exception as e:
             logger.error(f"❌ Error during discovery: {e}")
@@ -191,21 +193,25 @@ class DiscoveryService:
         """Discover devices, entities, and areas from Home Assistant."""
         try:
             logger.info("🏠 Discovering Home Assistant data")
-            
+
+            # Get config entries first (needed to resolve integrations)
+            self.ha_config_entries = await self.ha_client.get_config_entries()
+
             # Get device registry
             self.ha_devices = await self.ha_client.get_device_registry()
-            
+
             # Get entity registry
             self.ha_entities = await self.ha_client.get_entity_registry()
-            
+
             # Get area registry
             self.ha_areas = await self.ha_client.get_area_registry()
-            
-            # Update parser with areas
+
+            # Update parser with areas and config entries
             self.device_parser.update_areas(self.ha_areas)
-            
-            logger.info(f"📱 HA Discovery: {len(self.ha_devices)} devices, {len(self.ha_entities)} entities, {len(self.ha_areas)} areas")
-            
+            self.device_parser.update_config_entries(self.ha_config_entries)
+
+            logger.info(f"📱 HA Discovery: {len(self.ha_devices)} devices, {len(self.ha_entities)} entities, {len(self.ha_areas)} areas, {len(self.ha_config_entries)} config entries")
+
         except Exception as e:
             logger.error(f"❌ Error discovering Home Assistant data: {e}")
             raise
@@ -338,22 +344,42 @@ class DiscoveryService:
                     "health_score": device.health_score,
                     "is_battery_powered": device.power_source == "Battery" if device.power_source else False,
                     "created_at": device.created_at,
-                    "updated_at": device.updated_at
+                    "updated_at": device.updated_at,
+                    # Initialize all optional fields with None to ensure consistency
+                    "config_entry_id": None,
+                    "connections_json": None,
+                    "identifiers_json": None,
+                    "zigbee_ieee": None,
+                    "name_by_user": None,
+                    "suggested_area": None,
+                    "entry_type": None,
+                    "configuration_url": None
                 }
-                
-                # Add additional fields if available
+
+                # Override with actual values if available
                 if device.ha_device:
                     if device.ha_device.config_entries:
                         device_data["config_entry_id"] = device.ha_device.config_entries[0] if device.ha_device.config_entries else None
-                    if device.ha_device.connections:
-                        device_data["connections_json"] = json.dumps(device.ha_device.connections)
+                    # SKIP JSON fields for now due to SQLAlchemy insert issues
+                    # if device.ha_device.connections:
+                    #     device_data["connections_json"] = json.dumps(device.ha_device.connections)
+                    # if device.ha_device.identifiers:
+                    #     device_data["identifiers_json"] = json.dumps(device.ha_device.identifiers)
+                    # Extract zigbee IEEE address if present
                     if device.ha_device.identifiers:
-                        device_data["identifiers_json"] = json.dumps(device.ha_device.identifiers)
+                        for identifier in device.ha_device.identifiers:
+                            if len(identifier) >= 2 and identifier[0] == "zha":
+                                device_data["zigbee_ieee"] = identifier[1]
+                                break
                     # Add new HA device attributes
                     device_data["name_by_user"] = device.ha_device.name_by_user
                     device_data["suggested_area"] = device.ha_device.suggested_area
                     device_data["entry_type"] = device.ha_device.entry_type
                     device_data["configuration_url"] = device.ha_device.configuration_url
+
+                # Remove the JSON fields that were initialized to None to avoid SQLAlchemy issues
+                device_data.pop("connections_json", None)
+                device_data.pop("identifiers_json", None)
                 
                 devices_data.append(device_data)
                 

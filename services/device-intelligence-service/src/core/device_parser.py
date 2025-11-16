@@ -67,15 +67,21 @@ class UnifiedDevice:
 
 class DeviceParser:
     """Parser for normalizing device data from multiple sources."""
-    
+
     def __init__(self):
         self.devices: Dict[str, UnifiedDevice] = {}
         self.areas: Dict[str, HAArea] = {}
-    
+        self.config_entries: Dict[str, str] = {}  # Maps config_entry_id -> domain/integration
+
     def update_areas(self, areas: List[HAArea]):
         """Update area registry for device normalization."""
         self.areas = {area.area_id: area for area in areas}
         logger.info(f"📋 Updated area registry with {len(self.areas)} areas")
+
+    def update_config_entries(self, config_entries: Dict[str, str]):
+        """Update config entries mapping for integration resolution."""
+        self.config_entries = config_entries
+        logger.info(f"🔧 Updated config entries mapping with {len(self.config_entries)} entries")
     
     def parse_devices(
         self,
@@ -138,10 +144,13 @@ class DeviceParser:
         area_name = None
         if ha_device.area_id and ha_device.area_id in self.areas:
             area_name = self.areas[ha_device.area_id].name
-        
+
+        # Resolve integration from config entries
+        integration = self._resolve_integration(ha_device)
+
         # Extract device class
         device_class = self._extract_device_class(device_entities)
-        
+
         # Create unified device
         unified_device = UnifiedDevice(
             id=ha_device.id,
@@ -150,7 +159,7 @@ class DeviceParser:
             model=ha_device.model or zigbee_device.model if zigbee_device else "Unknown",
             area_id=ha_device.area_id,
             area_name=area_name,
-            integration=ha_device.integration,
+            integration=integration,
             device_class=device_class,
             sw_version=ha_device.sw_version or zigbee_device.software_build_id if zigbee_device else None,
             hw_version=ha_device.hw_version or zigbee_device.hardware_version if zigbee_device else None,
@@ -236,13 +245,42 @@ class DeviceParser:
         ha_devices: List[HADevice]
     ) -> bool:
         """Check if Zigbee device is already represented in HA."""
-        
+
         for ha_device in ha_devices:
             for identifier in ha_device.identifiers:
                 if len(identifier) >= 2 and identifier[0] == "ieee_address" and identifier[1] == zigbee_device.ieee_address:
                     return True
-        
+
         return False
+
+    def _resolve_integration(self, ha_device: HADevice) -> str:
+        """
+        Resolve integration name from device's config entries.
+
+        Args:
+            ha_device: Home Assistant device
+
+        Returns:
+            Integration domain name, or "unknown" if not found
+        """
+        # If device has config_entries, look up the integration from the first one
+        if ha_device.config_entries and len(ha_device.config_entries) > 0:
+            config_entry_id = ha_device.config_entries[0]
+            integration = self.config_entries.get(config_entry_id)
+            if integration:
+                return integration
+
+        # Fallback: try to extract from identifiers
+        for identifier in ha_device.identifiers:
+            if len(identifier) >= 2:
+                # First element is often the integration domain
+                potential_integration = identifier[0]
+                # Filter out non-integration identifiers
+                if potential_integration not in ["ieee_address", "mac", "serial"]:
+                    return potential_integration
+
+        # Last fallback
+        return "unknown"
     
     def _parse_zigbee_capabilities(self, exposes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parse Zigbee2MQTT exposes into capability format."""

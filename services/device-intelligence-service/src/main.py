@@ -155,7 +155,7 @@ async def root() -> Dict[str, Any]:
         "status": "operational",
         "port": settings.DEVICE_INTELLIGENCE_PORT,
         "docs": "/docs",
-        "health": "/api/health"
+        "health": "/health/"
     }
 
 if __name__ == "__main__":

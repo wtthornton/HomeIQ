@@ -97,9 +97,9 @@ async def get_all_health_scores(
                 if min_score <= health_score["overall_score"] <= max_score:
                     if health_status is None or health_score["health_status"] == health_status:
                         health_scores.append(health_score)
-                        
+
             except Exception as e:
-                logger.error(f"Error calculating health score for device {device_id}: {e}")
+                logger.error(f"Error calculating health score for device {device.id}: {e}")
                 continue
         
         # Get summary statistics
