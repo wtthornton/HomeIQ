@@ -1,9 +1,8 @@
 """
-MCP (Model Context Protocol) integration.
-Filesystem-based tool discovery and execution.
+MCP (Model Context Protocol) integration helpers.
+Network tool registration is disabled by default for security.
 """
 
-from .filesystem_generator import MCPFilesystemGenerator
 from .homeiq_tools import HomeIQMCPTools
 
-__all__ = ['MCPFilesystemGenerator', 'HomeIQMCPTools']
+__all__ = ['HomeIQMCPTools']
