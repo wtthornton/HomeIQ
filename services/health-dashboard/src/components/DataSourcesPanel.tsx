@@ -39,7 +39,7 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        const res = await fetch('http://localhost:8009/current-weather');
+        const res = await fetch('/weather/current-weather');
         if (res.ok) {
           setCurrentWeather(await res.json());
         }

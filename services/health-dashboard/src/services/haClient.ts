@@ -6,8 +6,7 @@
  */
 
 interface HAConfig {
-  baseUrl: string;
-  token: string;
+  baseUrl?: string;
 }
 
 interface HASensor {
@@ -20,21 +19,16 @@ interface HASensor {
 
 export class HAClient {
   private baseUrl: string;
-  private token: string;
 
   constructor(config?: HAConfig) {
-    // Get from environment variables or config
-    this.baseUrl = config?.baseUrl || import.meta.env.VITE_HA_URL || 'http://192.168.1.86:8123';
-    this.token = config?.token || import.meta.env.VITE_HA_TOKEN || '';
+    this.baseUrl = config?.baseUrl || '/api/v1/ha-proxy';
   }
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
@@ -47,18 +41,22 @@ export class HAClient {
     return response.json();
   }
 
+  private async fetchStates(query: string = ''): Promise<HASensor[]> {
+    return this.request<HASensor[]>(`/states${query}`);
+  }
+
   /**
    * Get all states from Home Assistant
    */
   async getAllStates(): Promise<HASensor[]> {
-    return this.request<HASensor[]>('/api/states');
+    return this.fetchStates();
   }
 
   /**
    * Get specific sensor state
    */
   async getSensorState(entityId: string): Promise<HASensor> {
-    return this.request<HASensor>(`/api/states/${entityId}`);
+    return this.request<HASensor>(`/states/${encodeURIComponent(entityId)}`);
   }
 
   /**
@@ -66,10 +64,10 @@ export class HAClient {
    * Useful for filtering Team Tracker or NHL sensors
    */
   async getSensorsByPattern(pattern: string): Promise<HASensor[]> {
-    const allStates = await this.getAllStates();
+    const states = await this.getAllStates();
     const regex = new RegExp(pattern);
     
-    return allStates.filter(sensor => regex.test(sensor.entity_id));
+    return states.filter(sensor => regex.test(sensor.entity_id));
   }
 
   /**
@@ -77,7 +75,7 @@ export class HAClient {
    * Filters for sensors with entity_id starting with "sensor.team_tracker_"
    */
   async getTeamTrackerSensors(): Promise<HASensor[]> {
-    return this.getSensorsByPattern('^sensor\\.team_tracker_');
+    return this.fetchStates('?entity_prefix=sensor.team_tracker_');
   }
 
   /**

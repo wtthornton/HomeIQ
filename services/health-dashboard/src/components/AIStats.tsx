@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { aiApi } from '../services/api';
 
 // Export interfaces for reuse
 export interface CallPatterns {
@@ -29,12 +30,8 @@ export interface AIStatsData {
 
 // Export fetch function for reuse
 export const fetchAIStats = async (): Promise<AIStatsData> => {
-  const response = await fetch('http://localhost:8018/stats');
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
+  return aiApi.getStats();
+};
 
 export const AIStats = () => {
   const [stats, setStats] = useState<AIStatsData | null>(null);
@@ -42,25 +39,22 @@ export const AIStats = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const loadStats = async () => {
       try {
-        const response = await fetch('http://localhost:8018/stats');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const data = await fetchAIStats();
         setStats(data);
-        setLoading(false);
+        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load stats');
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    loadStats();
     
     // Refresh stats every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
+    const interval = setInterval(loadStats, 30000);
     return () => clearInterval(interval);
   }, []);
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { withCsrfHeader } from '../utils/security';
 
 interface ServiceStatus {
   service: string;
@@ -33,14 +34,15 @@ export const ServiceControl: React.FC = () => {
     }
   };
 
-  const restartService = async (service: string) => {
+    const restartService = async (service: string) => {
     if (!confirm(`Restart ${service}?`)) return;
     
     setRestarting({ ...restarting, [service]: true });
     try {
-      const response = await fetch(`/api/v1/services/${service}/restart`, {
-        method: 'POST'
-      });
+        const response = await fetch(`/api/v1/services/${service}/restart`, {
+          method: 'POST',
+          headers: withCsrfHeader()
+        });
       
       if (!response.ok) throw new Error('Failed to restart service');
       
@@ -52,14 +54,15 @@ export const ServiceControl: React.FC = () => {
     }
   };
 
-  const restartAll = async () => {
+    const restartAll = async () => {
     if (!confirm('Restart all services? This may take a few minutes.')) return;
     
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/services/restart-all', {
-        method: 'POST'
-      });
+        const response = await fetch('/api/v1/services/restart-all', {
+          method: 'POST',
+          headers: withCsrfHeader()
+        });
       
       if (!response.ok) throw new Error('Failed to restart services');
       

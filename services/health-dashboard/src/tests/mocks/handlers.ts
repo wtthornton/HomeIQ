@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 // Mock API response handlers for testing
 export const handlers = [
   // Health endpoint (used by useHealth hook)
-  http.get('http://localhost:8003/api/health', () => {
+  http.get('http://localhost/api/health', () => {
     return HttpResponse.json({
       overall_status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ export const handlers = [
   }),
 
   // Enhanced health endpoint
-  http.get('http://localhost:8003/api/v1/health', () => {
+  http.get('http://localhost/api/v1/health', () => {
     return HttpResponse.json({
       overall_status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -57,7 +57,7 @@ export const handlers = [
   }),
 
   // Statistics endpoint (used by useStatistics hook)
-  http.get('http://localhost:8003/api/v1/stats', () => {
+  http.get('http://localhost/api/v1/stats', () => {
     return HttpResponse.json({
       total_events: 12345,
       events_per_minute: 42,

@@ -35,7 +35,7 @@ describe('useHealth Hook', () => {
   it('shows error message when health API returns 500 error', async () => {
     // Mock API to return 500 error
     server.use(
-      http.get('http://localhost:8003/api/health', () => {
+      http.get('http://localhost/api/health', () => {
         return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
       })
     );
@@ -56,7 +56,7 @@ describe('useHealth Hook', () => {
   it('shows error message when network connection fails', async () => {
     // Mock network failure
     server.use(
-      http.get('http://localhost:8003/api/health', () => {
+      http.get('http://localhost/api/health', () => {
         return HttpResponse.error();
       })
     );
@@ -88,7 +88,7 @@ describe('useHealth Hook', () => {
 
     // Mock a different response for the next fetch
     server.use(
-      http.get('http://localhost:8003/api/health', () => {
+      http.get('http://localhost/api/health', () => {
         return HttpResponse.json({
           overall_status: 'degraded',
           timestamp: new Date().toISOString(),

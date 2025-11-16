@@ -3,7 +3,7 @@
  * Centralized exports for all dashboard tab components
  * 
  * Note: AI Automation functionality has been moved to the dedicated
- * AI Automation UI at http://localhost:3001
+ * AI Automation UI is served separately (configure via VITE_AI_AUTOMATION_UI_URL)
  */
 
 export * from './types';
