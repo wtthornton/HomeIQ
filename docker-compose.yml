@@ -72,6 +72,7 @@ services:
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
       - LOG_OUTPUT=both
+      - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
       # WebSocket Retry Configuration
       - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}  # -1 = infinite retry (recommended)
       - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}  # Max 5 minutes between retries
@@ -132,6 +133,7 @@ services:
       - LOG_FORMAT=json
       - API_HOST=0.0.0.0
       - API_PORT=8004
+      - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
       - ENABLE_AUTH=false
       - DOCKER_HOST=unix:///var/run/docker.sock
       - WEATHER_API_KEY=${WEATHER_API_KEY:-}
@@ -197,8 +199,8 @@ services:
       - SQLITE_TIMEOUT=30
       - SQLITE_CACHE_SIZE=-64000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENABLE_AUTH=false
-      - API_KEY=${API_KEY:-}
+      - ENABLE_AUTH=true
+      - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
       - CORS_ORIGINS=http://localhost:3000,http://localhost
     volumes:
       - sqlite-data:/app/data
@@ -860,6 +862,7 @@ services:
       - infrastructure/env.ai-automation
     environment:
       - DATA_API_URL=http://data-api:8006
+      - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
       - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
@@ -1036,6 +1039,7 @@ services:
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
       - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
       - DATA_API_URL=http://homeiq-data-api:8006
+      - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
       - ADMIN_API_URL=http://homeiq-admin-api:8003
       - HEALTH_CHECK_INTERVAL=60
       - INTEGRATION_CHECK_INTERVAL=300
