@@ -1,6 +1,6 @@
 # AI Core Service
 
-**Port:** 8021
+**Port:** 8018
 **Purpose:** Orchestrator for containerized AI models
 **Status:** Production Ready
 
@@ -22,7 +22,7 @@ The AI Core Service orchestrates the following containerized AI services:
 
 1. **OpenVINO Service** (Port 8019) - Optimized model inference
 2. **ML Service** (Port 8020) - Classical machine learning
-3. **NER Service** - Named entity recognition
+3. **NER Service** (Port 8031) - Named entity recognition
 4. **OpenAI Service** - GPT-based operations
 
 ## API Endpoints
@@ -32,9 +32,11 @@ The AI Core Service orchestrates the following containerized AI services:
 GET /health
 ```
 
-### Analysis
+### Analysis (Authenticated)
 ```
 POST /analyze
+Headers:
+  X-API-Key: <AI_CORE_API_KEY>
 Body: {
   "data": [...],
   "analysis_type": "pattern_detection|clustering|anomaly|...",
@@ -42,18 +44,22 @@ Body: {
 }
 ```
 
-### Pattern Detection
+### Pattern Detection (Authenticated)
 ```
-POST /detect-patterns
+POST /patterns
+Headers:
+  X-API-Key: <AI_CORE_API_KEY>
 Body: {
   "patterns": [...],
   "detection_type": "full|partial|..."
 }
 ```
 
-### Suggestion Generation
+### Suggestion Generation (Authenticated)
 ```
 POST /suggestions
+Headers:
+  X-API-Key: <AI_CORE_API_KEY>
 Body: {
   "context": {...},
   "suggestion_type": "automation|optimization|..."
@@ -66,7 +72,11 @@ Body: {
 |----------|---------|-------------|
 | `OPENVINO_SERVICE_URL` | `http://openvino-service:8019` | OpenVINO service endpoint |
 | `ML_SERVICE_URL` | `http://ml-service:8020` | ML service endpoint |
-| `NER_SERVICE_URL` | `http://ner-service:8019` | NER service endpoint |
+| `NER_SERVICE_URL` | `http://ner-service:8031` | NER service endpoint |
+| `AI_CORE_API_KEY` | _(required)_ | API key used for all non-health requests |
+| `AI_CORE_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | Comma-separated CORS allow-list |
+| `AI_CORE_RATE_LIMIT` | `60` | Requests per window allowed per API key + client |
+| `AI_CORE_RATE_LIMIT_WINDOW` | `60` | Rate-limit window in seconds |
 | `OPENAI_SERVICE_URL` | `http://openai-service:8020` | OpenAI service endpoint |
 
 ## Architecture
@@ -74,7 +84,7 @@ Body: {
 ```
 ┌─────────────────────┐
 │   AI Core Service   │ ← Single orchestration layer
-│     (Port 8021)     │
+│     (Port 8018)     │
 └──────────┬──────────┘
            │
      ┌─────┼──────┬──────┬──────┐
@@ -88,18 +98,19 @@ Body: {
 
 ### Running Locally
 ```bash
-cd services/ai-core-service
-docker-compose up --build
+  export AI_CORE_API_KEY=<your-key>
+  uvicorn src.main:app --reload --port 8018
 ```
 
 ### Testing
 ```bash
 # Health check
-curl http://localhost:8021/health
+  curl http://localhost:8018/health
 
 # Run analysis
-curl -X POST http://localhost:8021/analyze \
-  -H "Content-Type: application/json" \
+  curl -X POST http://localhost:8018/analyze \
+    -H "Content-Type: application/json" \
+    -H "X-API-Key: $AI_CORE_API_KEY" \
   -d '{"data": [...], "analysis_type": "pattern_detection"}'
 ```
 
@@ -128,3 +139,56 @@ Metrics exposed for:
 - AI service availability
 - Circuit breaker state
 - Request routing decisions
+
+## Troubleshooting
+
+### Service Orchestration Issues
+
+**Symptoms:**
+- Requests timing out
+- Circuit breaker open
+
+**Solutions:**
+- Check managed service health: `curl http://openvino-service:8019/health`
+- Review circuit breaker state
+- Check service logs for routing decisions
+
+## Related Documentation
+
+- [OpenVINO Service](../openvino-service/README.md) - Model inference
+- [ML Service](../ml-service/README.md) - Classical ML
+- [AI Automation Service](../ai-automation-service/README.md) - Consumer
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+
+## Version History
+
+### 2.2 (November 15, 2025)
+- Added API key authentication and rate limiting
+- Hardened CORS defaults and sanitized error responses
+- NER service port moved to 8031 to prevent conflicts
+- Added graceful HTTP client shutdown
+
+### 2.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Service orchestration patterns documented
+- Circuit breaker configuration reference
+- Managed services comprehensive guide
+
+### 2.0 (October 2025)
+- AI service orchestration
+- Circuit breaker patterns
+- Fallback mechanisms
+- Unified API for all AI operations
+
+### 1.0 (Initial Release)
+- Basic AI service routing
+- Request coordination
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 2.2
+**Status:** Production Ready ✅
+**Port:** 8018
+**Managed Services:** OpenVINO (8019), ML (8020), NER (8031), OpenAI (8020)

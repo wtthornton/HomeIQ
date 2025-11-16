@@ -108,6 +108,9 @@ class Action(BaseModel):
     service_data: Optional[Dict[str, Any]] = None
     delay: Optional[Union[str, Dict[str, Any]]] = None
     wait_template: Optional[str] = None
+    wait_for_trigger: Optional[List["Trigger"]] = Field(None, description="Wait for specified triggers before continuing")
+    timeout: Optional[Union[str, Dict[str, Any]]] = Field(None, description="Timeout for wait_for_trigger (e.g., '00:05:00' or {minutes: 5})")
+    continue_on_timeout: Optional[bool] = Field(None, description="Continue sequence if wait_for_trigger times out")
     repeat: Optional[Dict[str, Any]] = None
     choose: Optional[List[Any]] = None
     if_: Optional[List[Condition]] = Field(None, alias="if")
@@ -115,10 +118,14 @@ class Action(BaseModel):
     sequence: Optional[List[Any]] = None
     stop: Optional[Literal["all", "first"]] = None
     error: Optional[Literal["continue", "stop"]] = None
-    
+
     class Config:
         extra = "forbid"
         populate_by_name = True
+
+
+# Forward reference resolution
+Action.model_rebuild()
 
 
 class AutomationPlan(BaseModel):

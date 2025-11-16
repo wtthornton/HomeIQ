@@ -8,6 +8,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from datetime import datetime, timezone
 
 from ..models.database import Device, DeviceCapability, DeviceHealthMetric
@@ -63,17 +64,58 @@ class DeviceService:
             raise
     
     async def bulk_upsert_devices(self, devices_data: List[Dict[str, Any]]) -> List[Device]:
-        """Bulk upsert multiple devices."""
+        """Bulk upsert multiple devices using a single transaction."""
+        if not devices_data:
+            return []
+
         try:
-            devices = []
-            for device_data in devices_data:
-                device = await self.upsert_device(device_data)
-                devices.append(device)
-            
-            logger.info(f"Bulk upserted {len(devices)} devices")
+            sanitized_payload: List[Dict[str, Any]] = []
+            missing_integrations: List[str] = []
+
+            for entry in devices_data:
+                integration_value = (entry.get("integration") or "").strip()
+                if not integration_value:
+                    integration_value = "unknown"
+                    missing_integrations.append(entry.get("id", "unknown"))
+
+                sanitized_entry = dict(entry)
+                sanitized_entry["integration"] = integration_value
+                sanitized_payload.append(sanitized_entry)
+
+            stmt = sqlite_insert(Device).values(sanitized_payload)
+
+            update_fields = {
+                key: stmt.excluded[key]
+                for key in sanitized_payload[0].keys()
+                if key not in {"id", "created_at"}
+            }
+
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[Device.id],
+                set_=update_fields,
+            )
+
+            await self.session.execute(stmt)
+            await self.session.commit()
+
+            device_ids = [payload["id"] for payload in sanitized_payload]
+            result = await self.session.execute(
+                select(Device).where(Device.id.in_(device_ids))
+            )
+            devices = result.scalars().all()
+
+            if missing_integrations:
+                logger.warning(
+                    "⚠️ Missing integration metadata for %d devices during bulk upsert (showing up to 5 IDs): %s",
+                    len(missing_integrations),
+                    missing_integrations[:5],
+                )
+
+            logger.info(f"Bulk upserted {len(devices)} devices with single transaction")
             return devices
-            
+
         except Exception as e:
+            await self.session.rollback()
             logger.error(f"Error bulk upserting devices: {e}")
             raise
 
@@ -91,6 +133,36 @@ class DeviceService:
         except Exception as e:
             logger.error(f"Error retrieving device {device_id}: {e}")
             return None
+    
+    async def bulk_upsert_capabilities(self, capabilities_data: List[Dict[str, Any]]) -> int:
+        """Bulk upsert device capabilities with a single transaction."""
+        if not capabilities_data:
+            return 0
+
+        try:
+            stmt = sqlite_insert(DeviceCapability).values(capabilities_data)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["device_id", "capability_name"],
+                set_={
+                    "capability_type": stmt.excluded.capability_type,
+                    "properties": stmt.excluded.properties,
+                    "exposed": stmt.excluded.exposed,
+                    "configured": stmt.excluded.configured,
+                    "source": stmt.excluded.source,
+                    "last_updated": stmt.excluded.last_updated,
+                },
+            )
+
+            await self.session.execute(stmt)
+            await self.session.commit()
+
+            logger.info("Bulk upserted %d capabilities", len(capabilities_data))
+            return len(capabilities_data)
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error("Error bulk upserting capabilities: %s", e)
+            raise
     
     async def get_device_capabilities(self, device_id: str) -> List[DeviceCapability]:
         """Get capabilities for a device."""

@@ -67,6 +67,16 @@ export interface DependencyHealth {
   details?: Record<string, any>;
 }
 
+export interface ServiceHealthStatus {
+  name?: string;
+  status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown' | 'pass' | 'error';
+  last_check?: string;
+  response_time_ms?: number;
+  error_message?: string | null;
+}
+
+export type ServicesHealthResponse = Record<string, ServiceHealthStatus>;
+
 export interface ServiceHealthResponse {
   status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown';
   service: string;

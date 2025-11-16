@@ -2,13 +2,15 @@
 Configuration Manager - Simple .env file reader/writer
 """
 
-import os
 import logging
-from typing import Dict, Optional, List
+import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+SENSITIVE_KEY_PATTERNS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "PRIVATE_KEY", "ACCESS_KEY")
+MASK_VALUE = "********"
 
 class ConfigManager:
     """Simple configuration manager for .env files"""
@@ -21,6 +23,7 @@ class ConfigManager:
             config_dir: Directory containing .env files
         """
         self.config_dir = Path(config_dir)
+        self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
         if not self.config_dir.exists():
             logger.warning(f"Config directory {config_dir} does not exist")
     
@@ -109,6 +112,13 @@ class ConfigManager:
         
         if not env_file.exists() and not create_if_missing:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
+
+        if not self.allow_secret_writes:
+            blocked = [key for key in updates.keys() if self._is_sensitive_key(key)]
+            if blocked:
+                raise PermissionError(
+                    f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"
+                )
         
         # Read existing config if file exists
         lines = []
@@ -382,6 +392,20 @@ class ConfigManager:
         }
         
         return templates.get(service, {})
+
+    def sanitize_config(self, config: Dict[str, str]) -> Dict[str, str]:
+        """Return a copy of the provided config with sensitive values masked."""
+        sanitized: Dict[str, str] = {}
+        for key, value in config.items():
+            if self._is_sensitive_key(key) and value:
+                sanitized[key] = MASK_VALUE
+            else:
+                sanitized[key] = value
+        return sanitized
+
+    def _is_sensitive_key(self, key: str) -> bool:
+        upper_key = key.upper()
+        return any(pattern in upper_key for pattern in SENSITIVE_KEY_PATTERNS)
 
 
 # Global instance

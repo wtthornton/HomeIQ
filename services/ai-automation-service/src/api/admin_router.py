@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import sys
@@ -30,13 +31,17 @@ from .ask_ai_router import (
     get_soft_prompt,
     get_guardrail_checker_instance,
 )
+from .dependencies.auth import require_admin_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+router = APIRouter(
+    prefix="/api/v1/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-TRAINING_SCRIPT = PROJECT_ROOT / "scripts" / "train_soft_prompt.py"
 _training_job_lock = asyncio.Lock()
 
 
@@ -45,6 +50,37 @@ def _resolve_path(path_str: str) -> Path:
     if not path.is_absolute():
         return (PROJECT_ROOT / path).resolve()
     return path
+
+
+def _validate_training_script_path() -> Path:
+    """Ensure the configured training script exists, is inside repo, and matches optional hash."""
+
+    script_path = _resolve_path(settings.training_script_path).resolve()
+
+    if not script_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Training script not found at {script_path}",
+        )
+
+    try:
+        script_path.relative_to(PROJECT_ROOT)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Training script must reside within the repository",
+        )
+
+    expected_hash = getattr(settings, "training_script_sha256", None)
+    if expected_hash:
+        actual_hash = hashlib.sha256(script_path.read_bytes()).hexdigest()
+        if actual_hash.lower() != expected_hash.lower():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Training script hash mismatch. Refusing to execute.",
+            )
+
+    return script_path
 
 
 class AdminOverviewResponse(BaseModel):
@@ -107,6 +143,7 @@ async def _execute_training_run(
     run_identifier: str,
     base_output_dir: Path,
     run_directory: Path,
+    script_path: Path,
 ) -> None:
     """Launch the soft prompt training subprocess and persist its results."""
 
@@ -116,7 +153,7 @@ async def _execute_training_run(
 
     command = [
         sys.executable,
-        str(TRAINING_SCRIPT),
+        str(script_path),
         "--db-path", str(db_path),
         "--output-dir", str(base_output_dir),
         "--run-directory", str(run_directory),
@@ -130,6 +167,7 @@ async def _execute_training_run(
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=str(PROJECT_ROOT),
         )
         stdout, stderr = await process.communicate()
 
@@ -262,13 +300,8 @@ async def list_training_runs_endpoint(
 async def trigger_training_run(db: AsyncSession = Depends(get_db)) -> TrainingRunResponse:
     """Start a new soft prompt training job if none is currently running."""
 
-    if not TRAINING_SCRIPT.exists():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Training script not found at {TRAINING_SCRIPT}",
-        )
-
     async with _training_job_lock:
+        script_path = _validate_training_script_path()
         active = await get_active_training_run(db)
         if active:
             raise HTTPException(
@@ -297,6 +330,7 @@ async def trigger_training_run(db: AsyncSession = Depends(get_db)) -> TrainingRu
                 run_identifier,
                 base_output_dir,
                 run_directory,
+                script_path,
             )
         )
 

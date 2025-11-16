@@ -8,7 +8,7 @@ Provides aggregated analytics data from InfluxDB for dashboard visualization
 import logging
 import sys
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 from datetime import datetime, timedelta
 
 # Add shared directory to path
@@ -161,7 +161,10 @@ def get_time_range_params(time_range: str) -> tuple:
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
-    range: str = Query('1h', description="Time range: 1h, 6h, 24h, 7d"),
+    range: Literal['1h', '6h', '24h', '7d'] = Query(
+        '1h',
+        description="Time range: 1h, 6h, 24h, 7d"
+    ),
     metrics: Optional[str] = Query(None, description="Comma-separated list of metrics to include")
 ):
     """

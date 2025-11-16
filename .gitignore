@@ -64,7 +64,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 infrastructure/env.production
-infrastructure/env.ai-automation
 infrastructure/.env*
 *.env
 !*.env.example
@@ -120,3 +119,8 @@ jscpd-report/
 test_nabu_casa_connection.py
 ai_automation_backup.db
 ha_events.log
+
+# Phase 3 embedding test artifacts
+embedding_test_env/
+embedding_tests/
+embedding_test_output.log

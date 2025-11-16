@@ -1,12 +1,9 @@
 """
-LangChain integration helpers for AI Automation Service.
-
-These modules provide optional prototypes that leverage LangChain building
-blocks without disrupting existing code paths. They are enabled behind feature
-flags defined in `config.py` so the default single-home deployment remains
-lightweight.
+LangChain integration module.
 """
 
-__all__ = ["ask_ai_chain", "pattern_chain"]
+from .ask_ai_chain import create_ask_ai_chain
+from .pattern_chain import create_pattern_chain
+from .mcp_chains import MCPCodeExecutionChain
 
-
+__all__ = ['create_ask_ai_chain', 'create_pattern_chain', 'MCPCodeExecutionChain']

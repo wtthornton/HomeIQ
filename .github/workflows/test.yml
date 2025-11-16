@@ -1,0 +1,308 @@
+name: Test Suite
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Job 1: Python Service Tests
+  python-tests:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - ai-automation-service
+          - websocket-ingestion
+          - admin-api
+          - device-intelligence-service
+          - data-api
+          - data-retention
+          - automation-miner
+          - weather-api
+          - calendar-service
+          - ha-simulator
+          - ha-setup-service
+          - ml-service
+          - carbon-intensity-service
+          - openvino-service
+          - ai-core-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Check if service has tests
+        id: check-tests
+        run: |
+          if [ -d "services/${{ matrix.service }}/tests" ] && [ -n "$(find services/${{ matrix.service }}/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Service has tests"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Service has no tests - skipping"
+          fi
+
+      - name: Install dependencies
+        if: steps.check-tests.outputs.has_tests == 'true'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+
+          # Install requirements if they exist
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+          # Install test dependencies (only if not already in requirements.txt)
+          pip install pytest pytest-asyncio pytest-timeout
+
+          # Install pytest-cov only if not already installed (to avoid version conflicts)
+          if ! pip show pytest-cov > /dev/null 2>&1; then
+            pip install pytest-cov>=5.0.0
+          fi
+
+          # Install optional test dependencies if available
+          if grep -q "pytest-httpx" requirements.txt 2>/dev/null; then
+            pip install pytest-httpx
+          fi
+
+      - name: Run pytest with coverage
+        if: steps.check-tests.outputs.has_tests == 'true'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          # Run tests with coverage
+          # Using --cov-fail-under=0 to make coverage non-blocking during test framework rebuild
+          pytest \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-report=html \
+            --cov-fail-under=0 \
+            --verbose \
+            --timeout=300 \
+            -m "not slow" \
+            || exit_code=$?
+
+          # Always show coverage summary
+          if [ -f .coverage ]; then
+            python -m coverage report --skip-covered
+          fi
+
+          # Exit with pytest exit code
+          exit ${exit_code:-0}
+
+      - name: Upload coverage to Codecov
+        if: steps.check-tests.outputs.has_tests == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./services/${{ matrix.service }}/coverage.xml
+          flags: ${{ matrix.service }}
+          name: ${{ matrix.service }}
+          fail_ci_if_error: false
+
+      - name: Upload coverage artifacts
+        if: steps.check-tests.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage_html/
+          retention-days: 7
+
+  # Job 2: End-to-End Tests
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Check if e2e tests exist
+        id: check-e2e
+        run: |
+          if [ -d "tests/e2e" ] && [ -f "tests/e2e/package.json" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ E2E tests found"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No E2E tests found - skipping"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start Docker services
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        run: |
+          # Create minimal .env file for testing
+          mkdir -p infrastructure
+          cat > infrastructure/.env << EOF
+          # Test configuration
+          HA_HTTP_URL=http://ha-simulator:8123
+          HA_WS_URL=ws://ha-simulator:8123/api/websocket
+          HA_TOKEN=test_token
+          INFLUXDB_URL=http://influxdb:8086
+          INFLUXDB_TOKEN=test_token
+          INFLUXDB_ORG=homeassistant
+          INFLUXDB_BUCKET=home_assistant_events
+          OPENAI_API_KEY=sk-test-key
+          EOF
+
+          # Start services
+          docker compose up -d
+
+          # Wait for services to be healthy
+          # E2E global setup can take up to 30s per service to verify health
+          # Allowing 90s for multiple services to start and become healthy
+          echo "⏳ Waiting for services to start..."
+          sleep 90
+
+          # Check service health
+          docker compose ps
+
+      - name: Install Playwright dependencies
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        working-directory: tests/e2e
+        run: |
+          npx playwright test --reporter=html
+
+      - name: Upload Playwright report
+        if: always() && steps.check-e2e.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Show service logs on failure
+        if: failure() && steps.check-e2e.outputs.has_tests == 'true'
+        run: |
+          echo "🔍 Service Logs:"
+          docker compose logs --tail=100
+
+      - name: Stop Docker services
+        if: always() && steps.check-e2e.outputs.has_tests == 'true'
+        run: |
+          docker compose down -v
+
+  # Job 3: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Check if integration tests exist
+        id: check-integration
+        run: |
+          if [ -d "tests/integration" ] && [ -n "$(find tests/integration -name 'test_*.py' 2>/dev/null)" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Integration tests found"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No integration tests found - skipping"
+          fi
+
+      - name: Install dependencies
+        if: steps.check-integration.outputs.has_tests == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+          # Install shared dependencies
+          if [ -f shared/requirements.txt ]; then
+            pip install -r shared/requirements.txt
+          fi
+
+      - name: Run integration tests
+        if: steps.check-integration.outputs.has_tests == 'true'
+        run: |
+          pytest tests/integration/ \
+            --verbose \
+            --timeout=300 \
+            -m "integration"
+
+  # Job 4: Test Summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [python-tests, e2e-tests, integration-tests]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "## Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.python-tests.result }}" == "success" ]; then
+            echo "✅ **Python Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.python-tests.result }}" == "skipped" ]; then
+            echo "⏭️ **Python Tests:** Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Python Tests:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.e2e-tests.result }}" == "success" ]; then
+            echo "✅ **E2E Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.e2e-tests.result }}" == "skipped" ]; then
+            echo "⏭️ **E2E Tests:** Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **E2E Tests:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.integration-tests.result }}" == "success" ]; then
+            echo "✅ **Integration Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.integration-tests.result }}" == "skipped" ]; then
+            echo "⏭️ **Integration Tests:** Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Integration Tests:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

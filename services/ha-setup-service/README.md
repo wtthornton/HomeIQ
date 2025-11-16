@@ -353,3 +353,33 @@ For issues or questions:
 - Data API service (port 8006)
 - Admin API service (port 8003)
 
+
+## Related Documentation
+
+- [Health Dashboard](../health-dashboard/README.md) - Frontend integration
+- [Admin API](../admin-api/README.md) - System control
+- [Data API](../data-api/README.md) - Historical queries
+- [API Reference](../../docs/api/API_REFERENCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+
+## Version History
+
+### 1.1 (November 15, 2025)
+- Documentation verified for 2025 standards
+- Environment health monitoring documented
+- Integration health checks comprehensive guide
+- Frontend integration examples
+
+### 1.0 (January 2025 - Epic 27)
+- Environment health monitoring (Story 27.1)
+- Integration health checks (Story 27.2)
+- Health score algorithm
+- Frontend integration (Setup tab)
+
+---
+
+**Last Updated:** November 15, 2025
+**Version:** 1.1
+**Status:** Production Ready ✅
+**Port:** 8027 (External) → 8020 (Internal)
+**Epic:** 27 (HA Setup & Recommendation Service)

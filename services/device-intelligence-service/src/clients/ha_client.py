@@ -84,11 +84,14 @@ class HomeAssistantClient:
         self.connected = False
         self.message_id = 0
         self.pending_messages: Dict[int, asyncio.Future] = {}
+        self._pending_message_timestamps: Dict[int, float] = {}
         self.subscriptions: Dict[str, Callable] = {}
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = 5
         self.reconnect_delay = 5.0
         self.current_url = None  # Track which URL is currently being used
+        self.receive_timeout = 30.0
+        self._message_handler_task: Optional[asyncio.Task] = None
         
     async def connect(self) -> bool:
         """Establish WebSocket connection to Home Assistant with automatic fallback."""
@@ -123,14 +126,18 @@ class HomeAssistantClient:
                 logger.info(f"✅ Successfully connected to Home Assistant at {url}")
                 
                 # Handle authentication response
-                auth_response = await self.websocket.recv()
+                auth_response = await asyncio.wait_for(
+                    self.websocket.recv(), timeout=self.receive_timeout
+                )
                 auth_data = json.loads(auth_response)
                 
                 if auth_data.get("type") == "auth_required":
                     logger.info("🔐 Authentication required, sending token...")
                     await self.websocket.send(json.dumps({"type": "auth", "access_token": self.token}))
                     
-                    auth_result = await self.websocket.recv()
+                    auth_result = await asyncio.wait_for(
+                        self.websocket.recv(), timeout=self.receive_timeout
+                    )
                     auth_result_data = json.loads(auth_result)
                     
                     if auth_result_data.get("type") == "auth_ok":
@@ -161,9 +168,19 @@ class HomeAssistantClient:
     
     async def disconnect(self):
         """Disconnect from Home Assistant."""
+        if self._message_handler_task:
+            self._message_handler_task.cancel()
+            try:
+                await self._message_handler_task
+            except asyncio.CancelledError:
+                pass
+            self._message_handler_task = None
+
         if self.websocket:
             await self.websocket.close()
             self.websocket = None
+
+        self._cancel_all_pending_messages()
         self.connected = False
         logger.info("🔌 Disconnected from Home Assistant")
     
@@ -174,40 +191,55 @@ class HomeAssistantClient:
         
         # Add message ID for tracking
         self.message_id += 1
-        message["id"] = self.message_id
+        current_message_id = self.message_id
+        message["id"] = current_message_id
         
         # Create future for response
-        future = asyncio.Future()
-        self.pending_messages[self.message_id] = future
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self.pending_messages[current_message_id] = future
+        self._pending_message_timestamps[current_message_id] = loop.time()
         
         try:
             # Send message
             await self.websocket.send(json.dumps(message))
             
             # Wait for response with timeout
-            response = await asyncio.wait_for(future, timeout=30.0)
+            response = await asyncio.wait_for(future, timeout=self.receive_timeout)
             return response
             
         except asyncio.TimeoutError:
-            logger.error(f"⏰ Timeout waiting for response to message {self.message_id}")
+            logger.error(f"⏰ Timeout waiting for response to message {current_message_id}")
             raise
         except Exception as e:
             logger.error(f"❌ Error sending message: {e}")
             raise
         finally:
             # Clean up pending message
-            self.pending_messages.pop(self.message_id, None)
+            self.pending_messages.pop(current_message_id, None)
+            self._pending_message_timestamps.pop(current_message_id, None)
     
     async def _handle_messages(self):
         """Handle incoming WebSocket messages."""
         try:
-            async for message in self.websocket:
+            while self.connected and self.websocket:
+                try:
+                    message = await asyncio.wait_for(
+                        self.websocket.recv(), timeout=self.receive_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.debug("⏳ No WebSocket message within timeout window; pruning pending messages")
+                    self._prune_pending_messages()
+                    continue
+                
                 try:
                     data = json.loads(message)
                     
                     # Handle responses to our messages
-                    if "id" in data and data["id"] in self.pending_messages:
-                        future = self.pending_messages[data["id"]]
+                    message_id = data.get("id")
+                    if message_id in self.pending_messages:
+                        future = self.pending_messages.pop(message_id)
+                        self._pending_message_timestamps.pop(message_id, None)
                         if not future.done():
                             future.set_result(data)
                         continue
@@ -221,13 +253,15 @@ class HomeAssistantClient:
                 except Exception as e:
                     logger.error(f"❌ Error handling WebSocket message: {e}")
                     
-        except ConnectionClosed:
-            logger.warning("🔌 WebSocket connection closed")
+        except ConnectionClosed as exc:
+            logger.warning("🔌 WebSocket connection closed: %s", exc)
             self.connected = False
+            self._cancel_all_pending_messages(exc)
             await self._handle_reconnection()
         except Exception as e:
             logger.error(f"❌ WebSocket error: {e}")
             self.connected = False
+            self._cancel_all_pending_messages(e)
     
     async def _handle_subscription_message(self, data: Dict[str, Any]):
         """Handle subscription messages."""
@@ -255,7 +289,36 @@ class HomeAssistantClient:
         
         if await self.connect():
             # Restart message handling
-            asyncio.create_task(self._handle_messages())
+            self._message_handler_task = asyncio.create_task(self._handle_messages())
+    
+    def _prune_pending_messages(self, max_age: float = 60.0):
+        """Clean up pending messages that have exceeded the allowed age."""
+        if not self.pending_messages:
+            return
+        
+        now = asyncio.get_running_loop().time()
+        expired_ids = [
+            message_id
+            for message_id, timestamp in self._pending_message_timestamps.items()
+            if now - timestamp > max_age
+        ]
+        
+        for message_id in expired_ids:
+            future = self.pending_messages.pop(message_id, None)
+            self._pending_message_timestamps.pop(message_id, None)
+            if future and not future.done():
+                future.set_exception(asyncio.TimeoutError("Home Assistant response timed out"))
+    
+    def _cancel_all_pending_messages(self, exc: Optional[Exception] = None):
+        """Cancel or fail all pending message futures."""
+        for message_id, future in list(self.pending_messages.items()):
+            if not future.done():
+                if exc:
+                    future.set_exception(exc)
+                else:
+                    future.cancel()
+            self.pending_messages.pop(message_id, None)
+            self._pending_message_timestamps.pop(message_id, None)
     
     def _parse_timestamp(self, timestamp) -> datetime:
         """Parse timestamp from Home Assistant (handles both float and string formats)."""
@@ -513,7 +576,9 @@ class HomeAssistantClient:
     async def start_message_handler(self):
         """Start the message handler task."""
         if self.connected and self.websocket:
-            asyncio.create_task(self._handle_messages())
+            if self._message_handler_task and not self._message_handler_task.done():
+                return
+            self._message_handler_task = asyncio.create_task(self._handle_messages())
     
     def is_connected(self) -> bool:
         """Check if connected to Home Assistant."""

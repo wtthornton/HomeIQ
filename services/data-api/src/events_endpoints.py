@@ -16,8 +16,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
+from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
+
 
 
 class EventData(BaseModel):
@@ -110,7 +112,12 @@ class EventsEndpoints:
         
         @self.router.get("/events/stream", response_model=Dict[str, Any])
         async def get_events_stream(
-            duration: int = Query(60, description="Stream duration in seconds"),
+            duration: int = Query(
+                60,
+                description="Stream duration in seconds (max 1 hour)",
+                ge=10,
+                le=3600
+            ),
             entity_id: Optional[str] = Query(None, description="Filter by entity ID")
         ):
             """Get real-time event stream"""
@@ -291,9 +298,11 @@ class EventsEndpoints:
             return events
         except Exception as e:
             logger.error(f"Error getting events from InfluxDB: {e}", exc_info=True)
-            # Return mock data for now to prevent 503 errors
-            logger.warning(f"Returning mock events due to InfluxDB error")
-            return self._get_mock_events(limit)
+            # Return proper error instead of mock data
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"InfluxDB service unavailable: {str(e)}"
+            )
     
     async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> List[EventData]:
         """Get events from a specific service"""
@@ -397,12 +406,13 @@ class EventsEndpoints:
             
             if context_id:
                 # Query based on context_id
+                context_value = sanitize_flux_value(context_id)
                 query = f'''
 from(bucket: "{influxdb_bucket}")
   |> range(start: -30d)
   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
   |> filter(fn: (r) => r["_field"] == "context_id")
-  |> filter(fn: (r) => r["_value"] == "{context_id}")
+  |> filter(fn: (r) => r["_value"] == "{context_value}")
   |> limit(n: 1)
 '''
                 context_result = query_api.query(query)
@@ -431,7 +441,9 @@ from(bucket: "{influxdb_bucket}")
             
             filter_entity_clause = ""
             if entity_id:
-                filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id}")\n'
+                entity_id_safe = sanitize_flux_value(entity_id)
+                if entity_id_safe:
+                    filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
             
             detail_query = f'''
 from(bucket: "{influxdb_bucket}")
@@ -755,6 +767,7 @@ from(bucket: "{influxdb_bucket}")
             - Field filter reduces duplicate records
             - Limit/offset support for large result sets
         """
+        client = None
         try:
             # Import InfluxDB client
             from influxdb_client import InfluxDBClient
@@ -805,25 +818,31 @@ from(bucket: "{influxdb_bucket}")
               |> filter(fn: (r) => r._field == "context_id")
             '''
             
-            # Add tag-based filters (these are indexed and efficient)
+            # Add tag-based filters (these are indexed and efficient) - SANITIZED
             if event_filter.entity_id:
-                query += f'  |> filter(fn: (r) => r.entity_id == "{event_filter.entity_id}")\n'
+                entity_id_safe = sanitize_flux_value(event_filter.entity_id)
+                query += f'  |> filter(fn: (r) => r.entity_id == "{entity_id_safe}")\n'
             if event_filter.event_type:
-                query += f'  |> filter(fn: (r) => r.event_type == "{event_filter.event_type}")\n'
-            
-            # Epic 23.2: Add device_id and area_id filtering for spatial analytics
+                event_type_safe = sanitize_flux_value(event_filter.event_type)
+                query += f'  |> filter(fn: (r) => r.event_type == "{event_type_safe}")\n'
+
+            # Epic 23.2: Add device_id and area_id filtering for spatial analytics - SANITIZED
             if event_filter.device_id:
-                query += f'  |> filter(fn: (r) => r.device_id == "{event_filter.device_id}")\n'
+                device_id_safe = sanitize_flux_value(event_filter.device_id)
+                query += f'  |> filter(fn: (r) => r.device_id == "{device_id_safe}")\n'
             if event_filter.area_id:
-                query += f'  |> filter(fn: (r) => r.area_id == "{event_filter.area_id}")\n'
-            
-            # Epic 23.4: Add entity_category filtering
+                area_id_safe = sanitize_flux_value(event_filter.area_id)
+                query += f'  |> filter(fn: (r) => r.area_id == "{area_id_safe}")\n'
+
+            # Epic 23.4: Add entity_category filtering - SANITIZED
             if event_filter.entity_category:
-                query += f'  |> filter(fn: (r) => r.entity_category == "{event_filter.entity_category}")\n'
-            
-            # Epic 23.4: Add exclude_category filtering (commonly used to hide diagnostic entities)
+                category_safe = sanitize_flux_value(event_filter.entity_category)
+                query += f'  |> filter(fn: (r) => r.entity_category == "{category_safe}")\n'
+
+            # Epic 23.4: Add exclude_category filtering (commonly used to hide diagnostic entities) - SANITIZED
             if event_filter.exclude_category:
-                query += f'  |> filter(fn: (r) => r.entity_category != "{event_filter.exclude_category}")\n'
+                exclude_safe = sanitize_flux_value(event_filter.exclude_category)
+                query += f'  |> filter(fn: (r) => r.entity_category != "{exclude_safe}")\n'
             
             # Group all tag-based series together, then get distinct records
             query += f'  |> group()\n'
@@ -887,7 +906,6 @@ from(bucket: "{influxdb_bucket}")
                     )
                     events.append(event)
             
-            client.close()
             logger.info(f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)")
             
             # PRAGMATIC FIX: Python-level deduplication as final safety net
@@ -908,6 +926,12 @@ from(bucket: "{influxdb_bucket}")
         except Exception as e:
             logger.error(f"Error querying InfluxDB: {e}")
             return []
+        finally:
+            if client:
+                try:
+                    client.close()
+                except Exception as close_err:
+                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
     
     async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> List[Dict[str, Any]]:
         """
@@ -923,6 +947,7 @@ from(bucket: "{influxdb_bucket}")
         Returns:
             List of events in the automation chain
         """
+        client = None
         try:
             from influxdb_client import InfluxDBClient
             
@@ -949,12 +974,17 @@ from(bucket: "{influxdb_bucket}")
                 visited_contexts.add(current_context)
                 
                 # Query for events with this context_parent_id (children)
+                current_context_safe = sanitize_flux_value(current_context)
+                if not current_context_safe:
+                    logger.warning("Invalid context_id supplied for automation trace; aborting traversal")
+                    break
+                
                 query = f'''
                 from(bucket: "{influxdb_bucket}")
                     |> range(start: -30d)
                     |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
                     |> filter(fn: (r) => r["_field"] == "context_parent_id")
-                    |> filter(fn: (r) => r["_value"] == "{current_context}")
+                    |> filter(fn: (r) => r["_value"] == "{current_context_safe}")
                     |> limit(n: 100)
                 '''
                 
@@ -970,11 +1000,15 @@ from(bucket: "{influxdb_bucket}")
                         
                         if include_details:
                             # Query full event details
+                            event_context_safe = sanitize_flux_value(event_context_id) if event_context_id else ""
+                            if not event_context_safe:
+                                logger.warning("Skipping automation trace detail due to invalid context_id")
+                                continue
                             event_detail_query = f'''
                             from(bucket: "{influxdb_bucket}")
                                 |> range(start: -30d)
                                 |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-                                |> filter(fn: (r) => r["context_id"] == "{event_context_id}")
+                                |> filter(fn: (r) => r["context_id"] == "{event_context_safe}")
                                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                                 |> limit(n: 1)
                             '''
@@ -1013,8 +1047,6 @@ from(bucket: "{influxdb_bucket}")
                 current_context = next_context
                 depth += 1
             
-            client.close()
-            
             logger.info(f"Traced automation chain for {context_id}: {len(chain)} events, {depth} levels deep")
             return chain
             
@@ -1023,24 +1055,10 @@ from(bucket: "{influxdb_bucket}")
             import traceback
             logger.error(traceback.format_exc())
             return []
-    
-    def _get_mock_events(self, limit: int) -> List[EventData]:
-        """Generate mock events for testing when InfluxDB is unavailable"""
-        import uuid
-        
-        mock_events = []
-        for i in range(min(limit, 10)):  # Limit mock events to 10
-            event = EventData(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.now() - timedelta(minutes=i),
-                entity_id=f"sensor.temperature_{i % 3}",
-                event_type="state_changed",
-                old_state={"state": "20.5"},
-                new_state={"state": "21.0"},
-                attributes={"unit_of_measurement": "°C", "friendly_name": f"Temperature {i % 3}"},
-                tags={"domain": "sensor", "device_class": "temperature"}
-            )
-            mock_events.append(event)
-        
-        return mock_events
+        finally:
+            if client:
+                try:
+                    client.close()
+                except Exception as close_err:
+                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
 

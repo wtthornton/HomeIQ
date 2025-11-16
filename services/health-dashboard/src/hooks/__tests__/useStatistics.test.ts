@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useStatistics } from '../useStatistics';
 import { server } from '../../tests/mocks/server';
@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 describe('useStatistics Hook', () => {
   afterEach(() => {
     // ✅ Context7 Best Practice: Cleanup after each test
+    server.resetHandlers();
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
