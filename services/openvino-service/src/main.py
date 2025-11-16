@@ -242,7 +242,8 @@ async def rerank_candidates(request: RerankRequest):
     manager = _require_manager()
     _validate_rerank_payload(request.query, request.candidates, request.top_k)
     
-    top_k = _validate_rerank_request(request)
+    max_allowed = min(MAX_RERANK_TOP_K, len(request.candidates))
+    top_k = max(1, min(request.top_k, max_allowed))
     
     try:
         start_time = time.perf_counter()
