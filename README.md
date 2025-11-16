@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix dashboard CSP and API authentication issues** (November 16, 2025)
 - **Add comprehensive OpenVINO ML tests** (November 16, 2025)
 - **Add comprehensive OpenVINO ML tests** (November 16, 2025)
 - **Add comprehensive OpenVINO ML tests** (November 16, 2025)
