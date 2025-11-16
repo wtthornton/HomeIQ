@@ -75,6 +75,10 @@ services:
     depends_on:
       influxdb:
         condition: service_healthy
+      data-api:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
     networks:
       - homeiq-network
     healthcheck:
@@ -153,6 +157,62 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  data-api:
+    build:
+      context: ./services/data-api
+      dockerfile: Dockerfile
+    container_name: homeiq-data-api
+    restart: unless-stopped
+    ports:
+      - "8006:8006"
+    env_file:
+      - .env
+    environment:
+      - DATA_API_HOST=0.0.0.0
+      - DATA_API_PORT=8006
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
+      - SQLITE_TIMEOUT=30
+      - SQLITE_CACHE_SIZE=-64000
+      - LOG_LEVEL=${DATA_API_LOG_LEVEL:-INFO}
+      - ENABLE_AUTH=${DATA_API_ENABLE_AUTH:-true}
+      - API_KEY=${DATA_API_API_KEY:-}
+      - CORS_ORIGINS=${DATA_API_CORS_ORIGINS:-*}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8006/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+    volumes:
+      - sqlite_data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   admin-api:
     build:
       context: ./services/admin-api
@@ -178,6 +238,7 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
+      - DATA_API_URL=http://data-api:8006
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - CORS_METHODS=${CORS_METHODS:-GET,POST,PUT,DELETE}
       - CORS_HEADERS=${CORS_HEADERS:-*}
@@ -277,6 +338,7 @@ services:
       - "3000:80"
     environment:
       - VITE_API_BASE_URL=${DASHBOARD_API_BASE_URL:-http://localhost:8003/api/v1}
+      - VITE_DATA_API_URL=${DASHBOARD_DATA_API_URL:-http://localhost:8006}
       - VITE_ENVIRONMENT=${ENVIRONMENT:-production}
     networks:
       - homeiq-network
@@ -327,6 +389,8 @@ volumes:
   data_retention_logs:
     driver: local
   dashboard_logs:
+    driver: local
+  sqlite_data:
     driver: local
 
 networks:

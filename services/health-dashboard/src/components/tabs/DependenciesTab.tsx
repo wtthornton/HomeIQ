@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AnimatedDependencyGraph } from '../AnimatedDependencyGraph';
 import { TabProps } from './types';
 import { useRealTimeMetrics } from '../../hooks/useRealtimeMetrics';
+import { adminApi } from '../../services/api';
+import type { ServicesHealthResponse } from '../../types/health';
 
 export const DependenciesTab: React.FC<TabProps> = ({ darkMode }) => {
   const [services, setServices] = useState<any[]>([]);
@@ -13,11 +15,21 @@ export const DependenciesTab: React.FC<TabProps> = ({ darkMode }) => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await fetch('/api/v1/services');
-        if (response.ok) {
-          const data = await response.json();
-          setServices(data.services || []);
-        }
+        const health = await adminApi.getServicesHealth();
+        const mapped = Object.entries(health as ServicesHealthResponse).map(([service, s]) => ({
+          service,
+          running: s.status === 'healthy' || s.status === 'pass' || s.status === 'degraded',
+          status:
+            s.status === 'healthy' || s.status === 'pass'
+              ? 'running'
+              : s.status === 'degraded'
+                ? 'degraded'
+                : s.status === 'unhealthy' || s.status === 'error'
+                  ? 'error'
+                  : 'stopped',
+          timestamp: s.last_check,
+        }));
+        setServices(mapped);
       } catch (error) {
         console.error('Error fetching services:', error);
       }

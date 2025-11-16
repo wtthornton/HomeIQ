@@ -553,3 +553,15 @@ See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDI
 
 </div>
 
+## Current Scope
+- Single-account alpha environment (`cdk/HomeIqAlpha`) establishing baseline VPC, IAM guardrails, logging, and optional GitHub OIDC integration
+- Shared data primitives now provisioned by default:
+  - Amazon RDS (PostgreSQL) instance for multi-tenant metadata
+  - S3 telemetry landing bucket for Box-to-cloud sync
+  - SQS ingest queue and DLQ to decouple writes from processing
+- Patterns that will expand into dedicated stacks for:
+  - Ingestion pipelines (MSK/Kinesis, Lambda fan-out)
+  - EKS or ECS clusters for cloud services
+  - Monitoring/observability (CloudWatch, Prometheus/Grafana on EKS, etc.)
+- CI/CD integration via GitHub Actions assuming roles provisioned here; automation wiring will ship alongside the next pipeline PR
+

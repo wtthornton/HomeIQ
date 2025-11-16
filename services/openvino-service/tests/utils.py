@@ -14,7 +14,18 @@ from typing import Any, Dict, Iterable, List, Sequence
 
 import numpy as np
 
-from src.models.openvino_manager import OpenVINOManager
+try:
+    from src.models.openvino_manager import OpenVINOManager
+except ImportError:
+    # Fallback for when path setup hasn't run yet
+    import sys
+    from pathlib import Path
+    test_dir = Path(__file__).resolve().parent
+    service_dir = test_dir.parent
+    src_dir = service_dir / "src"
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
+    from models.openvino_manager import OpenVINOManager
 
 
 EMBEDDING_DIMENSION = 384

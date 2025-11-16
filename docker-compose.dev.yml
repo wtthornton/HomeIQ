@@ -55,6 +55,8 @@ services:
     depends_on:
       influxdb:
         condition: service_healthy
+      data-api:
+        condition: service_healthy
       weather-api:
         condition: service_healthy
       ha-simulator:
@@ -63,6 +65,44 @@ services:
       - homeiq-network-dev
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  data-api:
+    build:
+      context: ./services/data-api
+      dockerfile: Dockerfile.dev
+    container_name: homeiq-data-api-dev
+    restart: unless-stopped
+    ports:
+      - "8006:8006"
+    env_file:
+      - .env
+    environment:
+      - DATA_API_HOST=0.0.0.0
+      - DATA_API_PORT=8006
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
+      - SQLITE_TIMEOUT=30
+      - SQLITE_CACHE_SIZE=-64000
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - ENABLE_AUTH=false
+    volumes:
+      - ./services/data-api:/app
+      - ./shared:/app/shared
+      - sqlite-data-dev:/app/data
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - homeiq-network-dev
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8006/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,6 +128,8 @@ services:
       - /app/__pycache__
     depends_on:
       influxdb:
+        condition: service_healthy
+      data-api:
         condition: service_healthy
     networks:
       - homeiq-network-dev
@@ -122,6 +164,8 @@ services:
       - /app/__pycache__
     depends_on:
       influxdb:
+        condition: service_healthy
+      data-api:
         condition: service_healthy
       websocket-ingestion:
         condition: service_healthy
@@ -180,6 +224,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_BASE_URL=/api
+      - VITE_DATA_API_URL=http://localhost:8006
     volumes:
       - ./services/health-dashboard:/app
       - /app/node_modules
@@ -224,6 +269,7 @@ services:
 volumes:
   influxdb_data_dev:
   influxdb_config_dev:
+  sqlite-data-dev:
   data_retention_backups_dev:
 
 networks:

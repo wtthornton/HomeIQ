@@ -114,7 +114,6 @@ export const TeamTrackerSettings: React.FC = () => {
   const { darkMode } = useAppStore();
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [showInactive, setShowInactive] = useState(false);
 
   // Queries
@@ -166,7 +165,6 @@ export const TeamTrackerSettings: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teamTrackerTeams'] });
       toast.success('✅ Team updated successfully!');
-      setEditingTeam(null);
     },
     onError: () => toast.error('❌ Failed to update team'),
   });

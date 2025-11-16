@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { ServiceDetailsModal } from './ServiceDetailsModal';
 import { SkeletonCard } from './skeletons';
-import { apiService, ContainerInfo } from '../services/api';
+import { apiService, ContainerInfo, adminApi } from '../services/api';
 import type { ServiceStatus, ServiceDefinition } from '../types';
 import { fetchAIStats, AIStatsData } from './AIStats';
+import type { ServicesHealthResponse } from '../types/health';
 
 interface ServicesTabProps {
   darkMode: boolean;
@@ -43,16 +44,33 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
 
   const loadServices = async () => {
     try {
-      // Load both services and containers
-      const [servicesResponse, containersData] = await Promise.all([
-        fetch('/api/v1/services'),
+      // Load both services (from admin-api health) and containers
+      const [servicesHealth, containersData] = await Promise.all([
+        adminApi.getServicesHealth(),
         apiService.getContainers().catch(() => []) // Fallback to empty array if containers fail
       ]);
-      
-      if (!servicesResponse.ok) throw new Error('Failed to load services');
-      
-      const servicesData = await servicesResponse.json();
-      setServices(servicesData.services || []);
+
+      // Map admin-api services health response to ServiceStatus[] expected by UI
+      const mappedServices: ServiceStatus[] = Object.entries(servicesHealth as ServicesHealthResponse).map(
+        ([serviceName, health]) => {
+          const normalized =
+            health.status === 'healthy' || health.status === 'pass'
+              ? 'running'
+              : health.status === 'degraded'
+                ? 'degraded'
+                : health.status === 'unhealthy' || health.status === 'error'
+                  ? 'error'
+                  : 'stopped';
+          return {
+            service: serviceName,
+            running: normalized === 'running' || normalized === 'degraded',
+            status: normalized,
+            timestamp: health.last_check,
+          };
+        }
+      );
+
+      setServices(mappedServices);
       setContainers(containersData);
       setError('');
       setLastUpdate(new Date());

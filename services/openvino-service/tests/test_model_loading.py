@@ -1,10 +1,17 @@
 import sys
 import types
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-from src.models.openvino_manager import OpenVINOManager
+# Add service src to path
+service_root = Path(__file__).resolve().parent.parent
+src_path = service_root / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
+
+from models.openvino_manager import OpenVINOManager
 
 
 class _StubSentenceTransformer:

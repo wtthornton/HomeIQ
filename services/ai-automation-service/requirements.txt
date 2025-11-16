@@ -27,7 +27,7 @@ influxdb-client==1.49.0
 
 # Data Processing
 pandas==2.3.3
-numpy==2.3.4
+numpy>=1.23.2,<2.2.0  # Constrained by openvino 2024.6.0 (<2.2.0) and pandas (>=1.23.2)
 
 # Machine Learning
 scikit-learn==1.4.2
