@@ -554,7 +554,7 @@ class IntegrationHealthChecker:
         except Exception as e:
             return CheckResult(
                 integration_name="Data API",
-                integration_type="ha_ingestor",
+                integration_type="homeiq",
                 status=IntegrationStatus.ERROR,
                 is_configured=True,
                 is_connected=False,
@@ -598,7 +598,7 @@ class IntegrationHealthChecker:
         except Exception as e:
             return CheckResult(
                 integration_name="Admin API",
-                integration_type="ha_ingestor",
+                integration_type="homeiq",
                 status=IntegrationStatus.ERROR,
                 is_configured=True,
                 is_connected=False,

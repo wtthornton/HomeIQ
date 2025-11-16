@@ -220,7 +220,7 @@ class EnhancedHAWebSocketService:
                     autoping=True,
                     heartbeat=connection.heartbeat,
                     headers={
-                        'User-Agent': 'HA-Ingestor/1.0',
+                        'User-Agent': 'HomeIQ/1.0',
                         'Origin': connection.url
                     }
                 )

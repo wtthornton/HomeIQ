@@ -11,7 +11,7 @@ services:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
-      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-homeiq}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
     volumes:
@@ -58,16 +58,16 @@ services:
       # Nabu Casa Fallback Configuration
       - NABU_CASA_URL=${NABU_CASA_URL:-}
       - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
-      - DATA_API_URL=http://homeiq-data-api:8006
+      - DATA_API_URL=http://data-api:8006
       - WEBSOCKET_INGESTION_PORT=8001
       - ENABLE_HOME_ASSISTANT=true
       # InfluxDB Configuration (override .env file)
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_USERNAME=admin
       - INFLUXDB_PASSWORD=admin123
-      - INFLUXDB_ORG=ha-ingestor
+      - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
-      - INFLUXDB_TOKEN=ha-ingestor-token
+      - INFLUXDB_TOKEN=homeiq-token
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
@@ -94,7 +94,7 @@ services:
         max-file: "3"
         labels: "service=websocket-ingestion,environment=production"
     volumes:
-      - homeiq_logs:/var/log/ha-ingestor
+      - homeiq_logs:/var/log/homeiq
     depends_on:
       data-api:
         condition: service_healthy
@@ -143,7 +143,7 @@ services:
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-super-secret-jwt-key}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
@@ -193,7 +193,7 @@ services:
       - DATA_API_PORT=8006
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
       - SQLITE_TIMEOUT=30
@@ -241,7 +241,7 @@ services:
     environment:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
@@ -298,7 +298,7 @@ services:
       # InfluxDB configuration
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - SERVICE_PORT=8010
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -341,7 +341,7 @@ services:
       - PRICING_API_KEY=${PRICING_API_KEY:-}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - SERVICE_PORT=8011
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -387,7 +387,7 @@ services:
       - HOME_ASSISTANT_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - SERVICE_PORT=8012
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -432,8 +432,8 @@ services:
       - CACHE_TTL_SECONDS=900
       - FETCH_INTERVAL_SECONDS=300
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-ha-ingestor-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=weather_data
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
@@ -477,7 +477,7 @@ services:
   #     # InfluxDB Configuration
   #     - INFLUXDB_URL=http://influxdb:8086
   #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-  #     - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+  #     - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
   #     - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
   #     # Service Configuration
   #     - SERVICE_PORT=8013
@@ -530,7 +530,7 @@ services:
       - METER_DEVICE_ID=${METER_DEVICE_ID:-}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - SERVICE_PORT=8014
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -571,7 +571,7 @@ services:
     environment:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - PROCESSING_INTERVAL=${ENERGY_CORRELATION_INTERVAL:-60}
       - LOOKBACK_MINUTES=${ENERGY_LOOKBACK_MINUTES:-5}
@@ -658,7 +658,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./logs:/app/logs
-      - homeiq_logs:/var/log/ha-ingestor
+      - homeiq_logs:/var/log/homeiq
     group_add:
       - "0"  # root group for docker socket access
     networks:
@@ -868,7 +868,7 @@ services:
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
       - AI_CORE_SERVICE_URL=http://ai-core-service:8018
-      - DEVICE_INTELLIGENCE_URL=http://homeiq-device-intelligence:8019
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
     depends_on:
       data-api:
         condition: service_healthy
@@ -1038,16 +1038,16 @@ services:
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
       - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
-      - DATA_API_URL=http://homeiq-data-api:8006
+      - DATA_API_URL=http://data-api:8006
       - API_KEY=hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR
-      - ADMIN_API_URL=http://homeiq-admin-api:8003
+      - ADMIN_API_URL=http://admin-api:8004
       - HEALTH_CHECK_INTERVAL=60
       - INTEGRATION_CHECK_INTERVAL=300
       - ENABLE_PERFORMANCE_MONITORING=true
       - PERFORMANCE_SAMPLE_INTERVAL=30
     volumes:
       - ha_setup_data:/app/data
-      - homeiq_logs:/var/log/ha-ingestor
+      - homeiq_logs:/var/log/homeiq
     depends_on:
       data-api:
         condition: service_healthy

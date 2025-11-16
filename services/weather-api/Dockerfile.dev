@@ -8,12 +8,10 @@ WORKDIR /app
 RUN apk add --no-cache gcc musl-dev linux-headers curl
 
 # Copy requirements
-COPY services/weather-api/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source (will be mounted as volume in dev)
-COPY services/weather-api/src ./src
-COPY shared ./shared
+# Source code and shared utilities are mounted as volumes in docker-compose.dev.yml
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1

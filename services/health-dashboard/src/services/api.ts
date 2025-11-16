@@ -188,17 +188,17 @@ class AdminApiClient extends BaseApiClient {
   }
 
   async getActiveAlerts(): Promise<Alert[]> {
-    return this.fetchWithErrorHandling<Alert[]>(`${this.baseUrl}/alerts/active`);
+    return this.fetchWithErrorHandling<Alert[]>(`${this.baseUrl}/api/v1/alerts/active`);
   }
 
   async acknowledgeAlert(alertId: string): Promise<void> {
-    await this.fetchWithErrorHandling(`${this.baseUrl}/alerts/${alertId}/acknowledge`, {
+    await this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/alerts/${alertId}/acknowledge`, {
       method: 'POST',
     });
   }
 
   async resolveAlert(alertId: string): Promise<void> {
-    await this.fetchWithErrorHandling(`${this.baseUrl}/alerts/${alertId}/resolve`, {
+    await this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/alerts/${alertId}/resolve`, {
       method: 'POST',
     });
   }

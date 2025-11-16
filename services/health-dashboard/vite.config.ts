@@ -9,8 +9,9 @@ export default defineConfig(({ command, mode }) => {
   
   const isProduction = mode === 'production'
   const isDevelopment = mode === 'development'
-    const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8004';
-    const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8004';
+    // In docker-compose.dev.yml admin-api maps 8003:8004, so localhost uses 8003
+    const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8003';
+    const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8003';
     const devDataApiTarget = env.VITE_DEV_DATA_API || 'http://localhost:8006';
 
     return {
@@ -52,6 +53,14 @@ export default defineConfig(({ command, mode }) => {
           secure: false,
             rewrite: (path) => path.replace(/^\/ws/, '/ws'),
         },
+        // Explicit /api/v1 passthrough to avoid double-prefixing
+        '/api/v1': {
+            target: devAdminApiTarget,
+          changeOrigin: true,
+          secure: false,
+          // Do NOT rewrite when already /api/v1
+          rewrite: (path) => path,
+        },
         // Sports API proxy - route to data-api (sports-data service was removed)
         '/api/sports': {
             target: devDataApiTarget,
@@ -64,7 +73,8 @@ export default defineConfig(({ command, mode }) => {
             target: devAdminApiTarget,
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
+          // Only add /v1 when not already present to prevent /api/v1 -> /api/v1/v1
+          rewrite: (path) => path.startsWith('/api/v1') ? path : path.replace(/^\/api/, '/api/v1'),
         },
       },
     },

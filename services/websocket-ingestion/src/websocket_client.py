@@ -85,7 +85,7 @@ class HomeAssistantWebSocketClient:
                 ws_url,
                 headers={
                     'Authorization': f'Bearer {self.token}',
-                    'User-Agent': 'HA-Ingestor/1.0'
+                    'User-Agent': 'HomeIQ/1.0'
                 }
             )
             
