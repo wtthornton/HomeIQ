@@ -8,6 +8,7 @@ Provides optimized model inference for:
 - flan-t5-small (INT8) - Classification
 """
 
+import asyncio
 import logging
 import os
 import time
@@ -19,6 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .models.openvino_manager import OpenVINOManager
+
+MAX_TEXTS = int(os.getenv("OPENVINO_MAX_TEXTS", "100"))
+MAX_TEXT_LENGTH = int(os.getenv("OPENVINO_MAX_TEXT_LENGTH", "10000"))
+MAX_RERANK_CANDIDATES = int(os.getenv("OPENVINO_MAX_RERANK_CANDIDATES", "200"))
+MAX_TOP_K = int(os.getenv("OPENVINO_MAX_TOP_K", "50"))
+MAX_QUERY_LENGTH = int(os.getenv("OPENVINO_MAX_QUERY_LENGTH", "2000"))
+MAX_PATTERN_LENGTH = int(os.getenv("OPENVINO_MAX_PATTERN_LENGTH", "8000"))
+PRELOAD_MODELS = os.getenv("OPENVINO_PRELOAD_MODELS", "false").lower() in {"1", "true", "yes"}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,14 +52,14 @@ async def lifespan(app: FastAPI):
     
     logger.info("🚀 Starting OpenVINO Service...")
     try:
-        openvino_manager = OpenVINOManager(models_dir=MODEL_CACHE_DIR)
+        openvino_manager = OpenVINOManager()
         if PRELOAD_MODELS:
-            logger.info("⏳ Pre-loading OpenVINO models at startup (override via OPENVINO_PRELOAD_MODELS)")
             await openvino_manager.initialize()
+            logger.info("✅ OpenVINO Service started successfully (models preloaded)")
         else:
-            logger.info("✅ OpenVINO Service started in lazy-loading mode (set OPENVINO_PRELOAD_MODELS=1 to warm models)")
-    except Exception as e:
-        logger.error(f"❌ Failed to start OpenVINO Service: {e}")
+            logger.info("✅ OpenVINO Service started successfully (models will lazy-load)")
+    except Exception:
+        logger.exception("❌ Failed to start OpenVINO Service")
         raise
     
     yield
@@ -108,91 +117,103 @@ class ClassifyResponse(BaseModel):
     processing_time: float = Field(..., description="Processing time in seconds")
 
 
+def _require_manager() -> OpenVINOManager:
+    if not openvino_manager:
+        raise HTTPException(status_code=503, detail="Service not ready")
+    return openvino_manager
+
+
 def _validate_text_batch(texts: List[str]) -> None:
     if not texts:
         raise HTTPException(status_code=400, detail="At least one text is required")
-    if len(texts) > MAX_EMBEDDING_TEXTS:
+    if len(texts) > MAX_TEXTS:
+        raise HTTPException(status_code=400, detail=f"Too many texts (max {MAX_TEXTS})")
+
+    for idx, text in enumerate(texts):
+        if not isinstance(text, str):
+            raise HTTPException(status_code=400, detail=f"Text at index {idx} must be a string")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise HTTPException(status_code=400, detail=f"Text at index {idx} exceeds {MAX_TEXT_LENGTH} characters")
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Texts cannot be empty strings")
+
+
+def _validate_rerank_payload(query: str, candidates: List[Dict[str, Any]], top_k: int) -> None:
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="Query text is required")
+    if len(query) > MAX_QUERY_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Query exceeds {MAX_QUERY_LENGTH} characters")
+
+    if not candidates:
+        raise HTTPException(status_code=400, detail="At least one candidate is required")
+    if len(candidates) > MAX_RERANK_CANDIDATES:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many texts supplied (max {MAX_EMBEDDING_TEXTS})"
+            detail=f"Too many candidates (max {MAX_RERANK_CANDIDATES})"
         )
-    for text in texts:
-        if text is None:
-            raise HTTPException(status_code=400, detail="Texts cannot be null")
-        if len(text) > MAX_TEXT_LENGTH:
+
+    for idx, candidate in enumerate(candidates):
+        description = str(candidate.get("description", ""))
+        if len(description) > MAX_TEXT_LENGTH:
             raise HTTPException(
                 status_code=400,
-                detail=f"Text exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+                detail=f"Candidate description at index {idx} exceeds {MAX_TEXT_LENGTH} characters"
             )
 
-
-def _validate_rerank_request(request: RerankRequest) -> int:
-    if not request.query or not request.query.strip():
-        raise HTTPException(status_code=400, detail="Query text cannot be empty")
-    if len(request.query) > MAX_TEXT_LENGTH:
+    max_allowed = min(MAX_TOP_K, len(candidates))
+    if top_k < 1 or top_k > max_allowed:
         raise HTTPException(
             status_code=400,
-            detail=f"Query exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+            detail=f"top_k must be between 1 and {max_allowed}"
         )
-    if not request.candidates:
-        raise HTTPException(status_code=400, detail="At least one candidate is required")
-    if len(request.candidates) > MAX_RERANK_CANDIDATES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Too many candidates supplied (max {MAX_RERANK_CANDIDATES})"
-        )
-    if request.top_k <= 0:
-        raise HTTPException(status_code=400, detail="top_k must be greater than zero")
-    
-    return min(request.top_k, len(request.candidates), MAX_RERANK_TOP_K)
 
 
 def _validate_pattern_description(description: str) -> None:
     if not description or not description.strip():
-        raise HTTPException(status_code=400, detail="Pattern description is required")
+        raise HTTPException(status_code=400, detail="pattern_description cannot be empty")
     if len(description) > MAX_PATTERN_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail=f"Pattern description exceeds {MAX_PATTERN_LENGTH} characters"
+            detail=f"pattern_description exceeds {MAX_PATTERN_LENGTH} characters"
         )
 
 # API Endpoints
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with model readiness information"""
-    if not openvino_manager:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    """Health check endpoint - reports readiness and model status."""
+    manager = _require_manager()
+    readiness = manager.is_ready()
+    
+    model_status = manager.get_model_status()
     
     model_status = openvino_manager.get_model_status()
     ready_state = "ready" if model_status.get("all_models_loaded") else "warming"
     
     return {
-        "status": ready_state,
+        "status": "healthy" if readiness else "initializing",
         "service": "openvino-service",
-        "ready": model_status.get("ready_for_requests", False),
-        "details": model_status
+        "ready": readiness,
+        "models_loaded": model_status
     }
 
 @app.get("/models/status")
 async def get_model_status():
     """Get detailed model status"""
-    if not openvino_manager:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    return openvino_manager.get_model_status()
+    manager = _require_manager()
+    return manager.get_model_status()
 
 @app.post("/embeddings", response_model=EmbeddingResponse)
 async def generate_embeddings(request: EmbeddingRequest):
     """Generate embeddings for texts"""
-    if not openvino_manager:
-        raise HTTPException(status_code=503, detail="Service not ready")
+    manager = _require_manager()
+    _validate_text_batch(request.texts)
     
     _validate_text_batch(request.texts)
     
     try:
         start_time = time.perf_counter()
         
-        embeddings = await openvino_manager.generate_embeddings(
+        embeddings = await manager.generate_embeddings(
             texts=request.texts,
             normalize=request.normalize
         )
@@ -204,10 +225,13 @@ async def generate_embeddings(request: EmbeddingRequest):
             model_name="all-MiniLM-L6-v2",
             processing_time=processing_time
         )
+    
+    except asyncio.TimeoutError:
+        timeout = manager.inference_timeout
+        logger.warning("Embedding generation timed out after %.2fs", timeout)
+        raise HTTPException(status_code=504, detail=f"Embedding generation timed out after {timeout} seconds")
     except HTTPException:
         raise
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         logger.exception("Error generating embeddings")
         raise HTTPException(status_code=500, detail="Embedding generation failed")
@@ -215,15 +239,15 @@ async def generate_embeddings(request: EmbeddingRequest):
 @app.post("/rerank", response_model=RerankResponse)
 async def rerank_candidates(request: RerankRequest):
     """Re-rank candidates using bge-reranker"""
-    if not openvino_manager:
-        raise HTTPException(status_code=503, detail="Service not ready")
+    manager = _require_manager()
+    _validate_rerank_payload(request.query, request.candidates, request.top_k)
     
     top_k = _validate_rerank_request(request)
     
     try:
         start_time = time.perf_counter()
         
-        ranked_candidates = await openvino_manager.rerank(
+        ranked_candidates = await manager.rerank(
             query=request.query,
             candidates=request.candidates,
             top_k=top_k
@@ -236,10 +260,13 @@ async def rerank_candidates(request: RerankRequest):
             model_name="bge-reranker-base",
             processing_time=processing_time
         )
+    
+    except asyncio.TimeoutError:
+        timeout = manager.inference_timeout
+        logger.warning("Re-ranking timed out after %.2fs", timeout)
+        raise HTTPException(status_code=504, detail=f"Re-ranking timed out after {timeout} seconds")
     except HTTPException:
         raise
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         logger.exception("Error re-ranking candidates")
         raise HTTPException(status_code=500, detail="Re-ranking failed")
@@ -247,15 +274,15 @@ async def rerank_candidates(request: RerankRequest):
 @app.post("/classify", response_model=ClassifyResponse)
 async def classify_pattern(request: ClassifyRequest):
     """Classify pattern using flan-t5-small"""
-    if not openvino_manager:
-        raise HTTPException(status_code=503, detail="Service not ready")
+    manager = _require_manager()
+    _validate_pattern_description(request.pattern_description)
     
     _validate_pattern_description(request.pattern_description)
     
     try:
         start_time = time.perf_counter()
         
-        classification = await openvino_manager.classify_pattern(
+        classification = await manager.classify_pattern(
             pattern_description=request.pattern_description
         )
         
@@ -267,10 +294,13 @@ async def classify_pattern(request: ClassifyRequest):
             model_name="flan-t5-small",
             processing_time=processing_time
         )
+    
+    except asyncio.TimeoutError:
+        timeout = manager.inference_timeout
+        logger.warning("Pattern classification timed out after %.2fs", timeout)
+        raise HTTPException(status_code=504, detail=f"Classification timed out after {timeout} seconds")
     except HTTPException:
         raise
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         logger.exception("Error classifying pattern")
         raise HTTPException(status_code=500, detail="Classification failed")
