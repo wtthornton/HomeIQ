@@ -1,4 +1,5 @@
 """Configuration management for HA Setup Service"""
+from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -24,6 +25,12 @@ class Settings(BaseSettings):
     
     # Admin API configuration
     admin_api_url: str = "http://homeiq-admin-api:8003"
+    
+    # MQTT broker configuration (for Zigbee2MQTT monitoring)
+    mqtt_broker_url: str = "mqtt://core-mosquitto:1883"  # Default HA Mosquitto broker
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
+    zigbee2mqtt_base_topic: str = "zigbee2mqtt"  # Zigbee2MQTT base topic
     
     # Health check intervals (seconds)
     health_check_interval: int = 60

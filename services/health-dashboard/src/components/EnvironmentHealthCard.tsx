@@ -112,7 +112,7 @@ export const EnvironmentHealthCard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className={`p-2 rounded-lg ${getHealthColor(health.ha_status)}`}>
+          <div className={`p-2 rounded-lg ${getHealthColor(health.ha_status ?? HealthStatus.UNKNOWN)}`}>
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -122,7 +122,7 @@ export const EnvironmentHealthCard: React.FC = () => {
               Environment Health
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Last updated: {new Date(health.timestamp).toLocaleTimeString()}
+              Last updated: {health.timestamp ? new Date(health.timestamp).toLocaleTimeString() : 'Unknown'}
             </p>
           </div>
         </div>
@@ -143,17 +143,17 @@ export const EnvironmentHealthCard: React.FC = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Health Score</span>
-          <span className={`text-2xl font-bold ${getScoreColor(health.health_score)}`}>
-            {health.health_score}/100
+          <span className={`text-2xl font-bold ${getScoreColor(health.health_score ?? 0)}`}>
+            {health.health_score ?? 0}/100
           </span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
           <div
             className={`h-2.5 rounded-full transition-all duration-500 ${
-              health.health_score >= 80 ? 'bg-green-600' :
-                health.health_score >= 50 ? 'bg-yellow-600' : 'bg-red-600'
+              (health.health_score ?? 0) >= 80 ? 'bg-green-600' :
+                (health.health_score ?? 0) >= 50 ? 'bg-yellow-600' : 'bg-red-600'
             }`}
-            style={{ width: `${health.health_score}%` }}
+            style={{ width: `${health.health_score ?? 0}%` }}
           ></div>
         </div>
       </div>
@@ -167,8 +167,8 @@ export const EnvironmentHealthCard: React.FC = () => {
               {health.ha_version || 'Version unknown'}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getHealthColor(health.ha_status)}`}>
-            {health.ha_status}
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getHealthColor(health.ha_status ?? HealthStatus.UNKNOWN)}`}>
+            {health.ha_status ?? 'Unknown'}
           </span>
         </div>
       </div>
@@ -204,16 +204,27 @@ export const EnvironmentHealthCard: React.FC = () => {
                   <dl className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
                     {Object.entries(integration.check_details)
                       .slice(0, 5)
-                      .map(([key, value]) => (
-                        <div key={key} className="flex justify-between gap-2">
-                          <dt className="font-medium text-gray-600 dark:text-gray-300">
-                            {formatCheckDetailLabel(key)}
-                          </dt>
-                          <dd className="text-right text-gray-500 dark:text-gray-400 max-w-[180px] break-words">
-                            {formatCheckDetailValue(value)}
-                          </dd>
-                        </div>
-                      ))}
+                      .map(([key, value]) => {
+                        // Highlight monitoring method for Zigbee2MQTT
+                        const isMonitoringMethod = key === 'monitoring_method';
+                        const isMqttSubscription = isMonitoringMethod && value === 'mqtt_subscription';
+                        
+                        return (
+                          <div key={key} className={`flex justify-between gap-2 ${isMqttSubscription ? 'bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : ''}`}>
+                            <dt className={`font-medium ${isMqttSubscription ? 'text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300'}`}>
+                              {formatCheckDetailLabel(key)}
+                              {isMqttSubscription && (
+                                <span className="ml-1 text-green-600 dark:text-green-400" title="Real-time MQTT subscription">
+                                  ⚡
+                                </span>
+                              )}
+                            </dt>
+                            <dd className={`text-right max-w-[180px] break-words ${isMqttSubscription ? 'text-green-700 dark:text-green-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {formatCheckDetailValue(value)}
+                            </dd>
+                          </div>
+                        );
+                      })}
                   </dl>
                 )}
                 </div>

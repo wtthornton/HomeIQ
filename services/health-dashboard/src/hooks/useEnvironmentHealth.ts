@@ -57,7 +57,21 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
         throw new Error('Setup service returned empty health payload');
       }
 
-      setHealth(parsed as EnvironmentHealth);
+      // Ensure required fields have defaults to prevent crashes
+      const healthData = parsed as any;
+      const normalizedHealth: EnvironmentHealth = {
+        health_score: healthData.health_score ?? 0,
+        ha_status: healthData.ha_status ?? 'unknown',
+        ha_version: healthData.ha_version,
+        integrations: Array.isArray(healthData.integrations) ? healthData.integrations : [],
+        performance: healthData.performance ?? {
+          response_time_ms: 0
+        },
+        issues_detected: Array.isArray(healthData.issues_detected) ? healthData.issues_detected : [],
+        timestamp: healthData.timestamp ?? new Date().toISOString()
+      };
+
+      setHealth(normalizedHealth);
       setLoading(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch health data';
