@@ -428,7 +428,7 @@ class HomeAssistantClient:
             response = await self.send_message({
                 "type": "config/area_registry/list"
             })
-            
+
             areas = []
             for area_data in response.get("result", []):
                 area = HAArea(
@@ -440,13 +440,39 @@ class HomeAssistantClient:
                     updated_at=self._parse_timestamp(area_data.get("updated_at"))
                 )
                 areas.append(area)
-            
+
             logger.info(f"🏠 Discovered {len(areas)} areas from Home Assistant")
             return areas
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to get area registry: {e}")
             return []
+
+    async def get_config_entries(self) -> Dict[str, str]:
+        """
+        Get config entries from Home Assistant to map entry_id -> integration domain.
+
+        Returns:
+            Dict mapping config_entry_id to domain (integration name)
+        """
+        try:
+            response = await self.send_message({
+                "type": "config_entries/get"
+            })
+
+            config_entry_map = {}
+            for entry in response.get("result", []):
+                entry_id = entry.get("entry_id")
+                domain = entry.get("domain")
+                if entry_id and domain:
+                    config_entry_map[entry_id] = domain
+
+            logger.info(f"🔧 Retrieved {len(config_entry_map)} config entries")
+            return config_entry_map
+
+        except Exception as e:
+            logger.error(f"❌ Failed to get config entries: {e}")
+            return {}
     
     async def update_device_registry_entry(self, device_id: str, **fields: Any) -> Dict[str, Any]:
         """Update device registry entry with safety checks."""

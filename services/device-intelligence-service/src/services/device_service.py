@@ -64,13 +64,14 @@ class DeviceService:
             raise
     
     async def bulk_upsert_devices(self, devices_data: List[Dict[str, Any]]) -> List[Device]:
-        """Bulk upsert multiple devices using a single transaction."""
+        """Bulk upsert multiple devices using raw SQL to avoid SQLAlchemy ORM issues."""
         if not devices_data:
             return []
 
         try:
-            sanitized_payload: List[Dict[str, Any]] = []
+            from sqlalchemy import text
             missing_integrations: List[str] = []
+            upserted_count = 0
 
             for entry in devices_data:
                 integration_value = (entry.get("integration") or "").strip()
@@ -78,27 +79,29 @@ class DeviceService:
                     integration_value = "unknown"
                     missing_integrations.append(entry.get("id", "unknown"))
 
-                sanitized_entry = dict(entry)
-                sanitized_entry["integration"] = integration_value
-                sanitized_payload.append(sanitized_entry)
+                entry["integration"] = integration_value
 
-            stmt = sqlite_insert(Device).values(sanitized_payload)
+                # Build column names and placeholders
+                columns = list(entry.keys())
+                placeholders = [f":{col}" for col in columns]
 
-            update_fields = {
-                key: stmt.excluded[key]
-                for key in sanitized_payload[0].keys()
-                if key not in {"id", "created_at"}
-            }
+                # Build UPDATE SET clause (exclude id and created_at)
+                update_parts = [f"{col}=excluded.{col}" for col in columns if col not in {"id", "created_at"}]
 
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[Device.id],
-                set_=update_fields,
-            )
+                # Build raw SQL
+                sql = f"""
+                INSERT INTO devices ({', '.join(columns)})
+                VALUES ({', '.join(placeholders)})
+                ON CONFLICT(id) DO UPDATE SET
+                {', '.join(update_parts)}
+                """
 
-            await self.session.execute(stmt)
+                await self.session.execute(text(sql), entry)
+                upserted_count += 1
+
             await self.session.commit()
 
-            device_ids = [payload["id"] for payload in sanitized_payload]
+            device_ids = [entry["id"] for entry in devices_data]
             result = await self.session.execute(
                 select(Device).where(Device.id.in_(device_ids))
             )
@@ -111,7 +114,7 @@ class DeviceService:
                     missing_integrations[:5],
                 )
 
-            logger.info(f"Bulk upserted {len(devices)} devices with single transaction")
+            logger.info(f"Bulk upserted {upserted_count} devices successfully")
             return devices
 
         except Exception as e:
