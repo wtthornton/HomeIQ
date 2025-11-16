@@ -104,10 +104,21 @@ class HistoricalEventCounter:
                 logger.warning("InfluxDB not connected, cannot query historical totals")
                 return None
             
-            result = self.influxdb_manager.query_api.query(query)
+            # Use the org from the connection manager
+            import asyncio
+            result = await asyncio.to_thread(
+                self.influxdb_manager.query_api.query,
+                query,
+                org=self.influxdb_manager.org
+            )
             return result
             
         except Exception as e:
+            # Handle 401 Unauthorized errors gracefully - InfluxDB might not be fully initialized yet
+            error_str = str(e)
+            if "401" in error_str or "unauthorized" in error_str.lower() or "Unauthorized" in error_str:
+                logger.warning(f"InfluxDB authentication failed (likely during startup): {error_str}. Will retry on next initialization.")
+                return None
             logger.error(f"Failed to execute InfluxDB query: {e}")
             return None
     

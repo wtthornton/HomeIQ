@@ -77,8 +77,6 @@ services:
         condition: service_healthy
       data-api:
         condition: service_healthy
-      data-api:
-        condition: service_healthy
     networks:
       - homeiq-network
     healthcheck:
@@ -225,6 +223,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - API_HOST=0.0.0.0
       - API_PORT=8004
+      - API_KEY=${ADMIN_API_API_KEY:-${API_KEY:-}}
       - ENABLE_AUTH=${ENABLE_AUTH:-true}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL}

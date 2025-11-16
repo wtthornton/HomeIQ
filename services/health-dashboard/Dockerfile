@@ -17,15 +17,26 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM node:18-alpine AS builder
 WORKDIR /app
 
+# Accept build arguments for Vite environment variables
+ARG VITE_API_BASE_URL
+ARG VITE_API_KEY
+ARG VITE_DATA_API_URL
+ARG VITE_WS_URL
+ARG VITE_ENVIRONMENT=production
+
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
 COPY . .
 
-# Set build environment
+# Set build environment with Vite variables
 ENV NODE_ENV=production
-ENV VITE_ENVIRONMENT=production
+ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_API_KEY=${VITE_API_KEY}
+ENV VITE_DATA_API_URL=${VITE_DATA_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
 
 # Build the application
 RUN npm run build
