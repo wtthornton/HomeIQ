@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { withCsrfHeader } from '../../utils/security';
 
 type FormState = {
   brokerUrl: string;
@@ -9,7 +10,7 @@ type FormState = {
 
 type LoadState = 'idle' | 'loading' | 'error' | 'success';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8003';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const CONFIG_ENDPOINT = `${API_BASE_URL}/api/v1/config/integrations/mqtt`;
 
 export const MqttConfigForm: React.FC = () => {
@@ -62,8 +63,35 @@ export const MqttConfigForm: React.FC = () => {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
+  const validateForm = (): string | null => {
+    try {
+      const url = new URL(formState.brokerUrl.trim());
+      if (!['mqtt:', 'mqtts:', 'ws:', 'wss:'].includes(url.protocol)) {
+        return 'Unsupported broker protocol. Use mqtt, mqtts, ws, or wss.';
+      }
+    } catch {
+      return 'Please enter a valid MQTT broker URL.';
+    }
+
+    if (!formState.baseTopic.trim()) {
+      return 'Base topic is required.';
+    }
+
+    if (formState.username && /\s/.test(formState.username)) {
+      return 'Username cannot contain whitespace.';
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const validationError = validateForm();
+    if (validationError) {
+      setStatusMessage(validationError);
+      setSavingState('error');
+      return;
+    }
     setSavingState('loading');
     setStatusMessage(null);
 
@@ -74,13 +102,13 @@ export const MqttConfigForm: React.FC = () => {
       ZIGBEE2MQTT_BASE_TOPIC: formState.baseTopic.trim(),
     };
 
-    try {
-      const response = await fetch(CONFIG_ENDPOINT, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
+      try {
+        const response = await fetch(CONFIG_ENDPOINT, {
+          method: 'PUT',
+          headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));

@@ -182,15 +182,17 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
             >
               🔄
             </button>
-            <button
-              onClick={() => window.open(`${import.meta.env.VITE_HA_URL || 'http://192.168.1.86:8123'}/config/devices/dashboard`, '_blank')}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-              } text-white`}
-              title="Manage teams in Home Assistant"
-            >
-              ⚙️ Manage Teams in HA
-            </button>
+              {import.meta.env.VITE_HA_URL && (
+                <button
+                  onClick={() => window.open(`${import.meta.env.VITE_HA_URL}/config/devices/dashboard`, '_blank')}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                  } text-white`}
+                  title="Manage teams in Home Assistant"
+                >
+                  ⚙️ Manage Teams in HA
+                </button>
+              )}
           </div>
         </div>
 
