@@ -88,7 +88,9 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
   // Context7 Best Practice: Only depend on selectedDevice, not global entities array
   useEffect(() => {
     if (selectedDevice) {
-      console.log(`[DeviceEntities] Fetching entities for device: ${selectedDevice.device_id}`);
+      if (import.meta.env.MODE !== 'production') {
+        console.log(`[DeviceEntities] Fetching entities for device: ${selectedDevice.device_id}`);
+      }
       setLoadingEntities(true);
       
       dataApi.getEntities({ device_id: selectedDevice.device_id, limit: 100 })
@@ -100,7 +102,9 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
             e => e.device_id === selectedDevice.device_id
           );
           
-          console.log(`[DeviceEntities] Loaded ${validEntities.length} entities for ${selectedDevice.device_id}`);
+          if (import.meta.env.MODE !== 'production') {
+            console.log(`[DeviceEntities] Loaded ${validEntities.length} entities for ${selectedDevice.device_id}`);
+          }
           
           if (validEntities.length !== apiEntities.length) {
             console.warn(

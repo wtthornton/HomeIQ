@@ -127,7 +127,9 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
   const copyLog = (log: LogEntry) => {
     const logText = `[${log.timestamp}] ${log.level} ${log.service}: ${log.message}`;
     navigator.clipboard.writeText(logText).then(() => {
-      console.log('Log copied to clipboard');
+      if (import.meta.env.MODE !== 'production') {
+        console.log('Log copied to clipboard');
+      }
     });
   };
 
