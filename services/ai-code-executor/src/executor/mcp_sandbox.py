@@ -2,77 +2,59 @@
 Enhanced sandbox with MCP tool support.
 """
 
-from .sandbox import PythonSandbox, SandboxConfig, ExecutionResult
-from ..mcp.filesystem_generator import MCPFilesystemGenerator
-from ..mcp.homeiq_tools import HomeIQMCPTools
-import sys
+import asyncio
 from typing import Dict, Any
 import logging
+
+from .sandbox import PythonSandbox, SandboxConfig, ExecutionResult
+from ..mcp.homeiq_tools import HomeIQMCPTools
 
 logger = logging.getLogger(__name__)
 
 
 class MCPSandbox(PythonSandbox):
-    """Sandbox with MCP tool filesystem support"""
+    """Sandbox wrapper that optionally injects MCP tool context."""
 
-    def __init__(self, config: SandboxConfig = None, workspace_dir: str = "/tmp/mcp_workspace"):
+    def __init__(
+        self,
+        config: SandboxConfig = None,
+        workspace_dir: str = "/tmp/mcp_workspace",
+        max_concurrent_executions: int = 2,
+        enable_network_tools: bool = False,
+    ):
         super().__init__(config)
-        self.mcp_generator = MCPFilesystemGenerator(workspace_dir)
+        self.workspace_dir = workspace_dir
         self._initialized = False
+        self._tool_context: Dict[str, Any] = {}
+        self._execution_guard = asyncio.Semaphore(max_concurrent_executions)
+        self._tool_registry = HomeIQMCPTools(enable_network_tools=enable_network_tools)
 
     async def initialize(self):
-        """Initialize MCP workspace and register HomeIQ servers"""
+        """Prepare tool context. Network access is disabled by default."""
         if self._initialized:
-            logger.info("MCP workspace already initialized")
             return
 
-        await self.mcp_generator.initialize_workspace()
-
-        # Register all HomeIQ MCP servers
-        await self._register_homeiq_servers()
-
+        self._tool_context = await self._tool_registry.build_context()
         self._initialized = True
-        logger.info("MCP sandbox initialized successfully")
-
-    async def _register_homeiq_servers(self):
-        """Register HomeIQ MCP servers"""
-        all_tools = HomeIQMCPTools.get_all_tools()
-
-        for server_name, tools in all_tools.items():
-            await self.mcp_generator.register_server(server_name, tools)
-            logger.info(f"Registered {len(tools)} tools for '{server_name}' server")
+        logger.info(
+            "MCP sandbox initialized (network_tools_enabled=%s)",
+            self._tool_registry.network_enabled,
+        )
 
     async def execute_with_mcp(
         self,
         code: str,
-        context: Dict[str, Any] = None
+        context: Dict[str, Any] = None,
     ) -> ExecutionResult:
-        """
-        Execute code with MCP tool access.
-
-        The code can import MCP tools like:
-        ```python
-        import data
-        devices = await data.get_devices()
-        ```
-        """
-        # Ensure initialized
+        """Execute code with optional MCP context within concurrency guard."""
         if not self._initialized:
             await self.initialize()
 
-        # Add MCP workspace to Python path
-        workspace_path = self.mcp_generator.get_workspace_path()
+        merged_context: Dict[str, Any] = {}
+        if self._tool_context:
+            merged_context.update(self._tool_context)
+        if context:
+            merged_context.update(context)
 
-        # Build context with sys.path modification
-        mcp_context = context or {}
-
-        # Prepend code to add workspace to sys.path
-        setup_code = f"""
-import sys
-if '{workspace_path}/servers' not in sys.path:
-    sys.path.insert(0, '{workspace_path}/servers')
-"""
-
-        full_code = setup_code + "\n" + code
-
-        return await self.execute(full_code, mcp_context)
+        async with self._execution_guard:
+            return await self.execute(code, merged_context)
