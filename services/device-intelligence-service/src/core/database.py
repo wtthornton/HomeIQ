@@ -5,6 +5,8 @@ Simple database connection and session management for SQLite.
 """
 
 import logging
+import os
+from pathlib import Path
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
@@ -23,6 +25,12 @@ def get_database_url(settings: Settings) -> str:
     # Convert SQLite URL to async SQLite URL
     db_url = settings.get_database_url()
     if db_url.startswith("sqlite:///"):
+        # Ensure database directory exists
+        db_path = db_url.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+            logger.info(f"✅ Database directory ensured: {db_dir}")
         return db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
     return db_url
 

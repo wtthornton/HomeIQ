@@ -27,9 +27,8 @@ COPY --from=builder /root/.local /root/.local
 # Copy application source
 COPY src/ /app/src/
 
-# Copy models directory (create directory first, then copy if exists)
-RUN mkdir -p /app/models
-COPY models/ /app/models/ 2>/dev/null || echo "Models directory not found, skipping"
+# Copy models directory (ML models for predictive analytics)
+COPY models/ /app/models/
 
 # Set working directory
 WORKDIR /app
