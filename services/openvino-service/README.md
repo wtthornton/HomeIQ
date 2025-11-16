@@ -356,6 +356,13 @@ curl -X POST http://localhost:8019/classify \
   -d '{"pattern_description": "Turn on lights at sunset"}'
 ```
 
+#### Automated ML validation (2025)
+
+- Run the service test suite with `python3 -m pytest services/openvino-service/tests`
+- Embedding tests cover dimensionality, normalization, semantic similarity, and Hypothesis-based property checks using fixtures in `tests/fixtures/`
+- NER/classification benchmarks exercise the rule-based fallbacks to guarantee predictable behavior for common sentences without downloading hundreds of megabytes of weights
+- Reranking, performance, and model loading tests guard timeout/fallback logic and ensure `<100ms` embedding latency targets remain visible in CI coverage reports
+
 ## Dependencies
 
 ### Core

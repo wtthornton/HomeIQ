@@ -1,0 +1,33 @@
+{
+  "batch_texts": [
+    "Turn on the living room lights",
+    "Dim the bedroom lamp to 20 percent",
+    "Heat the upstairs thermostat to 72 degrees",
+    "Lock the front door at 10 PM",
+    "Start the coffee maker at 6 AM"
+  ],
+  "similar_pairs": [
+    [
+      "Turn on the living room lights",
+      "Switch on lights in the living room"
+    ],
+    [
+      "Switch on the living room lamp",
+      "Turn the lounge lights on"
+    ],
+    [
+      "Preheat the oven to 350 degrees",
+      "Warm up the kitchen oven to 350°"
+    ]
+  ],
+  "dissimilar_pairs": [
+    [
+      "The weather is sunny today",
+      "Quantum physics is difficult"
+    ],
+    [
+      "Water the backyard plants every morning",
+      "Disable the home security alarm"
+    ]
+  ]
+}
