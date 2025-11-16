@@ -15,7 +15,7 @@ from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/database", tags=["Database Management"])
+router = APIRouter(prefix="/database", tags=["Database Management"])
 
 settings = Settings()
 
@@ -108,8 +108,8 @@ async def database_management_info() -> Dict[str, Any]:
     return {
         "message": "Database Management API",
         "endpoints": {
-            "recreate_tables": "POST /admin/database/recreate-tables - Recreate all tables (WARNING: Drops all data)",
-            "status": "GET /admin/database/status - Get database status"
+            "recreate_tables": "POST /api/database/recreate-tables - Recreate all tables (WARNING: Drops all data)",
+            "status": "GET /api/database/status - Get database status"
         },
         "warnings": [
             "Recreating tables will DELETE ALL existing data",
