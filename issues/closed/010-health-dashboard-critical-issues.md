@@ -1,9 +1,14 @@
 ---
-status: Open
+status: Closed
 priority: Critical
 service: health-dashboard
 created: 2025-11-15
 labels: [critical, deployment, security]
+closed: 2025-11-16
+resolution: >
+  Hardcoded localhost calls replaced with nginx-backed routes, HA tokens removed
+  from the browser via admin-api proxying, CSP + CSRF protections enforced, and
+  README/env guidance updated.
 ---
 
 # [CRITICAL] Health Dashboard - Deployment Blockers and Security Issues
@@ -12,6 +17,12 @@ labels: [critical, deployment, security]
 
 ## Overview
 The health-dashboard frontend has **CRITICAL deployment blockers** and security vulnerabilities that will prevent it from working in production Docker environments and expose sensitive credentials.
+
+## Resolution Summary
+- Replaced all hardcoded `localhost` calls with nginx-backed routes and Vite dev proxies so the UI works inside Docker/HTTPS.
+- Added admin-api `/api/v1/ha-proxy/*` endpoints and updated the frontend HA client to eliminate `VITE_HA_TOKEN` usage in the browser.
+- Enabled CSP plus double-submit CSRF enforcement (nginx + `homeiq_csrf` cookie) and wired the React app to auto-manage the token/header.
+- Cleaned `.env` defaults, Vite proxy config, and README instructions to reflect relative routing and the new security requirements.
 
 ---
 

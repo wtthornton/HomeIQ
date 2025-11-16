@@ -1,5 +1,7 @@
 import { HealthStatus, Statistics, DataSourceHealth, DataSourceMetrics, DataSourcesHealthMap } from '../types';
 import { ServiceHealthResponse, ServicesHealthResponse } from '../types/health';
+import type { Alert } from '../constants/alerts';
+import { withCsrfHeader } from '../utils/security';
 
 export interface HygieneIssue {
   issue_key: string;
@@ -80,7 +82,7 @@ export interface APIKeyTestResponse {
 }
 
 // Epic 13 Story 13.2: Separated API clients for admin vs data APIs
-const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003';
+const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
 
 /**
@@ -89,9 +91,16 @@ const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use 
 class BaseApiClient {
   constructor(protected baseUrl: string) {}
 
-  protected async fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
+  protected async fetchWithErrorHandling<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const method = (options.method || 'GET').toUpperCase();
+    const requestOptions = { ...options };
+
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      requestOptions.headers = withCsrfHeader(requestOptions.headers);
+    }
+
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, requestOptions);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -126,16 +135,6 @@ class AdminApiClient extends BaseApiClient {
 
   async getServicesHealth(): Promise<ServicesHealthResponse> {
     return this.fetchWithErrorHandling<ServicesHealthResponse>(`${this.baseUrl}/api/v1/health/services`);
-  }
-
-  // New data source health endpoints
-  async getDataSourceHealth(port: number): Promise<DataSourceHealth> {
-    try {
-      return await fetch(`http://localhost:${port}/health`).then(r => r.json());
-    } catch (error) {
-      console.error(`Error fetching health from port ${port}:`, error);
-      throw error;
-    }
   }
 
   async getAllDataSources(): Promise<DataSourcesHealthMap> {
@@ -186,6 +185,22 @@ class AdminApiClient extends BaseApiClient {
       console.error('Failed to fetch data sources:', error);
       return createEmptyDataSources();
     }
+  }
+
+  async getActiveAlerts(): Promise<Alert[]> {
+    return this.fetchWithErrorHandling<Alert[]>(`${this.baseUrl}/alerts/active`);
+  }
+
+  async acknowledgeAlert(alertId: string): Promise<void> {
+    await this.fetchWithErrorHandling(`${this.baseUrl}/alerts/${alertId}/acknowledge`, {
+      method: 'POST',
+    });
+  }
+
+  async resolveAlert(alertId: string): Promise<void> {
+    await this.fetchWithErrorHandling(`${this.baseUrl}/alerts/${alertId}/resolve`, {
+      method: 'POST',
+    });
   }
 
   // Docker Management API methods (System Admin)
@@ -242,21 +257,21 @@ class AdminApiClient extends BaseApiClient {
     );
   }
 
-  async testAPIKey(service: string, apiKey: string): Promise<APIKeyTestResponse> {
-    return this.fetchWithErrorHandling<APIKeyTestResponse>(
-      `${this.baseUrl}/api/v1/docker/api-keys/${service}/test`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey })
-      }
-    );
-  }
+    async testAPIKey(service: string, apiKey: string): Promise<APIKeyTestResponse> {
+      return this.fetchWithErrorHandling<APIKeyTestResponse>(
+        `${this.baseUrl}/api/v1/docker/api-keys/${service}/test`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: apiKey })
+        }
+      );
+    }
 
-  // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
-  async getRealTimeMetrics(): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`/api/v1/real-time-metrics`);
-  }
+    // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
+    async getRealTimeMetrics(): Promise<any> {
+      return this.fetchWithErrorHandling<any>(`${this.baseUrl}/real-time-metrics`);
+    }
 }
 
 /**
@@ -449,6 +464,16 @@ class DataApiClient extends BaseApiClient {
     const url = `/api/v1/sports/games/history?${queryParams.toString()}`;
     return this.fetchWithErrorHandling<any>(url);
   }
+
+  async getHaGameContext(team: string): Promise<any> {
+    const encodedTeam = encodeURIComponent(team);
+    return this.fetchWithErrorHandling<any>(`/api/v1/ha/game-context/${encodedTeam}`);
+  }
+
+  async getHaGameStatus(team: string): Promise<any> {
+    const encodedTeam = encodeURIComponent(team);
+    return this.fetchWithErrorHandling<any>(`/api/v1/ha/game-status/${encodedTeam}`);
+  }
 }
 
 /**
@@ -460,12 +485,19 @@ class AIAutomationApiClient {
 
   constructor() {
     // AI Automation service runs on port 8018
-    this.baseUrl = import.meta.env.VITE_AI_API_URL || 'http://localhost:8018/api';
+    this.baseUrl = import.meta.env.VITE_AI_API_URL || '/ai-automation/api';
   }
 
-  private async fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
+  private async fetchWithErrorHandling<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const method = (options.method || 'GET').toUpperCase();
+    const requestOptions = { ...options };
+
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      requestOptions.headers = withCsrfHeader(requestOptions.headers);
+    }
+
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, requestOptions);
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
@@ -594,6 +626,23 @@ class AIAutomationApiClient {
     
     const url = `${this.baseUrl}/patterns/detect/co-occurrence${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling(url, { method: 'POST' });
+  }
+
+  async getStats(): Promise<any> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/stats`);
+  }
+
+  async generateNaturalLanguageAutomation(requestText: string, userId: string = 'default'): Promise<any> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/nl/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        request_text: requestText,
+        user_id: userId,
+      }),
+    });
   }
 }
 

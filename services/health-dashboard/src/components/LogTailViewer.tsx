@@ -49,7 +49,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         if (selectedLevel !== 'all') params.append('level', selectedLevel);
         params.append('limit', '100');
         
-        const response = await fetch(`http://localhost:8015/api/v1/logs?${params}`);
+        const response = await fetch(`/log-aggregator/api/v1/logs?${params}`);
         if (response.ok) {
           const data = await response.json();
           setLogs(data.logs || []);
@@ -83,16 +83,20 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
     }
   }, [logs, autoScroll]);
 
-  // Search logs using log aggregator API
-  const searchLogs = async (query: string) => {
-    if (!query.trim()) return;
-    
-    try {
-      const params = new URLSearchParams();
-      params.append('q', query);
-      params.append('limit', '100');
+    // Search logs using log aggregator API
+    const searchLogs = async (query: string) => {
+      if (!query.trim()) return;
       
-      const response = await fetch(`http://localhost:8015/api/v1/logs/search?${params}`);
+      try {
+        const params = new URLSearchParams();
+        const normalizedQuery = query.trim().slice(0, 200);
+        if (!normalizedQuery) {
+          return;
+        }
+        params.append('q', normalizedQuery);
+        params.append('limit', '100');
+        
+        const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`);
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs || []);

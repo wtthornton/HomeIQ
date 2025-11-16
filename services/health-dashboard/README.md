@@ -311,6 +311,8 @@ src/
 - `GET /api/v1/alerts/active` - Get active alerts
 - `POST /api/v1/alerts/{id}/acknowledge` - Acknowledge alert
 - `POST /api/v1/alerts/{id}/resolve` - Resolve alert
+- `GET /api/v1/ha-proxy/states` - Sanitized Home Assistant state proxy (no tokens in browser)
+- `GET /api/v1/ha-proxy/states/{entity_id}` - Individual HA entity state
 
 **Data API (Port 8006):**
 - `GET /api/v1/events` - Historical events
@@ -325,15 +327,23 @@ src/
 
 **Development (.env.development):**
 ```bash
-VITE_ADMIN_API_URL=http://localhost:8004
-VITE_DATA_API_URL=http://localhost:8006
-VITE_WS_URL=ws://localhost:8001/ws
+# Leave blank to use same-origin nginx/dev proxy routing
+VITE_API_BASE_URL=
+VITE_WS_URL=/ws
+
+# Optional UI shortcuts
+VITE_AI_AUTOMATION_UI_URL=
+# VITE_HA_URL=
+
+# Optional overrides when admin/data APIs run outside docker-compose
+VITE_DEV_ADMIN_API=http://localhost:8004
+VITE_DEV_ADMIN_WS=ws://localhost:8004
+VITE_DEV_DATA_API=http://localhost:8006
 ```
 
 **Production (nginx proxy):**
 ```bash
-# No VITE_* vars needed
-# nginx proxies /api to appropriate backends
+# Defaults rely on nginx routing, no VITE_* overrides required
 ```
 
 ### Nginx Configuration
@@ -619,6 +629,8 @@ wscat -c ws://localhost:8001/ws
 - **Authentication:** Optional API key authentication
 - **HTTPS:** Use HTTPS in production
 - **CSP:** Content Security Policy configured in nginx
+- **CSRF Protection:** All unsafe requests require the `homeiq_csrf` cookie + `X-CSRF-Token` header (token is generated automatically by the dashboard and enforced by nginx)
+- **HA Token Safety:** The browser no longer talks to Home Assistant directly; admin-api proxies `/api/v1/ha-proxy/*` and keeps HA tokens server-side
 
 ## Deployment
 

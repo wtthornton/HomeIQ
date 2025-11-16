@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { aiApi } from '../../services/api';
 
 interface Props {
   darkMode: boolean;
@@ -36,16 +37,7 @@ export const NLInput: React.FC<Props> = ({ darkMode, onSuccess }) => {
     setMessage({ text: '', type: '' });
 
     try {
-      const response = await fetch('http://localhost:8018/api/nl/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request_text: request,
-          user_id: 'default'
-        })
-      });
-
-      const data = await response.json();
+      const data = await aiApi.generateNaturalLanguageAutomation(request);
 
       if (data.success) {
         setMessage({ 
