@@ -302,14 +302,19 @@ class IntegrationHealthChecker:
     
     async def check_zigbee2mqtt_integration(self) -> CheckResult:
         """
-        Check Zigbee2MQTT integration status
+        Check Zigbee2MQTT integration status (Validation only - not for monitoring)
+        
+        NOTE: This method is kept for validation purposes only.
+        For actual monitoring, use MQTT subscription via Zigbee2MQTTMQTTClient
+        (Epic 31: Direct MQTT subscription pattern).
         
         Checks:
-        - Zigbee2MQTT addon installed
-        - Zigbee2MQTT running
-        - Coordinator connection
-        - Device count
-        - MQTT bridge status
+        - Zigbee2MQTT addon installed (via HA API)
+        - Zigbee2MQTT entities present
+        - Bridge state entity
+        
+        For real-time monitoring, use health_service._check_zigbee2mqtt_integration()
+        which uses MQTT subscription.
         """
         try:
             async with aiohttp.ClientSession() as session:

@@ -395,6 +395,21 @@ class Zigbee2MQTTSetupWizard:
     async def _configure_addon(self, request: SetupWizardRequest) -> SetupStepResult:
         """Configure Zigbee2MQTT addon settings"""
         try:
+            # Get MQTT broker details from integration checker
+            mqtt_result = await self.integration_checker.check_mqtt_integration()
+            mqtt_broker = "mqtt://localhost:1883"  # Default
+            if mqtt_result.check_details:
+                broker_host = mqtt_result.check_details.get("broker", "localhost")
+                broker_port = mqtt_result.check_details.get("port", 1883)
+                mqtt_broker = f"mqtt://{broker_host}:{broker_port}"
+            
+            # Determine serial port based on coordinator type
+            serial_port = "/dev/ttyUSB0"  # Default
+            if "SLZB" in request.coordinator_type.upper():
+                # SLZB-06P7 typically uses /dev/ttyUSB0 or /dev/ttyACM0
+                # User may need to check actual port in HA Supervisor → System → Hardware
+                serial_port = "/dev/ttyUSB0"  # Most common, but may need adjustment
+            
             # Configure addon with provided settings
             config = {
                 "data_path": "/config/zigbee2mqtt",
@@ -402,10 +417,10 @@ class Zigbee2MQTTSetupWizard:
                 "permit_join": False,
                 "mqtt": {
                     "base_topic": "zigbee2mqtt",
-                    "server": f"mqtt://{settings.ha_url.rstrip('/').replace('http://', '').replace('https://', '')}"
+                    "server": mqtt_broker
                 },
                 "serial": {
-                    "port": "/dev/ttyUSB0"  # Default coordinator port
+                    "port": serial_port
                 },
                 "advanced": {
                     "log_level": "info",

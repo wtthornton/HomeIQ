@@ -24,6 +24,7 @@ from .schemas import (
 )
 from .scoring_algorithm import HealthScoringAlgorithm
 from .integration_checker import IntegrationHealthChecker
+from .zigbee2mqtt_mqtt_client import Zigbee2MQTTMQTTClient
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ class HealthMonitoringService:
     """
     Core health monitoring service
     
-    Implements Context7 async patterns for Home Assistant health checks
+    Implements Context7 async patterns for Home Assistant health checks.
+    Uses MQTT subscription for Zigbee2MQTT monitoring (Epic 31 pattern).
     """
     
     def __init__(self):
@@ -42,6 +44,10 @@ class HealthMonitoringService:
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url
         self.scoring_algorithm = HealthScoringAlgorithm()  # Enhanced scoring
+        
+        # MQTT client for Zigbee2MQTT monitoring (Epic 31: direct MQTT subscription)
+        self.z2m_mqtt_client: Optional[Zigbee2MQTTMQTTClient] = None
+        self._z2m_client_initialized = False
     
     async def check_environment_health(
         self,
@@ -264,9 +270,103 @@ class HealthMonitoringService:
             }
     
     async def _check_zigbee2mqtt_integration(self) -> Dict:
-        """Check Zigbee2MQTT integration status using integration checker"""
+        """
+        Check Zigbee2MQTT status using MQTT subscription (Epic 31 pattern).
+        
+        Uses direct MQTT subscription to zigbee2mqtt/bridge/* topics for
+        real-time monitoring instead of polling HA API.
+        """
         try:
-            # Use the integration checker to get real Zigbee2MQTT status
+            # Initialize MQTT client if not already done
+            if not self._z2m_client_initialized:
+                await self._ensure_z2m_mqtt_client()
+            
+            # Get status from MQTT client
+            if self.z2m_mqtt_client and self.z2m_mqtt_client.is_connected():
+                bridge_status = self.z2m_mqtt_client.get_bridge_status()
+                
+                # Determine status based on bridge state
+                if bridge_status["is_online"]:
+                    status = IntegrationStatus.HEALTHY
+                elif bridge_status["state"] == "unknown":
+                    status = IntegrationStatus.NOT_CONFIGURED
+                else:
+                    status = IntegrationStatus.WARNING
+                
+                return {
+                    "name": "Zigbee2MQTT",
+                    "type": "zigbee2mqtt",
+                    "status": status.value,
+                    "is_configured": bridge_status["state"] != "unknown",
+                    "is_connected": bridge_status["is_online"],
+                    "error_message": None if bridge_status["is_online"] else f"Bridge state: {bridge_status['state']}",
+                    "check_details": {
+                        "bridge_state": bridge_status["state"],
+                        "device_count": bridge_status["device_count"],
+                        "coordinator": bridge_status.get("coordinator", {}),
+                        "last_update": bridge_status.get("last_update"),
+                        "monitoring_method": "mqtt_subscription"
+                    },
+                    "last_check": datetime.now()
+                }
+            else:
+                # MQTT client not connected - try to connect
+                if await self._ensure_z2m_mqtt_client():
+                    # Retry getting status
+                    bridge_status = self.z2m_mqtt_client.get_bridge_status()
+                    status = IntegrationStatus.HEALTHY if bridge_status["is_online"] else IntegrationStatus.WARNING
+                    
+                    return {
+                        "name": "Zigbee2MQTT",
+                        "type": "zigbee2mqtt",
+                        "status": status.value,
+                        "is_configured": True,
+                        "is_connected": bridge_status["is_online"],
+                        "error_message": None if bridge_status["is_online"] else f"Bridge state: {bridge_status['state']}",
+                        "check_details": {
+                            "bridge_state": bridge_status["state"],
+                            "device_count": bridge_status["device_count"],
+                            "monitoring_method": "mqtt_subscription"
+                        },
+                        "last_check": datetime.now()
+                    }
+                else:
+                    # MQTT connection failed - fallback to integration checker for validation
+                    logger.warning("MQTT client not available, falling back to integration checker")
+                    return await self._check_zigbee2mqtt_fallback()
+                    
+        except Exception as e:
+            logger.error(f"Error checking Zigbee2MQTT via MQTT: {e}")
+            # Fallback to integration checker
+            return await self._check_zigbee2mqtt_fallback()
+    
+    async def _ensure_z2m_mqtt_client(self) -> bool:
+        """
+        Ensure Zigbee2MQTT MQTT client is initialized and connected.
+        
+        Returns:
+            True if client is connected, False otherwise
+        """
+        try:
+            if not self.z2m_mqtt_client:
+                self.z2m_mqtt_client = Zigbee2MQTTMQTTClient()
+                self._z2m_client_initialized = True
+            
+            if not self.z2m_mqtt_client.is_connected():
+                return await self.z2m_mqtt_client.connect()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize Zigbee2MQTT MQTT client: {e}")
+            return False
+    
+    async def _check_zigbee2mqtt_fallback(self) -> Dict:
+        """
+        Fallback method using integration checker for validation.
+        
+        Used when MQTT subscription is not available.
+        """
+        try:
             integration_checker = IntegrationHealthChecker()
             result = await integration_checker.check_zigbee2mqtt_integration()
             
@@ -277,18 +377,20 @@ class HealthMonitoringService:
                 "is_configured": result.is_configured,
                 "is_connected": result.is_connected,
                 "error_message": result.error_message,
-                "check_details": result.check_details,
+                "check_details": {
+                    **(result.check_details or {}),
+                    "monitoring_method": "ha_api_fallback"
+                },
                 "last_check": result.last_check
             }
         except Exception as e:
-            # Fallback if integration checker fails
             return {
                 "name": "Zigbee2MQTT",
                 "type": "zigbee2mqtt",
                 "status": IntegrationStatus.ERROR.value,
                 "is_configured": False,
                 "is_connected": False,
-                "error_message": f"Integration check failed: {str(e)}",
+                "error_message": f"Both MQTT and API checks failed: {str(e)}",
                 "check_details": {"error_type": type(e).__name__},
                 "last_check": datetime.now()
             }
