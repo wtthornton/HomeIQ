@@ -14,31 +14,29 @@ sequenceDiagram
     participant CORRELATOR as Energy Correlator
     
     loop Every 60 seconds
-        CORRELATOR->>INFLUX: Query recent events (last 5 min)
-        INFLUX-->>CORRELATOR: Return events
+        CORRELATOR->>INFLUX: Query recent events (5 min window, limit 500)
+        INFLUX-->>CORRELATOR: Event batch
         
-        loop For each event
-            CORRELATOR->>INFLUX: Get power before event (-5s)
-            INFLUX-->>CORRELATOR: power_before
-            
-            CORRELATOR->>INFLUX: Get power after event (+5s)
-            INFLUX-->>CORRELATOR: power_after
-            
-            CORRELATOR->>CORRELATOR: Calculate delta
-            
-            alt Delta >= 10W
-                CORRELATOR->>INFLUX: Write correlation
-            end
+        CORRELATOR->>INFLUX: Query smart_meter window (min/max ± padding)
+        INFLUX-->>CORRELATOR: Power cache (sorted points)
+        
+        CORRELATOR->>CORRELATOR: Correlate events using in-memory cache
+        
+        alt Batch has correlations
+            CORRELATOR->>INFLUX: Async batch write (event_energy_correlation)
         end
     end
 ```
 
 ## Features
 
-- **Temporal Correlation**: Matches events with power changes within ±10 second window
+- **Temporal Correlation**: Matches events with power changes within ±10 second window (configurable)
+- **Batch Querying**: Limits each processing cycle to the newest N events (default 500) and hydrates an in-memory smart_meter cache with a single window query
+- **Async Batch Writes**: Flushes correlations to InfluxDB in batches using the async write API
+- **Retry Queue**: Re-attempts correlations when power data arrives late (configurable size and retention)
 - **Multi-Domain Support**: Analyzes switches, lights, climate, fans, covers
 - **Threshold Filtering**: Only correlates significant changes (>10W by default)
-- **Statistics Tracking**: Monitors correlation rates and performance
+- **Statistics Tracking**: Monitors correlation/write rates and error counts
 - **API Endpoints**: Health check and statistics
 
 ## Environment Variables
@@ -52,8 +50,14 @@ Optional:
 - `INFLUXDB_BUCKET` - InfluxDB bucket (default: `home_assistant_events`)
 - `PROCESSING_INTERVAL` - Processing interval in seconds (default: `60`)
 - `LOOKBACK_MINUTES` - How far back to process events (default: `5`)
-- `SERVICE_PORT` - HTTP port (default: `8015`)
+- `SERVICE_PORT` - HTTP port (default: `8017`)
 - `LOG_LEVEL` - Logging level (default: `INFO`)
+- `MIN_POWER_DELTA` - Minimum delta (watts) to record a correlation (default: `10.0`)
+- `CORRELATION_WINDOW_SECONDS` - Total correlation window width (default: `10`)
+- `MAX_EVENTS_PER_INTERVAL` - Maximum events processed per cycle (default: `500`)
+- `MAX_RETRY_QUEUE_SIZE` - Maximum deferred events retained for backfill (default: `250`)
+- `RETRY_WINDOW_MINUTES` - How long to keep deferred events (default: `LOOKBACK_MINUTES`)
+- `POWER_LOOKUP_PADDING_SECONDS` - Additional padding around the smart_meter window (default: `30`)
 
 ## API Endpoints
 
@@ -234,6 +238,33 @@ PROCESSING_INTERVAL=300
 PROCESSING_INTERVAL=30
 ```
 
+### Batch Size Limit
+```bash
+# Default: 500 newest events per cycle
+MAX_EVENTS_PER_INTERVAL=500
+
+# Reduce for slower hardware (e.g., 200)
+MAX_EVENTS_PER_INTERVAL=200
+```
+
+### Retry Queue Window
+```bash
+# Default: match LOOKBACK_MINUTES (5)
+RETRY_WINDOW_MINUTES=10
+
+# Disable retries by setting size to 0
+MAX_RETRY_QUEUE_SIZE=0
+```
+
+### Power Cache Padding
+```bash
+# Default: 30s padding around min/max event window
+POWER_LOOKUP_PADDING_SECONDS=45
+
+# Tighten if smart_meter emits very frequently
+POWER_LOOKUP_PADDING_SECONDS=20
+```
+
 ## Performance Characteristics
 
 ### Resource Usage
@@ -250,8 +281,9 @@ PROCESSING_INTERVAL=30
 
 ### Scalability
 - Can process 10,000+ events/hour
+- Max events per cycle is capped (default 500) to guarantee predictable processing time on NUC hardware
 - InfluxDB writes are batched
-- Queries are time-range limited (5 minutes)
+- Queries are time-range limited (5 minutes) with smart_meter cache padding
 - Handles missing data gracefully
 
 ## Troubleshooting
@@ -268,7 +300,7 @@ PROCESSING_INTERVAL=30
 **Debug:**
 ```bash
 # Check for events
-curl http://localhost:8015/statistics
+curl http://localhost:8017/statistics
 
 # Check InfluxDB data
 docker exec homeiq-influxdb \
@@ -321,13 +353,13 @@ docker-compose up -d energy-correlator
 docker logs -f homeiq-energy-correlator
 
 # Check statistics
-curl http://localhost:8015/statistics
+curl http://localhost:8017/statistics
 ```
 
 ### Manual Correlation Run
 ```bash
 # Trigger immediate processing via API
-curl -X POST http://localhost:8015/statistics/reset
+curl -X POST http://localhost:8017/statistics/reset
 ```
 
 ## License
@@ -336,6 +368,12 @@ MIT License
 
 
 ## Version History
+
+### 2.2 (November 16, 2025)
+- Added configurable batch limits and smart_meter power caching to eliminate N+1 queries
+- Switched to async InfluxDB write API with true batch flushing
+- Implemented deferred retry queue for late-arriving power samples
+- Updated documentation to reflect port 8017 and new environment variables
 
 ### 2.1 (November 15, 2025)
 - Documentation verified for 2025 standards
