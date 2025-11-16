@@ -6,7 +6,7 @@ including failure predictions, maintenance recommendations, and model management
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -50,6 +50,7 @@ class PredictionRequest(BaseModel):
 class TrainingRequest(BaseModel):
     """Request model for model training."""
     force_retrain: bool = False
+    days_back: int = 180
 
 
 @router.get("/failures")
@@ -214,20 +215,23 @@ async def trigger_model_training(
     """Trigger model retraining."""
     try:
         if request.force_retrain or not analytics_engine.is_trained:
-            background_tasks.add_task(analytics_engine.train_models)
+            # Pass days_back parameter to training
+            background_tasks.add_task(analytics_engine.train_models, days_back=request.days_back)
             
             return {
                 "message": "Model training started",
                 "status": "training",
                 "force_retrain": request.force_retrain,
-                "started_at": datetime.utcnow().isoformat()
+                "days_back": request.days_back,
+                "started_at": datetime.now(timezone.utc).isoformat()
             }
         else:
             return {
                 "message": "Models are already trained",
                 "status": "trained",
                 "force_retrain": request.force_retrain,
-                "started_at": datetime.utcnow().isoformat()
+                "current_version": analytics_engine.model_metadata.get("version", "unknown"),
+                "started_at": datetime.now(timezone.utc).isoformat()
             }
             
     except Exception as e:
@@ -247,6 +251,108 @@ async def get_model_status(
     except Exception as e:
         logger.error(f"❌ Error getting model status: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting status: {str(e)}")
+
+
+@router.get("/models/compare")
+async def compare_models(
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+):
+    """Compare current model with previous version (if backup exists)."""
+    try:
+        import os
+        import json
+        from pathlib import Path
+        
+        models_dir = Path(analytics_engine.models_dir)
+        metadata_path = models_dir / "model_metadata.json"
+        
+        # Get current model metadata
+        current_metadata = analytics_engine.model_metadata
+        
+        # Find most recent backup
+        backup_files = sorted(
+            models_dir.glob("failure_prediction_model.pkl.backup_*"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+        
+        if not backup_files:
+            return {
+                "message": "No backup models found for comparison",
+                "current_version": current_metadata.get("version", "unknown"),
+                "comparison_available": False
+            }
+        
+        # Try to load backup metadata (if it exists)
+        backup_metadata = None
+        backup_path = backup_files[0]
+        # Extract timestamp from filename like "failure_prediction_model.pkl.backup_20251116_223737"
+        backup_timestamp = backup_path.name.split("backup_")[-1] if "backup_" in backup_path.name else None
+        
+        # Look for backup metadata (if saved separately)
+        backup_metadata_path = models_dir / f"model_metadata.backup_{backup_timestamp}.json"
+        if backup_metadata_path.exists():
+            try:
+                with open(backup_metadata_path, 'r') as f:
+                    backup_metadata = json.load(f)
+            except Exception as e:
+                logger.warning(f"Could not load backup metadata: {e}")
+        
+        # Compare if we have both
+        comparison = {
+            "current_version": current_metadata.get("version", "unknown"),
+            "backup_timestamp": backup_timestamp,
+            "comparison_available": backup_metadata is not None
+        }
+        
+        if backup_metadata:
+            # Compare versions
+            comparison["version_change"] = {
+                "from": backup_metadata.get("version", "unknown"),
+                "to": current_metadata.get("version", "unknown")
+            }
+            
+            # Compare performance
+            current_perf = current_metadata.get("model_performance", {})
+            backup_perf = backup_metadata.get("model_performance", {})
+            
+            comparison["performance"] = {
+                "current": current_perf,
+                "previous": backup_perf,
+                "changes": {}
+            }
+            
+            for metric in ["accuracy", "precision", "recall", "f1_score"]:
+                current_val = current_perf.get(metric, 0)
+                backup_val = backup_perf.get(metric, 0)
+                if current_val and backup_val:
+                    diff = current_val - backup_val
+                    comparison["performance"]["changes"][metric] = {
+                        "difference": round(diff, 4),
+                        "percent_change": round((diff / backup_val) * 100, 2) if backup_val > 0 else 0,
+                        "improved": diff > 0
+                    }
+            
+            # Compare training data
+            current_stats = current_metadata.get("training_data_stats", {})
+            backup_stats = backup_metadata.get("training_data_stats", {})
+            
+            comparison["training_data"] = {
+                "current": current_stats,
+                "previous": backup_stats
+            }
+            
+            # Compare data sources
+            comparison["data_source"] = {
+                "current": current_metadata.get("data_source", "unknown"),
+                "previous": backup_metadata.get("data_source", "unknown")
+            }
+        
+        return comparison
+        
+    except Exception as e:
+        logger.error(f"❌ Error comparing models: {e}")
+        raise HTTPException(status_code=500, detail=f"Error comparing models: {str(e)}")
 
 
 @router.post("/predict")
@@ -279,7 +385,7 @@ async def get_predictions_health():
             "status": "operational",
             "models_trained": analytics_engine.is_trained,
             "feature_count": len(analytics_engine.feature_columns),
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
@@ -288,5 +394,5 @@ async def get_predictions_health():
             "service": "Predictive Analytics",
             "status": "error",
             "error": str(e),
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }

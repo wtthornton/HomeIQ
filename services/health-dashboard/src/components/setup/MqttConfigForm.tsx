@@ -23,16 +23,27 @@ export const MqttConfigForm: React.FC = () => {
   const [loadingState, setLoadingState] = useState<LoadState>('idle');
   const [savingState, setSavingState] = useState<LoadState>('idle');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isWarning, setIsWarning] = useState(false);
 
   const hasChanges = useMemo(() => savingState === 'success', [savingState]);
 
   const loadConfig = useCallback(async () => {
     setLoadingState('loading');
     setStatusMessage(null);
+    setIsWarning(false);
 
     try {
       const response = await fetch(CONFIG_ENDPOINT, { credentials: 'include' });
       if (!response.ok) {
+        // Handle 401 Unauthorized gracefully - allow user to still configure
+        if (response.status === 401) {
+          setStatusMessage(
+            'Unable to load existing configuration (authentication required). You can still configure MQTT settings below.'
+          );
+          setIsWarning(true);
+          setLoadingState('success'); // Allow form to be used even if we can't load existing config
+          return;
+        }
         throw new Error(`Failed to load configuration (HTTP ${response.status})`);
       }
 
@@ -47,10 +58,14 @@ export const MqttConfigForm: React.FC = () => {
       setLoadingState('success');
     } catch (error) {
       console.error('Failed to load MQTT configuration', error);
+      // Don't block the form if we can't load - allow user to configure
       setStatusMessage(
-        error instanceof Error ? error.message : 'Unable to load MQTT configuration.'
+        error instanceof Error 
+          ? `Unable to load existing configuration: ${error.message}. You can still configure MQTT settings below.`
+          : 'Unable to load MQTT configuration. You can still configure settings below.'
       );
-      setLoadingState('error');
+      setIsWarning(true);
+      setLoadingState('success'); // Allow form to be used even on error
     }
   }, []);
 
@@ -94,6 +109,7 @@ export const MqttConfigForm: React.FC = () => {
     }
     setSavingState('loading');
     setStatusMessage(null);
+    setIsWarning(false);
 
     const payload = {
       MQTT_BROKER: formState.brokerUrl.trim(),
@@ -150,8 +166,10 @@ export const MqttConfigForm: React.FC = () => {
       {statusMessage ? (
         <div
           className={`rounded-md p-3 text-sm ${
-            savingState === 'error' || loadingState === 'error'
+            savingState === 'error' || (loadingState === 'error' && !isWarning)
               ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200'
+              : isWarning
+              ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-200'
               : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200'
           }`}
         >
