@@ -14,9 +14,6 @@ COPY requirements.txt .
 # Install all dependencies (including dev/test)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy shared utilities
-COPY ../../shared /app/shared
-
 # Copy application code
 COPY src/ /app/src/
 

@@ -42,9 +42,9 @@ COPY shared/ ./shared/
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 
 # Create log directory with proper permissions
-RUN mkdir -p /var/log/ha-ingestor && \
-    chown -R appuser:appgroup /var/log/ha-ingestor && \
-    chmod -R 755 /var/log/ha-ingestor
+RUN mkdir -p /var/log/homeiq && \
+    chown -R appuser:appgroup /var/log/homeiq && \
+    chmod -R 755 /var/log/homeiq
 
 # Set environment variables
 ENV PYTHONPATH=/app:/app/src

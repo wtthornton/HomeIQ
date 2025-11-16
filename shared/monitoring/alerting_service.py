@@ -205,7 +205,7 @@ class SlackNotificationChannel(NotificationChannel):
         super().__init__(name, config)
         self.webhook_url = config.get('webhook_url')
         self.channel = config.get('channel', '#alerts')
-        self.username = config.get('username', 'HA-Ingestor')
+        self.username = config.get('username', 'HomeIQ')
         self.icon_emoji = config.get('icon_emoji', ':warning:')
     
     async def send_notification(self, alert: Alert) -> bool:

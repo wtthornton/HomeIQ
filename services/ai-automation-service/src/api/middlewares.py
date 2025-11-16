@@ -85,7 +85,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                         cached_data = json.loads(response_body)
                         
                         # Store in cache
-    _idempotency_store[cache_key] = (cached_data, time.time())
+                        _idempotency_store[cache_key] = (cached_data, time.time())
                         
                         # Cleanup old entries (simple cleanup)
                         self._cleanup_old_entries()

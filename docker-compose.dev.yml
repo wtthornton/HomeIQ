@@ -83,7 +83,7 @@ services:
     environment:
       - DATA_API_HOST=0.0.0.0
       - DATA_API_PORT=8006
-      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_URL=http://host.docker.internal:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
@@ -96,9 +96,7 @@ services:
       - ./services/data-api:/app
       - ./shared:/app/shared
       - sqlite-data-dev:/app/data
-    depends_on:
-      influxdb:
-        condition: service_healthy
+    depends_on: []
     networks:
       - homeiq-network-dev
     healthcheck:
@@ -153,7 +151,7 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8004
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8000
-      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_URL=http://host.docker.internal:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
@@ -163,12 +161,8 @@ services:
       - ./services/admin-api:/app
       - /app/__pycache__
     depends_on:
-      influxdb:
-        condition: service_healthy
       data-api:
-        condition: service_healthy
-      websocket-ingestion:
-        condition: service_healthy
+        condition: service_started
     networks:
       - homeiq-network-dev
     healthcheck:
