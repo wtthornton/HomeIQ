@@ -176,10 +176,10 @@ export const EnvironmentHealthCard: React.FC = () => {
       {/* Integrations Status */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-          Integrations ({health.integrations.length})
+          Integrations ({health.integrations?.length ?? 0})
         </h3>
         <div className="space-y-2">
-          {health.integrations.map((integration, index) => (
+          {(health.integrations ?? []).map((integration, index) => (
             <div
               key={index}
               className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
@@ -227,6 +227,7 @@ export const EnvironmentHealthCard: React.FC = () => {
       </div>
 
       {/* Performance Metrics */}
+      {health.performance && (
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Performance Metrics
@@ -235,7 +236,7 @@ export const EnvironmentHealthCard: React.FC = () => {
           <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">Response Time</p>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">
-              {health.performance.response_time_ms.toFixed(1)}ms
+              {health.performance.response_time_ms?.toFixed(1) ?? 'N/A'}ms
             </p>
           </div>
           {health.performance.cpu_usage_percent !== undefined && (
@@ -264,9 +265,10 @@ export const EnvironmentHealthCard: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Issues Detected */}
-      {health.issues_detected && health.issues_detected.length > 0 && (
+      {health.issues_detected && Array.isArray(health.issues_detected) && health.issues_detected.length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
             ⚠️ Issues Detected ({health.issues_detected.length})

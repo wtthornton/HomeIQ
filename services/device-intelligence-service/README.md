@@ -3,7 +3,7 @@
 **Centralized Device Discovery and Intelligence Processing for HomeIQ**
 
 **Port:** 8028
-**Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, scikit-learn 1.4
+**Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, scikit-learn 1.7.2
 **Container:** `homeiq-device-intelligence`
 **Database:** SQLite (device_intelligence.db - 7 tables)
 
@@ -104,25 +104,65 @@ Get device capabilities and utilization
 curl http://localhost:8028/api/devices/abc123/capabilities
 ```
 
-### Predictions
+### Predictions & Machine Learning
 
-#### `GET /api/predictions`
-List all predictions
+#### `GET /api/predictions/failures`
+Get failure predictions for all devices
 ```bash
-curl http://localhost:8028/api/predictions
+curl http://localhost:8028/api/predictions/failures
 ```
 
-#### `POST /api/predictions/generate`
-Generate predictions for all devices
+#### `POST /api/predictions/predict`
+Generate prediction for a specific device
 ```bash
-curl -X POST http://localhost:8028/api/predictions/generate
+curl -X POST http://localhost:8028/api/predictions/predict \
+  -H "Content-Type: application/json" \
+  -d '{"device_id": "abc123", "metrics": {"battery_level": 45, "error_rate": 0.05}}'
 ```
 
-#### `GET /api/predictions/{device_id}`
-Get predictions for specific device
+#### `GET /api/predictions/models/status`
+Get model status, version, and performance metrics
 ```bash
-curl http://localhost:8028/api/predictions/{device_id}
+curl http://localhost:8028/api/predictions/models/status
 ```
+
+#### `GET /api/predictions/models/compare`
+Compare current model with previous version (if backup exists)
+```bash
+curl http://localhost:8028/api/predictions/models/compare
+```
+
+Returns comparison of current vs previous model including:
+- Version changes
+- Performance metric differences (accuracy, precision, recall, F1)
+- Training data statistics
+- Data source changes
+
+#### `POST /api/predictions/train`
+Train or retrain ML models
+```bash
+# Train with default settings (180 days of data)
+curl -X POST http://localhost:8028/api/predictions/train \
+  -H "Content-Type: application/json" \
+  -d '{"force_retrain": false}'
+
+# Force retrain with custom days back
+curl -X POST http://localhost:8028/api/predictions/train \
+  -H "Content-Type: application/json" \
+  -d '{"force_retrain": true, "days_back": 90}'
+```
+
+**Training Request Parameters:**
+- `force_retrain` (boolean, default: false): Force retraining even if models exist
+- `days_back` (integer, default: 180): Number of days of historical data to use
+
+**Model Training:**
+- Models are automatically trained on startup if no pre-trained models exist
+- Training uses historical data from `device_health_metrics` table
+- Falls back to sample data if insufficient historical data is available
+- Models are validated before saving (minimum accuracy: 50%, precision: 30%, recall: 30%)
+- Model versions are automatically incremented (semantic versioning)
+- Previous models are backed up before overwriting
 
 ### Recommendations (Epic AI-2)
 
@@ -487,11 +527,30 @@ paho-mqtt==1.6.1           # MQTT client
 ### Machine Learning
 
 ```
-scikit-learn==1.4.2        # ML predictions
+scikit-learn==1.7.2        # ML predictions (updated for compatibility)
 pandas==2.3.3              # Data analysis
 numpy==2.3.4               # Numerical computing
 joblib==1.4.2              # Model persistence
 ```
+
+**Model Training:**
+- **Failure Prediction Model**: RandomForestClassifier (100 estimators, max depth 10)
+- **Anomaly Detection Model**: IsolationForest (contamination 0.1)
+- **Training Data**: Historical metrics from `device_health_metrics` table (default: 180 days)
+- **Model Versioning**: Automatic semantic versioning (MAJOR.MINOR.PATCH)
+- **Validation**: Models validated before saving (minimum accuracy: 50%, precision: 30%, recall: 30%)
+- **Backup**: Previous models automatically backed up before overwriting
+
+**Standalone Training Script:**
+```bash
+# Train with default settings
+python scripts/train_models.py
+
+# Train with custom parameters
+python scripts/train_models.py --days-back 90 --force --verbose
+```
+
+See [Model Training Guide](docs/MODEL_TRAINING_GUIDE.md) for detailed instructions.
 
 ### Development
 
