@@ -11,6 +11,7 @@ Provides optimized model inference for:
 import asyncio
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
@@ -31,6 +32,15 @@ PRELOAD_MODELS = os.getenv("OPENVINO_PRELOAD_MODELS", "false").lower() in {"1", 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Service guards & configuration
+MAX_EMBEDDING_TEXTS = int(os.getenv("OPENVINO_MAX_EMBEDDING_TEXTS", "100"))
+MAX_TEXT_LENGTH = int(os.getenv("OPENVINO_MAX_TEXT_LENGTH", "4000"))
+MAX_RERANK_CANDIDATES = int(os.getenv("OPENVINO_MAX_RERANK_CANDIDATES", "200"))
+MAX_RERANK_TOP_K = int(os.getenv("OPENVINO_MAX_RERANK_TOP_K", "50"))
+MAX_PATTERN_LENGTH = int(os.getenv("OPENVINO_MAX_PATTERN_LENGTH", "4000"))
+PRELOAD_MODELS = os.getenv("OPENVINO_PRELOAD_MODELS", "false").lower() in {"1", "true", "yes"}
+MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "/app/models")
 
 # Global model manager
 openvino_manager: OpenVINOManager = None
@@ -176,6 +186,9 @@ async def health_check():
     
     model_status = manager.get_model_status()
     
+    model_status = openvino_manager.get_model_status()
+    ready_state = "ready" if model_status.get("all_models_loaded") else "warming"
+    
     return {
         "status": "healthy" if readiness else "initializing",
         "service": "openvino-service",
@@ -195,16 +208,17 @@ async def generate_embeddings(request: EmbeddingRequest):
     manager = _require_manager()
     _validate_text_batch(request.texts)
     
+    _validate_text_batch(request.texts)
+    
     try:
-        import time
-        start_time = time.time()
+        start_time = time.perf_counter()
         
         embeddings = await manager.generate_embeddings(
             texts=request.texts,
             normalize=request.normalize
         )
         
-        processing_time = time.time() - start_time
+        processing_time = time.perf_counter() - start_time
         
         return EmbeddingResponse(
             embeddings=embeddings.tolist(),
@@ -228,17 +242,18 @@ async def rerank_candidates(request: RerankRequest):
     manager = _require_manager()
     _validate_rerank_payload(request.query, request.candidates, request.top_k)
     
+    top_k = _validate_rerank_request(request)
+    
     try:
-        import time
-        start_time = time.time()
+        start_time = time.perf_counter()
         
         ranked_candidates = await manager.rerank(
             query=request.query,
             candidates=request.candidates,
-            top_k=request.top_k
+            top_k=top_k
         )
         
-        processing_time = time.time() - start_time
+        processing_time = time.perf_counter() - start_time
         
         return RerankResponse(
             ranked_candidates=ranked_candidates,
@@ -262,15 +277,16 @@ async def classify_pattern(request: ClassifyRequest):
     manager = _require_manager()
     _validate_pattern_description(request.pattern_description)
     
+    _validate_pattern_description(request.pattern_description)
+    
     try:
-        import time
-        start_time = time.time()
+        start_time = time.perf_counter()
         
         classification = await manager.classify_pattern(
             pattern_description=request.pattern_description
         )
         
-        processing_time = time.time() - start_time
+        processing_time = time.perf_counter() - start_time
         
         return ClassifyResponse(
             category=classification['category'],

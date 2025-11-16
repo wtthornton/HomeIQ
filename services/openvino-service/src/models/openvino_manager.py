@@ -52,6 +52,14 @@ class OpenVINOManager:
         self._reranker_lock: Optional[asyncio.Lock] = None
         self._classifier_lock: Optional[asyncio.Lock] = None
         
+        self.model_load_timeout = MODEL_LOAD_TIMEOUT
+        self.inference_timeout = INFERENCE_TIMEOUT
+        self.clear_cache_on_cleanup = CLEAR_CACHE_ON_CLEANUP
+        
+        self._embed_lock = asyncio.Lock()
+        self._reranker_lock = asyncio.Lock()
+        self._classifier_lock = asyncio.Lock()
+        
         self.use_openvino = False  # Use standard models for compatibility
         self._initialized = True  # Ready for lazy loading immediately
         self._startup_strategy = "lazy"
@@ -120,18 +128,26 @@ class OpenVINOManager:
             
             try:
                 if self.use_openvino:
-                    from optimum.intel import OVModelForFeatureExtraction
-                    from transformers import AutoTokenizer
+                    logger.debug("Attempting to load OpenVINO embedding model")
                     
-                    self._embed_model = OVModelForFeatureExtraction.from_pretrained(
-                        "sentence-transformers/all-MiniLM-L6-v2",
-                        export=True,
-                        compile=True,
-                        cache_dir=str(self.models_dir)
-                    )
-                    self._embed_tokenizer = AutoTokenizer.from_pretrained(
-                        "sentence-transformers/all-MiniLM-L6-v2",
-                        cache_dir=str(self.models_dir)
+                    def _load_openvino():
+                        from optimum.intel import OVModelForFeatureExtraction  # type: ignore
+                        from transformers import AutoTokenizer  # type: ignore
+                        model = OVModelForFeatureExtraction.from_pretrained(
+                            "sentence-transformers/all-MiniLM-L6-v2",
+                            export=True,
+                            compile=True,
+                            cache_dir=str(self.models_dir)
+                        )
+                        tokenizer = AutoTokenizer.from_pretrained(
+                            "sentence-transformers/all-MiniLM-L6-v2",
+                            cache_dir=str(self.models_dir)
+                        )
+                        return model, tokenizer
+                    
+                    self._embed_model, self._embed_tokenizer = await self._run_blocking(
+                        _load_openvino,
+                        timeout=self.model_load_timeout
                     )
                     logger.info("✅ Loaded OpenVINO optimized embedding model (20MB)")
                 else:
@@ -141,11 +157,18 @@ class OpenVINOManager:
                 logger.warning("OpenVINO not available, using standard model")
                 self.use_openvino = False
                 
-                from sentence_transformers import SentenceTransformer
-                self._embed_model = SentenceTransformer(
-                    'sentence-transformers/all-MiniLM-L6-v2',
-                    cache_folder=str(self.models_dir)
+                def _load_standard():
+                    from sentence_transformers import SentenceTransformer  # type: ignore
+                    return SentenceTransformer(
+                        "sentence-transformers/all-MiniLM-L6-v2",
+                        cache_folder=str(self.models_dir)
+                    )
+                
+                self._embed_model = await self._run_blocking(
+                    _load_standard,
+                    timeout=self.model_load_timeout
                 )
+                self._embed_tokenizer = None
                 logger.info("✅ Loaded standard embedding model (80MB)")
             except Exception as exc:
                 logger.exception("Failed to load embedding model")
@@ -165,16 +188,24 @@ class OpenVINOManager:
             
             try:
                 if self.use_openvino:
-                    from optimum.intel import OVModelForSequenceClassification
-                    from transformers import AutoTokenizer
+                    logger.debug("Attempting to load OpenVINO re-ranker")
                     
-                    self._reranker_model = OVModelForSequenceClassification.from_pretrained(
-                        "OpenVINO/bge-reranker-base-int8-ov",
-                        cache_dir=str(self.models_dir)
-                    )
-                    self._reranker_tokenizer = AutoTokenizer.from_pretrained(
-                        "OpenVINO/bge-reranker-base-int8-ov",
-                        cache_dir=str(self.models_dir)
+                    def _load_openvino():
+                        from optimum.intel import OVModelForSequenceClassification  # type: ignore
+                        from transformers import AutoTokenizer  # type: ignore
+                        model = OVModelForSequenceClassification.from_pretrained(
+                            "OpenVINO/bge-reranker-base-int8-ov",
+                            cache_dir=str(self.models_dir)
+                        )
+                        tokenizer = AutoTokenizer.from_pretrained(
+                            "OpenVINO/bge-reranker-base-int8-ov",
+                            cache_dir=str(self.models_dir)
+                        )
+                        return model, tokenizer
+                    
+                    self._reranker_model, self._reranker_tokenizer = await self._run_blocking(
+                        _load_openvino,
+                        timeout=self.model_load_timeout
                     )
                     logger.info("✅ Loaded OpenVINO re-ranker (280MB INT8)")
                 else:
@@ -182,15 +213,22 @@ class OpenVINOManager:
                     
             except ImportError:
                 logger.warning("OpenVINO re-ranker not available, using standard")
-                from transformers import AutoTokenizer, AutoModelForSequenceClassification
                 
-                self._reranker_tokenizer = AutoTokenizer.from_pretrained(
-                    "BAAI/bge-reranker-base",
-                    cache_dir=str(self.models_dir)
-                )
-                self._reranker_model = AutoModelForSequenceClassification.from_pretrained(
-                    "BAAI/bge-reranker-base",
-                    cache_dir=str(self.models_dir)
+                def _load_standard():
+                    from transformers import AutoTokenizer, AutoModelForSequenceClassification  # type: ignore
+                    tokenizer = AutoTokenizer.from_pretrained(
+                        "BAAI/bge-reranker-base",
+                        cache_dir=str(self.models_dir)
+                    )
+                    model = AutoModelForSequenceClassification.from_pretrained(
+                        "BAAI/bge-reranker-base",
+                        cache_dir=str(self.models_dir)
+                    )
+                    return model, tokenizer
+                
+                self._reranker_model, self._reranker_tokenizer = await self._run_blocking(
+                    _load_standard,
+                    timeout=self.model_load_timeout
                 )
                 logger.info("✅ Loaded standard re-ranker (1.1GB)")
             except Exception as exc:
@@ -211,17 +249,25 @@ class OpenVINOManager:
             
             try:
                 if self.use_openvino:
-                    from optimum.intel import OVModelForSeq2SeqLM
-                    from transformers import AutoTokenizer
+                    logger.debug("Attempting to load OpenVINO classifier")
                     
-                    self._classifier_model = OVModelForSeq2SeqLM.from_pretrained(
-                        "google/flan-t5-small",
-                        export=True,
-                        cache_dir=str(self.models_dir)
-                    )
-                    self._classifier_tokenizer = AutoTokenizer.from_pretrained(
-                        "google/flan-t5-small",
-                        cache_dir=str(self.models_dir)
+                    def _load_openvino():
+                        from optimum.intel import OVModelForSeq2SeqLM  # type: ignore
+                        from transformers import AutoTokenizer  # type: ignore
+                        model = OVModelForSeq2SeqLM.from_pretrained(
+                            "google/flan-t5-small",
+                            export=True,
+                            cache_dir=str(self.models_dir)
+                        )
+                        tokenizer = AutoTokenizer.from_pretrained(
+                            "google/flan-t5-small",
+                            cache_dir=str(self.models_dir)
+                        )
+                        return model, tokenizer
+                    
+                    self._classifier_model, self._classifier_tokenizer = await self._run_blocking(
+                        _load_openvino,
+                        timeout=self.model_load_timeout
                     )
                     logger.info("✅ Loaded OpenVINO classifier (80MB INT8)")
                 else:
@@ -229,15 +275,22 @@ class OpenVINOManager:
                     
             except ImportError:
                 logger.warning("OpenVINO not available, using standard model")
-                from transformers import T5Tokenizer, T5ForConditionalGeneration
                 
-                self._classifier_tokenizer = T5Tokenizer.from_pretrained(
-                    "google/flan-t5-small",
-                    cache_dir=str(self.models_dir)
-                )
-                self._classifier_model = T5ForConditionalGeneration.from_pretrained(
-                    "google/flan-t5-small",
-                    cache_dir=str(self.models_dir)
+                def _load_standard():
+                    from transformers import T5Tokenizer, T5ForConditionalGeneration  # type: ignore
+                    tokenizer = T5Tokenizer.from_pretrained(
+                        "google/flan-t5-small",
+                        cache_dir=str(self.models_dir)
+                    )
+                    model = T5ForConditionalGeneration.from_pretrained(
+                        "google/flan-t5-small",
+                        cache_dir=str(self.models_dir)
+                    )
+                    return model, tokenizer
+                
+                self._classifier_model, self._classifier_tokenizer = await self._run_blocking(
+                    _load_standard,
+                    timeout=self.model_load_timeout
                 )
                 logger.info("✅ Loaded standard classifier (300MB)")
             except Exception as exc:
@@ -249,6 +302,9 @@ class OpenVINOManager:
         Generate embeddings for texts
         Returns: (N, 384) numpy array
         """
+        if not texts:
+            raise ValueError("At least one text is required for embedding generation")
+        
         await self._load_embedding_model()
         
         if self.use_openvino and self._embed_tokenizer is not None:
@@ -304,6 +360,9 @@ class OpenVINOManager:
         Returns:
             Top K re-ranked candidates
         """
+        if not candidates:
+            return []
+        
         await self._load_reranker_model()
         top_k = min(top_k, len(candidates))
 
@@ -340,6 +399,9 @@ class OpenVINOManager:
         Returns:
             {'category': str, 'priority': str}
         """
+        if not pattern_description or not pattern_description.strip():
+            raise ValueError("Pattern description is required for classification")
+        
         await self._load_classifier_model()
 
         category_prompt = f"""Classify this smart home pattern into ONE category: energy, comfort, security, or convenience.

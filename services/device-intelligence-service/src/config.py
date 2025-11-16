@@ -7,7 +7,7 @@ Pydantic Settings for environment variable management and validation.
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
@@ -134,6 +134,16 @@ class Settings(BaseSettings):
         description="Maximum cache size"
     )
     
+    # HTTP Configuration
+    ALLOWED_ORIGINS: List[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3000",
+        ],
+        description="Allowed CORS origins"
+    )
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -173,6 +183,22 @@ class Settings(BaseSettings):
         if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
             raise ValueError("MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://")
         return v
+    
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def normalize_allowed_origins(cls, value):
+        """Support comma-delimited strings for allowed origins."""
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("["):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        return parsed
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Invalid ALLOWED_ORIGINS JSON: {exc}") from exc
+            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
+        return value
 
     def apply_overrides(self) -> None:
         """Apply runtime overrides from the shared MQTT/Zigbee configuration file."""
@@ -237,6 +263,23 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if running in production mode."""
         return os.getenv("ENVIRONMENT", "development").lower() == "production"
+    
+    def validate_required_runtime_fields(self) -> None:
+        """Validate critical runtime fields before service startup."""
+        missing_fields = []
+
+        if not (self.HA_TOKEN and self.HA_TOKEN.strip()):
+            missing_fields.append("HA_TOKEN")
+
+        if missing_fields:
+            raise ValueError(
+                f"Missing required configuration values: {', '.join(missing_fields)}. "
+                "Set these environment variables before starting the service."
+            )
+    
+    def get_allowed_origins(self) -> List[str]:
+        """Return the configured CORS origins."""
+        return self.ALLOWED_ORIGINS
 
 
 # Global settings instance
