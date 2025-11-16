@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { withCsrfHeader } from '../utils/security';
 
 interface ConfigField {
   type: string;
@@ -58,7 +59,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
     try {
       const response = await fetch(`/api/v1/integrations/${service}/config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ settings: config })
       });
       
@@ -86,10 +87,11 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
     setLoading(true);
     setError('');
     
-    try {
-      const response = await fetch(`/api/v1/services/${service}/restart`, {
-        method: 'POST'
-      });
+      try {
+        const response = await fetch(`/api/v1/services/${service}/restart`, {
+          method: 'POST',
+          headers: withCsrfHeader()
+        });
       
       if (!response.ok) throw new Error('Failed to restart service');
       

@@ -9,8 +9,11 @@ export default defineConfig(({ command, mode }) => {
   
   const isProduction = mode === 'production'
   const isDevelopment = mode === 'development'
-  
-  return {
+    const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8004';
+    const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8004';
+    const devDataApiTarget = env.VITE_DEV_DATA_API || 'http://localhost:8006';
+
+    return {
     plugins: [
       react({
         // Enable React Fast Refresh
@@ -43,21 +46,22 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         // WebSocket proxy
         '/ws': {
-          target: 'ws://homeiq-admin-dev:8004',
+            target: devAdminWsTarget,
           ws: true,
           changeOrigin: true,
           secure: false,
+            rewrite: (path) => path.replace(/^\/ws/, '/ws'),
         },
         // Sports API proxy - route to data-api (sports-data service was removed)
         '/api/sports': {
-          target: 'http://localhost:8006',
+            target: devDataApiTarget,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/api\/sports/, '/api/v1/sports'),
         },
         // General API proxy
         '/api': {
-          target: 'http://homeiq-admin-dev:8004',
+            target: devAdminApiTarget,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/api/, '/api/v1'),

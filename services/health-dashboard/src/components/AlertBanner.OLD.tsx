@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertSeverity } from '../constants/alerts';
+import { withCsrfHeader } from '../utils/security';
 
 interface AlertBannerProps {
   darkMode: boolean;
@@ -20,7 +21,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
   useEffect(() => {
     const fetchAlerts = async (): Promise<void> => {
       try {
-        const response = await fetch('http://localhost:8003/api/v1/alerts/active');
+        const response = await fetch('/api/v1/alerts/active');
         if (response.ok) {
           const data = await response.json();
           setAlerts(data);
@@ -41,8 +42,9 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
   // Handle alert acknowledgment
   const acknowledgeAlert = async (alertId: string): Promise<void> => {
     try {
-      const response = await fetch(`http://localhost:8003/api/v1/alerts/${alertId}/acknowledge`, {
-        method: 'POST'
+      const response = await fetch(`/api/v1/alerts/${alertId}/acknowledge`, {
+        method: 'POST',
+        headers: withCsrfHeader()
       });
       
       if (response.ok) {
@@ -56,8 +58,9 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
   // Handle alert resolution
   const resolveAlert = async (alertId: string): Promise<void> => {
     try {
-      const response = await fetch(`http://localhost:8003/api/v1/alerts/${alertId}/resolve`, {
-        method: 'POST'
+      const response = await fetch(`/api/v1/alerts/${alertId}/resolve`, {
+        method: 'POST',
+        headers: withCsrfHeader()
       });
       
       if (response.ok) {
