@@ -271,3 +271,9 @@ class CommunityPatternLearner:
 
 
 
+
+
+
+
+
+

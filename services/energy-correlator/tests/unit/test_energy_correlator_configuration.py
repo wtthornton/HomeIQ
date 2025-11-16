@@ -1,5 +1,5 @@
 """
-Unit tests for service configuration and validation
+Unit tests for Energy Correlator service configuration and validation
 Tests environment variable handling and default values
 """
 
@@ -8,7 +8,7 @@ import os
 from unittest.mock import patch
 
 
-class TestServiceConfiguration:
+class TestEnergyCorrelatorConfiguration:
     """Test main service configuration"""
 
     def test_missing_influxdb_token(self):

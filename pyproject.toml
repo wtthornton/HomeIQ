@@ -1,0 +1,22 @@
+[project]
+name = "homeiq-sim"
+version = "0.1.0"
+description = "Synthetic Home Assistant-style telemetry generator with regional & seasonal realism."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "pydantic>=2.7",
+  "pyarrow>=17.0",
+  "pandas>=2.2",
+  "click>=8.1",
+  "numpy>=1.26"
+]
+
+[project.scripts]
+homeiqsim-generate = "homeiqsim.cli.generate:main"
+homeiqsim-validate = "homeiqsim.cli.validate:main"
+homeiqsim-summarize = "homeiqsim.cli.summarize:main"
+
+[tool.ruff]
+line-length = 100

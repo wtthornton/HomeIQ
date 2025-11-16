@@ -185,30 +185,38 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const calculateHAIntegrationHealth = () => {
     const totalDevices = devices.length;
     const totalEntities = entities.length;
-    
-    // Get top integrations by device count - use device integration field first, fallback to entity platform
-    const integrationDeviceCounts = new Map<string, number>();
-    devices.forEach(device => {
-      // Try to get integration from device first (if available)
-      // Otherwise, use the platform from the first entity of this device
-      let integrationKey = device.integration;
-      if (!integrationKey) {
-        const deviceEntities = entities.filter(e => e.device_id === device.device_id);
-        if (deviceEntities.length > 0) {
-          integrationKey = deviceEntities[0].platform || 'unknown';
-        } else {
-          integrationKey = 'unknown';
+
+    // Build integration → unique device_id set using entities when available
+    // This is the most reliable source for platform information.
+    const integrationToDeviceIds = new Map<string, Set<string>>();
+    if (totalEntities > 0) {
+      entities.forEach(entity => {
+        const platform = entity.platform || 'unknown';
+        const deviceId = entity.device_id || `__no_device__:${entity.entity_id}`;
+        if (!integrationToDeviceIds.has(platform)) {
+          integrationToDeviceIds.set(platform, new Set());
         }
-      }
-      
-      // Count unique devices per integration
-      if (integrationKey) {
-        integrationDeviceCounts.set(integrationKey, (integrationDeviceCounts.get(integrationKey) || 0) + 1);
-      }
+        integrationToDeviceIds.get(platform)!.add(deviceId);
+      });
+    } else {
+      // Fallback: estimate using device.integration field when entities are unavailable
+      devices.forEach(device => {
+        const platform = device.integration || 'unknown';
+        if (!integrationToDeviceIds.has(platform)) {
+          integrationToDeviceIds.set(platform, new Set());
+        }
+        integrationToDeviceIds.get(platform)!.add(device.device_id);
+      });
+    }
+
+    // Convert to counts
+    const integrationDeviceCounts = new Map<string, number>();
+    integrationToDeviceIds.forEach((deviceIdSet, platform) => {
+      integrationDeviceCounts.set(platform, deviceIdSet.size);
     });
     
     // Calculate health based on recent activity and device count
-    const topIntegrations = Array.from(integrationDeviceCounts.entries())
+    let topIntegrations = Array.from(integrationDeviceCounts.entries())
       .map(([platform, deviceCount]) => {
         // Determine health based on device count and recent activity
         // If we have devices, assume the integration is healthy
@@ -223,9 +231,17 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
       })
       .sort((a, b) => b.deviceCount - a.deviceCount)
       .slice(0, 6);
+
+    // If we have named integrations alongside 'unknown', drop 'unknown' for clarity
+    const hasNamed = topIntegrations.some(i => i.platform !== 'unknown');
+    if (hasNamed) {
+      topIntegrations = topIntegrations.filter(i => i.platform !== 'unknown');
+    }
     
     // Calculate overall health percentage
-    const totalPlatforms = integrationDeviceCounts.size;
+    const totalPlatforms = hasNamed
+      ? Array.from(integrationDeviceCounts.keys()).filter(k => k !== 'unknown').length
+      : integrationDeviceCounts.size;
     const healthyPlatforms = topIntegrations.filter(i => i.healthy).length;
     const healthPercent = totalPlatforms > 0 
       ? Math.round((healthyPlatforms / totalPlatforms) * 100) 
@@ -562,7 +578,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
             </div>
 
             {/* Top Integrations - Enhanced */}
-            {(haIntegration?.topIntegrations?.length || 0) > 0 && (
+            {((haIntegration?.topIntegrations || []).some(i => i.platform !== 'unknown')) && (
               <div className={`p-6 rounded-lg shadow border ${
                 darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               }`}>

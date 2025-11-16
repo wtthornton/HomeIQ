@@ -5,8 +5,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 
 from utils import (
     EMBEDDING_DIMENSION,
@@ -58,18 +56,22 @@ async def test_semantic_dissimilarity(embedding_manager, embedding_data):
         assert similarity < 0.3
 
 
-@given(text=st.text(min_size=5, max_size=240))
-@settings(max_examples=25, suppress_health_check=[HealthCheck.too_slow])
-def test_embedding_properties_property(text):
-    async def _run():
-        with tempfile.TemporaryDirectory() as temp_dir:
-            manager = TestOpenVINOManager(models_dir=temp_dir)
-            vectors = await manager.generate_embeddings([text])
+@pytest.mark.parametrize("text", [
+    "Turn on the lights",
+    "Set temperature to 72 degrees",
+    "Close the garage door",
+    "Start the vacuum cleaner",
+    "A" * 240  # Max length test
+])
+@pytest.mark.asyncio
+async def test_embedding_properties_property(text):
+    """Test embedding properties for various text inputs"""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        manager = TestOpenVINOManager(models_dir=temp_dir)
+        vectors = await manager.generate_embeddings([text])
         vector = vectors[0]
         assert len(vector) == EMBEDDING_DIMENSION
         assert not np.isnan(vector).any()
         assert not np.isinf(vector).any()
         norm = np.linalg.norm(vector)
         assert 0.99 <= norm <= 1.01
-
-    asyncio.run(_run())

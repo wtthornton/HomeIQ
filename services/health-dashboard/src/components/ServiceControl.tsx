@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { withCsrfHeader } from '../utils/security';
+import { adminApi } from '../services/api';
+import type { ServicesHealthResponse } from '../types/health';
 
 interface ServiceStatus {
   service: string;
@@ -23,11 +25,24 @@ export const ServiceControl: React.FC = () => {
 
   const loadServices = async () => {
     try {
-      const response = await fetch('/api/v1/services');
-      if (!response.ok) throw new Error('Failed to load services');
-      
-      const data = await response.json();
-      setServices(data.services || []);
+      const data = await adminApi.getServicesHealth();
+      const mapped = Object.entries(data as ServicesHealthResponse).map(([name, health]) => {
+        const normalized =
+          health.status === 'healthy' || health.status === 'pass'
+            ? 'running'
+            : health.status === 'degraded'
+              ? 'degraded'
+              : health.status === 'unhealthy' || health.status === 'error'
+                ? 'error'
+                : 'stopped';
+        return {
+          service: name,
+          running: normalized === 'running' || normalized === 'degraded',
+          status: normalized,
+          timestamp: health.last_check,
+        };
+      });
+      setServices(mapped);
       setError('');
     } catch (err: any) {
       setError(err.message || 'Failed to load services');
@@ -39,13 +54,8 @@ export const ServiceControl: React.FC = () => {
     
     setRestarting({ ...restarting, [service]: true });
     try {
-        const response = await fetch(`/api/v1/services/${service}/restart`, {
-          method: 'POST',
-          headers: withCsrfHeader()
-        });
-      
-      if (!response.ok) throw new Error('Failed to restart service');
-      
+      // Use admin API container restart
+      await adminApi.restartContainer(service);
       await loadServices();
     } catch (err: any) {
       alert(err.message || 'Failed to restart service');
@@ -59,14 +69,15 @@ export const ServiceControl: React.FC = () => {
     
     setLoading(true);
     try {
-        const response = await fetch('/api/v1/services/restart-all', {
-          method: 'POST',
-          headers: withCsrfHeader()
-        });
-      
-      if (!response.ok) throw new Error('Failed to restart services');
-      
-      alert('All services restarted successfully!');
+      // No explicit restart-all endpoint; sequentially restart known services
+      for (const s of services) {
+        try {
+          await adminApi.restartContainer(s.service);
+        } catch (e) {
+          // Continue restarting others even if one fails
+        }
+      }
+      alert('All services restart triggered.');
       await loadServices();
     } catch (err: any) {
       alert(err.message || 'Failed to restart all services');

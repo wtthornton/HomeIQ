@@ -3,6 +3,20 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
+# Ensure path setup before imports
+import sys
+from pathlib import Path
+test_dir = Path(__file__).resolve().parent
+service_dir = test_dir.parent
+# Add service_dir to path so we can import from src package
+if str(service_dir) not in sys.path:
+    sys.path.insert(0, str(service_dir))
+# Also add src_dir for utils imports
+src_dir = service_dir / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+# Import from src package to preserve relative imports in main.py
 from src.main import (
     ClassifyRequest,
     EmbeddingRequest,

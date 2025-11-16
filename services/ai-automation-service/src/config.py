@@ -1,6 +1,7 @@
 """Configuration management for AI Automation Service"""
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional, List, Dict
 
 
@@ -272,9 +273,11 @@ class Settings(BaseSettings):
     training_script_path: str = "scripts/train_soft_prompt.py"
     training_script_sha256: Optional[str] = None
 
-    class Config:
-        env_file = "infrastructure/env.ai-automation"
-        case_sensitive = False
+    model_config = ConfigDict(
+        env_file="infrastructure/env.ai-automation",
+        case_sensitive=False,
+        extra="ignore"  # Ignore extra fields from environment to prevent validation errors
+    )
 
 
 # Global settings instance

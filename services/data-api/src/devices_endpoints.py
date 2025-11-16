@@ -38,6 +38,7 @@ class DeviceResponse(BaseModel):
     name: str = Field(description="Device name")
     manufacturer: str = Field(description="Device manufacturer")
     model: str = Field(description="Device model")
+    integration: Optional[str] = Field(default=None, description="Integration/platform name")
     sw_version: Optional[str] = Field(default=None, description="Software/firmware version")
     area_id: Optional[str] = Field(default=None, description="Area/room ID")
     entity_count: int = Field(default=0, description="Number of entities")
@@ -154,6 +155,7 @@ async def list_devices(
                 name=device.name,
                 manufacturer=device.manufacturer or "Unknown",
                 model=device.model or "Unknown",
+                integration=device.integration,
                 sw_version=device.sw_version,
                 area_id=device.area_id,
                 entity_count=entity_count,
@@ -216,6 +218,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             name=name,
             manufacturer=manufacturer or "Unknown",
             model=model or "Unknown",
+            integration=integration,
             sw_version=sw_version,
             area_id=area_id,
             entity_count=entity_count,
