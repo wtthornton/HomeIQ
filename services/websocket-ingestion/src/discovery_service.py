@@ -6,6 +6,7 @@ Queries Home Assistant registries to discover connected devices, entities, and i
 
 import asyncio
 import logging
+import time
 from typing import Dict, List, Any, Optional
 from aiohttp import ClientWebSocketResponse
 
@@ -27,6 +28,10 @@ class DiscoveryService:
         self.device_to_area: Dict[str, str] = {}    # device_id → area_id
         self.entity_to_area: Dict[str, str] = {}    # entity_id → area_id (direct assignment)
         self.device_metadata: Dict[str, Dict[str, Any]] = {}  # device_id → {manufacturer, model, sw_version}
+        
+        # Cache expiration tracking (refresh every 30 minutes to handle stale data)
+        self._cache_timestamp: Optional[float] = None
+        self._cache_ttl_seconds = 1800  # 30 minutes - devices/areas don't change often
         
         logger.info("Discovery service initialized with device/area mapping caches")
         
@@ -100,6 +105,9 @@ class DiscoveryService:
             
             logger.info(f"📍 Cached {len(self.device_to_area)} device → area mappings")
             logger.info(f"🏷️  Cached {len(self.device_metadata)} device metadata entries")
+            
+            # Update cache timestamp
+            self._cache_timestamp = time.time()
             
             # Log sample device if available
             if devices:
@@ -179,6 +187,9 @@ class DiscoveryService:
             
             logger.info(f"🔗 Cached {len(self.entity_to_device)} entity → device mappings")
             logger.info(f"📍 Cached {len(self.entity_to_area)} entity → area mappings (direct)")
+            
+            # Update cache timestamp
+            self._cache_timestamp = time.time()
             
             # Log sample entity if available
             if entities:
@@ -644,6 +655,8 @@ class DiscoveryService:
         Returns:
             device_id if found, None otherwise
         """
+        # Check if cache is stale and log warning
+        self._check_cache_freshness()
         return self.entity_to_device.get(entity_id)
     
     def get_area_id(self, entity_id: str, device_id: Optional[str] = None) -> Optional[str]:
@@ -688,17 +701,65 @@ class DiscoveryService:
         """
         return self.device_metadata.get(device_id)
     
-    def get_cache_statistics(self) -> Dict[str, int]:
+    def _check_cache_freshness(self):
+        """
+        Check if cache is stale and log warning if needed.
+        
+        Cache is considered stale if it's older than TTL and has entries.
+        This helps identify when discovery hasn't run recently.
+        """
+        if self._cache_timestamp and len(self.entity_to_device) > 0:
+            cache_age = time.time() - self._cache_timestamp
+            if cache_age > self._cache_ttl_seconds:
+                logger.warning(
+                    f"⚠️ Discovery cache is stale ({cache_age/60:.1f} minutes old, "
+                    f"TTL: {self._cache_ttl_seconds/60:.1f} minutes). "
+                    f"Consider triggering discovery to refresh device/area mappings."
+                )
+    
+    def is_cache_stale(self) -> bool:
+        """
+        Check if cache is stale.
+        
+        Returns:
+            True if cache is older than TTL, False otherwise
+        """
+        if not self._cache_timestamp or len(self.entity_to_device) == 0:
+            return True  # Empty cache is considered stale
+        cache_age = time.time() - self._cache_timestamp
+        return cache_age > self._cache_ttl_seconds
+    
+    def clear_caches(self):
+        """
+        Clear all mapping caches.
+        
+        Useful when discovery fails or needs to be reset.
+        """
+        self.entity_to_device.clear()
+        self.device_to_area.clear()
+        self.entity_to_area.clear()
+        self.device_metadata.clear()
+        self._cache_timestamp = None
+        logger.info("🧹 Discovery caches cleared")
+    
+    def get_cache_statistics(self) -> Dict[str, Any]:
         """
         Get statistics about mapping caches
         
         Returns:
             Dictionary with cache statistics
         """
+        cache_age_minutes = None
+        if self._cache_timestamp:
+            cache_age_minutes = (time.time() - self._cache_timestamp) / 60
+        
         return {
             "entity_to_device_mappings": len(self.entity_to_device),
             "device_to_area_mappings": len(self.device_to_area),
             "entity_to_area_mappings": len(self.entity_to_area),
-            "device_metadata_entries": len(self.device_metadata)
+            "device_metadata_entries": len(self.device_metadata),
+            "cache_age_minutes": round(cache_age_minutes, 1) if cache_age_minutes else None,
+            "cache_ttl_minutes": self._cache_ttl_seconds / 60,
+            "is_stale": self.is_cache_stale()
         }
 
