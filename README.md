@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix event details loading issue in Live Event Stream** (November 17, 2025)
 - **Fix device entities not displaying in device detail popup** (November 17, 2025)
 - **Fix HA Core version detection in health monitoring service** (November 17, 2025)
 - **Fix HA Core version detection in health monitoring service** (November 17, 2025)
