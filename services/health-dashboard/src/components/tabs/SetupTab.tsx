@@ -42,7 +42,7 @@ export const SetupTab: React.FC = () => {
               </p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li>Real-time health scoring (0-100 based on weighted components)</li>
-                <li>Integration status verification (MQTT, Zigbee2MQTT, device discovery)</li>
+                <li>Integration status verification (MQTT, device discovery)</li>
                 <li>Performance metrics tracking (response time, resource usage)</li>
                 <li>Automatic issue detection with actionable recommendations</li>
               </ul>

@@ -21,9 +21,16 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
     // Fetch user's device types from entities (domains)
     const fetchDevices = async () => {
       try {
+        const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+        
         // Fetch entities to get unique domains (device types)
         // Note: using proxied API endpoint
-        const entitiesResponse = await fetch('/api/data/entities?limit=10000');
+        const entitiesResponse = await fetch('/api/data/entities?limit=10000', {
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'X-HomeIQ-API-Key': API_KEY,
+          },
+        });
         if (!entitiesResponse.ok) {
           throw new Error('Failed to fetch entities');
         }
@@ -39,7 +46,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
           setLoading(false);
         } else {
           // Fallback: try to get from devices
-          const devicesResponse = await fetch('/api/data/devices');
+          const devicesResponse = await fetch('/api/data/devices', {
+            headers: {
+              'Authorization': `Bearer ${API_KEY}`,
+              'X-HomeIQ-API-Key': API_KEY,
+            },
+          });
           if (devicesResponse.ok) {
             // Use demo devices as fallback if no entities found
             setUserDevices(['light', 'switch', 'sensor']);

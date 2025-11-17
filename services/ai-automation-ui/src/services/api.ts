@@ -10,6 +10,7 @@ import type { Suggestion, Pattern, ScheduleInfo, AnalysisStatus, UsageStats, Syn
 // In development (standalone), use direct connection to localhost:8024 (mapped from 8018)
 // When running via Docker (port 3001), nginx handles the proxy, so use relative /api
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
 
 export class APIError extends Error {
   constructor(public status: number, message: string) {
@@ -18,14 +19,47 @@ export class APIError extends Error {
   }
 }
 
+/**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'X-HomeIQ-API-Key': API_KEY,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   try {
+    // Add authentication headers to all requests
+    const headers = withAuthHeaders({
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    });
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -340,25 +374,22 @@ export const api = {
   // Get pattern information for better naming
   async getPatternInfo(deviceId: string): Promise<string | null> {
     try {
-      // Try to get pattern details from the AI automation service
-      const response = await fetch(`${API_BASE_URL}/patterns/list?device_id=${encodeURIComponent(deviceId)}&limit=1`);
-      if (response.ok) {
-        const data = await response.json();
-        const patterns = data.data?.patterns || [];
-        if (patterns.length > 0) {
-          const pattern = patterns[0];
-          // Create a more meaningful name based on pattern type and metadata
-          if (pattern.pattern_type === 'co_occurrence') {
-            const occurrences = pattern.occurrences || 0;
-            const confidence = Math.round((pattern.confidence || 0) * 100);
-            return `Co-occurrence Pattern (${occurrences} occurrences, ${confidence}% confidence)`;
-          } else if (pattern.pattern_type === 'time_of_day') {
-            const metadata = pattern.metadata || {};
-            const timeRange = metadata.time_range || 'Unknown time';
-            const occurrences = pattern.occurrences || 0;
-            const confidence = Math.round((pattern.confidence || 0) * 100);
-            return `Time Pattern (${timeRange}, ${occurrences} occurrences, ${confidence}% confidence)`;
-          }
+      // Use fetchJSON to ensure authentication headers are included
+      const data = await fetchJSON<{ data?: { patterns?: any[] } }>(`${API_BASE_URL}/patterns/list?device_id=${encodeURIComponent(deviceId)}&limit=1`);
+      const patterns = data.data?.patterns || [];
+      if (patterns.length > 0) {
+        const pattern = patterns[0];
+        // Create a more meaningful name based on pattern type and metadata
+        if (pattern.pattern_type === 'co_occurrence') {
+          const occurrences = pattern.occurrences || 0;
+          const confidence = Math.round((pattern.confidence || 0) * 100);
+          return `Co-occurrence Pattern (${occurrences} occurrences, ${confidence}% confidence)`;
+        } else if (pattern.pattern_type === 'time_of_day') {
+          const metadata = pattern.metadata || {};
+          const timeRange = metadata.time_range || 'Unknown time';
+          const occurrences = pattern.occurrences || 0;
+          const confidence = Math.round((pattern.confidence || 0) * 100);
+          return `Time Pattern (${timeRange}, ${occurrences} occurrences, ${confidence}% confidence)`;
         }
       }
     } catch (error) {
