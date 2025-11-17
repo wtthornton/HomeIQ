@@ -1,120 +1,127 @@
-# Zigbee2MQTT MQTT Subscription - Deployment Complete
+# Deployment Complete ✅
 
-## ✅ Deployment Status
+**Date:** November 17, 2025  
+**Time:** 20:18 UTC  
+**Status:** ✅ All Services Restarted Successfully
 
-### Services Deployed
-1. ✅ **ha-setup-service** - Rebuilt and restarted with MQTT client
-2. ✅ **health-dashboard** - Rebuilt with UI updates to show monitoring method
+## ✅ Services Restarted
 
-### Changes Deployed
+### 1. data-api ✅
+- **Status:** Healthy and running
+- **Port:** 8006
+- **Logs:** Service started successfully, SQLite database initialized
+- **Verification:** Receiving bulk_upsert requests for devices and entities
 
-#### Backend (ha-setup-service)
-- ✅ Added `paho-mqtt==2.1.0` dependency
-- ✅ Created `zigbee2mqtt_mqtt_client.py` for MQTT subscription
-- ✅ Updated `health_service.py` to use MQTT subscription
-- ✅ Updated `config.py` with MQTT broker settings
-- ✅ Simplified `integration_checker.py` (fallback only)
+### 2. websocket-ingestion ✅
+- **Status:** Healthy and running
+- **Port:** 8001
+- **Logs:** WebSocket Ingestion Service started successfully
+- **Note:** Discovery cache is stale (expected after restart), discovery will run automatically
 
-#### Frontend (health-dashboard)
-- ✅ Updated `EnvironmentHealthCard.tsx` to highlight MQTT subscription method
-- ✅ Added visual indicator (⚡) for real-time MQTT monitoring
-- ✅ Enhanced display of monitoring method in check details
+### 3. ai-automation-service ✅
+- **Status:** Healthy and running
+- **Port:** 8018 (external: 8024)
+- **Logs:** AI Automation Service ready, all components initialized
+- **Verification:** Database initialized, MQTT connected, models ready
 
-## Configuration
+## 🔄 Next Steps
 
-### Default MQTT Settings
-- **Broker URL**: `mqtt://core-mosquitto:1883`
-- **Base Topic**: `zigbee2mqtt`
-- **Authentication**: Optional (username/password if required)
+### Automatic Discovery
+The websocket-ingestion service will automatically trigger discovery when:
+- The discovery cache expires (30 minutes TTL)
+- A device/entity registry event is received
+- The service detects stale cache
 
-### Optional .env Overrides
-```env
-MQTT_BROKER_URL=mqtt://core-mosquitto:1883
-MQTT_USERNAME=addons  # If MQTT requires authentication
-MQTT_PASSWORD=your_password
-ZIGBEE2MQTT_BASE_TOPIC=zigbee2mqtt
-```
+### Manual Discovery Trigger (Optional)
+If you want to trigger discovery immediately, you can:
 
-## How It Works
-
-### MQTT Subscription Flow
-1. Health service initializes MQTT client on first Zigbee2MQTT check
-2. Client connects to MQTT broker (`core-mosquitto:1883`)
-3. Subscribes to bridge topics:
-   - `zigbee2mqtt/bridge/state` - Bridge online/offline
-   - `zigbee2mqtt/bridge/devices` - Device list
-   - `zigbee2mqtt/bridge/info` - Bridge information
-   - `zigbee2mqtt/bridge/event` - Bridge events
-4. Real-time updates received via MQTT pub/sub
-5. Health endpoint returns status with `monitoring_method: "mqtt_subscription"`
-
-### Fallback Mechanism
-- If MQTT connection fails, falls back to HA API method
-- Integration checker still available for validation
-- Both methods can coexist
-
-## UI Updates
-
-### Health Dashboard (http://localhost:3000)
-- Shows monitoring method in integration details
-- Highlights MQTT subscription with ⚡ indicator
-- Displays bridge state, device count, and coordinator info
-- Real-time updates when MQTT subscription is active
-
-### Visual Indicators
-- **⚡ icon**: Real-time MQTT subscription active
-- **Green highlight**: MQTT subscription method
-- **Monitoring Method**: Shows "mqtt_subscription" or "ha_api_fallback"
-
-## Testing
-
-### Verify MQTT Connection
 ```bash
-# Check service logs
-docker compose logs ha-setup-service | grep -i mqtt
+# Trigger discovery via health endpoint (if available)
+curl -X POST http://localhost:8001/discover
 
-# Check health endpoint
-curl http://localhost:8027/api/health/environment | jq '.integrations[] | select(.name=="Zigbee2MQTT")'
+# Or wait for automatic discovery (within 30 minutes)
 ```
 
-### Verify UI Updates
-1. Open http://localhost:3000
-2. Navigate to "Setup & Health" tab
-3. Check Zigbee2MQTT integration details
-4. Look for ⚡ indicator and "Monitoring Method: mqtt_subscription"
+## 📊 Verification
 
-## Next Steps
+After discovery runs, verify:
 
-1. **Monitor Logs**: Check for MQTT connection messages
-2. **Verify Connection**: Ensure MQTT broker is accessible
-3. **Test Real-time Updates**: Watch for bridge state changes
-4. **Optional**: Configure MQTT authentication if required
+1. **Services Table:**
+   ```sql
+   SELECT COUNT(*) FROM services;
+   SELECT domain, COUNT(*) FROM services GROUP BY domain;
+   ```
 
-## Troubleshooting
+2. **Entity Name Fields:**
+   ```sql
+   SELECT entity_id, name, name_by_user, original_name, friendly_name 
+   FROM entities 
+   WHERE friendly_name IS NOT NULL 
+   LIMIT 10;
+   ```
 
-### MQTT Connection Issues
-- Check MQTT broker is running: `docker compose ps | grep mosquitto`
-- Verify broker URL in config
-- Check network connectivity between services
-- Review logs: `docker compose logs ha-setup-service | grep -i mqtt`
+3. **Entity Capabilities:**
+   ```sql
+   SELECT entity_id, friendly_name, capabilities, available_services 
+   FROM entities 
+   WHERE capabilities IS NOT NULL 
+   LIMIT 5;
+   ```
 
-### UI Not Showing Updates
-- Clear browser cache
-- Hard refresh (Ctrl+F5)
-- Check browser console for errors
-- Verify health endpoint returns monitoring_method
+## 🎯 Expected Behavior
 
-## Status
+### Immediate (After Restart)
+- ✅ All services recognize new database schema
+- ✅ API endpoints return new fields (may be NULL initially)
+- ✅ Services are ready to receive discovery data
 
-✅ **Deployment Complete**
-- Backend: Deployed and running
-- Frontend: Rebuilt and restarted
-- MQTT Client: Ready to connect
-- UI Updates: Applied and visible
+### After Discovery Runs
+- ✅ Services table populated with HA services
+- ✅ Entity name fields populated from Entity Registry
+- ✅ Entity capabilities populated (when enrichment runs)
+- ✅ Available services determined per entity
+
+### AI Automation Service
+- ✅ Entity context includes all new fields
+- ✅ YAML generation validates service calls
+- ✅ Prompts include available services
+- ✅ Device metadata included in context
+
+## 📝 Monitoring
+
+Monitor logs for:
+
+1. **Discovery Completion:**
+   ```
+   ✅ DISCOVERY COMPLETE
+   Services: X total services across Y domains
+   ✅ Stored X services to SQLite
+   ```
+
+2. **Entity Storage:**
+   ```
+   ✅ Stored X entities to SQLite
+   ```
+
+3. **Service Validation:**
+   ```
+   Available Services: light.turn_on, light.turn_off, ...
+   ```
+
+## ✅ Success Criteria Met
+
+- ✅ Database migration applied (Revision 004)
+- ✅ All services restarted successfully
+- ✅ Services are healthy and running
+- ✅ Database schema recognized by all services
+- ✅ Ready for discovery to populate new fields
+
+## 🔗 Related Documents
+
+- `implementation/EXECUTION_COMPLETE.md` - Execution summary
+- `implementation/POST_MIGRATION_CHECKLIST.md` - Testing checklist
+- `implementation/MIGRATION_INSTRUCTIONS.md` - Migration guide
 
 ---
 
-**Deployment Date**: 2025-11-16
-**Services**: ha-setup-service, health-dashboard
-**Status**: ✅ Complete
-
+**Status:** ✅ Deployment Complete - Ready for Discovery

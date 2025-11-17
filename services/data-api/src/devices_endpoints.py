@@ -9,6 +9,7 @@ import sys
 import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
@@ -23,7 +24,7 @@ from .flux_utils import sanitize_flux_value
 
 # Story 22.2: SQLite models and database
 from .database import get_db
-from .models import Device, Entity
+from .models import Device, Entity, Service
 from .cache import cache
 
 logger = logging.getLogger(__name__)
@@ -409,7 +410,20 @@ async def list_entities(
                 unique_id=entity.unique_id,
                 area_id=entity.area_id,
                 disabled=entity.disabled,
-                timestamp=entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat()
+                # Entity Registry Name Fields
+                name=entity.name,
+                name_by_user=entity.name_by_user,
+                original_name=entity.original_name,
+                friendly_name=entity.friendly_name,
+                # Entity Capabilities
+                supported_features=entity.supported_features,
+                capabilities=entity.capabilities if isinstance(entity.capabilities, list) else None,
+                available_services=entity.available_services if isinstance(entity.available_services, list) else None,
+                # Entity Attributes
+                icon=entity.icon,
+                device_class=entity.device_class,
+                unit_of_measurement=entity.unit_of_measurement,
+                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
             )
             for entity in entities_data
         ]
@@ -443,7 +457,20 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
             unique_id=entity.unique_id,
             area_id=entity.area_id,
             disabled=entity.disabled,
-            timestamp=entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat()
+            # Entity Registry Name Fields
+            name=entity.name,
+            name_by_user=entity.name_by_user,
+            original_name=entity.original_name,
+            friendly_name=entity.friendly_name,
+            # Entity Capabilities
+            supported_features=entity.supported_features,
+            capabilities=entity.capabilities if isinstance(entity.capabilities, list) else None,
+            available_services=entity.available_services if isinstance(entity.available_services, list) else None,
+            # Entity Attributes
+            icon=entity.icon,
+            device_class=entity.device_class,
+            unit_of_measurement=entity.unit_of_measurement,
+            timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
         )
     except HTTPException:
         raise
@@ -865,6 +892,23 @@ async def bulk_upsert_entities(
             # Extract domain from entity_id (e.g., "light.kitchen" -> "light")
             domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
             
+            # Extract name fields from entity registry data
+            name = entity_data.get('name')  # Primary name (what shows in HA UI)
+            name_by_user = entity_data.get('name_by_user')  # User-customized name
+            original_name = entity_data.get('original_name')  # Original name
+            
+            # Compute friendly_name (priority: name_by_user > name > original_name > entity_id)
+            friendly_name = name_by_user or name or original_name
+            if not friendly_name:
+                # Fallback: derive from entity_id
+                friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
+            
+            # Capabilities will be enriched separately from State API
+            # For now, set to None - will be populated by entity_capability_enrichment service
+            supported_features = None
+            capabilities = None
+            available_services = None
+            
             # Create entity instance
             entity = Entity(
                 entity_id=entity_id,
@@ -874,7 +918,17 @@ async def bulk_upsert_entities(
                 unique_id=entity_data.get('unique_id'),
                 area_id=entity_data.get('area_id'),
                 disabled=entity_data.get('disabled_by') is not None,
-                created_at=datetime.now()
+                # NEW: Entity Registry name fields
+                name=name,
+                name_by_user=name_by_user,
+                original_name=original_name,
+                friendly_name=friendly_name,
+                # NEW: Entity capabilities (will be enriched from state API)
+                supported_features=supported_features,
+                capabilities=capabilities,
+                available_services=available_services,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             
             # Merge (upsert)

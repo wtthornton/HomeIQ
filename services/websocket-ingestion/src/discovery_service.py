@@ -328,14 +328,14 @@ class DiscoveryService:
     
     async def discover_all(self, websocket: ClientWebSocketResponse, store: bool = True) -> Dict[str, Any]:
         """
-        Discover all devices, entities, and config entries
+        Discover all devices, entities, config entries, and services
         
         Args:
             websocket: Connected WebSocket client
             store: Whether to store results in InfluxDB (default: True)
             
         Returns:
-            Dictionary with 'devices', 'entities', and 'config_entries' keys
+            Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
         """
         logger.info("=" * 80)
         logger.info("🚀 STARTING COMPLETE HOME ASSISTANT DISCOVERY")
@@ -346,31 +346,81 @@ class DiscoveryService:
         # TEMPORARY: Skip config entries - command not supported in this HA version
         config_entries_data = []  # await self.discover_config_entries(websocket)
         
+        # Discover services from HA Services API (Epic 2025)
+        services_data = await self.discover_services(websocket)
+        
         logger.info("=" * 80)
         logger.info("✅ DISCOVERY COMPLETE")
         logger.info(f"   Devices: {len(devices_data)}")
         logger.info(f"   Entities: {len(entities_data)}")
         logger.info(f"   Config Entries: {len(config_entries_data)}")
+        logger.info(f"   Services: {len(services_data)} domains")
         logger.info("=" * 80)
         
         # Convert to models and store if requested
         if store and self.influxdb_manager:
             logger.info("💾 Storing discovered data in InfluxDB...")
-            await self.store_discovery_results(devices_data, entities_data, config_entries_data)
+            await self.store_discovery_results(devices_data, entities_data, config_entries_data, services_data)
         elif store and not self.influxdb_manager:
             logger.warning("⚠️  Storage requested but no InfluxDB manager available")
         
         return {
             "devices": devices_data,
             "entities": entities_data,
-            "config_entries": config_entries_data
+            "config_entries": config_entries_data,
+            "services": services_data
         }
+    
+    async def discover_services(self, websocket: ClientWebSocketResponse) -> Dict[str, Dict[str, Any]]:
+        """
+        Discover available services from Home Assistant Services API.
+        
+        Epic 2025: Fetch all available services per domain for service validation.
+        
+        Args:
+            websocket: Connected WebSocket client
+            
+        Returns:
+            Dictionary mapping domain -> {service_name -> service_data}
+        """
+        try:
+            logger.info("🔍 Discovering services from HA Services API...")
+            
+            # Use HTTP API to fetch services (Services API doesn't have WebSocket command)
+            import aiohttp
+            import os
+            
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+            
+            if not ha_token:
+                logger.warning("⚠️  No HA token available for services discovery")
+                return {}
+            
+            headers = {
+                "Authorization": f"Bearer {ha_token}",
+                "Content-Type": "application/json"
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{ha_url}/api/services", headers=headers) as response:
+                    if response.status == 200:
+                        services_data = await response.json()
+                        logger.info(f"✅ Retrieved {len(services_data)} service domains from HA")
+                        return services_data
+                    else:
+                        logger.warning(f"Failed to get services from HA: {response.status}")
+                        return {}
+        except Exception as e:
+            logger.error(f"Error discovering services: {e}", exc_info=True)
+            return {}
     
     async def store_discovery_results(
         self,
         devices_data: List[Dict[str, Any]],
         entities_data: List[Dict[str, Any]],
-        config_entries_data: List[Dict[str, Any]]
+        config_entries_data: List[Dict[str, Any]],
+        services_data: Dict[str, Dict[str, Any]] = None
     ) -> bool:
         """
         Store discovery results to SQLite (via data-api) and optionally to InfluxDB
@@ -431,6 +481,24 @@ class DiscoveryService:
                                 logger.error(f"❌ Failed to store entities to SQLite: {response.status} - {error_text}")
                     except Exception as e:
                         logger.error(f"❌ Error posting entities to data-api: {e}")
+                
+                # Store services to SQLite (Epic 2025)
+                if services_data:
+                    try:
+                        async with session.post(
+                            f"{data_api_url}/internal/services/bulk_upsert",
+                            json=services_data,
+                            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
+                            timeout=aiohttp.ClientTimeout(total=30)
+                        ) as response:
+                            if response.status == 200:
+                                result = await response.json()
+                                logger.info(f"✅ Stored {result.get('upserted', 0)} services to SQLite")
+                            else:
+                                error_text = await response.text()
+                                logger.error(f"❌ Failed to store services to SQLite: {response.status} - {error_text}")
+                    except Exception as e:
+                        logger.error(f"❌ Error posting services to data-api: {e}")
             
             # Optional: Store snapshot to InfluxDB for historical tracking
             store_influx_history = os.getenv('STORE_DEVICE_HISTORY_IN_INFLUXDB', 'false').lower() == 'true'
@@ -473,6 +541,9 @@ class DiscoveryService:
             
             logger.info("=" * 80)
             logger.info("✅ STORAGE COMPLETE")
+            if services_data:
+                total_services = sum(len(domain_services) for domain_services in services_data.values())
+                logger.info(f"   Services: {total_services} total services across {len(services_data)} domains")
             logger.info("=" * 80)
             
             return True

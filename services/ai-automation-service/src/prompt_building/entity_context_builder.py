@@ -8,6 +8,7 @@ entity information including attributes, capabilities, and metadata.
 import logging
 from typing import Dict, List, Any
 import json
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,8 @@ class EntityContextBuilder:
     async def build_entity_context_json(
         self,
         entities: List[Dict[str, Any]],
-        enriched_data: Dict[str, Dict[str, Any]]
+        enriched_data: Dict[str, Dict[str, Any]],
+        db_session = None
     ) -> str:
         """
         Create JSON string with complete entity information for OpenAI.
@@ -129,6 +131,7 @@ class EntityContextBuilder:
         Args:
             entities: List of base entity dictionaries (from entity_validator)
             enriched_data: Dictionary mapping entity_id to enriched data
+            db_session: Optional database session for database-first lookup
         
         Returns:
             JSON string with complete entity context
@@ -145,26 +148,123 @@ class EntityContextBuilder:
             # Extract domain
             domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
             
-            # Get attributes from enriched data
+            # Database-first lookup for entity information
+            friendly_name = None
+            name = None
+            name_by_user = None
+            original_name = None
+            capabilities = []
+            available_services = []
+            supported_features = None
+            icon = None
+            device_class = None
+            unit_of_measurement = None
+            device_metadata = {}
+            
+            # Database-first lookup using DataAPIClient
+            try:
+                from ...clients.data_api_client import DataAPIClient
+                data_api_client = DataAPIClient()
+                
+                # Fetch entity metadata from data-api
+                entity_metadata = await data_api_client.get_entity_metadata(entity_id)
+                
+                if entity_metadata:
+                    # Use database fields first
+                    friendly_name = entity_metadata.get('friendly_name') or entity_metadata.get('name') or entity_metadata.get('original_name')
+                    name = entity_metadata.get('name')
+                    name_by_user = entity_metadata.get('name_by_user')
+                    original_name = entity_metadata.get('original_name')
+                    capabilities = entity_metadata.get('capabilities', [])
+                    if not isinstance(capabilities, list):
+                        capabilities = []
+                    available_services = entity_metadata.get('available_services', [])
+                    if not isinstance(available_services, list):
+                        available_services = []
+                    supported_features = entity_metadata.get('supported_features')
+                    icon = entity_metadata.get('icon')
+                    device_class = entity_metadata.get('device_class')
+                    unit_of_measurement = entity_metadata.get('unit_of_measurement')
+                    
+                    # Get device metadata if available
+                    device_id = entity_metadata.get('device_id')
+                    if device_id:
+                        try:
+                            devices_result = await data_api_client.fetch_devices(limit=1000)
+                            if isinstance(devices_result, pd.DataFrame) and not devices_result.empty:
+                                device_row = devices_result[devices_result['device_id'] == device_id]
+                                if not device_row.empty:
+                                    device = device_row.iloc[0]
+                                    device_metadata = {
+                                        'manufacturer': device.get('manufacturer', 'Unknown'),
+                                        'model': device.get('model', 'Unknown'),
+                                        'sw_version': device.get('sw_version', 'Unknown')
+                                    }
+                            elif isinstance(devices_result, list):
+                                device = next((d for d in devices_result if d.get('device_id') == device_id), None)
+                                if device:
+                                    device_metadata = {
+                                        'manufacturer': device.get('manufacturer', 'Unknown'),
+                                        'model': device.get('model', 'Unknown'),
+                                        'sw_version': device.get('sw_version', 'Unknown')
+                                    }
+                        except Exception as e:
+                            logger.debug(f"Device lookup failed for {device_id}: {e}")
+            except Exception as e:
+                logger.debug(f"Data API lookup failed for {entity_id}: {e}, using enriched data")
+            
+            # Fallback to enriched data if database lookup failed or not available
+            if not friendly_name:
+                friendly_name = enriched.get('friendly_name') or entity.get('friendly_name')
+            if not capabilities:
+                attributes = enriched.get('attributes', {})
+                capabilities = self._extract_capabilities(attributes, domain)
+            if not available_services:
+                available_services = enriched.get('available_services', [])
+            if not supported_features:
+                attributes = enriched.get('attributes', {})
+                supported_features = attributes.get('supported_features')
+            if not icon:
+                icon = enriched.get('icon')
+            if not device_class:
+                attributes = enriched.get('attributes', {})
+                device_class = attributes.get('device_class')
+            if not unit_of_measurement:
+                attributes = enriched.get('attributes', {})
+                unit_of_measurement = attributes.get('unit_of_measurement')
+            
+            # Get attributes from enriched data (for full passthrough)
             attributes = enriched.get('attributes', {})
             
             # Build entity entry
             entity_entry = {
                 'entity_id': entity_id,
-                'friendly_name': enriched.get('friendly_name') or entity.get('friendly_name'),
+                'friendly_name': friendly_name,
+                'name': name,  # NEW: Entity Registry name
+                'name_by_user': name_by_user,  # NEW: User-customized name
+                'original_name': original_name,  # NEW: Original name
                 'domain': domain,
                 'type': self._determine_type(enriched),
                 'state': enriched.get('state', 'unknown'),
                 'description': self._generate_human_readable_description({
-                    'friendly_name': enriched.get('friendly_name'),
+                    'friendly_name': friendly_name,
                     'type': self._determine_type(enriched),
                     'is_hue_group': enriched.get('is_group', False)
                 }),
-                'capabilities': self._extract_capabilities(attributes, domain),
+                'capabilities': capabilities,  # From database first
+                'supported_features': supported_features,  # NEW
+                'available_services': available_services,  # NEW
+                'icon': icon,  # NEW
+                'device_class': device_class,  # NEW
+                'unit_of_measurement': unit_of_measurement,  # NEW
                 'attributes': attributes,  # Full passthrough of all attributes
                 'is_group': enriched.get('is_group', False),
                 'integration': enriched.get('integration', 'unknown')
             }
+            
+            # Add device metadata if available
+            if device_metadata:
+                entity_entry['device'] = device_metadata
             
             # Add specific attributes that might be useful
             if 'brightness' in attributes:
