@@ -223,13 +223,22 @@ class InfluxDBSchema:
         if event_type:
             point = point.tag(self.TAG_EVENT_TYPE, event_type)
         
+        # Epic 23.2: Add device_id and area_id tags for spatial analytics
+        device_id = event_data.get("device_id")
+        if device_id:
+            point = point.tag(self.TAG_DEVICE_ID, device_id)
+        
+        area_id = event_data.get("area_id")
+        if area_id:
+            point = point.tag(self.TAG_AREA_ID, area_id)
+        
         # Device class tag (from attributes)
         attributes = event_data.get("attributes", {})
         device_class = attributes.get("device_class")
         if device_class:
             point = point.tag(self.TAG_DEVICE_CLASS, device_class)
         
-        # Area tag (from attributes)
+        # Area tag (from attributes) - legacy support
         area = attributes.get("area")
         if area:
             point = point.tag(self.TAG_AREA, area)
@@ -266,6 +275,26 @@ class InfluxDBSchema:
         context_user_id = event_data.get("context_user_id")
         if context_user_id:
             point = point.field(self.FIELD_CONTEXT_USER_ID, context_user_id)
+        
+        # Epic 23.3: Add duration_in_state for time-based analytics
+        duration_in_state = event_data.get("duration_in_state")
+        if duration_in_state is not None:
+            point = point.field(self.FIELD_DURATION_IN_STATE, float(duration_in_state))
+        
+        # Epic 23.5: Add device metadata fields for reliability analysis
+        device_metadata = event_data.get("device_metadata")
+        if device_metadata:
+            manufacturer = device_metadata.get("manufacturer")
+            if manufacturer:
+                point = point.field(self.FIELD_MANUFACTURER, manufacturer)
+            
+            model = device_metadata.get("model")
+            if model:
+                point = point.field(self.FIELD_MODEL, model)
+            
+            sw_version = device_metadata.get("sw_version")
+            if sw_version:
+                point = point.field(self.FIELD_SW_VERSION, sw_version)
         
         # Weather fields
         weather = event_data.get("weather", {})
