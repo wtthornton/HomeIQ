@@ -856,7 +856,7 @@ async def map_devices_to_entities(
         # Strategy 1: Exact match by friendly_name (highest priority)
         for entity_id, enriched in enriched_data.items():
             friendly_name = enriched.get('friendly_name', '')
-            if friendly_name.lower() == device_name_lower:
+            if friendly_name and friendly_name.lower() == device_name_lower:
                 matched_entity_id = entity_id
                 match_quality = 3
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match)")
@@ -3595,7 +3595,6 @@ async def generate_suggestions_from_query(
                             if filtered_entity_context_json:
                                 # Try to find and replace the entity context JSON section
                                 # The entity context JSON appears in the "ENRICHED ENTITY CONTEXT" section
-                                import json
                                 import re
                                 
                                 # Try to extract the JSON from the original prompt
@@ -4601,6 +4600,85 @@ async def provide_clarification(
             remaining_ambiguities = unique_remaining
             
             logger.info(f"📋 Remaining ambiguities: {len(remaining_ambiguities)} (answered: {len(answered_ambiguity_ids)}, total: {len(all_ambiguities)})")
+            
+            # If no remaining ambiguities, generate suggestions even if confidence is below threshold
+            # All ambiguities have been resolved, so we should proceed
+            if len(remaining_ambiguities) == 0:
+                logger.info("✅ All ambiguities resolved - generating suggestions despite low confidence")
+                session.status = "complete"
+                
+                # Build clarification context for prompt
+                clarification_context = {
+                    'original_query': session.original_query,
+                    'questions_and_answers': [
+                        {
+                            'question': next((q.question_text for q in session.questions if q.id == answer.question_id), 'Unknown question'),
+                            'answer': answer.answer_text,
+                            'selected_entities': answer.selected_entities,
+                            'category': next((q.category for q in session.questions if q.id == answer.question_id), 'unknown')
+                        }
+                        for answer in session.answers  # Use all answers from session
+                    ]
+                }
+                logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
+                
+                # Rebuild enriched user query from original question + Q&A answers
+                enriched_query = _rebuild_user_query_from_qa(
+                    original_query=session.original_query,
+                    clarification_context=clarification_context
+                )
+                logger.info(f"📝 Rebuilt enriched query: '{enriched_query}'")
+                
+                # Re-extract entities from enriched query
+                entities = await extract_entities_with_ha(enriched_query)
+                logger.info(f"🔍 Re-extracted {len(entities)} entities from enriched query")
+                
+                # Re-enrich devices based on selected entities from Q&A answers
+                entities = await _re_enrich_entities_from_qa(
+                    entities=entities,
+                    clarification_context=clarification_context,
+                    ha_client=ha_client
+                )
+                logger.info(f"✅ Re-enriched entities with Q&A information: {len(entities)} entities")
+                
+                # Generate suggestions WITH enriched query and clarification context
+                suggestions = await generate_suggestions_from_query(
+                    enriched_query,
+                    entities,
+                    "anonymous",  # TODO: Get from session
+                    clarification_context=clarification_context
+                )
+                
+                # Add conversation history to suggestions
+                for suggestion in suggestions:
+                    suggestion['conversation_history'] = {
+                        'original_query': session.original_query,
+                        'questions': [
+                            {
+                                'id': q.id,
+                                'question_text': q.question_text,
+                                'category': q.category
+                            }
+                            for q in session.questions
+                        ],
+                        'answers': [
+                            {
+                                'question_id': a.question_id,
+                                'answer_text': a.answer_text,
+                                'selected_entities': a.selected_entities
+                            }
+                            for a in session.answers
+                        ]
+                    }
+                
+                return ClarificationResponse(
+                    session_id=request.session_id,
+                    confidence=session.current_confidence,
+                    confidence_threshold=session.confidence_threshold,
+                    clarification_complete=True,
+                    message=f"Great! All ambiguities resolved. Based on your answers, I'll create the automation. Confidence: {int(session.current_confidence * 100)}%",
+                    suggestions=suggestions
+                )
             
             # NEW: Track which questions have already been asked to prevent duplicates
             asked_question_texts = {q.question_text.lower().strip() for q in session.questions}
