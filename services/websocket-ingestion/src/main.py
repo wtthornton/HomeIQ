@@ -692,12 +692,14 @@ async def create_app():
                     "error": "Connection manager or discovery service not available"
                 }, status=503)
             
-            websocket = service.connection_manager.websocket
-            if not websocket:
+            # Access websocket through client (ConnectionManager.client.websocket)
+            if not service.connection_manager.client or not service.connection_manager.client.websocket:
                 return web.json_response({
                     "success": False,
                     "error": "WebSocket connection not available"
                 }, status=503)
+            
+            websocket = service.connection_manager.client.websocket
             
             logger.info("Manual discovery trigger requested")
             discovery_result = await service.connection_manager.discovery_service.discover_all(
