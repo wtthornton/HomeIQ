@@ -868,7 +868,10 @@ async def map_devices_to_entities(
             best_fuzzy_score = 0
             
             for entity_id, enriched in enriched_data.items():
-                friendly_name = enriched.get('friendly_name', '').lower()
+                friendly_name = enriched.get('friendly_name', '')
+                if not friendly_name:
+                    continue
+                friendly_name = friendly_name.lower()
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
                 area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
                 
@@ -1255,7 +1258,10 @@ def extract_device_mentions_from_text(
     # If enriched_data available, also check entity names and domains
     if enriched_data:
         for entity_id, enriched in enriched_data.items():
-            friendly_name = enriched.get('friendly_name', '').lower()
+            friendly_name = enriched.get('friendly_name', '')
+            if not friendly_name:
+                continue
+            friendly_name = friendly_name.lower()
             domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
             entity_name = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
             
@@ -3184,7 +3190,10 @@ async def generate_suggestions_from_query(
                                 matching_entity_ids = set()
                                 for entity_id in filtered_entity_ids_for_prompt:
                                     enriched = enriched_data.get(entity_id, {})
-                                    friendly_name = enriched.get('friendly_name', '').lower()
+                                    friendly_name = enriched.get('friendly_name', '')
+                                    if not friendly_name:
+                                        continue
+                                    friendly_name = friendly_name.lower()
                                     entity_id_lower = entity_id.lower()
                                     
                                     # Check if entity matches any specific extracted device name
@@ -3207,7 +3216,10 @@ async def generate_suggestions_from_query(
                                 device_name_filtered = set()
                                 for entity_id in filtered_entity_ids_for_prompt:
                                     enriched = enriched_data.get(entity_id, {})
-                                    friendly_name = enriched.get('friendly_name', '').lower()
+                                    friendly_name = enriched.get('friendly_name', '')
+                                    if not friendly_name:
+                                        continue
+                                    friendly_name = friendly_name.lower()
                                     entity_id_lower = entity_id.lower()
                                     
                                     # Check if entity matches any specific extracted device name
@@ -4311,7 +4323,8 @@ async def _re_enrich_entities_from_qa(
 @router.post("/clarify", response_model=ClarificationResponse)
 async def provide_clarification(
     request: ClarificationRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    ha_client: HomeAssistantClient = Depends(get_ha_client)
 ) -> ClarificationResponse:
     """
     Provide clarification answers to questions.
@@ -4460,6 +4473,29 @@ async def provide_clarification(
                         for a in validated_answers
                     ]
                 }
+            
+            # Create database query record so suggestions can be approved
+            # Use session_id as query_id so approval endpoint can find it
+            try:
+                query_record = AskAIQueryModel(
+                    query_id=request.session_id,  # Use session_id as query_id
+                    original_query=session.original_query,
+                    user_id="anonymous",  # TODO: Get from session
+                    parsed_intent=None,  # Not parsed in clarification flow
+                    extracted_entities=entities,  # Re-extracted entities
+                    suggestions=suggestions,
+                    confidence=session.current_confidence,
+                    processing_time_ms=0  # Not tracked in clarification flow
+                )
+                db.add(query_record)
+                await db.commit()
+                await db.refresh(query_record)
+                logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions")
+            except Exception as e:
+                logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
+                # Continue anyway - suggestions are still returned, but approval might fail
+                # Rollback to avoid partial state
+                await db.rollback()
             
             return ClarificationResponse(
                 session_id=request.session_id,
@@ -4670,6 +4706,29 @@ async def provide_clarification(
                             for a in session.answers
                         ]
                     }
+                
+                # Create database query record so suggestions can be approved
+                # Use session_id as query_id so approval endpoint can find it
+                try:
+                    query_record = AskAIQueryModel(
+                        query_id=request.session_id,  # Use session_id as query_id
+                        original_query=session.original_query,
+                        user_id="anonymous",  # TODO: Get from session
+                        parsed_intent=None,  # Not parsed in clarification flow
+                        extracted_entities=entities,  # Re-extracted entities
+                        suggestions=suggestions,
+                        confidence=session.current_confidence,
+                        processing_time_ms=0  # Not tracked in clarification flow
+                    )
+                    db.add(query_record)
+                    await db.commit()
+                    await db.refresh(query_record)
+                    logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions (all ambiguities resolved)")
+                except Exception as e:
+                    logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
+                    # Continue anyway - suggestions are still returned, but approval might fail
+                    # Rollback to avoid partial state
+                    await db.rollback()
                 
                 return ClarificationResponse(
                     session_id=request.session_id,

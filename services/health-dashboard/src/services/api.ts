@@ -135,7 +135,21 @@ class BaseApiClient {
     try {
       const response = await fetch(url, requestOptions);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Try to extract detailed error message from response body
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If response is not JSON, use status text
+        }
+        throw new Error(errorMessage);
       }
       return await response.json();
     } catch (error) {
