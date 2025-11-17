@@ -1,8 +1,9 @@
 """Configuration management for HA Setup Service"""
 from typing import Optional
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+import os
 
 
 class Settings(BaseSettings):
@@ -16,6 +17,8 @@ class Settings(BaseSettings):
     # Home Assistant configuration
     ha_url: str = "http://192.168.1.86:8123"
     ha_token: str = ""
+    # Also support HOME_ASSISTANT_TOKEN for compatibility
+    home_assistant_token: str = ""
     
     # Database configuration
     database_url: str = "sqlite+aiosqlite:////app/data/ha-setup.db"  # Absolute path for Docker volume
@@ -25,12 +28,6 @@ class Settings(BaseSettings):
     
     # Admin API configuration
     admin_api_url: str = "http://homeiq-admin-api:8003"
-    
-    # MQTT broker configuration (for Zigbee2MQTT monitoring)
-    mqtt_broker_url: str = "mqtt://core-mosquitto:1883"  # Default HA Mosquitto broker
-    mqtt_username: Optional[str] = None
-    mqtt_password: Optional[str] = None
-    zigbee2mqtt_base_topic: str = "zigbee2mqtt"  # Zigbee2MQTT base topic
     
     # Health check intervals (seconds)
     health_check_interval: int = 60
@@ -43,12 +40,27 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        # Allow reading from environment variables with different names
+        env_file_encoding = 'utf-8'
 
     @field_validator("ha_url", mode="after")
     @classmethod
     def normalize_ha_url(cls, value: str) -> str:
         """Ensure trailing slashes are removed from the HA URL."""
         return value.rstrip("/")
+    
+    @model_validator(mode="after")
+    def ensure_ha_token(self):
+        """Ensure HA token is loaded from environment if not set in config"""
+        if not self.ha_token:
+            # Try environment variables as fallback
+            self.ha_token = (
+                os.getenv("HA_TOKEN") or 
+                os.getenv("HOME_ASSISTANT_TOKEN") or 
+                self.home_assistant_token or 
+                ""
+            )
+        return self
 
 
 @lru_cache()
