@@ -6,6 +6,7 @@ with complete attribute information for OpenAI context and entity resolution.
 """
 
 import logging
+import time
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
@@ -62,19 +63,33 @@ class EntityAttributeService:
         self.ha_client = ha_client
         self._entity_registry_cache: Optional[Dict[str, Dict[str, Any]]] = None
         self._registry_cache_loaded = False
+        self._registry_cache_timestamp: Optional[float] = None
+        self._cache_ttl_seconds = 300  # 5 minutes cache TTL
     
-    async def _get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+    async def _get_entity_registry(self, force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
         """
-        Get entity registry with caching.
+        Get entity registry with caching and TTL-based refresh.
+        
+        Args:
+            force_refresh: If True, force refresh the cache even if it's still valid
         
         Returns:
             Dictionary mapping entity_id -> entity registry data
         """
-        if not self._registry_cache_loaded:
+        # Check if cache needs refresh (expired or forced)
+        needs_refresh = force_refresh or not self._registry_cache_loaded
+        if not needs_refresh and self._registry_cache_timestamp:
+            cache_age = time.time() - self._registry_cache_timestamp
+            if cache_age > self._cache_ttl_seconds:
+                logger.info(f"🔄 Entity Registry cache expired ({cache_age:.0f}s old), refreshing...")
+                needs_refresh = True
+        
+        if needs_refresh:
             try:
                 logger.info("🔍 Loading Entity Registry cache...")
                 self._entity_registry_cache = await self.ha_client.get_entity_registry()
                 self._registry_cache_loaded = True
+                self._registry_cache_timestamp = time.time()
                 entity_count = len(self._entity_registry_cache or {})
                 logger.info(f"✅ Loaded Entity Registry cache with {entity_count} entities")
                 if entity_count == 0:
@@ -83,8 +98,20 @@ class EntityAttributeService:
                 logger.error(f"❌ Failed to load Entity Registry: {e}", exc_info=True)
                 self._entity_registry_cache = {}
                 self._registry_cache_loaded = True  # Mark as loaded to avoid repeated failures
+                self._registry_cache_timestamp = time.time()
         
         return self._entity_registry_cache or {}
+    
+    async def refresh_entity_registry_cache(self):
+        """
+        Force refresh the Entity Registry cache.
+        
+        Useful when entity names are updated in Home Assistant and we need fresh data.
+        """
+        logger.info("🔄 Forcing Entity Registry cache refresh...")
+        self._registry_cache_loaded = False
+        self._registry_cache_timestamp = None
+        await self._get_entity_registry(force_refresh=True)
     
     def _get_friendly_name_from_registry(self, entity_id: str, registry: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """
