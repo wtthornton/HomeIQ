@@ -72,6 +72,30 @@ Service health check
 curl http://localhost:8029/health
 ```
 
+#### `GET /admin/refresh/status`
+Get weekly refresh job status (requires database session)
+```bash
+curl http://localhost:8029/admin/refresh/status
+```
+
+**Response:**
+```json
+{
+  "last_refresh": "2025-11-17T03:00:00Z",
+  "days_since_refresh": 0,
+  "next_refresh": "2025-11-24T02:00:00Z",
+  "corpus_total": 2143,
+  "corpus_quality": 0.78,
+  "status": "healthy"
+}
+```
+
+#### `POST /admin/refresh/trigger`
+Manually trigger corpus refresh
+```bash
+curl -X POST http://localhost:8029/admin/refresh/trigger
+```
+
 ### Query API
 
 #### `GET /api/automation-miner/corpus/search`
@@ -432,6 +456,17 @@ docker logs automation-miner
 ```bash
 sqlite3 data/automation_miner.db "SELECT COUNT(*) FROM community_automations;"
 ```
+
+### Admin Routes Not Working
+
+**Problem:** `NameError: name 'get_db_session' is not defined` when accessing admin endpoints
+
+**Solution:** Ensure `admin_routes.py` imports the database session:
+```python
+from ..miner.database import get_db_session
+```
+
+**Status:** ✅ Fixed in November 2025 - Admin routes now properly import database session dependency
 
 ### Crawl Failing
 

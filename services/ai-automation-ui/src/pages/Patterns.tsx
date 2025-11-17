@@ -62,7 +62,7 @@ export const Patterns: React.FC = () => {
     loadAnalysisStatus();
 
     // Refresh patterns every 30 seconds if analysis is running
-    let interval: number | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (analysisRunning) {
       interval = setInterval(() => {
         loadPatterns();

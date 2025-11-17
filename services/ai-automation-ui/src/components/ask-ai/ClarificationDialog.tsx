@@ -24,6 +24,9 @@ interface ClarificationDialogProps {
   sessionId: string;
   currentConfidence: number;
   confidenceThreshold: number;
+  previousConfidence?: number;
+  confidenceDelta?: number;
+  confidenceSummary?: string;
   onAnswer: (answers: Array<{
     question_id: string;
     answer_text: string;
@@ -37,6 +40,9 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
   questions,
   currentConfidence,
   confidenceThreshold,
+  previousConfidence,
+  confidenceDelta,
+  confidenceSummary,
   onAnswer,
   onCancel
 }) => {
@@ -290,9 +296,24 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span style={{ color: '#94a3b8' }}>Confidence:</span>
-              <span style={{ color: confidencePercent >= thresholdPercent ? '#10b981' : '#f59e0b' }}>
-                {confidencePercent}% / {thresholdPercent}%
-              </span>
+              <div className="flex items-center space-x-2">
+                {/* Confidence Delta Indicator */}
+                {previousConfidence !== undefined && previousConfidence > 0 && confidenceDelta !== undefined && confidenceDelta > 0 && (
+                  <span 
+                    className="text-xs font-medium px-2 py-0.5 rounded"
+                    style={{ 
+                      color: '#10b981',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    {Math.round(previousConfidence * 100)}% → {confidencePercent}% (+{Math.round(confidenceDelta * 100)}% ↑)
+                  </span>
+                )}
+                <span style={{ color: confidencePercent >= thresholdPercent ? '#10b981' : '#f59e0b' }}>
+                  {confidencePercent}% / {thresholdPercent}%
+                </span>
+              </div>
             </div>
             <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(51, 65, 85, 0.5)' }}>
               <div
@@ -305,6 +326,22 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
                 }}
               />
             </div>
+            {/* Smart Summary Message */}
+            {confidenceSummary && (
+              <div 
+                className="mt-2 p-3 rounded-lg text-sm"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#6ee7b7'
+                }}
+              >
+                <div className="flex items-start space-x-2">
+                  <span className="text-base">✨</span>
+                  <span>{confidenceSummary}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

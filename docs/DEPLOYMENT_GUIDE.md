@@ -242,8 +242,12 @@ See `services/sports-data/README.md` for complete automation examples.
 ### **Required Environment Variables**
 ```bash
 # Home Assistant Configuration
-HA_URL=ws://your-ha-instance:8123/api/websocket
-HA_ACCESS_TOKEN=your_long_lived_access_token
+HA_HTTP_URL=http://your-ha-instance:8123
+HA_WS_URL=ws://your-ha-instance:8123  # /api/websocket is auto-appended if missing
+HA_TOKEN=your_long_lived_access_token
+# Alternative naming (also supported):
+# HOME_ASSISTANT_URL=http://your-ha-instance:8123
+# HOME_ASSISTANT_TOKEN=your_long_lived_access_token
 
 # Network Resilience Configuration (NEW - Optional)
 # Service automatically recovers from network outages

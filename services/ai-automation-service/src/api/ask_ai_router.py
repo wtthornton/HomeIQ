@@ -26,6 +26,7 @@ import logging
 import uuid
 import json
 import time
+import re
 import yaml as yaml_lib
 
 from ..database import get_db
@@ -53,6 +54,8 @@ from ..services.clarification import (
     ClarificationQuestion,
     ClarificationAnswer
 )
+from ..services.rag import RAGClient
+import os
 from sqlalchemy import select, update
 import asyncio
 
@@ -533,11 +536,84 @@ class ClarificationResponse(BaseModel):
     message: str
     suggestions: Optional[List[Dict[str, Any]]] = None
     questions: Optional[List[Dict[str, Any]]] = None  # If more questions needed
+    previous_confidence: Optional[float] = None  # Previous confidence before this round
+    confidence_delta: Optional[float] = None  # Change in confidence (positive = increase)
+    confidence_summary: Optional[str] = None  # Human-readable summary of what improved
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+def _generate_confidence_summary(
+    previous_confidence: float,
+    current_confidence: float,
+    confidence_delta: Optional[float],
+    validated_answers: List[Any],
+    session: Any,
+    resolved_ambiguity_ids: set
+) -> Optional[str]:
+    """
+    Generate a human-readable summary of what contributed to confidence improvement.
+    
+    Args:
+        previous_confidence: Confidence before this round
+        current_confidence: Confidence after this round
+        confidence_delta: Change in confidence
+        validated_answers: Answers validated in this round
+        session: Clarification session
+        resolved_ambiguity_ids: Set of resolved ambiguity IDs
+        
+    Returns:
+        Human-readable summary string or None
+    """
+    if confidence_delta is None or confidence_delta <= 0:
+        return None
+    
+    summary_parts = []
+    
+    # Count critical and important questions answered
+    critical_answered = 0
+    important_answered = 0
+    for answer in validated_answers:
+        question = next((q for q in session.questions if q.id == answer.question_id), None)
+        if question:
+            if question.priority == 1:  # Critical
+                critical_answered += 1
+            elif question.priority == 2:  # Important
+                important_answered += 1
+    
+    # Count resolved ambiguities by severity
+    critical_resolved = 0
+    important_resolved = 0
+    for amb in session.ambiguities:
+        if amb.id in resolved_ambiguity_ids:
+            if amb.severity.value == "critical":
+                critical_resolved += 1
+            elif amb.severity.value == "important":
+                important_resolved += 1
+    
+    # Build summary based on what improved
+    if critical_resolved > 0:
+        summary_parts.append(f"Resolved {critical_resolved} critical ambiguities")
+    if important_resolved > 0:
+        summary_parts.append(f"Resolved {important_resolved} important ambiguities")
+    
+    # Check answer quality
+    high_quality_answers = sum(1 for a in validated_answers if a.confidence > 0.8)
+    if high_quality_answers > 0:
+        summary_parts.append(f"Provided {high_quality_answers} high-quality answer{'s' if high_quality_answers > 1 else ''}")
+    
+    # If no specific improvements, use generic message
+    if not summary_parts:
+        summary_parts.append("Your answers helped clarify the automation requirements")
+    
+    # Add confidence change
+    delta_percent = int(confidence_delta * 100)
+    if delta_percent > 0:
+        summary_parts.append(f"Confidence increased by {delta_percent}%")
+    
+    return " • ".join(summary_parts)
 
 # Global clarification service instances
 _clarification_detector: Optional[ClarificationDetector] = None
@@ -546,20 +622,76 @@ _answer_validator: Optional[AnswerValidator] = None
 _confidence_calculator: Optional[ConfidenceCalculator] = None
 _clarification_sessions: Dict[str, ClarificationSession] = {}  # In-memory storage (TODO: persist to DB)
 
-def get_clarification_services():
-    """Get or initialize clarification services"""
+async def get_clarification_services(db: AsyncSession = None):
+    """
+    Get or initialize clarification services.
+    
+    Args:
+        db: Optional database session for RAG client initialization.
+            If provided and RAG is enabled, will create RAG client for semantic understanding.
+    """
     global _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
     
     if _clarification_detector is None:
-        _clarification_detector = ClarificationDetector()
+        # Try to initialize with RAG client if database session is available
+        rag_client = None
+        if db:
+            try:
+                openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
+                rag_client = RAGClient(
+                    openvino_service_url=openvino_url,
+                    db_session=db
+                )
+                logger.info("✅ RAG client initialized for ClarificationDetector (semantic understanding enabled)")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to initialize RAG client, falling back to hardcoded rules: {e}")
+        
+        _clarification_detector = ClarificationDetector(rag_client=rag_client)
     if _question_generator is None and openai_client:
         _question_generator = QuestionGenerator(openai_client)
     if _answer_validator is None:
         _answer_validator = AnswerValidator()
     if _confidence_calculator is None:
-        _confidence_calculator = ConfidenceCalculator(default_threshold=0.85)
+        # Initialize confidence calculator with RAG client for historical success checking
+        rag_client_for_confidence = None
+        if db:
+            try:
+                openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
+                rag_client_for_confidence = RAGClient(
+                    openvino_service_url=openvino_url,
+                    db_session=db
+                )
+                logger.info("✅ RAG client initialized for ConfidenceCalculator (historical learning enabled)")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to initialize RAG client for confidence calculator: {e}")
+        _confidence_calculator = ConfidenceCalculator(
+            default_threshold=0.85,
+            rag_client=rag_client_for_confidence
+        )
     
     return _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
+
+
+async def _get_rag_client(db: AsyncSession) -> Optional[RAGClient]:
+    """
+    Get or initialize RAG client for semantic knowledge storage and retrieval.
+    
+    Args:
+        db: Database session for RAG client initialization
+        
+    Returns:
+        RAG client instance or None if initialization fails
+    """
+    try:
+        openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
+        rag_client = RAGClient(
+            openvino_service_url=openvino_url,
+            db_session=db
+        )
+        return rag_client
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize RAG client: {e}")
+        return None
 
 async def expand_group_entities_to_members(
     entity_ids: List[str],
@@ -812,35 +944,32 @@ async def map_devices_to_entities(
     # Handle None or empty enriched_data - try to query HA directly as fallback
     if not enriched_data:
         logger.warning(f"⚠️ map_devices_to_entities called with empty/None enriched_data for {len(devices_involved)} devices")
-        # Fallback: Query HA directly for entities if we have a client
+        # Fallback: Use EntityAttributeService to enrich entities if we have a client
         if ha_client:
-            logger.info(f"🔄 Attempting to query Home Assistant directly for {len(devices_involved)} devices...")
+            logger.info(f"🔄 Attempting to enrich entities using EntityAttributeService for {len(devices_involved)} devices...")
             try:
-                # Get all states from HA
+                # Use EntityAttributeService to get proper friendly names from Entity Registry
+                attribute_service = EntityAttributeService(ha_client)
+                # Get all states from HA first to get entity IDs
                 session = await ha_client._get_session()
                 url = f"{ha_client.ha_url}/api/states"
                 async with session.get(url) as response:
                     if response.status == 200:
                         all_states = await response.json()
-                        # Build enriched_data from HA states
+                        # Extract entity IDs
+                        entity_ids = [state.get('entity_id') for state in all_states if isinstance(state, dict) and state.get('entity_id') and '.' in state.get('entity_id', '')]
+                        # Enrich using EntityAttributeService (uses Entity Registry)
+                        enriched_results = await attribute_service.enrich_multiple_entities(entity_ids)
+                        # Build enriched_data from enriched results
                         enriched_data = {}
-                        for state in all_states:
-                            if isinstance(state, dict):
-                                entity_id = state.get('entity_id')
-                                if entity_id and '.' in entity_id:  # Valid entity ID format
-                                    attributes = state.get('attributes', {})
-                                    friendly_name = attributes.get('friendly_name') or attributes.get('name') or entity_id.split('.')[-1].replace('_', ' ').title()
-                                    enriched_data[entity_id] = {
-                                        'entity_id': entity_id,
-                                        'friendly_name': friendly_name,
-                                        'state': state.get('state'),
-                                        'attributes': attributes
-                                    }
-                        logger.info(f"✅ Built enriched_data from {len(enriched_data)} HA entities for fallback mapping")
+                        for entity_id, enriched in enriched_results:
+                            if enriched:
+                                enriched_data[entity_id] = enriched
+                        logger.info(f"✅ Built enriched_data from {len(enriched_data)} HA entities using EntityAttributeService (Entity Registry)")
                     else:
                         logger.warning(f"⚠️ Failed to query HA states: HTTP {response.status}")
             except Exception as e:
-                logger.error(f"❌ Error querying HA for fallback entities: {e}", exc_info=True)
+                logger.error(f"❌ Error enriching entities with EntityAttributeService: {e}", exc_info=True)
         
         # If still no enriched_data, return empty
         if not enriched_data:
@@ -969,20 +1098,16 @@ async def map_devices_to_entities(
             async with session.get(url) as response:
                 if response.status == 200:
                     all_states = await response.json()
-                    # Build enriched_data from HA states for unmapped devices
+                    # Extract entity IDs and enrich using EntityAttributeService (uses Entity Registry)
+                    entity_ids = [state.get('entity_id') for state in all_states if isinstance(state, dict) and state.get('entity_id') and '.' in state.get('entity_id', '')]
+                    # Use EntityAttributeService to get proper friendly names from Entity Registry
+                    attribute_service = EntityAttributeService(ha_client)
+                    enriched_results = await attribute_service.enrich_multiple_entities(entity_ids)
+                    # Build enriched_data from enriched results
                     ha_enriched_data = {}
-                    for state in all_states:
-                        if isinstance(state, dict):
-                            entity_id = state.get('entity_id')
-                            if entity_id and '.' in entity_id:  # Valid entity ID format
-                                attributes = state.get('attributes', {})
-                                friendly_name = attributes.get('friendly_name') or attributes.get('name') or entity_id.split('.')[-1].replace('_', ' ').title()
-                                ha_enriched_data[entity_id] = {
-                                    'entity_id': entity_id,
-                                    'friendly_name': friendly_name,
-                                    'state': state.get('state'),
-                                    'attributes': attributes
-                                }
+                    for entity_id, enriched in enriched_results:
+                        if enriched:
+                            ha_enriched_data[entity_id] = enriched
                     
                     # Try to map unmapped devices using HA entities
                     logger.info(f"🔍 Attempting to map {len(unmapped_devices)} devices against {len(ha_enriched_data)} HA entities...")
@@ -1217,6 +1342,24 @@ def consolidate_devices_involved(
     return consolidated
 
 
+def _is_entity_id(mention: str) -> bool:
+    """
+    Check if a string is an entity ID format (domain.entity_name).
+    
+    Args:
+        mention: String to check
+        
+    Returns:
+        True if the string looks like an entity ID
+    """
+    if not mention or not isinstance(mention, str):
+        return False
+    # Entity IDs follow pattern: domain.entity_name
+    # Must contain a dot and have at least domain and entity parts
+    parts = mention.split('.')
+    return len(parts) == 2 and len(parts[0]) > 0 and len(parts[1]) > 0
+
+
 def extract_device_mentions_from_text(
     text: str,
     validated_entities: Dict[str, str],
@@ -1225,13 +1368,16 @@ def extract_device_mentions_from_text(
     """
     Extract device mentions from text and map them to entity IDs.
     
+    Filters out entity IDs from being used as mention keys to prevent
+    entity IDs from appearing as friendly names in the UI.
+    
     Args:
         text: Text to scan (description, trigger_summary, action_summary)
         validated_entities: Dictionary mapping friendly_name → entity_id
         enriched_data: Optional enriched entity data for fuzzy matching
         
     Returns:
-        Dictionary mapping mention → entity_id
+        Dictionary mapping mention → entity_id (no entity IDs as keys)
     """
     if not text:
         return {}
@@ -1241,6 +1387,11 @@ def extract_device_mentions_from_text(
     
     # Extract mentions from validated_entities
     for friendly_name, entity_id in validated_entities.items():
+        # Skip if friendly_name is actually an entity ID (prevents entity IDs as keys)
+        if _is_entity_id(friendly_name):
+            logger.debug(f"⏭️ Skipping entity ID '{friendly_name}' from validated_entities (not a friendly name)")
+            continue
+            
         friendly_name_lower = friendly_name.lower()
         # Check if friendly name appears in text (word boundary matching)
         import re
@@ -1266,14 +1417,16 @@ def extract_device_mentions_from_text(
             entity_name = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
             
             # Check domain matches (e.g., "wled" text matches light entities with "wled" in the name)
+            # Skip if domain looks like an entity ID (shouldn't happen, but defensive)
             if domain and domain in text_lower and len(domain) >= 3:
-                if domain not in [m.lower() for m in mentions.keys()]:
+                if domain not in [m.lower() for m in mentions.keys()] and not _is_entity_id(domain):
                     mentions[domain] = entity_id
                     logger.debug(f"🔍 Found domain mention '{domain}' in text → {entity_id}")
             
             # Check entity name matches
+            # Skip if entity_name looks like an entity ID (defensive check)
             if entity_name and entity_name in text_lower:
-                if entity_name not in [m.lower() for m in mentions.keys()]:
+                if entity_name not in [m.lower() for m in mentions.keys()] and not _is_entity_id(entity_name):
                     mentions[entity_name] = entity_id
                     logger.debug(f"🔍 Found entity name mention '{entity_name}' in text → {entity_id}")
     
@@ -1323,9 +1476,19 @@ async def enhance_suggestion_with_entity_ids(
     # Build entity_id_annotations with context
     entity_id_annotations = {}
     for friendly_name, entity_id in validated_entities.items():
+        # Get actual friendly name from enriched_data if available (from Entity Registry)
+        actual_friendly_name = friendly_name  # Default to user's query term
+        if enriched_data and entity_id in enriched_data:
+            enriched = enriched_data[entity_id]
+            # Use the actual friendly name from Home Assistant's entity registry
+            ha_friendly_name = enriched.get('friendly_name', '')
+            if ha_friendly_name and ha_friendly_name != entity_id:
+                actual_friendly_name = ha_friendly_name
+        
         entity_id_annotations[friendly_name] = {
             'entity_id': entity_id,
             'domain': entity_id.split('.')[0] if '.' in entity_id else '',
+            'friendly_name': actual_friendly_name,  # Include actual friendly name from HA
             'mentioned_in': []
         }
         
@@ -1339,6 +1502,8 @@ async def enhance_suggestion_with_entity_ids(
     enhanced['device_mentions'] = device_mentions
     enhanced['entity_ids_used'] = entity_ids_used
     enhanced['entity_id_annotations'] = entity_id_annotations
+    # Ensure validated_entities is preserved (required for approval)
+    enhanced['validated_entities'] = validated_entities
     
     logger.info(f"✅ Enhanced suggestion with {len(entity_ids_used)} entity IDs and {len(device_mentions)} device mentions")
     
@@ -1414,8 +1579,13 @@ async def pre_validate_suggestion_for_yaml(
         all_mentions.update(mentions)
     
     # Add mentions to enhanced_validated_entities, but collect for verification first
+    # Filter out entity IDs from being used as keys (prevents entity IDs as friendly names)
     new_mentions = {}
     for mention, entity_id in all_mentions.items():
+        # Skip if mention is an entity ID (prevents entity IDs as keys in validated_entities)
+        if _is_entity_id(mention):
+            logger.debug(f"⏭️ Skipping entity ID mention '{mention}' (not a friendly name)")
+            continue
         if mention not in enhanced_validated_entities:
             new_mentions[mention] = entity_id
             logger.debug(f"🔍 Found mention '{mention}' → {entity_id}")
@@ -2831,10 +3001,25 @@ async def generate_suggestions_from_query(
                             if state:
                                 # Build entity dict from state
                                 attributes = state.get('attributes', {})
+                                # Use EntityAttributeService to get proper friendly name from Entity Registry
+                                try:
+                                    attribute_service = EntityAttributeService(ha_client)
+                                    enriched = await attribute_service.enrich_entity_with_attributes(entity_id)
+                                    if enriched:
+                                        friendly_name = enriched.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title())
+                                        area_id = enriched.get('area_id') or attributes.get('area_id')
+                                    else:
+                                        friendly_name = attributes.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title())
+                                        area_id = attributes.get('area_id')
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Failed to enrich entity {entity_id} with EntityAttributeService: {e}, using fallback")
+                                    friendly_name = attributes.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title())
+                                    area_id = attributes.get('area_id')
+                                
                                 entity_dict = {
                                     'entity_id': entity_id,
-                                    'friendly_name': attributes.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title()),
-                                    'area_id': attributes.get('area_id'),
+                                    'friendly_name': friendly_name,
+                                    'area_id': area_id,
                                     'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
                                 }
                                 all_available_entities.append(entity_dict)
@@ -3492,6 +3677,24 @@ async def generate_suggestions_from_query(
                         
                     else:
                         logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
+                        # If devices_involved contains entity IDs (e.g., "light.hue_office_1"), use them directly
+                        # This handles cases where map_devices_to_entities failed but we have valid entity IDs
+                        entity_id_pattern = r'^(light|switch|binary_sensor|sensor|cover|climate|fan|lock|media_player|vacuum|camera|alarm_control_panel|automation|script|scene|input_boolean|input_number|input_select|input_text|input_datetime|timer|counter|zone|person|device_tracker|sun|weather)\.'
+                        import re
+                        entity_ids_found = {}
+                        for device in devices_involved:
+                            if re.match(entity_id_pattern, device):
+                                # This is already an entity ID, use it directly
+                                # Use the entity_id itself as both key and value for backwards compatibility
+                                # Or extract a friendly name if available
+                                friendly_name = device.split('.')[-1].replace('_', ' ').title()
+                                entity_ids_found[friendly_name] = device
+                        
+                        if entity_ids_found:
+                            logger.info(f"✅ Found {len(entity_ids_found)} entity IDs in devices_involved, using them directly: {list(entity_ids_found.values())}")
+                            validated_entities = entity_ids_found
+                        else:
+                            logger.warning(f"⚠️ devices_involved contains no entity IDs and mapping failed: {devices_involved}")
                 
                 # Ensure devices are consolidated before user display (even if enrichment skipped)
                 if devices_involved and validated_entities:
@@ -3756,7 +3959,7 @@ async def process_natural_language_query(
             logger.debug(f"ℹ️ Early device resolution skipped (HA client unavailable or failed): {e}")
         
         # Step 1.6: Check for clarification needs (NEW)
-        clarification_detector, question_generator, _, confidence_calculator = get_clarification_services()
+        clarification_detector, question_generator, _, confidence_calculator = await get_clarification_services(db)
         
         # Build automation context for clarification detection
         automation_context = {}
@@ -3825,11 +4028,16 @@ async def process_natural_language_query(
                 
                 # Calculate base confidence
                 base_confidence = min(0.9, 0.5 + (len(entities) * 0.1))
-                confidence = confidence_calculator.calculate_confidence(
+                
+                # Get RAG client for historical success checking
+                rag_client_for_confidence = await _get_rag_client(db)
+                
+                confidence = await confidence_calculator.calculate_confidence(
                     query=request.query,
                     extracted_entities=entities,
                     ambiguities=ambiguities,
-                    base_confidence=base_confidence
+                    base_confidence=base_confidence,
+                    rag_client=rag_client_for_confidence
                 )
                 
                 # Check if clarification is needed
@@ -4251,13 +4459,30 @@ async def _re_enrich_entities_from_qa(
     new_entities = []
     for entity_id in selected_entity_ids:
         if entity_id not in entity_by_id:
-            # Create new entity entry
+            # Create new entity entry with proper friendly name from Home Assistant
+            friendly_name = entity_id.split('.')[-1].replace('_', ' ').title() if '.' in entity_id else entity_id  # Fallback
+            area_id = None
+            
+            # Try to get proper friendly name from Home Assistant using EntityAttributeService
+            if ha_client:
+                try:
+                    from ..services.entity_attribute_service import EntityAttributeService
+                    attribute_service = EntityAttributeService(ha_client)
+                    enriched = await attribute_service.enrich_entity_with_attributes(entity_id)
+                    if enriched:
+                        friendly_name = enriched.get('friendly_name', friendly_name)
+                        area_id = enriched.get('area_id')
+                        logger.info(f"✅ Enriched entity {entity_id} with friendly_name: {friendly_name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to enrich entity {entity_id} with EntityAttributeService: {e}, using fallback")
+            
             new_entity = {
                 'entity_id': entity_id,
-                'name': entity_id.split('.')[-1] if '.' in entity_id else entity_id,
-                'friendly_name': entity_id.split('.')[-1].replace('_', ' ').title() if '.' in entity_id else entity_id,
+                'name': friendly_name,  # Use friendly_name as name too
+                'friendly_name': friendly_name,
                 'type': 'device',
                 'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+                'area_id': area_id,
                 'source': 'qa_selected'
             }
             new_entities.append(new_entity)
@@ -4345,7 +4570,7 @@ async def provide_clarification(
             )
         
         # Get clarification services
-        _, _, answer_validator, confidence_calculator = get_clarification_services()
+        _, _, answer_validator, confidence_calculator = await get_clarification_services(db)
         
         # Validate answers
         validated_answers = []
@@ -4376,6 +4601,9 @@ async def provide_clarification(
         session.answers.extend(validated_answers)
         session.rounds_completed += 1
         
+        # NEW: Track previous confidence before recalculating
+        previous_confidence = session.current_confidence
+        
         # NEW: Recalculate confidence with ALL answers (including previous rounds)
         # This ensures confidence properly reflects all clarification progress
         
@@ -4392,15 +4620,91 @@ async def provide_clarification(
             if amb.id not in resolved_ambiguity_ids
         ]
         
+        # OPTION 2: Check RAG with enriched query after answers received
+        # Build enriched query from original + all previous answers (including new ones)
         all_answers = session.answers  # Includes all previous answers + new ones
-        session.current_confidence = confidence_calculator.calculate_confidence(
+        enriched_query_from_answers = None
+        rag_confidence_boost = 0.0
+        
+        if all_answers:
+            # Build enriched query from all answers
+            all_qa_context = {
+                'original_query': session.original_query,
+                'questions_and_answers': [
+                    {
+                        'question': next((q.question_text for q in session.questions if q.id == a.question_id), 'Unknown question'),
+                        'answer': a.answer_text,
+                        'selected_entities': a.selected_entities,
+                        'category': next((q.category for q in session.questions if q.id == a.question_id), 'unknown')
+                    }
+                    for a in all_answers
+                    if a.validated  # Only include validated answers
+                ]
+            }
+            
+            enriched_query_from_answers = _rebuild_user_query_from_qa(
+                original_query=session.original_query,
+                clarification_context=all_qa_context
+            )
+            
+            # Check RAG for similar enriched queries with lower threshold (0.80) for enriched queries
+            try:
+                rag_client = await _get_rag_client(db)
+                if rag_client and enriched_query_from_answers:
+                    similar_queries = await rag_client.retrieve(
+                        query=enriched_query_from_answers,
+                        knowledge_type='query',
+                        top_k=1,
+                        min_similarity=0.80  # Lower threshold for enriched queries (they're more specific)
+                    )
+                    
+                    if similar_queries and similar_queries[0]['similarity'] > 0.80:
+                        similarity = similar_queries[0]['similarity']
+                        success_score = similar_queries[0].get('success_score', 0.5)
+                        
+                        # Boost confidence based on similarity and historical success
+                        # Higher similarity and success_score = bigger boost
+                        rag_confidence_boost = min(0.15, similarity * success_score * 0.2)
+                        
+                        logger.info(
+                            f"📈 Found similar enriched query in RAG (similarity={similarity:.2f}, "
+                            f"success_score={success_score:.2f}) - boosting confidence by +{rag_confidence_boost:.2f}"
+                        )
+            except Exception as e:
+                # Non-critical: continue even if RAG check fails
+                logger.debug(f"⚠️ RAG check with enriched query failed: {e}")
+        
+        # Calculate base confidence with RAG boost from Option 2
+        base_confidence_with_rag = 0.5 + rag_confidence_boost
+        
+        # Get RAG client for historical success checking (Option 3)
+        rag_client_for_confidence = await _get_rag_client(db)
+        
+        session.current_confidence = await confidence_calculator.calculate_confidence(
             query=session.original_query,
             extracted_entities=[],  # TODO: Get from session
             ambiguities=remaining_ambiguities_for_confidence,  # Only count unresolved ambiguities
             clarification_answers=all_answers,  # Use ALL answers, not just new ones
-            base_confidence=0.5  # Reset base confidence to recalculate from scratch
+            base_confidence=base_confidence_with_rag,  # Include RAG boost from Option 2
+            rag_client=rag_client_for_confidence  # Option 3: Historical success checking
         )
-        logger.info(f"📊 Confidence recalculated: {session.current_confidence:.2f} (threshold: {session.confidence_threshold:.2f}, answers: {len(all_answers)}, resolved ambiguities: {len(resolved_ambiguity_ids)}, remaining: {len(remaining_ambiguities_for_confidence)})")
+        
+        # Calculate confidence delta
+        confidence_delta = session.current_confidence - previous_confidence if previous_confidence > 0 else None
+        
+        # Generate smart summary of what improved
+        confidence_summary = _generate_confidence_summary(
+            previous_confidence=previous_confidence,
+            current_confidence=session.current_confidence,
+            confidence_delta=confidence_delta,
+            validated_answers=validated_answers,
+            session=session,
+            resolved_ambiguity_ids=resolved_ambiguity_ids
+        )
+        
+        # Format confidence delta for logging
+        delta_str = f"{confidence_delta:+.2f}" if confidence_delta is not None else "N/A"
+        logger.info(f"📊 Confidence recalculated: {session.current_confidence:.2f} (previous: {previous_confidence:.2f}, delta: {delta_str}, threshold: {session.confidence_threshold:.2f}, answers: {len(all_answers)}, resolved ambiguities: {len(resolved_ambiguity_ids)}, remaining: {len(remaining_ambiguities_for_confidence)})")
         
         # Check if we should proceed or ask more questions
         if (session.current_confidence >= session.confidence_threshold or 
@@ -4491,6 +4795,36 @@ async def provide_clarification(
                 await db.commit()
                 await db.refresh(query_record)
                 logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions")
+                
+                # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
+                # This enables the system to learn from successful clarification sessions
+                try:
+                    rag_client = await _get_rag_client(db)
+                    if rag_client:
+                        # Store enriched query (original + Q&A answers) for semantic similarity matching
+                        # Using enriched_query that was built earlier (line 4619-4623)
+                        await rag_client.store(
+                            text=enriched_query,  # Enriched query with original + all Q&A answers
+                            knowledge_type='query',
+                            metadata={
+                                'query_id': request.session_id,
+                                'original_query': session.original_query,
+                                'confidence': session.current_confidence,
+                                'clarification_answers': len(all_answers),
+                                'resolved_entities': len(entities),
+                                'questions_count': len(session.questions),
+                                'rounds_completed': session.rounds_completed,
+                                'user_id': "anonymous"  # TODO: Get from session when available
+                            },
+                            success_score=session.current_confidence  # Use final confidence as success indicator
+                        )
+                        logger.info(f"✅ Stored enriched query in RAG knowledge base for future learning (confidence: {session.current_confidence:.2f})")
+                    else:
+                        logger.debug("ℹ️ RAG client not available - skipping enriched query storage")
+                except Exception as e:
+                    # Non-critical: continue even if RAG storage fails
+                    logger.warning(f"⚠️ Failed to store enriched query in RAG knowledge base: {e}")
+                    
             except Exception as e:
                 logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
                 # Continue anyway - suggestions are still returned, but approval might fail
@@ -4503,7 +4837,10 @@ async def provide_clarification(
                 confidence_threshold=session.confidence_threshold,
                 clarification_complete=True,
                 message=f"Great! Based on your answers, I'll create the automation. Confidence: {int(session.current_confidence * 100)}%",
-                suggestions=suggestions
+                suggestions=suggestions,
+                previous_confidence=previous_confidence if previous_confidence > 0 else None,
+                confidence_delta=confidence_delta,
+                confidence_summary=confidence_summary
             )
         else:
             # Need more clarification
@@ -4528,7 +4865,7 @@ async def provide_clarification(
             
             # NEW: Re-detect ambiguities based on enriched query (original + all previous answers)
             # This ensures we find new ambiguities that may have emerged from the answers
-            clarification_detector, question_generator, _, _ = get_clarification_services()
+            clarification_detector, question_generator, _, _ = await get_clarification_services(db)
             
             # Re-extract entities from enriched query
             entities = await extract_entities_with_ha(enriched_query)
@@ -4724,6 +5061,36 @@ async def provide_clarification(
                     await db.commit()
                     await db.refresh(query_record)
                     logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions (all ambiguities resolved)")
+                    
+                    # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
+                    # This enables the system to learn from successful clarification sessions
+                    try:
+                        rag_client = await _get_rag_client(db)
+                        if rag_client:
+                            # Store enriched query (original + Q&A answers) for semantic similarity matching
+                            await rag_client.store(
+                                text=enriched_query,  # Enriched query with original + all Q&A answers
+                                knowledge_type='query',
+                                metadata={
+                                    'query_id': request.session_id,
+                                    'original_query': session.original_query,
+                                    'confidence': session.current_confidence,
+                                    'clarification_answers': len(session.answers),
+                                    'resolved_entities': len(entities),
+                                    'questions_count': len(session.questions),
+                                    'rounds_completed': session.rounds_completed,
+                                    'all_ambiguities_resolved': True,
+                                    'user_id': "anonymous"  # TODO: Get from session when available
+                                },
+                                success_score=session.current_confidence  # Use final confidence as success indicator
+                            )
+                            logger.info(f"✅ Stored enriched query in RAG knowledge base for future learning (all ambiguities resolved, confidence: {session.current_confidence:.2f})")
+                        else:
+                            logger.debug("ℹ️ RAG client not available - skipping enriched query storage")
+                    except Exception as e:
+                        # Non-critical: continue even if RAG storage fails
+                        logger.warning(f"⚠️ Failed to store enriched query in RAG knowledge base: {e}")
+                        
                 except Exception as e:
                     logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
                     # Continue anyway - suggestions are still returned, but approval might fail
@@ -4736,7 +5103,10 @@ async def provide_clarification(
                     confidence_threshold=session.confidence_threshold,
                     clarification_complete=True,
                     message=f"Great! All ambiguities resolved. Based on your answers, I'll create the automation. Confidence: {int(session.current_confidence * 100)}%",
-                    suggestions=suggestions
+                    suggestions=suggestions,
+                    previous_confidence=previous_confidence if previous_confidence > 0 else None,
+                    confidence_delta=confidence_delta,
+                    confidence_summary=confidence_summary
                 )
             
             # NEW: Track which questions have already been asked to prevent duplicates
@@ -4808,7 +5178,10 @@ async def provide_clarification(
                 confidence_threshold=session.confidence_threshold,
                 clarification_complete=False,
                 message=message,
-                questions=questions_dict
+                questions=questions_dict,
+                previous_confidence=previous_confidence if previous_confidence > 0 else None,
+                confidence_delta=confidence_delta,
+                confidence_summary=confidence_summary
             )
             
     except HTTPException:
@@ -6049,11 +6422,13 @@ async def approve_suggestion_from_query(
                     # Extract all entity IDs from YAML (returns list of tuples: (entity_id, location))
                     entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
                     all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
-                    logger.info(f"🔍 Final validation: Checking {len(all_entity_ids_in_yaml)} entity IDs exist in HA...")
+                    # Deduplicate entity IDs before validation (YAML may have same entity in multiple actions)
+                    unique_entity_ids = list(set(all_entity_ids_in_yaml))
+                    logger.info(f"🔍 Final validation: Checking {len(unique_entity_ids)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
                     
-                    # Validate each entity ID exists in HA
+                    # Validate each unique entity ID exists in HA
                     invalid_entities = []
-                    for entity_id in all_entity_ids_in_yaml:
+                    for entity_id in unique_entity_ids:
                         try:
                             entity_state = await ha_client.get_entity_state(entity_id)
                             if not entity_state:
@@ -6062,22 +6437,127 @@ async def approve_suggestion_from_query(
                             invalid_entities.append(entity_id)
                     
                     if invalid_entities:
-                        error_msg = f"Invalid entity IDs in YAML: {', '.join(invalid_entities)}"
-                        logger.error(f"❌ {error_msg}")
-                        return {
-                            "suggestion_id": suggestion_id,
-                            "query_id": query_id,
-                            "status": "error",
-                            "safe": False,
-                            "message": "Automation contains invalid entity IDs",
-                            "error_details": {
-                                "type": "invalid_entities",
-                                "message": error_msg,
-                                "invalid_entities": invalid_entities
+                        # Try to fix invalid entity IDs by matching them to validated entities
+                        logger.warning(f"⚠️ Found {len(invalid_entities)} invalid entity IDs, attempting to fix...")
+                        entity_replacements = {}
+                        
+                        for invalid_entity_id in invalid_entities:
+                            # Try to find a matching validated entity ID
+                            best_match = None
+                            best_score = 0.0
+                            
+                            # Extract domain and name parts from invalid entity ID
+                            if '.' in invalid_entity_id:
+                                invalid_domain, invalid_name = invalid_entity_id.split('.', 1)
+                                invalid_name_lower = invalid_name.lower()
+                                
+                                # Search through validated entities for best match
+                                for device_name, validated_entity_id in final_suggestion['validated_entities'].items():
+                                    if '.' in validated_entity_id:
+                                        validated_domain, validated_name = validated_entity_id.split('.', 1)
+                                        
+                                        # Domain must match
+                                        if validated_domain != invalid_domain:
+                                            continue
+                                        
+                                        # Calculate similarity score
+                                        score = 0.0
+                                        validated_name_lower = validated_name.lower()
+                                        device_name_lower = device_name.lower()
+                                        
+                                        # Exact name match (highest priority)
+                                        if validated_name_lower == invalid_name_lower:
+                                            score = 100.0
+                                        # Partial name match
+                                        elif invalid_name_lower in validated_name_lower or validated_name_lower in invalid_name_lower:
+                                            score = 50.0 + min(len(invalid_name_lower), len(validated_name_lower)) / max(len(invalid_name_lower), len(validated_name_lower)) * 30.0
+                                        # Device name match
+                                        elif invalid_name_lower in device_name_lower or device_name_lower in invalid_name_lower:
+                                            score = 40.0 + min(len(invalid_name_lower), len(device_name_lower)) / max(len(invalid_name_lower), len(device_name_lower)) * 20.0
+                                        # Word overlap
+                                        else:
+                                            invalid_words = set(invalid_name_lower.replace('_', ' ').split())
+                                            validated_words = set(validated_name_lower.replace('_', ' ').split())
+                                            device_words = set(device_name_lower.replace('_', ' ').split())
+                                            overlap = len(invalid_words & validated_words) + len(invalid_words & device_words)
+                                            if overlap > 0:
+                                                score = overlap * 10.0
+                                        
+                                        if score > best_score:
+                                            best_score = score
+                                            best_match = validated_entity_id
+                            
+                            if best_match and best_score >= 30.0:  # Minimum threshold for replacement
+                                entity_replacements[invalid_entity_id] = best_match
+                                logger.info(f"🔧 Mapping invalid entity '{invalid_entity_id}' → '{best_match}' (score: {best_score:.1f})")
+                            else:
+                                logger.warning(f"⚠️ Could not find match for invalid entity '{invalid_entity_id}'")
+                        
+                        # Apply replacements to YAML if we found any matches
+                        if entity_replacements:
+                            sanitized_yaml = automation_yaml
+                            for old_id, new_id in entity_replacements.items():
+                                # Replace with word boundaries to avoid partial matches
+                                pattern = r'\b' + re.escape(old_id) + r'\b'
+                                sanitized_yaml = re.sub(pattern, new_id, sanitized_yaml)
+                            
+                            logger.info(f"✅ Fixed {len(entity_replacements)} entity IDs in YAML, re-validating...")
+                            automation_yaml = sanitized_yaml
+                            
+                            # Re-parse and re-validate
+                            parsed_yaml = yaml_lib.safe_load(automation_yaml)
+                            if parsed_yaml:
+                                entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
+                                all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
+                                # Deduplicate again after fix
+                                unique_entity_ids_after_fix = list(set(all_entity_ids_in_yaml))
+                                
+                                # Re-validate unique entities only
+                                remaining_invalid = []
+                                for entity_id in unique_entity_ids_after_fix:
+                                    try:
+                                        entity_state = await ha_client.get_entity_state(entity_id)
+                                        if not entity_state:
+                                            remaining_invalid.append(entity_id)
+                                    except Exception:
+                                        remaining_invalid.append(entity_id)
+                                
+                                if remaining_invalid:
+                                    error_msg = f"Invalid entity IDs in YAML (after auto-fix attempt): {', '.join(remaining_invalid)}"
+                                    logger.error(f"❌ {error_msg}")
+                                    return {
+                                        "suggestion_id": suggestion_id,
+                                        "query_id": query_id,
+                                        "status": "error",
+                                        "safe": False,
+                                        "message": "Automation contains invalid entity IDs that could not be auto-fixed",
+                                        "error_details": {
+                                            "type": "invalid_entities",
+                                            "message": error_msg,
+                                            "invalid_entities": remaining_invalid,
+                                            "auto_fixed": list(entity_replacements.keys())
+                                        }
+                                    }
+                                else:
+                                    logger.info(f"✅ All entity IDs fixed and validated successfully")
+                        else:
+                            # No replacements found, return error
+                            error_msg = f"Invalid entity IDs in YAML: {', '.join(invalid_entities)}"
+                            logger.error(f"❌ {error_msg}")
+                            return {
+                                "suggestion_id": suggestion_id,
+                                "query_id": query_id,
+                                "status": "error",
+                                "safe": False,
+                                "message": "Automation contains invalid entity IDs",
+                                "error_details": {
+                                    "type": "invalid_entities",
+                                    "message": error_msg,
+                                    "invalid_entities": invalid_entities
+                                }
                             }
-                        }
                     else:
-                        logger.info(f"✅ Final validation passed: All {len(all_entity_ids_in_yaml)} entity IDs exist in HA")
+                        logger.info(f"✅ Final validation passed: All {len(unique_entity_ids)} unique entity IDs exist in HA")
             except Exception as e:
                 logger.error(f"❌ Entity validation error: {e}", exc_info=True)
                 return {

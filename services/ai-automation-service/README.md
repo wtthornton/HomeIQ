@@ -54,6 +54,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 💡 Intelligent suggestion generation
 - 🎯 Context-aware recommendations
 - 🎨 **Enhanced Entity Resolution** - Multi-signal matching with fuzzy search, blocking, and user aliases
+- 🧠 **Semantic Understanding (RAG)** - Self-improving clarification system that learns from successful queries
 
 **LangChain Integration (Feature Flags):**
 - 🔧 `USE_LANGCHAIN_ASK_AI` - Enable LangChain for Ask AI prompts
@@ -74,6 +75,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - OpenAI API key
 - Data API service running (port 8006)
 - Device Intelligence Service (port 8028)
+- OpenVINO Service (port 8019) - For embeddings and semantic understanding
 - InfluxDB 2.x (365-day retention)
 
 ### Configuration
@@ -122,6 +124,9 @@ USE_LANGCHAIN_PATTERNS=false                 # Enable LangChain for patterns
 # Database
 DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
 
+# OpenVINO Service (for RAG embeddings)
+OPENVINO_SERVICE_URL=http://openvino-service:8019
+
 # Logging
 LOG_LEVEL=INFO
 ```
@@ -139,6 +144,9 @@ python -m spacy download en_core_web_sm
 
 # Run database migrations
 alembic upgrade head
+
+# Seed RAG knowledge base (optional, but recommended)
+python scripts/seed_rag_knowledge_base.py
 
 # Start service
 python -m uvicorn src.main:app --host 0.0.0.0 --port 8018 --reload
@@ -395,6 +403,60 @@ curl -X POST http://localhost:8024/api/v1/ask-ai/query/abc123/suggestions/456/te
 Approve and deploy suggestion
 ```bash
 curl -X POST http://localhost:8024/api/v1/ask-ai/query/abc123/suggestions/456/approve
+```
+
+### Semantic Understanding (RAG System)
+
+The RAG (Retrieval-Augmented Generation) system provides semantic understanding for the clarification system, reducing false positive clarification questions by learning from successful queries.
+
+#### Features
+
+- **Semantic Similarity Search:** Uses embeddings to find similar successful queries
+- **Self-Improving:** Learns from user interactions and successful automations
+- **Knowledge Base:** Stores queries, patterns, and automations with semantic embeddings
+- **Reduced False Positives:** Skips clarification for queries similar to successful ones
+
+#### Seeding Knowledge Base
+
+Populate the knowledge base with initial data:
+
+```bash
+cd services/ai-automation-service
+python scripts/seed_rag_knowledge_base.py
+```
+
+This extracts:
+- Successful queries (confidence >= 0.85) from `AskAIQuery` table
+- Common patterns from `common_patterns.py`
+- Deployed automations from `Suggestion` table
+
+#### How It Works
+
+1. **Query Processing:** When a user query comes in, the system checks for similar successful queries
+2. **Semantic Matching:** Uses cosine similarity on embeddings (threshold: 0.85)
+3. **Smart Clarification:** If similar query found, skips clarification (query is clear)
+4. **Fallback:** If no similar query found, uses hardcoded rules as fallback
+5. **Learning:** Successful queries are automatically stored for future reference
+
+#### Configuration
+
+The RAG system uses:
+- **OpenVINO Service:** For embedding generation (384-dim vectors)
+- **SQLite:** For semantic knowledge storage
+- **No additional infrastructure required**
+
+#### Example
+
+**Before RAG:**
+```
+User: "flash all four Hue office lights using the Hue Flash command for 30 secs at the top of every hour"
+System: Asks 3 clarification questions (false positives)
+```
+
+**After RAG (with similar successful query in knowledge base):**
+```
+User: "flash all four Hue office lights using the Hue Flash command for 30 secs at the top of every hour"
+System: Processes directly, no clarification needed (similarity > 0.85)
 ```
 
 ### Entity Alias Management
@@ -702,7 +764,7 @@ ai-automation-service/
 │   │   ├── admin_router.py
 │   │   └── middlewares.py               # Idempotency, Rate limiting
 │   ├── database/
-│   │   └── models.py                    # SQLAlchemy models (11 tables)
+│   │   └── models.py                    # SQLAlchemy models (12 tables)
 │   ├── pattern_analyzer/               # Epic AI-1
 │   │   ├── time_of_day_detector.py
 │   │   ├── co_occurrence_detector.py
@@ -730,11 +792,22 @@ ai-automation-service/
 │   │   └── chains.py                    # LCEL chains
 │   ├── pdl/                            # PDL workflows
 │   │   └── workflows.py
+│   ├── services/
+│   │   ├── clarification/              # Clarification system
+│   │   │   ├── detector.py            # Ambiguity detection (with RAG integration)
+│   │   │   ├── question_generator.py  # Question generation
+│   │   │   └── confidence_calculator.py
+│   │   └── rag/                        # RAG (Retrieval-Augmented Generation)
+│   │       ├── client.py              # Generic RAG client
+│   │       ├── models.py              # Data models
+│   │       └── exceptions.py          # Custom exceptions
 │   ├── safety_validator.py             # 6-rule safety engine
 │   ├── nl_automation_generator.py      # Natural language → YAML
 │   └── scheduler.py                     # Daily analysis scheduler
 ├── alembic/                            # Database migrations
 │   └── versions/
+├── scripts/
+│   └── seed_rag_knowledge_base.py     # Seed RAG knowledge base
 ├── tests/                              # 56/56 tests passing ✅
 ├── Dockerfile                          # Production container
 ├── requirements.txt                    # Python dependencies
@@ -743,7 +816,7 @@ ai-automation-service/
 
 ### Database Schema
 
-**SQLite Database: ai_automation.db (11 tables)**
+**SQLite Database: ai_automation.db (12 tables)**
 
 1. **patterns** - Detected patterns (time-of-day, co-occurrence, anomaly)
 2. **suggestions** - Automation suggestions (draft, approved, rejected, deployed)
@@ -756,6 +829,7 @@ ai-automation-service/
 9. **openai_usage** - OpenAI API usage statistics
 10. **analysis_runs** - Daily analysis job tracking
 11. **validation_results** - Safety validation results
+12. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
 
 ### Entity Resolution Enhancements
 
@@ -1145,6 +1219,20 @@ alembic upgrade head
 alembic current
 alembic history
 ```
+
+### RAG System Issues
+
+**Knowledge base not working:**
+- Verify OpenVINO service is running: `curl http://localhost:8019/health`
+- Check `OPENVINO_SERVICE_URL` environment variable
+- Seed knowledge base: `python scripts/seed_rag_knowledge_base.py`
+- Check database migration: `alembic current` (should include `20250120_semantic_knowledge`)
+
+**Clarification still asking too many questions:**
+- Ensure knowledge base is seeded with successful queries
+- Check similarity threshold (default: 0.85) - may need adjustment
+- Verify embeddings are being generated (check logs for RAG client initialization)
+- System falls back to hardcoded rules if RAG unavailable (expected behavior)
 
 ### Pattern Detection Not Finding Patterns
 

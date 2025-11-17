@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..jobs.weekly_refresh import WeeklyRefreshJob
+from ..miner.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

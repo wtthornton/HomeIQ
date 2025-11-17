@@ -74,9 +74,13 @@ class HomeAssistantWebSocketClient:
             # Create session
             await self._ensure_single_session()
 
-            # Build WebSocket URL (if base_url already has ws:// and /api/websocket, use it as-is)
+            # Build WebSocket URL (always ensure /api/websocket path is present)
             if self.base_url.startswith('ws://') or self.base_url.startswith('wss://'):
-                ws_url = self.base_url
+                # If already a WebSocket URL, check if /api/websocket is present
+                if '/api/websocket' not in self.base_url:
+                    ws_url = f"{self.base_url}/api/websocket"
+                else:
+                    ws_url = self.base_url
             else:
                 ws_url = f"{self.base_url.replace('http', 'ws')}/api/websocket"
             

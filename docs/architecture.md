@@ -270,6 +270,10 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 
 ## Recent Updates
 
+### November 2025 - Critical Fixes
+- **WebSocket URL Fix**: Fixed WebSocket connection issue where `/api/websocket` path was not automatically appended to WebSocket URLs. The service now correctly handles both `ws://host:port` and `ws://host:port/api/websocket` formats.
+- **Automation Miner Fix**: Fixed missing `get_db_session` import in `admin_routes.py` that caused `NameError` when accessing admin endpoints. Admin routes now properly import database session dependency.
+
 ### November 2025 - Entity Sanitization
 - **Added**: Post-refinement entity ID validation to YAML self-correction
 - **Feature**: Automatic invalid entity ID detection and replacement

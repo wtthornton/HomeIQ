@@ -137,8 +137,9 @@ If you prefer manual configuration:
    - Copy the token for configuration
 
 2. **Configure Connection**
-   - Set `HA_URL` to your Home Assistant WebSocket URL
-   - Set `HA_ACCESS_TOKEN` to your long-lived token
+   - Set `HA_HTTP_URL` or `HOME_ASSISTANT_URL` to your Home Assistant HTTP URL (e.g., `http://192.168.1.86:8123`)
+   - Set `HA_WS_URL` to your Home Assistant WebSocket URL (e.g., `ws://192.168.1.86:8123` - `/api/websocket` is auto-appended if missing)
+   - Set `HA_TOKEN` or `HOME_ASSISTANT_TOKEN` to your long-lived token
    - Configure entity filters if needed
 
 ### **External Data Sources Configuration**

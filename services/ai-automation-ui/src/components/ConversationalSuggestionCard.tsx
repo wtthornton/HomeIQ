@@ -56,10 +56,16 @@ interface Props {
   darkMode?: boolean;
   disabled?: boolean;
   tested?: boolean;
+  previousConfidence?: number;
+  confidenceDelta?: number;
+  confidenceSummary?: string;
 }
 
 export const ConversationalSuggestionCard: React.FC<Props> = ({
   suggestion,
+  previousConfidence,
+  confidenceDelta,
+  confidenceSummary,
   onRefine,
   onApprove,
   onReject,
@@ -224,6 +230,41 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
               }`}>
                 {Math.round(suggestion.confidence * 100)}% confident
               </span>
+              
+              {/* Confidence Improvement Indicator */}
+              {(() => {
+                const shouldShow = previousConfidence !== undefined && 
+                                  previousConfidence > 0 && 
+                                  confidenceDelta !== undefined && 
+                                  confidenceDelta > 0;
+                if (shouldShow) {
+                  console.log('✅ Showing confidence improvement badge:', {
+                    previousConfidence,
+                    confidenceDelta,
+                    confidenceSummary
+                  });
+                } else {
+                  console.log('⚠️ NOT showing confidence improvement badge:', {
+                    previousConfidence,
+                    confidenceDelta,
+                    hasPrevious: previousConfidence !== undefined,
+                    hasDelta: confidenceDelta !== undefined
+                  });
+                }
+                return shouldShow ? (
+                  <span 
+                    className="px-1.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      color: '#6ee7b7'
+                    }}
+                    title={confidenceSummary || `Confidence improved from ${Math.round(previousConfidence * 100)}%`}
+                  >
+                    ✨ +{Math.round(confidenceDelta * 100)}%
+                  </span>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

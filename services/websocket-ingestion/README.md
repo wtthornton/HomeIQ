@@ -169,7 +169,10 @@ STORE_DEVICE_HISTORY_IN_INFLUXDB=false
 ```bash
 # Home Assistant Connection
 HOME_ASSISTANT_URL=http://your-ha-ip:8123  # Your HA instance
+HA_HTTP_URL=http://your-ha-ip:8123  # Alternative naming (also supported)
+HA_WS_URL=ws://your-ha-ip:8123  # WebSocket URL (optional - /api/websocket auto-appended if missing)
 HOME_ASSISTANT_TOKEN=your_long_lived_access_token
+HA_TOKEN=your_long_lived_access_token  # Alternative naming (also supported)
 
 # Service Port
 WEBSOCKET_INGESTION_PORT=8001
@@ -477,6 +480,9 @@ websocket-ingestion:
 3. Network connectivity exists between containers
 4. Home Assistant is accessible from Docker network
 5. Firewall rules allow WebSocket connections
+6. **WebSocket URL Format**: The service automatically appends `/api/websocket` to WebSocket URLs if missing. You can use either:
+   - `HA_WS_URL=ws://192.168.1.86:8123` (auto-appends `/api/websocket`)
+   - `HA_WS_URL=ws://192.168.1.86:8123/api/websocket` (explicit path)
 
 **With infinite retry (default):**
 - Service will keep trying automatically

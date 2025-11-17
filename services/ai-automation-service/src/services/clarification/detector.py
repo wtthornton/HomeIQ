@@ -13,9 +13,19 @@ logger = logging.getLogger(__name__)
 class ClarificationDetector:
     """Detects ambiguities in automation requests"""
     
-    def __init__(self):
-        """Initialize clarification detector"""
-        pass
+    def __init__(self, rag_client=None):
+        """
+        Initialize clarification detector.
+        
+        Args:
+            rag_client: Optional RAG client for semantic similarity lookup.
+                       If provided, will use semantic search to reduce false positives.
+        """
+        self.rag_client = rag_client
+        if rag_client:
+            logger.info("ClarificationDetector initialized with RAG client (semantic understanding enabled)")
+        else:
+            logger.info("ClarificationDetector initialized without RAG client (using hardcoded rules only)")
     
     async def detect_ambiguities(
         self,
@@ -409,7 +419,31 @@ class ClarificationDetector:
         
         query_lower = query.lower()
         
-        # Check for vague action terms
+        # NEW: If RAG client is available, check semantic similarity first
+        # This reduces false positives by learning from successful queries
+        if self.rag_client:
+            try:
+                # Check if similar successful queries exist
+                similar_queries = await self.rag_client.retrieve(
+                    query=query,
+                    knowledge_type='query',
+                    top_k=1,
+                    min_similarity=0.85  # High threshold for "clear query"
+                )
+                
+                # If we find a highly similar successful query, the query is likely clear
+                if similar_queries and similar_queries[0]['similarity'] > 0.85:
+                    logger.debug(
+                        f"Found similar successful query (similarity={similar_queries[0]['similarity']:.2f}) - "
+                        f"skipping action ambiguity check for: {query[:50]}..."
+                    )
+                    return []  # No ambiguity - query is clear based on semantic similarity
+                    
+            except Exception as e:
+                # If RAG lookup fails, fall back to hardcoded rules
+                logger.warning(f"RAG lookup failed, falling back to hardcoded rules: {e}")
+        
+        # Fallback: Check for vague action terms (hardcoded rules)
         vague_actions = {
             'flash': ['fast', 'slow', 'pattern', 'color', 'duration'],
             'show': ['effect', 'pattern', 'animation'],

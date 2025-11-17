@@ -260,9 +260,13 @@ docker-compose restart websocket-ingestion
 ```
 
 **Configuration Check:**
-- Verify `HA_URL` is correct (ws://your-ha-instance:8123/api/websocket)
-- Ensure `HA_ACCESS_TOKEN` is valid and has proper permissions
+- Verify `HA_HTTP_URL` or `HOME_ASSISTANT_URL` is correct (http://your-ha-instance:8123)
+- Verify `HA_WS_URL` is correct (ws://your-ha-instance:8123 - `/api/websocket` is auto-appended if missing)
+- Ensure `HA_TOKEN` or `HOME_ASSISTANT_TOKEN` is valid and has proper permissions
 - Check Home Assistant is running and accessible
+- **Note**: The websocket-ingestion service automatically appends `/api/websocket` to WebSocket URLs, so you can use either format:
+  - `HA_WS_URL=ws://192.168.1.86:8123` (recommended - auto-appends path)
+  - `HA_WS_URL=ws://192.168.1.86:8123/api/websocket` (explicit path)
 
 ### **2. Weather API Issues**
 
