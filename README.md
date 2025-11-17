@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix device discovery trigger endpoint websocket access bug** (November 17, 2025)
 - **Fix event details loading issue in Live Event Stream** (November 17, 2025)
 - **Fix event details loading issue in Live Event Stream** (November 17, 2025)
 - **Fix device entities not displaying in device detail popup** (November 17, 2025)
