@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix HA Core version detection in health monitoring service** (November 17, 2025)
 - **Add missing InfluxDB tags and improve database review script** (November 17, 2025)
 - **Implement MQTT subscription for Zigbee2MQTT health monitoring** (November 16, 2025)
 - **Complete ML model update infrastructure for Device Intelligence Service** (November 16, 2025)
