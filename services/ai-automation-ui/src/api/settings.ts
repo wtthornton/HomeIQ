@@ -43,6 +43,37 @@ export const defaultSettings: SettingsPayload = {
 };
 
 const API_BASE = '/api/v1';
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+/**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'X-HomeIQ-API-Key': API_KEY,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
 
 async function handleResponse(response: Response): Promise<SettingsPayload> {
   if (response.ok) {
@@ -58,11 +89,13 @@ async function handleResponse(response: Response): Promise<SettingsPayload> {
 }
 
 export async function getSettings(): Promise<SettingsPayload> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${API_BASE}/settings`, {
     method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -70,12 +103,14 @@ export async function getSettings(): Promise<SettingsPayload> {
 }
 
 export async function updateSettings(payload: SettingsPayload): Promise<SettingsPayload> {
+  const headers = withAuthHeaders({
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${API_BASE}/settings`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers,
     credentials: 'include',
     body: JSON.stringify(payload),
   });

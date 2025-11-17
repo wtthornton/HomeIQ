@@ -36,10 +36,17 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
     setLoading(true);
     
     try {
+      const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
       const userDevicesParam = devices.join(',');
       // Note: using proxied API endpoint for automation-miner
       const response = await fetch(
-        `/api/automation-miner/devices/${device}/possibilities?user_devices=${userDevicesParam}`
+        `/api/automation-miner/devices/${device}/possibilities?user_devices=${userDevicesParam}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'X-HomeIQ-API-Key': API_KEY,
+          },
+        }
       );
       
       if (!response.ok) {

@@ -151,11 +151,10 @@ export const MqttConfigForm: React.FC = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-4">
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-          MQTT & Zigbee Connectivity
+          MQTT Configuration
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Provide the connection details for your MQTT broker and Zigbee2MQTT topic. These settings
-          feed the device-intelligence service so it can subscribe to Zigbee updates.
+          Configure MQTT broker connection for device discovery. The device-intelligence-service uses this to subscribe to Zigbee2MQTT topics and discover Zigbee devices. Zigbee2MQTT uses the same MQTT broker with a different topic prefix.
         </p>
       </div>
 
@@ -251,6 +250,9 @@ export const MqttConfigForm: React.FC = () => {
             placeholder="zigbee2mqtt"
             className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Topic prefix used by Zigbee2MQTT (default: zigbee2mqtt). The service will subscribe to {formState.baseTopic || 'zigbee2mqtt'}/bridge/devices for device discovery.
+          </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

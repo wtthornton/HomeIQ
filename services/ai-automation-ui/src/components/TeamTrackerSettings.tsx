@@ -56,30 +56,87 @@ interface TeamFormData {
   priority: number;
 }
 
+// API Key for authentication
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+/**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'X-HomeIQ-API-Key': API_KEY,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
+
 // API Functions
 const fetchStatus = async (): Promise<TeamTrackerStatus> => {
-  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/status`);
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/status`, {
+    headers,
+  });
   if (!response.ok) throw new Error('Failed to fetch Team Tracker status');
   return response.json();
 };
 
 const fetchTeams = async (activeOnly: boolean = false): Promise<Team[]> => {
   const params = new URLSearchParams({ active_only: activeOnly.toString() });
-  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/teams?${params}`);
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/teams?${params}`, {
+    headers,
+  });
   if (!response.ok) throw new Error('Failed to fetch teams');
   return response.json();
 };
 
 const detectTeams = async () => {
-  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/detect`, { method: 'POST' });
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/detect`, {
+    method: 'POST',
+    headers,
+  });
   if (!response.ok) throw new Error('Failed to detect teams');
   return response.json();
 };
 
 const addTeam = async (team: TeamFormData): Promise<Team> => {
+  const headers = withAuthHeaders({
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${DEVICE_INTELLIGENCE_API}/teams`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(team),
   });
   if (!response.ok) throw new Error('Failed to add team');
@@ -87,9 +144,14 @@ const addTeam = async (team: TeamFormData): Promise<Team> => {
 };
 
 const updateTeam = async ({ id, team }: { id: number; team: TeamFormData }): Promise<Team> => {
+  const headers = withAuthHeaders({
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${DEVICE_INTELLIGENCE_API}/teams/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(team),
   });
   if (!response.ok) throw new Error('Failed to update team');
@@ -97,14 +159,26 @@ const updateTeam = async ({ id, team }: { id: number; team: TeamFormData }): Pro
 };
 
 const deleteTeam = async (id: number): Promise<void> => {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${DEVICE_INTELLIGENCE_API}/teams/${id}`, {
     method: 'DELETE',
+    headers,
   });
   if (!response.ok) throw new Error('Failed to delete team');
 };
 
 const syncFromHA = async () => {
-  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/sync-from-ha`, { method: 'POST' });
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/sync-from-ha`, {
+    method: 'POST',
+    headers,
+  });
   if (!response.ok) throw new Error('Failed to sync from Home Assistant');
   return response.json();
 };

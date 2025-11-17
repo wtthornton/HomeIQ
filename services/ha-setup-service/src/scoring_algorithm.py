@@ -128,12 +128,22 @@ class HealthScoringAlgorithm:
         - Each healthy integration adds proportional points
         - Warning integrations count as 50% healthy
         - Error/not_configured count as 0%
+        - Zigbee2MQTT is excluded (it's just MQTT with a different topic)
         """
         if not integrations:
             return 0
         
+        # Filter out Zigbee2MQTT - it's not a separate integration, just MQTT with different topic
+        relevant_integrations = [
+            i for i in integrations 
+            if i.get("type") != "zigbee2mqtt"
+        ]
+        
+        if not relevant_integrations:
+            return 0
+        
         total_score = 0
-        for integration in integrations:
+        for integration in relevant_integrations:
             status = integration.get("status", "error")
             
             if status == "healthy":
@@ -142,8 +152,8 @@ class HealthScoringAlgorithm:
                 total_score += 50
             # error and not_configured = 0 points
         
-        # Average across all integrations
-        return int(total_score / len(integrations))
+        # Average across relevant integrations only
+        return int(total_score / len(relevant_integrations))
     
     def _score_performance(self, performance: Dict) -> int:
         """

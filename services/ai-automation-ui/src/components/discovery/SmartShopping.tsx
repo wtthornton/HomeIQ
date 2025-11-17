@@ -39,10 +39,17 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
       setLoading(true);
       
       try {
+        const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
         const userDevicesParam = userDevices.join(',');
         // Note: using proxied API endpoint for automation-miner
         const response = await fetch(
-          `/api/automation-miner/devices/recommendations?user_devices=${userDevicesParam}&limit=10`
+          `/api/automation-miner/devices/recommendations?user_devices=${userDevicesParam}&limit=10`,
+          {
+            headers: {
+              'Authorization': `Bearer ${API_KEY}`,
+              'X-HomeIQ-API-Key': API_KEY,
+            },
+          }
         );
         
         if (!response.ok) {

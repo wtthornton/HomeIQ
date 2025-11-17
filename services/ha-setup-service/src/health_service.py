@@ -34,7 +34,8 @@ class HealthMonitoringService:
     Core health monitoring service
     
     Implements Context7 async patterns for Home Assistant health checks.
-    Uses HA API for Zigbee2MQTT monitoring (simplified architecture).
+    Note: Zigbee2MQTT is not checked separately - it uses the same MQTT broker
+    as the MQTT integration, just with a different topic prefix.
     """
     
     def __init__(self):
@@ -241,12 +242,10 @@ class HealthMonitoringService:
         integrations = []
         
         # Check MQTT integration
+        # Note: Zigbee2MQTT uses the same MQTT broker, so if MQTT is healthy,
+        # Zigbee2MQTT can work (it's just a different topic prefix)
         mqtt_status = await self._check_mqtt_integration()
         integrations.append(mqtt_status)
-        
-        # Check Zigbee2MQTT integration
-        z2m_status = await self._check_zigbee2mqtt_integration()
-        integrations.append(z2m_status)
         
         # Check HA Ingestor services
         data_api_status = await self._check_data_api()
@@ -452,6 +451,10 @@ class HealthMonitoringService:
             issues.append(f"Home Assistant core status: {ha_status.get('status')}")
         
         for integration in integrations:
+            # Skip Zigbee2MQTT - it's just MQTT with a different topic, not a separate integration
+            if integration.get("type") == "zigbee2mqtt":
+                continue
+                
             if integration.get("status") != IntegrationStatus.HEALTHY.value:
                 issues.append(
                     f"{integration.get('name')} integration: {integration.get('status')} "

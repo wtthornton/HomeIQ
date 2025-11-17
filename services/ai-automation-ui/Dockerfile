@@ -20,6 +20,14 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM deps AS builder
 WORKDIR /app
 
+# Build arguments for environment variables
+ARG VITE_API_URL
+ARG VITE_API_KEY
+
+# Set environment variables for build
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_API_KEY=${VITE_API_KEY}
+
 # Copy dependencies from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 

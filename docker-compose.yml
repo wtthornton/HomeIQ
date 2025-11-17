@@ -866,10 +866,15 @@ services:
     ports:
       - "8024:8018"  # Fixed port conflict with energy-correlator
     env_file:
+      - .env
       - infrastructure/env.ai-automation
     environment:
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      # Map .env variables to service expected names
+      - HA_URL=${LOCAL_HA_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${LOCAL_HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
@@ -957,10 +962,16 @@ services:
     build:
       context: .
       dockerfile: services/ai-automation-ui/Dockerfile
+      args:
+        - VITE_API_URL=
+        - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
     container_name: ai-automation-ui
     restart: unless-stopped
     ports:
       - "3001:80"
+    environment:
+      - VITE_API_URL=
+      - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
     depends_on:
       ai-core-service:
         condition: service_healthy

@@ -37,6 +37,37 @@ export interface TrainingRunRecord {
 }
 
 const ADMIN_BASE = '/api/v1/admin'
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+/**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'X-HomeIQ-API-Key': API_KEY,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.ok) {
@@ -48,9 +79,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getAdminOverview(): Promise<AdminOverview> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${ADMIN_BASE}/overview`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers,
     credentials: 'include',
   })
 
@@ -58,9 +93,13 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 }
 
 export async function getAdminConfig(): Promise<AdminConfig> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${ADMIN_BASE}/config`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers,
     credentials: 'include',
   })
 
@@ -68,9 +107,13 @@ export async function getAdminConfig(): Promise<AdminConfig> {
 }
 
 export async function getTrainingRuns(limit = 20): Promise<TrainingRunRecord[]> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${ADMIN_BASE}/training/runs?limit=${limit}`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers,
     credentials: 'include',
   })
 
@@ -78,9 +121,13 @@ export async function getTrainingRuns(limit = 20): Promise<TrainingRunRecord[]> 
 }
 
 export async function triggerTrainingRun(): Promise<TrainingRunRecord> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
   const response = await fetch(`${ADMIN_BASE}/training/trigger`, {
     method: 'POST',
-    headers: { Accept: 'application/json' },
+    headers,
     credentials: 'include',
   })
 
