@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Add missing InfluxDB tags and improve database review script** (November 17, 2025)
 - **Implement MQTT subscription for Zigbee2MQTT health monitoring** (November 16, 2025)
 - **Complete ML model update infrastructure for Device Intelligence Service** (November 16, 2025)
 - **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (November 16, 2025)
@@ -537,7 +538,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📝 Documentation Updates
 
-**Latest Code Review:** November 16, 2025
+**Latest Code Review:** November 17, 2025
 
 See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
 - Complete service inventory (24 active microservices)
