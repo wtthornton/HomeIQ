@@ -7,3 +7,4 @@ export * from './health';
 export * from './alerts';
 export * from './sports';
 export * from './ai-automation';
+export * from './rag';
