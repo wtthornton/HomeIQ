@@ -872,7 +872,8 @@ services:
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       # Map .env variables to service expected names
-      - HA_URL=${LOCAL_HA_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      # Prioritize HOME_ASSISTANT_URL over LOCAL_HA_URL (HOME_ASSISTANT_URL is the primary HA instance)
+      - HA_URL=${HOME_ASSISTANT_URL:-${LOCAL_HA_URL:-http://homeassistant:8123}}
       - HA_TOKEN=${LOCAL_HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - NER_SERVICE_URL=http://ner-service:8031

@@ -753,6 +753,9 @@ class HomeAssistantClient:
         Returns:
             Entity state dict with attributes, or None if not found
             
+        Raises:
+            ConnectionError: If unable to connect to Home Assistant (network/configuration issue)
+            
         Example:
             state = await ha_client.get_entity_state('light.office')
             if state and state.get('attributes', {}).get('is_hue_group'):
@@ -773,7 +776,13 @@ class HomeAssistantClient:
                 else:
                     logger.warning(f"Failed to get entity state for {entity_id}: {response.status}")
                     return None
+        except (aiohttp.ClientConnectorError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Connection/network errors - re-raise as ConnectionError for better error handling upstream
+            error_msg = f"Cannot connect to Home Assistant at {self.ha_url}: {e}"
+            logger.error(f"Connection error getting entity state for {entity_id}: {error_msg}")
+            raise ConnectionError(error_msg) from e
         except Exception as e:
+            # Other errors - log and return None (entity not found)
             logger.error(f"Error getting entity state for {entity_id}: {e}")
             return None
     
@@ -1032,5 +1041,40 @@ class HomeAssistantClient:
                     return {}
         except Exception as e:
             logger.error(f"Error getting entity registry: {e}", exc_info=True)
+            return {}
+    
+    async def get_services(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get all available services from Home Assistant.
+        
+        Returns:
+            Dictionary mapping domain -> {service_name -> service_data}
+            Example: {
+                "light": {
+                    "turn_on": {"name": "Turn on", "description": "...", "fields": {...}},
+                    "turn_off": {"name": "Turn off", "description": "...", "fields": {...}},
+                    "toggle": {"name": "Toggle", "description": "...", "fields": {...}}
+                },
+                "switch": {
+                    "turn_on": {...},
+                    "turn_off": {...},
+                    "toggle": {...}
+                }
+            }
+        """
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/services"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    services_data = await response.json()
+                    logger.info(f"✅ Retrieved {len(services_data)} service domains from HA")
+                    return services_data
+                else:
+                    logger.warning(f"Failed to get services from HA: {response.status}")
+                    return {}
+        except Exception as e:
+            logger.error(f"Error getting services: {e}", exc_info=True)
             return {}
     

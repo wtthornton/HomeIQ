@@ -1797,15 +1797,40 @@ COMMON MISTAKES TO AVOID:
         if entity_context_json:
             # Escape any curly braces in JSON to prevent f-string formatting errors
             escaped_json = entity_context_json.replace('{', '{{').replace('}', '}}')
+            
+            # Query database for available services for each entity
+            available_services_info = []
+            if db_session:
+                try:
+                    from ..services.service_validator import ServiceValidator
+                    service_validator = ServiceValidator(db_session=db_session)
+                    
+                    for entity_id in validated_entities.values():
+                        available_services = await service_validator.get_available_services(entity_id, db_session)
+                        if available_services:
+                            available_services_info.append(f"  - {entity_id}: {', '.join(available_services)}")
+                except Exception as e:
+                    logger.debug(f"Could not fetch available services: {e}")
+            
+            available_services_text = ""
+            if available_services_info:
+                available_services_text = f"""
+
+AVAILABLE SERVICES (use ONLY these services for each entity):
+{chr(10).join(available_services_info)}
+
+CRITICAL: Only use services listed above. Do NOT use services that are not available for an entity.
+"""
+            
             validated_entities_text += f"""
 
 ENTITY CONTEXT (Complete Information):
 {escaped_json}
-
+{available_services_text}
 Use this entity information to:
 1. Choose the right entity type (group vs individual)
 2. Understand device capabilities
-3. Generate appropriate actions
+3. Generate appropriate actions using ONLY available services
 4. Respect device limitations (e.g., brightness range, color modes)
 """
     else:
@@ -2925,6 +2950,7 @@ async def generate_suggestions_from_query(
     query: str, 
     entities: List[Dict[str, Any]], 
     user_id: str,
+    db_session: Optional[AsyncSession] = None,
     clarification_context: Optional[Dict[str, Any]] = None  # NEW: Clarification Q&A
 ) -> List[Dict[str, Any]]:
     """Generate automation suggestions based on query and entities"""
@@ -3451,7 +3477,8 @@ async def generate_suggestions_from_query(
                     context_builder = EntityContextBuilder()
                     entity_context_json = await context_builder.build_entity_context_json(
                         entities=enriched_entities,
-                        enriched_data=filtered_enriched_data_for_prompt
+                        enriched_data=filtered_enriched_data_for_prompt,
+                        db_session=db_session
                     )
                     
                     logger.info(f"✅ Built entity context JSON with {len(filtered_enriched_data_for_prompt)}/{len(enriched_data)} enriched entities (filtered for prompt)")
@@ -3802,7 +3829,8 @@ async def generate_suggestions_from_query(
                             context_builder = EntityContextBuilder()
                             filtered_entity_context_json = await context_builder.build_entity_context_json(
                                 entities=filtered_enriched_entities,
-                                enriched_data=filtered_enriched_data
+                                enriched_data=filtered_enriched_data,
+                                db_session=db_session
                             )
                             
                             # Build filtered user prompt (replace entity context JSON with filtered version)
@@ -4082,7 +4110,8 @@ async def process_natural_language_query(
             suggestions = await generate_suggestions_from_query(
                 request.query, 
                 entities, 
-                request.user_id
+                request.user_id,
+                db_session=db
             )
             
             # Recalculate confidence with suggestions
@@ -4753,6 +4782,7 @@ async def provide_clarification(
                 enriched_query,  # NEW: Use enriched query instead of original
                 entities,  # NEW: Re-extracted and re-enriched entities
                 "anonymous",  # TODO: Get from session
+                db_session=db,
                 clarification_context=clarification_context  # Pass structured clarification
             )
             
@@ -5019,6 +5049,7 @@ async def provide_clarification(
                     enriched_query,
                     entities,
                     "anonymous",  # TODO: Get from session
+                    db_session=db,
                     clarification_context=clarification_context
                 )
                 
@@ -6428,13 +6459,37 @@ async def approve_suggestion_from_query(
                     
                     # Validate each unique entity ID exists in HA
                     invalid_entities = []
+                    connection_error = None
                     for entity_id in unique_entity_ids:
                         try:
                             entity_state = await ha_client.get_entity_state(entity_id)
                             if not entity_state:
                                 invalid_entities.append(entity_id)
-                        except Exception:
+                        except ConnectionError as e:
+                            # Connection error - stop validation and return early with clear error
+                            connection_error = str(e)
+                            logger.error(f"❌ Connection error during entity validation: {connection_error}")
+                            break
+                        except Exception as e:
+                            # Other errors - treat as entity not found
+                            logger.warning(f"⚠️ Error validating entity {entity_id}: {e}")
                             invalid_entities.append(entity_id)
+                    
+                    # If we had a connection error, return early with clear message
+                    if connection_error:
+                        return {
+                            "suggestion_id": suggestion_id,
+                            "query_id": query_id,
+                            "status": "error",
+                            "safe": False,
+                            "message": "Cannot connect to Home Assistant to validate entities",
+                            "error_details": {
+                                "type": "connection_error",
+                                "message": f"Unable to connect to Home Assistant at {ha_client.ha_url}. Please check your Home Assistant configuration and ensure the service is running.",
+                                "connection_error": connection_error,
+                                "ha_url": ha_client.ha_url
+                            }
+                        }
                     
                     if invalid_entities:
                         # Try to fix invalid entity IDs by matching them to validated entities
@@ -6514,13 +6569,37 @@ async def approve_suggestion_from_query(
                                 
                                 # Re-validate unique entities only
                                 remaining_invalid = []
+                                connection_error_after_fix = None
                                 for entity_id in unique_entity_ids_after_fix:
                                     try:
                                         entity_state = await ha_client.get_entity_state(entity_id)
                                         if not entity_state:
                                             remaining_invalid.append(entity_id)
-                                    except Exception:
+                                    except ConnectionError as e:
+                                        # Connection error - stop validation
+                                        connection_error_after_fix = str(e)
+                                        logger.error(f"❌ Connection error during re-validation: {connection_error_after_fix}")
+                                        break
+                                    except Exception as e:
+                                        # Other errors - treat as entity not found
+                                        logger.warning(f"⚠️ Error re-validating entity {entity_id}: {e}")
                                         remaining_invalid.append(entity_id)
+                                
+                                # If we had a connection error during re-validation, return early
+                                if connection_error_after_fix:
+                                    return {
+                                        "suggestion_id": suggestion_id,
+                                        "query_id": query_id,
+                                        "status": "error",
+                                        "safe": False,
+                                        "message": "Cannot connect to Home Assistant to validate entities",
+                                        "error_details": {
+                                            "type": "connection_error",
+                                            "message": f"Unable to connect to Home Assistant at {ha_client.ha_url}. Please check your Home Assistant configuration and ensure the service is running.",
+                                            "connection_error": connection_error_after_fix,
+                                            "ha_url": ha_client.ha_url
+                                        }
+                                    }
                                 
                                 if remaining_invalid:
                                     error_msg = f"Invalid entity IDs in YAML (after auto-fix attempt): {', '.join(remaining_invalid)}"
