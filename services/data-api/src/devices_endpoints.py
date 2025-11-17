@@ -387,8 +387,10 @@ async def list_entities(
             query = query.where(Entity.platform == platform)
             logger.debug(f"🔍 [list_entities] Applied platform filter: {platform}")
         if device_id:
-            query = query.where(Entity.device_id == device_id)
-            logger.info(f"🔍 [list_entities] Applied device_id filter: {device_id}")
+            # Use case-insensitive comparison to handle potential case mismatches
+            # SQLite's default comparison is case-sensitive, so we normalize both sides
+            query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
+            logger.info(f"🔍 [list_entities] Applied device_id filter (case-insensitive): {device_id}")
         
         # Apply limit
         query = query.limit(limit)

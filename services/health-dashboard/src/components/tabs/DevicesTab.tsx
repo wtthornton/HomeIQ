@@ -88,36 +88,72 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
   // Context7 Best Practice: Only depend on selectedDevice, not global entities array
   useEffect(() => {
     if (selectedDevice) {
-      if (import.meta.env.MODE !== 'production') {
-        console.log(`[DeviceEntities] Fetching entities for device: ${selectedDevice.device_id}`);
-      }
+      console.log(`[DeviceEntities] Fetching entities for device: ${selectedDevice.device_id} (entity_count: ${selectedDevice.entity_count})`);
       setLoadingEntities(true);
+      
+      // If device shows entity_count > 0 but API returns none, we have a data mismatch issue
+      const expectedEntityCount = selectedDevice.entity_count || 0;
       
       dataApi.getEntities({ device_id: selectedDevice.device_id, limit: 100 })
         .then(response => {
-          const apiEntities = response.entities || [];
+          console.log(`[DeviceEntities] API response:`, response);
+          const apiEntities = response?.entities || [];
           
-          // Defensive check: Ensure all entities match device_id (Context7: validate response)
-          const validEntities = apiEntities.filter(
-            e => e.device_id === selectedDevice.device_id
-          );
+          console.log(`[DeviceEntities] Raw entities from API:`, apiEntities.length, apiEntities);
           
-          if (import.meta.env.MODE !== 'production') {
-            console.log(`[DeviceEntities] Loaded ${validEntities.length} entities for ${selectedDevice.device_id}`);
-          }
+          // The API should already filter by device_id, but add defensive check for data integrity
+          // Use case-insensitive comparison and trim whitespace to handle potential formatting issues
+          const validEntities = apiEntities.filter(e => {
+            if (!e || !e.device_id) {
+              console.warn(`[DeviceEntities] Entity missing device_id:`, e);
+              return false;
+            }
+            const entityDeviceId = String(e.device_id).trim();
+            const expectedDeviceId = String(selectedDevice.device_id).trim();
+            const matches = entityDeviceId === expectedDeviceId;
+            if (!matches) {
+              console.warn(
+                `[DeviceEntities] Device ID mismatch - Expected: "${expectedDeviceId}", Got: "${entityDeviceId}"`
+              );
+            }
+            return matches;
+          });
           
-          if (validEntities.length !== apiEntities.length) {
+          console.log(`[DeviceEntities] Loaded ${validEntities.length} valid entities (out of ${apiEntities.length} total) for device ${selectedDevice.device_id}`);
+          
+          // Diagnostic: Check if device_count suggests entities should exist
+          if (validEntities.length === 0 && expectedEntityCount > 0) {
             console.warn(
-              `[DeviceEntities] Filtered ${apiEntities.length - validEntities.length} entities ` +
-              `with mismatched device_id for device ${selectedDevice.device_id}`
+              `[DeviceEntities] Device shows entity_count=${expectedEntityCount} but API returned ${apiEntities.length} entities. ` +
+              `This suggests a data mismatch between device registry and entity registry.`
             );
           }
           
+          if (validEntities.length === 0 && apiEntities.length > 0) {
+            console.error(
+              `[DeviceEntities] All ${apiEntities.length} entities filtered out due to device_id mismatch. ` +
+              `Expected: "${selectedDevice.device_id}", Got: ${apiEntities.map(e => `"${e.device_id}"`).join(', ')}`
+            );
+          }
+          
+          if (validEntities.length === 0 && apiEntities.length === 0 && expectedEntityCount > 0) {
+            console.error(
+              `[DeviceEntities] No entities found for device ${selectedDevice.device_id} but device.entity_count=${expectedEntityCount}. ` +
+              `Possible issues: 1) Entities not synced to database, 2) device_id mismatch, 3) Entities deleted but count not updated.`
+            );
+          }
+          
+          // If API filtering worked correctly, use all entities; otherwise use filtered
           setDeviceEntities(validEntities);
           setLoadingEntities(false);
         })
         .catch(err => {
           console.error('[DeviceEntities] Failed to fetch device entities:', err);
+          console.error('[DeviceEntities] Error details:', {
+            message: err.message,
+            stack: err.stack,
+            device_id: selectedDevice.device_id
+          });
           // Don't use fallback - show empty state instead of wrong data
           setDeviceEntities([]);
           setLoadingEntities(false);

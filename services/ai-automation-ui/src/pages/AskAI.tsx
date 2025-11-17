@@ -1604,6 +1604,16 @@ export const AskAI: React.FC = () => {
             try {
               const response = await api.clarifyAnswers(clarificationDialog.sessionId, answers);
               
+              console.log('🔍 Clarification response:', {
+                clarification_complete: response.clarification_complete,
+                has_suggestions: !!response.suggestions,
+                suggestions_count: response.suggestions?.length || 0,
+                has_questions: !!response.questions,
+                questions_count: response.questions?.length || 0,
+                confidence: response.confidence,
+                message: response.message
+              });
+              
               if (response.clarification_complete && response.suggestions) {
                 // Add suggestions to conversation
                 const suggestionMessage: ChatMessage = {
@@ -1627,8 +1637,15 @@ export const AskAI: React.FC = () => {
                   threshold: response.confidence_threshold
                 });
                 toast(response.message || 'Please answer the additional questions.', { icon: 'ℹ️' });
+              } else {
+                // No more questions but clarification not complete - this shouldn't happen
+                // but we'll handle it gracefully by closing the dialog and showing a message
+                console.warn('⚠️ Clarification incomplete but no questions returned:', response);
+                setClarificationDialog(null);
+                toast.error(response.message || 'Clarification incomplete. Please try rephrasing your request.');
               }
             } catch (error: any) {
+              console.error('❌ Clarification error:', error);
               toast.error(`Failed to submit clarification: ${error.message || 'Unknown error'}`);
             }
           }}
