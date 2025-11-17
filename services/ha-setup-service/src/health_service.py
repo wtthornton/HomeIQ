@@ -24,7 +24,6 @@ from .schemas import (
 )
 from .scoring_algorithm import HealthScoringAlgorithm
 from .integration_checker import IntegrationHealthChecker
-from .zigbee2mqtt_mqtt_client import Zigbee2MQTTMQTTClient
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -35,19 +34,18 @@ class HealthMonitoringService:
     Core health monitoring service
     
     Implements Context7 async patterns for Home Assistant health checks.
-    Uses MQTT subscription for Zigbee2MQTT monitoring (Epic 31 pattern).
+    Uses HA API for Zigbee2MQTT monitoring (simplified architecture).
     """
     
     def __init__(self):
+        import os
         self.ha_url = settings.ha_url.rstrip("/")
-        self.ha_token = settings.ha_token
+        # Try settings first, then environment variables as fallback
+        self.ha_token = settings.ha_token or os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN", "")
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url
         self.scoring_algorithm = HealthScoringAlgorithm()  # Enhanced scoring
-        
-        # MQTT client for Zigbee2MQTT monitoring (Epic 31: direct MQTT subscription)
-        self.z2m_mqtt_client: Optional[Zigbee2MQTTMQTTClient] = None
-        self._z2m_client_initialized = False
+        logger.info(f"HealthMonitoringService initialized: URL={self.ha_url}, Token={'SET' if self.ha_token else 'NOT SET'}")
     
     async def check_environment_health(
         self,
@@ -71,7 +69,13 @@ class HealthMonitoringService:
         )
         
         # Handle exceptions gracefully
-        ha_status = ha_check if not isinstance(ha_check, Exception) else {"status": "error", "version": "unknown"}
+        if isinstance(ha_check, Exception):
+            logger.error(f"HA core check raised exception: {ha_check}", exc_info=ha_check)
+            ha_status = {"status": "error", "version": "unknown", "error": str(ha_check)}
+        else:
+            ha_status = ha_check
+            # Log the actual result to see what we're getting
+            logger.info(f"HA core check result: status={ha_status.get('status')}, version={ha_status.get('version')}, error={ha_status.get('error', 'None')}")
         integrations = integrations_check if not isinstance(integrations_check, Exception) else []
         performance = performance_check if not isinstance(performance_check, Exception) else {
             "response_time_ms": 0,
@@ -160,35 +164,77 @@ class HealthMonitoringService:
     
     async def _check_ha_core(self) -> Dict:
         """Check Home Assistant core status"""
+        # Use direct method - we know this works from container tests
         try:
+            result = await self._check_ha_core_direct()
+            logger.info(f"_check_ha_core returning: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"_check_ha_core exception: {e}", exc_info=True)
+            return {"status": "error", "version": "unknown", "error": str(e)}
+    
+    async def _check_ha_core_direct(self) -> Dict:
+        """Direct HA core check - uses same approach as working container test"""
+        try:
+            # Use same approach as test script that works
+            import os
+            ha_url = self.ha_url
+            ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN") or self.ha_token or ""
+            
+            logger.info(f"HA core check starting: URL={ha_url}, Token={'SET (' + str(len(ha_token)) + ' chars)' if ha_token else 'NOT SET'}")
+            
+            if not ha_token:
+                logger.warning("HA core check: No token available")
+                return {"status": "warning", "version": "unknown", "error": "No token configured"}
+            
             async with aiohttp.ClientSession() as session:
                 headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
+                    "Authorization": f"Bearer {ha_token}",
                     "Content-Type": "application/json"
                 }
                 
-                # Check HA API availability
+                url = f"{ha_url}/api/config"
+                logger.info(f"HA core check: Calling {url}")
+                
+                # Check HA API availability and get config (includes version)
                 async with session.get(
-                    f"{self.ha_url}/api/",
+                    url,
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
+                    logger.info(f"HA core check: Response status={response.status}")
+                    
                     if response.status == 200:
                         data = await response.json()
+                        version = data.get("version", "unknown")
+                        logger.info(f"HA core check: API returned version={version}, data keys={list(data.keys())[:5]}")
+                        # Always return the version we got from the API
                         return {
-                            "status": "healthy",
-                            "version": data.get("version", "unknown")
+                            "status": "healthy" if version and version != "unknown" else "warning",
+                            "version": version
+                        }
+                    elif response.status == 401:
+                        logger.warning("HA core check: Authentication failed (401)")
+                        return {
+                            "status": "warning",
+                            "version": "unknown",
+                            "error": "Authentication failed"
                         }
                     else:
+                        logger.warning(f"HA core check: Unexpected status {response.status}")
+                        text = await response.text()
+                        logger.debug(f"Response: {text[:200]}")
                         return {
-                            "status": "error",
+                            "status": "warning",
                             "version": "unknown",
                             "error": f"HTTP {response.status}"
                         }
-        except asyncio.TimeoutError:
-            return {"status": "error", "version": "unknown", "error": "Timeout"}
+        except asyncio.TimeoutError as e:
+            logger.warning(f"HA core check: Timeout - {e}")
+            return {"status": "warning", "version": "unknown", "error": "Timeout"}
         except Exception as e:
-            return {"status": "error", "version": "unknown", "error": str(e)}
+            logger.error(f"HA core check failed: {e}", exc_info=True)
+            return {"status": "warning", "version": "unknown", "error": str(e)}
     
     async def _check_integrations(self) -> List[Dict]:
         """Check all integrations status"""
@@ -271,100 +317,10 @@ class HealthMonitoringService:
     
     async def _check_zigbee2mqtt_integration(self) -> Dict:
         """
-        Check Zigbee2MQTT status using MQTT subscription (Epic 31 pattern).
+        Check Zigbee2MQTT status using Home Assistant API.
         
-        Uses direct MQTT subscription to zigbee2mqtt/bridge/* topics for
-        real-time monitoring instead of polling HA API.
-        """
-        try:
-            # Initialize MQTT client if not already done
-            if not self._z2m_client_initialized:
-                await self._ensure_z2m_mqtt_client()
-            
-            # Get status from MQTT client
-            if self.z2m_mqtt_client and self.z2m_mqtt_client.is_connected():
-                bridge_status = self.z2m_mqtt_client.get_bridge_status()
-                
-                # Determine status based on bridge state
-                if bridge_status["is_online"]:
-                    status = IntegrationStatus.HEALTHY
-                elif bridge_status["state"] == "unknown":
-                    status = IntegrationStatus.NOT_CONFIGURED
-                else:
-                    status = IntegrationStatus.WARNING
-                
-                return {
-                    "name": "Zigbee2MQTT",
-                    "type": "zigbee2mqtt",
-                    "status": status.value,
-                    "is_configured": bridge_status["state"] != "unknown",
-                    "is_connected": bridge_status["is_online"],
-                    "error_message": None if bridge_status["is_online"] else f"Bridge state: {bridge_status['state']}",
-                    "check_details": {
-                        "bridge_state": bridge_status["state"],
-                        "device_count": bridge_status["device_count"],
-                        "coordinator": bridge_status.get("coordinator", {}),
-                        "last_update": bridge_status.get("last_update"),
-                        "monitoring_method": "mqtt_subscription"
-                    },
-                    "last_check": datetime.now()
-                }
-            else:
-                # MQTT client not connected - try to connect
-                if await self._ensure_z2m_mqtt_client():
-                    # Retry getting status
-                    bridge_status = self.z2m_mqtt_client.get_bridge_status()
-                    status = IntegrationStatus.HEALTHY if bridge_status["is_online"] else IntegrationStatus.WARNING
-                    
-                    return {
-                        "name": "Zigbee2MQTT",
-                        "type": "zigbee2mqtt",
-                        "status": status.value,
-                        "is_configured": True,
-                        "is_connected": bridge_status["is_online"],
-                        "error_message": None if bridge_status["is_online"] else f"Bridge state: {bridge_status['state']}",
-                        "check_details": {
-                            "bridge_state": bridge_status["state"],
-                            "device_count": bridge_status["device_count"],
-                            "monitoring_method": "mqtt_subscription"
-                        },
-                        "last_check": datetime.now()
-                    }
-                else:
-                    # MQTT connection failed - fallback to integration checker for validation
-                    logger.warning("MQTT client not available, falling back to integration checker")
-                    return await self._check_zigbee2mqtt_fallback()
-                    
-        except Exception as e:
-            logger.error(f"Error checking Zigbee2MQTT via MQTT: {e}")
-            # Fallback to integration checker
-            return await self._check_zigbee2mqtt_fallback()
-    
-    async def _ensure_z2m_mqtt_client(self) -> bool:
-        """
-        Ensure Zigbee2MQTT MQTT client is initialized and connected.
-        
-        Returns:
-            True if client is connected, False otherwise
-        """
-        try:
-            if not self.z2m_mqtt_client:
-                self.z2m_mqtt_client = Zigbee2MQTTMQTTClient()
-                self._z2m_client_initialized = True
-            
-            if not self.z2m_mqtt_client.is_connected():
-                return await self.z2m_mqtt_client.connect()
-            
-            return True
-        except Exception as e:
-            logger.error(f"Failed to initialize Zigbee2MQTT MQTT client: {e}")
-            return False
-    
-    async def _check_zigbee2mqtt_fallback(self) -> Dict:
-        """
-        Fallback method using integration checker for validation.
-        
-        Used when MQTT subscription is not available.
+        Uses HA API to check for Zigbee2MQTT entities, which is simpler
+        and more reliable than MQTT subscription for health monitoring.
         """
         try:
             integration_checker = IntegrationHealthChecker()
@@ -379,7 +335,7 @@ class HealthMonitoringService:
                 "error_message": result.error_message,
                 "check_details": {
                     **(result.check_details or {}),
-                    "monitoring_method": "ha_api_fallback"
+                    "monitoring_method": "ha_api"
                 },
                 "last_check": result.last_check
             }
@@ -390,7 +346,7 @@ class HealthMonitoringService:
                 "status": IntegrationStatus.ERROR.value,
                 "is_configured": False,
                 "is_connected": False,
-                "error_message": f"Both MQTT and API checks failed: {str(e)}",
+                "error_message": f"HA API check failed: {str(e)}",
                 "check_details": {"error_type": type(e).__name__},
                 "last_check": datetime.now()
             }
