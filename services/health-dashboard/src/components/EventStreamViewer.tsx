@@ -43,8 +43,16 @@ const mapApiEvent = (apiEvent: any): Event => {
   const entityId = apiEvent.entity_id || 'unknown';
   const eventType = apiEvent.event_type || 'unknown';
   
+  // Use the API event ID if available, otherwise generate a fallback
+  const eventId = apiEvent.id || `event_${Date.now()}_${Math.random()}`;
+  
+  // Log if we're using a fallback ID (indicates API issue)
+  if (!apiEvent.id) {
+    console.warn('[EventStreamViewer] Event missing ID, using fallback:', { apiEvent, generatedId: eventId });
+  }
+  
   return {
-    id: apiEvent.id || `event_${Date.now()}_${Math.random()}`,
+    id: eventId,
     timestamp: apiEvent.timestamp || new Date().toISOString(),
     service: 'home-assistant',
     type: eventType,
@@ -142,13 +150,17 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
   }, []);
 
   const ensureEventDetails = useCallback(async (eventId: string) => {
+    console.log(`[EventStreamViewer] ensureEventDetails called for eventId: ${eventId}`);
     let shouldFetch = false;
     setDetailState(prev => {
       const current = prev[eventId];
+      console.log(`[EventStreamViewer] Current detail state for ${eventId}:`, current);
       if (current && (current.status === 'loading' || current.status === 'loaded')) {
+        console.log(`[EventStreamViewer] Event ${eventId} already loading/loaded, skipping fetch`);
         return prev;
       }
       shouldFetch = true;
+      console.log(`[EventStreamViewer] Setting ${eventId} to loading state`);
       return {
         ...prev,
         [eventId]: { status: 'loading' }
@@ -156,17 +168,30 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
     });
 
     if (!shouldFetch) {
+      console.log(`[EventStreamViewer] Skipping fetch for ${eventId} (shouldFetch=false)`);
       return;
     }
 
+    // Add timeout to prevent infinite loading (10 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout: Event details took too long to load')), 10000);
+    });
+
     try {
-      const detail = await dataApi.getEventById(eventId);
+      console.log(`[EventStreamViewer] Fetching event details for ID: ${eventId}`);
+      const detail = await Promise.race([
+        dataApi.getEventById(eventId),
+        timeoutPromise
+      ]) as any;
+      
+      console.log(`[EventStreamViewer] Successfully loaded event details for ID: ${eventId}`, detail);
       setDetailState(prev => ({
         ...prev,
         [eventId]: { status: 'loaded', data: detail }
       }));
     } catch (err: any) {
       const message = err?.message || 'Failed to load event details';
+      console.error(`[EventStreamViewer] Error loading event details for ID: ${eventId}`, err);
       setDetailState(prev => ({
         ...prev,
         [eventId]: { status: 'error', error: message }
@@ -209,9 +234,12 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
   }, [detailState]);
 
   const handleToggleDetails = useCallback((eventId: string) => {
+    console.log(`[EventStreamViewer] handleToggleDetails called with eventId: ${eventId}`);
     setExpandedEvent(prev => {
       const next = prev === eventId ? null : eventId;
+      console.log(`[EventStreamViewer] Expanded event changed: prev=${prev}, next=${next}`);
       if (next === eventId) {
+        console.log(`[EventStreamViewer] Calling ensureEventDetails for: ${eventId}`);
         void ensureEventDetails(eventId);
       }
       return next;
