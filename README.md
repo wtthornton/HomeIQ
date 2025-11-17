@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
 - **Add cache expiration and staleness detection across services** (November 17, 2025)
 - **Fix device discovery trigger endpoint websocket access bug** (November 17, 2025)
 - **Fix event details loading issue in Live Event Stream** (November 17, 2025)
