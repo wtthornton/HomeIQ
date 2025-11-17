@@ -526,6 +526,39 @@ class EntityAlias(Base):
         return f"<EntityAlias(id={self.id}, entity_id='{self.entity_id}', alias='{self.alias}', user_id='{self.user_id}')>"
 
 
+class SemanticKnowledge(Base):
+    """
+    Generic semantic knowledge storage for RAG (Retrieval-Augmented Generation).
+    
+    Stores text with embeddings for semantic similarity search.
+    Used for:
+    - Query clarification (learn from successful queries)
+    - Pattern matching enhancement
+    - Suggestion generation
+    - Device intelligence
+    - Automation mining
+    """
+    __tablename__ = 'semantic_knowledge'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    text = Column(Text, nullable=False)  # Original text (query, pattern, blueprint, etc.)
+    embedding = Column(JSON, nullable=False)  # 384-dim embedding array (stored as JSON)
+    knowledge_type = Column(String, nullable=False, index=True)  # 'query', 'pattern', 'blueprint', 'automation', etc.
+    knowledge_metadata = Column(JSON, nullable=True)  # Flexible metadata (device_id, area_id, confidence, etc.) - renamed from 'metadata' to avoid SQLAlchemy reserved word conflict
+    success_score = Column(Float, default=0.5, nullable=False)  # 0.0-1.0 (learned from user feedback)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_knowledge_type', 'knowledge_type'),  # Fast filtering by type
+        Index('idx_success_score', 'success_score'),  # For ranking by success
+        Index('idx_created_at', 'created_at'),  # For time-based queries
+    )
+    
+    def __repr__(self):
+        return f"<SemanticKnowledge(id={self.id}, type='{self.knowledge_type}', text='{self.text[:50]}...', success={self.success_score})>"
+
+
 def get_db_session():
     """
     Get database session as async context manager.

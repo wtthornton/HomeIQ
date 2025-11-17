@@ -7,6 +7,7 @@
 **🔄 Recent Updates:**
 - **Oct 17, 2025:** Database schema updated for Story AI1.23 (Conversational Suggestion Refinement)
 - **Nov 1, 2025:** Post-refinement entity sanitization added to self-correction service (prevents invalid entity IDs)
+- **Jan 20, 2025:** RAG (Retrieval-Augmented Generation) system added for semantic understanding and reduced false positive clarifications
 
 ---
 
@@ -80,11 +81,20 @@ The AI Automation System provides intelligent Home Assistant automation generati
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
+│  │ Clarification System with RAG (Jan 2025)                 │  │
+│  │  - ClarificationDetector (ambiguity detection)           │  │
+│  │  - RAGClient (semantic similarity search)                │  │
+│  │  - QuestionGenerator (OpenAI-based)                      │  │
+│  │  - Reduces false positive clarifications                 │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
 │  │ SQLite Database (ai_automation.db)                       │  │
 │  │  - patterns                                               │  │
 │  │  - suggestions                                            │  │
 │  │  - automation_versions (AI1.20)                          │  │
 │  │  - device_capabilities (AI2)                             │  │
+│  │  - semantic_knowledge (RAG - Jan 2025)                   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └────────┬────────────────────────────────────┬─────────────────┘
          │                                    │
@@ -240,7 +250,71 @@ Generated YAML
 
 ---
 
-### 5. Pattern Detection (AI1.4-1.6)
+### 5. Clarification System with RAG (Jan 2025)
+
+**Purpose:** Reduce false positive clarification questions by learning from successful queries
+
+**Components:**
+- `ClarificationDetector` - Detects ambiguities in user queries
+- `RAGClient` - Semantic similarity search using embeddings
+- `QuestionGenerator` - Generates clarification questions (OpenAI-based)
+- `ConfidenceCalculator` - Determines if clarification is needed
+
+**RAG System Architecture:**
+```
+User Query
+    ↓
+ClarificationDetector
+    ↓
+RAGClient.retrieve() → Check semantic similarity
+    ↓
+OpenVINO Service → Generate query embedding (384-dim)
+    ↓
+SQLite (semantic_knowledge) → Cosine similarity search
+    ↓
+If similarity > 0.85 → Query is clear (skip clarification)
+    ↓
+Otherwise → Use hardcoded rules (fallback)
+```
+
+**Features:**
+- **Semantic Similarity:** Uses embeddings to find similar successful queries
+- **Self-Improving:** Learns from user interactions and successful automations
+- **Knowledge Base:** Stores queries, patterns, and automations with semantic embeddings
+- **Reduced False Positives:** Skips clarification for queries similar to successful ones
+- **Fallback:** Uses hardcoded rules if RAG unavailable or no similar query found
+
+**Knowledge Base Seeding:**
+- Successful queries (confidence >= 0.85) from `AskAIQuery` table
+- Common patterns from `common_patterns.py`
+- Deployed automations from `Suggestion` table
+
+**Database Schema:**
+```sql
+CREATE TABLE semantic_knowledge (
+    id INTEGER PRIMARY KEY,
+    text TEXT NOT NULL,  -- Original text (query, pattern, blueprint)
+    embedding JSON NOT NULL,  -- 384-dim embedding array
+    knowledge_type VARCHAR NOT NULL,  -- 'query', 'pattern', 'blueprint', 'automation'
+    metadata JSON,  -- Flexible metadata
+    success_score FLOAT DEFAULT 0.5,  -- 0.0-1.0 (learned from feedback)
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+```
+
+**Configuration:**
+- Uses OpenVINO service for embedding generation (port 8019)
+- Stores embeddings in SQLite (no additional infrastructure)
+- Similarity threshold: 0.85 (configurable)
+
+**Example:**
+- **Before RAG:** Query "flash all four Hue office lights using the Hue Flash command for 30 secs at the top of every hour" triggers 3 clarification questions
+- **After RAG:** If similar successful query exists, processes directly without clarification
+
+---
+
+### 6. Pattern Detection (AI1.4-1.6)
 
 **Purpose:** Automatically discover automation opportunities from usage patterns
 

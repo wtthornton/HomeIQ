@@ -76,22 +76,31 @@ interface TechnicalPrompt {
   };
 }
 
+interface DeviceInfo {
+  friendly_name: string;
+  entity_id: string;
+  domain?: string;
+  selected?: boolean;
+}
+
 interface DebugPanelProps {
   debug?: DebugData;
   technicalPrompt?: TechnicalPrompt;
+  deviceInfo?: DeviceInfo[]; // Device info from suggestion (friendly names and entity IDs)
   darkMode?: boolean;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({
   debug,
   technicalPrompt,
+  deviceInfo,
   darkMode = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'devices' | 'prompts' | 'technical'>('devices');
   const [showFilteredPrompt, setShowFilteredPrompt] = useState(true);  // Default to filtered
 
-  if (!debug && !technicalPrompt) {
+  if (!debug && !technicalPrompt && (!deviceInfo || deviceInfo.length === 0)) {
     return null;
   }
 
@@ -126,7 +135,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             <div className="p-4">
               {/* Tabs */}
               <div className={`flex gap-2 mb-4 border-b ${borderColor}`}>
-                {debug?.device_selection && debug.device_selection.length > 0 && (
+                {((deviceInfo && deviceInfo.length > 0) || (debug?.device_selection && debug.device_selection.length > 0)) && (
                   <button
                     onClick={() => setActiveTab('devices')}
                     className={`px-4 py-2 text-sm font-medium transition-colors ${
@@ -165,40 +174,91 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
               </div>
 
               {/* Device Selection Tab */}
-              {activeTab === 'devices' && debug?.device_selection && (
+              {activeTab === 'devices' && (
                 <div className="space-y-4">
-                  {debug.device_selection.map((device, idx) => (
-                    <div
-                      key={idx}
-                      className={`${codeBg} p-4 rounded-lg ${borderColor} border`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className={`font-semibold ${textColor}`}>{device.device_name}</h4>
-                        {device.entity_id && (
-                          <span className={`text-xs px-2 py-1 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textColor}`}>
-                            {device.entity_type || 'individual'}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            Why Selected:
-                          </span>
-                          <p className={`${textColor} mt-1`}>{device.selection_reason}</p>
-                        </div>
-                        
-                        {device.entity_id && (
-                          <div>
-                            <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                              Entity ID:
-                            </span>
-                            <code className={`${codeBg} px-2 py-1 rounded text-xs ml-2 ${textColor}`}>
-                              {device.entity_id}
-                            </code>
+                  {/* Device Info Section - Shows friendly names and entity IDs */}
+                  {deviceInfo && deviceInfo.length > 0 && (
+                    <div>
+                      <h4 className={`font-semibold mb-3 ${textColor}`}>Selected Devices</h4>
+                      <div className="space-y-2">
+                        {deviceInfo.map((device, idx) => (
+                          <div
+                            key={idx}
+                            className={`${codeBg} p-3 rounded-lg ${borderColor} border`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className={`font-medium ${textColor} mb-1`}>
+                                  {device.friendly_name}
+                                </div>
+                                <div className="text-xs">
+                                  <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    Entity ID:
+                                  </span>
+                                  <code className={`${codeBg} px-2 py-0.5 rounded ml-2 ${textColor} font-mono`}>
+                                    {device.entity_id}
+                                  </code>
+                                </div>
+                                {device.domain && (
+                                  <div className="text-xs mt-1">
+                                    <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      Domain:
+                                    </span>
+                                    <span className={`ml-2 ${textColor}`}>{device.domain}</span>
+                                  </div>
+                                )}
+                                <div className="text-xs mt-1">
+                                  <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    Status:
+                                  </span>
+                                  <span className={`ml-2 ${device.selected !== false ? 'text-green-500' : 'text-gray-500'}`}>
+                                    {device.selected !== false ? 'Selected' : 'Excluded'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        )}
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Debug Device Selection Section - Shows selection reasoning */}
+                  {debug?.device_selection && debug.device_selection.length > 0 && (
+                    <div>
+                      <h4 className={`font-semibold mb-3 ${textColor}`}>Device Selection Reasoning</h4>
+                      {debug.device_selection.map((device, idx) => (
+                        <div
+                          key={idx}
+                          className={`${codeBg} p-4 rounded-lg ${borderColor} border mb-3`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className={`font-semibold ${textColor}`}>{device.device_name}</h4>
+                            {device.entity_id && (
+                              <span className={`text-xs px-2 py-1 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} ${textColor}`}>
+                                {device.entity_type || 'individual'}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Why Selected:
+                              </span>
+                              <p className={`${textColor} mt-1`}>{device.selection_reason}</p>
+                            </div>
+                            
+                            {device.entity_id && (
+                              <div>
+                                <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  Entity ID:
+                                </span>
+                                <code className={`${codeBg} px-2 py-1 rounded text-xs ml-2 ${textColor}`}>
+                                  {device.entity_id}
+                                </code>
+                              </div>
+                            )}
                         
                         {device.entities.length > 0 && (
                           <div>
@@ -253,9 +313,11 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                             </div>
                           </div>
                         )}
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 

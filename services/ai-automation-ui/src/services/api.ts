@@ -458,6 +458,9 @@ export const api = {
     message: string;
     suggestions?: any[];
     questions?: any[];
+    previous_confidence?: number;
+    confidence_delta?: number;
+    confidence_summary?: string;
   }> {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
       method: 'POST',

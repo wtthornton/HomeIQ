@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20251114_discovered_synergies'
-down_revision = '20251020_add_pattern_synergy_integration'
+down_revision = '20251020_pattern_synergy'  # Fixed: use actual revision ID
 branch_labels = None
 depends_on = None
 

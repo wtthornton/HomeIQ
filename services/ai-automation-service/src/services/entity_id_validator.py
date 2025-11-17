@@ -273,6 +273,14 @@ class EntityIDValidator:
         """
         entity_ids = []
         
+        def _clean_entity_id(eid: Any) -> Optional[str]:
+            """Clean entity ID by removing trailing commas and whitespace"""
+            if not isinstance(eid, str):
+                return str(eid) if eid is not None else None
+            # Remove trailing commas and whitespace
+            cleaned = eid.rstrip(', ').strip()
+            return cleaned if cleaned else None
+        
         # Check triggers
         triggers = yaml_data.get('trigger', yaml_data.get('triggers', []))
         if isinstance(triggers, list):
@@ -282,9 +290,13 @@ class EntityIDValidator:
                     if entity_id is not None:
                         if isinstance(entity_id, list):
                             for j, eid in enumerate(entity_id):
-                                entity_ids.append((eid, f"trigger[{i}].entity_id[{j}]"))
+                                cleaned_eid = _clean_entity_id(eid)
+                                if cleaned_eid:
+                                    entity_ids.append((cleaned_eid, f"trigger[{i}].entity_id[{j}]"))
                         else:
-                            entity_ids.append((entity_id, f"trigger[{i}].entity_id"))
+                            cleaned_eid = _clean_entity_id(entity_id)
+                            if cleaned_eid:
+                                entity_ids.append((cleaned_eid, f"trigger[{i}].entity_id"))
         
         # Check actions (recursive)
         actions = yaml_data.get('action', yaml_data.get('actions', []))
@@ -300,9 +312,13 @@ class EntityIDValidator:
                     if entity_id is not None:
                         if isinstance(entity_id, list):
                             for j, eid in enumerate(entity_id):
-                                entity_ids.append((eid, f"condition[{i}].entity_id[{j}]"))
+                                cleaned_eid = _clean_entity_id(eid)
+                                if cleaned_eid:
+                                    entity_ids.append((cleaned_eid, f"condition[{i}].entity_id[{j}]"))
                         else:
-                            entity_ids.append((entity_id, f"condition[{i}].entity_id"))
+                            cleaned_eid = _clean_entity_id(entity_id)
+                            if cleaned_eid:
+                                entity_ids.append((cleaned_eid, f"condition[{i}].entity_id"))
         
         return entity_ids
     
@@ -326,25 +342,41 @@ class EntityIDValidator:
         if not isinstance(action, dict):
             return entity_ids
         
+        def _clean_entity_id(eid: Any) -> Optional[str]:
+            """Clean entity ID by removing trailing commas and whitespace"""
+            if not isinstance(eid, str):
+                return str(eid) if eid is not None else None
+            # Remove trailing commas and whitespace
+            cleaned = eid.rstrip(', ').strip()
+            return cleaned if cleaned else None
+        
         # Check target.entity_id (single or list)
         target = action.get('target', {})
         if isinstance(target, dict):
             entity_id = target.get('entity_id')
             if entity_id is not None:
                 if isinstance(entity_id, str):
-                    entity_ids.append((entity_id, f"{path}.target.entity_id"))
+                    cleaned_eid = _clean_entity_id(entity_id)
+                    if cleaned_eid:
+                        entity_ids.append((cleaned_eid, f"{path}.target.entity_id"))
                 elif isinstance(entity_id, list):
                     for j, eid in enumerate(entity_id):
-                        entity_ids.append((eid, f"{path}.target.entity_id[{j}]"))
+                        cleaned_eid = _clean_entity_id(eid)
+                        if cleaned_eid:
+                            entity_ids.append((cleaned_eid, f"{path}.target.entity_id[{j}]"))
         
         # Check direct entity_id
         entity_id = action.get('entity_id')
         if entity_id is not None:
             if isinstance(entity_id, str):
-                entity_ids.append((entity_id, f"{path}.entity_id"))
+                cleaned_eid = _clean_entity_id(entity_id)
+                if cleaned_eid:
+                    entity_ids.append((cleaned_eid, f"{path}.entity_id"))
             elif isinstance(entity_id, list):
                 for j, eid in enumerate(entity_id):
-                    entity_ids.append((eid, f"{path}.entity_id[{j}]"))
+                    cleaned_eid = _clean_entity_id(eid)
+                    if cleaned_eid:
+                        entity_ids.append((cleaned_eid, f"{path}.entity_id[{j}]"))
         
         # Check sequence (nested)
         if 'sequence' in action:

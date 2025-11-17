@@ -29,6 +29,9 @@ interface ChatMessage {
   clarificationNeeded?: boolean;
   clarificationSessionId?: string;
   questions?: any[];
+  previousConfidence?: number;
+  confidenceDelta?: number;
+  confidenceSummary?: string;
 }
 
 interface AskAIQuery {
@@ -112,6 +115,9 @@ export const AskAI: React.FC = () => {
     sessionId: string;
     confidence: number;
     threshold: number;
+    previousConfidence?: number;
+    confidenceDelta?: number;
+    confidenceSummary?: string;
   } | null>(null);
   
   // Device selection state: Map of suggestionId -> Map of entityId -> selected boolean
@@ -304,7 +310,10 @@ export const AskAI: React.FC = () => {
           questions: response.questions,
           sessionId: response.clarification_session_id || '',
           confidence: response.confidence || 0.5,
-          threshold: 0.85  // Default threshold
+          threshold: 0.85,  // Default threshold
+          previousConfidence: undefined,  // No previous confidence on first display
+          confidenceDelta: undefined,
+          confidenceSummary: undefined
         });
       } else {
         console.log('❌ NOT showing clarification dialog:', {
@@ -1243,8 +1252,27 @@ export const AskAI: React.FC = () => {
                             const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
                             const seenEntityIds = new Set<string>();
                             
-                                                          // Helper to add device safely
+                            // Helper to check if a string is an entity ID format
+                            const isEntityId = (str: string): boolean => {
+                              if (!str || typeof str !== 'string') return false;
+                              // Entity IDs follow pattern: domain.entity_name
+                              // Must contain a dot and have at least domain and entity parts
+                              const parts = str.split('.');
+                              return parts.length === 2 && parts[0].length > 0 && parts[1].length > 0;
+                            };
+                            
+                            // Helper to add device safely
                               const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+                                // Skip if friendlyName equals entityId (prevents entity IDs from appearing as friendly names)
+                                if (friendlyName === entityId) {
+                                  return; // Skip duplicate - entity ID used as friendly name
+                                }
+                                
+                                // Skip if friendlyName is an entity ID format (defensive check)
+                                if (isEntityId(friendlyName)) {
+                                  return; // Skip - entity ID format should not be used as friendly name
+                                }
+                                
                                 // Filter out generic/redundant device names (same as backend)
                                 const friendlyNameLower = friendlyName.toLowerCase().trim();
                                 const genericTerms = ['light', 'lights', 'device', 'devices', 'sensor', 'sensors', 'switch', 'switches'];
@@ -1278,20 +1306,30 @@ export const AskAI: React.FC = () => {
                                 }
                               };
                             
-                            // 1. Try validated_entities (most reliable - direct mapping from API)
-                            if (suggestion.validated_entities && typeof suggestion.validated_entities === 'object') {
-                              Object.entries(suggestion.validated_entities).forEach(([friendlyName, entityId]: [string, any]) => {
-                                if (entityId && typeof entityId === 'string') {
-                                  addDevice(friendlyName, entityId);
+                            // 1. Try entity_id_annotations FIRST (has actual friendly names from HA Entity Registry)
+                            // This is the preferred source as it includes the actual friendly_name from Home Assistant
+                            if (suggestion.entity_id_annotations && typeof suggestion.entity_id_annotations === 'object') {
+                              Object.entries(suggestion.entity_id_annotations).forEach(([queryTerm, annotation]: [string, any]) => {
+                                // Skip if queryTerm is an entity ID (defensive check)
+                                if (annotation?.entity_id && !isEntityId(queryTerm)) {
+                                  // Use actual friendly_name from HA entity registry if available, otherwise use query term
+                                  const actualFriendlyName = annotation.friendly_name || queryTerm;
+                                  // Only use if it's not an entity ID format
+                                  if (!isEntityId(actualFriendlyName)) {
+                                    addDevice(actualFriendlyName, annotation.entity_id, annotation.domain);
+                                  }
                                 }
                               });
                             }
                             
-                            // 2. Try entity_id_annotations (enhanced suggestion format)
-                            if (suggestion.entity_id_annotations && typeof suggestion.entity_id_annotations === 'object') {
-                              Object.entries(suggestion.entity_id_annotations).forEach(([friendlyName, annotation]: [string, any]) => {
-                                if (annotation?.entity_id) {
-                                  addDevice(friendlyName, annotation.entity_id, annotation.domain);
+                            // 2. Fallback to validated_entities (user query terms mapped to entity IDs)
+                            // Only use if entity_id_annotations didn't provide devices
+                            // Note: validated_entities keys are user query terms, not necessarily actual friendly names
+                            if (devices.length === 0 && suggestion.validated_entities && typeof suggestion.validated_entities === 'object') {
+                              Object.entries(suggestion.validated_entities).forEach(([queryTerm, entityId]: [string, any]) => {
+                                // Skip if queryTerm is an entity ID (defensive check - backend should filter but handle if not)
+                                if (entityId && typeof entityId === 'string' && !isEntityId(queryTerm)) {
+                                  addDevice(queryTerm, entityId);
                                 }
                               });
                             }
@@ -1299,7 +1337,8 @@ export const AskAI: React.FC = () => {
                             // 3. Try device_mentions
                             if (suggestion.device_mentions && typeof suggestion.device_mentions === 'object') {
                               Object.entries(suggestion.device_mentions).forEach(([mention, entityId]: [string, any]) => {
-                                if (entityId && typeof entityId === 'string') {
+                                // Skip if mention is an entity ID (defensive check - backend should filter but handle if not)
+                                if (entityId && typeof entityId === 'string' && !isEntityId(mention)) {
                                   addDevice(mention, entityId);
                                 }
                               });
@@ -1329,6 +1368,11 @@ export const AskAI: React.FC = () => {
                                 
                                 suggestion.devices_involved.forEach((deviceName: string) => {
                                   if (typeof deviceName === 'string' && deviceName.trim()) {
+                                    // Skip if deviceName is an entity ID (defensive check)
+                                    if (isEntityId(deviceName)) {
+                                      return; // Skip - entity ID should not be used as device name
+                                    }
+                                    
                                     // Skip if this friendly name was already added from validated_entities
                                     const deviceNameLower = deviceName.toLowerCase().trim();
                                     if (seenFriendlyNames.has(deviceNameLower)) {
@@ -1447,11 +1491,15 @@ export const AskAI: React.FC = () => {
                                 darkMode={darkMode}
                                 disabled={isProcessing}
                                 tested={testedSuggestions.has(suggestion.suggestion_id)}
+                                previousConfidence={message.previousConfidence}
+                                confidenceDelta={message.confidenceDelta}
+                                confidenceSummary={message.confidenceSummary}
                               />
                               {/* Debug Panel */}
                               <DebugPanel
                                 debug={suggestion.debug}
                                 technicalPrompt={suggestion.technical_prompt}
+                                deviceInfo={deviceInfo.length > 0 ? deviceInfo : undefined}
                                 darkMode={darkMode}
                               />
                             </div>
@@ -1600,6 +1648,9 @@ export const AskAI: React.FC = () => {
           sessionId={clarificationDialog.sessionId}
           currentConfidence={clarificationDialog.confidence}
           confidenceThreshold={clarificationDialog.threshold}
+          previousConfidence={clarificationDialog.previousConfidence}
+          confidenceDelta={clarificationDialog.confidenceDelta}
+          confidenceSummary={clarificationDialog.confidenceSummary}
           onAnswer={async (answers) => {
             try {
               const response = await api.clarifyAnswers(clarificationDialog.sessionId, answers);
@@ -1611,18 +1662,67 @@ export const AskAI: React.FC = () => {
                 has_questions: !!response.questions,
                 questions_count: response.questions?.length || 0,
                 confidence: response.confidence,
-                message: response.message
+                previous_confidence: response.previous_confidence,
+                confidence_delta: response.confidence_delta,
+                confidence_summary: response.confidence_summary,
+                message: response.message,
+                has_previous_confidence: response.previous_confidence !== undefined,
+                has_confidence_delta: response.confidence_delta !== undefined,
+                will_show_improvement: response.previous_confidence !== undefined && 
+                                      response.previous_confidence > 0 && 
+                                      response.confidence_delta !== undefined && 
+                                      response.confidence_delta > 0
               });
               
               if (response.clarification_complete && response.suggestions) {
                 // Add suggestions to conversation
+                // Use session_id as the message id so approval can find the query record
+                // Build enhanced message content with confidence improvement info
+                let messageContent = response.message || 'Based on your answers, here are the automation suggestions:';
+                
+                // Add confidence improvement information if available
+                console.log('🔍 Checking confidence improvement display:', {
+                  previous_confidence: response.previous_confidence,
+                  confidence_delta: response.confidence_delta,
+                  confidence_summary: response.confidence_summary,
+                  will_display: response.previous_confidence !== undefined && 
+                               response.previous_confidence > 0 && 
+                               response.confidence_delta !== undefined && 
+                               response.confidence_delta > 0
+                });
+                
+                if (response.previous_confidence !== undefined && 
+                    response.previous_confidence > 0 && 
+                    response.confidence_delta !== undefined && 
+                    response.confidence_delta > 0) {
+                  const prevPercent = Math.round(response.previous_confidence * 100);
+                  const currPercent = Math.round(response.confidence * 100);
+                  const deltaPercent = Math.round(response.confidence_delta * 100);
+                  messageContent += `\n\n✨ Confidence improved from ${prevPercent}% to ${currPercent}% (+${deltaPercent}%)`;
+                  if (response.confidence_summary) {
+                    messageContent += `\n${response.confidence_summary}`;
+                  }
+                  console.log('✅ Added confidence improvement to message:', messageContent);
+                } else {
+                  console.log('⚠️ Confidence improvement NOT added - missing data:', {
+                    has_previous: response.previous_confidence !== undefined,
+                    previous_value: response.previous_confidence,
+                    has_delta: response.confidence_delta !== undefined,
+                    delta_value: response.confidence_delta
+                  });
+                }
+                
                 const suggestionMessage: ChatMessage = {
-                  id: `clarify-${Date.now()}`,
+                  id: response.session_id,  // Use session_id as id so it matches the query_id in database
                   type: 'ai',
-                  content: response.message || 'Based on your answers, here are the automation suggestions:',
+                  content: messageContent,
                   timestamp: new Date(),
                   suggestions: response.suggestions,
-                  confidence: response.confidence
+                  confidence: response.confidence,
+                  clarificationSessionId: response.session_id,  // Also store for reference
+                  previousConfidence: response.previous_confidence,
+                  confidenceDelta: response.confidence_delta,
+                  confidenceSummary: response.confidence_summary
                 };
                 
                 setMessages(prev => [...prev, suggestionMessage]);
@@ -1634,7 +1734,10 @@ export const AskAI: React.FC = () => {
                   questions: response.questions,
                   sessionId: response.session_id,
                   confidence: response.confidence,
-                  threshold: response.confidence_threshold
+                  threshold: response.confidence_threshold,
+                  previousConfidence: response.previous_confidence,
+                  confidenceDelta: response.confidence_delta,
+                  confidenceSummary: response.confidence_summary
                 });
                 toast(response.message || 'Please answer the additional questions.', { icon: 'ℹ️' });
               } else {

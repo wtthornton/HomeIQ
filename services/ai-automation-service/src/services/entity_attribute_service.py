@@ -60,10 +60,70 @@ class EntityAttributeService:
             ha_client: HomeAssistantClient instance for fetching entity state
         """
         self.ha_client = ha_client
+        self._entity_registry_cache: Optional[Dict[str, Dict[str, Any]]] = None
+        self._registry_cache_loaded = False
+    
+    async def _get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get entity registry with caching.
+        
+        Returns:
+            Dictionary mapping entity_id -> entity registry data
+        """
+        if not self._registry_cache_loaded:
+            try:
+                logger.info("🔍 Loading Entity Registry cache...")
+                self._entity_registry_cache = await self.ha_client.get_entity_registry()
+                self._registry_cache_loaded = True
+                entity_count = len(self._entity_registry_cache or {})
+                logger.info(f"✅ Loaded Entity Registry cache with {entity_count} entities")
+                if entity_count == 0:
+                    logger.warning("⚠️ Entity Registry cache is empty - friendly names may not be available")
+            except Exception as e:
+                logger.error(f"❌ Failed to load Entity Registry: {e}", exc_info=True)
+                self._entity_registry_cache = {}
+                self._registry_cache_loaded = True  # Mark as loaded to avoid repeated failures
+        
+        return self._entity_registry_cache or {}
+    
+    def _get_friendly_name_from_registry(self, entity_id: str, registry: Dict[str, Dict[str, Any]]) -> Optional[str]:
+        """
+        Get friendly name from Entity Registry (source of truth for HA UI names).
+        
+        Priority:
+        1. Entity Registry 'name' field (what shows in HA UI)
+        2. Entity Registry 'original_name' field (if name is None)
+        3. None (fallback to state API)
+        
+        Args:
+            entity_id: Entity ID to lookup
+            registry: Entity registry dictionary
+            
+        Returns:
+            Friendly name from registry, or None if not found
+        """
+        entity_data = registry.get(entity_id)
+        if not entity_data:
+            return None
+        
+        # Priority 1: Use 'name' field (what shows in HA UI)
+        name = entity_data.get('name')
+        if name:
+            return name
+        
+        # Priority 2: Use 'original_name' if name is None
+        original_name = entity_data.get('original_name')
+        if original_name:
+            return original_name
+        
+        return None
     
     async def enrich_entity_with_attributes(self, entity_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetch entity state with attributes from HA and create enriched JSON.
+        
+        Uses Entity Registry for friendly names (source of truth for HA UI names).
+        Falls back to State API friendly_name if Entity Registry unavailable.
         
         Args:
             entity_id: Entity ID to enrich (e.g., 'light.office')
@@ -82,11 +142,36 @@ class EntityAttributeService:
             # Extract core attributes
             attributes = state_data.get('attributes', {})
             
+            # Get Entity Registry for accurate friendly names
+            registry = await self._get_entity_registry()
+            
+            # Get friendly name with priority: Entity Registry > State API > derived
+            friendly_name = self._get_friendly_name_from_registry(entity_id, registry)
+            source = "Entity Registry"
+            
+            if not friendly_name:
+                # Fallback to State API friendly_name
+                friendly_name = attributes.get('friendly_name')
+                source = "State API"
+            
+            if not friendly_name:
+                # Last resort: derive from entity_id
+                friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
+                source = "derived"
+            
+            if source == "derived":
+                logger.debug(f"⚠️ Entity {entity_id}: Using derived friendly_name '{friendly_name}' (not in Entity Registry or State API)")
+            
+            # Get additional data from registry if available
+            entity_registry_data = registry.get(entity_id, {})
+            device_id = entity_registry_data.get('device_id') or attributes.get('device_id')
+            area_id = entity_registry_data.get('area_id') or attributes.get('area_id')
+            
             # Build enriched entity
             enriched = {
                 'entity_id': entity_id,
                 'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
-                'friendly_name': attributes.get('friendly_name'),
+                'friendly_name': friendly_name,  # Now uses Entity Registry as primary source
                 'icon': attributes.get('icon'),
                 'device_class': attributes.get('device_class'),
                 'unit_of_measurement': attributes.get('unit_of_measurement'),
@@ -97,12 +182,12 @@ class EntityAttributeService:
                 'is_group': self._determine_is_group(entity_id, attributes),
                 'integration': self._get_integration_from_attributes(attributes),
                 'supported_features': attributes.get('supported_features'),
-                'device_id': None,  # Could be fetched from entity registry if needed
-                'area_id': attributes.get('area_id')
+                'device_id': device_id,
+                'area_id': area_id
             }
             
-            logger.debug(f"Enriched entity {entity_id}: is_group={enriched['is_group']}, "
-                        f"integration={enriched['integration']}")
+            logger.debug(f"Enriched entity {entity_id}: friendly_name='{friendly_name}', "
+                        f"is_group={enriched['is_group']}, integration={enriched['integration']}")
             
             return enriched
             

@@ -333,7 +333,7 @@ Key configuration options in `infrastructure/.env`:
 ```bash
 # Home Assistant Connection
 HA_HTTP_URL=http://192.168.1.86:8123
-HA_WS_URL=ws://192.168.1.86:8123/api/websocket
+HA_WS_URL=ws://192.168.1.86:8123/api/websocket  # /api/websocket is auto-appended if missing
 HA_TOKEN=your-long-lived-token
 
 # InfluxDB

@@ -985,4 +985,52 @@ class HomeAssistantClient:
                 exc_info=True
             )
             return []
-
+    
+    async def get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get entity registry from Home Assistant.
+        
+        The Entity Registry contains the actual entity names as shown in the HA UI.
+        This is the source of truth for entity names, not the state API's friendly_name.
+        
+        Returns:
+            Dictionary mapping entity_id -> entity registry data
+            Example: {
+                "light.hue_color_downlight_1_7": {
+                    "entity_id": "light.hue_color_downlight_1_7",
+                    "name": "Office Back Left",  # <-- This is what shows in HA UI
+                    "original_name": "Hue Color Downlight 1 7",
+                    "platform": "hue",
+                    "config_entry_id": "...",
+                    "device_id": "...",
+                    "area_id": "...",
+                    ...
+                }
+            }
+        """
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/config/entity_registry/list"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Convert list to dict for easy lookup by entity_id
+                    registry_dict = {}
+                    for entity in data.get('entities', []):
+                        entity_id = entity.get('entity_id')
+                        if entity_id:
+                            registry_dict[entity_id] = entity
+                    
+                    logger.info(f"✅ Retrieved {len(registry_dict)} entities from Entity Registry")
+                    return registry_dict
+                elif response.status == 404:
+                    logger.warning("Entity Registry API not available (404)")
+                    return {}
+                else:
+                    logger.warning(f"Failed to get entity registry: {response.status}")
+                    return {}
+        except Exception as e:
+            logger.error(f"Error getting entity registry: {e}", exc_info=True)
+            return {}
+    

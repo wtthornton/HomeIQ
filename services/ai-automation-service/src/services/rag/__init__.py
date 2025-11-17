@@ -1,0 +1,25 @@
+"""
+Generic RAG (Retrieval-Augmented Generation) Service
+
+Provides semantic knowledge storage and retrieval using embeddings.
+Can be used for:
+- Query clarification (primary use case)
+- Pattern matching enhancement
+- Suggestion generation
+- Device intelligence
+- Automation mining
+"""
+
+from .client import RAGClient
+from .exceptions import RAGError, EmbeddingGenerationError, StorageError, RetrievalError
+from .models import SemanticKnowledge
+
+__all__ = [
+    "RAGClient",
+    "RAGError",
+    "EmbeddingGenerationError",
+    "StorageError",
+    "RetrievalError",
+    "SemanticKnowledge",
+]
+
