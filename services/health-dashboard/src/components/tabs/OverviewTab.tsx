@@ -5,12 +5,15 @@ import { useDataSources } from '../../hooks/useDataSources';
 import { useAlerts } from '../../hooks/useAlerts';
 import { usePerformanceHistory } from '../../hooks/usePerformanceHistory';
 import { useDevices } from '../../hooks/useDevices';
+import { useRAGStatus } from '../../hooks/useRAGStatus';
 import { SkeletonCard } from '../skeletons';
 import { SystemStatusHero } from '../SystemStatusHero';
 import { CoreSystemCard } from '../CoreSystemCard';
 import { PerformanceSparkline } from '../PerformanceSparkline';
 import { ServiceDetailsModal, ServiceDetail } from '../ServiceDetailsModal';
 import { IntegrationDetailsModal } from '../IntegrationDetailsModal';
+import { RAGStatusCard } from '../RAGStatusCard';
+import { RAGDetailsModal } from '../RAGDetailsModal';
 import { ServiceHealthResponse } from '../../types/health';
 import { apiService } from '../../services/api';
 import { TabProps } from './types';
@@ -69,6 +72,9 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   
   // Phase 3: Sparkline time range control
   const [sparklineTimeRange, setSparklineTimeRange] = useState('1h');
+  
+  // RAG Status modal
+  const [showRAGDetails, setShowRAGDetails] = useState(false);
 
   // Fetch enhanced health data
   useEffect(() => {
@@ -122,6 +128,13 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const { health, loading: healthLoading, error: healthError } = useHealth(30000);
   const { statistics, loading: statsLoading } = useStatistics('1h', 30000);
   const { dataSources } = useDataSources(30000);
+  
+  // RAG Status calculation
+  const { ragStatus, loading: ragLoading } = useRAGStatus({
+    enhancedHealth,
+    statistics,
+    loading: enhancedHealthLoading || statsLoading
+  });
   
   // Devices & Integrations data (for HA Integration section)
   const { devices, entities, integrations, loading: devicesLoading } = useDevices();
@@ -426,6 +439,21 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
               />
             </>
           )}
+        </div>
+      </div>
+
+      {/* RAG Status Monitor - Option 1: Integrated RAG Status Card */}
+      <div className="mb-8">
+        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          🚦 RAG Status Monitor
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <RAGStatusCard
+            ragStatus={ragStatus}
+            loading={ragLoading}
+            darkMode={darkMode}
+            onExpand={() => setShowRAGDetails(true)}
+          />
         </div>
       </div>
 
@@ -758,6 +786,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
           darkMode={darkMode}
         />
       )}
+
+      {/* RAG Details Modal */}
+      <RAGDetailsModal
+        isOpen={showRAGDetails}
+        onClose={() => setShowRAGDetails(false)}
+        ragStatus={ragStatus}
+        darkMode={darkMode}
+      />
     </>
   );
 };
