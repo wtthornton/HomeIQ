@@ -425,8 +425,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
-- **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
-- **Fix clarification flow and standardize HA token configuration** (November 18, 2025)
+- **Story AI1.26: Persistent clarification session storage** (November 18, 2025)
+  - Database-backed clarification flow with query ID linkage
+  - Smart suggestion retrieval supporting both direct and clarification query IDs
+  - HOME_ASSISTANT_TOKEN standardization (removed LOCAL_HA_TOKEN/LOCAL_HA_URL)
+  - YAML 2025 standards enforcement
 - **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
 - **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
 - **Add cache expiration and staleness detection across services** (November 17, 2025)
