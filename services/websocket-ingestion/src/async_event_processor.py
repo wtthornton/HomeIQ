@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from collections import deque
 import weakref
 
+from .state_machine import ProcessingStateMachine, ProcessingState, InvalidStateTransition
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +39,8 @@ class AsyncEventProcessor:
         
         # Worker management
         self.workers: List[asyncio.Task] = []
-        self.is_running = False
+        # State machine for processing state management
+        self.state_machine = ProcessingStateMachine()
         self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=10000)
         
         # Event handlers
@@ -49,26 +52,43 @@ class AsyncEventProcessor:
         
     async def start(self):
         """Start the async event processor"""
-        if self.is_running:
+        current_state = self.state_machine.get_state()
+        if current_state == ProcessingState.RUNNING:
             logger.warning("Event processor is already running")
             return
         
-        self.is_running = True
-        self.processing_start_time = datetime.now()
-        
-        # Start worker tasks
-        for i in range(self.max_workers):
-            worker_task = asyncio.create_task(self._worker(f"worker-{i}"))
-            self.workers.append(worker_task)
-        
-        logger.info(f"Started async event processor with {self.max_workers} workers")
+        try:
+            # Transition to starting state
+            if current_state == ProcessingState.STOPPED:
+                self.state_machine.transition(ProcessingState.STARTING)
+            elif current_state == ProcessingState.ERROR:
+                self.state_machine.transition(ProcessingState.STARTING)
+            
+            self.processing_start_time = datetime.now()
+            
+            # Start worker tasks
+            for i in range(self.max_workers):
+                worker_task = asyncio.create_task(self._worker(f"worker-{i}"))
+                self.workers.append(worker_task)
+            
+            # Transition to running
+            self.state_machine.transition(ProcessingState.RUNNING)
+            
+            logger.info(f"Started async event processor with {self.max_workers} workers")
+        except InvalidStateTransition as e:
+            logger.error(f"Cannot start event processor from state {current_state.value}: {e}")
     
     async def stop(self):
         """Stop the async event processor"""
-        if not self.is_running:
+        current_state = self.state_machine.get_state()
+        if current_state == ProcessingState.STOPPED:
             return
         
-        self.is_running = False
+        try:
+            # Transition to stopping state
+            self.state_machine.transition(ProcessingState.STOPPING)
+        except InvalidStateTransition:
+            self.state_machine.transition(ProcessingState.STOPPING, force=True)
         
         # Cancel all worker tasks
         for worker in self.workers:
@@ -77,6 +97,12 @@ class AsyncEventProcessor:
         # Wait for workers to finish
         await asyncio.gather(*self.workers, return_exceptions=True)
         self.workers.clear()
+        
+        # Transition to stopped
+        try:
+            self.state_machine.transition(ProcessingState.STOPPED)
+        except InvalidStateTransition:
+            self.state_machine.reset(ProcessingState.STOPPED)
         
         logger.info("Stopped async event processor")
     
@@ -111,7 +137,8 @@ class AsyncEventProcessor:
         """Worker task for processing events"""
         logger.debug(f"Started worker {worker_name}")
         
-        while self.is_running:
+        current_state = self.state_machine.get_state()
+        while current_state == ProcessingState.RUNNING:
             try:
                 # Get event from queue with timeout
                 event_data = await asyncio.wait_for(
@@ -139,6 +166,18 @@ class AsyncEventProcessor:
             except Exception as e:
                 logger.error(f"Worker {worker_name} error: {e}")
                 self.failed_events += 1
+                try:
+                    self.state_machine.transition(ProcessingState.ERROR)
+                except InvalidStateTransition:
+                    pass
+                # Try to recover
+                try:
+                    self.state_machine.transition(ProcessingState.RUNNING)
+                except InvalidStateTransition:
+                    pass
+            
+            # Update current state for loop condition
+            current_state = self.state_machine.get_state()
         
         logger.debug(f"Worker {worker_name} stopped")
     
@@ -178,7 +217,8 @@ class AsyncEventProcessor:
     
     def configure_max_workers(self, max_workers: int):
         """Configure maximum number of workers"""
-        if self.is_running:
+        current_state = self.state_machine.get_state()
+        if current_state == ProcessingState.RUNNING:
             logger.warning("Cannot change max_workers while processor is running")
             return
         
@@ -204,7 +244,8 @@ class AsyncEventProcessor:
         success_rate = (self.processed_events / total_events * 100) if total_events > 0 else 0
         
         return {
-            "is_running": self.is_running,
+            "state": self.state_machine.get_state().value,
+            "is_running": self.state_machine.get_state() == ProcessingState.RUNNING,
             "max_workers": self.max_workers,
             "active_workers": len([w for w in self.workers if not w.done()]),
             "processing_rate_limit": self.processing_rate_limit,

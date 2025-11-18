@@ -79,6 +79,7 @@ class YAMLStructureValidator:
         
         # Check trigger structure
         triggers = data.get('trigger', data.get('triggers', []))
+        trigger_fix_needed = False
         if isinstance(triggers, list):
             for i, trigger in enumerate(triggers):
                 if isinstance(trigger, dict):
@@ -87,6 +88,60 @@ class YAMLStructureValidator:
                         errors.append(
                             f"❌ Trigger {i+1}: Found 'trigger: state' - should be 'platform: state'"
                         )
+                    
+                    # CRITICAL FIX: If trigger: time has minutes/hours/seconds, it should be trigger: time_pattern
+                    # Also fix if 'at' field contains cron expressions (like '/10 * * * *')
+                    trigger_type = trigger.get('trigger', trigger.get('platform', ''))
+                    if trigger_type == 'time':
+                        at_value = trigger.get('at')
+                        has_interval_fields = 'minutes' in trigger or 'hours' in trigger or 'seconds' in trigger
+                        has_cron_in_at = False
+                        minutes_value = None
+                        
+                        # Check if 'at' contains a cron expression (e.g., '/10 * * * *')
+                        if at_value:
+                            if isinstance(at_value, list) and len(at_value) > 0:
+                                at_value = at_value[0]
+                            if isinstance(at_value, str):
+                                # Check for cron pattern: starts with '/' or contains '*'
+                                if at_value.startswith('/') or '*' in at_value:
+                                    has_cron_in_at = True
+                                    # Extract the interval (e.g., '/10' from '/10 * * * *')
+                                    cron_match = re.match(r'^/(\d+)', at_value)
+                                    if cron_match:
+                                        minutes_value = f"/{cron_match.group(1)}"
+                                        logger.info(f"🔧 Detected cron expression in 'at' field: {at_value}, extracting interval: {minutes_value}")
+                        
+                        if has_interval_fields or has_cron_in_at:
+                            # This is a recurring interval - should use time_pattern
+                            if has_cron_in_at:
+                                errors.append(
+                                    f"❌ Trigger {i+1}: Found 'trigger: time' with cron expression in 'at' field - "
+                                    f"should be 'trigger: time_pattern' with 'minutes:' for recurring intervals"
+                                )
+                            else:
+                                errors.append(
+                                    f"❌ Trigger {i+1}: Found 'trigger: time' with 'minutes'/'hours'/'seconds' - "
+                                    f"should be 'trigger: time_pattern' for recurring intervals"
+                                )
+                            
+                            # Auto-fix: Change trigger type to time_pattern
+                            if 'trigger' in trigger:
+                                trigger['trigger'] = 'time_pattern'
+                            elif 'platform' in trigger:
+                                trigger['platform'] = 'time_pattern'
+                            
+                            # If we found a cron expression, convert it to minutes field
+                            if has_cron_in_at and minutes_value:
+                                # Remove the invalid 'at' field
+                                if 'at' in trigger:
+                                    del trigger['at']
+                                # Add the correct 'minutes' field
+                                trigger['minutes'] = minutes_value
+                                logger.info(f"🔧 Converted cron expression to time_pattern with minutes: {minutes_value}")
+                            
+                            trigger_fix_needed = True
+                            logger.info(f"🔧 Fixed trigger {i+1}: Changed 'trigger: time' to 'trigger: time_pattern'")
                     
                     # Check that platform exists (required for state triggers)
                     if 'entity_id' in trigger and 'platform' not in trigger:
@@ -189,21 +244,30 @@ class YAMLStructureValidator:
                                         )
         
         # Auto-fix if errors found
+        auto_fixed_yaml = None
         fixed_yaml = None
         if errors:
-            fixed_yaml = self._auto_fix(yaml_str, errors)
-            if fixed_yaml:
+            auto_fixed_yaml = self._auto_fix(yaml_str, errors)
+            if auto_fixed_yaml:
                 # Validate the fixed version
-                fixed_validation = self._validate_fixed(fixed_yaml)
+                fixed_validation = self._validate_fixed(auto_fixed_yaml)
                 if fixed_validation.is_valid:
                     logger.info("✅ Auto-fixed YAML structure errors")
                 else:
                     logger.warning(f"⚠️ Auto-fix incomplete: {len(fixed_validation.errors)} errors remain")
         
-        # If fixes were applied, update fixed_yaml
-        if service_fixes_applied and not fixed_yaml:
-            # Regenerate YAML if we haven't already
+        # Use the most complete fixed version
+        # Priority: trigger_fix > service_fixes > auto_fix
+        if trigger_fix_needed or service_fixes_applied:
+            # Regenerate YAML with all fixes applied
             fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
+            if trigger_fix_needed:
+                logger.info(f"🔧 Regenerated YAML with trigger fix applied (trigger_fix_needed=True)")
+            if service_fixes_applied:
+                logger.info(f"🔧 Regenerated YAML with service fixes applied ({len(service_fixes_applied)} fixes)")
+        elif auto_fixed_yaml:
+            fixed_yaml = auto_fixed_yaml
+            logger.info(f"🔧 Using auto-fixed YAML from regex fixes")
         
         return ValidationResult(
             is_valid=len(errors) == 0,

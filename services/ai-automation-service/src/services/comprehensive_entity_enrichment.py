@@ -84,7 +84,18 @@ async def enrich_entities_comprehensively(
         except Exception as e:
             logger.warning(f"⚠️ Device Intelligence enrichment failed: {e}")
     
-    # Step 3: Get historical usage patterns (optional)
+    # Step 3: Get relationship data (sibling entities, device hierarchy)
+    relationship_data = {}
+    if data_api_client:
+        try:
+            relationship_data = await _get_relationship_data_for_entities(
+                entity_ids, data_api_client
+            )
+            logger.info(f"✅ Relationship data enrichment: {len(relationship_data)} entities")
+        except Exception as e:
+            logger.warning(f"⚠️ Relationship data enrichment failed: {e}")
+    
+    # Step 4: Get historical usage patterns (optional)
     historical_data = {}
     if include_historical and data_api_client:
         try:
@@ -95,7 +106,7 @@ async def enrich_entities_comprehensively(
         except Exception as e:
             logger.warning(f"⚠️ Historical data enrichment failed: {e}")
     
-    # Step 4: Combine all data sources for each entity
+    # Step 5: Combine all data sources for each entity
     for entity_id in entity_ids:
         combined = {
             'entity_id': entity_id,
@@ -130,7 +141,11 @@ async def enrich_entities_comprehensively(
             'usage_frequency': None,
             'common_states': [],
             'typical_usage_times': [],
-            'recent_activity': None
+            'recent_activity': None,
+            # Relationship data
+            'related_entities': [],  # Sibling entities from same device
+            'config_entry_id': None,  # Source tracking
+            'via_device': None  # Parent device (from device relationship)
         }
         
         # Merge HA enrichment data
@@ -171,6 +186,15 @@ async def enrich_entities_comprehensively(
             # Use device intelligence area_name if HA area_id is missing
             if not combined.get('area_id') and intel_data.get('area_name'):
                 combined['area_id'] = intel_data.get('area_id')
+        
+        # Merge relationship data
+        if entity_id in relationship_data:
+            rel_data = relationship_data[entity_id]
+            combined.update({
+                'related_entities': rel_data.get('related_entities', []),
+                'config_entry_id': rel_data.get('config_entry_id'),
+                'via_device': rel_data.get('via_device')
+            })
         
         # Merge historical patterns
         if entity_id in historical_data:
@@ -342,6 +366,109 @@ async def _get_device_intelligence_for_entities(
         logger.error(f"Device Intelligence enrichment error: {e}", exc_info=True)
     
     return device_intel_data
+
+
+async def _get_relationship_data_for_entities(
+    entity_ids: Set[str],
+    data_api_client: Any
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get relationship data for entities (sibling entities, config_entry_id, via_device).
+    
+    Uses data-api relationship query endpoints to fetch sibling entities and device hierarchy.
+    """
+    relationship_data = {}
+    
+    if not data_api_client:
+        return relationship_data
+    
+    try:
+        import asyncio
+        import aiohttp
+        
+        # Get base URL for data-api
+        data_api_url = getattr(data_api_client, 'base_url', 'http://data-api:8006')
+        
+        async def fetch_relationship_data(entity_id: str) -> tuple:
+            """Fetch relationship data for a single entity"""
+            try:
+                # Fetch sibling entities
+                async with aiohttp.ClientSession() as session:
+                    siblings_url = f"{data_api_url}/api/entities/{entity_id}/siblings"
+                    async with session.get(siblings_url, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
+                        if response.status == 200:
+                            siblings_data = await response.json()
+                            siblings = siblings_data.get('siblings', [])
+                            related_entity_ids = [s.get('entity_id') for s in siblings if s.get('entity_id')]
+                        else:
+                            related_entity_ids = []
+                    
+                    # Fetch entity to get config_entry_id
+                    entity_url = f"{data_api_url}/api/entities/{entity_id}"
+                    async with session.get(entity_url, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
+                        config_entry_id = None
+                        via_device = None
+                        if response.status == 200:
+                            entity_data = await response.json()
+                            config_entry_id = entity_data.get('config_entry_id')
+                            
+                            # Get device to fetch via_device
+                            device_id = entity_data.get('device_id')
+                            if device_id:
+                                device_url = f"{data_api_url}/api/entities/{entity_id}/device"
+                                async with session.get(device_url, timeout=aiohttp.ClientTimeout(total=2.0)) as device_response:
+                                    if device_response.status == 200:
+                                        device_data = await device_response.json()
+                                        device_info = device_data.get('device', {})
+                                        via_device = device_info.get('via_device')
+                
+                return (entity_id, {
+                    'related_entities': related_entity_ids,
+                    'config_entry_id': config_entry_id,
+                    'via_device': via_device
+                })
+            except Exception as e:
+                logger.debug(f"Could not get relationship data for {entity_id}: {e}")
+                return (entity_id, {
+                    'related_entities': [],
+                    'config_entry_id': None,
+                    'via_device': None
+                })
+        
+        # Fetch relationship data for all entities in parallel
+        if entity_ids:
+            logger.debug(f"📡 Fetching relationship data for {len(entity_ids)} entities in parallel...")
+            fetch_tasks = [
+                fetch_relationship_data(entity_id)
+                for entity_id in entity_ids
+            ]
+            
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*fetch_tasks, return_exceptions=True),
+                    timeout=5.0  # 5 second timeout for all parallel fetches
+                )
+                
+                # Process results
+                for result in results:
+                    if isinstance(result, Exception):
+                        logger.debug(f"Relationship data fetch error: {result}")
+                        continue
+                    entity_id, rel_data = result
+                    if rel_data:
+                        relationship_data[entity_id] = rel_data
+                        logger.debug(f"📋 Relationship data for {entity_id}: {len(rel_data.get('related_entities', []))} siblings")
+                
+                logger.debug(f"✅ Fetched relationship data for {len(relationship_data)} entities")
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️ Relationship data fetch timed out after 5s (got {len(relationship_data)}/{len(entity_ids)} results)")
+            except Exception as e:
+                logger.warning(f"⚠️ Error in parallel relationship data fetch: {e}")
+    
+    except Exception as e:
+        logger.warning(f"Relationship data enrichment error: {e}")
+    
+    return relationship_data
 
 
 async def _get_historical_patterns_for_entities(

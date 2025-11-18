@@ -55,6 +55,7 @@ class ServiceContainer:
         self._yaml_corrector: Optional[Any] = None
         self._test_executor: Optional[Any] = None
         self._deployer: Optional[Any] = None
+        self._action_executor: Optional[Any] = None
         
         # Conversation services (will be initialized when conversation module is created)
         self._context_manager: Optional[Any] = None
@@ -224,8 +225,11 @@ class ServiceContainer:
         """Get or create test executor"""
         if self._test_executor is None:
             from .automation.test_executor import AutomationTestExecutor
+            # Pass action_executor to test_executor for direct action execution
+            action_executor = self.action_executor
             self._test_executor = AutomationTestExecutor(
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
+                action_executor=action_executor
             )
             logger.info("✅ AutomationTestExecutor initialized")
         return self._test_executor
@@ -240,6 +244,28 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationDeployer initialized")
         return self._deployer
+    
+    @property
+    def action_executor(self):
+        """Get or create action executor"""
+        if self._action_executor is None:
+            from .automation.action_executor import ActionExecutor
+            from ..template_engine import TemplateEngine
+            from ..config import settings
+            
+            # Create template engine for action executor
+            template_engine = TemplateEngine(ha_client=self.ha_client)
+            
+            # Initialize action executor
+            self._action_executor = ActionExecutor(
+                ha_client=self.ha_client,
+                template_engine=template_engine,
+                num_workers=getattr(settings, 'action_executor_workers', 2),
+                max_retries=getattr(settings, 'action_executor_max_retries', 3),
+                retry_delay=getattr(settings, 'action_executor_retry_delay', 1.0)
+            )
+            logger.info("✅ ActionExecutor initialized")
+        return self._action_executor
     
     # Conversation services properties
     @property

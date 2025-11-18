@@ -10,7 +10,7 @@ Created: Phase 3 - New API Routers
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text

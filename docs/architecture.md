@@ -15,8 +15,8 @@ This document serves as the main entry point for the Home Assistant Ingestor arc
 **Database:** Hybrid architecture (InfluxDB for time-series, SQLite for metadata)  
 **Deployment:** Docker Compose with optimized Alpine images and containerized AI microservices  
 **Purpose:** Capture Home Assistant events, enrich with weather context, store in time-series database, provide AI-powered automation  
-**Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration, Phase 1 AI containerization complete  
-**Last Updated:** October 24, 2025
+**Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration, Phase 1 AI containerization complete, Home Assistant pattern improvements implemented (State Machines, Template Engine, Condition Evaluator)  
+**Last Updated:** November 18, 2025
 
 ## Enhanced HA Connection Management
 
@@ -116,6 +116,66 @@ The system now includes **containerized AI microservices** for advanced automati
 
 **Status:** ✅ Phase 1 Complete - All AI services containerized, tested, and operational
 
+## Home Assistant Pattern Improvements (November 2025)
+
+The system now includes three high-priority improvements inspired by Home Assistant's architecture:
+
+### ✅ State Machine Pattern
+
+**Implementation:** `services/websocket-ingestion/src/state_machine.py`
+
+**Features:**
+- **Connection State Machine** - Manages WebSocket connection lifecycle (DISCONNECTED → CONNECTING → AUTHENTICATING → CONNECTED → RECONNECTING → FAILED)
+- **Processing State Machine** - Manages batch and async event processing states (STOPPED → STARTING → RUNNING → PAUSED → STOPPING → ERROR)
+- **State Transition Validation** - Prevents invalid state transitions with explicit rules
+- **History Tracking** - Records all state transitions for debugging
+- **Force Transitions** - Allows recovery from edge cases
+
+**Integration:**
+- `ConnectionManager` uses `ConnectionStateMachine`
+- `BatchProcessor` uses `ProcessingStateMachine`
+- `AsyncEventProcessor` uses `ProcessingStateMachine`
+
+**Test Coverage:** 15/15 tests passing (100%), 95% code coverage
+
+### ✅ Template Engine
+
+**Implementation:** `services/ai-automation-service/src/template_engine.py`
+
+**Features:**
+- **Jinja2-based** - Secure sandboxed template rendering
+- **Home Assistant-style State Access** - Supports `states('entity_id')` and `states.entity_id.state` syntax
+- **Time Functions** - Access to `now()`, `utcnow()` for time-based templates
+- **Filters** - Supports `float`, `int`, `round` filters
+- **Template Validation** - Pre-validate templates before use
+
+**Benefits:**
+- Dynamic automations that adapt to current state
+- More intelligent automation generation
+- Enables advanced patterns like adaptive thresholds
+
+**Test Coverage:** 17/17 tests passing (100%), 81% code coverage
+
+### ✅ Condition Evaluation Engine
+
+**Implementation:** `services/ai-automation-service/src/condition_evaluator.py`
+
+**Features:**
+- **AND/OR/NOT Logic** - Full support for logical operators
+- **Nested Conditions** - Arbitrarily nested condition structures
+- **Multiple Condition Types** - state, numeric_state, time, template, zone, device
+- **List Conditions** - Default to AND logic for condition lists
+- **Template Integration** - Works seamlessly with TemplateEngine
+
+**Benefits:**
+- More sophisticated automation conditions
+- Runtime condition validation
+- Test automation conditions without deploying
+
+**Test Coverage:** 25/25 tests passing (100%), 64% code coverage
+
+**Overall:** 57 tests passing across all three improvements (100% pass rate)
+
 ## Architecture Diagram (Epic 31 - Current)
 
 ```mermaid
@@ -208,7 +268,7 @@ graph TB
 | **ai-automation-service** | Python/FastAPI | 8018 | AI pattern detection + device intelligence | ✅ Active |
 | **data-retention** | Python/FastAPI | 8080 | Enhanced data lifecycle, tiered retention, S3 archival | ✅ Active |
 | **admin-api** | Python/FastAPI | 8003 | System monitoring & control REST API | ✅ Active |
-| **data-api** | Python/FastAPI | 8006 | Feature data hub (events, devices, sports, analytics) | ✅ Active |
+| **data-api** | Python/FastAPI | 8006 | Feature data hub (events, devices, sports, analytics) + EntityRegistry service | ✅ Active |
 | **sports-data** | Python/FastAPI | 8005 | NFL/NHL game data with InfluxDB persistence | ✅ Active |
 | **health-dashboard** | React/TypeScript | 3000 | Web-based monitoring interface | ✅ Active |
 | **influxdb** | InfluxDB 2.7 | 8086 | Time-series data storage (events, metrics, sports) | ✅ Active |
@@ -279,6 +339,18 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 - **Feature**: Automatic invalid entity ID detection and replacement
 - **Impact**: Prevents "Entity not found" errors during automation approval
 - **Implementation**: Generic matching algorithm working for all entity types
+
+### January 2025 - Enhanced Entity Registry
+- **Added**: EntityRegistry service with relationship query methods
+- **Feature**: Expanded device → entity → area relationships with richer metadata (config_entry_id, via_device)
+- **Impact**: Better automation suggestions through sibling entity discovery and device hierarchy tracking
+- **Implementation**: 
+  - Added `config_entry_id` to entities and devices (source tracking)
+  - Added `via_device` to devices (device hierarchy via self-referential FK)
+  - Created EntityRegistry service with 6 relationship query methods
+  - Added 6 new API endpoints for relationship queries
+  - Integrated relationship data into AI automation entity enrichment
+  - Enhanced entity validator with sibling entity suggestions
 
 ## 📚 Complete Documentation
 

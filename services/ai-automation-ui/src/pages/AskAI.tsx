@@ -15,10 +15,9 @@ import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import { DebugPanel } from '../components/ask-ai/DebugPanel';
 import { ClarificationDialog } from '../components/ask-ai/ClarificationDialog';
-import { ResponseHandler } from '../components/ask-ai/ResponseHandler';
 import api from '../services/api';
-import apiV2, { ResponseType as V2ResponseType } from '../services/api-v2';
 import { useConversationV2 } from '../hooks/useConversationV2';
+import { ResponseType } from '../services/api-v2';
 
 // Feature flag: Enable v2 API (set via environment variable or localStorage)
 const USE_V2_API = import.meta.env.VITE_USE_V2_API === 'true' || 
@@ -206,7 +205,7 @@ export const AskAI: React.FC = () => {
   };
   
   // v2 API message handler
-  const handleSendMessageV2 = async (inputValue: string, userMessage: ChatMessage) => {
+  const handleSendMessageV2 = async (inputValue: string, _userMessage: ChatMessage) => {
     try {
       // Start conversation if not already started
       if (!v2Conversation.conversationId) {
@@ -232,7 +231,7 @@ export const AskAI: React.FC = () => {
               validated_entities: s.validated_entities,
             })),
             confidence: turnResponse.confidence?.overall,
-            clarificationNeeded: turnResponse.response_type === V2ResponseType.CLARIFICATION_NEEDED,
+            clarificationNeeded: turnResponse.response_type === ResponseType.CLARIFICATION_NEEDED,
             questions: turnResponse.clarification_questions?.map(q => ({
               question_id: q.id,
               question_text: q.question_text,
@@ -245,7 +244,7 @@ export const AskAI: React.FC = () => {
           updateContextFromMessage(aiMessage);
 
           // Handle clarification dialog
-          if (turnResponse.response_type === V2ResponseType.CLARIFICATION_NEEDED && 
+          if (turnResponse.response_type === ResponseType.CLARIFICATION_NEEDED && 
               turnResponse.clarification_questions && 
               turnResponse.clarification_questions.length > 0) {
             setClarificationDialog({

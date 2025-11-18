@@ -32,7 +32,7 @@ class Conversation(Base):
     status = Column(String, nullable=False, default='active')  # 'active', 'completed', 'abandoned'
     initial_query = Column(Text, nullable=False)
     context = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    conversation_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)

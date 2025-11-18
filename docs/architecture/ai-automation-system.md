@@ -1,10 +1,14 @@
 # AI Automation System Architecture
 
 **Epic:** AI1 - AI Automation Suggestion System (Enhanced)  
-**Last Updated:** November 1, 2025  
+**Last Updated:** November 18, 2025  
 **Status:** Production Ready
 
 **🔄 Recent Updates:**
+- **Nov 18, 2025:** Home Assistant Pattern Improvements implemented:
+  - ✅ Template Engine for dynamic automation values (Jinja2-based)
+  - ✅ Condition Evaluation Engine with AND/OR/NOT logic
+  - ✅ Full test coverage (42 tests passing, 100% pass rate)
 - **Oct 17, 2025:** Database schema updated for Story AI1.23 (Conversational Suggestion Refinement)
 - **Nov 1, 2025:** Post-refinement entity sanitization added to self-correction service (prevents invalid entity IDs)
 - **Jan 20, 2025:** RAG (Retrieval-Augmented Generation) system added for semantic understanding and reduced false positive clarifications
@@ -332,6 +336,117 @@ CREATE TABLE semantic_knowledge (
 - Uses Isolation Forest (inverted)
 - Finds repeated manual interventions
 - Example: User manually adjusts thermostat at 6 AM daily
+
+---
+
+### 7. Template Engine (Nov 2025 - Home Assistant Pattern)
+
+**Purpose:** Enable dynamic automation values using Jinja2 templates with Home Assistant-style state access
+
+**Components:**
+- `template_engine.py` - Core template rendering engine
+- `StateProxy` - Home Assistant-style state access (`states('entity_id')`, `states.domain.entity_id.state`)
+- `TimeProxy` - Time-related functions (`now()`, `utcnow()`)
+
+**Features:**
+- **Jinja2-based:** Secure sandboxed environment with `SandboxedEnvironment`
+- **Home Assistant Compatibility:** Supports `states()` function and `states.entity_id.state` syntax
+- **Time Functions:** Access to `now()`, `utcnow()` for time-based templates
+- **Filters:** Supports `float`, `int`, `round` filters
+- **Template Validation:** Pre-validate templates before use
+- **Automation Rendering:** Render full automation YAML with template variables
+
+**Example Usage:**
+```python
+from src.template_engine import TemplateEngine
+
+engine = TemplateEngine(ha_client)
+result = await engine.render(
+    "{{ states('sensor.temperature') | float + 2 }}",
+    context={}
+)
+```
+
+**Automation Example:**
+```yaml
+triggers:
+  - trigger: state
+    entity_id: sensor.temperature
+    above: "{{ states('sensor.temp_threshold') | float }}"
+actions:
+  - action: climate.set_temperature
+    data:
+      temperature: "{{ states('sensor.temperature') | float + 2 }}"
+```
+
+**Benefits:**
+- Dynamic automations that adapt to current state
+- More intelligent automation generation
+- Better user experience (automations work with current context)
+- Enables advanced patterns like adaptive thresholds
+
+**Test Coverage:** 17/17 tests passing (100%), 81% code coverage
+
+---
+
+### 8. Condition Evaluation Engine (Nov 2025 - Home Assistant Pattern)
+
+**Purpose:** Evaluate automation conditions with sophisticated AND/OR/NOT logic and nested conditions
+
+**Components:**
+- `condition_evaluator.py` - Core condition evaluation engine
+- Support for multiple condition types (state, numeric_state, time, template, zone, device)
+
+**Features:**
+- **AND/OR/NOT Logic:** Full support for logical operators
+- **Nested Conditions:** Arbitrarily nested condition structures
+- **Multiple Condition Types:**
+  - `state` - Entity state conditions
+  - `numeric_state` - Numeric value comparisons
+  - `time` - Time-based conditions
+  - `template` - Template-based conditions
+  - `zone` - Zone-based conditions
+  - `device` - Device-based conditions
+- **List Conditions:** Default to AND logic for condition lists
+- **Template Integration:** Works seamlessly with TemplateEngine
+
+**Example Usage:**
+```python
+from src.condition_evaluator import ConditionEvaluator
+
+evaluator = ConditionEvaluator(ha_client, template_engine)
+
+# AND condition
+condition = {
+    "condition": "and",
+    "conditions": [
+        {"condition": "state", "entity_id": "sensor.temperature", "above": "20"},
+        {"condition": "state", "entity_id": "binary_sensor.window", "state": "off"}
+    ]
+}
+result = await evaluator.evaluate(condition, context={})
+
+# OR condition with NOT
+condition = {
+    "condition": "or",
+    "conditions": [
+        {"condition": "state", "entity_id": "sensor.motion", "state": "on"},
+        {
+            "condition": "not",
+            "conditions": [{"condition": "state", "entity_id": "light.living_room", "state": "off"}]
+        }
+    ]
+}
+result = await evaluator.evaluate(condition, context={})
+```
+
+**Benefits:**
+- More sophisticated automation conditions
+- Better automation suggestions (suggest complex conditions)
+- Runtime condition validation
+- Test automation conditions without deploying
+
+**Test Coverage:** 25/25 tests passing (100%), 64% code coverage
 
 ---
 

@@ -5,7 +5,7 @@
  * Provides type-safe access to conversation, automation, and action APIs.
  */
 
-import type { Suggestion } from '../types';
+// Removed unused import
 
 // Use relative path - nginx will proxy to ai-automation-service
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
