@@ -145,3 +145,4 @@ Write-Host ""
 Write-Host "💡 Tip: Keep the browser console open to see debug logs" -ForegroundColor Yellow
 Write-Host "   that will help identify if confidence data is being received." -ForegroundColor Yellow
 
+

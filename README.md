@@ -425,6 +425,16 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix entities endpoint database schema issue** (November 18, 2025)
+  - Fixed 500 error on `/api/entities` endpoint caused by missing database columns
+  - Added migration 004 documentation and troubleshooting steps
+  - Entities now display correctly in dashboard (was showing 0 entities)
+  - See [Data API README](services/data-api/README.md#entities-endpoint-returns-500-error) for migration instructions
+- **Fix websocket ingestion, dashboard, and AI automation improvements** (November 17, 2025)
+  - Fixed websocket-ingestion service crash loop (import path fixes, Dockerfile correction)
+  - Fixed health dashboard OverviewTab to properly show system status based on RAG status and data source health
+  - Added area filtering to AI automation Ask AI interface (automatically filters devices by area)
+  - Enhanced prompt template with area restriction warnings for better device selection
 - **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
 - **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
 - **Story AI1.26: Persistent clarification session storage** (November 18, 2025)

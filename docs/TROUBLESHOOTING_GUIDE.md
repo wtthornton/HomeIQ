@@ -295,6 +295,27 @@ docker-compose restart weather-api
 
 ### **3. InfluxDB Connection Issues**
 
+#### **✅ Entities Endpoint Returns 500 Error (FIXED - November 18, 2025)**
+**Problem**: `/api/entities` endpoint returns 500 Internal Server Error with message `no such column: entities.name`
+**Status**: ✅ **RESOLVED** - Database migration 004 applied
+**Symptoms**:
+- Dashboard shows 0 entities
+- Device detail popups show "No entities found"
+- API endpoint returns 500 error
+
+**Solution**:
+```bash
+# Run database migration
+docker exec -w /app/services/data-api homeiq-data-api alembic upgrade head
+
+# Or manually add missing columns (if migration fails)
+docker exec -it homeiq-data-api python
+# Then run the SQL commands from services/data-api/README.md
+```
+
+**Prevention**: Always run `alembic upgrade head` after pulling code updates
+**See**: [Data API README - Entities Endpoint Troubleshooting](../services/data-api/README.md#entities-endpoint-returns-500-error)
+
 #### **Problem**: Database connection failures
 **Symptoms:**
 - "InfluxDB connection failed" errors

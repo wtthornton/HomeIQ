@@ -56,6 +56,8 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🎨 **Enhanced Entity Resolution** - Multi-signal matching with fuzzy search, blocking, and user aliases
 - 🧠 **Semantic Understanding (RAG)** - Self-improving clarification system that learns from successful queries
 - 🔄 **Persistent Clarification Sessions** - Database-backed clarification flow with query ID linkage (AI1.26)
+- 🏠 **Area Filtering** - Automatically filters devices by area when specified in queries (e.g., "In the office, flash all lights")
+- 📍 **Multi-Area Support** - Handles queries specifying multiple areas with proper device filtering
 
 **LangChain Integration (Feature Flags):**
 - 🔧 `USE_LANGCHAIN_ASK_AI` - Enable LangChain for Ask AI prompts
@@ -1407,6 +1409,13 @@ async def detect_patterns(
 
 ## Version History
 
+### 2.3 (November 17, 2025)
+- Added area filtering to Ask AI interface
+- Automatically extracts area from user queries and filters devices accordingly
+- Enhanced prompt template with area restriction warnings
+- Supports single and multiple area specifications
+- Improved device selection accuracy for area-specific automations
+
 ### 2.2 (November 18, 2025)
 - Story AI1.26: Persistent clarification session storage
 - Database-backed clarification flow with query ID linkage
@@ -1445,8 +1454,8 @@ async def detect_patterns(
 
 ---
 
-**Last Updated:** November 18, 2025
-**Version:** 2.2
+**Last Updated:** November 17, 2025
+**Version:** 2.3
 **Status:** Production Ready ✅
 **Port:** 8018 (internal), 8024 (external)
 

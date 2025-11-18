@@ -17,6 +17,7 @@ from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .llm.openai_client import OpenAIClient
 from .safety_validator import SafetyValidator, SafetyResult
+from .utils.area_detection import extract_area_from_request, format_area_display
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,8 @@ class NLAutomationGenerator:
         """
         logger.info(f"🤖 Generating automation from NL: '{request.request_text}'")
         
-        # Extract area/location from request if specified
-        area_filter = self._extract_area_from_request(request.request_text)
+        # Extract area/location from request if specified (using shared utility)
+        area_filter = extract_area_from_request(request.request_text)
         if area_filter:
             logger.info(f"📍 Detected area filter: '{area_filter}'")
         
@@ -282,10 +283,11 @@ class NLAutomationGenerator:
         # Add area filter notice if applicable
         area_notice = ""
         if area_filter:
-            # Handle multiple areas (comma-separated)
-            areas = [a.replace('_', ' ').title() for a in area_filter.split(',')]
+            # Format area display using shared utility
+            area_display = format_area_display(area_filter)
+            areas = area_filter.split(',')
+            
             if len(areas) == 1:
-                area_display = areas[0]
                 area_notice = f"""
 
 **IMPORTANT - Area Restriction:**
@@ -293,11 +295,10 @@ The user has specified devices in the "{area_display}" area. You MUST use ONLY d
 The available devices list below has already been filtered to show only {area_display} devices. DO NOT use devices from other areas.
 """
             else:
-                area_list = ', '.join(areas[:-1]) + ' and ' + areas[-1]
                 area_notice = f"""
 
 **IMPORTANT - Area Restriction:**
-The user has specified devices in these areas: {area_list}. You MUST use ONLY devices that are located in these areas.
+The user has specified devices in these areas: {area_display}. You MUST use ONLY devices that are located in these areas.
 The available devices list below has already been filtered to show only devices from these areas. DO NOT use devices from other areas.
 """
         
@@ -492,94 +493,8 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
         
         return prompt
 
-    def _extract_area_from_request(self, request_text: str) -> Optional[str]:
-        """
-        Extract area(s)/location(s) from the user request.
-        
-        Looks for common patterns like:
-        - Single area: "in the office", "at the kitchen"
-        - Multiple areas: "in the office and kitchen", "bedroom and living room"
-        
-        Args:
-            request_text: User's natural language request
-        
-        Returns:
-            Comma-separated area names if found (e.g., "office,kitchen"), None otherwise
-        """
-        if not request_text:
-            return None
-        
-        text_lower = request_text.lower()
-        
-        # Common area/room names
-        common_areas = [
-            'office', 'kitchen', 'bedroom', 'living room', 'living_room', 
-            'bathroom', 'garage', 'basement', 'attic', 'hallway',
-            'dining room', 'dining_room', 'master bedroom', 'master_bedroom',
-            'guest room', 'guest_room', 'laundry room', 'laundry_room',
-            'den', 'study', 'library', 'gym', 'playroom', 'nursery',
-            'porch', 'patio', 'deck', 'yard', 'garden', 'driveway',
-            'foyer', 'entryway', 'closet', 'pantry'
-        ]
-        
-        found_areas = []
-        
-        # Pattern 1: "in the X and Y" or "in X and Y" (multiple areas)
-        multi_in_pattern = r'(?:in\s+(?:the\s+)?)([\w\s]+?)(?:\s+and\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
-        matches = re.finditer(multi_in_pattern, text_lower)
-        for match in matches:
-            area1 = match.group(1).strip()
-            area2 = match.group(2).strip()
-            for potential in [area1, area2]:
-                for area in common_areas:
-                    if potential == area or potential.replace(' ', '_') == area:
-                        normalized = area.replace(' ', '_')
-                        if normalized not in found_areas:
-                            found_areas.append(normalized)
-        
-        if found_areas:
-            return ','.join(found_areas)
-        
-        # Pattern 2: "X and Y" (e.g., "bedroom and living room lights")
-        area_and_pattern = r'([\w\s]+?)\s+and\s+(?:the\s+)?([\w\s]+?)(?:\s+|,|$)'
-        matches = re.finditer(area_and_pattern, text_lower)
-        for match in matches:
-            area1 = match.group(1).strip()
-            area2 = match.group(2).strip()
-            for potential in [area1, area2]:
-                for area in common_areas:
-                    if potential == area or potential.replace(' ', '_') == area:
-                        normalized = area.replace(' ', '_')
-                        if normalized not in found_areas:
-                            found_areas.append(normalized)
-        
-        if found_areas:
-            return ','.join(found_areas)
-        
-        # Pattern 3: "in the X" or "in X" (single area)
-        in_pattern = r'(?:in\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
-        matches = re.finditer(in_pattern, text_lower)
-        for match in matches:
-            potential_area = match.group(1).strip()
-            for area in common_areas:
-                if potential_area == area or potential_area.replace(' ', '_') == area:
-                    return area.replace(' ', '_')
-        
-        # Pattern 4: "at the X" or "at X" (single area)
-        at_pattern = r'(?:at\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
-        matches = re.finditer(at_pattern, text_lower)
-        for match in matches:
-            potential_area = match.group(1).strip()
-            for area in common_areas:
-                if potential_area == area or potential_area.replace(' ', '_') == area:
-                    return area.replace(' ', '_')
-        
-        # Pattern 5: Area name at start of sentence
-        for area in common_areas:
-            if text_lower.startswith(area + ' ') or text_lower.startswith('the ' + area + ' '):
-                return area.replace(' ', '_')
-        
-        return None
+    # Note: _extract_area_from_request() has been moved to utils.area_detection
+    # and is now imported at the module level for reuse across the codebase
     
     def _sanitize_request(self, raw_text: str) -> str:
         """Remove potentially malicious prompt-injection content."""
@@ -758,13 +673,9 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
         # Add area notice if applicable
         area_notice = ""
         if area_filter:
-            # Handle multiple areas
-            areas = [a.replace('_', ' ').title() for a in area_filter.split(',')]
-            if len(areas) == 1:
-                area_notice = f"\nIMPORTANT: Use ONLY devices from the {areas[0]} area.\n"
-            else:
-                area_list = ', '.join(areas[:-1]) + ' and ' + areas[-1]
-                area_notice = f"\nIMPORTANT: Use ONLY devices from these areas: {area_list}.\n"
+            # Format area display using shared utility
+            area_display = format_area_display(area_filter)
+            area_notice = f"\nIMPORTANT: Use ONLY devices from the {area_display} area.\n"
         
         retry_prompt = f"""The previous generation attempt failed with this error:
 ERROR: {error_message}
