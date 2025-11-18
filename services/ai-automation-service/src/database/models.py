@@ -504,6 +504,61 @@ class AskAIQuery(Base):
         return f"<AskAIQuery(query_id={self.query_id}, query='{self.original_query[:50]}...', suggestions={len(self.suggestions or [])})>"
 
 
+class ClarificationSessionDB(Base):
+    """
+    Persistent storage for Ask AI clarification sessions.
+    
+    Tracks clarification conversations where the AI needs to ask follow-up
+    questions to understand ambiguous user queries. Links back to the original
+    query for suggestion retrieval.
+    
+    Created: November 2025
+    Story: AI1.26 - Clarification Flow Improvements
+    """
+    __tablename__ = 'clarification_sessions'
+    
+    # Primary identifier
+    session_id = Column(String, primary_key=True, default=lambda: f"clarify-{uuid.uuid4().hex[:8]}")
+    
+    # Query linkage
+    original_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=False, index=True)
+    original_query = Column(Text, nullable=False)
+    
+    # User context
+    user_id = Column(String, nullable=False, default="anonymous", index=True)
+    
+    # Clarification state
+    questions = Column(JSON, nullable=False, default=list)  # Array of ClarificationQuestion dicts
+    answers = Column(JSON, nullable=False, default=list)  # Array of ClarificationAnswer dicts
+    ambiguities = Column(JSON, nullable=True)  # Array of detected Ambiguity dicts
+    
+    # Session tracking
+    status = Column(String, nullable=False, default='in_progress', index=True)  # 'in_progress', 'complete', 'abandoned'
+    rounds_completed = Column(Integer, nullable=False, default=0)
+    max_rounds = Column(Integer, nullable=False, default=3)
+    
+    # Confidence tracking
+    current_confidence = Column(Float, nullable=False, default=0.0)
+    confidence_threshold = Column(Float, nullable=False, default=0.85)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Optional linkage to generated query after clarification
+    clarification_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=True, index=True)
+    
+    __table_args__ = (
+        Index('idx_clarification_user', 'user_id', 'created_at'),
+        Index('idx_clarification_status', 'status', 'created_at'),
+        Index('idx_clarification_original_query', 'original_query_id'),
+    )
+    
+    def __repr__(self):
+        return f"<ClarificationSessionDB(session_id={self.session_id}, original_query_id={self.original_query_id}, status={self.status}, rounds={self.rounds_completed})>"
+
+
 class EntityAlias(Base):
     """User-defined aliases for entities (nicknames/personalized names)"""
     __tablename__ = "entity_aliases"
