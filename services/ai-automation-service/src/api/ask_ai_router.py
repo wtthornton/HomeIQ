@@ -38,7 +38,7 @@ from ..model_services.orchestrator import ModelOrchestrator
 from ..model_services.soft_prompt_adapter import SoftPromptAdapter, get_soft_prompt_adapter
 from ..guardrails.hf_guardrails import get_guardrail_checker
 from ..llm.openai_client import OpenAIClient
-from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel
+from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel, ClarificationSessionDB
 from ..utils.capability_utils import normalize_capability, format_capability_for_display
 from ..services.entity_attribute_service import EntityAttributeService
 from ..prompt_building.entity_context_builder import EntityContextBuilder
@@ -4164,6 +4164,8 @@ async def process_natural_language_query(
                     # Create clarification session
                     if questions:
                         clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
+                        
+                        # Create in-memory session (for real-time access)
                         session = ClarificationSession(
                             session_id=clarification_session_id,
                             original_query=request.query,
@@ -4173,6 +4175,53 @@ async def process_natural_language_query(
                             query_id=query_id
                         )
                         _clarification_sessions[clarification_session_id] = session
+                        
+                        # Persist to database
+                        try:
+                            # Convert dataclass questions to dicts for JSON storage
+                            questions_json = [
+                                {
+                                    'id': q.id,
+                                    'category': q.category,
+                                    'question_text': q.question_text,
+                                    'question_type': q.question_type.value if hasattr(q.question_type, 'value') else str(q.question_type),
+                                    'options': q.options,
+                                    'context': q.context,
+                                    'priority': q.priority,
+                                    'related_entities': q.related_entities,
+                                    'ambiguity_id': q.ambiguity_id
+                                } for q in questions
+                            ]
+                            
+                            # Convert ambiguities to dicts
+                            ambiguities_json = [
+                                {
+                                    'id': a.id,
+                                    'type': a.type.value if hasattr(a.type, 'value') else str(a.type),
+                                    'severity': a.severity.value if hasattr(a.severity, 'value') else str(a.severity),
+                                    'description': a.description,
+                                    'context': a.context,
+                                    'related_entities': a.related_entities,
+                                    'detected_text': a.detected_text
+                                } for a in ambiguities
+                            ] if ambiguities else []
+                            
+                            db_session = ClarificationSessionDB(
+                                session_id=clarification_session_id,
+                                original_query_id=query_id,
+                                original_query=request.query,
+                                user_id=request.user_id,
+                                questions=questions_json,
+                                ambiguities=ambiguities_json,
+                                current_confidence=confidence,
+                                status='in_progress'
+                            )
+                            db.add(db_session)
+                            await db.commit()
+                            logger.info(f"✅ Clarification session {clarification_session_id} saved to database (original_query_id={query_id})")
+                        except Exception as e:
+                            logger.error(f"Failed to save clarification session to database: {e}", exc_info=True)
+                            # Don't fail the request, continue with in-memory session
                         
                         logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
                         for i, q in enumerate(questions, 1):
@@ -4915,6 +4964,33 @@ async def provide_clarification(
                 await db.refresh(query_record)
                 logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions")
                 
+                # Update clarification session in database to link the generated query
+                try:
+                    stmt = update(ClarificationSessionDB).where(
+                        ClarificationSessionDB.session_id == request.session_id
+                    ).values(
+                        clarification_query_id=request.session_id,
+                        status='complete',
+                        completed_at=datetime.utcnow(),
+                        answers=[
+                            {
+                                'question_id': a.question_id,
+                                'answer_text': a.answer_text,
+                                'selected_entities': a.selected_entities,
+                                'confidence': a.confidence,
+                                'validated': a.validated
+                            } for a in session.answers
+                        ],
+                        current_confidence=session.current_confidence,
+                        rounds_completed=session.rounds_completed
+                    )
+                    await db.execute(stmt)
+                    await db.commit()
+                    logger.info(f"✅ Updated clarification session {request.session_id} with clarification_query_id={request.session_id}")
+                except Exception as e:
+                    logger.error(f"Failed to update clarification session in database: {e}", exc_info=True)
+                    # Don't fail the request
+                
                 # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
                 # This enables the system to learn from successful clarification sessions
                 try:
@@ -5350,18 +5426,81 @@ async def refine_query_results(
 @router.get("/query/{query_id}/suggestions")
 async def get_query_suggestions(
     query_id: str,
+    include_clarifications: bool = Query(default=True, description="Include suggestions from clarification sessions"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Get all suggestions for a specific query.
+    
+    This endpoint handles both:
+    1. Direct query IDs (queries without clarification)
+    2. Original query IDs (finds clarification session and returns those suggestions)
+    
+    Args:
+        query_id: Either original query_id or clarification_query_id
+        include_clarifications: If True, will search for clarification sessions linked to this query
+        
+    Returns:
+        Dictionary with query_id, suggestions array, and total_count
     """
-    # For now, return empty list
-    # TODO: Store and retrieve suggestions from database
-    return {
-        "query_id": query_id,
-        "suggestions": [],
-        "total_count": 0
-    }
+    try:
+        # Try to get the query directly
+        stmt = select(AskAIQueryModel).where(AskAIQueryModel.query_id == query_id)
+        result = await db.execute(stmt)
+        query = result.scalar_one_or_none()
+        
+        if query:
+            # Found query directly
+            suggestions = query.suggestions or []
+            return {
+                "query_id": query_id,
+                "suggestions": suggestions,
+                "total_count": len(suggestions),
+                "source": "direct"
+            }
+        
+        # If not found and include_clarifications is True, check for clarification sessions
+        if include_clarifications:
+            stmt = select(ClarificationSessionDB).where(
+                ClarificationSessionDB.original_query_id == query_id
+            ).order_by(ClarificationSessionDB.created_at.desc())
+            result = await db.execute(stmt)
+            clarification_session = result.scalar_one_or_none()
+            
+            if clarification_session and clarification_session.clarification_query_id:
+                # Found clarification session, get the suggestions from the clarification query
+                stmt = select(AskAIQueryModel).where(
+                    AskAIQueryModel.query_id == clarification_session.clarification_query_id
+                )
+                result = await db.execute(stmt)
+                clarification_query = result.scalar_one_or_none()
+                
+                if clarification_query:
+                    suggestions = clarification_query.suggestions or []
+                    return {
+                        "query_id": query_id,
+                        "original_query_id": query_id,
+                        "clarification_session_id": clarification_session.session_id,
+                        "clarification_query_id": clarification_session.clarification_query_id,
+                        "suggestions": suggestions,
+                        "total_count": len(suggestions),
+                        "source": "clarification"
+                    }
+        
+        # Query not found
+        raise HTTPException(
+            status_code=404,
+            detail=f"Query {query_id} not found"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve suggestions for query {query_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve suggestions: {str(e)}"
+        )
 
 
 def _detects_timing_requirement(query: str) -> bool:
