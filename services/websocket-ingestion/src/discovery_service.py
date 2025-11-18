@@ -205,9 +205,20 @@ class DiscoveryService:
                         # Fallback to WebSocket if available
                         if websocket:
                             logger.info("🔄 Falling back to WebSocket for entity discovery...")
-                            return await self._discover_entities_websocket(websocket)
+                            try:
+                                entities = await self._discover_entities_websocket(websocket)
+                                if entities:
+                                    logger.info(f"✅ Entity discovery succeeded via WebSocket fallback: {len(entities)} entities")
+                                else:
+                                    logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
+                                return entities
+                            except Exception as ws_error:
+                                logger.error(f"❌ WebSocket fallback failed: {ws_error}")
+                                logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
+                                return []
                         else:
-                            logger.error("❌ No WebSocket available for fallback")
+                            logger.error("❌ No WebSocket available for fallback - entity discovery failed")
+                            logger.error("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
                             return []
                     
                     entities = await response.json()
@@ -256,21 +267,27 @@ class DiscoveryService:
                     return entities
                     
         except Exception as e:
-            logger.warning(f"⚠️  HTTP entity discovery failed: {e}")
+            logger.error(f"❌ HTTP entity discovery failed with exception: {e}")
+            import traceback
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
             # Fallback to WebSocket if available
             if websocket:
-                logger.info("🔄 Falling back to WebSocket for entity discovery...")
+                logger.info("🔄 Attempting WebSocket fallback for entity discovery...")
                 try:
-                    return await self._discover_entities_websocket(websocket)
+                    entities = await self._discover_entities_websocket(websocket)
+                    if entities:
+                        logger.info(f"✅ Entity discovery succeeded via WebSocket fallback: {len(entities)} entities")
+                    else:
+                        logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
+                    return entities
                 except Exception as ws_error:
                     logger.error(f"❌ WebSocket fallback also failed: {ws_error}")
-                    import traceback
-                    logger.error(traceback.format_exc())
+                    logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
+                    logger.error(f"WebSocket error traceback: {traceback.format_exc()}")
                     return []
             else:
                 logger.error(f"❌ Error discovering entities and no WebSocket available: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+                logger.error("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
                 return []
     
     async def _discover_entities_websocket(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
@@ -645,13 +662,24 @@ class DiscoveryService:
                                 result = await response.json()
                                 logger.info(f"✅ Stored {result.get('upserted', 0)} services to SQLite")
                             elif response.status == 404:
-                                # Endpoint doesn't exist - graceful degradation
-                                logger.warning(f"⚠️  Services bulk_upsert endpoint not available (404) - skipping services storage")
-                                logger.info("💡 This is expected if the services endpoint hasn't been implemented yet")
+                                # Endpoint doesn't exist - check if this is expected
+                                # Log as warning but note it might indicate missing endpoint implementation
+                                logger.warning(f"⚠️  Services bulk_upsert endpoint returned 404 (Not Found)")
+                                logger.warning(f"   Endpoint: {endpoint_url}")
+                                logger.warning(f"   This may indicate:")
+                                logger.warning(f"   1. Endpoint not yet implemented in data-api (expected)")
+                                logger.warning(f"   2. Incorrect endpoint URL (configuration issue)")
+                                logger.warning(f"   Discovery will continue, but services will not be stored")
+                            elif response.status == 401 or response.status == 403:
+                                error_text = await response.text()
+                                logger.error(f"❌ Services storage failed: Authentication/Authorization error ({response.status})")
+                                logger.error(f"   Error: {error_text}")
+                                logger.error(f"   Check DATA_API_API_KEY or DATA_API_KEY environment variable")
                             else:
                                 error_text = await response.text()
-                                logger.warning(f"⚠️  Failed to store services to SQLite: {response.status} - {error_text}")
-                                logger.info("💡 Services storage failed but discovery will continue")
+                                logger.warning(f"⚠️  Failed to store services to SQLite: HTTP {response.status}")
+                                logger.warning(f"   Error: {error_text}")
+                                logger.warning(f"   Discovery will continue, but services will not be stored")
                     except Exception as e:
                         # Don't fail entire operation if services storage fails
                         logger.warning(f"⚠️  Error posting services to data-api: {e}")

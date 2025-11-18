@@ -70,6 +70,13 @@ class HealthCheckHandler:
             return "initializing"
         if service.background_task and service.background_task.done():
             return "degraded"
+        # Check if InfluxDB writes are failing persistently
+        if (hasattr(service, 'influx_write_failure_count') and 
+            service.influx_write_failure_count > 0 and
+            hasattr(service, 'influx_write_success_count') and
+            service.influx_write_success_count == 0):
+            # All writes failing, no successes
+            return "degraded"
         return "healthy"
     
     def _component_status(self, service: Optional["WeatherService"]) -> Dict[str, str]:
@@ -84,7 +91,25 @@ class HealthCheckHandler:
         
         session_state = "healthy" if service.session and not service.session.closed else "not_initialized"
         cache_state = "healthy" if service.cached_weather else "empty"
-        influx_state = "healthy" if service.influxdb_client else "not_initialized"
+        
+        # InfluxDB status: check client exists AND recent writes are succeeding
+        if not service.influxdb_client:
+            influx_state = "not_initialized"
+        elif service.last_influx_write_error:
+            # If there's a recent error, check if writes are failing
+            influx_state = "degraded"  # Client exists but writes are failing
+        elif service.last_influx_write:
+            # Check if last write was recent (within last 30 minutes)
+            from datetime import timedelta
+            now = datetime.utcnow().replace(tzinfo=timezone.utc)
+            write_age = (now - service.last_influx_write).total_seconds()
+            if write_age > 1800:  # 30 minutes
+                influx_state = "degraded"  # No recent successful writes
+            else:
+                influx_state = "healthy"
+        else:
+            # Client exists but no writes yet
+            influx_state = "initializing"
         if not service.background_task:
             task_state = "not_started"
         elif service.background_task.cancelled():
@@ -121,5 +146,8 @@ class HealthCheckHandler:
             "cache_age_seconds": cache_age,
             "last_successful_fetch": service.last_successful_fetch.isoformat() if service.last_successful_fetch else None,
             "last_influx_write": service.last_influx_write.isoformat() if service.last_influx_write else None,
+            "last_influx_write_error": service.last_influx_write_error,
+            "influx_write_success_count": getattr(service, 'influx_write_success_count', 0),
+            "influx_write_failure_count": getattr(service, 'influx_write_failure_count', 0),
             "last_background_error": service.last_background_error
         }

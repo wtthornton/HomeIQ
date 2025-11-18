@@ -172,10 +172,15 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
     if (health?.status !== 'healthy') return 'degraded';
     
     // Check data source health - if any are unhealthy = degraded
-    const unhealthyDataSources = Object.values(dataSources || {}).filter(
-      ds => ds?.status === 'error' || ds?.status === 'unhealthy'
-    ).length;
+    // Exclude non-critical data sources (like Calendar) from affecting overall health
+    const criticalDataSources = ['weather', 'carbonIntensity', 'electricityPricing', 'airQuality', 'smartMeter'];
+    const unhealthyDataSources = Object.entries(dataSources || {})
+      .filter(([key, ds]) => 
+        criticalDataSources.includes(key) && 
+        (ds?.status === 'error' || ds?.status === 'unhealthy')
+      ).length;
     
+    // Only degrade if critical data sources are unhealthy
     if (unhealthyDataSources > 0) return 'degraded';
     
     return 'operational';

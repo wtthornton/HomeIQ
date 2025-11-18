@@ -74,13 +74,19 @@ class WeatherService:
             self.influxdb_host = influxdb_url.split(':')[0]
             self.influxdb_port = influxdb_url.split(':')[1] if ':' in influxdb_url else '8086'
         
-        # Fallback hostnames to try (full URLs)
-        self.influxdb_urls = [
-            influxdb_url,  # Try original URL first
-            f'http://influxdb:{self.influxdb_port}',
-            f'http://homeiq-influxdb:{self.influxdb_port}',
-            f'http://localhost:{self.influxdb_port}'
-        ]
+        # Fallback hostnames - configurable via env var, with sensible defaults
+        # Format: comma-separated list of hostnames (without protocol/port)
+        fallback_hosts_env = os.getenv('INFLUXDB_FALLBACK_HOSTS', 'influxdb,homeiq-influxdb,localhost')
+        fallback_hosts = [h.strip() for h in fallback_hosts_env.split(',') if h.strip()]
+        
+        # Build fallback URLs list (original URL first, then fallbacks)
+        self.influxdb_urls = [influxdb_url]  # Try original URL first
+        for host in fallback_hosts:
+            # Only add if different from original hostname
+            if host != self.influxdb_host:
+                self.influxdb_urls.append(f'http://{host}:{self.influxdb_port}')
+        
+        logger.info(f"InfluxDB fallback URLs configured: {len(self.influxdb_urls)} URLs (original + {len(fallback_hosts)} fallbacks)")
         self.influxdb_url = influxdb_url
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
@@ -100,6 +106,9 @@ class WeatherService:
         self.last_background_error: Optional[str] = None
         self.last_successful_fetch: Optional[datetime] = None
         self.last_influx_write: Optional[datetime] = None
+        self.last_influx_write_error: Optional[str] = None
+        self.influx_write_failure_count = 0
+        self.influx_write_success_count = 0
         self.health_handler = HealthCheckHandler(service_name=SERVICE_NAME, version=SERVICE_VERSION)
         
         # Stats
@@ -281,23 +290,34 @@ class WeatherService:
             try:
                 await asyncio.to_thread(self.influxdb_client.write, point)
                 self.last_influx_write = datetime.utcnow().replace(tzinfo=timezone.utc)
+                self.last_influx_write_error = None
+                self.influx_write_success_count += 1
                 logger.info("Weather data written to InfluxDB")
                 return
             except Exception as e:
                 error_str = str(e)
+                self.last_influx_write_error = error_str
+                
                 # Check if it's a DNS/connection error
                 if "Name does not resolve" in error_str or "Failed to resolve" in error_str:
-                    logger.warning("DNS resolution failed, attempting to reconnect with fallback hostname...")
+                    logger.warning(f"DNS resolution failed (attempt {attempt}/{self.max_influx_retries}), attempting to reconnect with fallback hostname...")
                     # Try to reinitialize with fallback
+                    old_client = self.influxdb_client
                     self.influxdb_client = await self._initialize_influxdb()
                     if not self.influxdb_client:
+                        logger.error(f"Failed to reconnect to InfluxDB with fallback - all URLs exhausted")
                         if attempt >= self.max_influx_retries:
+                            self.influx_write_failure_count += 1
                             logger.error("Failed to write to InfluxDB after %s attempts: %s", attempt, e)
                             return
                         continue
+                    elif old_client != self.influxdb_client:
+                        logger.info(f"Successfully reconnected to InfluxDB using fallback URL: {self.working_influxdb_host}")
                 
                 if attempt >= self.max_influx_retries:
+                    self.influx_write_failure_count += 1
                     logger.error("Failed to write to InfluxDB after %s attempts: %s", attempt, e)
+                    logger.error("This indicates a persistent InfluxDB connection issue - check network connectivity and InfluxDB service status")
                 else:
                     backoff = 2 ** (attempt - 1)
                     logger.warning("InfluxDB write failed (attempt %s/%s). Retrying in %ss",

@@ -823,6 +823,16 @@ export const AskAI: React.FC = () => {
               toast(typeof warning === 'string' ? warning : String(warning), { icon: '⚠️', duration: 6000 });
             });
             
+            // Store approve response for DebugPanel even on error
+            setMessages(prev => prev.map(msg => ({
+              ...msg,
+              suggestions: msg.suggestions?.map(s => 
+                s.suggestion_id === suggestionId 
+                  ? { ...s, automation_yaml: response.automation_yaml || s.automation_yaml, approve_response: response }
+                  : s
+              ) || []
+            })));
+            
             // CRITICAL: Return early to prevent any success path execution
             setReverseEngineeringStatus({ visible: false });
             return;
@@ -851,11 +861,23 @@ export const AskAI: React.FC = () => {
               });
             }
             
-            // Remove the suggestion from the UI
+            // Update suggestion with approve response and YAML before removing
             setMessages(prev => prev.map(msg => ({
               ...msg,
-              suggestions: msg.suggestions?.filter(s => s.suggestion_id !== suggestionId) || []
+              suggestions: msg.suggestions?.map(s => 
+                s.suggestion_id === suggestionId 
+                  ? { ...s, automation_yaml: response.automation_yaml || s.automation_yaml, approve_response: response }
+                  : s
+              ) || []
             })));
+            
+            // Remove the suggestion from the UI after a delay to allow DebugPanel to show the response
+            setTimeout(() => {
+              setMessages(prev => prev.map(msg => ({
+                ...msg,
+                suggestions: msg.suggestions?.filter(s => s.suggestion_id !== suggestionId) || []
+              })));
+            }, 5000); // Keep for 5 seconds to show in DebugPanel
           } else {
             // PRIORITY 3: Unexpected response - show error with details
             console.error('🔍 Unexpected approve response:', response);
@@ -1500,6 +1522,20 @@ export const AskAI: React.FC = () => {
                                 debug={suggestion.debug}
                                 technicalPrompt={suggestion.technical_prompt}
                                 deviceInfo={deviceInfo.length > 0 ? deviceInfo : undefined}
+                                automation_yaml={suggestion.automation_yaml || null}
+                                originalQuery={(() => {
+                                  // Find the user message that precedes this AI message
+                                  const messageIndex = messages.findIndex(m => m.id === message.id);
+                                  if (messageIndex > 0) {
+                                    const prevMessage = messages[messageIndex - 1];
+                                    if (prevMessage.type === 'user') {
+                                      return prevMessage.content;
+                                    }
+                                  }
+                                  return undefined;
+                                })()}
+                                extractedEntities={message.entities}
+                                approveResponse={suggestion.approve_response}
                                 darkMode={darkMode}
                               />
                             </div>

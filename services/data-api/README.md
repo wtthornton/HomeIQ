@@ -632,20 +632,38 @@ app.include_router(my_router, tags=["My Feature"])
 
 ### Database Migrations
 
+**Important:** Always run migrations after updating the codebase to ensure your database schema matches the code.
+
 ```bash
 # Create new migration
 cd services/data-api
 alembic revision --autogenerate -m "Add new table"
 
-# Apply migrations
+# Apply migrations (CRITICAL: Run this after code updates)
 alembic upgrade head
+
+# In Docker, run migrations from the container:
+docker exec -w /app/services/data-api homeiq-data-api alembic upgrade head
 
 # Rollback migration
 alembic downgrade -1
 
 # View migration history
 alembic history
+
+# Check current migration version
+alembic current
 ```
+
+**Migration 004 - Entity Name Fields and Capabilities:**
+- Adds entity registry name fields: `name`, `name_by_user`, `original_name`, `friendly_name`
+- Adds entity capabilities: `supported_features`, `capabilities`, `available_services`
+- Adds entity attributes: `icon`, `device_class`, `unit_of_measurement`
+- Adds `updated_at` timestamp column
+- Creates indexes for performance
+
+**If migrations fail in Docker:**
+See troubleshooting section "Entities Endpoint Returns 500 Error" for manual migration steps.
 
 ## Security
 
@@ -761,6 +779,77 @@ sqlite3 data/metadata.db "PRAGMA journal_mode;"
 rm data/metadata.db
 alembic upgrade head
 ```
+
+### Entities Endpoint Returns 500 Error
+
+**Symptoms:**
+- `/api/entities` endpoint returns 500 Internal Server Error
+- Error message: `no such column: entities.name`
+- Dashboard shows 0 entities
+
+**Root Cause:**
+The database schema is missing columns from migration 004. This can happen if:
+- Database was created before migration 004 was added
+- Migrations were not run after updating the codebase
+- Database was restored from an older backup
+
+**Solution - Apply Missing Migration:**
+
+**Option 1: Run Alembic Migration (Recommended)**
+```bash
+# If running locally
+cd services/data-api
+alembic upgrade head
+
+# If running in Docker
+docker exec -w /app/services/data-api homeiq-data-api alembic upgrade head
+```
+
+**Option 2: Manually Add Missing Columns (If Alembic fails)**
+```bash
+# Connect to the database container
+docker exec -it homeiq-data-api python
+
+# Run the following Python code:
+import sqlite3
+conn = sqlite3.connect('/app/data/metadata.db')
+cursor = conn.cursor()
+
+# Add missing columns from migration 004
+cursor.execute('ALTER TABLE entities ADD COLUMN name TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN name_by_user TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN original_name TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN friendly_name TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN supported_features INTEGER')
+cursor.execute('ALTER TABLE entities ADD COLUMN capabilities TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN available_services TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN icon TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN device_class TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN unit_of_measurement TEXT')
+cursor.execute('ALTER TABLE entities ADD COLUMN updated_at DATETIME')
+
+# Create indexes
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_entity_friendly_name ON entities(friendly_name)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_entity_supported_features ON entities(supported_features)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_entity_device_class ON entities(device_class)')
+
+conn.commit()
+conn.close()
+print('Migration 004 columns added successfully')
+```
+
+**Verify Fix:**
+```bash
+# Test the entities endpoint
+curl http://localhost:8006/api/entities?limit=10
+
+# Should return JSON with entities array, not an error
+```
+
+**Prevention:**
+- Always run `alembic upgrade head` after pulling code updates
+- Include migration checks in deployment scripts
+- Monitor database schema version in health checks
 
 ### InfluxDB Connection Pool Exhausted
 

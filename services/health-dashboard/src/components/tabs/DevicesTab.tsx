@@ -108,8 +108,8 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
               console.warn(`[DeviceEntities] Entity missing device_id:`, e);
               return false;
             }
-            const entityDeviceId = String(e.device_id).trim();
-            const expectedDeviceId = String(selectedDevice.device_id).trim();
+            const entityDeviceId = String(e.device_id).trim().toLowerCase();
+            const expectedDeviceId = String(selectedDevice.device_id).trim().toLowerCase();
             const matches = entityDeviceId === expectedDeviceId;
             if (!matches) {
               console.warn(
@@ -409,6 +409,13 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                 <div className={`text-center py-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                   <div className="text-4xl mb-2">🔌</div>
                   <p>No entities found for this device</p>
+                  {selectedDevice.entity_count && selectedDevice.entity_count > 0 && (
+                    <p className="text-sm mt-2 text-yellow-600 dark:text-yellow-400">
+                      ⚠️ Device shows {selectedDevice.entity_count} entities, but none were returned by the API.
+                      <br />
+                      This may indicate a data sync issue. Check the browser console for details.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">

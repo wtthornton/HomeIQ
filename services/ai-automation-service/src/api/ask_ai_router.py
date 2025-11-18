@@ -4050,6 +4050,12 @@ async def process_natural_language_query(
     
     logger.info(f"🤖 Processing Ask AI query: {request.query}")
     
+    # Extract area/location from query if specified (for area-based filtering)
+    from ..utils.area_detection import extract_area_from_request
+    area_filter = extract_area_from_request(request.query)
+    if area_filter:
+        logger.info(f"📍 Detected area filter in clarification phase: '{area_filter}'")
+    
     try:
         # Step 1: Extract entities using Home Assistant
         entities = await extract_entities_with_ha(request.query)
@@ -4069,14 +4075,44 @@ async def process_natural_language_query(
         # Step 1.6: Check for clarification needs (NEW)
         clarification_detector, question_generator, _, confidence_calculator = await get_clarification_services(db)
         
-        # Build automation context for clarification detection
+        # Build automation context for clarification detection (with area filtering)
         automation_context = {}
         try:
             from ..clients.data_api_client import DataAPIClient
             import pandas as pd
             data_api_client = DataAPIClient()
-            devices_result = await data_api_client.fetch_devices(limit=100)
-            entities_result = await data_api_client.fetch_entities(limit=200)
+            
+            # Apply area filter if detected
+            if area_filter:
+                logger.info(f"🔍 Fetching entities for area(s): {area_filter}")
+                # Handle multiple areas (comma-separated)
+                if ',' in area_filter:
+                    areas = area_filter.split(',')
+                    all_devices = []
+                    all_entities = []
+                    for area in areas:
+                        area_devices = await data_api_client.fetch_devices(limit=100, area_id=area.strip())
+                        area_entities = await data_api_client.fetch_entities(limit=200, area_id=area.strip())
+                        if not (isinstance(area_devices, pd.DataFrame) and area_devices.empty):
+                            all_devices.append(area_devices)
+                        if not (isinstance(area_entities, pd.DataFrame) and area_entities.empty):
+                            all_entities.append(area_entities)
+                    # Combine results
+                    devices_result = pd.concat(all_devices, ignore_index=True) if all_devices else pd.DataFrame()
+                    entities_result = pd.concat(all_entities, ignore_index=True) if all_entities else pd.DataFrame()
+                    # Remove duplicates
+                    if not devices_result.empty and 'device_id' in devices_result.columns:
+                        devices_result = devices_result.drop_duplicates(subset=['device_id'], keep='first')
+                    if not entities_result.empty and 'entity_id' in entities_result.columns:
+                        entities_result = entities_result.drop_duplicates(subset=['entity_id'], keep='first')
+                else:
+                    # Single area
+                    devices_result = await data_api_client.fetch_devices(limit=100, area_id=area_filter)
+                    entities_result = await data_api_client.fetch_entities(limit=200, area_id=area_filter)
+            else:
+                # No area filter - fetch all entities
+                devices_result = await data_api_client.fetch_devices(limit=100)
+                entities_result = await data_api_client.fetch_entities(limit=200)
             
             # Handle both DataFrame and list responses
             devices_df = devices_result if isinstance(devices_result, pd.DataFrame) else pd.DataFrame(devices_result if isinstance(devices_result, list) else [])
@@ -4178,6 +4214,21 @@ async def process_natural_language_query(
                         
                         # Persist to database
                         try:
+                            # First, create a minimal query record so the foreign key exists
+                            # We'll update it with full data later
+                            minimal_query = AskAIQueryModel(
+                                query_id=query_id,
+                                original_query=request.query,
+                                user_id=request.user_id,
+                                parsed_intent='pending',  # Will be updated later
+                                extracted_entities=entities,
+                                suggestions=[],
+                                confidence=confidence,
+                                processing_time_ms=0  # Will be updated later
+                            )
+                            db.add(minimal_query)
+                            await db.flush()  # Flush to make query_id available for foreign key
+                            
                             # Convert dataclass questions to dicts for JSON storage
                             questions_json = [
                                 {
@@ -4217,11 +4268,16 @@ async def process_natural_language_query(
                                 status='in_progress'
                             )
                             db.add(db_session)
-                            await db.commit()
+                            await db.flush()  # Flush instead of commit - will commit with query update later
                             logger.info(f"✅ Clarification session {clarification_session_id} saved to database (original_query_id={query_id})")
                         except Exception as e:
                             logger.error(f"Failed to save clarification session to database: {e}", exc_info=True)
                             # Don't fail the request, continue with in-memory session
+                            # Rollback the minimal query if clarification session failed
+                            try:
+                                await db.rollback()
+                            except:
+                                pass
                         
                         logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
                         for i, q in enumerate(questions, 1):
@@ -4339,19 +4395,30 @@ async def process_natural_language_query(
         
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
         
-        # Step 5: Save query to database
-        query_record = AskAIQueryModel(
-            query_id=query_id,
-            original_query=request.query,
-            user_id=request.user_id,
-            parsed_intent=parsed_intent,
-            extracted_entities=entities,
-            suggestions=suggestions,
-            confidence=confidence,
-            processing_time_ms=int(processing_time)
-        )
+        # Step 5: Save query to database (or update if already exists from clarification session)
+        existing_query = await db.get(AskAIQueryModel, query_id)
+        if existing_query:
+            # Update existing query record (created earlier for clarification session)
+            existing_query.parsed_intent = parsed_intent
+            existing_query.extracted_entities = entities
+            existing_query.suggestions = suggestions
+            existing_query.confidence = confidence
+            existing_query.processing_time_ms = int(processing_time)
+            query_record = existing_query
+        else:
+            # Create new query record
+            query_record = AskAIQueryModel(
+                query_id=query_id,
+                original_query=request.query,
+                user_id=request.user_id,
+                parsed_intent=parsed_intent,
+                extracted_entities=entities,
+                suggestions=suggestions,
+                confidence=confidence,
+                processing_time_ms=int(processing_time)
+            )
+            db.add(query_record)
         
-        db.add(query_record)
         await db.commit()
         await db.refresh(query_record)
         

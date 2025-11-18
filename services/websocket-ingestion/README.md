@@ -668,6 +668,12 @@ See `requirements-prod.txt` for minimal production dependencies.
 
 ## Version History
 
+### v1.2.1 (November 17, 2025)
+- Fixed Python import statements (converted absolute to relative imports)
+- Fixed Dockerfile CMD path (`main` → `src.main`)
+- Resolved module import errors causing service crash loop
+- Improved service stability and reliability
+
 ### v1.2.0 (November 15, 2025)
 - Updated documentation to 2025 standards
 - Enhanced dependency documentation
@@ -690,8 +696,8 @@ See `requirements-prod.txt` for minimal production dependencies.
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 1.2.0
+**Last Updated:** November 17, 2025
+**Version:** 1.2.1
 **Status:** Production Ready ✅
 **Port:** 8001
 **Architecture:** Epic 31 (Direct InfluxDB Writes)

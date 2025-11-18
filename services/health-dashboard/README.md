@@ -730,6 +730,13 @@ msw@^2.12.1                     # API mocking
 
 ## Version History
 
+### 2.2 (November 17, 2025)
+- Fixed OverviewTab system status calculation
+- Now properly considers RAG status (RED/AMBER) in overall system health
+- Now checks data source health (external integrations) for degraded status
+- Fixed issue where dashboard showed "ALL SYSTEMS OPERATIONAL" when throughput was 0
+- Improved accuracy of system health indicators
+
 ### 2.1 (November 15, 2025)
 - Updated documentation to 2025 standards
 - Enhanced dependency documentation
@@ -753,8 +760,8 @@ msw@^2.12.1                     # API mocking
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 2.1
+**Last Updated:** November 17, 2025
+**Version:** 2.2
 **Status:** Production Ready ✅
 **Port:** 3000
 **Framework:** React 18.3 + TypeScript 5.6 + Vite 5.4
