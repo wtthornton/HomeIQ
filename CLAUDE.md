@@ -198,9 +198,13 @@ uvicorn src.main:app --reload --port [port]
 
 **Frontend Service:**
 ```bash
+# Build and run with Docker (recommended)
+docker compose up -d [service-name]
+
+# Or build locally
 cd services/[service-name]
 npm install
-npm run dev
+npm run build
 ```
 
 ### Testing

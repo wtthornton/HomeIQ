@@ -15,7 +15,14 @@ import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import { DebugPanel } from '../components/ask-ai/DebugPanel';
 import { ClarificationDialog } from '../components/ask-ai/ClarificationDialog';
+import { ResponseHandler } from '../components/ask-ai/ResponseHandler';
 import api from '../services/api';
+import apiV2, { ResponseType as V2ResponseType } from '../services/api-v2';
+import { useConversationV2 } from '../hooks/useConversationV2';
+
+// Feature flag: Enable v2 API (set via environment variable or localStorage)
+const USE_V2_API = import.meta.env.VITE_USE_V2_API === 'true' || 
+                   localStorage.getItem('use-v2-api') === 'true';
 
 interface ChatMessage {
   id: string;
@@ -68,6 +75,12 @@ const exampleQueries = [
 
 export const AskAI: React.FC = () => {
   const { darkMode } = useAppStore();
+  
+  // v2 API hook (only used when USE_V2_API is true)
+  const v2Conversation = useConversationV2({
+    userId: 'anonymous',
+    enableStreaming: true,
+  });
   
   // Welcome message constant
   const welcomeMessage: ChatMessage = {
@@ -192,6 +205,78 @@ export const AskAI: React.FC = () => {
     }
   };
   
+  // v2 API message handler
+  const handleSendMessageV2 = async (inputValue: string, userMessage: ChatMessage) => {
+    try {
+      // Start conversation if not already started
+      if (!v2Conversation.conversationId) {
+        await v2Conversation.startConversation(inputValue);
+      } else {
+        // Send message in existing conversation
+        const turnResponse = await v2Conversation.sendMessage(inputValue, true); // Use streaming
+        
+        if (turnResponse) {
+          // Convert v2 response to ChatMessage format
+          const aiMessage: ChatMessage = {
+            id: `turn-${turnResponse.turn_number}`,
+            type: 'ai',
+            content: turnResponse.content,
+            timestamp: new Date(turnResponse.created_at),
+            suggestions: turnResponse.suggestions?.map(s => ({
+              suggestion_id: s.suggestion_id,
+              description: s.description,
+              title: s.title,
+              confidence: s.confidence,
+              status: s.status,
+              automation_yaml: s.automation_yaml,
+              validated_entities: s.validated_entities,
+            })),
+            confidence: turnResponse.confidence?.overall,
+            clarificationNeeded: turnResponse.response_type === V2ResponseType.CLARIFICATION_NEEDED,
+            questions: turnResponse.clarification_questions?.map(q => ({
+              question_id: q.id,
+              question_text: q.question_text,
+              question_type: q.question_type,
+              options: q.options,
+            })),
+          };
+
+          setMessages(prev => [...prev, aiMessage]);
+          updateContextFromMessage(aiMessage);
+
+          // Handle clarification dialog
+          if (turnResponse.response_type === V2ResponseType.CLARIFICATION_NEEDED && 
+              turnResponse.clarification_questions && 
+              turnResponse.clarification_questions.length > 0) {
+            setClarificationDialog({
+              questions: turnResponse.clarification_questions.map(q => ({
+                question_id: q.id,
+                question_text: q.question_text,
+                question_type: q.question_type,
+                options: q.options,
+              })),
+              sessionId: turnResponse.conversation_id,
+              confidence: turnResponse.confidence?.overall || 0.5,
+              threshold: 0.7,
+            });
+          }
+
+          // Show success message
+          if (turnResponse.suggestions && turnResponse.suggestions.length > 0) {
+            toast.success(`Found ${turnResponse.suggestions.length} automation suggestion${turnResponse.suggestions.length > 1 ? 's' : ''}`);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('v2 API error:', error);
+      toast.error(`Failed to send message: ${error.message}`);
+      throw error;
+    } finally {
+      setIsLoading(false);
+      setIsTyping(false);
+    }
+  };
+
   // Generate follow-up prompts based on query and suggestions
   const generateFollowUpPrompts = (query: string, suggestions: any[]): string[] => {
     const prompts: string[] = [];
@@ -245,6 +330,12 @@ export const AskAI: React.FC = () => {
     setIsTyping(true);
 
     try {
+      // Use v2 API if enabled
+      if (USE_V2_API) {
+        return await handleSendMessageV2(inputValue, userMessage);
+      }
+
+      // v1 API (legacy)
       // Pass context and conversation history to API
       const response = await api.askAIQuery(inputValue, {
         conversation_context: conversationContext,

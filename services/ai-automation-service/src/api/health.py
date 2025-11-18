@@ -38,14 +38,15 @@ async def health_check():
     
     Epic AI-1: Service health
     Epic AI-2: Device Intelligence stats (Story AI2.1)
+    Phase 9: v2 API health status
     
     Returns:
-        Service health status with Device Intelligence metrics
+        Service health status with Device Intelligence metrics and v2 API status
     """
     health = {
         "status": "healthy",
         "service": "ai-automation-service",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "timestamp": datetime.utcnow().isoformat()
     }
     
@@ -53,7 +54,103 @@ async def health_check():
     if _capability_listener and _capability_listener.is_started():
         health["device_intelligence"] = _capability_listener.get_stats()
     
+    # Add v2 API status (Phase 9)
+    try:
+        from ...services.service_container import get_service_container
+        container = get_service_container()
+        health["v2_api"] = {
+            "status": "available",
+            "services": {
+                "entity_extractor": container.entity_extractor is not None,
+                "yaml_generator": container.yaml_generator is not None,
+                "intent_matcher": container.intent_matcher is not None,
+                "function_registry": container.function_registry is not None,
+            }
+        }
+    except Exception as e:
+        health["v2_api"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
     return health
+
+
+@router.get("/health/v2")
+async def health_check_v2():
+    """
+    v2 API specific health check endpoint.
+    
+    Phase 9: v2 API health monitoring
+    
+    Returns:
+        Detailed v2 API service health status
+    """
+    try:
+        from ...services.service_container import get_service_container
+        from ...database import get_db
+        from sqlalchemy import text
+        
+        container = get_service_container()
+        
+        # Check database connectivity for v2 tables
+        db_status = "unknown"
+        try:
+            async for db in get_db():
+                result = await db.execute(text("SELECT 1 FROM conversations LIMIT 1"))
+                db_status = "connected"
+                break
+        except Exception as e:
+            db_status = f"error: {str(e)}"
+        
+        # Check service initialization
+        services_status = {
+            "entity_extractor": container.entity_extractor is not None,
+            "entity_validator": container.entity_validator is not None,
+            "entity_enricher": container.entity_enricher is not None,
+            "entity_resolver": container.entity_resolver is not None,
+            "yaml_generator": container.yaml_generator is not None,
+            "yaml_validator": container.yaml_validator is not None,
+            "yaml_corrector": container.yaml_corrector is not None,
+            "test_executor": container.test_executor is not None,
+            "deployer": container.deployer is not None,
+            "context_manager": container.context_manager is not None,
+            "intent_matcher": container.intent_matcher is not None,
+            "response_builder": container.response_builder is not None,
+            "history_manager": container.history_manager is not None,
+            "confidence_calculator": container.confidence_calculator is not None,
+            "error_recovery": container.error_recovery is not None,
+            "function_registry": container.function_registry is not None,
+            "device_context_service": container.device_context_service is not None,
+        }
+        
+        all_services_healthy = all(services_status.values())
+        
+        return {
+            "status": "healthy" if all_services_healthy and db_status == "connected" else "degraded",
+            "service": "ai-automation-service-v2",
+            "version": "2.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": {
+                "status": db_status,
+                "v2_tables": "available" if db_status == "connected" else "unavailable"
+            },
+            "services": services_status,
+            "endpoints": {
+                "conversations": "/api/v2/conversations",
+                "automations": "/api/v2/automations",
+                "actions": "/api/v2/actions",
+                "streaming": "/api/v2/conversations/{id}/stream"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "ai-automation-service-v2",
+            "version": "2.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }
 
 
 @router.get("/")

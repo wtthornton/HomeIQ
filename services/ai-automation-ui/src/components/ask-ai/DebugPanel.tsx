@@ -209,6 +209,13 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           token_usage: debug.token_usage
         }
       });
+    } else {
+      steps.push({
+        id: 'prompt-generation',
+        name: 'OpenAI Prompt Generation',
+        status: 'pending',
+        details: { message: 'Prompt generation data not available' }
+      });
     }
 
     // Step 5: OpenAI API Call
@@ -230,6 +237,13 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         },
         response: debug.openai_response
       });
+    } else {
+      steps.push({
+        id: 'openai-call',
+        name: 'OpenAI API Call',
+        status: 'pending',
+        details: { message: 'OpenAI API call data not available' }
+      });
     }
 
     // Step 6: Technical Prompt Creation
@@ -239,6 +253,13 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         name: 'Technical Prompt Creation',
         status: 'completed',
         details: { technical_prompt: technicalPrompt }
+      });
+    } else {
+      steps.push({
+        id: 'technical-prompt',
+        name: 'Technical Prompt Creation',
+        status: 'pending',
+        details: { message: 'Technical prompt will be created during suggestion generation' }
       });
     }
 

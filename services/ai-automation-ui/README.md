@@ -39,7 +39,7 @@ docker compose up -d ai-automation-ui
 open http://localhost:3001
 ```
 
-### Running Locally (Development)
+### Building Locally
 
 ```bash
 cd services/ai-automation-ui
@@ -47,11 +47,11 @@ cd services/ai-automation-ui
 # Install dependencies
 npm install
 
-# Start dev server
-npm run dev
+# Build production bundle
+npm run build
 
-# Access UI
-open http://localhost:3001
+# Preview production build locally
+npm run preview
 ```
 
 ### Build for Production
@@ -284,9 +284,6 @@ VITE_API_URL=http://localhost:8018/api
 ### NPM Scripts
 
 ```bash
-# Start development server (hot reload)
-npm run dev
-
 # Build for production
 npm run build
 
@@ -430,7 +427,7 @@ docker ps | grep ai-automation-service
 docker compose logs ai-automation-service
 ```
 
-**Development:** Verify `VITE_API_URL` in `.env.development`
+**Local Build:** Verify `VITE_API_URL` in `.env.development` if building locally
 
 **Production:** Check nginx proxy configuration
 

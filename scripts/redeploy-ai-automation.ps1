@@ -88,10 +88,9 @@ if (-not $aiServiceRunning) {
 }
 
 Write-Host "   Frontend (AI Automation UI):" -ForegroundColor White
-Write-Host "     cd services\ai-automation-ui" -ForegroundColor Gray
-Write-Host "     # Stop the current dev server (Ctrl+C if running in terminal)" -ForegroundColor Gray
-Write-Host "     # Clear browser cache (Ctrl+Shift+Delete or hard refresh: Ctrl+F5)" -ForegroundColor Gray
-Write-Host "     # Then restart with: npm run dev" -ForegroundColor Gray
+Write-Host "     docker compose build ai-automation-ui" -ForegroundColor Gray
+Write-Host "     docker compose up -d ai-automation-ui" -ForegroundColor Gray
+Write-Host "     # Or restart: docker compose restart ai-automation-ui" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "   Browser Cache Clearing:" -ForegroundColor White

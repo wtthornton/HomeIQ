@@ -1873,11 +1873,11 @@ Use this entity information to:
         example_entity_2 = '{ENTITY_2}'
     
     prompt = f"""
-You are a Home Assistant automation YAML generator expert with deep knowledge of advanced HA features.
+TASK: Generate Home Assistant 2025 automation YAML from this request.
 
-User's original request: "{original_query}"
+USER REQUEST: "{original_query}"
 
-Automation suggestion:
+AUTOMATION SPECIFICATION:
 - Description: {suggestion.get('description', '')}
 - Trigger: {suggestion.get('trigger_summary', '')}
 - Action: {suggestion.get('action_summary', '')}
@@ -1885,82 +1885,13 @@ Automation suggestion:
 
 {validated_entities_text}
 
-{"🔴 TEST MODE WITH SEQUENCES - For quick testing - Generate automation YAML with shortened delays (10x faster)" if is_sequence_test else ("🔴 TEST MODE - For manual testing - Generate simple automation YAML" if is_test else "Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life.")}
-{"- Use event trigger that fires immediately on manual trigger" if is_test else ""}
-{"- SHORTEN all delays by 10x (e.g., 2 seconds → 0.2 seconds, 30 seconds → 3 seconds)" if is_sequence_test else ("- NO delays or timing components" if is_test else "")}
-{"- REDUCE repeat counts (e.g., 5 times → 2 times, 10 times → 3 times) for quick preview" if is_sequence_test else ("- NO repeat loops or sequences (just execute once)" if is_test else "")}
-{"- Keep sequences and repeat blocks but execute faster" if is_sequence_test else ("- Action should execute the device control immediately" if is_test else "")}
-{"- Example: If original has 'delay: 00:00:05', use 'delay: 00:00:00.5' (or 0.5 seconds)" if is_sequence_test else ("- Example trigger: platform: event, event_type: test_trigger" if is_test else "")}
+{"🔴 TEST MODE (SEQUENCES) - Shortened delays (10x faster) and reduced repeat counts for quick testing" if is_sequence_test else ("🔴 TEST MODE - Use event trigger (event_type: test_trigger) for immediate manual execution" if is_test else "")}
 
-Requirements:
-1. Use YAML format (not JSON)
-2. Include: id, alias, trigger, action
-3. **ABSOLUTELY CRITICAL - READ THIS CAREFULLY:**
-   - Use ONLY the validated entity IDs provided in the VALIDATED ENTITIES list above
-   - DO NOT create new entity IDs - this will cause automation creation to FAIL
-   - DO NOT use entity IDs from examples below - those are just formatting examples
-   - DO NOT invent entity IDs based on device names - ONLY use the validated list
-   - If an entity is NOT in the validated list, DO NOT invent it
-   - NEVER create entity IDs like "binary_sensor.office_desk_presence" or "light.office" if they're not in the validated list
-   - If the suggestion requires entities that are NOT in the validated list above:
-     a) SIMPLIFY THE AUTOMATION to only use validated entities, OR
-     b) Use a time-based trigger instead of missing sensor triggers, OR
-     c) Return an error explaining which entities are missing from the validated list
-   - Example: If suggestion needs "presence sensor" but none exists in validated entities → use time trigger instead
-   - Creating fake entity IDs will cause automation creation to FAIL with "Entity not found" errors
-4. Add appropriate conditions if needed
-5. Include mode: single or restart
-6. Add description field - avoid colons in description values to prevent YAML syntax errors
-   Example: description: "TEST_MODE - This automation does something"
-7. Use advanced HA features for creative implementations:
-   - `sequence` for multi-step actions
-   - `choose` for conditional logic
-   - `template` for dynamic values
-   - `condition` for complex triggers
-   - `delay` for timing
-   - `repeat` for patterns
-   - `parallel` for simultaneous actions
+═══════════════════════════════════════════════════════════════════════════════
+2025 HOME ASSISTANT YAML EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
 
-HOME ASSISTANT 2025 YAML STANDARDS (CRITICAL):
-1. Use `triggers:` (plural) NOT `trigger:` - this is the 2025 standard
-2. Use `actions:` (plural) NOT `action:` - this is the 2025 standard
-3. Use `action:` for service calls NOT `service:` - this is the 2025 standard
-4. Use `trigger:` field in each trigger definition (e.g., `trigger: time`, `trigger: state`)
-5. Always quote string values containing colons using DOUBLE QUOTES (")
-6. Use proper YAML indentation (2 spaces)
-
-CRITICAL YAML STRUCTURE RULES:
-1. **Entity IDs MUST ALWAYS be in format: domain.entity (use ONLY validated entities from the list above)**
-   - **DO NOT use the example entity IDs shown below** - those are just formatting examples
-   - **MUST use actual entity IDs from the VALIDATED ENTITIES list above**
-   - NEVER use incomplete entity IDs like "wled", "office", or "WLED"
-   - NEVER create entity IDs based on the examples - examples use placeholders like PLACEHOLDER_ENTITY_ID
-   - If you see "wled" in the description, find the actual WLED entity ID from the VALIDATED ENTITIES list above
-   - IMPORTANT: The examples below show YAML STRUCTURE only - replace ALL example entity IDs with real ones from the validated list above
-2. Service calls ALWAYS use target.entity_id structure (2025 standard):
-   ```yaml
-   - action: light.turn_on
-     target:
-       entity_id: {example_light if example_light else '{LIGHT_ENTITY}'}
-   ```
-   NEVER use `service:` (deprecated), use `action:` instead!
-   NEVER use entity_id directly in the action!
-   NOTE: Replace the entity ID above with an actual validated entity ID from the list above
-3. Multiple entities use list format:
-   ```yaml
-   target:
-     entity_id:
-       - {example_entity_1 if example_entity_1 else '{ENTITY_1}'}
-       - {example_entity_2 if example_entity_2 else '{ENTITY_2}'}
-   ```
-   NOTE: Replace these with actual validated entity IDs from the list above
-4. Required fields: alias, triggers (plural), actions (plural)
-5. Always include mode: single (or restart, queued, parallel)
-6. Quote all string values containing special characters (colons, brackets, etc.)
-
-HOME ASSISTANT 2025 YAML EXAMPLES (NOTE: Replace entity IDs with validated ones from above):
-
-Example 1 - Simple time trigger (2025 STANDARD):
+Example 1 - Simple Time-Based Automation:
 ```yaml
 id: '1234567890'
 alias: Morning Light
@@ -1973,72 +1904,24 @@ conditions: []
 actions:
   - action: light.turn_on
     target:
-      entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
+      entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
     data:
       brightness_pct: 100
 ```
 
-Example 2 - State trigger with condition (2025 STANDARD):
-```yaml
-id: '1234567891'
-alias: Motion-Activated Light
-description: "Turn on light when motion detected after 6 PM"
-mode: single
-triggers:
-  - trigger: state
-    entity_id: {example_motion_sensor if example_motion_sensor else '{{REPLACE_WITH_VALIDATED_MOTION_SENSOR}}'}
-    to: 'on'
-conditions:
-  - condition: time
-    after: '18:00:00'
-actions:
-  - action: light.turn_on
-    target:
-      entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
-    data:
-      brightness_pct: 75
-      color_name: warm_white
-```
-
-Example 3 - Repeat with sequence (2025 STANDARD):
-```yaml
-id: '1234567892'
-alias: Flash Pattern
-description: "Flash lights 3 times"
-mode: single
-triggers:
-  - trigger: event
-    event_type: test_trigger
-conditions: []
-actions:
-  - repeat:
-      count: 3
-      sequence:
-        - action: light.turn_on
-          target:
-            entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
-          data:
-            brightness_pct: 100
-        - delay: '00:00:01'
-        - action: light.turn_off
-          target:
-            entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
-        - delay: '00:00:01'
-```
-
-Example 4 - Choose with multiple triggers (2025 STANDARD):
+Example 2 - Advanced Automation with Sequences and Conditions:
 ```yaml
 id: '1234567893'
-alias: Color-Coded Door Notifications
-description: "Different colors for different doors"
+alias: Smart Door Alert
+description: "Color-coded notifications for different doors"
 mode: single
 triggers:
   - trigger: state
-    entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_1}}'}
+    entity_id: {example_door_sensor if example_door_sensor else 'REPLACE_WITH_VALIDATED_SENSOR'}
     to: 'on'
     id: front_door
   - trigger: state
-    entity_id: {example_door_sensor if example_door_sensor else '{{REPLACE_WITH_VALIDATED_DOOR_SENSOR_2}}'}
+    entity_id: {example_sensor if example_sensor else 'REPLACE_WITH_VALIDATED_SENSOR'}
     to: 'on'
     id: back_door
 conditions:
@@ -2053,101 +1936,136 @@ actions:
         sequence:
           - action: light.turn_on
             target:
-              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
+              entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
             data:
               brightness_pct: 100
               color_name: red
+          - delay: '00:00:02'
+          - action: light.turn_off
+            target:
+              entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
       - conditions:
           - condition: trigger
             id: back_door
         sequence:
-          - action: light.turn_on
-            target:
-              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
-            data:
-              brightness_pct: 100
-              color_name: blue
-    default:
-      - action: light.turn_on
-        target:
-          entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}
-        data:
-          brightness_pct: 50
-          color_name: white
+          - repeat:
+              count: 3
+              sequence:
+                - action: light.turn_on
+                  target:
+                    entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+                  data:
+                    brightness_pct: 50
+                - delay: '00:00:01'
+                - action: light.turn_off
+                  target:
+                    entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
 ```
 
-HOME ASSISTANT 2025 YAML FORMAT - CRITICAL RULES:
+═══════════════════════════════════════════════════════════════════════════════
+2025 YAML FORMAT REQUIREMENTS (MANDATORY)
+═══════════════════════════════════════════════════════════════════════════════
 
-✅ CORRECT 2025 FORMAT:
+REQUIRED STRUCTURE:
 ```yaml
-triggers:           # TOP LEVEL: Use plural "triggers:"
-  - trigger: state  # IN TRIGGER: Use "trigger:" field (NOT "platform:")
-    entity_id: sensor.example
-actions:            # TOP LEVEL: Use plural "actions:"
-  - action: light.turn_on  # IN ACTION: Use "action:" field (NOT "service:")
+id: '<unique_id>'
+alias: <descriptive_name>
+description: "<quoted_if_contains_colons>"
+mode: single|restart|queued|parallel
+triggers:                    # ✅ PLURAL "triggers:" (2025 standard)
+  - trigger: state|time|...  # ✅ "trigger:" field (NOT "platform:")
+    <trigger_fields>
+conditions: []               # Optional
+actions:                     # ✅ PLURAL "actions:" (2025 standard)
+  - action: domain.service   # ✅ "action:" field (NOT "service:")
     target:
-      entity_id: light.example
+      entity_id: <validated_entity>
+    data:
+      <parameters>
 ```
 
-❌ OLD DEPRECATED FORMAT (DO NOT USE):
-```yaml
-trigger:            # ❌ OLD: singular "trigger:"
-  - platform: state # ❌ OLD: "platform:" field
-    entity_id: sensor.example
-action:             # ❌ OLD: singular "action:"
-  - service: light.turn_on  # ❌ OLD: "service:" field
-    target:
-      entity_id: light.example
-```
-
-COMMON MISTAKES TO AVOID:
-
-1. ENTITY IDs:
-   ❌ WRONG: entity_id: wled (INCOMPLETE - missing domain)
-   ✅ CORRECT: entity_id: light.wled_strip (COMPLETE domain.entity from validated list)
+🔴 CRITICAL RULES (Automation will FAIL if violated):
+1. Entity IDs: MUST use EXACT IDs from VALIDATED ENTITIES list above
+   - Format: domain.entity (e.g., light.office_ceiling)
+   - NEVER invent IDs (causes "Entity not found" error)
+   - NEVER use incomplete IDs like "wled", "office" (missing domain)
    
-   ❌ WRONG: entity_id: office (INCOMPLETE - missing domain)
-   ✅ CORRECT: entity_id: light.office_ceiling (COMPLETE domain.entity from validated list)
+2. 2025 Format: MUST use new structure
+   - Top-level: "triggers:" and "actions:" (PLURAL)
+   - Inside items: "trigger:" and "action:" fields
+   - OLD format with "platform:" and "service:" is DEPRECATED
+   
+3. Target Structure: MUST use target.entity_id
+   - ✅ CORRECT: action: light.turn_on → target: → entity_id: light.example
+   - ❌ WRONG: action: light.turn_on with entity_id directly in action
 
-2. TARGET STRUCTURE:
-   ❌ WRONG: action: light.turn_on without target
-   ✅ CORRECT: action: light.turn_on WITH target.entity_id
+4. WLED Entities: Use light.turn_on (NOT wled.turn_on - doesn't exist)
 
-3. DESCRIPTIONS WITH SPECIAL CHARACTERS:
-   ❌ WRONG: description: TEST MODE: This automation...  (unquoted colon breaks YAML)
-   ✅ CORRECT: description: "TEST MODE - This automation..."  (use dash instead of colon, or quote if using colon)
+5. Special Characters: Quote descriptions containing colons
+   - ✅ "TEST MODE: Alert" or "TEST MODE - Alert"
+   - ❌ TEST MODE: Alert (breaks YAML)
 
-4. WLED ENTITIES:
-   ❌ WRONG: action: wled.turn_on (service doesn't exist)
-   ✅ CORRECT: action: light.turn_on (WLED entities are lights, use light service)
+ADVANCED FEATURES (Use for creative implementations):
+- sequence: Multi-step actions
+- choose: Conditional branching
+- repeat: Loops (count, while, until)
+- parallel: Simultaneous actions
+- condition: Complex logic (time, state, template)
+- delay: Timing between actions
+- template: Dynamic values
+"""
+    
+    # Build test mode adjustments (avoid backslashes in f-strings)
+    test_mode_text = ""
+    if is_test and not is_sequence_test:
+        test_mode_text = """
+TEST MODE ADJUSTMENTS:
+- Use trigger: event with event_type: test_trigger
+- NO delays or timing components
+- NO repeat loops (execute once)
+- Simplify to core action only
+"""
+    elif is_sequence_test:
+        test_mode_text = """
+TEST MODE ADJUSTMENTS:
+- SHORTEN delays by 10x (5 sec → 0.5 sec)
+- REDUCE repeat counts (10 → 3, 5 → 2)
+- Keep structure but execute faster
+"""
+    
+    prompt += test_mode_text + """
+═══════════════════════════════════════════════════════════════════════════════
+PRE-GENERATION VALIDATION CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
 
-5. SEQUENCE STRUCTURE:
-   ✅ CORRECT:
-   ```yaml
-   actions:
-     - repeat:
-         count: 3
-         sequence:
-           - action: light.turn_on
-             target:
-               entity_id: {example_wled if example_wled else '{{VALIDATED_WLED}}'}
-             data:
-               effect: fireworks
-           - delay: "00:00:01"
-           - action: light.turn_off
-             target:
-               entity_id: {example_wled if example_wled else '{{VALIDATED_WLED}}'}
-   ```
+Before generating YAML, verify ALL requirements:
 
-**FINAL REMINDER BEFORE GENERATING YAML:**
-1. Use 2025 format: `triggers:` (plural), `trigger:` in each item (NOT `platform:`)
-2. Use 2025 format: `actions:` (plural), `action:` in each item (NOT `service:`)
-3. ALL entity IDs MUST come from VALIDATED ENTITIES list - NEVER invent entity IDs
-4. Avoid colons in description values (use dash instead), or quote if necessary
-5. WLED entities use light.turn_on/light.turn_off (NOT wled.turn_on/wled.turn_off)
-6. Every entity_id MUST be domain.entity format (e.g., light.office_ceiling)
+□ Every entity_id uses EXACT ID from VALIDATED ENTITIES list (not example IDs)
+□ All entity_ids are domain.entity format (e.g., light.office, binary_sensor.door)
+□ Top-level uses "triggers:" (plural) and "actions:" (plural)
+□ Each trigger uses "trigger:" field (NOT "platform:")
+□ Each action uses "action:" field (NOT "service:")
+□ Service calls use target.entity_id structure
+□ Description quoted if contains colons, or uses dashes instead
+□ Includes required fields: id, alias, mode, triggers, actions
+□ YAML syntax valid (2-space indentation, proper quoting)
+□ WLED entities use light domain (not wled domain)
 
-Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONLY the validated entity IDs from the list above. Follow 2025 format with triggers: (plural), trigger: (in items), actions: (plural), action: (in items).
+If missing entities needed for automation:
+□ Use time-based trigger instead of missing sensors
+□ Simplify to use only available validated entities
+□ Return error explaining missing entities
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+Generate ONLY the YAML content:
+- NO markdown code blocks (no ```yaml or ```)
+- NO explanations or comments outside YAML
+- USE ONLY validated entity IDs from the list above
+- FOLLOW 2025 format: triggers:/actions: (plural), trigger:/action: (in items)
+- START with "id:" (first line of YAML)
 """
 
     try:
@@ -2157,14 +2075,20 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONL
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a Home Assistant YAML expert. Generate valid automation YAML. Return ONLY the YAML content without markdown code blocks or explanations."
+                    "content": (
+                        "You are a Home Assistant 2025 YAML automation expert. "
+                        "Your output is production-ready YAML that passes Home Assistant validation. "
+                        "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
+                        "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
+                        "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
+                    )
                 },
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            temperature=0.3,  # Lower temperature for more consistent YAML
+            temperature=0.1,  # Very low temperature for deterministic, structured YAML output
             max_tokens=2000  # Increased to prevent truncation of complex automations
         )
         
@@ -2204,6 +2128,28 @@ Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONL
         if not validation.is_valid:
             logger.warning(f"⚠️ YAML structure validation found issues: {validation.errors[:3]}")
             # Log but don't fail - will be caught by HA API when creating automation
+        
+        # Validate with Home Assistant API if available (2025 standards compliance)
+        if ha_client:
+            try:
+                logger.info("🔍 Validating YAML with Home Assistant API...")
+                ha_validation = await ha_client.validate_automation(yaml_content)
+                
+                if not ha_validation.get('valid', False):
+                    error_msg = ha_validation.get('error', 'Unknown validation error')
+                    warnings = ha_validation.get('warnings', [])
+                    
+                    logger.warning(f"⚠️ HA API validation failed: {error_msg}")
+                    if warnings:
+                        logger.warning(f"⚠️ HA API validation warnings: {warnings}")
+                    
+                    # Don't fail here - let the create_automation endpoint handle it
+                    # This gives better error messages to the user
+                else:
+                    logger.info(f"✅ HA API validation passed ({ha_validation.get('entity_count', 0)} entities validated)")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not validate with HA API (non-fatal): {e}")
+                # Continue - HA API validation is best-effort, not required
         
         # Debug: Print the final YAML content
         logger.info("=" * 80)
@@ -4276,8 +4222,8 @@ async def process_natural_language_query(
                             # Rollback the minimal query if clarification session failed
                             try:
                                 await db.rollback()
-                            except:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Rollback failed (non-fatal): {e}")
                         
                         logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
                         for i, q in enumerate(questions, 1):
@@ -6586,7 +6532,7 @@ Response format: ONLY JSON, no other text:
                 },
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3,  # Low temperature for consistent restoration
+            temperature=0.1,  # Very low temperature for deterministic, consistent restoration
             max_tokens=500,  # Increased for nested component descriptions
             response_format={"type": "json_object"}
         )

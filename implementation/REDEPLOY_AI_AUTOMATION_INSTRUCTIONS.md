@@ -31,17 +31,15 @@ The following caches have been cleared:
 
 **Port:** 3001
 
-1. **Stop the current dev server:**
-   - If running in a terminal, press `Ctrl+C`
-   - Or find and kill the process:
-     ```powershell
-     Get-Process node | Where-Object {$_.Path -like "*ai-automation-ui*"} | Stop-Process
-     ```
-
-2. **Restart the dev server:**
+1. **Rebuild and restart the Docker container:**
    ```powershell
-   cd services\ai-automation-ui
-   npm run dev
+   docker compose build ai-automation-ui
+   docker compose up -d ai-automation-ui
+   ```
+
+2. **Or restart the existing container:**
+   ```powershell
+   docker compose restart ai-automation-ui
    ```
 
 ## 🌐 Browser Cache Clearing
@@ -104,8 +102,8 @@ After restarting and clearing cache:
 If changes still don't appear:
 
 1. **Check service logs:**
-   - Backend: Look at the terminal running uvicorn
-   - Frontend: Look at the terminal running `npm run dev`
+   - Backend: `docker compose logs -f ai-automation-service`
+   - Frontend: `docker compose logs -f ai-automation-ui`
 
 2. **Verify files are saved:**
    ```powershell
@@ -120,19 +118,20 @@ If changes still don't appear:
    - Restart browser
    - Open fresh tab to http://localhost:3001/ask-ai
 
-4. **Check Vite is picking up changes:**
-   - Look for "page reload" messages in the terminal running `npm run dev`
-   - If not seeing reloads, restart the dev server
+4. **Verify Docker container is running:**
+   - Check status: `docker compose ps`
+   - If container is not running, rebuild: `docker compose build ai-automation-ui && docker compose up -d ai-automation-ui`
 
 ## 📞 Quick Restart Commands
 
-**One-liner to restart both services (run from project root):**
+**Restart both services with Docker (run from project root):**
 
 ```powershell
-# Backend
-cd services\ai-automation-service; python -m uvicorn src.main:app --host 0.0.0.0 --port 8018 --reload
+# Restart both services
+docker compose restart ai-automation-service ai-automation-ui
 
-# Frontend (in separate terminal)
-cd services\ai-automation-ui; npm run dev
+# Or rebuild and restart
+docker compose build ai-automation-service ai-automation-ui
+docker compose up -d ai-automation-service ai-automation-ui
 ```
 

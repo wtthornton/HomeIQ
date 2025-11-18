@@ -369,9 +369,13 @@ pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8018
 
 # Frontend (React apps)
+# Build and run with Docker (recommended)
+docker compose up -d health-dashboard
+
+# Or build locally
 cd services/health-dashboard
 npm install
-npm run dev
+npm run build
 ```
 
 ### Running Tests

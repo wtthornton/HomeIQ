@@ -440,9 +440,17 @@ async def init_db():
         expire_on_commit=False
     )
     
-    # Create tables
+    # Create tables (including v2 models)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Import v2 models to ensure they're registered
+        try:
+            from .models_v2 import Conversation, ConversationTurn, ConfidenceFactor, FunctionCall, AutomationSuggestionV2
+            # v2 models use the same Base, so they're already included in create_all
+            logger.info("✅ v2 conversation models registered")
+        except ImportError:
+            logger.warning("⚠️ v2 models not available - v2 features may not work")
     
     # Seed default system settings if missing
     async with async_session() as session:

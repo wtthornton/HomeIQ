@@ -120,7 +120,7 @@ NGINX Reverse Proxy
 cd services/ai-automation-ui
 npm install
 npm run build
-npm run dev  # or docker compose up
+# Or use Docker: docker compose up -d ai-automation-ui
 ```
 
 ### Verify Changes

@@ -112,13 +112,11 @@ Write-Host "🚀 Step 5: Starting services..." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   📋 Manual start required - run these commands in separate terminals:" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "   Backend (Terminal 1):" -ForegroundColor White
-Write-Host "     cd services\ai-automation-service" -ForegroundColor Gray
-Write-Host "     python -m uvicorn src.main:app --host 0.0.0.0 --port 8018 --reload" -ForegroundColor Gray
+Write-Host "   Start services with Docker:" -ForegroundColor White
+Write-Host "     docker compose up -d ai-automation-service ai-automation-ui" -ForegroundColor Gray
 Write-Host ""
-Write-Host "   Frontend (Terminal 2):" -ForegroundColor White
-Write-Host "     cd services\ai-automation-ui" -ForegroundColor Gray
-Write-Host "     npm run dev" -ForegroundColor Gray
+Write-Host "   Or restart existing containers:" -ForegroundColor White
+Write-Host "     docker compose restart ai-automation-service ai-automation-ui" -ForegroundColor Gray
 Write-Host ""
 
 # Step 6: Final instructions
