@@ -33,6 +33,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
 - **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
 - **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
+
+### Changed
+
+- **Update AI automation UI, health dashboard, and add implementation documentation** (bd40a0c) - wtthornton
+- **Update device-intelligence-service database management** (78a7ff6) - wtthornton
+- **Update device-intelligence-service Dockerfile and database** (53a6c04) - wtthornton
+- **Update services: automation-miner, data-api, and test configurations** (9ef1937) - wtthornton
+- **Address critical security and deployment issues** (5ff9608) - Cursor Agent
+- **Address critical performance and reliability issues** (fc68762) - Cursor Agent
+- **Harden AI code executor security and configuration** (51c8559) - Cursor Agent
+- **Address OpenVINO critical issues and improve stability** (c288a21) - Cursor Agent
+- **Address critical weather-api issues and update docs** (d6bcf15) - Cursor Agent
+- **Harden OpenVINO service with critical fixes** (8b9285f) - Cursor Agent
+- **Address ML service critical issues and improve security** (4ae0954) - Cursor Agent
+- **Harden admin-api security and auth** (d97e06c) - Cursor Agent
+- **Update NER service port and enhance AI Core security** (a8bcc65) - Cursor Agent
+- **Improve security and resource management in data-api** (d83c68f) - Cursor Agent
+- **refactor(data-api): remove internal service authentication for home use** (6673584) - Claude
+- **Remove unused beforeEach from useStatistics test** (959415d) - Cursor Agent
+
+### Fixed
+
+- **Fix device discovery trigger endpoint websocket access bug** (917a1f8) - wtthornton
+- **Fix event details loading issue in Live Event Stream** (dcfaf7a) - wtthornton
+- **Fix device entities not displaying in device detail popup** (4fcbfd6) - wtthornton
+- **Fix HA Core version detection in health monitoring service** (28c9ae1) - wtthornton
+- **Add missing InfluxDB tags and improve database review script** (fa0bcd6) - wtthornton
+- **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (6f920dd) - wtthornton
+- **fix(device-intelligence): resolve integration field and critical bugs** (2e2018c) - wtthornton
+- **Fix dashboard CSP and API authentication issues** (6adf6ea) - wtthornton
+- **Fix critical issues and improve reliability** (3d6b31b) - Cursor Agent
+- **fix(gitignore): properly format Phase 3 test artifact entries** (574006a) - Claude
+- **fix(ci): resolve GitHub Actions test failures** (23f1889) - Claude
+- **Fix service health API mapping** (d652225) - wtthornton
+
+### Security
+
+- **Security: introduce shared API key for internal services; enable auth on data-api; propagate Authorization in internal clients; fix websocket shared-path; repair dashboard upstream; stabilize services** (20e6f3e) - wtthornton
+
+
+### Added
+
+- **Implement persistent clarification session storage (AI1.26)** (83967c9) - wtthornton
+- **Fix clarification flow and standardize HA token configuration** (6bf1312) - wtthornton
+- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (45cb1c1) - wtthornton
+- **Add cache expiration and staleness detection across services** (9b1fda6) - wtthornton
+- **Implement MQTT subscription for Zigbee2MQTT health monitoring** (25dbdde) - wtthornton
+- **Complete ML model update infrastructure for Device Intelligence Service** (45d04d1) - wtthornton
+- **Add comprehensive OpenVINO ML tests** (f99d1c9) - Cursor Agent
+- **Implement API key authentication and admin roles** (80516eb) - Cursor Agent
+- **feat(issues): add 12 critical issues in Open status to issues tracker** (edf63cc) - Claude
+- **feat(tooling): add Python script for creating GitHub issues via API** (d629dc3) - Claude
+- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (ebc2abb) - Claude
+- **feat(mcp): enable AI Code Executor service for 90%+ token savings** (2016504) - Claude
+- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (8060f10) - Claude
+- **feat(ai-automation-ui): comprehensive production-ready updates** (5bd1915) - Claude
+- **feat(mcp): implement MCP code execution pattern with LangChain integration** (590985e) - Claude
+- **feat(data-api): comprehensive security and performance improvements** (1dfa904) - Claude
+- **feat(team-tracker): Add comprehensive Team Tracker integration** (b8f768d) - Claude
+- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (e106be7) - Claude
+- **feat(automation-miner): implement Blueprint YAML parsing** (a85d367) - Claude
+- **feat(ai-automation): integrate automation-miner for community-powered pattern discovery** (74eed43) - Claude
+- **feat(ai-automation): implement Common Patterns Library for instant automation generation** (48518ae) - Claude
+- **feat(ai-automation): implement wait_for_trigger for sequential automations** (041f3b0) - Claude
+- **feat(ai-automation): add trigger variables and error handling to YAML generation** (ef09252) - Claude
+- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (59478d6) - Claude
 - **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (af8e84b) - Cursor Agent
 - **Add automated documentation updates** (77b7063) - Cursor Agent
 
