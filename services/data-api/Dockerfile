@@ -34,6 +34,10 @@ COPY shared/ /app/shared
 # Copy application code
 COPY services/data-api/src/ /app/src/
 
+# Copy Alembic migrations
+COPY services/data-api/alembic/ /app/alembic/
+COPY services/data-api/alembic.ini /app/
+
 # Expose port
 EXPOSE 8006
 

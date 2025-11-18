@@ -56,7 +56,7 @@ export const DEFAULT_RAG_THRESHOLDS: RAGThresholds = {
   },
   processing: {
     green: { throughput: 20, queueSize: 10 },  // Lowered to match actual system throughput (~12-15 evt/min)
-    amber: { throughput: 10, queueSize: 50 }   // Lowered to match actual system throughput
+    amber: { throughput: 5, queueSize: 50 }   // Lowered from 10 to 5 to reduce false positives during normal low-activity periods
   },
   storage: {
     green: { latency: 20, errorRate: 0.1 },

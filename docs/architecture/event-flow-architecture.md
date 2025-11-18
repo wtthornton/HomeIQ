@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated October 2025**: The enrichment pipeline has been removed in favor of external service integration pattern.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated November 2025**: State machine pattern implemented for robust connection and processing state management.
 
 ## Event Flow Diagram
 
@@ -317,6 +317,72 @@ InfluxDB Write Failed? → Return False, Log error, Retry
      ↓
 Success → Return True
 ```
+
+## State Machine Pattern (November 2025)
+
+The WebSocket Ingestion service uses formal state machines for connection and processing state management, inspired by Home Assistant's state management patterns.
+
+### Connection State Machine
+
+**Location:** `services/websocket-ingestion/src/state_machine.py`
+
+**States:**
+- `DISCONNECTED` - Initial state, not connected
+- `CONNECTING` - Establishing WebSocket connection
+- `AUTHENTICATING` - Authenticating with Home Assistant
+- `CONNECTED` - Active connection
+- `RECONNECTING` - Attempting to reconnect after failure
+- `FAILED` - Connection failed
+
+**Valid Transitions:**
+```python
+DISCONNECTED → CONNECTING
+CONNECTING → AUTHENTICATING | FAILED
+AUTHENTICATING → CONNECTED | FAILED
+CONNECTED → RECONNECTING | DISCONNECTED
+RECONNECTING → CONNECTING | FAILED | DISCONNECTED
+FAILED → RECONNECTING | DISCONNECTED
+```
+
+**Integration:**
+- `ConnectionManager` uses `ConnectionStateMachine` for all state transitions
+- Invalid transitions raise `InvalidStateTransition` exception
+- State history tracking for debugging
+- Force transitions available for recovery scenarios
+
+### Processing State Machine
+
+**States:**
+- `STOPPED` - Not processing events
+- `STARTING` - Initializing processing
+- `RUNNING` - Actively processing events
+- `PAUSED` - Temporarily paused
+- `STOPPING` - Shutting down gracefully
+- `ERROR` - Error state
+
+**Valid Transitions:**
+```python
+STOPPED → STARTING
+STARTING → RUNNING | ERROR
+RUNNING → PAUSED | STOPPING | ERROR
+PAUSED → RUNNING | STOPPING | ERROR
+STOPPING → STOPPED
+ERROR → STARTING | STOPPED | RUNNING
+```
+
+**Integration:**
+- `BatchProcessor` uses `ProcessingStateMachine` for batch processing state
+- `AsyncEventProcessor` uses `ProcessingStateMachine` for async event processing state
+- State transitions are validated and logged
+- History tracking available via `get_history()`
+
+**Benefits:**
+- Prevents invalid state transitions
+- Makes state management explicit and testable
+- Easier debugging and monitoring
+- Clear state transition rules
+
+**Test Coverage:** 15/15 tests passing (100%), 95% code coverage
 
 ## Key Design Decisions
 

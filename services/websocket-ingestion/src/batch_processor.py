@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from collections import deque
 import json
 
+from .state_machine import ProcessingStateMachine, ProcessingState, InvalidStateTransition
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,8 @@ class BatchProcessor:
         
         # Processing task
         self.processing_task: Optional[asyncio.Task] = None
-        self.is_running = False
+        # State machine for processing state management
+        self.state_machine = ProcessingStateMachine()
         
         # Error handling
         self.retry_attempts = 3
@@ -55,24 +58,42 @@ class BatchProcessor:
     
     async def start(self):
         """Start the batch processor"""
-        if self.is_running:
+        current_state = self.state_machine.get_state()
+        if current_state == ProcessingState.RUNNING:
             logger.warning("Batch processor is already running")
             return
         
-        self.is_running = True
-        self.processing_start_time = datetime.now()
-        
-        # Start processing task
-        self.processing_task = asyncio.create_task(self._processing_loop())
-        
-        logger.info(f"Started batch processor with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
+        try:
+            # Transition to starting state
+            if current_state == ProcessingState.STOPPED:
+                self.state_machine.transition(ProcessingState.STARTING)
+            elif current_state == ProcessingState.ERROR:
+                self.state_machine.transition(ProcessingState.STARTING)
+            
+            self.processing_start_time = datetime.now()
+            
+            # Start processing task
+            self.processing_task = asyncio.create_task(self._processing_loop())
+            
+            # Transition to running
+            self.state_machine.transition(ProcessingState.RUNNING)
+            
+            logger.info(f"Started batch processor with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
+        except InvalidStateTransition as e:
+            logger.error(f"Cannot start batch processor from state {current_state.value}: {e}")
     
     async def stop(self):
         """Stop the batch processor"""
-        if not self.is_running:
+        current_state = self.state_machine.get_state()
+        if current_state == ProcessingState.STOPPED:
             return
         
-        self.is_running = False
+        try:
+            # Transition to stopping state
+            self.state_machine.transition(ProcessingState.STOPPING)
+        except InvalidStateTransition:
+            # Force transition if needed
+            self.state_machine.transition(ProcessingState.STOPPING, force=True)
         
         # Process any remaining events
         await self._process_current_batch()
@@ -84,6 +105,12 @@ class BatchProcessor:
                 await self.processing_task
             except asyncio.CancelledError:
                 pass
+        
+        # Transition to stopped
+        try:
+            self.state_machine.transition(ProcessingState.STOPPED)
+        except InvalidStateTransition:
+            self.state_machine.reset(ProcessingState.STOPPED)
         
         logger.info("Stopped batch processor")
     
@@ -118,7 +145,8 @@ class BatchProcessor:
     
     async def _processing_loop(self):
         """Main processing loop"""
-        while self.is_running:
+        current_state = self.state_machine.get_state()
+        while current_state == ProcessingState.RUNNING:
             try:
                 # Wait for batch timeout
                 await asyncio.sleep(self.batch_timeout)
@@ -130,6 +158,18 @@ class BatchProcessor:
                 break
             except Exception as e:
                 logger.error(f"Error in processing loop: {e}")
+                try:
+                    self.state_machine.transition(ProcessingState.ERROR)
+                except InvalidStateTransition:
+                    pass
+                # Try to recover
+                try:
+                    self.state_machine.transition(ProcessingState.RUNNING)
+                except InvalidStateTransition:
+                    pass
+            
+            # Update current state for loop condition
+            current_state = self.state_machine.get_state()
     
     async def _process_current_batch(self):
         """Process the current batch"""
@@ -272,7 +312,8 @@ class BatchProcessor:
         success_rate = (self.total_events_processed / total_events * 100) if total_events > 0 else 0
         
         return {
-            "is_running": self.is_running,
+            "state": self.state_machine.get_state().value,
+            "is_running": self.state_machine.get_state() == ProcessingState.RUNNING,
             "batch_size": self.batch_size,
             "batch_timeout": self.batch_timeout,
             "current_batch_size": len(self.current_batch),

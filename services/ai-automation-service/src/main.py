@@ -166,12 +166,33 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to set extractor for stats: {e}")
 
+    # Initialize ActionExecutor (start worker tasks)
+    try:
+        from .services.service_container import ServiceContainer
+        service_container = ServiceContainer()
+        action_executor = service_container.action_executor
+        await action_executor.start()
+        logger.info("✅ ActionExecutor started")
+    except Exception as e:
+        logger.error(f"❌ ActionExecutor startup failed: {e}")
+        # Continue without ActionExecutor - will fall back to old method
+
     logger.info("✅ AI Automation Service ready")
 
     yield
 
     # Shutdown
     logger.info("AI Automation Service shutting down")
+    
+    # Shutdown ActionExecutor
+    try:
+        from .services.service_container import ServiceContainer
+        service_container = ServiceContainer()
+        if hasattr(service_container, '_action_executor') and service_container._action_executor:
+            await service_container._action_executor.shutdown()
+            logger.info("✅ ActionExecutor shutdown complete")
+    except Exception as e:
+        logger.error(f"❌ ActionExecutor shutdown failed: {e}")
 
     # Close device intelligence client
     try:

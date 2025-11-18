@@ -205,6 +205,19 @@ class Settings(BaseSettings):
     auto_draft_timeout: int = 10
     """Timeout (seconds) for auto-draft generation per suggestion"""
 
+    # Action Executor Configuration
+    action_executor_workers: int = 2
+    """Number of worker tasks for action execution (default: 2)"""
+    
+    action_executor_max_retries: int = 3
+    """Maximum retry attempts for action execution (default: 3)"""
+    
+    action_executor_retry_delay: float = 1.0
+    """Initial retry delay in seconds for action execution (default: 1.0)"""
+    
+    use_action_executor: bool = True
+    """Use ActionExecutor for test execution instead of create/delete automations (default: True)"""
+
     # Expert Mode Configuration
     expert_mode_enabled: bool = True
     """Enable expert mode for advanced users who want full control over each step"""

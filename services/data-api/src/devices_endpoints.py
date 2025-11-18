@@ -25,6 +25,8 @@ from .flux_utils import sanitize_flux_value
 # Story 22.2: SQLite models and database
 from .database import get_db
 from .models import Device, Entity, Service
+from .models.entity_registry_entry import EntityRegistryEntry
+from .services.entity_registry import EntityRegistry
 from .cache import cache
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class DeviceResponse(BaseModel):
     integration: Optional[str] = Field(default=None, description="Integration/platform name")
     sw_version: Optional[str] = Field(default=None, description="Software/firmware version")
     area_id: Optional[str] = Field(default=None, description="Area/room ID")
+    config_entry_id: Optional[str] = Field(default=None, description="Config entry ID (source tracking)")
+    via_device: Optional[str] = Field(default=None, description="Parent device ID (via_device relationship)")
     entity_count: int = Field(default=0, description="Number of entities")
     timestamp: str = Field(description="Last update timestamp")
 
@@ -55,6 +59,7 @@ class EntityResponse(BaseModel):
     unique_id: Optional[str] = Field(default=None, description="Unique ID within platform")
     area_id: Optional[str] = Field(default=None, description="Area/room ID")
     disabled: bool = Field(default=False, description="Whether entity is disabled")
+    config_entry_id: Optional[str] = Field(default=None, description="Config entry ID (source tracking)")
     timestamp: str = Field(description="Last update timestamp")
 
 
@@ -159,6 +164,8 @@ async def list_devices(
                 integration=device.integration,
                 sw_version=device.sw_version,
                 area_id=device.area_id,
+                config_entry_id=device.config_entry_id,
+                via_device=device.via_device,
                 entity_count=entity_count,
                 timestamp=device.last_seen.isoformat() if device.last_seen else datetime.now().isoformat()
             )
@@ -197,6 +204,8 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             Device.sw_version,
             Device.area_id,
             Device.integration,
+            Device.config_entry_id,
+            Device.via_device,
             Device.last_seen,
             func.count(Entity.entity_id).label('entity_count')
         )\
@@ -212,7 +221,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
         
         # Unpack row tuple (simplified - only columns that exist)
         (device_id_col, name, manufacturer, model, sw_version, area_id, 
-         integration, last_seen, entity_count) = row
+         integration, config_entry_id, via_device, last_seen, entity_count) = row
         
         return DeviceResponse(
             device_id=device_id_col,
@@ -222,6 +231,8 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             integration=integration,
             sw_version=sw_version,
             area_id=area_id,
+            config_entry_id=config_entry_id,
+            via_device=via_device,
             entity_count=entity_count,
             timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
         )
@@ -457,6 +468,7 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
             unique_id=entity.unique_id,
             area_id=entity.area_id,
             disabled=entity.disabled,
+            config_entry_id=entity.config_entry_id,
             # Entity Registry Name Fields
             name=entity.name,
             name_by_user=entity.name_by_user,
@@ -477,6 +489,212 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting entity {entity_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve entity: {str(e)}")
+
+
+# Relationship Query Endpoints
+
+@router.get("/api/entities/by-device/{device_id}")
+async def get_entities_by_device(
+    device_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all entities for a device
+    
+    Args:
+        device_id: Device ID
+        
+    Returns:
+        List of EntityRegistryEntry instances
+    """
+    try:
+        registry = EntityRegistry(db)
+        entities = await registry.get_entities_by_device(device_id)
+        return {
+            "success": True,
+            "device_id": device_id,
+            "entities": [entry.to_dict() for entry in entities],
+            "count": len(entities)
+        }
+    except Exception as e:
+        logger.error(f"Error getting entities by device {device_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get entities by device: {str(e)}"
+        )
+
+
+@router.get("/api/entities/{entity_id}/siblings")
+async def get_sibling_entities(
+    entity_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get sibling entities (entities from same device)
+    
+    Args:
+        entity_id: Entity ID
+        
+    Returns:
+        List of EntityRegistryEntry instances (sibling entities)
+    """
+    try:
+        registry = EntityRegistry(db)
+        siblings = await registry.get_sibling_entities(entity_id)
+        # Filter out the entity itself
+        siblings = [s for s in siblings if s.entity_id != entity_id]
+        return {
+            "success": True,
+            "entity_id": entity_id,
+            "siblings": [entry.to_dict() for entry in siblings],
+            "count": len(siblings)
+        }
+    except Exception as e:
+        logger.error(f"Error getting sibling entities for {entity_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get sibling entities: {str(e)}"
+        )
+
+
+@router.get("/api/entities/{entity_id}/device")
+async def get_device_for_entity(
+    entity_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get device for an entity
+    
+    Args:
+        entity_id: Entity ID
+        
+    Returns:
+        Device information
+    """
+    try:
+        registry = EntityRegistry(db)
+        device = await registry.get_device_for_entity(entity_id)
+        
+        if not device:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device not found for entity {entity_id}"
+            )
+        
+        return {
+            "success": True,
+            "entity_id": entity_id,
+            "device": {
+                "device_id": device.device_id,
+                "name": device.name,
+                "manufacturer": device.manufacturer,
+                "model": device.model,
+                "sw_version": device.sw_version,
+                "area_id": device.area_id,
+                "integration": device.integration,
+                "config_entry_id": device.config_entry_id,
+                "via_device": device.via_device
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting device for entity {entity_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get device for entity: {str(e)}"
+        )
+
+
+@router.get("/api/entities/by-area/{area_id}")
+async def get_entities_in_area(
+    area_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all entities in an area
+    
+    Args:
+        area_id: Area ID
+        
+    Returns:
+        List of EntityRegistryEntry instances
+    """
+    try:
+        registry = EntityRegistry(db)
+        entities = await registry.get_entities_in_area(area_id)
+        return {
+            "success": True,
+            "area_id": area_id,
+            "entities": [entry.to_dict() for entry in entities],
+            "count": len(entities)
+        }
+    except Exception as e:
+        logger.error(f"Error getting entities in area {area_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get entities in area: {str(e)}"
+        )
+
+
+@router.get("/api/entities/by-config-entry/{config_entry_id}")
+async def get_entities_by_config_entry(
+    config_entry_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get entities by config entry ID
+    
+    Args:
+        config_entry_id: Config entry ID
+        
+    Returns:
+        List of EntityRegistryEntry instances
+    """
+    try:
+        registry = EntityRegistry(db)
+        entities = await registry.get_entities_by_config_entry(config_entry_id)
+        return {
+            "success": True,
+            "config_entry_id": config_entry_id,
+            "entities": [entry.to_dict() for entry in entities],
+            "count": len(entities)
+        }
+    except Exception as e:
+        logger.error(f"Error getting entities by config entry {config_entry_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get entities by config entry: {str(e)}"
+        )
+
+
+@router.get("/api/devices/{device_id}/hierarchy")
+async def get_device_hierarchy(
+    device_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get device hierarchy (via_device relationships)
+    
+    Args:
+        device_id: Device ID
+        
+    Returns:
+        Dictionary with device hierarchy information
+    """
+    try:
+        registry = EntityRegistry(db)
+        hierarchy = await registry.get_device_hierarchy(device_id)
+        return {
+            "success": True,
+            **hierarchy
+        }
+    except Exception as e:
+        logger.error(f"Error getting device hierarchy for {device_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get device hierarchy: {str(e)}"
+        )
 
 
 @router.get("/api/integrations/{platform}/performance")
@@ -833,6 +1051,9 @@ async def bulk_upsert_devices(
                 'entry_type': device_data.get('entry_type'),
                 'configuration_url': device_data.get('configuration_url'),
                 'suggested_area': device_data.get('suggested_area'),
+                # Source tracking
+                'config_entry_id': device_data.get('config_entry_id'),
+                'via_device': device_data.get('via_device_id'),  # HA uses 'via_device_id'
                 'last_seen': datetime.now()
             }
             
@@ -927,6 +1148,8 @@ async def bulk_upsert_entities(
                 supported_features=supported_features,
                 capabilities=capabilities,
                 available_services=available_services,
+                # Source tracking
+                config_entry_id=entity_data.get('config_entry_id'),
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )

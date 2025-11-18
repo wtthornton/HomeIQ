@@ -46,6 +46,9 @@ class Entity(Base):
     device_class = Column(String, index=True)  # Device class (e.g., "motion", "door", "temperature")
     unit_of_measurement = Column(String)  # Unit of measurement for sensors
     
+    # Source tracking
+    config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -64,4 +67,5 @@ Index('idx_entity_area', Entity.area_id)
 Index('idx_entity_friendly_name', Entity.friendly_name)
 Index('idx_entity_supported_features', Entity.supported_features)
 Index('idx_entity_device_class', Entity.device_class)
+Index('idx_entity_config_entry', Entity.config_entry_id)
 

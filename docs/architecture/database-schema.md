@@ -302,6 +302,8 @@ CREATE TABLE devices (
     sw_version TEXT,
     area_id TEXT,
     integration TEXT,
+    config_entry_id TEXT,
+    via_device TEXT REFERENCES devices(device_id),
     last_seen TIMESTAMP,
     created_at TIMESTAMP
 );
@@ -309,6 +311,8 @@ CREATE TABLE devices (
 CREATE INDEX idx_device_area ON devices(area_id);
 CREATE INDEX idx_device_integration ON devices(integration);
 CREATE INDEX idx_device_manufacturer ON devices(manufacturer);
+CREATE INDEX idx_device_config_entry ON devices(config_entry_id);
+CREATE INDEX idx_device_via_device ON devices(via_device);
 ```
 
 **Fields:**
@@ -319,6 +323,8 @@ CREATE INDEX idx_device_manufacturer ON devices(manufacturer);
 - `sw_version`: Software/firmware version
 - `area_id`: Room/area location (e.g., "living_room", "bedroom")
 - `integration`: HA integration source (e.g., "zwave", "mqtt", "zigbee")
+- `config_entry_id`: Config entry ID (source tracking) - **NEW**
+- `via_device`: Parent device ID (self-referential FK for device hierarchy) - **NEW**
 - `last_seen`: Last time device was active
 - `created_at`: First discovery timestamp
 
@@ -351,12 +357,14 @@ CREATE TABLE entities (
     unique_id TEXT,
     area_id TEXT,
     disabled BOOLEAN DEFAULT 0,
+    config_entry_id TEXT,
     created_at TIMESTAMP
 );
 
 CREATE INDEX idx_entity_device ON entities(device_id);
 CREATE INDEX idx_entity_domain ON entities(domain);
 CREATE INDEX idx_entity_area ON entities(area_id);
+CREATE INDEX idx_entity_config_entry ON entities(config_entry_id);
 ```
 
 **Fields:**
@@ -367,6 +375,7 @@ CREATE INDEX idx_entity_area ON entities(area_id);
 - `unique_id`: Unique ID within platform
 - `area_id`: Room/area location
 - `disabled`: Whether entity is disabled
+- `config_entry_id`: Config entry ID (source tracking) - **NEW**
 - `created_at`: First discovery timestamp
 
 **Example Row:**
@@ -383,11 +392,22 @@ CREATE INDEX idx_entity_area ON entities(area_id);
 }
 ```
 
-**Foreign Key Relationship:**
+**Foreign Key Relationships:**
 ```
 devices (1) ----< entities (N)
   └─ device_id ──> device_id
+
+devices (1) ----< devices (N) [self-referential]
+  └─ via_device ──> device_id [device hierarchy]
 ```
+
+**Relationship Queries:**
+The EntityRegistry service provides relationship query methods:
+- `get_entities_by_device(device_id)` - Get all entities for a device
+- `get_sibling_entities(entity_id)` - Get entities from same device
+- `get_entities_in_area(area_id)` - Get all entities in an area
+- `get_entities_by_config_entry(config_entry_id)` - Get entities by config entry
+- `get_device_hierarchy(device_id)` - Get device hierarchy (via_device relationships)
 
 ### Webhooks Table (sports-data)
 

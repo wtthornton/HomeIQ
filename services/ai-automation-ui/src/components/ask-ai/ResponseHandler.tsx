@@ -11,10 +11,10 @@ import { ConversationalSuggestionCard } from '../ConversationalSuggestionCard';
 import { ClarificationDialog } from './ClarificationDialog';
 import type {
   ConversationTurnResponse,
-  ResponseType,
   AutomationSuggestion,
   ClarificationQuestion,
 } from '../../services/api-v2';
+import { ResponseType } from '../../services/api-v2';
 
 interface ResponseHandlerProps {
   response: ConversationTurnResponse;
@@ -69,17 +69,20 @@ export const ResponseHandler: React.FC<ResponseHandlerProps> = ({
                 >
                   <ConversationalSuggestionCard
                     suggestion={{
-                      suggestion_id: suggestion.suggestion_id,
-                      description: suggestion.description,
+                      id: parseInt(suggestion.suggestion_id) || 0,
+                      description_only: suggestion.description,
                       title: suggestion.title,
+                      category: 'automation',
                       confidence: suggestion.confidence,
-                      status: suggestion.status,
-                      automation_yaml: suggestion.automation_yaml,
-                      validated_entities: suggestion.validated_entities,
+                      status: (suggestion.status as 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected') || 'draft',
+                      refinement_count: 0,
+                      conversation_history: [],
+                      automation_yaml: suggestion.automation_yaml || null,
+                      created_at: new Date().toISOString(),
                     }}
-                    onApprove={() => onSuggestionApprove?.(suggestion)}
-                    onReject={() => onSuggestionReject?.(suggestion)}
-                    onRefine={(refinement) => onSuggestionRefine?.(suggestion, refinement)}
+                    onApprove={async () => { await onSuggestionApprove?.(suggestion); }}
+                    onReject={async () => { await onSuggestionReject?.(suggestion); }}
+                    onRefine={async (_id, refinement) => { await onSuggestionRefine?.(suggestion, refinement); }}
                   />
                 </motion.div>
               ))}
@@ -109,14 +112,25 @@ export const ResponseHandler: React.FC<ResponseHandlerProps> = ({
 
           {clarification_questions && clarification_questions.length > 0 && (
             <ClarificationDialog
-              questions={clarification_questions}
+              questions={clarification_questions.map(q => ({
+                id: q.id,
+                category: q.category || 'general',
+                question_text: q.question_text,
+                question_type: (q.question_type as 'boolean' | 'text' | 'multiple_choice' | 'entity_selection') || 'text',
+                options: q.options,
+                priority: q.priority || 0,
+                related_entities: q.related_entities,
+              }))}
               sessionId={response.conversation_id}
-              confidence={confidence?.overall || 0}
-              threshold={0.7}
-              onAnswer={(answers) => {
+              currentConfidence={confidence?.overall || 0}
+              confidenceThreshold={0.7}
+              onAnswer={async (answers) => {
                 if (onClarificationAnswer) {
-                  onClarificationAnswer(clarification_questions, answers);
+                  await onClarificationAnswer(clarification_questions, answers);
                 }
+              }}
+              onCancel={() => {
+                // Handle cancel if needed
               }}
             />
           )}
@@ -131,7 +145,7 @@ export const ResponseHandler: React.FC<ResponseHandlerProps> = ({
             <p>{content}</p>
             {response.processing_time_ms && (
               <span className="processing-time">
-                Completed in {response.processing_time_ms}ms
+                Completed in {String(response.processing_time_ms)}ms
               </span>
             )}
           </div>

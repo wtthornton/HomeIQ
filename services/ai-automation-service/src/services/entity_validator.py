@@ -264,15 +264,26 @@ class EntityValidator:
         # Check if entity exists exactly
         exact_match = self._find_exact_match(entity_id, available_entities)
         if exact_match:
+            # Get sibling entities for suggestions even if entity exists
+            sibling_alternatives = await self._get_sibling_entity_alternatives(entity_id)
             return EntityValidationResult(
                 entity_id=entity_id,
                 exists=True,
-                suggested_alternatives=[],
+                suggested_alternatives=sibling_alternatives,
                 confidence_score=1.0
             )
         
-        # Find alternatives
+        # Find alternatives using similarity
         alternatives = self._find_alternatives(entity_id, available_entities)
+        
+        # Also get sibling entities if we found a match
+        if alternatives:
+            # Try to get siblings for the first alternative
+            sibling_alternatives = await self._get_sibling_entity_alternatives(alternatives[0])
+            # Merge sibling alternatives (avoid duplicates)
+            for sibling in sibling_alternatives:
+                if sibling not in alternatives:
+                    alternatives.append(sibling)
         
         return EntityValidationResult(
             entity_id=entity_id,
@@ -330,6 +341,44 @@ class EntityValidator:
         
         # Limit to top 5 alternatives
         return alternatives[:5]
+    
+    async def _get_sibling_entity_alternatives(self, entity_id: str) -> List[str]:
+        """
+        Get sibling entities (entities from same device) as alternatives.
+        
+        Uses relationship query endpoint to fetch sibling entities.
+        
+        Args:
+            entity_id: Entity ID to get siblings for
+            
+        Returns:
+            List of sibling entity IDs
+        """
+        if not self.data_api_client:
+            return []
+        
+        try:
+            import aiohttp
+            
+            # Get base URL for data-api
+            data_api_url = getattr(self.data_api_client, 'base_url', 'http://data-api:8006')
+            
+            # Fetch sibling entities
+            siblings_url = f"{data_api_url}/api/entities/{entity_id}/siblings"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(siblings_url, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
+                    if response.status == 200:
+                        siblings_data = await response.json()
+                        siblings = siblings_data.get('siblings', [])
+                        sibling_ids = [s.get('entity_id') for s in siblings if s.get('entity_id') and s.get('entity_id') != entity_id]
+                        logger.debug(f"Found {len(sibling_ids)} sibling entities for {entity_id}")
+                        return sibling_ids[:5]  # Limit to 5 siblings
+                    else:
+                        logger.debug(f"Could not fetch sibling entities for {entity_id}: HTTP {response.status}")
+                        return []
+        except Exception as e:
+            logger.debug(f"Error fetching sibling entities for {entity_id}: {e}")
+            return []
     
     def _extract_location_from_query(self, query: str) -> Optional[str]:
         """

@@ -330,37 +330,178 @@ Count events matching criteria.
 #### GET /api/v1/events/export?format=csv
 Export events in CSV/JSON format.
 
-### Devices & Entities Endpoints (5 total)
+### Devices & Entities Endpoints
 
-#### GET /api/v1/devices
+#### GET /api/devices
 Get all discovered Home Assistant devices.
 
+**Response:**
 ```json
 {
   "devices": [
     {
-      "id": "device_abc123",
+      "device_id": "device_abc123",
       "name": "Living Room Light",
       "manufacturer": "Philips",
       "model": "Hue Bulb",
-      "entities": ["light.living_room"]
+      "sw_version": "1.88.1",
+      "area_id": "living_room",
+      "integration": "hue",
+      "config_entry_id": "entry_123",
+      "via_device": null,
+      "entity_count": 2,
+      "timestamp": "2025-01-20T12:00:00Z"
     }
   ],
-  "total": 42
+  "count": 42
 }
 ```
 
-#### GET /api/v1/devices/{device_id}
+#### GET /api/devices/{device_id}
 Get specific device information.
 
-#### GET /api/v1/entities
+**Response includes:** device_id, name, manufacturer, model, sw_version, area_id, integration, config_entry_id, via_device, entity_count, timestamp
+
+#### GET /api/entities
 Get all Home Assistant entities.
 
-#### GET /api/v1/entities/{entity_id}
+#### GET /api/entities/{entity_id}
 Get specific entity information.
 
-#### GET /api/v1/entities/{entity_id}/history
+**Response includes:** entity_id, device_id, domain, platform, unique_id, area_id, disabled, config_entry_id, name, name_by_user, original_name, friendly_name, supported_features, capabilities, available_services, icon, device_class, unit_of_measurement, timestamp
+
+#### GET /api/entities/{entity_id}/history
 Get historical data for entity.
+
+#### Relationship Query Endpoints (NEW)
+
+#### GET /api/entities/by-device/{device_id}
+Get all entities for a device.
+
+**Response:**
+```json
+{
+  "success": true,
+  "device_id": "device_abc123",
+  "entities": [
+    {
+      "entity_id": "light.living_room",
+      "device_id": "device_abc123",
+      "domain": "light",
+      "platform": "hue",
+      "related_entities": ["sensor.living_room_battery"],
+      "config_entry_id": "entry_123",
+      "capabilities": {"brightness": true, "color": true}
+    }
+  ],
+  "count": 2
+}
+```
+
+#### GET /api/entities/{entity_id}/siblings
+Get sibling entities (entities from same device).
+
+**Response:**
+```json
+{
+  "success": true,
+  "entity_id": "light.living_room",
+  "siblings": [
+    {
+      "entity_id": "sensor.living_room_battery",
+      "device_id": "device_abc123",
+      "domain": "sensor"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### GET /api/entities/{entity_id}/device
+Get device for an entity.
+
+**Response:**
+```json
+{
+  "success": true,
+  "entity_id": "light.living_room",
+  "device": {
+    "device_id": "device_abc123",
+    "name": "Living Room Light",
+    "manufacturer": "Philips",
+    "model": "Hue Bulb",
+    "sw_version": "1.88.1",
+    "area_id": "living_room",
+    "integration": "hue",
+    "config_entry_id": "entry_123",
+    "via_device": null
+  }
+}
+```
+
+#### GET /api/entities/by-area/{area_id}
+Get all entities in an area.
+
+**Response:**
+```json
+{
+  "success": true,
+  "area_id": "living_room",
+  "entities": [
+    {
+      "entity_id": "light.living_room",
+      "device_id": "device_abc123",
+      "area_id": "living_room",
+      "related_entities": []
+    }
+  ],
+  "count": 10
+}
+```
+
+#### GET /api/entities/by-config-entry/{config_entry_id}
+Get entities by config entry ID.
+
+**Response:**
+```json
+{
+  "success": true,
+  "config_entry_id": "entry_123",
+  "entities": [
+    {
+      "entity_id": "light.living_room",
+      "config_entry_id": "entry_123"
+    }
+  ],
+  "count": 5
+}
+```
+
+#### GET /api/devices/{device_id}/hierarchy
+Get device hierarchy (via_device relationships).
+
+**Response:**
+```json
+{
+  "success": true,
+  "device_id": "device_abc123",
+  "device": {
+    "device_id": "device_abc123",
+    "name": "Living Room Light",
+    "manufacturer": "Philips",
+    "model": "Hue Bulb",
+    "via_device": "parent_device_id",
+    "config_entry_id": "entry_123"
+  },
+  "parent_device": {
+    "device_id": "parent_device_id",
+    "name": "Parent Device",
+    "manufacturer": "Philips",
+    "model": "Bridge"
+  },
+  "child_devices": []
+}
+```
 
 ### WebSocket
 

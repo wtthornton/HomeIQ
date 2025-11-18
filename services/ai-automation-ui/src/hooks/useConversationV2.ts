@@ -9,10 +9,8 @@ import { useState, useCallback, useRef } from 'react';
 import apiV2, {
   ConversationResponse,
   ConversationTurnResponse,
-  ConversationDetail,
   ConversationStartRequest,
   MessageRequest,
-  ResponseType,
 } from '../services/api-v2';
 import toast from 'react-hot-toast';
 

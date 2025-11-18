@@ -75,6 +75,6 @@ Write-Host "   4. Navigate to http://localhost:3001/ask-ai" -ForegroundColor Whi
 Write-Host ""
 
 # Show container status
-Write-Host "📊 Container Status:" -ForegroundColor Cyan
+Write-Host "Container Status:" -ForegroundColor Cyan
 docker compose ps ai-automation-service ai-automation-ui
 

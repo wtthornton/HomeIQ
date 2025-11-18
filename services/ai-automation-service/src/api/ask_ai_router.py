@@ -55,6 +55,7 @@ from ..services.clarification import (
     ClarificationAnswer
 )
 from ..services.rag import RAGClient
+from ..services.service_container import ServiceContainer
 import os
 from sqlalchemy import select, update
 import asyncio
@@ -1891,7 +1892,7 @@ AUTOMATION SPECIFICATION:
 2025 HOME ASSISTANT YAML EXAMPLES
 ═══════════════════════════════════════════════════════════════════════════════
 
-Example 1 - Simple Time-Based Automation:
+Example 1 - Simple Time-Based Automation (Specific Time):
 ```yaml
 id: '1234567890'
 alias: Morning Light
@@ -1908,6 +1909,35 @@ actions:
     data:
       brightness_pct: 100
 ```
+
+Example 1b - Recurring Time-Based Automation (Every X Minutes/Hours):
+```yaml
+id: '1234567891'
+alias: Periodic Light Effect
+description: "Change light effect every 10 minutes"
+mode: single
+triggers:
+  - trigger: time_pattern
+    minutes: '/10'
+conditions: []
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+    data:
+      effect: random
+```
+
+CRITICAL TIME TRIGGER RULES:
+- Use "trigger: time" with "at:" field ONLY for SPECIFIC times (e.g., "at 7 AM", "at 14:30:00")
+  ✅ CORRECT: trigger: time → at: '07:00:00'
+  ❌ WRONG: trigger: time → at: '/10 * * * *' (cron expressions NOT supported in 'at:' field)
+  
+- Use "trigger: time_pattern" with "minutes:", "hours:", or "seconds:" for RECURRING intervals
+  ✅ CORRECT: trigger: time_pattern → minutes: '/10' (every 10 minutes)
+  ✅ CORRECT: trigger: time_pattern → hours: '/2' (every 2 hours)
+  ✅ CORRECT: trigger: time_pattern → seconds: '/30' (every 30 seconds)
+  ❌ WRONG: trigger: time → at: '/10 * * * *' (cron syntax not supported)
 
 Example 2 - Advanced Automation with Sequences and Conditions:
 ```yaml
@@ -1995,13 +2025,19 @@ actions:                     # ✅ PLURAL "actions:" (2025 standard)
    - Inside items: "trigger:" and "action:" fields
    - OLD format with "platform:" and "service:" is DEPRECATED
    
-3. Target Structure: MUST use target.entity_id
+3. Time Triggers: MUST use correct trigger type for time-based automations
+   - SPECIFIC times (e.g., "at 7 AM"): Use "trigger: time" with "at: 'HH:MM:SS'"
+   - RECURRING intervals (e.g., "every 10 minutes"): Use "trigger: time_pattern" with "minutes: '/10'"
+   - ❌ NEVER use cron expressions in "at:" field (e.g., '/10 * * * *' - NOT supported)
+   - ❌ NEVER use "trigger: time" for recurring intervals
+   
+4. Target Structure: MUST use target.entity_id
    - ✅ CORRECT: action: light.turn_on → target: → entity_id: light.example
    - ❌ WRONG: action: light.turn_on with entity_id directly in action
 
-4. WLED Entities: Use light.turn_on (NOT wled.turn_on - doesn't exist)
+5. WLED Entities: Use light.turn_on (NOT wled.turn_on - doesn't exist)
 
-5. Special Characters: Quote descriptions containing colons
+6. Special Characters: Quote descriptions containing colons
    - ✅ "TEST MODE: Alert" or "TEST MODE - Alert"
    - ❌ TEST MODE: Alert (breaks YAML)
 
@@ -2120,10 +2156,20 @@ Generate ONLY the YAML content:
         
         # Use fixed YAML if validation made fixes
         if validation.fixed_yaml:
+            logger.info(f"🔧 Using fixed YAML from validator (original had {len(validation.errors)} errors)")
+            original_yaml = yaml_content
             yaml_content = validation.fixed_yaml
             service_fixes = [w for w in validation.warnings if '→' in w]
             if service_fixes:
                 logger.info(f"✅ Applied {len(service_fixes)} service name fixes")
+            # Log trigger fixes
+            trigger_fixes = [e for e in validation.errors if 'trigger' in e.lower() and 'time' in e.lower()]
+            if trigger_fixes:
+                logger.info(f"✅ Applied trigger fixes: {trigger_fixes[0] if trigger_fixes else 'N/A'}")
+                # Log the actual fix for debugging
+                logger.info(f"🔍 Fixed YAML preview (first 500 chars): {yaml_content[:500]}")
+        else:
+            logger.debug(f"⚠️ No fixed YAML available from validator (errors: {len(validation.errors)})")
         
         if not validation.is_valid:
             logger.warning(f"⚠️ YAML structure validation found issues: {validation.errors[:3]}")
@@ -6228,72 +6274,50 @@ async def test_suggestion_from_query(
         )
         logger.info(f"🔍 Detected {len(stripped_components)} stripped components")
         
-        # Extract entity IDs from mapping for state capture
-        entity_ids = list(entity_mapping.values()) if entity_mapping else []
-        
-        # TASK 1.1: Capture entity states BEFORE test execution
-        logger.info(f"📸 Capturing entity states before test execution...")
-        before_states = await capture_entity_states(ha_client, entity_ids)
-        
-        # STEP 3: Create automation in HA
-        ha_create_start = time.time()
-        logger.info(f"Creating automation in Home Assistant...")
-        
-        # List existing automations for debugging
-        logger.debug("Listing existing automations in HA...")
-        try:
-            existing_automations = await ha_client.list_automations()
-            logger.debug(f"Found {len(existing_automations)} existing automations")
-            if existing_automations:
-                logger.debug(f"Sample automation IDs: {[a.get('entity_id', 'unknown') for a in existing_automations[:5]]}")
-        except Exception as list_error:
-            logger.warning(f"Could not list automations: {list_error}")
+        # STEP 3: Execute test using AutomationTestExecutor (uses ActionExecutor internally)
+        logger.info(f"Executing test via AutomationTestExecutor (no automation creation)...")
         
         try:
-            logger.debug(f"Calling ha_client.create_automation with YAML of length {len(str(automation_yaml))}")
-            creation_result = await ha_client.create_automation(automation_yaml)
-            ha_create_time = (time.time() - ha_create_start) * 1000
-            logger.info(f"Automation created: {creation_result.get('automation_id')}")
-            logger.debug(f"Creation result: {creation_result}")
+            # Get AutomationTestExecutor from ServiceContainer
+            service_container = ServiceContainer()
+            test_executor = service_container.test_executor
             
-            automation_id = creation_result.get('automation_id')
-            if not automation_id:
-                raise Exception("Failed to create automation - no ID returned")
+            # Prepare test context
+            test_context = {
+                'query_id': query_id,
+                'suggestion_id': suggestion_id,
+                'original_query': query.original_query,
+                'automation_yaml': automation_yaml,
+                'entity_mapping': entity_mapping
+            }
             
-            # Verify the automation was created correctly by fetching it from HA
-            logger.debug("Verifying automation was created correctly...")
-            try:
-                verification = await ha_client.get_automation(automation_id)
-                logger.info(f"Automation verification: {verification}")
-            except Exception as verify_error:
-                logger.warning(f"Could not verify automation: {verify_error}")
-            
-            # Trigger the automation immediately to test it
-            ha_trigger_start = time.time()
-            logger.info(f"Triggering automation {automation_id} to test...")
-            await ha_client.trigger_automation(automation_id)
-            ha_trigger_time = (time.time() - ha_trigger_start) * 1000
-            logger.info(f"Automation triggered")
-            
-            # TASK 1.1: Wait and validate state changes (reduced wait time since we're checking)
-            logger.info("Waiting for state changes (max 5 seconds)...")
-            state_validation = await validate_state_changes(
-                ha_client,
-                before_states,
-                entity_ids,
-                wait_timeout=5.0
+            # Execute test using AutomationTestExecutor (handles state capture, execution, and validation)
+            test_result = await test_executor.execute_test(
+                automation_yaml=automation_yaml,
+                expected_changes=None,
+                context=test_context
             )
             
-            # Additional wait only if needed for delayed actions (reduced from 30s)
-            remaining_wait = max(0, 2.0 - state_validation['summary']['validation_time_ms'] / 1000)
-            if remaining_wait > 0:
-                await asyncio.sleep(remaining_wait)
-            logger.debug("Wait complete")
+            # Extract results from test execution
+            state_validation = {
+                'results': test_result.get('state_changes', {}),
+                'summary': test_result.get('state_validation', {})
+            }
             
-            # Delete the automation
-            logger.info(f"Deleting test automation {automation_id}...")
-            deletion_result = await ha_client.delete_automation(automation_id)
-            logger.info(f"Automation deleted")
+            execution_summary = test_result.get('execution_summary', {})
+            action_execution_time = test_result.get('execution_time_ms', 0)
+            
+            logger.info(f"Test execution complete: {execution_summary.get('successful', 0)}/{execution_summary.get('total_actions', 0)} actions successful")
+            
+            # Check if execution was successful
+            if execution_summary.get('failed', 0) > 0:
+                logger.warning(f"Some actions failed: {execution_summary.get('failed', 0)}")
+                errors = test_result.get('errors', [])
+                if errors:
+                    logger.debug(f"Failed action errors: {errors}")
+            
+            # Set automation_id to None since we didn't create one
+            automation_id = None
             
             # Generate quality report for the test YAML
             quality_report = _generate_test_quality_report(
@@ -6307,10 +6331,11 @@ async def test_suggestion_from_query(
             # TASK 1.3: Analyze test execution with OpenAI JSON mode
             logger.info("🔍 Analyzing test execution results...")
             analyzer = TestResultAnalyzer(openai_client)
+            execution_logs = f"Actions executed via AutomationTestExecutor: {execution_summary.get('successful', 0)}/{execution_summary.get('total_actions', 0)} successful"
             test_analysis = await analyzer.analyze_test_execution(
                 test_yaml=automation_yaml,
                 state_validation=state_validation,
-                execution_logs=f"Automation {automation_id} triggered successfully"
+                execution_logs=execution_logs
             )
             
             # TASK 1.5: Format stripped components for preview
@@ -6323,25 +6348,36 @@ async def test_suggestion_from_query(
             performance_metrics = {
                 "entity_resolution_ms": round(entity_resolution_time, 2),
                 "yaml_generation_ms": round(yaml_gen_time, 2),
-                "ha_creation_ms": round(ha_create_time, 2),
-                "ha_trigger_ms": round(ha_trigger_time, 2),
-                "total_ms": round(total_time, 2)
+                "action_execution_ms": round(action_execution_time, 2),
+                "state_validation_ms": round(state_validation.get('summary', {}).get('validation_time_ms', 0), 2),
+                "total_ms": round(total_time, 2),
+                "action_executor_used": True,
+                "actions_executed": execution_summary.get('total_actions', 0),
+                "actions_successful": execution_summary.get('successful', 0),
+                "actions_failed": execution_summary.get('failed', 0)
             }
             
             # Log slow operations
             if total_time > 5000:
                 logger.warning(f"Slow operation detected: total time {total_time:.2f}ms")
-            if ha_create_time > 5000:
-                logger.warning(f"Slow HA creation: {ha_create_time:.2f}ms")
+            if action_execution_time > 5000:
+                logger.warning(f"Slow action execution: {action_execution_time:.2f}ms")
             
             response_data = {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
                 "executed": True,
                 "automation_yaml": automation_yaml,
-                "automation_id": automation_id,
-                "deleted": True,
-                "message": "Test completed successfully - automation created, executed, and deleted",
+                "automation_id": automation_id,  # None - no automation created
+                "deleted": False,  # No automation to delete
+                "message": "Test completed successfully - actions executed via AutomationTestExecutor (no automation created)",
+                "execution_result": {
+                    "total_actions": execution_summary.get('total_actions', 0),
+                    "successful_actions": execution_summary.get('successful', 0),
+                    "failed_actions": execution_summary.get('failed', 0),
+                    "execution_time_ms": execution_summary.get('execution_time_ms', 0)
+                },
+                "execution_summary": test_result.get('execution_summary', {}),
                 "quality_report": quality_report,
                 "performance_metrics": performance_metrics,
                 # TASK 1.1: State capture and validation results
@@ -6380,8 +6416,55 @@ async def test_suggestion_from_query(
             
             return response_data
             
-        except Exception as e:
-            logger.error(f"❌ ERROR in test execution: {e}")
+        except Exception as action_error:
+            logger.error(f"❌ ERROR in AutomationTestExecutor execution: {action_error}", exc_info=True)
+            # Fallback: Try old method if AutomationTestExecutor fails
+            logger.warning("⚠️ Falling back to old create/delete automation method...")
+            try:
+                # Extract entity IDs for fallback
+                fallback_entity_ids = list(entity_mapping.values()) if entity_mapping else []
+                
+                # Capture states before fallback execution
+                fallback_before_states = await capture_entity_states(ha_client, fallback_entity_ids)
+                
+                # Fallback to old method
+                ha_create_start = time.time()
+                creation_result = await ha_client.create_automation(automation_yaml)
+                ha_create_time = (time.time() - ha_create_start) * 1000
+                automation_id = creation_result.get('automation_id')
+                
+                if automation_id:
+                    await ha_client.trigger_automation(automation_id)
+                    state_validation = await validate_state_changes(
+                        ha_client, fallback_before_states, fallback_entity_ids, wait_timeout=5.0
+                    )
+                    await ha_client.delete_automation(automation_id)
+                    
+                    total_time = (time.time() - start_time) * 1000
+                    return {
+                        "suggestion_id": suggestion_id,
+                        "query_id": query_id,
+                        "executed": True,
+                        "automation_yaml": automation_yaml,
+                        "automation_id": automation_id,
+                        "deleted": True,
+                        "message": "Test completed (fallback method - AutomationTestExecutor failed)",
+                        "state_validation": state_validation,
+                        "performance_metrics": {
+                            "entity_resolution_ms": round(entity_resolution_time, 2),
+                            "yaml_generation_ms": round(yaml_gen_time, 2),
+                            "ha_creation_ms": round(ha_create_time, 2),
+                            "total_ms": round(total_time, 2),
+                            "action_executor_used": False,
+                            "fallback_reason": str(action_error)
+                        }
+                    }
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback method also failed: {fallback_error}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Both AutomationTestExecutor and fallback method failed. AutomationTestExecutor error: {action_error}, Fallback error: {fallback_error}"
+                )
             raise
     
     except HTTPException as e:

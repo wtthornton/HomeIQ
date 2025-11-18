@@ -3,7 +3,7 @@ Device Model for SQLite Storage
 Story 22.2 - Simple device registry
 """
 
-from sqlalchemy import Column, String, DateTime, Index
+from sqlalchemy import Column, String, DateTime, Index, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..database import Base
@@ -29,12 +29,19 @@ class Device(Base):
     configuration_url = Column(String)  # Device configuration URL
     suggested_area = Column(String)  # Suggested area for device
     
+    # Source tracking
+    config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)
+    via_device = Column(String, ForeignKey("devices.device_id"), index=True)  # Parent device (self-referential FK)
+    
     # Timestamps
     last_seen = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationship to entities
     entities = relationship("Entity", back_populates="device", cascade="all, delete-orphan")
+    
+    # Self-referential relationship for via_device
+    parent_device = relationship("Device", remote_side="Device.device_id", foreign_keys=[via_device], backref="child_devices")
     
     def __repr__(self):
         return f"<Device(device_id='{self.device_id}', name='{self.name}')>"
@@ -44,4 +51,6 @@ class Device(Base):
 Index('idx_device_area', Device.area_id)
 Index('idx_device_integration', Device.integration)
 Index('idx_device_manufacturer', Device.manufacturer)
+Index('idx_device_config_entry', Device.config_entry_id)
+Index('idx_device_via_device', Device.via_device)
 
