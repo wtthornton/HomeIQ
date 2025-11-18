@@ -57,10 +57,10 @@ from .connection_manager import ConnectionManager
 from .async_event_processor import AsyncEventProcessor
 from .event_queue import EventQueue
 from .batch_processor import BatchProcessor
-from memory_manager import MemoryManager
-from http_client import SimpleHTTPClient
-from influxdb_wrapper import InfluxDBConnectionManager
-from historical_event_counter import HistoricalEventCounter
+from .memory_manager import MemoryManager
+from .http_client import SimpleHTTPClient
+from .influxdb_wrapper import InfluxDBConnectionManager
+from .historical_event_counter import HistoricalEventCounter
 
 # Load environment variables
 load_dotenv()
@@ -198,7 +198,7 @@ class WebSocketIngestionService:
             )
             
             # Initialize InfluxDB batch writer for event storage
-            from influxdb_batch_writer import InfluxDBBatchWriter
+            from .influxdb_batch_writer import InfluxDBBatchWriter
             self.influxdb_batch_writer = InfluxDBBatchWriter(
                 connection_manager=self.influxdb_manager,
                 batch_size=1000,
@@ -239,6 +239,7 @@ class WebSocketIngestionService:
                 
                 # Set up event handlers - don't override connection manager's callbacks
                 # The connection manager handles subscription, we'll add discovery in a separate callback
+                self.connection_manager.on_connect = self._on_connect  # FIX: Wire up discovery trigger
                 self.connection_manager.on_disconnect = self._on_disconnect
                 self.connection_manager.on_message = self._on_message
                 self.connection_manager.on_error = self._on_error

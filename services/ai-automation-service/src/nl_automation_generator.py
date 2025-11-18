@@ -90,11 +90,16 @@ class NLAutomationGenerator:
         """
         logger.info(f"🤖 Generating automation from NL: '{request.request_text}'")
         
-        # 1. Fetch available devices and entities for context
-        automation_context = await self._build_automation_context()
+        # Extract area/location from request if specified
+        area_filter = self._extract_area_from_request(request.request_text)
+        if area_filter:
+            logger.info(f"📍 Detected area filter: '{area_filter}'")
         
-        # 2. Build prompt for OpenAI
-        prompt = self._build_prompt(request, automation_context)
+        # 1. Fetch available devices and entities for context (filtered by area if specified)
+        automation_context = await self._build_automation_context(area_filter=area_filter)
+        
+        # 2. Build prompt for OpenAI (with area filter if specified)
+        prompt = self._build_prompt(request, automation_context, area_filter=area_filter)
         
         # 3. Call OpenAI to generate automation (with retry)
         try:
@@ -117,7 +122,7 @@ class NLAutomationGenerator:
         except yaml.YAMLError as e:
             logger.error(f"Generated invalid YAML: {e}")
             # Retry once with error feedback
-            return await self._retry_generation(request, automation_context, str(e))
+            return await self._retry_generation(request, automation_context, str(e), area_filter=area_filter)
         
         # 5. Validate safety
         safety_result = await self.safety_validator.validate(automation_data['yaml'])
@@ -154,17 +159,61 @@ class NLAutomationGenerator:
             warnings=warnings if warnings else None
         )
     
-    async def _build_automation_context(self) -> Dict:
+    async def _build_automation_context(self, area_filter: Optional[str] = None) -> Dict:
         """
         Fetch available devices and entities from data-api.
         Provides rich context to OpenAI about available hardware.
+        
+        Args:
+            area_filter: Optional area name(s) to filter entities by (e.g., "office" or "office,kitchen")
         """
         try:
-            logger.debug("Fetching device context from data-api")
+            logger.debug(f"Fetching device context from data-api (area_filter: {area_filter})")
 
-            # Fetch devices and entities
-            devices = await self.data_api_client.fetch_devices(limit=100)
-            entities = await self.data_api_client.fetch_entities(limit=200)
+            # Handle multiple areas (comma-separated)
+            if area_filter and ',' in area_filter:
+                # Multiple areas - fetch separately and combine
+                areas = area_filter.split(',')
+                logger.info(f"Fetching entities for multiple areas: {areas}")
+                
+                all_devices = []
+                all_entities = []
+                
+                for area in areas:
+                    area_devices = await self.data_api_client.fetch_devices(
+                        limit=100,
+                        area_id=area.strip()
+                    )
+                    area_entities = await self.data_api_client.fetch_entities(
+                        limit=200,
+                        area_id=area.strip()
+                    )
+                    
+                    if not area_devices.empty:
+                        all_devices.append(area_devices)
+                    if not area_entities.empty:
+                        all_entities.append(area_entities)
+                
+                # Combine results
+                import pandas as pd
+                devices = pd.concat(all_devices, ignore_index=True) if all_devices else pd.DataFrame()
+                entities = pd.concat(all_entities, ignore_index=True) if all_entities else pd.DataFrame()
+                
+                # Remove duplicates based on device_id/entity_id
+                if not devices.empty and 'device_id' in devices.columns:
+                    devices = devices.drop_duplicates(subset=['device_id'], keep='first')
+                if not entities.empty and 'entity_id' in entities.columns:
+                    entities = entities.drop_duplicates(subset=['entity_id'], keep='first')
+            else:
+                # Single area or no filter
+                devices = await self.data_api_client.fetch_devices(
+                    limit=100,
+                    area_id=area_filter if area_filter else None
+                )
+                entities = await self.data_api_client.fetch_entities(
+                    limit=200,
+                    area_id=area_filter if area_filter else None
+                )
 
             # Organize entities by domain for easier reference
             entities_by_domain = {}
@@ -213,19 +262,47 @@ class NLAutomationGenerator:
     def _build_prompt(
         self,
         request: NLAutomationRequest,
-        automation_context: Dict
+        automation_context: Dict,
+        area_filter: Optional[str] = None
     ) -> str:
         """
         Build comprehensive prompt for OpenAI.
         
         Includes available devices, HA automation structure, and safety guidelines.
+        
+        Args:
+            request: User's natural language request
+            automation_context: Context with available devices and entities
+            area_filter: Optional area filter to emphasize in prompt
         """
         # Summarize available devices for prompt
         device_summary = self._summarize_devices(automation_context)
         sanitized_request = self._sanitize_request(request.request_text)
         
-        prompt = f"""You are a Home Assistant automation expert. Generate a valid Home Assistant automation from the user's natural language request.
+        # Add area filter notice if applicable
+        area_notice = ""
+        if area_filter:
+            # Handle multiple areas (comma-separated)
+            areas = [a.replace('_', ' ').title() for a in area_filter.split(',')]
+            if len(areas) == 1:
+                area_display = areas[0]
+                area_notice = f"""
 
+**IMPORTANT - Area Restriction:**
+The user has specified devices in the "{area_display}" area. You MUST use ONLY devices that are located in the {area_display} area. 
+The available devices list below has already been filtered to show only {area_display} devices. DO NOT use devices from other areas.
+"""
+            else:
+                area_list = ', '.join(areas[:-1]) + ' and ' + areas[-1]
+                area_notice = f"""
+
+**IMPORTANT - Area Restriction:**
+The user has specified devices in these areas: {area_list}. You MUST use ONLY devices that are located in these areas.
+The available devices list below has already been filtered to show only devices from these areas. DO NOT use devices from other areas.
+"""
+        
+        prompt = f"""You are a Home Assistant automation expert. Generate a valid Home Assistant automation from the user's natural language request.
+{area_notice}
 **Available Devices:**
 {device_summary}
 
@@ -247,11 +324,16 @@ class NLAutomationGenerator:
    - mode field (use 'single' unless user wants parallel/queued/restart)
    - triggers, conditions, actions sections (all plural forms)
 2. Use ONLY devices that exist in the available devices list above
-3. If the request is ambiguous, ask for clarification in the 'clarification' field
-4. Include appropriate triggers, conditions (if needed), and actions
-5. Use a friendly, descriptive alias name
-6. Add time constraints or conditions for safety where appropriate
-7. Explain how the automation works in plain language
+3. **AREA FILTERING:** If the user specifies a location (e.g., "in the office", "kitchen and bedroom"):
+   - Use ONLY entities from that area/those areas
+   - The available devices list is already filtered by area if specified
+   - DO NOT use entities from other areas
+   - Verify entity_id matches the specified area(s)
+4. If the request is ambiguous, ask for clarification in the 'clarification' field
+5. Include appropriate triggers, conditions (if needed), and actions
+6. Use a friendly, descriptive alias name
+7. Add time constraints or conditions for safety where appropriate
+8. Explain how the automation works in plain language
 
 **Common Trigger Types:**
 - Time: `trigger: time` with `at: "HH:MM:SS"`
@@ -410,6 +492,95 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
         
         return prompt
 
+    def _extract_area_from_request(self, request_text: str) -> Optional[str]:
+        """
+        Extract area(s)/location(s) from the user request.
+        
+        Looks for common patterns like:
+        - Single area: "in the office", "at the kitchen"
+        - Multiple areas: "in the office and kitchen", "bedroom and living room"
+        
+        Args:
+            request_text: User's natural language request
+        
+        Returns:
+            Comma-separated area names if found (e.g., "office,kitchen"), None otherwise
+        """
+        if not request_text:
+            return None
+        
+        text_lower = request_text.lower()
+        
+        # Common area/room names
+        common_areas = [
+            'office', 'kitchen', 'bedroom', 'living room', 'living_room', 
+            'bathroom', 'garage', 'basement', 'attic', 'hallway',
+            'dining room', 'dining_room', 'master bedroom', 'master_bedroom',
+            'guest room', 'guest_room', 'laundry room', 'laundry_room',
+            'den', 'study', 'library', 'gym', 'playroom', 'nursery',
+            'porch', 'patio', 'deck', 'yard', 'garden', 'driveway',
+            'foyer', 'entryway', 'closet', 'pantry'
+        ]
+        
+        found_areas = []
+        
+        # Pattern 1: "in the X and Y" or "in X and Y" (multiple areas)
+        multi_in_pattern = r'(?:in\s+(?:the\s+)?)([\w\s]+?)(?:\s+and\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
+        matches = re.finditer(multi_in_pattern, text_lower)
+        for match in matches:
+            area1 = match.group(1).strip()
+            area2 = match.group(2).strip()
+            for potential in [area1, area2]:
+                for area in common_areas:
+                    if potential == area or potential.replace(' ', '_') == area:
+                        normalized = area.replace(' ', '_')
+                        if normalized not in found_areas:
+                            found_areas.append(normalized)
+        
+        if found_areas:
+            return ','.join(found_areas)
+        
+        # Pattern 2: "X and Y" (e.g., "bedroom and living room lights")
+        area_and_pattern = r'([\w\s]+?)\s+and\s+(?:the\s+)?([\w\s]+?)(?:\s+|,|$)'
+        matches = re.finditer(area_and_pattern, text_lower)
+        for match in matches:
+            area1 = match.group(1).strip()
+            area2 = match.group(2).strip()
+            for potential in [area1, area2]:
+                for area in common_areas:
+                    if potential == area or potential.replace(' ', '_') == area:
+                        normalized = area.replace(' ', '_')
+                        if normalized not in found_areas:
+                            found_areas.append(normalized)
+        
+        if found_areas:
+            return ','.join(found_areas)
+        
+        # Pattern 3: "in the X" or "in X" (single area)
+        in_pattern = r'(?:in\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
+        matches = re.finditer(in_pattern, text_lower)
+        for match in matches:
+            potential_area = match.group(1).strip()
+            for area in common_areas:
+                if potential_area == area or potential_area.replace(' ', '_') == area:
+                    return area.replace(' ', '_')
+        
+        # Pattern 4: "at the X" or "at X" (single area)
+        at_pattern = r'(?:at\s+(?:the\s+)?)([\w\s]+?)(?:\s+|,|$)'
+        matches = re.finditer(at_pattern, text_lower)
+        for match in matches:
+            potential_area = match.group(1).strip()
+            for area in common_areas:
+                if potential_area == area or potential_area.replace(' ', '_') == area:
+                    return area.replace(' ', '_')
+        
+        # Pattern 5: Area name at start of sentence
+        for area in common_areas:
+            if text_lower.startswith(area + ' ') or text_lower.startswith('the ' + area + ' '):
+                return area.replace(' ', '_')
+        
+        return None
+    
     def _sanitize_request(self, raw_text: str) -> str:
         """Remove potentially malicious prompt-injection content."""
 
@@ -568,14 +739,32 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
         self,
         request: NLAutomationRequest,
         automation_context: Dict,
-        error_message: str
+        error_message: str,
+        area_filter: Optional[str] = None
     ) -> GeneratedAutomation:
         """
         Retry generation with error feedback.
         
         Gives OpenAI the error from first attempt to help it correct mistakes.
+        
+        Args:
+            request: Original natural language request
+            automation_context: Available devices/entities context
+            error_message: Error from first attempt
+            area_filter: Optional area filter
         """
         logger.info(f"Retrying generation with error feedback: {error_message}")
+        
+        # Add area notice if applicable
+        area_notice = ""
+        if area_filter:
+            # Handle multiple areas
+            areas = [a.replace('_', ' ').title() for a in area_filter.split(',')]
+            if len(areas) == 1:
+                area_notice = f"\nIMPORTANT: Use ONLY devices from the {areas[0]} area.\n"
+            else:
+                area_list = ', '.join(areas[:-1]) + ' and ' + areas[-1]
+                area_notice = f"\nIMPORTANT: Use ONLY devices from these areas: {area_list}.\n"
         
         retry_prompt = f"""The previous generation attempt failed with this error:
 ERROR: {error_message}
@@ -585,7 +774,7 @@ Please try again, ensuring:
 2. All indentation is correct (use 2 spaces, not tabs)
 3. All strings are properly quoted
 4. The automation follows Home Assistant syntax exactly
-
+{area_notice}
 Original request: "{request.request_text}"
 
 Available devices:

@@ -153,7 +153,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
 
   // Calculate overall system status
   const calculateOverallStatus = (): 'operational' | 'degraded' | 'error' => {
+    // Critical alerts = immediate error state
     if (totalCritical > 0) return 'error';
+    
+    // RAG status check - if red = error, amber = degraded
+    if (ragStatus) {
+      if (ragStatus.overall === 'red') return 'error';
+      if (ragStatus.overall === 'amber') return 'degraded';
+    }
     
     // Check if any core dependencies are unhealthy
     const influxdb = enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB');
@@ -163,6 +170,13 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
     
     if (unhealthyDeps > 0) return 'degraded';
     if (health?.status !== 'healthy') return 'degraded';
+    
+    // Check data source health - if any are unhealthy = degraded
+    const unhealthyDataSources = Object.values(dataSources || {}).filter(
+      ds => ds?.status === 'error' || ds?.status === 'unhealthy'
+    ).length;
+    
+    if (unhealthyDataSources > 0) return 'degraded';
     
     return 'operational';
   };

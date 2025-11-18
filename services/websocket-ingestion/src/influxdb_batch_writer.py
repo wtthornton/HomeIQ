@@ -13,8 +13,8 @@ try:
 except ImportError:
     Point = None
 
-from influxdb_wrapper import InfluxDBConnectionManager
-from influxdb_schema import InfluxDBSchema
+from .influxdb_wrapper import InfluxDBConnectionManager
+from .influxdb_schema import InfluxDBSchema
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ Historical Event Counter for Persistent Total Event Tracking
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
-from influxdb_wrapper import InfluxDBConnectionManager
+from .influxdb_wrapper import InfluxDBConnectionManager
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from aiohttp import ClientSession, WSMsgType, ClientWebSocketResponse
 from aiohttp.web_exceptions import HTTPException
 import json
 
-from token_validator import TokenValidator
+from .token_validator import TokenValidator
 
 logger = logging.getLogger(__name__)
 
