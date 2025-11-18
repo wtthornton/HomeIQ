@@ -58,9 +58,20 @@ chmod 600 .env.*
 
 ## Services Configuration
 
+### Home Assistant Connection
+**Standard Environment Variables (Recommended):**
+- `HOME_ASSISTANT_URL` - Home Assistant URL (e.g., `http://192.168.1.86:8123`)
+- `HOME_ASSISTANT_TOKEN` - Long-lived access token
+
+**Nabu Casa Cloud Fallback (Optional):**
+- `NABU_CASA_URL` - Nabu Casa URL (e.g., `https://your-instance.ui.nabu.casa`)
+- `NABU_CASA_TOKEN` - Nabu Casa access token
+
+> ✅ **November 2025 Standardization**: All services now use `HOME_ASSISTANT_URL` and `HOME_ASSISTANT_TOKEN`. Legacy `LOCAL_HA_TOKEN`, `LOCAL_HA_URL`, and `HA_TOKEN` mappings have been simplified.
+
 ### websocket-ingestion
 - **File**: `.env.websocket`
-- **Required**: HA_URL, HA_TOKEN
+- **Required**: HOME_ASSISTANT_URL, HOME_ASSISTANT_TOKEN
 - **Restart Required**: Yes
 
 ### weather-api  

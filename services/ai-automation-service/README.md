@@ -5,7 +5,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 **Port:** 8018 (internal), exposed as 8024 (external)
 **Technology:** Python 3.11+, FastAPI 0.121, OpenAI GPT-4o-mini, OpenVINO
 **Container:** `homeiq-ai-automation-service`
-**Database:** SQLite (ai_automation.db - 11 tables)
+**Database:** SQLite (ai_automation.db - 13 tables)
 
 ## Overview
 
@@ -55,6 +55,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🎯 Context-aware recommendations
 - 🎨 **Enhanced Entity Resolution** - Multi-signal matching with fuzzy search, blocking, and user aliases
 - 🧠 **Semantic Understanding (RAG)** - Self-improving clarification system that learns from successful queries
+- 🔄 **Persistent Clarification Sessions** - Database-backed clarification flow with query ID linkage (AI1.26)
 
 **LangChain Integration (Feature Flags):**
 - 🔧 `USE_LANGCHAIN_ASK_AI` - Enable LangChain for Ask AI prompts
@@ -96,8 +97,14 @@ HOST=0.0.0.0
 # External Services
 DATA_API_URL=http://data-api:8006
 DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
-HA_URL=http://homeassistant:8123
-HA_TOKEN=your-ha-long-lived-access-token
+
+# Home Assistant (Standard)
+HOME_ASSISTANT_URL=http://homeassistant:8123
+HOME_ASSISTANT_TOKEN=your-ha-long-lived-access-token
+
+# Nabu Casa Cloud Fallback (Optional)
+NABU_CASA_URL=https://your-instance.ui.nabu.casa
+NABU_CASA_TOKEN=your-nabu-casa-token
 
 # MQTT Configuration
 MQTT_BROKER=192.168.1.86
@@ -377,6 +384,40 @@ curl -X POST http://localhost:8024/api/v1/ask-ai/query \
   }'
 ```
 
+Response (No Clarification):
+```json
+{
+  "query_id": "query-abc123",
+  "clarification_needed": false,
+  "suggestions": [...]
+}
+```
+
+Response (Clarification Needed):
+```json
+{
+  "query_id": "query-abc123",
+  "clarification_needed": true,
+  "clarification_session_id": "clarify-def456",
+  "questions": [{"id": "q1", "question_text": "..."}]
+}
+```
+
+#### `POST /api/v1/ask-ai/clarify`
+Provide answers to clarification questions
+```bash
+curl -X POST http://localhost:8024/api/v1/ask-ai/clarify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "clarify-def456",
+    "answers": [{
+      "question_id": "q1",
+      "answer_text": "bedroom ceiling",
+      "selected_entities": ["light.bedroom_ceiling"]
+    }]
+  }'
+```
+
 #### `POST /api/v1/ask-ai/query/{id}/refine`
 Refine query results
 ```bash
@@ -388,9 +429,30 @@ curl -X POST http://localhost:8024/api/v1/ask-ai/query/abc123/refine \
 ```
 
 #### `GET /api/v1/ask-ai/query/{id}/suggestions`
-Get automation suggestions from query
+Get automation suggestions from query (supports both direct and clarification query IDs)
 ```bash
-curl http://localhost:8024/api/v1/ask-ai/query/abc123/suggestions
+curl http://localhost:8024/api/v1/ask-ai/query/abc123/suggestions?include_clarifications=true
+```
+
+Response (Direct Query):
+```json
+{
+  "query_id": "query-abc123",
+  "suggestions": [...],
+  "source": "direct"
+}
+```
+
+Response (From Clarification):
+```json
+{
+  "query_id": "query-abc123",
+  "original_query_id": "query-abc123",
+  "clarification_session_id": "clarify-def456",
+  "clarification_query_id": "clarify-def456",
+  "suggestions": [...],
+  "source": "clarification"
+}
 ```
 
 #### `POST /api/v1/ask-ai/query/{id}/suggestions/{suggestion_id}/test`
@@ -816,7 +878,7 @@ ai-automation-service/
 
 ### Database Schema
 
-**SQLite Database: ai_automation.db (12 tables)**
+**SQLite Database: ai_automation.db (13 tables)**
 
 1. **patterns** - Detected patterns (time-of-day, co-occurrence, anomaly)
 2. **suggestions** - Automation suggestions (draft, approved, rejected, deployed)
@@ -830,6 +892,7 @@ ai-automation-service/
 10. **analysis_runs** - Daily analysis job tracking
 11. **validation_results** - Safety validation results
 12. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
+13. **clarification_sessions** - Persistent clarification sessions with query linkage (AI1.26)
 
 ### Entity Resolution Enhancements
 
@@ -1344,6 +1407,15 @@ async def detect_patterns(
 
 ## Version History
 
+### 2.2 (November 18, 2025)
+- Story AI1.26: Persistent clarification session storage
+- Database-backed clarification flow with query ID linkage
+- Smart suggestion retrieval (supports both direct and clarification query IDs)
+- HOME_ASSISTANT_TOKEN standardization (removed LOCAL_HA_TOKEN/LOCAL_HA_URL)
+- YAML 2025 standards enforcement
+- New clarification API endpoints
+- Updated database schema (13 tables)
+
 ### 2.1 (November 15, 2025)
 - Updated documentation to 2025 standards
 - Enhanced dependency documentation
@@ -1373,12 +1445,12 @@ async def detect_patterns(
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 2.1
+**Last Updated:** November 18, 2025
+**Version:** 2.2
 **Status:** Production Ready ✅
 **Port:** 8018 (internal), 8024 (external)
 
-**Epic AI-1:** Complete ✅ (Pattern Detection)
+**Epic AI-1:** Complete ✅ (Pattern Detection + Clarification Flow - Story AI1.26)
 **Epic AI-2:** Complete ✅ (Device Intelligence - Stories 2.1-2.5)
 **Epic AI-3:** Complete ✅ (N-Level Synergy Detection)
 **Epic AI-4:** In Progress 🚧 (Advanced Synergy Analysis)
