@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Implement Action Execution Engine and major system improvements** (f6fd9a7) - wtthornton
+- **Complete HA Conversation v2 API implementation** (e462b6c) - wtthornton
+- **Implement persistent clarification session storage (AI1.26)** (83967c9) - wtthornton
+- **Fix clarification flow and standardize HA token configuration** (6bf1312) - wtthornton
+- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (45cb1c1) - wtthornton
+- **Add cache expiration and staleness detection across services** (9b1fda6) - wtthornton
+- **Implement MQTT subscription for Zigbee2MQTT health monitoring** (25dbdde) - wtthornton
+- **Complete ML model update infrastructure for Device Intelligence Service** (45d04d1) - wtthornton
+
+### Changed
+
+- **Update AI automation UI, health dashboard, and add implementation documentation** (bd40a0c) - wtthornton
+- **Update device-intelligence-service database management** (78a7ff6) - wtthornton
+- **Update device-intelligence-service Dockerfile and database** (53a6c04) - wtthornton
+- **Update services: automation-miner, data-api, and test configurations** (9ef1937) - wtthornton
+
+### Fixed
+
+- **Fix entities endpoint database schema issue and update documentation** (10d8837) - wtthornton
+- **Fix dashboard API routing, RAG status calculation, and error handling** (31541fd) - wtthornton
+- **Fix Weather API InfluxDB connection and WebSocket ingestion issues** (c2f4c86) - wtthornton
+- **Fix websocket ingestion, dashboard, and AI automation improvements** (f1c20b4) - wtthornton
+- **Fix device discovery trigger endpoint websocket access bug** (917a1f8) - wtthornton
+- **Fix event details loading issue in Live Event Stream** (dcfaf7a) - wtthornton
+- **Fix device entities not displaying in device detail popup** (4fcbfd6) - wtthornton
+- **Fix HA Core version detection in health monitoring service** (28c9ae1) - wtthornton
+- **Add missing InfluxDB tags and improve database review script** (fa0bcd6) - wtthornton
+- **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (6f920dd) - wtthornton
+- **fix(device-intelligence): resolve integration field and critical bugs** (2e2018c) - wtthornton
+- **Fix dashboard CSP and API authentication issues** (6adf6ea) - wtthornton
+
+
+### Added
+
 - **Implement persistent clarification session storage (AI1.26)** (83967c9) - wtthornton
 - **Fix clarification flow and standardize HA token configuration** (6bf1312) - wtthornton
 - **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (45cb1c1) - wtthornton
