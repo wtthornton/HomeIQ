@@ -8,6 +8,8 @@ from typing import Dict, Any, Optional, List, Callable
 from datetime import datetime
 import json
 
+from .message_id_manager import get_message_id_manager
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +18,7 @@ class EventSubscriptionManager:
     
     def __init__(self):
         self.subscriptions: Dict[int, Dict[str, Any]] = {}
-        self.subscription_counter = 1
+        self.message_id_manager = get_message_id_manager()  # Use centralized manager
         self.is_subscribed = False
         self.subscription_handlers: Dict[str, Callable] = {}
         
@@ -59,9 +61,8 @@ class EventSubscriptionManager:
             
             logger.info("✅ Pre-flight checks passed")
             
-            # Create subscription message
-            subscription_id = self.subscription_counter
-            self.subscription_counter += 1
+            # Create subscription message using centralized message ID manager
+            subscription_id = await self.message_id_manager.get_next_id()
             
             subscription_message = {
                 "id": subscription_id,
@@ -79,8 +80,7 @@ class EventSubscriptionManager:
             if len(event_types) > 1:
                 success = True
                 for event_type in event_types:
-                    sub_id = self.subscription_counter
-                    self.subscription_counter += 1
+                    sub_id = await self.message_id_manager.get_next_id()
                     
                     sub_message = {
                         "id": sub_id,

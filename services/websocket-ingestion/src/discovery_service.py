@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from aiohttp import ClientWebSocketResponse
 
 from .models import Device, Entity, ConfigEntry
+from .message_id_manager import get_message_id_manager
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class DiscoveryService:
     """Service for discovering devices and entities from Home Assistant registries"""
     
     def __init__(self, influxdb_manager=None):
-        self.message_id_counter = 1000  # Start at 1000 to avoid conflicts
+        self.message_id_manager = get_message_id_manager()  # Use centralized manager
         self.pending_responses: Dict[int, asyncio.Future] = {}
         self.influxdb_manager = influxdb_manager
         
@@ -35,10 +36,9 @@ class DiscoveryService:
         
         logger.info("Discovery service initialized with device/area mapping caches")
         
-    def _get_next_id(self) -> int:
-        """Get next message ID"""
-        self.message_id_counter += 1
-        return self.message_id_counter
+    async def _get_next_id(self) -> int:
+        """Get next message ID from centralized manager"""
+        return await self.message_id_manager.get_next_id()
     
     async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
         """
@@ -51,7 +51,7 @@ class DiscoveryService:
             List of device dictionaries
         """
         try:
-            message_id = self._get_next_id()
+            message_id = await self._get_next_id()
             logger.info("📱 Discovering devices via WebSocket...")
             
             # Send device registry list command
@@ -201,8 +201,14 @@ class DiscoveryService:
                     logger.info(f"📥 Response status: {response.status}")
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"❌ Failed to fetch entity registry: HTTP {response.status} - {error_text}")
-                        return []
+                        logger.warning(f"⚠️  HTTP entity registry endpoint failed: HTTP {response.status} - {error_text}")
+                        # Fallback to WebSocket if available
+                        if websocket:
+                            logger.info("🔄 Falling back to WebSocket for entity discovery...")
+                            return await self._discover_entities_websocket(websocket)
+                        else:
+                            logger.error("❌ No WebSocket available for fallback")
+                            return []
                     
                     entities = await response.json()
                     logger.info(f"📦 Response type: {type(entities)}, length: {len(entities) if isinstance(entities, (list, dict)) else 'N/A'}")
@@ -250,7 +256,79 @@ class DiscoveryService:
                     return entities
                     
         except Exception as e:
-            logger.error(f"❌ Error discovering entities: {e}")
+            logger.warning(f"⚠️  HTTP entity discovery failed: {e}")
+            # Fallback to WebSocket if available
+            if websocket:
+                logger.info("🔄 Falling back to WebSocket for entity discovery...")
+                try:
+                    return await self._discover_entities_websocket(websocket)
+                except Exception as ws_error:
+                    logger.error(f"❌ WebSocket fallback also failed: {ws_error}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    return []
+            else:
+                logger.error(f"❌ Error discovering entities and no WebSocket available: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return []
+    
+    async def _discover_entities_websocket(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
+        """
+        Discover entities via WebSocket (fallback method)
+        
+        Args:
+            websocket: Connected WebSocket client
+            
+        Returns:
+            List of entity dictionaries
+        """
+        try:
+            message_id = await self._get_next_id()
+            logger.info("🔌 Discovering entities via WebSocket (fallback)...")
+            
+            # Send entity registry list command
+            await websocket.send_json({
+                "id": message_id,
+                "type": "config/entity_registry/list"
+            })
+            
+            # Wait for response
+            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
+            
+            if not response or not response.get("success"):
+                error_msg = response.get("error", {}).get("message", "Unknown error") if response else "No response"
+                logger.error(f"❌ Entity registry WebSocket command failed: {error_msg}")
+                return []
+            
+            entities = response.get("result", [])
+            entity_count = len(entities)
+            logger.info(f"✅ Discovered {entity_count} entities via WebSocket")
+            
+            # Epic 23.2: Build entity → device and entity → area mapping caches
+            for entity in entities:
+                entity_id = entity.get("entity_id")
+                if entity_id:
+                    # Store entity → device mapping
+                    device_id = entity.get("device_id")
+                    if device_id:
+                        self.entity_to_device[entity_id] = device_id
+                    
+                    # Store entity → area mapping (direct assignment)
+                    area_id = entity.get("area_id")
+                    if area_id:
+                        self.entity_to_area[entity_id] = area_id
+            
+            logger.info(f"🔗 Cached {len(self.entity_to_device)} entity → device mappings")
+            logger.info(f"📍 Cached {len(self.entity_to_area)} entity → area mappings (direct)")
+            
+            # Update cache timestamp
+            self._cache_timestamp = time.time()
+            
+            return entities
+            
+        except Exception as e:
+            logger.error(f"❌ Error discovering entities via WebSocket: {e}")
             import traceback
             logger.error(traceback.format_exc())
             return []
@@ -269,7 +347,7 @@ class DiscoveryService:
             Exception: If command fails or response is invalid
         """
         try:
-            message_id = self._get_next_id()
+            message_id = await self._get_next_id()
             logger.info("=" * 80)
             logger.info(f"🔧 DISCOVERING CONFIG ENTRIES (message_id: {message_id})")
             logger.info("=" * 80)
@@ -546,7 +624,7 @@ class DiscoveryService:
                     except Exception as e:
                         logger.error(f"❌ Error posting entities to data-api: {e}")
                 
-                # Store services to SQLite (Epic 2025)
+                # Store services to SQLite (Epic 2025) - with graceful degradation
                 if services_data:
                     try:
                         headers = {}
@@ -554,8 +632,11 @@ class DiscoveryService:
                             headers["Authorization"] = f"Bearer {api_key}"
                         headers["Content-Type"] = "application/json"
                         
+                        # First, check if endpoint exists (optional - graceful degradation)
+                        endpoint_url = f"{data_api_url}/internal/services/bulk_upsert"
+                        
                         async with session.post(
-                            f"{data_api_url}/internal/services/bulk_upsert",
+                            endpoint_url,
                             json=services_data,
                             headers=headers,
                             timeout=aiohttp.ClientTimeout(total=30)
@@ -563,11 +644,18 @@ class DiscoveryService:
                             if response.status == 200:
                                 result = await response.json()
                                 logger.info(f"✅ Stored {result.get('upserted', 0)} services to SQLite")
+                            elif response.status == 404:
+                                # Endpoint doesn't exist - graceful degradation
+                                logger.warning(f"⚠️  Services bulk_upsert endpoint not available (404) - skipping services storage")
+                                logger.info("💡 This is expected if the services endpoint hasn't been implemented yet")
                             else:
                                 error_text = await response.text()
-                                logger.error(f"❌ Failed to store services to SQLite: {response.status} - {error_text}")
+                                logger.warning(f"⚠️  Failed to store services to SQLite: {response.status} - {error_text}")
+                                logger.info("💡 Services storage failed but discovery will continue")
                     except Exception as e:
-                        logger.error(f"❌ Error posting services to data-api: {e}")
+                        # Don't fail entire operation if services storage fails
+                        logger.warning(f"⚠️  Error posting services to data-api: {e}")
+                        logger.info("💡 Services storage error is non-critical - discovery will continue")
             
             # Optional: Store snapshot to InfluxDB for historical tracking
             store_influx_history = os.getenv('STORE_DEVICE_HISTORY_IN_INFLUXDB', 'false').lower() == 'true'
@@ -638,7 +726,7 @@ class DiscoveryService:
             True if subscription successful
         """
         try:
-            message_id = self._get_next_id()
+            message_id = await self._get_next_id()
             logger.info("📱 Subscribing to device registry update events...")
             
             await websocket.send_json({
@@ -672,7 +760,7 @@ class DiscoveryService:
             True if subscription successful
         """
         try:
-            message_id = self._get_next_id()
+            message_id = await self._get_next_id()
             logger.info("🔌 Subscribing to entity registry update events...")
             
             await websocket.send_json({

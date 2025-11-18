@@ -363,7 +363,9 @@ class WebSocketIngestionService:
                     error=str(e)
                 )
         
-        # Trigger device and entity discovery (now uses HTTP API, no WebSocket dependency)
+        # Trigger device and entity discovery
+        # Entity discovery uses HTTP API (no WebSocket needed)
+        # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
         if self.connection_manager:
             log_with_context(
                 logger, "INFO", "Starting device and entity discovery...",
@@ -371,10 +373,33 @@ class WebSocketIngestionService:
                 correlation_id=corr_id
             )
             try:
-                # Discovery now uses HTTP API, so it can run independently
-                await self.connection_manager.discovery_service.discover_all()
+                # Ensure WebSocket is available for device discovery
+                websocket = None
+                if (self.connection_manager.client and 
+                    hasattr(self.connection_manager.client, 'websocket') and
+                    self.connection_manager.client.is_connected and
+                    self.connection_manager.client.is_authenticated):
+                    websocket = self.connection_manager.client.websocket
+                    log_with_context(
+                        logger, "INFO", "WebSocket available for device discovery",
+                        operation="discovery_websocket_check",
+                        correlation_id=corr_id
+                    )
+                else:
+                    log_with_context(
+                        logger, "WARNING", "WebSocket not ready - device discovery will be skipped (entities will still be discovered)",
+                        operation="discovery_websocket_check",
+                        correlation_id=corr_id
+                    )
+                
+                # Discovery: entities use HTTP API, devices use WebSocket if available
+                await self.connection_manager.discovery_service.discover_all(websocket=websocket, store=True)
             except Exception as e:
-                logger.error(f"Discovery failed (non-fatal): {e}")
+                log_error_with_context(
+                    logger, "Discovery failed (non-fatal)", e,
+                    operation="discovery_error",
+                    correlation_id=corr_id
+                )
     
     async def _on_disconnect(self):
         """Handle disconnection"""
