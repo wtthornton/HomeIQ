@@ -30,7 +30,6 @@ pytest.importorskip(
 )
 
 from src.main import app
-from src.llm.yaml_generator import YAMLGenerator, YAMLGenerationResult
 from src.safety_validator import SafetyValidator, SafetyResult, SafetyIssue
 
 
@@ -42,26 +41,20 @@ from src.safety_validator import SafetyValidator, SafetyResult, SafetyIssue
 async def test_approve_and_generate_valid_yaml():
     """Test approval with successful YAML generation"""
     
-    with patch('src.api.conversational_router.yaml_generator') as mock_yaml_gen, \
+    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
          patch('src.api.conversational_router.safety_validator') as mock_safety:
         
         # Mock YAML generation
-        mock_yaml_gen.generate_yaml = AsyncMock(return_value=YAMLGenerationResult(
-            yaml="""alias: Morning Kitchen Light
-trigger:
-  - platform: time
+        mock_generate_yaml.return_value = """alias: Morning Kitchen Light
+triggers:
+  - trigger: time
     at: '07:00:00'
-action:
-  - service: light.turn_on
+actions:
+  - action: light.turn_on
     target:
       entity_id: light.kitchen
     data:
-      brightness_pct: 100""",
-            alias="Morning Kitchen Light",
-            services_used=["light.turn_on"],
-            syntax_valid=True,
-            confidence=0.98
-        ))
+      brightness_pct: 100"""
         
         # Mock safety validation
         mock_safety.validate = AsyncMock(return_value=SafetyResult(
@@ -93,19 +86,13 @@ action:
 async def test_approve_with_safety_failure():
     """Test approval when safety validation fails"""
     
-    with patch('src.api.conversational_router.yaml_generator') as mock_yaml_gen, \
+    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
          patch('src.api.conversational_router.safety_validator') as mock_safety:
         
         # Mock YAML generation (valid syntax)
-        mock_yaml_gen.generate_yaml = AsyncMock(return_value=YAMLGenerationResult(
-            yaml="""alias: Disable All Security
-action:
-  - service: alarm_control_panel.disarm""",
-            alias="Disable All Security",
-            services_used=["alarm_control_panel.disarm"],
-            syntax_valid=True,
-            confidence=0.95
-        ))
+        mock_generate_yaml.return_value = """alias: Disable All Security
+actions:
+  - action: alarm_control_panel.disarm"""
         
         # Mock safety validation (FAILS)
         mock_safety.validate = AsyncMock(return_value=SafetyResult(
@@ -135,16 +122,10 @@ action:
 async def test_approve_with_invalid_yaml_syntax():
     """Test approval when YAML generation produces invalid syntax"""
     
-    with patch('src.api.conversational_router.yaml_generator') as mock_yaml_gen:
+    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml:
         
-        # Mock YAML generation with INVALID syntax
-        mock_yaml_gen.generate_yaml = AsyncMock(return_value=YAMLGenerationResult(
-            yaml="alias: Bad YAML\ntrigger\n  - missing colon",  # Invalid!
-            alias="Bad YAML",
-            services_used=[],
-            syntax_valid=False,  # Marked as invalid
-            confidence=0.5
-        ))
+        # Mock YAML generation with INVALID syntax (will raise ValueError)
+        mock_generate_yaml.side_effect = ValueError("Generated YAML syntax is invalid: missing colon")
         
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
@@ -161,12 +142,10 @@ async def test_approve_with_invalid_yaml_syntax():
 async def test_rollback_on_yaml_failure():
     """Test that suggestion status rolls back to 'refining' on YAML failure"""
     
-    with patch('src.api.conversational_router.yaml_generator') as mock_yaml_gen:
+    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml:
         
         # Mock YAML generation that raises exception
-        mock_yaml_gen.generate_yaml = AsyncMock(
-            side_effect=Exception("OpenAI timeout")
-        )
+        mock_generate_yaml.side_effect = Exception("OpenAI timeout")
         
         async with AsyncClient(app=app, base_url="http://test") as client:
             # Attempt approval (will fail)
@@ -199,7 +178,7 @@ async def test_complete_flow_generate_refine_approve():
     
     with patch('src.api.conversational_router.description_generator') as mock_desc_gen, \
          patch('src.api.conversational_router.suggestion_refiner') as mock_refiner, \
-         patch('src.api.conversational_router.yaml_generator') as mock_yaml_gen, \
+         patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
          patch('src.api.conversational_router.safety_validator') as mock_safety, \
          patch('src.api.conversational_router.data_api_client') as mock_data_api:
         
@@ -230,23 +209,17 @@ async def test_complete_flow_generate_refine_approve():
         ))
         
         # Mock YAML generation
-        mock_yaml_gen.generate_yaml = AsyncMock(return_value=YAMLGenerationResult(
-            yaml="""alias: Morning Kitchen Light
-trigger:
-  - platform: time
+        mock_generate_yaml.return_value = """alias: Morning Kitchen Light
+triggers:
+  - trigger: time
     at: '07:00:00'
-action:
-  - service: light.turn_on
+actions:
+  - action: light.turn_on
     target:
       entity_id: light.kitchen
     data:
       rgb_color: [0, 0, 255]
-      brightness_pct: 100""",
-            alias="Morning Kitchen Light",
-            services_used=["light.turn_on"],
-            syntax_valid=True,
-            confidence=0.98
-        ))
+      brightness_pct: 100"""
         
         # Mock safety validation
         mock_safety.validate = AsyncMock(return_value=SafetyResult(
@@ -294,39 +267,35 @@ action:
 
 def test_valid_yaml_syntax():
     """Test YAML syntax validation with valid YAML"""
-    from openai import AsyncOpenAI
-    
-    # Can use without actual client for syntax validation
-    generator = YAMLGenerator(AsyncOpenAI(api_key="test"), model="gpt-4o-mini")
+    import yaml
     
     valid_yaml = """alias: Test Automation
-trigger:
-  - platform: time
+triggers:
+  - trigger: time
     at: '07:00:00'
-action:
-  - service: light.turn_on
+actions:
+  - action: light.turn_on
     target:
       entity_id: light.kitchen"""
     
-    is_valid, error = generator.validate_yaml_syntax(valid_yaml)
-    assert is_valid == True
-    assert error is None
+    # Should not raise exception
+    parsed = yaml.safe_load(valid_yaml)
+    assert parsed is not None
+    assert 'alias' in parsed
 
 
 def test_invalid_yaml_syntax():
     """Test YAML syntax validation with invalid YAML"""
-    from openai import AsyncOpenAI
-    
-    generator = YAMLGenerator(AsyncOpenAI(api_key="test"), model="gpt-4o-mini")
+    import yaml
     
     invalid_yaml = """alias: Bad YAML
 trigger
   - missing colon here
     at: '07:00:00'"""
     
-    is_valid, error = generator.validate_yaml_syntax(invalid_yaml)
-    assert is_valid == False
-    assert error is not None
+    # Should raise YAMLError
+    with pytest.raises(yaml.YAMLError):
+        yaml.safe_load(invalid_yaml)
 
 
 # ============================================================================
@@ -345,50 +314,50 @@ async def test_real_openai_yaml_generation():
     
     This is a real integration test that calls OpenAI API.
     Only run when you want to verify the actual integration works.
-    """
-    from openai import AsyncOpenAI
     
-    # Initialize real client
-    client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    generator = YAMLGenerator(client, model="gpt-4o-mini")
+    Note: This test now uses generate_automation_yaml from ask_ai_router
+    instead of the removed YAMLGenerator class.
+    """
+    from src.api.ask_ai_router import generate_automation_yaml
+    from src.llm.openai_client import OpenAIClient
+    
+    # Initialize real client and patch the global openai_client in ask_ai_router
+    openai_client = OpenAIClient(api_key=os.getenv('OPENAI_API_KEY'), model="gpt-4o-mini")
     
     # Test YAML generation
-    result = await generator.generate_yaml(
-        final_description="At 7:00 AM every weekday, turn on the Kitchen Light to blue at full brightness",
-        devices_metadata={
-            "entity_id": "light.kitchen",
-            "friendly_name": "Kitchen Light",
-            "domain": "light"
-        },
-        conversation_history=[
-            {"user_input": "Make it blue", "updated_description": "...turn on light to blue"},
-            {"user_input": "Only weekdays", "updated_description": "...on weekdays"}
-        ]
-    )
+    suggestion = {
+        "description": "At 7:00 AM every weekday, turn on the Kitchen Light to blue at full brightness",
+        "trigger_summary": "Time trigger at 7:00 AM on weekdays",
+        "action_summary": "Turn on Kitchen Light to blue at full brightness",
+        "devices_involved": ["Kitchen Light"],
+        "validated_entities": {
+            "Kitchen Light": "light.kitchen"
+        }
+    }
+    
+    # Patch the global openai_client in ask_ai_router module
+    with patch('src.api.ask_ai_router.openai_client', openai_client):
+        yaml_content = await generate_automation_yaml(
+            suggestion=suggestion,
+            original_query="Turn on kitchen light at 7am weekdays",
+            entities=None,
+            db_session=None,
+            ha_client=None
+        )
     
     # Assertions
-    assert result.yaml is not None
-    assert len(result.yaml) > 0
-    assert result.syntax_valid == True
-    assert result.alias is not None
+    assert yaml_content is not None
+    assert len(yaml_content) > 0
     
     # Verify it's valid YAML
-    parsed = yaml.safe_load(result.yaml)
+    parsed = yaml.safe_load(yaml_content)
     assert 'alias' in parsed
-    assert 'trigger' in parsed
-    assert 'action' in parsed
-    
-    # Check token usage
-    stats = generator.get_usage_stats()
-    assert stats['total_tokens'] > 0
+    assert 'triggers' in parsed or 'trigger' in parsed
+    assert 'actions' in parsed or 'action' in parsed
     
     print(f"\n✅ Real OpenAI YAML generation test passed!")
-    print(f"   Alias: {result.alias}")
-    print(f"   Services: {result.services_used}")
-    print(f"   Tokens: {stats['total_tokens']}")
-    print(f"   Cost: ${stats['estimated_cost_usd']:.6f}")
     print(f"\n   Generated YAML:")
-    print("   " + result.yaml.replace('\n', '\n   '))
+    print("   " + yaml_content.replace('\n', '\n   '))
 
 
 # ============================================================================

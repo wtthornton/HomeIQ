@@ -27,6 +27,10 @@ except ImportError:
 from .config import settings
 from .database.models import init_db
 from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, settings_router, admin_router, set_device_intelligence_client
+from .api.v2.conversation_router import router as conversation_router_v2
+from .api.v2.automation_router import router as automation_router_v2
+from .api.v2.action_router import router as action_router_v2
+from .api.v2.streaming_router import router as streaming_router_v2
 from .api.validation_router import router as validation_router
 from .api.ranking_router import router as ranking_router
 from .api.middlewares import AuthenticationMiddleware, IdempotencyMiddleware, RateLimitMiddleware
@@ -295,6 +299,12 @@ app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
 app.include_router(mcp_router)  # MCP Code Execution Tools
+
+# v2 API routers (Phase 3 - New API Routers)
+app.include_router(conversation_router_v2)  # Conversation API v2
+app.include_router(automation_router_v2)  # Automation API v2
+app.include_router(action_router_v2)  # Immediate Actions API v2
+app.include_router(streaming_router_v2)  # Streaming API v2
 
 # Initialize scheduler
 scheduler = DailyAnalysisScheduler()
