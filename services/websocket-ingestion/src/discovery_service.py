@@ -40,24 +40,19 @@ class DiscoveryService:
         self.message_id_counter += 1
         return self.message_id_counter
     
-    async def discover_devices(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
+    async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
         """
-        Discover all devices from Home Assistant device registry
+        Discover devices via WebSocket (original implementation)
         
         Args:
             websocket: Connected WebSocket client
             
         Returns:
             List of device dictionaries
-            
-        Raises:
-            Exception: If command fails or response is invalid
         """
         try:
             message_id = self._get_next_id()
-            logger.info("=" * 80)
-            logger.info(f"📱 DISCOVERING DEVICES (message_id: {message_id})")
-            logger.info("=" * 80)
+            logger.info("📱 Discovering devices via WebSocket...")
             
             # Send device registry list command
             await websocket.send_json({
@@ -65,23 +60,51 @@ class DiscoveryService:
                 "type": "config/device_registry/list"
             })
             
-            logger.info("✅ Device registry command sent, waiting for response...")
-            
             # Wait for response
             response = await self._wait_for_response(websocket, message_id, timeout=10.0)
             
-            if not response:
-                logger.error("❌ No response received for device registry command")
-                return []
-            
-            if not response.get("success"):
-                error_msg = response.get("error", {}).get("message", "Unknown error")
+            if not response or not response.get("success"):
+                error_msg = response.get("error", {}).get("message", "Unknown error") if response else "No response"
                 logger.error(f"❌ Device registry command failed: {error_msg}")
                 return []
             
             devices = response.get("result", [])
-            device_count = len(devices)
+            return devices
             
+        except Exception as e:
+            logger.error(f"❌ Error discovering devices via WebSocket: {e}")
+            return []
+    
+    async def discover_devices(self, websocket: Optional[ClientWebSocketResponse] = None) -> List[Dict[str, Any]]:
+        """
+        Discover all devices from Home Assistant device registry
+        
+        Note: Home Assistant doesn't have HTTP API for device registry.
+        Uses WebSocket if provided, otherwise returns empty list.
+        Device info can be extracted from entities instead.
+        
+        Args:
+            websocket: Optional WebSocket client (required for device discovery)
+            
+        Returns:
+            List of device dictionaries
+        """
+        try:
+            logger.info("=" * 80)
+            logger.info("📱 DISCOVERING DEVICES")
+            logger.info("=" * 80)
+            
+            # Home Assistant doesn't have HTTP API for device registry
+            # Use WebSocket if available, otherwise skip (devices can be inferred from entities)
+            if websocket:
+                logger.info("Using WebSocket for device discovery (HTTP API not available)")
+                devices = await self._discover_devices_websocket(websocket)
+            else:
+                logger.warning("⚠️  No WebSocket provided - skipping device discovery")
+                logger.info("💡 Device info will be available from entity registry (device_id references)")
+                return []
+            
+            device_count = len(devices)
             logger.info(f"✅ Discovered {device_count} devices")
             
             # Epic 23.2: Build device → area mapping cache
@@ -117,22 +140,21 @@ class DiscoveryService:
                           f"model: {sample.get('model', 'Unknown')})")
             
             return devices
-            
-        except asyncio.TimeoutError:
-            logger.error("❌ Timeout waiting for device registry response")
-            return []
+                    
         except Exception as e:
             logger.error(f"❌ Error discovering devices: {e}")
             import traceback
             logger.error(traceback.format_exc())
             return []
     
-    async def discover_entities(self, websocket: ClientWebSocketResponse) -> List[Dict[str, Any]]:
+    async def discover_entities(self, websocket: Optional[ClientWebSocketResponse] = None) -> List[Dict[str, Any]]:
         """
         Discover all entities from Home Assistant entity registry
         
+        Uses HTTP API to avoid WebSocket concurrency issues.
+        
         Args:
-            websocket: Connected WebSocket client
+            websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
             
         Returns:
             List of entity dictionaries
@@ -141,70 +163,92 @@ class DiscoveryService:
             Exception: If command fails or response is invalid
         """
         try:
-            message_id = self._get_next_id()
+            import aiohttp
+            import os
+            
             logger.info("=" * 80)
-            logger.info(f"🔌 DISCOVERING ENTITIES (message_id: {message_id})")
+            logger.info("🔌 DISCOVERING ENTITIES (via HTTP API)")
             logger.info("=" * 80)
             
-            # Send entity registry list command
-            await websocket.send_json({
-                "id": message_id,
-                "type": "config/entity_registry/list"
-            })
+            # Use HTTP API to fetch entity registry (avoids WebSocket concurrency issues)
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
             
-            logger.info("✅ Entity registry command sent, waiting for response...")
-            
-            # Wait for response
-            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
-            
-            if not response:
-                logger.error("❌ No response received for entity registry command")
+            if not ha_token:
+                logger.error("❌ No HA token available for entity discovery")
                 return []
             
-            if not response.get("success"):
-                error_msg = response.get("error", {}).get("message", "Unknown error")
-                logger.error(f"❌ Entity registry command failed: {error_msg}")
-                return []
+            # Normalize URL (ensure http:// not ws://)
+            ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
             
-            entities = response.get("result", [])
-            entity_count = len(entities)
+            logger.info(f"🔗 Connecting to Home Assistant at: {ha_url}")
+            logger.info(f"🔑 Using token: {ha_token[:20]}..." if ha_token else "❌ No token!")
             
-            logger.info(f"✅ Discovered {entity_count} entities")
+            headers = {
+                "Authorization": f"Bearer {ha_token}",
+                "Content-Type": "application/json"
+            }
             
-            # Epic 23.2: Build entity → device and entity → area mapping caches
-            for entity in entities:
-                entity_id = entity.get("entity_id")
-                if entity_id:
-                    # Store entity → device mapping
-                    device_id = entity.get("device_id")
-                    if device_id:
-                        self.entity_to_device[entity_id] = device_id
+            # Create session with connector to avoid SSL issues
+            connector = aiohttp.TCPConnector(ssl=False)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                logger.info(f"📡 Fetching entity registry from: {ha_url}/api/config/entity_registry/list")
+                async with session.get(
+                    f"{ha_url}/api/config/entity_registry/list",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    logger.info(f"📥 Response status: {response.status}")
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"❌ Failed to fetch entity registry: HTTP {response.status} - {error_text}")
+                        return []
                     
-                    # Store entity → area mapping (direct assignment)
-                    area_id = entity.get("area_id")
-                    if area_id:
-                        self.entity_to_area[entity_id] = area_id
-            
-            logger.info(f"🔗 Cached {len(self.entity_to_device)} entity → device mappings")
-            logger.info(f"📍 Cached {len(self.entity_to_area)} entity → area mappings (direct)")
-            
-            # Update cache timestamp
-            self._cache_timestamp = time.time()
-            
-            # Log sample entity if available
-            if entities:
-                sample = entities[0]
-                entity_id = sample.get('entity_id', 'Unknown')
-                domain = entity_id.split('.')[0] if '.' in entity_id else 'Unknown'
-                logger.info(f"🔌 Sample entity: {entity_id} "
-                          f"(platform: {sample.get('platform', 'Unknown')}, "
-                          f"domain: {domain})")
-            
-            return entities
-            
-        except asyncio.TimeoutError:
-            logger.error("❌ Timeout waiting for entity registry response")
-            return []
+                    entities = await response.json()
+                    logger.info(f"📦 Response type: {type(entities)}, length: {len(entities) if isinstance(entities, (list, dict)) else 'N/A'}")
+                    
+                    # Handle both list and dict responses
+                    if isinstance(entities, dict):
+                        entities = entities.get('entities', entities.get('result', []))
+                    
+                    entity_count = len(entities)
+                    logger.info(f"✅ Discovered {entity_count} entities")
+                    
+                    # Epic 23.2: Build entity → device and entity → area mapping caches
+                    for entity in entities:
+                        entity_id = entity.get("entity_id")
+                        if entity_id:
+                            # Store entity → device mapping
+                            device_id = entity.get("device_id")
+                            if device_id:
+                                self.entity_to_device[entity_id] = device_id
+                            
+                            # Store entity → area mapping (direct assignment)
+                            area_id = entity.get("area_id")
+                            if area_id:
+                                self.entity_to_area[entity_id] = area_id
+                    
+                    logger.info(f"🔗 Cached {len(self.entity_to_device)} entity → device mappings")
+                    logger.info(f"📍 Cached {len(self.entity_to_area)} entity → area mappings (direct)")
+                    
+                    # Update cache timestamp
+                    self._cache_timestamp = time.time()
+                    
+                    # Log sample entity if available
+                    if entities:
+                        sample = entities[0]
+                        entity_id = sample.get('entity_id', 'Unknown')
+                        domain = entity_id.split('.')[0] if '.' in entity_id else 'Unknown'
+                        logger.info(f"🔌 Sample entity: {entity_id} "
+                                  f"(platform: {sample.get('platform', 'Unknown')}, "
+                                  f"domain: {domain})")
+                        # Log name fields to verify they're present
+                        logger.info(f"   name: {sample.get('name')}, "
+                                  f"name_by_user: {sample.get('name_by_user')}, "
+                                  f"original_name: {sample.get('original_name')}")
+                    
+                    return entities
+                    
         except Exception as e:
             logger.error(f"❌ Error discovering entities: {e}")
             import traceback
@@ -326,13 +370,15 @@ class DiscoveryService:
             logger.error(f"Error waiting for response: {e}")
             return None
     
-    async def discover_all(self, websocket: ClientWebSocketResponse, store: bool = True) -> Dict[str, Any]:
+    async def discover_all(self, websocket: Optional[ClientWebSocketResponse] = None, store: bool = True) -> Dict[str, Any]:
         """
         Discover all devices, entities, config entries, and services
         
+        Uses HTTP API for devices and entities to avoid WebSocket concurrency issues.
+        
         Args:
-            websocket: Connected WebSocket client
-            store: Whether to store results in InfluxDB (default: True)
+            websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
+            store: Whether to store results in SQLite via data-api (default: True)
             
         Returns:
             Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
@@ -341,12 +387,13 @@ class DiscoveryService:
         logger.info("🚀 STARTING COMPLETE HOME ASSISTANT DISCOVERY")
         logger.info("=" * 80)
         
+        # Use HTTP API for devices and entities (avoids WebSocket concurrency issues)
         devices_data = await self.discover_devices(websocket)
         entities_data = await self.discover_entities(websocket)
         # TEMPORARY: Skip config entries - command not supported in this HA version
         config_entries_data = []  # await self.discover_config_entries(websocket)
         
-        # Discover services from HA Services API (Epic 2025)
+        # Discover services from HA Services API (Epic 2025) - already uses HTTP API
         services_data = await self.discover_services(websocket)
         
         logger.info("=" * 80)
@@ -358,11 +405,13 @@ class DiscoveryService:
         logger.info("=" * 80)
         
         # Convert to models and store if requested
-        if store and self.influxdb_manager:
-            logger.info("💾 Storing discovered data in InfluxDB...")
+        # CRITICAL FIX: Always store to SQLite via data-api when store=True, regardless of influxdb_manager
+        if store:
+            logger.info("💾 Storing discovered data to SQLite via data-api...")
+            logger.info(f"   Devices: {len(devices_data)}, Entities: {len(entities_data)}, Services: {len(services_data)}")
             await self.store_discovery_results(devices_data, entities_data, config_entries_data, services_data)
-        elif store and not self.influxdb_manager:
-            logger.warning("⚠️  Storage requested but no InfluxDB manager available")
+        else:
+            logger.info("ℹ️  Storage disabled - skipping store_discovery_results")
         
         return {
             "devices": devices_data,
@@ -438,14 +487,24 @@ class DiscoveryService:
         
         try:
             # Primary storage: SQLite via data-api (simple HTTP POST)
-            data_api_url = os.getenv('DATA_API_URL', 'http://homeiq-data-api:8006')
+            # Use service name from docker-compose (data-api) as default
+            data_api_url = os.getenv('DATA_API_URL', 'http://data-api:8006')
             api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
             
             # Create session with proper connector (disable SSL for internal HTTP)
-            connector = aiohttp.TCPConnector(ssl=False)
+            # Use connector_kwargs to ensure SSL is completely disabled
+            connector = aiohttp.TCPConnector(
+                ssl=False,
+                limit=100,
+                limit_per_host=30
+            )
             timeout = aiohttp.ClientTimeout(total=30)
             
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            async with aiohttp.ClientSession(
+                connector=connector, 
+                timeout=timeout,
+                connector_owner=True
+            ) as session:
                 # Store devices to SQLite
                 if devices_data:
                     try:
@@ -467,10 +526,15 @@ class DiscoveryService:
                 # Store entities to SQLite
                 if entities_data:
                     try:
+                        headers = {}
+                        if api_key:
+                            headers["Authorization"] = f"Bearer {api_key}"
+                        headers["Content-Type"] = "application/json"
+                        
                         async with session.post(
                             f"{data_api_url}/internal/entities/bulk_upsert",
                             json=entities_data,
-                            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
+                            headers=headers,
                             timeout=aiohttp.ClientTimeout(total=30)
                         ) as response:
                             if response.status == 200:
@@ -485,10 +549,15 @@ class DiscoveryService:
                 # Store services to SQLite (Epic 2025)
                 if services_data:
                     try:
+                        headers = {}
+                        if api_key:
+                            headers["Authorization"] = f"Bearer {api_key}"
+                        headers["Content-Type"] = "application/json"
+                        
                         async with session.post(
                             f"{data_api_url}/internal/services/bulk_upsert",
                             json=services_data,
-                            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
+                            headers=headers,
                             timeout=aiohttp.ClientTimeout(total=30)
                         ) as response:
                             if response.status == 200:

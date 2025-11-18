@@ -33,7 +33,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: homeiq-websocket-dev
     restart: unless-stopped
-    command: ["python", "src/websocket_fallback_enhanced.py"]
+    command: ["python", "-m", "src.main"]
     environment:
       - HOME_ASSISTANT_URL=http://ha-simulator:8123
       - HOME_ASSISTANT_TOKEN=dev_simulator_token
@@ -43,6 +43,7 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATA_API_URL=http://data-api:8006
       - LOG_LEVEL=DEBUG
       - TZ=America/Los_Angeles
       - ENABLE_WEATHER_API=${ENABLE_WEATHER_API:-true}

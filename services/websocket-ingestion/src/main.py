@@ -52,11 +52,11 @@ from shared.logging_config import (
 from shared.correlation_middleware import create_correlation_middleware
 from shared.enhanced_ha_connection_manager import ha_connection_manager
 
-from health_check import HealthCheckHandler
-from connection_manager import ConnectionManager
-from async_event_processor import AsyncEventProcessor
-from event_queue import EventQueue
-from batch_processor import BatchProcessor
+from .health_check import HealthCheckHandler
+from .connection_manager import ConnectionManager
+from .async_event_processor import AsyncEventProcessor
+from .event_queue import EventQueue
+from .batch_processor import BatchProcessor
 from memory_manager import MemoryManager
 from http_client import SimpleHTTPClient
 from influxdb_wrapper import InfluxDBConnectionManager
@@ -362,20 +362,16 @@ class WebSocketIngestionService:
                     error=str(e)
                 )
         
-        # Trigger device and entity discovery
-        if self.connection_manager and self.connection_manager.client:
+        # Trigger device and entity discovery (now uses HTTP API, no WebSocket dependency)
+        if self.connection_manager:
             log_with_context(
                 logger, "INFO", "Starting device and entity discovery...",
                 operation="discovery_trigger",
                 correlation_id=corr_id
             )
             try:
-                if self.connection_manager.client.websocket:
-                    await self.connection_manager.discovery_service.discover_all(
-                        self.connection_manager.client.websocket
-                    )
-                else:
-                    logger.error("Cannot run discovery: WebSocket not available")
+                # Discovery now uses HTTP API, so it can run independently
+                await self.connection_manager.discovery_service.discover_all()
             except Exception as e:
                 logger.error(f"Discovery failed (non-fatal): {e}")
     
@@ -692,26 +688,35 @@ async def create_app():
                     "error": "Connection manager or discovery service not available"
                 }, status=503)
             
-            # Access websocket through client (ConnectionManager.client.websocket)
-            if not service.connection_manager.client or not service.connection_manager.client.websocket:
-                return web.json_response({
-                    "success": False,
-                    "error": "WebSocket connection not available"
-                }, status=503)
-            
-            websocket = service.connection_manager.client.websocket
-            
             logger.info("Manual discovery trigger requested")
-            discovery_result = await service.connection_manager.discovery_service.discover_all(
-                websocket, store=True
-            )
+            # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
+            # Entity discovery uses HTTP API (no WebSocket needed)
+            websocket = None
+            if service.connection_manager.client and hasattr(service.connection_manager.client, 'websocket'):
+                websocket = service.connection_manager.client.websocket
+                logger.info("Using WebSocket connection for device discovery")
+            else:
+                logger.warning("⚠️  WebSocket not available - device discovery will be skipped (entities will still be discovered)")
             
-            return web.json_response({
-                "success": True,
-                "devices_discovered": len(discovery_result.get("devices", [])),
-                "entities_discovered": len(discovery_result.get("entities", [])),
-                "timestamp": datetime.now().isoformat()
-            })
+            try:
+                logger.info("Calling discover_all()...")
+                discovery_result = await service.connection_manager.discovery_service.discover_all(
+                    websocket=websocket,
+                    store=True
+                )
+                logger.info(f"Discovery completed: {len(discovery_result.get('devices', []))} devices, {len(discovery_result.get('entities', []))} entities")
+                
+                return web.json_response({
+                    "success": True,
+                    "devices_discovered": len(discovery_result.get("devices", [])),
+                    "entities_discovered": len(discovery_result.get("entities", [])),
+                    "timestamp": datetime.now().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Error in discover_all(): {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
         except Exception as e:
             logger.error(f"Error triggering discovery: {e}")
             return web.json_response({

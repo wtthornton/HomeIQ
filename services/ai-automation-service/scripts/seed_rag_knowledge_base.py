@@ -23,8 +23,8 @@ from sqlalchemy import select
 from datetime import datetime
 import logging
 
-from src.database.models import AskAIQuery, Suggestion, Base
-from src.database.database import init_database
+from src.database.models import AskAIQuery, Suggestion, Base, init_db
+import src.database.models as db_models
 from src.services.rag import RAGClient
 from src.config import settings
 from src.patterns.common_patterns import PATTERNS
@@ -187,7 +187,10 @@ async def main():
     logger.info("🌱 Starting RAG knowledge base seeding...")
     
     # Initialize database
-    engine, async_session = await init_database()
+    await init_db()
+    
+    # Get async_session from models module (set by init_db)
+    async_session = db_models.async_session
     
     async with async_session() as db:
         # Initialize RAG client

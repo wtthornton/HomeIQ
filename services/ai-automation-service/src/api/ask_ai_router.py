@@ -982,13 +982,17 @@ async def map_devices_to_entities(
         matched_entity_id = None
         match_quality = 0  # 3=exact, 2=fuzzy, 1=domain
         
-        # Strategy 1: Exact match by friendly_name (highest priority)
+        # Strategy 1: Exact match by friendly_name or device_name (highest priority)
         for entity_id, enriched in enriched_data.items():
             friendly_name = enriched.get('friendly_name', '')
-            if friendly_name and friendly_name.lower() == device_name_lower:
+            device_name_from_enriched = enriched.get('device_name', '')  # Fallback to device name
+            # Check friendly_name first, then device_name if friendly_name is empty
+            name_to_check = friendly_name if friendly_name else device_name_from_enriched
+            if name_to_check and name_to_check.lower() == device_name_lower:
                 matched_entity_id = entity_id
                 match_quality = 3
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match)")
+                name_type = 'friendly_name' if friendly_name else 'device_name'
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
                 break
         
         # Strategy 2: Fuzzy matching (case-insensitive substring) - area-aware for single-home
@@ -998,15 +1002,18 @@ async def map_devices_to_entities(
             
             for entity_id, enriched in enriched_data.items():
                 friendly_name = enriched.get('friendly_name', '')
-                if not friendly_name:
+                device_name_from_enriched = enriched.get('device_name', '')  # Fallback to device name
+                # Use friendly_name if available, otherwise use device_name
+                name_to_check = friendly_name if friendly_name else device_name_from_enriched
+                if not name_to_check:
                     continue
-                friendly_name = friendly_name.lower()
+                name_to_check = name_to_check.lower()
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
                 area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
                 
                 # Calculate fuzzy match score (higher = better)
                 score = 0
-                if device_name_lower in friendly_name or friendly_name in device_name_lower:
+                if device_name_lower in name_to_check or name_to_check in device_name_lower:
                     score += 2  # Strong match
                 if device_name_lower in entity_name_part:
                     score += 1  # Weak match
@@ -1021,7 +1028,11 @@ async def map_devices_to_entities(
             if best_fuzzy_match and best_fuzzy_score > 0:
                 matched_entity_id = best_fuzzy_match
                 match_quality = 2
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match, score: {best_fuzzy_score})")
+                # Determine which name type was used for the match
+                best_enriched = enriched_data.get(best_fuzzy_match, {})
+                best_friendly_name = best_enriched.get('friendly_name', '')
+                name_type = 'friendly_name' if best_friendly_name else 'device_name'
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score})")
         
         # Strategy 3: Match by domain name (lowest priority)
         if not matched_entity_id and fuzzy_match:
@@ -1838,7 +1849,7 @@ Use this entity information to:
         raise ValueError("No validated entities available - cannot generate YAML")
     
     # Check if test mode
-    is_test = 'TEST MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
+    is_test = 'TEST_MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
     
     # TASK 2.4: Check if sequence test mode (shortened delays instead of stripping)
     is_sequence_test = suggestion.get('test_mode') == 'sequence'
@@ -1874,7 +1885,7 @@ Automation suggestion:
 
 {validated_entities_text}
 
-{"🔴 TEST MODE WITH SEQUENCES: For quick testing - Generate automation YAML with shortened delays (10x faster):" if is_sequence_test else ("🔴 TEST MODE: For manual testing - Generate simple automation YAML:" if is_test else "Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life.")}
+{"🔴 TEST MODE WITH SEQUENCES - For quick testing - Generate automation YAML with shortened delays (10x faster)" if is_sequence_test else ("🔴 TEST MODE - For manual testing - Generate simple automation YAML" if is_test else "Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life.")}
 {"- Use event trigger that fires immediately on manual trigger" if is_test else ""}
 {"- SHORTEN all delays by 10x (e.g., 2 seconds → 0.2 seconds, 30 seconds → 3 seconds)" if is_sequence_test else ("- NO delays or timing components" if is_test else "")}
 {"- REDUCE repeat counts (e.g., 5 times → 2 times, 10 times → 3 times) for quick preview" if is_sequence_test else ("- NO repeat loops or sequences (just execute once)" if is_test else "")}
@@ -1899,7 +1910,8 @@ Requirements:
    - Creating fake entity IDs will cause automation creation to FAIL with "Entity not found" errors
 4. Add appropriate conditions if needed
 5. Include mode: single or restart
-6. Add description field
+6. Add description field - avoid colons in description values to prevent YAML syntax errors
+   Example: description: "TEST_MODE - This automation does something"
 7. Use advanced HA features for creative implementations:
    - `sequence` for multi-step actions
    - `choose` for conditional logic
@@ -1909,6 +1921,14 @@ Requirements:
    - `repeat` for patterns
    - `parallel` for simultaneous actions
 
+HOME ASSISTANT 2025 YAML STANDARDS (CRITICAL):
+1. Use `triggers:` (plural) NOT `trigger:` - this is the 2025 standard
+2. Use `actions:` (plural) NOT `action:` - this is the 2025 standard
+3. Use `action:` for service calls NOT `service:` - this is the 2025 standard
+4. Use `trigger:` field in each trigger definition (e.g., `trigger: time`, `trigger: state`)
+5. Always quote string values containing colons using DOUBLE QUOTES (")
+6. Use proper YAML indentation (2 spaces)
+
 CRITICAL YAML STRUCTURE RULES:
 1. **Entity IDs MUST ALWAYS be in format: domain.entity (use ONLY validated entities from the list above)**
    - **DO NOT use the example entity IDs shown below** - those are just formatting examples
@@ -1917,12 +1937,13 @@ CRITICAL YAML STRUCTURE RULES:
    - NEVER create entity IDs based on the examples - examples use placeholders like PLACEHOLDER_ENTITY_ID
    - If you see "wled" in the description, find the actual WLED entity ID from the VALIDATED ENTITIES list above
    - IMPORTANT: The examples below show YAML STRUCTURE only - replace ALL example entity IDs with real ones from the validated list above
-2. Service calls ALWAYS use target.entity_id structure:
+2. Service calls ALWAYS use target.entity_id structure (2025 standard):
    ```yaml
-   - service: light.turn_on
+   - action: light.turn_on
      target:
        entity_id: {example_light if example_light else '{LIGHT_ENTITY}'}
    ```
+   NEVER use `service:` (deprecated), use `action:` instead!
    NEVER use entity_id directly in the action!
    NOTE: Replace the entity ID above with an actual validated entity ID from the list above
 3. Multiple entities use list format:
@@ -1933,16 +1954,17 @@ CRITICAL YAML STRUCTURE RULES:
        - {example_entity_2 if example_entity_2 else '{ENTITY_2}'}
    ```
    NOTE: Replace these with actual validated entity IDs from the list above
-4. Required fields: alias, trigger, action
+4. Required fields: alias, triggers (plural), actions (plural)
 5. Always include mode: single (or restart, queued, parallel)
+6. Quote all string values containing special characters (colons, brackets, etc.)
 
-Advanced YAML Examples (NOTE: Replace entity IDs with validated ones from above):
+HOME ASSISTANT 2025 YAML EXAMPLES (NOTE: Replace entity IDs with validated ones from above):
 
-Example 1 - Simple time trigger (CORRECT):
+Example 1 - Simple time trigger (2025 STANDARD):
 ```yaml
 id: '1234567890'
 alias: Morning Light
-description: Turn on light at 7 AM
+description: "Turn on light at 7 AM"
 mode: single
 triggers:
   - trigger: time
@@ -1956,11 +1978,11 @@ actions:
       brightness_pct: 100
 ```
 
-Example 2 - State trigger with condition (CORRECT):
+Example 2 - State trigger with condition (2025 STANDARD):
 ```yaml
 id: '1234567891'
 alias: Motion-Activated Light
-description: Turn on light when motion detected after 6 PM
+description: "Turn on light when motion detected after 6 PM"
 mode: single
 triggers:
   - trigger: state
@@ -1978,11 +2000,11 @@ actions:
       color_name: warm_white
 ```
 
-Example 3 - Repeat with sequence (CORRECT):
+Example 3 - Repeat with sequence (2025 STANDARD):
 ```yaml
 id: '1234567892'
 alias: Flash Pattern
-description: Flash lights 3 times
+description: "Flash lights 3 times"
 mode: single
 triggers:
   - trigger: event
@@ -2004,11 +2026,11 @@ actions:
         - delay: '00:00:01'
 ```
 
-Example 4 - Choose with multiple triggers (CORRECT):
+Example 4 - Choose with multiple triggers (2025 STANDARD):
 ```yaml
 id: '1234567893'
 alias: Color-Coded Door Notifications
-description: Different colors for different doors
+description: "Different colors for different doors"
 mode: single
 triggers:
   - trigger: state
@@ -2054,99 +2076,78 @@ actions:
           color_name: white
 ```
 
-CRITICAL STRUCTURE RULES - DO NOT MAKE THESE MISTAKES:
+HOME ASSISTANT 2025 YAML FORMAT - CRITICAL RULES:
 
-1. TRIGGER STRUCTURE:
-   ❌ WRONG: triggers: (plural) or trigger: state
-   ✅ CORRECT: trigger: (singular) and platform: state
-   
-   Example (replace entity IDs with validated ones from above):
-   ❌ WRONG:
-     triggers:
-       - entity_id: {example_sensor if example_sensor else '{SENSOR_ENTITY}'}
-         trigger: state
-   ✅ CORRECT:
-     trigger:
-       - platform: state
-         entity_id: {example_sensor if example_sensor else '{SENSOR_ENTITY}'}
+✅ CORRECT 2025 FORMAT:
+```yaml
+triggers:           # TOP LEVEL: Use plural "triggers:"
+  - trigger: state  # IN TRIGGER: Use "trigger:" field (NOT "platform:")
+    entity_id: sensor.example
+actions:            # TOP LEVEL: Use plural "actions:"
+  - action: light.turn_on  # IN ACTION: Use "action:" field (NOT "service:")
+    target:
+      entity_id: light.example
+```
 
-2. ACTION STRUCTURE:
-   ❌ WRONG: actions: (plural) or action: light.turn_on (inside action list)
-   ✅ CORRECT: action: (singular) and service: light.turn_on (inside actions)
-   
-   Example:
-   ❌ WRONG:
-     actions:
-       - action: light.turn_on
-   ✅ CORRECT:
-     action:
-       - service: light.turn_on
-
-3. SEQUENCE STRUCTURE:
-   ❌ WRONG:
-     action:
-       - sequence:
-           - action: light.turn_on  # ❌ WRONG FIELD NAME
-  ✅ CORRECT:
-    action:
-      - sequence:
-          - service: light.turn_on  # ✅ CORRECT FIELD NAME
-            target:
-              entity_id: {example_light if example_light else '{{REPLACE_WITH_VALIDATED_LIGHT_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
-          - service: light.turn_on  # ✅ WLED entities use light.turn_on service (NOT wled.turn_on)
-            target:
-              entity_id: {example_wled if example_wled else '{{REPLACE_WITH_VALIDATED_WLED_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
-            data:
-              effect: fireworks  # WLED-specific effect parameter
-          - delay: "00:01:00"
-          - service: light.turn_off  # ✅ WLED entities use light.turn_off service (NOT wled.turn_off)
-            target:
-              entity_id: {example_wled if example_wled else '{{REPLACE_WITH_VALIDATED_WLED_ENTITY}}'}  # ✅ FULL ENTITY ID (domain.entity)
-
-4. FIELD NAMES IN ACTIONS:
-   - Top level: Use "action:" (singular)
-   - Inside action list: Use "service:" NOT "action:"
-   - In triggers: Use "platform:" NOT "trigger:"
+❌ OLD DEPRECATED FORMAT (DO NOT USE):
+```yaml
+trigger:            # ❌ OLD: singular "trigger:"
+  - platform: state # ❌ OLD: "platform:" field
+    entity_id: sensor.example
+action:             # ❌ OLD: singular "action:"
+  - service: light.turn_on  # ❌ OLD: "service:" field
+    target:
+      entity_id: light.example
+```
 
 COMMON MISTAKES TO AVOID:
-❌ WRONG: entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} (in action directly, missing target wrapper)
-✅ CORRECT: target: {{ entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} }}
 
-❌ WRONG: entity_id: wled (INCOMPLETE - missing entity name, will cause "Entity not found" error)
-✅ CORRECT: target: {{ entity_id: {example_wled if example_wled else '{WLED_ENTITY}'} }} (COMPLETE - domain.entity format from validated list)
+1. ENTITY IDs:
+   ❌ WRONG: entity_id: wled (INCOMPLETE - missing domain)
+   ✅ CORRECT: entity_id: light.wled_strip (COMPLETE domain.entity from validated list)
+   
+   ❌ WRONG: entity_id: office (INCOMPLETE - missing domain)
+   ✅ CORRECT: entity_id: light.office_ceiling (COMPLETE domain.entity from validated list)
 
-❌ WRONG: entity_id: office (INCOMPLETE - missing domain prefix, will cause "Entity not found" error)
-✅ CORRECT: target: {{ entity_id: {example_light if example_light else '{LIGHT_ENTITY}'} }} (COMPLETE - domain.entity format from validated list)
+2. TARGET STRUCTURE:
+   ❌ WRONG: action: light.turn_on without target
+   ✅ CORRECT: action: light.turn_on WITH target.entity_id
 
-❌ WRONG: service: wled.turn_on (WLED entities use light.turn_on service - wled.turn_on does NOT exist)
-✅ CORRECT: service: light.turn_on with target.entity_id: {example_wled if example_wled else '{WLED_ENTITY}'} (WLED entities are lights, use validated entity ID)
+3. DESCRIPTIONS WITH SPECIAL CHARACTERS:
+   ❌ WRONG: description: TEST MODE: This automation...  (unquoted colon breaks YAML)
+   ✅ CORRECT: description: "TEST MODE - This automation..."  (use dash instead of colon, or quote if using colon)
 
-REMEMBER:
-1. Every entity_id MUST have BOTH domain AND entity name separated by a dot!
-2. ALL light entities (including WLED) use light.turn_on/light.turn_off services
-3. If the description mentions "wled", look up the full entity ID from the VALIDATED ENTITIES section above.
-4. Use light.turn_on service for WLED entities, NOT wled.turn_on (that service doesn't exist in HA)
-5. NEVER create entity IDs - ONLY use the validated entity IDs provided in the list above
+4. WLED ENTITIES:
+   ❌ WRONG: action: wled.turn_on (service doesn't exist)
+   ✅ CORRECT: action: light.turn_on (WLED entities are lights, use light service)
 
-❌ WRONG: entity_id: "office" (missing domain, NOT from validated list)
-✅ CORRECT: entity_id: {example_light if example_light else 'USE_VALIDATED_ENTITY'} (from validated list above)
-
-❌ WRONG: service: light.turn_on without target
-✅ CORRECT: service: light.turn_on with target.entity_id
-
-❌ WRONG: trigger: state (in trigger definition)
-✅ CORRECT: platform: state (in trigger definition)
-
-❌ WRONG: action: light.turn_on (inside action list)
-✅ CORRECT: service: light.turn_on (inside action list)
+5. SEQUENCE STRUCTURE:
+   ✅ CORRECT:
+   ```yaml
+   actions:
+     - repeat:
+         count: 3
+         sequence:
+           - action: light.turn_on
+             target:
+               entity_id: {example_wled if example_wled else '{{VALIDATED_WLED}}'}
+             data:
+               effect: fireworks
+           - delay: "00:00:01"
+           - action: light.turn_off
+             target:
+               entity_id: {example_wled if example_wled else '{{VALIDATED_WLED}}'}
+   ```
 
 **FINAL REMINDER BEFORE GENERATING YAML:**
-1. The examples above show YAML STRUCTURE ONLY - DO NOT copy their entity IDs
-2. ALL entity IDs MUST come from the VALIDATED ENTITIES list at the top
-3. If an entity ID isn't in that validated list, DO NOT use it - find a similar one from the list or fail
-4. Creating entity IDs that don't exist will cause automation creation to FAIL
+1. Use 2025 format: `triggers:` (plural), `trigger:` in each item (NOT `platform:`)
+2. Use 2025 format: `actions:` (plural), `action:` in each item (NOT `service:`)
+3. ALL entity IDs MUST come from VALIDATED ENTITIES list - NEVER invent entity IDs
+4. Avoid colons in description values (use dash instead), or quote if necessary
+5. WLED entities use light.turn_on/light.turn_off (NOT wled.turn_on/wled.turn_off)
+6. Every entity_id MUST be domain.entity format (e.g., light.office_ceiling)
 
-Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONLY the validated entity IDs from the list above. Follow the structure examples exactly for YAML syntax, but replace ALL entity IDs with real ones from the validated list. DOUBLE-CHECK that you use "platform:" in triggers and "service:" in actions.
+Generate ONLY the YAML content, no explanations or markdown code blocks. Use ONLY the validated entity IDs from the list above. Follow 2025 format with triggers: (plural), trigger: (in items), actions: (plural), action: (in items).
 """
 
     try:
@@ -3632,6 +3633,51 @@ async def generate_suggestions_from_query(
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
                         
+                        # Replace device names in devices_involved with actual device names from enriched_data
+                        # This ensures UI displays "Office Back Left" instead of "Hue Color Downlight 1"
+                        updated_devices_involved = []
+                        for device_name in devices_involved:
+                            # Check if device_name is already an entity_id
+                            entity_id = None
+                            if _is_entity_id(device_name):
+                                # device_name is already an entity_id (e.g., "light.hue_color_downlight_1_4")
+                                entity_id = device_name
+                            else:
+                                # device_name is a friendly name, look it up in validated_entities
+                                entity_id = validated_entities.get(device_name)
+                            
+                            # Try to get enriched data for this entity_id
+                            if entity_id and entity_id in enriched_data:
+                                enriched = enriched_data[entity_id]
+                                # Priority order for device name:
+                                # 1. device_name from device intelligence (has name_by_user from database)
+                                # 2. friendly_name from Entity Registry (has name_by_user from HA)
+                                # 3. name_by_user directly from enriched data
+                                # 4. name or original_name as fallback
+                                actual_device_name = (
+                                    enriched.get('device_name') or 
+                                    enriched.get('friendly_name') or 
+                                    enriched.get('name_by_user') or 
+                                    enriched.get('name') or 
+                                    enriched.get('original_name')
+                                )
+                                if actual_device_name:
+                                    updated_devices_involved.append(actual_device_name)
+                                    logger.info(f"🔄 Replaced '{device_name}' → '{actual_device_name}' in devices_involved")
+                                else:
+                                    # No name available, keep original but log warning
+                                    updated_devices_involved.append(device_name)
+                                    logger.warning(f"⚠️ No device name found for {entity_id} in enriched_data (all name fields NULL)")
+                            else:
+                                # Entity not in enriched_data, keep original
+                                updated_devices_involved.append(device_name)
+                                if entity_id:
+                                    logger.debug(f"⚠️ Entity {entity_id} not found in enriched_data, keeping original name")
+                        
+                        if updated_devices_involved != devices_involved:
+                            logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
+                            devices_involved = updated_devices_involved
+                        
                         # NEW: Validate location context for matched devices
                         location_mismatch_detected = False
                         query_location = None
@@ -3720,6 +3766,40 @@ async def generate_suggestions_from_query(
                         if entity_ids_found:
                             logger.info(f"✅ Found {len(entity_ids_found)} entity IDs in devices_involved, using them directly: {list(entity_ids_found.values())}")
                             validated_entities = entity_ids_found
+                            
+                            # CRITICAL: Also replace entity IDs with friendly names even when validated_entities was empty
+                            # This handles the case where OpenAI returns entity IDs directly
+                            updated_devices_involved = []
+                            for device_name in devices_involved:
+                                # Check if device_name is already an entity_id
+                                entity_id = None
+                                if _is_entity_id(device_name):
+                                    entity_id = device_name
+                                else:
+                                    entity_id = validated_entities.get(device_name)
+                                
+                                # Try to get enriched data for this entity_id
+                                if entity_id and entity_id in enriched_data:
+                                    enriched = enriched_data[entity_id]
+                                    actual_device_name = (
+                                        enriched.get('device_name') or 
+                                        enriched.get('friendly_name') or 
+                                        enriched.get('name_by_user') or 
+                                        enriched.get('name') or 
+                                        enriched.get('original_name')
+                                    )
+                                    if actual_device_name:
+                                        updated_devices_involved.append(actual_device_name)
+                                        logger.info(f"🔄 Replaced entity ID '{device_name}' → '{actual_device_name}' in devices_involved")
+                                    else:
+                                        updated_devices_involved.append(device_name)
+                                        logger.warning(f"⚠️ No device name found for {entity_id} in enriched_data (all name fields NULL)")
+                                else:
+                                    updated_devices_involved.append(device_name)
+                            
+                            if updated_devices_involved != devices_involved:
+                                logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
+                                devices_involved = updated_devices_involved
                         else:
                             logger.warning(f"⚠️ devices_involved contains no entity IDs and mapping failed: {devices_involved}")
                 
@@ -4020,6 +4100,9 @@ async def process_natural_language_query(
                         automation_context['entities_by_domain'][domain].append({
                             'entity_id': entity_id,
                             'friendly_name': entity.get('friendly_name', entity_id),
+                            'name': entity.get('name', ''),
+                            'name_by_user': entity.get('name_by_user', ''),
+                            'device_id': entity.get('device_id', ''),  # Include device_id for device name lookup
                             'area': entity.get('area_id', 'unknown')
                         })
             elif isinstance(entities_result, list):
@@ -4680,25 +4763,31 @@ async def provide_clarification(
             try:
                 rag_client = await _get_rag_client(db)
                 if rag_client and enriched_query_from_answers:
-                    similar_queries = await rag_client.retrieve(
+                    # Use hybrid retrieval (2025 best practice: dense + sparse + reranking)
+                    similar_queries = await rag_client.retrieve_hybrid(
                         query=enriched_query_from_answers,
                         knowledge_type='query',
                         top_k=1,
-                        min_similarity=0.80  # Lower threshold for enriched queries (they're more specific)
+                        min_similarity=0.80,  # Lower threshold for enriched queries (they're more specific)
+                        use_query_expansion=True,
+                        use_reranking=True
                     )
                     
-                    if similar_queries and similar_queries[0]['similarity'] > 0.80:
-                        similarity = similar_queries[0]['similarity']
-                        success_score = similar_queries[0].get('success_score', 0.5)
-                        
-                        # Boost confidence based on similarity and historical success
-                        # Higher similarity and success_score = bigger boost
-                        rag_confidence_boost = min(0.15, similarity * success_score * 0.2)
-                        
-                        logger.info(
-                            f"📈 Found similar enriched query in RAG (similarity={similarity:.2f}, "
-                            f"success_score={success_score:.2f}) - boosting confidence by +{rag_confidence_boost:.2f}"
-                        )
+                    # Hybrid retrieval returns 'final_score' or 'hybrid_score', fallback to 'similarity'
+                    top_result = similar_queries[0] if similar_queries else None
+                    if top_result:
+                        similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
+                        if similarity > 0.80:
+                            success_score = top_result.get('success_score', 0.5)
+                            
+                            # Boost confidence based on similarity and historical success
+                            # Higher similarity and success_score = bigger boost
+                            rag_confidence_boost = min(0.15, similarity * success_score * 0.2)
+                            
+                            logger.info(
+                                f"📈 Found similar enriched query in RAG (similarity={similarity:.2f}, "
+                                f"success_score={success_score:.2f}) - boosting confidence by +{rag_confidence_boost:.2f}"
+                            )
             except Exception as e:
                 # Non-critical: continue even if RAG check fails
                 logger.debug(f"⚠️ RAG check with enriched query failed: {e}")
@@ -5888,13 +5977,13 @@ async def test_suggestion_from_query(
         test_suggestion = suggestion.copy()
         if has_sequences:
             # Sequence testing mode: shorten delays instead of removing
-            test_suggestion['description'] = f"TEST MODE WITH SEQUENCES: {suggestion.get('description', '')} - Execute with shortened delays (10x faster)"
+            test_suggestion['description'] = f"TEST_MODE_SEQUENCES - {suggestion.get('description', '')} - Execute with shortened delays (10x faster)"
             test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
             test_suggestion['action_summary'] = suggestion.get('action_summary', '')
             test_suggestion['test_mode'] = 'sequence'  # Mark for sequence-aware YAML generation
         else:
             # Simple test mode: strip timing components
-            test_suggestion['description'] = f"TEST MODE: {suggestion.get('description', '')} - Execute core action only"
+            test_suggestion['description'] = f"TEST_MODE - {suggestion.get('description', '')} - Execute core action only"
             test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
             test_suggestion['action_summary'] = suggestion.get('action_summary', '').split('every')[0].split('Every')[0].strip()
             test_suggestion['test_mode'] = 'simple'

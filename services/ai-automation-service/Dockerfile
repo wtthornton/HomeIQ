@@ -59,6 +59,7 @@ COPY --from=builder /root/.local /root/.local
 COPY services/ai-automation-service/src/ ./src/
 COPY services/ai-automation-service/alembic/ ./alembic/
 COPY services/ai-automation-service/alembic.ini ./
+COPY services/ai-automation-service/scripts/ ./scripts/
 
 # Copy shared logging (for imports)
 COPY shared/ ./shared/
