@@ -425,6 +425,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
 - **Fix clarification flow and standardize HA token configuration** (November 18, 2025)
 - **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
 - **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
