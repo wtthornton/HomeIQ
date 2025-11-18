@@ -58,11 +58,17 @@ export function calculateComponentRAG(
     }
   } 
   else if (component === 'processing') {
-    const throughput = metrics.throughput ?? 0;
+    const throughput = metrics.throughput ?? undefined;
     const errorRate = metrics.errorRate ?? 0;
 
+    // If throughput is undefined/null, we don't have data yet - default to green
+    // This prevents false RED status when data is still loading
+    if (throughput === undefined || throughput === null) {
+      state = 'green';
+      reasons.push('Metrics data not yet available - assuming healthy');
+    }
     // Check red thresholds (throughput too low or error rate too high)
-    if (throughput < componentThresholds.amber.throughput * 0.5 || 
+    else if (throughput < componentThresholds.amber.throughput * 0.5 || 
         errorRate > 5.0) {
       state = 'red';
       if (throughput < componentThresholds.amber.throughput * 0.5) {
@@ -172,8 +178,11 @@ export function extractComponentMetrics(
 
   // Extract Processing metrics (using websocket-ingestion as proxy)
   // Note: queue_size is not available in Statistics, using throughput as primary indicator
+  // Only set throughput if we have actual data (not 0 or undefined)
   const processingMetrics: ComponentMetrics = {
-    throughput: websocketStats?.events_per_minute,
+    throughput: websocketStats?.events_per_minute && websocketStats.events_per_minute > 0 
+      ? websocketStats.events_per_minute 
+      : undefined,
     queueSize: 0, // Not available in current Statistics API
     errorRate: websocketStats?.error_rate ?? 0
   };

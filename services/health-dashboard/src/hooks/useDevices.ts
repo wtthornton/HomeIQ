@@ -57,8 +57,10 @@ export function useDevices() {
       setDevices(response.devices || []);
     } catch (err: any) {
       console.error('Error fetching devices:', err);
-      setError(err.message || 'Failed to fetch devices');
-      setDevices([]);
+      const errorMessage = err.message || 'Failed to fetch devices';
+      setError(errorMessage);
+      // Keep existing devices on error - don't clear them
+      // This allows UI to show cached data even if refresh fails
     } finally {
       setLoading(false);
     }
@@ -79,7 +81,10 @@ export function useDevices() {
       setEntities(response.entities || []);
     } catch (err: any) {
       console.error('Error fetching entities:', err);
-      setEntities([]);
+      // Keep existing entities on error - don't clear them
+      // This allows UI to show cached data even if refresh fails
+      // Only set error if we don't already have one from devices fetch
+      setError(prev => prev || err.message || 'Failed to fetch entities');
     }
   }, []);
 
