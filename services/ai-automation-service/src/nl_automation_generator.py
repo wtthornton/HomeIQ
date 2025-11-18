@@ -182,6 +182,9 @@ class NLAutomationGenerator:
                     entities_by_domain[domain].append({
                         'entity_id': entity_id,
                         'friendly_name': entity.get('friendly_name', entity_id),
+                        'name': entity.get('name', ''),
+                        'name_by_user': entity.get('name_by_user', ''),
+                        'device_id': entity.get('device_id', ''),  # Include device_id for device name lookup
                         'area': entity.get('area_id', 'unknown')
                     })
 

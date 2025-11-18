@@ -443,7 +443,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
       </div>
 
       {/* RAG Status Monitor - Option 1: Integrated RAG Status Card */}
-      <div className="mb-8">
+      <div className="mb-8" data-testid="rag-status-section">
         <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           🚦 RAG Status Monitor
         </h2>

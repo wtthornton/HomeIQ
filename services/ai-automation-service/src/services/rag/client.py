@@ -3,6 +3,7 @@ Generic RAG Client for semantic knowledge storage and retrieval.
 
 Uses OpenVINO service for embeddings and SQLite for storage.
 Implements cosine similarity for semantic search.
+Now includes hybrid retrieval (dense + sparse) with cross-encoder reranking.
 """
 
 import logging
@@ -14,6 +15,9 @@ from sqlalchemy import select
 from datetime import datetime
 
 from .exceptions import EmbeddingGenerationError, StorageError, RetrievalError
+from .query_expansion import QueryExpander
+from .bm25_retrieval import BM25Retriever
+from .cross_encoder_reranker import CrossEncoderReranker
 from ...database.models import SemanticKnowledge
 
 logger = logging.getLogger(__name__)
@@ -52,7 +56,9 @@ class RAGClient:
         self,
         openvino_service_url: str,
         db_session: AsyncSession,
-        embedding_cache_size: int = 100
+        embedding_cache_size: int = 100,
+        enable_hybrid_retrieval: bool = True,
+        enable_reranking: bool = True
     ):
         """
         Initialize RAG client.
@@ -61,6 +67,8 @@ class RAGClient:
             openvino_service_url: URL of OpenVINO service (e.g., "http://openvino-service:8019")
             db_session: Async database session
             embedding_cache_size: Size of in-memory embedding cache (default: 100)
+            enable_hybrid_retrieval: Enable hybrid retrieval (dense + sparse BM25) (default: True)
+            enable_reranking: Enable cross-encoder reranking (default: True)
         """
         self.openvino_url = openvino_service_url.rstrip('/')
         self.db = db_session
@@ -68,7 +76,20 @@ class RAGClient:
         self._cache_size = embedding_cache_size
         self._client = httpx.AsyncClient(timeout=10.0)
         
-        logger.info(f"RAGClient initialized with OpenVINO service: {self.openvino_url}")
+        # Initialize 2025 best practices components
+        self.enable_hybrid_retrieval = enable_hybrid_retrieval
+        self.enable_reranking = enable_reranking
+        self.query_expander = QueryExpander()
+        self.bm25_retriever = BM25Retriever() if enable_hybrid_retrieval else None
+        self.cross_encoder_reranker = CrossEncoderReranker() if enable_reranking else None
+        
+        # Cache for BM25 index (built on first retrieval)
+        self._bm25_indexed = False
+        
+        logger.info(
+            f"RAGClient initialized with OpenVINO service: {self.openvino_url} "
+            f"(hybrid={enable_hybrid_retrieval}, reranking={enable_reranking})"
+        )
     
     async def _get_embedding(self, text: str) -> np.ndarray:
         """
@@ -245,6 +266,136 @@ class RAGClient:
         except Exception as e:
             logger.error(f"Error retrieving semantic knowledge: {e}")
             raise RetrievalError(f"Failed to retrieve semantic knowledge: {e}") from e
+    
+    async def retrieve_hybrid(
+        self,
+        query: str,
+        knowledge_type: Optional[str] = None,
+        top_k: int = 5,
+        min_similarity: float = 0.7,
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        use_query_expansion: bool = True,
+        use_reranking: bool = True,
+        dense_weight: float = 0.6,
+        sparse_weight: float = 0.4
+    ) -> List[Dict[str, Any]]:
+        """
+        Hybrid retrieval using dense (embeddings) + sparse (BM25) + reranking.
+        
+        Implements 2025 best practices:
+        1. Query expansion (synonyms, related terms)
+        2. Hybrid retrieval (dense + sparse BM25)
+        3. Cross-encoder reranking (final ranking)
+        
+        Args:
+            query: Query text
+            knowledge_type: Filter by type (optional)
+            top_k: Number of results to return
+            min_similarity: Minimum similarity threshold (0.0-1.0)
+            filter_metadata: Filter by metadata (optional)
+            use_query_expansion: Enable query expansion (default: True)
+            use_reranking: Enable cross-encoder reranking (default: True)
+            dense_weight: Weight for dense retrieval (default: 0.6)
+            sparse_weight: Weight for sparse retrieval (default: 0.4)
+            
+        Returns:
+            List of similar entries with hybrid scores, sorted by relevance
+        """
+        try:
+            # Step 1: Query expansion
+            expanded_query = query
+            if use_query_expansion:
+                expanded_query = self.query_expander.expand(query)
+                logger.debug(f"Query expansion: '{query}' → '{expanded_query}'")
+            
+            # Step 2: Dense retrieval (embeddings)
+            dense_results = await self.retrieve(
+                query=expanded_query,
+                knowledge_type=knowledge_type,
+                top_k=top_k * 3,  # Get more candidates for hybrid combination
+                min_similarity=min_similarity,
+                filter_metadata=filter_metadata
+            )
+            
+            if not dense_results:
+                logger.debug("No dense results found")
+                return []
+            
+            # Step 3: Sparse retrieval (BM25) if enabled
+            if self.enable_hybrid_retrieval and self.bm25_retriever:
+                # Build BM25 index if not already built
+                if not self._bm25_indexed:
+                    # Get all entries for indexing
+                    stmt = select(SemanticKnowledge)
+                    if knowledge_type:
+                        stmt = stmt.where(SemanticKnowledge.knowledge_type == knowledge_type)
+                    
+                    result = await self.db.execute(stmt)
+                    all_entries = result.scalars().all()
+                    
+                    # Convert to documents for BM25
+                    documents = []
+                    for entry in all_entries:
+                        doc = {
+                            'id': entry.id,
+                            'text': entry.text,
+                            'knowledge_type': entry.knowledge_type,
+                            'metadata': entry.knowledge_metadata or {},
+                            'success_score': entry.success_score
+                        }
+                        documents.append(doc)
+                    
+                    # Index documents
+                    self.bm25_retriever.index(documents, text_field='text')
+                    self._bm25_indexed = True
+                    logger.debug(f"Built BM25 index with {len(documents)} documents")
+                
+                # Hybrid search: combine dense + sparse
+                hybrid_results = self.bm25_retriever.search_hybrid(
+                    query=expanded_query,
+                    dense_results=dense_results,
+                    top_k=top_k * 2,  # More candidates before reranking
+                    dense_weight=dense_weight,
+                    sparse_weight=sparse_weight,
+                    text_field='text'
+                )
+                
+                results = hybrid_results
+            else:
+                results = dense_results
+            
+            # Step 4: Cross-encoder reranking if enabled
+            if use_reranking and self.enable_reranking and self.cross_encoder_reranker:
+                results = self.cross_encoder_reranker.rerank_with_hybrid_score(
+                    query=expanded_query,
+                    candidates=results,
+                    top_k=top_k,
+                    text_field='text',
+                    cross_encoder_weight=0.7,
+                    original_score_weight=0.3
+                )
+            else:
+                # Just take top_k if no reranking
+                results = results[:top_k]
+            
+            logger.info(
+                f"Hybrid retrieval: '{query[:50]}...' → {len(results)} results "
+                f"(expansion={use_query_expansion}, reranking={use_reranking})"
+            )
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in hybrid retrieval: {e}")
+            # Fallback to standard retrieval
+            logger.warning("Falling back to standard dense retrieval")
+            return await self.retrieve(
+                query=query,
+                knowledge_type=knowledge_type,
+                top_k=top_k,
+                min_similarity=min_similarity,
+                filter_metadata=filter_metadata
+            )
     
     def _matches_metadata(self, entry_metadata: Dict[str, Any], filter_metadata: Dict[str, Any]) -> bool:
         """

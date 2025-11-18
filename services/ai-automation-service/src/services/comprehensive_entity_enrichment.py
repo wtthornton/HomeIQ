@@ -286,7 +286,7 @@ async def _get_device_intelligence_for_entities(
                             break
                     
                     return (entity_id, {
-                        'device_name': device_details.get('name') or device_details.get('friendly_name'),
+                        'device_name': device_details.get('name_by_user') or device_details.get('name') or device_details.get('friendly_name'),
                         'manufacturer': device_details.get('manufacturer'),
                         'model': device_details.get('model'),
                         'sw_version': device_details.get('sw_version'),

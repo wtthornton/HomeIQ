@@ -166,9 +166,10 @@ class EnhancedHAConnectionManager:
     Enhanced Home Assistant Connection Manager with Circuit Breaker Pattern
     
     Connection Priority:
-    1. HA_HTTP_URL/HA_WS_URL + HA_TOKEN (Primary HA)
-    2. NABU_CASA_URL + NABU_CASA_TOKEN (Nabu Casa fallback)
-    3. LOCAL_HA_URL + LOCAL_HA_TOKEN (Local HA fallback)
+    1. HOME_ASSISTANT_URL + HOME_ASSISTANT_TOKEN (Primary HA - local instance)
+    2. NABU_CASA_URL + NABU_CASA_TOKEN (Nabu Casa cloud fallback)
+    
+    Legacy support: HA_HTTP_URL/HA_WS_URL + HA_TOKEN also supported for backwards compatibility
     """
     
     def __init__(self):
@@ -238,30 +239,6 @@ class EnhancedHAConnectionManager:
             self.connections.append(config)
             self._create_circuit_breaker(config)
             logger.info(f"✅ Nabu Casa fallback configured: {ws_url}")
-        
-        # Local HA Fallback Connection (Optional)
-        local_ha_url = os.getenv('LOCAL_HA_URL')
-        local_ha_token = os.getenv('LOCAL_HA_TOKEN')
-        
-        if local_ha_url and local_ha_token:
-            # Convert to WebSocket URL
-            ws_url = local_ha_url.replace('http://', 'ws://').replace('https://', 'wss://')
-            if not ws_url.endswith('/api/websocket'):
-                ws_url += '/api/websocket'
-            
-            config = HAConnectionConfig(
-                name="Local HA Fallback",
-                url=ws_url,
-                token=local_ha_token,
-                connection_type=ConnectionType.LOCAL_HA,
-                priority=3,
-                timeout=30,
-                max_retries=3,
-                retry_delay=5.0
-            )
-            self.connections.append(config)
-            self._create_circuit_breaker(config)
-            logger.info(f"✅ Local HA fallback configured: {ws_url}")
         
         # Sort by priority
         self.connections.sort(key=lambda x: x.priority)

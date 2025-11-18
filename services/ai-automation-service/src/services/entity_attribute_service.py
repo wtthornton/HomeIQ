@@ -117,10 +117,11 @@ class EntityAttributeService:
         """
         Get friendly name from Entity Registry (source of truth for HA UI names).
         
-        Priority:
-        1. Entity Registry 'name' field (what shows in HA UI)
-        2. Entity Registry 'original_name' field (if name is None)
-        3. None (fallback to state API)
+        Priority (ensures users see their custom names from Home Assistant):
+        1. Entity Registry 'name_by_user' field (user-customized name - highest priority)
+        2. Entity Registry 'name' field (what shows in HA UI)
+        3. Entity Registry 'original_name' field (if name is None)
+        4. None (fallback to state API)
         
         Args:
             entity_id: Entity ID to lookup
@@ -133,12 +134,18 @@ class EntityAttributeService:
         if not entity_data:
             return None
         
-        # Priority 1: Use 'name' field (what shows in HA UI)
+        # Priority 1: Use 'name_by_user' field (user-customized name - highest priority)
+        # This ensures users see their custom names from Home Assistant when available
+        name_by_user = entity_data.get('name_by_user')
+        if name_by_user:
+            return name_by_user
+        
+        # Priority 2: Use 'name' field (what shows in HA UI)
         name = entity_data.get('name')
         if name:
             return name
         
-        # Priority 2: Use 'original_name' if name is None
+        # Priority 3: Use 'original_name' if name is None
         original_name = entity_data.get('original_name')
         if original_name:
             return original_name
@@ -194,11 +201,19 @@ class EntityAttributeService:
             device_id = entity_registry_data.get('device_id') or attributes.get('device_id')
             area_id = entity_registry_data.get('area_id') or attributes.get('area_id')
             
+            # Extract name fields from Entity Registry for direct access
+            name_by_user = entity_registry_data.get('name_by_user')
+            name = entity_registry_data.get('name')
+            original_name = entity_registry_data.get('original_name')
+            
             # Build enriched entity
             enriched = {
                 'entity_id': entity_id,
                 'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
                 'friendly_name': friendly_name,  # Now uses Entity Registry as primary source
+                'name': name,  # Entity Registry name field
+                'name_by_user': name_by_user,  # User-customized name (highest priority)
+                'original_name': original_name,  # Original name from integration
                 'icon': attributes.get('icon'),
                 'device_class': attributes.get('device_class'),
                 'unit_of_measurement': attributes.get('unit_of_measurement'),

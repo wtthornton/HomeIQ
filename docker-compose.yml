@@ -140,7 +140,7 @@ services:
       # Home Assistant Configuration (consolidated)
       - HA_HTTP_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
@@ -384,7 +384,7 @@ services:
       - LATITUDE=${LATITUDE:-36.1699}
       - LONGITUDE=${LONGITUDE:--115.1398}
       - HOME_ASSISTANT_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
-      - HOME_ASSISTANT_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
@@ -521,11 +521,13 @@ services:
       # Home Assistant Configuration (unified)
       - HA_HTTP_URL=${HA_HTTP_URL:-}
       - HA_WS_URL=${HA_WS_URL:-}
-      - HA_TOKEN=${HA_TOKEN:-}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      # Nabu Casa Fallback
       - NABU_CASA_URL=${NABU_CASA_URL:-}
       - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
-      - LOCAL_HA_URL=${LOCAL_HA_URL:-}
-      - LOCAL_HA_TOKEN=${LOCAL_HA_TOKEN:-}
+      # Standard HA connection
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - METER_API_TOKEN=${METER_API_TOKEN:-}
       - METER_DEVICE_ID=${METER_DEVICE_ID:-}
       - INFLUXDB_URL=http://influxdb:8086
@@ -872,9 +874,8 @@ services:
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       # Map .env variables to service expected names
-      # Prioritize HOME_ASSISTANT_URL over LOCAL_HA_URL (HOME_ASSISTANT_URL is the primary HA instance)
-      - HA_URL=${HOME_ASSISTANT_URL:-${LOCAL_HA_URL:-http://homeassistant:8123}}
-      - HA_TOKEN=${LOCAL_HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - NER_SERVICE_URL=http://ner-service:8031
       - OPENAI_SERVICE_URL=http://openai-service:8020
@@ -1055,7 +1056,7 @@ services:
       - SERVICE_PORT=8020
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
@@ -1113,7 +1114,7 @@ services:
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
       - HA_WS_URL=${HA_WS_URL:-}
       - NABU_CASA_URL=https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - MQTT_BROKER=${MQTT_BROKER:-mqtt://192.168.1.86:1883}
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}

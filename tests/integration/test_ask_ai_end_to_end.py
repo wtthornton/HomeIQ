@@ -76,9 +76,13 @@ class AskAIEndToEndTest:
         query_id = data.get('query_id')
         entities = data.get('extracted_entities', [])
         suggestions = data.get('suggestions', [])
+        clarification_needed = data.get('clarification_needed', False)
+        clarification_session_id = data.get('clarification_session_id')
+        questions = data.get('questions', [])
         
         logger.info(f"Query created: {query_id}")
         logger.info(f"Extracted {len(entities)} entities")
+        logger.info(f"Clarification needed: {clarification_needed}")
         logger.info(f"Generated {len(suggestions)} suggestions")
         
         # Log extracted entities
@@ -89,15 +93,79 @@ class AskAIEndToEndTest:
                 name = entity.get('name', entity.get('friendly_name', 'N/A'))
                 logger.info(f"  - {name} ({entity_id})")
         
+        # Handle clarification if needed
+        clarification_query_id = query_id  # Default to original query_id
+        if clarification_needed and questions and not suggestions:
+            logger.info(f"\nClarification needed: {len(questions)} questions")
+            for i, question in enumerate(questions, 1):
+                logger.info(f"  Question {i}: {question.get('question_text', 'N/A')}")
+            
+            # Answer clarification questions automatically
+            logger.info("\nAnswering clarification questions...")
+            clarification_data = await self.answer_clarification(
+                clarification_session_id, 
+                questions
+            )
+            
+            # Update data with suggestions from clarification response
+            if clarification_data.get('suggestions'):
+                suggestions = clarification_data.get('suggestions', [])
+                logger.info(f"Got {len(suggestions)} suggestions after clarification")
+                # After clarification, suggestions are stored with session_id as query_id
+                clarification_query_id = clarification_session_id
+        
         self.test_results['query_creation'] = {
             'success': True,
             'query_id': query_id,
+            'clarification_query_id': clarification_query_id,  # Store for use in test
             'query_text': query_text,
             'entities': entities,
             'suggestions_count': len(suggestions)
         }
         
+        # Update data with final suggestions and clarification query_id
+        data['suggestions'] = suggestions
+        data['clarification_query_id'] = clarification_query_id
+        
         return data
+    
+    async def answer_clarification(self, session_id: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Answer clarification questions automatically"""
+        url = f"{BASE_URL}/clarify"
+        
+        # Build answers - use first option for multiple choice, or generic answer
+        answers = []
+        for question in questions:
+            question_id = question.get('id')
+            question_type = question.get('question_type', '')
+            options = question.get('options', [])
+            
+            if question_type == 'multiple_choice' and options:
+                # Use first option as default answer
+                answer_text = options[0]
+            else:
+                # Generic answer
+                answer_text = "Yes, proceed with that"
+            
+            answers.append({
+                'question_id': question_id,
+                'answer_text': answer_text,
+                'selected_entities': question.get('related_entities', [])
+            })
+        
+        request_data = {
+            'session_id': session_id,
+            'answers': answers
+        }
+        
+        logger.info(f"POST {url}")
+        logger.info(f"Answering {len(answers)} questions")
+        
+        response = await self.client.post(url, json=request_data)
+        
+        assert response.status_code == 200, f"Failed to answer clarification: {response.status_code}\n{response.text}"
+        
+        return response.json()
     
     def validate_suggestions(self, suggestions: List[Dict[str, Any]], expected_device_count: Optional[int] = None):
         """Step 2: Validate suggestions"""
@@ -282,8 +350,10 @@ class TestAskAIEndToEnd:
     
     @pytest_asyncio.fixture
     async def client(self):
-        """Create an async HTTP client"""
-        async with httpx.AsyncClient(timeout=180.0) as client:
+        """Create an async HTTP client with API key"""
+        api_key = os.environ.get("AI_AUTOMATION_API_KEY", "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR")
+        headers = {"X-HomeIQ-API-Key": api_key}
+        async with httpx.AsyncClient(timeout=180.0, headers=headers) as client:
             yield client
     
     @pytest.mark.parametrize("query,expected_devices", [
@@ -312,13 +382,17 @@ class TestAskAIEndToEnd:
             query_id = query_data['query_id']
             suggestions = query_data['suggestions']
             
+            # Use clarification_query_id if clarification occurred, else use original query_id
+            # After clarification, suggestions are stored with session_id as query_id
+            test_query_id = query_data.get('clarification_query_id', query_id)
+            
             # Step 2: Validate suggestions
             tester.validate_suggestions(suggestions, expected_device_count=None)
             
-            # Step 3: Test first suggestion
+            # Step 3: Test first suggestion using correct query_id
             first_suggestion = suggestions[0]
             suggestion_id = first_suggestion['suggestion_id']
-            await tester.test_suggestion(query_id, suggestion_id)
+            await tester.test_suggestion(test_query_id, suggestion_id)
             
             # Step 4: Validate end-to-end
             tester.validate_end_to_end(expected_min_entities=1)

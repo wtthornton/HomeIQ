@@ -170,11 +170,15 @@ class EntityContextBuilder:
                 entity_metadata = await data_api_client.get_entity_metadata(entity_id)
                 
                 if entity_metadata:
-                    # Use database fields first
-                    friendly_name = entity_metadata.get('friendly_name') or entity_metadata.get('name') or entity_metadata.get('original_name')
+                    # Extract name fields from database
                     name = entity_metadata.get('name')
                     name_by_user = entity_metadata.get('name_by_user')
                     original_name = entity_metadata.get('original_name')
+                    
+                    # Compute friendly_name prioritizing name_by_user (user-customized name)
+                    # Priority: name_by_user > name > original_name
+                    # This ensures users see their custom names from Home Assistant
+                    friendly_name = name_by_user or name or original_name
                     capabilities = entity_metadata.get('capabilities', [])
                     if not isinstance(capabilities, list):
                         capabilities = []

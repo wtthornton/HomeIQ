@@ -154,18 +154,41 @@ class ClarificationDetector:
             
             # Check in available devices
             if isinstance(available_devices, dict):
+                # Build device lookup map for enriching entities with device names
+                devices_list = available_devices.get('devices', [])
+                device_map = {}
+                if isinstance(devices_list, list):
+                    for device_info in devices_list:
+                        if isinstance(device_info, dict):
+                            device_id = device_info.get('device_id', device_info.get('id', ''))
+                            device_name = device_info.get('name', device_info.get('friendly_name', ''))
+                            if device_id and device_name:
+                                device_map[device_id] = device_name
+                
                 # Check entities list (from DataFrame.to_dict('records'))
                 entities_list = available_devices.get('entities', [])
                 if isinstance(entities_list, list):
                     for entity_info in entities_list:
                         if isinstance(entity_info, dict):
                             entity_id = entity_info.get('entity_id', '')
-                            entity_name = entity_info.get('friendly_name', entity_info.get('name', '')).lower()
-                            if mention_lower in entity_name and entity_id:
+                            entity_name = entity_info.get('friendly_name', entity_info.get('name', '') or '')
+                            
+                            # If entity name is empty, try to get device name
+                            if not entity_name:
+                                device_id = entity_info.get('device_id', '')
+                                if device_id and device_id in device_map:
+                                    entity_name = device_map[device_id]
+                            
+                            entity_name_lower = entity_name.lower()
+                            entity_id_lower = entity_id.lower()
+                            # Check both name and entity_id (fallback to entity_id if name is empty)
+                            if entity_id and (mention_lower in entity_name_lower or mention_lower in entity_id_lower):
+                                # Use device name if available, otherwise fallback to entity_id
+                                display_name = entity_name if entity_name else entity_id
                                 # Create entity-like dict with area info
                                 entity_dict = {
                                     'entity_id': entity_id,
-                                    'name': entity_info.get('friendly_name', entity_id),
+                                    'name': display_name,
                                     'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
                                     'area_id': entity_info.get('area_id', entity_info.get('area', '')),
                                     'device_area_id': entity_info.get('device_area_id', '')
@@ -182,12 +205,24 @@ class ClarificationDetector:
                             for entity_info in domain_entities:
                                 if isinstance(entity_info, dict):
                                     entity_id = entity_info.get('entity_id', '')
-                                    entity_name = entity_info.get('friendly_name', entity_info.get('name', '')).lower()
-                                    if mention_lower in entity_name and entity_id:
+                                    entity_name = entity_info.get('friendly_name', entity_info.get('name', '') or '')
+                                    
+                                    # If entity name is empty, try to get device name
+                                    if not entity_name:
+                                        device_id = entity_info.get('device_id', '')
+                                        if device_id and device_id in device_map:
+                                            entity_name = device_map[device_id]
+                                    
+                                    entity_name_lower = entity_name.lower()
+                                    entity_id_lower = entity_id.lower()
+                                    # Check both name and entity_id (fallback to entity_id if name is empty)
+                                    if entity_id and (mention_lower in entity_name_lower or mention_lower in entity_id_lower):
+                                        # Use device name if available, otherwise fallback to entity_id
+                                        display_name = entity_name if entity_name else entity_id
                                         # Create entity-like dict with area info
                                         entity_dict = {
                                             'entity_id': entity_id,
-                                            'name': entity_info.get('friendly_name', entity_id),
+                                            'name': display_name,
                                             'domain': domain,
                                             'area_id': entity_info.get('area', entity_info.get('area_id', '')),
                                             'device_area_id': entity_info.get('device_area_id', '')
@@ -421,23 +456,30 @@ class ClarificationDetector:
         
         # NEW: If RAG client is available, check semantic similarity first
         # This reduces false positives by learning from successful queries
+        # Use hybrid retrieval (2025 best practice: dense + sparse + reranking)
         if self.rag_client:
             try:
                 # Check if similar successful queries exist
-                similar_queries = await self.rag_client.retrieve(
+                similar_queries = await self.rag_client.retrieve_hybrid(
                     query=query,
                     knowledge_type='query',
                     top_k=1,
-                    min_similarity=0.85  # High threshold for "clear query"
+                    min_similarity=0.85,  # High threshold for "clear query"
+                    use_query_expansion=True,
+                    use_reranking=True
                 )
                 
                 # If we find a highly similar successful query, the query is likely clear
-                if similar_queries and similar_queries[0]['similarity'] > 0.85:
-                    logger.debug(
-                        f"Found similar successful query (similarity={similar_queries[0]['similarity']:.2f}) - "
-                        f"skipping action ambiguity check for: {query[:50]}..."
-                    )
-                    return []  # No ambiguity - query is clear based on semantic similarity
+                # Hybrid retrieval returns 'final_score' or 'hybrid_score', fallback to 'similarity'
+                top_result = similar_queries[0] if similar_queries else None
+                if top_result:
+                    similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
+                    if similarity > 0.85:
+                        logger.debug(
+                            f"Found similar successful query (similarity={similarity:.2f}) - "
+                            f"skipping action ambiguity check for: {query[:50]}..."
+                        )
+                        return []  # No ambiguity - query is clear based on semantic similarity
                     
             except Exception as e:
                 # If RAG lookup fails, fall back to hardcoded rules

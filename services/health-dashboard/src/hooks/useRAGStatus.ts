@@ -25,7 +25,14 @@ export const useRAGStatus = ({
   loading: boolean;
 } => {
   const ragStatus = useMemo(() => {
-    if (loading || !enhancedHealth || !statistics) {
+    // Allow calculation even if one of the data sources is missing
+    // The calculation function handles null values gracefully
+    if (loading) {
+      return null;
+    }
+
+    // If both are null, return null (no data available)
+    if (!enhancedHealth && !statistics) {
       return null;
     }
 

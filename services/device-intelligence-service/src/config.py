@@ -83,16 +83,6 @@ class Settings(BaseSettings):
         description="Nabu Casa long-lived access token for fallback"
     )
     
-    # Local HA Fallback Configuration (Optional)
-    LOCAL_HA_URL: Optional[str] = Field(
-        default=None,
-        description="Local Home Assistant URL for additional fallback"
-    )
-    LOCAL_HA_TOKEN: Optional[str] = Field(
-        default=None,
-        description="Local Home Assistant token for additional fallback"
-    )
-    
     # MQTT Configuration
     # Defaults to Home Assistant's MQTT broker (same server as HA HTTP API)
     MQTT_BROKER: str = Field(

@@ -30,9 +30,11 @@ class Entity(Base):
     
     # Entity Registry Name Fields (2025 HA API)
     name = Column(String)  # Primary friendly name from Entity Registry (what shows in HA UI)
-    name_by_user = Column(String)  # User-customized name (if set)
+    name_by_user = Column(String)  # User-customized name (if set) - PRIORITY: Used first for display
     original_name = Column(String)  # Original name before user customization
-    friendly_name = Column(String, index=True)  # Computed: name_by_user or name or original_name
+    friendly_name = Column(String, index=True)  # Stored computed value: name_by_user or name or original_name
+    # NOTE: friendly_name is computed at write time with priority: name_by_user > name > original_name
+    # This ensures users see their custom names from Home Assistant when available
     
     # Entity Capabilities (2025 HA API)
     supported_features = Column(Integer)  # Bitmask of supported features (from attributes.supported_features)

@@ -313,17 +313,21 @@ class ConnectionManager:
         await self._subscribe_to_events()
         
         # Discover devices and entities
+        # IMPORTANT: Run discovery BEFORE listen() loop starts to avoid concurrency issues
+        # Discovery uses WebSocket, but it's safe here because listen() hasn't started yet
         logger.info("🔍 Starting device and entity discovery...")
         try:
             if self.client and self.client.websocket:
+                # Pass websocket to discovery (will use WebSocket since HTTP API not available)
+                # This is safe because listen() loop hasn't started yet
                 await self.discovery_service.discover_all(self.client.websocket)
                 
-                # Subscribe to registry update events
+                # Subscribe to registry update events (still requires WebSocket for real-time updates)
                 logger.info("📡 Subscribing to registry update events...")
                 await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
                 await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
             else:
-                logger.error("❌ Cannot run discovery: WebSocket not available")
+                logger.warning("⚠️  WebSocket not available - skipping discovery")
         except Exception as e:
             logger.error(f"❌ Discovery failed (non-fatal): {e}")
             import traceback
