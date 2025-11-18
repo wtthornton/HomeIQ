@@ -10,7 +10,7 @@ import time
 from typing import Dict, List, Any, Optional
 from aiohttp import ClientWebSocketResponse
 
-from models import Device, Entity, ConfigEntry
+from .models import Device, Entity, ConfigEntry
 
 logger = logging.getLogger(__name__)
 
@@ -611,8 +611,12 @@ class DiscoveryService:
             logger.info("=" * 80)
             logger.info("✅ STORAGE COMPLETE")
             if services_data:
-                total_services = sum(len(domain_services) for domain_services in services_data.values())
-                logger.info(f"   Services: {total_services} total services across {len(services_data)} domains")
+                # Fix: Handle both dict and list formats
+                if isinstance(services_data, dict):
+                    total_services = sum(len(domain_services) for domain_services in services_data.values())
+                    logger.info(f"   Services: {total_services} total services across {len(services_data)} domains")
+                elif isinstance(services_data, list):
+                    logger.info(f"   Services: {len(services_data)} services")
             logger.info("=" * 80)
             
             return True
