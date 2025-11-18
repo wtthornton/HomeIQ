@@ -426,6 +426,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
+- **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
 - **Story AI1.26: Persistent clarification session storage** (November 18, 2025)
   - Database-backed clarification flow with query ID linkage
   - Smart suggestion retrieval supporting both direct and clarification query IDs
