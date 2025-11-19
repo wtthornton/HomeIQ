@@ -62,6 +62,7 @@ class HealthEndpoints:
         self.alert_manager = get_alert_manager("admin-api")
         self.service_urls = {
             "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001"),
+            "ai-automation-service": os.getenv("AI_AUTOMATION_URL", "http://ai-automation-service:8018"),
             "influxdb": os.getenv("INFLUXDB_URL", "http://homeiq-influxdb:8086"),
             "weather-api": "https://api.openweathermap.org/data/2.5",
             # Data source services - Fixed to use Docker container names
@@ -191,7 +192,10 @@ class HealthEndpoints:
         """Check health of all services"""
         services_health = {}
         
+        logger.debug(f"Checking {len(self.service_urls)} services: {list(self.service_urls.keys())}")
+        
         for service_name, service_url in self.service_urls.items():
+            logger.debug(f"Checking service: {service_name} at {service_url}")
             try:
                 start_time = datetime.now()
                 
@@ -259,6 +263,7 @@ class HealthEndpoints:
                     error_message="Timeout"
                 )
             except Exception as e:
+                logger.error(f"Error checking {service_name}: {e}", exc_info=True)
                 services_health[service_name] = ServiceHealth(
                     name=service_name,
                     status="unhealthy",
@@ -266,6 +271,7 @@ class HealthEndpoints:
                     error_message=str(e)
                 )
         
+        logger.debug(f"Returning {len(services_health)} service health results: {list(services_health.keys())}")
         return services_health
     
     async def _get_websocket_service_data(self) -> Dict[str, Any]:

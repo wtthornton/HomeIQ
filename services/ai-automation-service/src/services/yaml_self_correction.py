@@ -487,7 +487,7 @@ Write as if explaining to a user who asked for this automation."""
                     }
                 ],
                 temperature=0.3,  # Low temperature for consistency
-                max_tokens=300
+                max_completion_tokens=300  # Use max_completion_tokens for newer models
             )
             
             # Track tokens
@@ -584,7 +584,7 @@ ACTION 2: [specific change needed]
                     }
                 ],
                 temperature=0.5,
-                max_tokens=400
+                max_completion_tokens=400  # Use max_completion_tokens for newer models
             )
             
             # Track tokens (will be added to total_tokens by caller)
@@ -675,7 +675,7 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                     }
                 ],
                 temperature=0.2,  # Low temperature for consistency
-                max_tokens=1500
+                max_completion_tokens=1500  # Use max_completion_tokens for newer models
             )
             
             # Track tokens

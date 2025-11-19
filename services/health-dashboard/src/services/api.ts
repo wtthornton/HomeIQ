@@ -540,12 +540,16 @@ class AIAutomationApiClient {
 
   constructor() {
     // AI Automation service runs on port 8018
-    this.baseUrl = import.meta.env.VITE_AI_API_URL || '/ai-automation/api';
+    // Base URL should be /ai-automation (nginx proxies to ai-automation-service:8018)
+    this.baseUrl = import.meta.env.VITE_AI_API_URL || '/ai-automation';
   }
 
   private async fetchWithErrorHandling<T>(url: string, options: RequestInit = {}): Promise<T> {
     const method = (options.method || 'GET').toUpperCase();
     const requestOptions = { ...options };
+
+    // Add authentication headers for all requests
+    requestOptions.headers = withAuthHeaders(requestOptions.headers);
 
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       requestOptions.headers = withCsrfHeader(requestOptions.headers);
@@ -685,6 +689,10 @@ class AIAutomationApiClient {
 
   async getStats(): Promise<any> {
     return this.fetchWithErrorHandling(`${this.baseUrl}/stats`);
+  }
+
+  async getModelComparison(): Promise<any> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/suggestions/models/compare`);
   }
 
   async generateNaturalLanguageAutomation(requestText: string, userId: string = 'default'): Promise<any> {

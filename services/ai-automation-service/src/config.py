@@ -121,6 +121,27 @@ class Settings(BaseSettings):
     creative_temperature: float = 1.0  # For Ask AI - Maximum creativity for crazy ideas
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
+    
+    # Model Selection Configuration (Optimized for Cost/Quality Balance)
+    # GPT-5.1: Best for creative tasks requiring high quality ($1.25/$10 per 1M tokens)
+    # GPT-5 Mini: Best for standard tasks with 80% cost savings ($0.25/$2 per 1M tokens)
+    # GPT-5 Nano: Best for simple tasks with 96% cost savings ($0.05/$0.40 per 1M tokens)
+    suggestion_generation_model: str = "gpt-5.1"  # Creative suggestions need highest quality
+    yaml_generation_model: str = "gpt-5-mini"  # YAML is templated, Mini is sufficient (80% savings)
+    classification_model: str = "gpt-5-nano"  # Classification is simple, Nano is sufficient (96% savings)
+    entity_extraction_model: str = "gpt-5-mini"  # Entity extraction benefits from Mini's balance
+    
+    # Token Budget Configuration (Phase 2)
+    max_entity_context_tokens: int = 10_000  # Limit entity context size to reduce input tokens
+    max_enrichment_context_tokens: int = 2_000  # Limit enrichment data (weather, carbon, etc.)
+    max_conversation_history_tokens: int = 1_000  # Limit conversation history size
+    enable_token_counting: bool = True  # Enable token counting before API calls
+    warn_on_token_threshold: int = 20_000  # Log warning when approaching this token count
+    
+    # Caching Configuration (Phase 4)
+    entity_cache_ttl_seconds: int = 300  # 5-minute TTL for enriched entity data cache
+    enable_prompt_caching: bool = True  # Enable OpenAI native prompt caching (90% discount)
+    conversation_history_max_turns: int = 3  # Keep only last N conversation turns
 
     # Soft Prompt Fallback (single-home tuning)
     soft_prompt_enabled: bool = True

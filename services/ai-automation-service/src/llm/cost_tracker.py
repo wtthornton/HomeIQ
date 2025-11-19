@@ -13,29 +13,89 @@ logger = logging.getLogger(__name__)
 class CostTracker:
     """Track OpenAI API costs"""
     
-    # GPT-4o-mini pricing (as of October 2025)
+    # GPT-5 Model Pricing (as of November 2025) - VERIFIED
     # Source: https://openai.com/api/pricing/
-    INPUT_COST_PER_1M = 0.150  # $0.15 per 1M input tokens
-    OUTPUT_COST_PER_1M = 0.600  # $0.60 per 1M output tokens
+    # GPT-5.1: Best quality for creative tasks
+    GPT5_1_INPUT_COST_PER_1M = 1.25  # $1.25 per 1M input tokens
+    GPT5_1_OUTPUT_COST_PER_1M = 10.00  # $10.00 per 1M output tokens
+    GPT5_1_CACHED_INPUT_COST_PER_1M = 0.125  # $0.125 per 1M cached input tokens (90% discount)
+    
+    # GPT-5 Mini: 80% cost savings, good for standard tasks
+    GPT5_MINI_INPUT_COST_PER_1M = 0.25  # $0.25 per 1M input tokens
+    GPT5_MINI_OUTPUT_COST_PER_1M = 2.00  # $2.00 per 1M output tokens
+    GPT5_MINI_CACHED_INPUT_COST_PER_1M = 0.025  # $0.025 per 1M cached input tokens (90% discount)
+    
+    # GPT-5 Nano: 96% cost savings, good for simple tasks
+    GPT5_NANO_INPUT_COST_PER_1M = 0.05  # $0.05 per 1M input tokens
+    GPT5_NANO_OUTPUT_COST_PER_1M = 0.40  # $0.40 per 1M output tokens
+    GPT5_NANO_CACHED_INPUT_COST_PER_1M = 0.005  # $0.005 per 1M cached input tokens (90% discount)
+    
+    # Legacy pricing (for backward compatibility)
+    INPUT_COST_PER_1M = GPT5_1_INPUT_COST_PER_1M
+    OUTPUT_COST_PER_1M = GPT5_1_OUTPUT_COST_PER_1M
     
     @staticmethod
-    def calculate_cost(input_tokens: int, output_tokens: int) -> float:
+    def get_model_pricing(model: str) -> Dict[str, float]:
+        """
+        Get pricing for a specific model.
+        
+        Args:
+            model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+        
+        Returns:
+            Dictionary with input_cost, output_cost, cached_input_cost per 1M tokens
+        """
+        model_lower = model.lower()
+        if "gpt-5.1" in model_lower or model_lower == "gpt-5.1":
+            return {
+                'input': CostTracker.GPT5_1_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT5_1_CACHED_INPUT_COST_PER_1M
+            }
+        elif "mini" in model_lower:
+            return {
+                'input': CostTracker.GPT5_MINI_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT5_MINI_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT5_MINI_CACHED_INPUT_COST_PER_1M
+            }
+        elif "nano" in model_lower:
+            return {
+                'input': CostTracker.GPT5_NANO_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT5_NANO_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT5_NANO_CACHED_INPUT_COST_PER_1M
+            }
+        else:
+            # Default to GPT-5.1
+            return {
+                'input': CostTracker.GPT5_1_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT5_1_CACHED_INPUT_COST_PER_1M
+            }
+    
+    @staticmethod
+    def calculate_cost(input_tokens: int, output_tokens: int, model: str = "gpt-5.1", cached_input: bool = False) -> float:
         """
         Calculate cost in USD for token usage.
         
         Args:
             input_tokens: Number of input (prompt) tokens
             output_tokens: Number of output (completion) tokens
+            model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+            cached_input: Whether input tokens are cached (90% discount)
         
         Returns:
             Total cost in USD
         """
-        input_cost = (input_tokens / 1_000_000) * CostTracker.INPUT_COST_PER_1M
-        output_cost = (output_tokens / 1_000_000) * CostTracker.OUTPUT_COST_PER_1M
+        pricing = CostTracker.get_model_pricing(model)
+        input_cost_per_1m = pricing['cached_input'] if cached_input else pricing['input']
+        
+        input_cost = (input_tokens / 1_000_000) * input_cost_per_1m
+        output_cost = (output_tokens / 1_000_000) * pricing['output']
         total_cost = input_cost + output_cost
         
         logger.debug(
-            f"Cost calculation: {input_tokens} input + {output_tokens} output = ${total_cost:.4f}"
+            f"Cost calculation ({model}, cached={cached_input}): "
+            f"{input_tokens} input + {output_tokens} output = ${total_cost:.4f}"
         )
         
         return total_cost
@@ -103,4 +163,65 @@ class CostTracker:
             'remaining_usd': round(budget - total_cost, 2),
             'should_alert': alert_level in ['warning', 'critical']
         }
+    
+    @staticmethod
+    def is_local_model(model_name: str) -> bool:
+        """
+        Check if model is local (no API cost).
+        
+        Returns True for:
+        - HuggingFace models (dslim/bert-base-NER, etc.)
+        - SentenceTransformer models (all-MiniLM-L6-v2, etc.)
+        - Pattern matching (no model)
+        - spaCy models
+        
+        Args:
+            model_name: Model identifier string
+        
+        Returns:
+            True if model is local (no API cost), False otherwise
+        """
+        if not model_name:
+            return True
+        
+        model_lower = model_name.lower()
+        local_indicators = [
+            'huggingface', 'sentence-transformers', 'transformers',
+            'pattern', 'spacy', 'bert', 'roberta', 'dslim',
+            'all-minilm', 'sentence_transformer'
+        ]
+        return any(indicator in model_lower for indicator in local_indicators)
+    
+    @staticmethod
+    def estimate_monthly_cost_per_model(
+        model_name: str,
+        requests_per_day: int,
+        avg_input_tokens: int = 0,
+        avg_output_tokens: int = 0
+    ) -> float:
+        """
+        Estimate monthly cost for a model.
+        
+        Returns 0.0 for local models (HuggingFace, SentenceTransformers, etc.)
+        
+        Args:
+            model_name: Model identifier
+            requests_per_day: Average number of requests per day
+            avg_input_tokens: Average input tokens per request
+            avg_output_tokens: Average output tokens per request
+        
+        Returns:
+            Estimated monthly cost in USD
+        """
+        if CostTracker.is_local_model(model_name):
+            return 0.0
+        
+        total_input_tokens = avg_input_tokens * requests_per_day * 30
+        total_output_tokens = avg_output_tokens * requests_per_day * 30
+        
+        return CostTracker.calculate_cost(
+            total_input_tokens,
+            total_output_tokens,
+            model=model_name
+        )
 

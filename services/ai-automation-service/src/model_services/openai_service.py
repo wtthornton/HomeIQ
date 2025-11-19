@@ -107,7 +107,7 @@ async def extract_entities(request: OpenAIExtractionRequest):
                 {"role": "user", "content": prompt}
             ],
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_completion_tokens=request.max_tokens  # Use max_completion_tokens for newer models
         )
         
         # Parse response

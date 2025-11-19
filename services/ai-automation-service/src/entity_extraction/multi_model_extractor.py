@@ -203,7 +203,7 @@ class MultiModelEntityExtractor:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=300
+                max_completion_tokens=300  # Use max_completion_tokens for newer models
             )
             
             # Parse OpenAI response
@@ -557,16 +557,74 @@ class MultiModelEntityExtractor:
             return [e for e in enhanced_entities if e.get('type') != 'trigger_condition']
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get performance statistics"""
+        """Get performance statistics with model names and cost information"""
         total = self.stats['total_queries']
         if total == 0:
-            return self.stats
+            return {
+                **self.stats,
+                'models': {
+                    'ner': {
+                        'model_name': self.ner_model,
+                        'calls': 0,
+                        'success_rate': 0.0,
+                        'cost_usd': 0.0
+                    },
+                    'openai': {
+                        'model_name': self.openai_model,
+                        'calls': 0,
+                        'success_rate': 0.0,
+                        'cost_usd': 0.0
+                    },
+                    'pattern': {
+                        'model_name': 'pattern_matching',
+                        'calls': 0,
+                        'success_rate': 0.0,
+                        'cost_usd': 0.0
+                    }
+                }
+            }
+        
+        # Calculate model-specific stats
+        from ..llm.cost_tracker import CostTracker
+        
+        # Estimate costs (we don't track exact tokens for NER/pattern, so estimate)
+        # NER and pattern matching are free (local models)
+        ner_cost = 0.0  # Local model, no cost
+        
+        # OpenAI costs would need token tracking - for now estimate based on average
+        # This is a limitation - we'd need to track tokens per call for accurate costs
+        openai_cost = 0.0  # Would need token tracking for accurate cost
+        
+        pattern_cost = 0.0  # Pattern matching is free
         
         return {
             **self.stats,
-            'ner_success_rate': self.stats['ner_success'] / total,
-            'openai_success_rate': self.stats['openai_success'] / total,
-            'pattern_fallback_rate': self.stats['pattern_fallback'] / total
+            'ner_success_rate': self.stats['ner_success'] / total if total > 0 else 0.0,
+            'openai_success_rate': self.stats['openai_success'] / total if total > 0 else 0.0,
+            'pattern_fallback_rate': self.stats['pattern_fallback'] / total if total > 0 else 0.0,
+            'models': {
+                'ner': {
+                    'model_name': self.ner_model,
+                    'calls': self.stats['ner_success'],
+                    'success_rate': self.stats['ner_success'] / total if total > 0 else 0.0,
+                    'cost_usd': ner_cost,
+                    'is_local': CostTracker.is_local_model(self.ner_model)
+                },
+                'openai': {
+                    'model_name': self.openai_model,
+                    'calls': self.stats['openai_success'],
+                    'success_rate': self.stats['openai_success'] / total if total > 0 else 0.0,
+                    'cost_usd': openai_cost,  # Would need token tracking for accurate cost
+                    'is_local': CostTracker.is_local_model(self.openai_model)
+                },
+                'pattern': {
+                    'model_name': 'pattern_matching',
+                    'calls': self.stats['pattern_fallback'],
+                    'success_rate': self.stats['pattern_fallback'] / total if total > 0 else 0.0,
+                    'cost_usd': pattern_cost,
+                    'is_local': True
+                }
+            }
         }
     
     def _build_enhanced_entity(

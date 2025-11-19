@@ -60,6 +60,15 @@ export function calculateComponentRAG(
   else if (component === 'processing') {
     const throughput = metrics.throughput ?? undefined;
     const errorRate = metrics.errorRate ?? 0;
+    const latency = metrics.latency ?? 0;
+
+    // Context-aware threshold adjustment
+    // If system is healthy (no errors, low latency), be more lenient with throughput
+    // This prevents false positives during normal low-activity periods
+    const isSystemHealthy = errorRate === 0 && latency < 20;
+    const adjustedAmberThreshold = isSystemHealthy 
+      ? componentThresholds.amber.throughput * 0.6  // 60% of threshold (3 evt/min when healthy)
+      : componentThresholds.amber.throughput;       // Standard threshold (5 evt/min)
 
     // If throughput is undefined/null, we don't have data yet - default to green
     // This prevents false RED status when data is still loading
@@ -68,22 +77,22 @@ export function calculateComponentRAG(
       reasons.push('Metrics data not yet available - assuming healthy');
     }
     // Check red thresholds (throughput too low or error rate too high)
-    else if (throughput < componentThresholds.amber.throughput * 0.5 || 
+    else if (throughput < adjustedAmberThreshold * 0.5 || 
         errorRate > 5.0) {
       state = 'red';
-      if (throughput < componentThresholds.amber.throughput * 0.5) {
-        reasons.push(`Low throughput: ${throughput.toFixed(0)} evt/min (threshold: ${componentThresholds.amber.throughput * 0.5} evt/min)`);
+      if (throughput < adjustedAmberThreshold * 0.5) {
+        reasons.push(`Low throughput: ${throughput.toFixed(1)} evt/min (threshold: ${(adjustedAmberThreshold * 0.5).toFixed(1)} evt/min)`);
       }
       if (errorRate > 5.0) {
         reasons.push(`High error rate: ${errorRate.toFixed(2)}% (threshold: 5.0%)`);
       }
     }
     // Check amber thresholds
-    else if (throughput < componentThresholds.amber.throughput || 
+    else if (throughput < adjustedAmberThreshold || 
              errorRate > 2.0) {
       state = 'amber';
-      if (throughput < componentThresholds.amber.throughput) {
-        reasons.push(`Reduced throughput: ${throughput.toFixed(0)} evt/min (threshold: ${componentThresholds.amber.throughput} evt/min)`);
+      if (throughput < adjustedAmberThreshold) {
+        reasons.push(`Reduced throughput: ${throughput.toFixed(1)} evt/min (threshold: ${adjustedAmberThreshold.toFixed(1)} evt/min, ${isSystemHealthy ? 'adjusted for healthy system' : 'standard'})`);
       }
       if (errorRate > 2.0) {
         reasons.push(`Elevated error rate: ${errorRate.toFixed(2)}% (threshold: 2.0%)`);
@@ -179,12 +188,14 @@ export function extractComponentMetrics(
   // Extract Processing metrics (using websocket-ingestion as proxy)
   // Note: queue_size is not available in Statistics, using throughput as primary indicator
   // Only set throughput if we have actual data (not 0 or undefined)
+  // Use websocket latency as proxy for processing latency (processing is part of websocket-ingestion)
   const processingMetrics: ComponentMetrics = {
     throughput: websocketStats?.events_per_minute && websocketStats.events_per_minute > 0 
       ? websocketStats.events_per_minute 
       : undefined,
     queueSize: 0, // Not available in current Statistics API
-    errorRate: websocketStats?.error_rate ?? 0
+    errorRate: websocketStats?.error_rate ?? 0,
+    latency: websocketDependency?.response_time_ms ?? websocketStats?.response_time_ms
   };
 
   // Extract Storage metrics

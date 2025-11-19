@@ -19,12 +19,13 @@ export const Synergies: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [filterValidated, setFilterValidated] = useState<boolean | null>(null);
+  const [minConfidence, setMinConfidence] = useState<number>(0.0); // Changed from 0.7 to 0.0 to show all by default
 
   useEffect(() => {
     const loadSynergies = async () => {
       try {
         const [synergiesRes, statsRes] = await Promise.all([
-          api.getSynergies(filterType, 0.7, filterValidated),
+          api.getSynergies(filterType, minConfidence, filterValidated),
           api.getSynergyStats()
         ]);
         setSynergies(synergiesRes.data.synergies || []);
@@ -48,7 +49,7 @@ export const Synergies: React.FC = () => {
     };
 
     loadSynergies();
-  }, [filterType, filterValidated]);
+  }, [filterType, filterValidated, minConfidence]);
 
   const getSynergyIcon = (type: string) => {
     const icons = {
@@ -102,10 +103,17 @@ export const Synergies: React.FC = () => {
             className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
           >
             <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {stats.total_synergies || 0}
+              {synergies.length}
             </div>
             <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Total Opportunities
+              {(filterType !== null || filterValidated !== null || minConfidence > 0)
+                ? 'Filtered Opportunities' 
+                : 'Total Opportunities'}
+              {(filterType !== null || filterValidated !== null || minConfidence > 0) && (
+                <span className="block text-xs mt-1 opacity-75">
+                  of {stats?.total_synergies || 0} total
+                </span>
+              )}
             </div>
           </motion.div>
 
@@ -175,11 +183,15 @@ export const Synergies: React.FC = () => {
       )}
 
       {/* Filter Pills */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <button
-          onClick={() => setFilterType(null)}
+          onClick={() => {
+            setFilterType(null);
+            setFilterValidated(null);
+            setMinConfidence(0.0);
+          }}
           className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-            filterType === null
+            filterType === null && filterValidated === null && minConfidence === 0.0
               ? 'bg-blue-600 text-white'
               : darkMode
               ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
@@ -230,7 +242,75 @@ export const Synergies: React.FC = () => {
         >
           ⚠ Unvalidated
         </button>
+        
+        {/* Confidence Filter */}
+        <div className={`px-4 py-2 rounded-full text-sm font-medium ${darkMode ? 'bg-gray-800' : 'bg-gray-200'} flex items-center gap-2 ${minConfidence > 0 ? (darkMode ? 'ring-2 ring-blue-500' : 'ring-2 ring-blue-400') : ''}`}>
+          <label className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Min Confidence:
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={minConfidence * 100}
+            onChange={(e) => setMinConfidence(parseFloat(e.target.value) / 100)}
+            className={`w-24 h-2 rounded-lg appearance-none cursor-pointer ${
+              darkMode 
+                ? 'bg-gray-600 accent-blue-500' 
+                : 'bg-gray-300 accent-blue-600'
+            }`}
+            style={{
+              background: darkMode
+                ? `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${minConfidence * 100}%, #4b5563 ${minConfidence * 100}%, #4b5563 100%)`
+                : `linear-gradient(to right, #2563eb 0%, #2563eb ${minConfidence * 100}%, #d1d5db ${minConfidence * 100}%, #d1d5db 100%)`
+            }}
+            title={`Minimum confidence: ${Math.round(minConfidence * 100)}%`}
+          />
+          <span className={`text-xs font-semibold min-w-[3rem] ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {Math.round(minConfidence * 100)}%
+          </span>
+          {minConfidence > 0 && (
+            <button
+              onClick={() => setMinConfidence(0.0)}
+              className={`ml-1 text-xs hover:underline ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-800'}`}
+              title="Reset confidence filter"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
+      
+      {/* Filter Feedback */}
+      {(filterType !== null || filterValidated !== null || minConfidence > 0) && synergies.length === 0 && stats && stats.total_synergies > 0 && (
+        <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-50 border border-yellow-200'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${darkMode ? 'text-yellow-300' : 'text-yellow-800'}`}>
+                {stats.total_synergies} opportunities found, but none match your current filters.
+              </p>
+              <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                Try adjusting your filters or click "All" to see all opportunities.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setFilterType(null);
+                setFilterValidated(null);
+                setMinConfidence(0.0);
+              }}
+              className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                darkMode
+                  ? 'bg-yellow-700 hover:bg-yellow-600 text-white'
+                  : 'bg-yellow-200 hover:bg-yellow-300 text-yellow-800'
+              }`}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -240,7 +320,7 @@ export const Synergies: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!loading && synergies.length === 0 && (
+      {!loading && synergies.length === 0 && (!stats || stats.total_synergies === 0) && (
         <div className={`text-center py-20 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           <div className="text-6xl mb-4">🔍</div>
           <h3 className="text-xl font-semibold mb-2">No Opportunities Found</h3>

@@ -25,6 +25,7 @@ export interface ServiceDetailsModalProps {
   details: ServiceDetail[];
   darkMode: boolean;
   aiStats?: AIStatsData | null;
+  modelComparison?: any | null;
 }
 
 export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
@@ -33,10 +34,11 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
   title,
   icon,
   service,
-  status,
-  details,
+  status = 'paused',
+  details = [],
   darkMode,
-  aiStats
+  aiStats,
+  modelComparison
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -163,9 +165,14 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
               <span 
                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor()}`}
                 role="status"
-                aria-label={`Service status: ${status}`}
+                aria-label={`Service status: ${status || 'unknown'}`}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {(() => {
+                  const statusStr = status || 'paused';
+                  return typeof statusStr === 'string' && statusStr.length > 0 
+                    ? statusStr.charAt(0).toUpperCase() + statusStr.slice(1) 
+                    : 'Unknown';
+                })()}
               </span>
             </div>
           </div>
@@ -315,6 +322,206 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
                         </span>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Model Comparison - Side by Side */}
+                {modelComparison && (
+                  <div className="mt-6 pt-6 border-t border-gray-300 dark:border-gray-700">
+                    <h5 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Model Comparison
+                    </h5>
+                    
+                    {/* Summary */}
+                    {modelComparison.summary && (
+                      <div className="mb-4 grid grid-cols-2 gap-3">
+                        <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {modelComparison.summary.total_models || 0}
+                          </div>
+                          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Total Models
+                          </div>
+                        </div>
+                        <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            ${(modelComparison.summary.total_cost_usd || 0).toFixed(4)}
+                          </div>
+                          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Total Cost
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Side-by-Side Model Comparison - Card Layout */}
+                    {modelComparison.models && modelComparison.models.length > 0 ? (
+                      <div className="space-y-3">
+                        {modelComparison.models.map((model: any, idx: number) => {
+                          const maxCost = Math.max(...modelComparison.models.map((m: any) => m.total_cost_usd || 0), 1);
+                          const costPercent = maxCost > 0 ? ((model.total_cost_usd || 0) / maxCost) * 100 : 0;
+                          
+                          return (
+                            <div
+                              key={model.model_name || idx}
+                              className={`rounded-lg border p-4 transition-all hover:shadow-md ${
+                                darkMode 
+                                  ? 'border-gray-700 bg-gray-800/50 hover:bg-gray-800' 
+                                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h6 className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {model.model_name || 'N/A'}
+                                    </h6>
+                                    {model.is_local ? (
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                        darkMode ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-green-100 text-green-700 border border-green-200'
+                                      }`}>
+                                        🖥️ Local
+                                      </span>
+                                    ) : (
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                        darkMode ? 'bg-blue-900/30 text-blue-400 border border-blue-800' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                      }`}>
+                                        ☁️ Cloud
+                                      </span>
+                                    )}
+                                  </div>
+                                  {model.sources && model.sources.length > 0 && (
+                                    <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      Used by: {model.sources.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className={`text-right ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  <div className="text-lg font-bold">
+                                    ${(model.total_cost_usd || 0).toFixed(4)}
+                                  </div>
+                                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Total Cost
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Cost Bar Visualization */}
+                              {maxCost > 0 && (
+                                <div className="mb-3">
+                                  <div className={`h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                    <div
+                                      className={`h-full transition-all ${
+                                        darkMode ? 'bg-blue-500' : 'bg-blue-600'
+                                      }`}
+                                      style={{ width: `${Math.max(costPercent, 2)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Stats Grid */}
+                              <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                                <div>
+                                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Requests
+                                  </div>
+                                  <div className={`text-sm font-semibold mt-0.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {model.total_requests?.toLocaleString() || '0'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Tokens
+                                  </div>
+                                  <div className={`text-sm font-semibold mt-0.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {model.total_tokens?.toLocaleString() || '0'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Avg/Call
+                                  </div>
+                                  <div className={`text-sm font-semibold mt-0.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    ${(model.avg_cost_per_request || 0).toFixed(6)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className={`text-center py-8 rounded-lg ${darkMode ? 'bg-gray-800/30' : 'bg-gray-50'}`}>
+                        <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          No model usage data available yet. Usage statistics will appear here after the service processes requests.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {modelComparison.recommendations && (
+                      <div className="mt-4 space-y-2">
+                        {(modelComparison.recommendations.best_overall || 
+                          modelComparison.recommendations.best_cost || 
+                          modelComparison.recommendations.best_quality) && (
+                          <div>
+                            <h6 className={`text-xs font-semibold mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Recommendations
+                            </h6>
+                            <div className="space-y-1">
+                              {modelComparison.recommendations.best_overall && (
+                                <div className={`text-xs p-2 rounded ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                                  <strong>Best Overall:</strong> {modelComparison.recommendations.best_overall}
+                                  {modelComparison.recommendations.reasoning?.best_overall && (
+                                    <div className="mt-1 opacity-80">{modelComparison.recommendations.reasoning.best_overall}</div>
+                                  )}
+                                </div>
+                              )}
+                              {modelComparison.recommendations.best_cost && (
+                                <div className={`text-xs p-2 rounded ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
+                                  <strong>Best Cost:</strong> {modelComparison.recommendations.best_cost}
+                                  {modelComparison.recommendations.reasoning?.best_cost && (
+                                    <div className="mt-1 opacity-80">{modelComparison.recommendations.reasoning.best_cost}</div>
+                                  )}
+                                </div>
+                              )}
+                              {modelComparison.recommendations.best_quality && (
+                                <div className={`text-xs p-2 rounded ${darkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-50 text-purple-700'}`}>
+                                  <strong>Best Quality:</strong> {modelComparison.recommendations.best_quality}
+                                  {modelComparison.recommendations.reasoning?.best_quality && (
+                                    <div className="mt-1 opacity-80">{modelComparison.recommendations.reasoning.best_quality}</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {modelComparison.recommendations.cost_savings_opportunities && 
+                         modelComparison.recommendations.cost_savings_opportunities.length > 0 && (
+                          <div>
+                            <h6 className={`text-xs font-semibold mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Cost Savings Opportunities
+                            </h6>
+                            <div className="space-y-1">
+                              {modelComparison.recommendations.cost_savings_opportunities.map((opp: any, idx: number) => (
+                                <div 
+                                  key={idx}
+                                  className={`text-xs p-2 rounded ${darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}
+                                >
+                                  <strong>{opp.current_model}</strong> → <strong>{opp.recommended_model}</strong>
+                                  {' '}(Save {opp.potential_savings_percent?.toFixed(1)}%)
+                                  {opp.reasoning && (
+                                    <div className="mt-1 opacity-80">{opp.reasoning}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

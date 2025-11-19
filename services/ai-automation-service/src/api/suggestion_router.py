@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, Query, Background
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel, Field
 import logging
 import time
 
@@ -24,6 +25,7 @@ from ..config import settings
 from ..clients.data_api_client import DataAPIClient
 from ..validation.device_validator import DeviceValidator, ValidationResult
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+from ..services.model_comparison_service import ModelComparisonService
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,225 @@ data_api_client = DataAPIClient(base_url="http://data-api:8006")
 
 # Initialize Device Validator for validating suggestions
 device_validator = DeviceValidator(data_api_client)
+
+
+# Pydantic models for model comparison API
+class ModelStats(BaseModel):
+    """Statistics for a single model"""
+    model_name: str = Field(..., description="Model identifier")
+    total_requests: int = Field(..., description="Total number of requests")
+    total_input_tokens: int = Field(..., description="Total input tokens used")
+    total_output_tokens: int = Field(..., description="Total output tokens used")
+    total_tokens: int = Field(..., description="Total tokens (input + output)")
+    total_cost_usd: float = Field(..., description="Total cost in USD")
+    avg_cost_per_request: float = Field(..., description="Average cost per request")
+    avg_input_tokens: float = Field(..., description="Average input tokens per request")
+    avg_output_tokens: float = Field(..., description="Average output tokens per request")
+    is_local: bool = Field(..., description="Whether model is local (no API cost)")
+    sources: List[str] = Field(..., description="Sources that use this model")
+
+
+class ComparisonSummary(BaseModel):
+    """Summary of model comparison"""
+    total_models: int = Field(..., description="Total number of models")
+    total_requests: int = Field(..., description="Total requests across all models")
+    total_cost_usd: float = Field(..., description="Total cost across all models")
+    avg_cost_per_request: float = Field(..., description="Average cost per request")
+
+
+class CostSavingsOpportunity(BaseModel):
+    """Cost savings opportunity"""
+    current_model: str = Field(..., description="Currently used model")
+    recommended_model: str = Field(..., description="Recommended model")
+    potential_savings_percent: float = Field(..., description="Potential savings percentage")
+    quality_impact: str = Field(..., description="Expected quality impact")
+    reasoning: str = Field(..., description="Reasoning for recommendation")
+
+
+class ModelRecommendations(BaseModel):
+    """Model recommendations"""
+    best_overall: Optional[str] = Field(None, description="Best overall model")
+    best_cost: Optional[str] = Field(None, description="Best cost-optimized model")
+    best_quality: Optional[str] = Field(None, description="Best quality model")
+    reasoning: Dict[str, str] = Field(..., description="Reasoning for each recommendation")
+    cost_savings_opportunities: List[CostSavingsOpportunity] = Field(
+        default_factory=list,
+        description="Cost savings opportunities"
+    )
+
+
+class ModelComparisonResponse(BaseModel):
+    """Response for model comparison endpoint"""
+    models: List[ModelStats] = Field(..., description="Statistics for each model")
+    summary: ComparisonSummary = Field(..., description="Summary statistics")
+    recommendations: ModelRecommendations = Field(..., description="Model recommendations")
+    timestamp: str = Field(..., description="Timestamp of the comparison")
+
+
+def get_model_comparison_service() -> ModelComparisonService:
+    """
+    Get or create ModelComparisonService instance.
+    
+    Collects instances from various sources to aggregate stats.
+    """
+    # Get OpenAIClient (already initialized)
+    openai_client_instance = openai_client
+    
+    # Try to get MultiModelEntityExtractor from ask_ai_router
+    multi_model_extractor = None
+    try:
+        # Import the module to access the global variable
+        from ..api import ask_ai_router
+        multi_model_extractor = getattr(ask_ai_router, '_multi_model_extractor', None)
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"Could not access multi_model_extractor: {e}")
+    
+    # Try to get DescriptionGenerator and SuggestionRefiner
+    # These are typically created on-demand, so we may not have global instances
+    description_generator = None
+    suggestion_refiner = None
+    
+    return ModelComparisonService(
+        openai_client=openai_client_instance,
+        multi_model_extractor=multi_model_extractor,
+        description_generator=description_generator,
+        suggestion_refiner=suggestion_refiner
+    )
+
+
+@router.get("/usage/stats")
+async def get_usage_stats() -> Dict[str, Any]:
+    """
+    Get OpenAI API usage statistics including token counts and cost estimates.
+    
+    Returns:
+        Dictionary with usage statistics, token counts, cost breakdown, and cache stats
+    """
+    if not openai_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OpenAI client not initialized"
+        )
+    
+    stats = openai_client.get_usage_stats()
+    
+    # Add model-specific cost breakdown
+    from ..llm.cost_tracker import CostTracker
+    
+    model_breakdown = {
+        'gpt-5.1': {
+            'input_cost_per_1m': CostTracker.GPT5_1_INPUT_COST_PER_1M,
+            'output_cost_per_1m': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
+            'cached_input_cost_per_1m': CostTracker.GPT5_1_CACHED_INPUT_COST_PER_1M
+        },
+        'gpt-5-mini': {
+            'input_cost_per_1m': CostTracker.GPT5_MINI_INPUT_COST_PER_1M,
+            'output_cost_per_1m': CostTracker.GPT5_MINI_OUTPUT_COST_PER_1M,
+            'cached_input_cost_per_1m': CostTracker.GPT5_MINI_CACHED_INPUT_COST_PER_1M
+        },
+        'gpt-5-nano': {
+            'input_cost_per_1m': CostTracker.GPT5_NANO_INPUT_COST_PER_1M,
+            'output_cost_per_1m': CostTracker.GPT5_NANO_OUTPUT_COST_PER_1M,
+            'cached_input_cost_per_1m': CostTracker.GPT5_NANO_CACHED_INPUT_COST_PER_1M
+        }
+    }
+    
+    # Add cache statistics (Phase 4)
+    cache_stats = {}
+    try:
+        from ..services.entity_context_cache import get_entity_cache
+        entity_cache = get_entity_cache()
+        cache_stats = entity_cache.get_stats()
+    except Exception as e:
+        logger.warning(f"Failed to get cache stats: {e}")
+        cache_stats = {'error': str(e)}
+    
+    # Phase 5: Calculate success metrics
+    success_metrics = {}
+    try:
+        from ..utils.success_metrics import calculate_success_metrics
+        
+        # Estimate total requests from endpoint breakdown
+        total_requests = sum(
+            endpoint_data.get('calls', 0)
+            for endpoint_data in stats.get('endpoint_breakdown', {}).values()
+        )
+        
+        success_metrics = calculate_success_metrics(
+            current_stats=stats,
+            cache_stats=cache_stats if 'error' not in cache_stats else None,
+            total_requests=total_requests if total_requests > 0 else None
+        )
+    except Exception as e:
+        logger.warning(f"Failed to calculate success metrics: {e}")
+        success_metrics = {'error': str(e)}
+    
+    return {
+        **stats,
+        'model_pricing': model_breakdown,
+        'last_usage': openai_client.last_usage,
+        'cache_stats': cache_stats,
+        'success_metrics': success_metrics,  # Phase 5: Add success metrics
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    }
+
+
+@router.get("/models/compare", response_model=ModelComparisonResponse)
+async def compare_models() -> ModelComparisonResponse:
+    """
+    Compare all AI models used in the service.
+    
+    Returns side-by-side comparison of all models including:
+    - Usage statistics per model
+    - Cost analysis
+    - Recommendations (best overall, best cost, best quality)
+    - Cost savings opportunities
+    
+    Returns:
+        ModelComparisonResponse with model stats, summary, and recommendations
+    """
+    try:
+        comparison_service = get_model_comparison_service()
+        
+        # Get comparison data
+        comparison = comparison_service.compare_models()
+        recommendations = comparison_service.calculate_recommendations()
+        
+        # Convert to Pydantic models
+        models = [ModelStats(**model_data) for model_data in comparison.get('models', [])]
+        summary_data = comparison.get('summary', {})
+        summary = ComparisonSummary(
+            total_models=summary_data.get('total_models', 0),
+            total_requests=summary_data.get('total_requests', 0),
+            total_cost_usd=summary_data.get('total_cost_usd', 0.0),
+            avg_cost_per_request=summary_data.get('avg_cost_per_request', 0.0)
+        )
+        
+        # Convert recommendations
+        cost_savings = [
+            CostSavingsOpportunity(**opp) 
+            for opp in recommendations.get('cost_savings_opportunities', [])
+        ]
+        model_recommendations = ModelRecommendations(
+            best_overall=recommendations.get('best_overall'),
+            best_cost=recommendations.get('best_cost'),
+            best_quality=recommendations.get('best_quality'),
+            reasoning=recommendations.get('reasoning', {}),
+            cost_savings_opportunities=cost_savings
+        )
+        
+        return ModelComparisonResponse(
+            models=models,
+            summary=summary,
+            recommendations=model_recommendations,
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
+    except Exception as e:
+        logger.error(f"Failed to compare models: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compare models: {str(e)}"
+        )
 
 
 @router.get("/refresh/status")
@@ -313,6 +534,7 @@ async def generate_suggestions(
                         prompt_dict=prompt_dict,
                         temperature=0.7,
                         max_tokens=300,
+                        endpoint="pattern_suggestion_generation",  # Phase 5: Track endpoint
                         output_format="description"
                     )
                     

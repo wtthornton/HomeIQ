@@ -146,6 +146,11 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   // Extract metrics from the actual API response structure
   const websocketMetrics = statistics?.metrics?.['websocket-ingestion'];
   const enrichmentMetrics = statistics?.metrics?.['enrichment-pipeline'];
+  
+  // Only show loading if we don't have ANY data yet (first load)
+  // If we have partial data (health but no stats), show the data we have
+  const hasInitialData = !healthLoading && !enhancedHealthLoading;
+  const shouldShowLoading = statsLoading && !hasInitialData && !statistics;
 
   // Calculate critical alert counts
   const criticalAlerts = alerts.filter(a => a.severity === 'critical' && a.status === 'active');
@@ -400,7 +405,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}
                 darkMode={darkMode}
-                loading={statsLoading}
+                loading={shouldShowLoading}
                 onExpand={() => setSelectedService({
                   title: 'INGESTION',
                   icon: '🔌',
@@ -441,7 +446,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}
                 darkMode={darkMode}
-                loading={statsLoading}
+                loading={shouldShowLoading}
                 onExpand={() => setSelectedService({
                   title: 'STORAGE',
                   icon: '🗄️',

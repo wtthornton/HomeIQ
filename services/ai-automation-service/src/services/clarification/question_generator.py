@@ -76,7 +76,7 @@ class QuestionGenerator:
                     }
                 ],
                 temperature=0.3,  # Consistent with existing patterns
-                max_tokens=400,
+                max_completion_tokens=400,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}
             )
             
