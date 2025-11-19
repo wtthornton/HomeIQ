@@ -429,6 +429,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Add AI Model Comparison feature with side-by-side metrics and recommendations** (November 19, 2025)
 - **Fix critical log issues and update documentation (November 2025)** (November 19, 2025)
 - **Implement shared base classes and observability infrastructure** (November 19, 2025)
 - **Implement shared base classes and observability infrastructure** (November 19, 2025)
