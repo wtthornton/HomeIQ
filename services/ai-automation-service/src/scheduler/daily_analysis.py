@@ -22,6 +22,9 @@ from ..api.suggestion_router import _build_device_context
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from ..pattern_analyzer.confidence_calibrator import ConfidenceCalibrator
+from ..pattern_analyzer.pattern_cross_validator import PatternCrossValidator
+from ..pattern_analyzer.pattern_deduplicator import PatternDeduplicator
 
 # New ML-enhanced pattern detectors
 from ..pattern_detection.sequence_detector import SequenceDetector
@@ -269,10 +272,12 @@ class DailyAnalysisScheduler:
                 domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
             )
             logger.info("  → Running co-occurrence detector (incremental)...")
+            # Quality improvement: Increased thresholds for better pattern quality
+            # min_support: 5 → 10, min_confidence: 0.7 → 0.75
             co_detector = CoOccurrencePatternDetector(
                 window_minutes=5,
-                min_support=settings.co_occurrence_min_support,
-                min_confidence=settings.co_occurrence_base_confidence,
+                min_support=max(10, settings.co_occurrence_min_support),  # Quality: increased from 5 to 10
+                min_confidence=max(0.75, settings.co_occurrence_base_confidence),  # Quality: increased from 0.7 to 0.75
                 aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
                 domain_support_overrides=dict(settings.co_occurrence_support_overrides),
                 domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
@@ -343,8 +348,8 @@ class DailyAnalysisScheduler:
             sequence_detector = SequenceDetector(
                 window_minutes=30,
                 min_sequence_length=2,
-                min_sequence_occurrences=5,  # Increased from 3 to 5 for better quality
-                min_confidence=0.7,
+                min_sequence_occurrences=3,  # Quality: decreased from 5 to 3 for more patterns
+                min_confidence=0.65,  # Quality: decreased from 0.7 to 0.65 for more patterns
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
@@ -362,7 +367,8 @@ class DailyAnalysisScheduler:
                 weather_weight=0.3,
                 presence_weight=0.4,
                 time_weight=0.3,
-                min_confidence=0.7,
+                min_context_occurrences=5,  # Quality: decreased from 10 to 5 for more patterns
+                min_confidence=0.6,  # Quality: decreased from 0.7 to 0.6 for more patterns
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
@@ -488,8 +494,8 @@ class DailyAnalysisScheduler:
                     time_factors=['time_of_day', 'day_of_week', 'season'],
                     presence_factors=['presence'],
                     weather_factors=['temperature', 'humidity'],
-                    min_pattern_occurrences=10,
-                    min_confidence=0.7,
+                    min_pattern_occurrences=5,  # Quality: decreased from 10 to 5 for more patterns
+                    min_confidence=0.65,  # Quality: decreased from 0.7 to 0.65 for more patterns
                     aggregate_client=aggregate_client
                 )
                 multi_factor_patterns = multi_factor_detector.detect_patterns(events_df)
@@ -527,6 +533,70 @@ class DailyAnalysisScheduler:
                 if stats_summary:
                     logger.info(f"   ⚡ Incremental update stats: {stats_summary}")
             job_result['patterns_detected'] = len(all_patterns)
+            
+            # Quality improvement: Deduplicate patterns
+            if all_patterns:
+                logger.info("🧹 Deduplicating patterns...")
+                try:
+                    deduplicator = PatternDeduplicator()
+                    all_patterns = deduplicator.deduplicate_patterns(all_patterns)
+                    logger.info(f"   ✅ Deduplication complete: {len(all_patterns)} unique patterns")
+                except Exception as e:
+                    logger.warning(f"⚠️ Pattern deduplication failed: {e}, continuing...")
+            
+            # Quality improvement: Cross-validate patterns
+            if all_patterns:
+                logger.info("🔍 Cross-validating patterns for consistency...")
+                try:
+                    validator = PatternCrossValidator()
+                    validation_results = await validator.cross_validate(all_patterns)
+                    
+                    contradictions = len(validation_results['contradictions'])
+                    redundancies = len(validation_results['redundancies'])
+                    reinforcements = len(validation_results['reinforcements'])
+                    quality_score = validation_results['quality_score']
+                    
+                    logger.info(f"📊 Cross-Validation Results:")
+                    logger.info(f"   - Quality Score: {quality_score:.2f}")
+                    logger.info(f"   - Contradictions: {contradictions}")
+                    logger.info(f"   - Redundancies: {redundancies}")
+                    logger.info(f"   - Reinforcements: {reinforcements}")
+                    
+                    if contradictions > 0:
+                        logger.warning(f"   ⚠️ Found {contradictions} contradictory patterns (consider reviewing)")
+                    if redundancies > 0:
+                        logger.info(f"   ℹ️  Found {redundancies} redundant patterns (consider deduplication)")
+                    if reinforcements > 0:
+                        logger.info(f"   ✅ Found {reinforcements} reinforcing patterns (high confidence)")
+                    
+                    # Store quality score in job result
+                    job_result['pattern_quality_score'] = quality_score
+                    job_result['pattern_contradictions'] = contradictions
+                    job_result['pattern_redundancies'] = redundancies
+                    job_result['pattern_reinforcements'] = reinforcements
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Pattern cross-validation failed: {e}, continuing...")
+            
+            # Quality improvement: Calibrate pattern confidences
+            if all_patterns:
+                logger.info("📊 Calibrating pattern confidences based on historical acceptance...")
+                try:
+                    async with get_db_session() as db:
+                        calibrator = ConfidenceCalibrator(db)
+                        all_patterns = await calibrator.calibrate_patterns_batch(all_patterns)
+                        
+                        # Generate calibration report
+                        calibration_report = await calibrator.generate_calibration_report()
+                        logger.info(f"📊 Calibration Report:")
+                        for pattern_type, metrics in calibration_report.items():
+                            if metrics['reliability'] != 'unknown':
+                                logger.info(
+                                    f"   - {pattern_type}: {metrics['acceptance_rate']:.1%} acceptance "
+                                    f"({metrics['sample_count']} samples, {metrics['reliability']} reliability)"
+                                )
+                except Exception as e:
+                    logger.warning(f"⚠️ Confidence calibration failed: {e}, continuing with uncalibrated patterns")
             
             # Store patterns (don't fail if no patterns)
             if all_patterns:
@@ -689,6 +759,51 @@ class DailyAnalysisScheduler:
                 logger.info(f"   → Energy synergies: {energy_count}")
                 logger.info(f"   → Event synergies: {event_count}")
                 
+                # Quality improvement: ML-discovered synergies
+                ml_discovered_count = 0
+                ml_validated_count = 0
+                try:
+                    from ..synergy_detection.ml_enhanced_synergy_detector import MLEnhancedSynergyDetector
+                    from ..synergy_detection.ml_synergy_miner import DynamicSynergyMiner
+                    
+                    logger.info("   → Running ML synergy miner...")
+                    ml_miner = DynamicSynergyMiner(
+                        influxdb_client=data_client.influxdb_client,
+                        min_support=0.05,
+                        min_confidence=0.75,
+                        min_lift=1.5,
+                        min_consistency=0.8,
+                        time_window_seconds=60,
+                        lookback_days=30,
+                        min_occurrences=10
+                    )
+                    
+                    discovered_synergies = await ml_miner.mine_synergies()
+                    
+                    if discovered_synergies:
+                        async with get_db_session() as db:
+                            ml_detector = MLEnhancedSynergyDetector(
+                                base_synergy_detector=synergy_detector,
+                                influxdb_client=data_client.influxdb_client,
+                                enable_ml_discovery=True
+                            )
+                            
+                            # Store discovered synergies
+                            stored_count = await ml_detector._store_discovered_synergies(
+                                discovered_synergies, db
+                            )
+                            ml_discovered_count = stored_count
+                            
+                            # Validate against patterns
+                            validated_synergies = await ml_detector._validate_discovered_synergies(
+                                discovered_synergies, all_patterns, db
+                            )
+                            ml_validated_count = len(validated_synergies)
+                            
+                            logger.info(f"   ✅ ML Mining: {ml_discovered_count} discovered, {ml_validated_count} validated")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ ML synergy discovery failed: {e}")
+                
                 # Store synergies in database with Phase 2 pattern validation
                 if synergies:
                     async with get_db_session() as db:
@@ -709,9 +824,12 @@ class DailyAnalysisScheduler:
                         total_validated = validated_result.scalar() or 0
                     logger.info(f"   💾 Stored {synergies_stored} synergies in database")
                     logger.info(f"   ✅ Phase 2: Pattern validation enabled - {total_validated} total validated synergies in database")
+                    logger.info(f"   ✅ ML-discovered synergies: {ml_discovered_count} discovered, {ml_validated_count} validated")
                     job_result['synergies_detected'] = len(synergies)
                     job_result['synergies_stored'] = synergies_stored
                     job_result['synergies_validated'] = total_validated
+                    job_result['ml_synergies_discovered'] = ml_discovered_count
+                    job_result['ml_synergies_validated'] = ml_validated_count
                 else:
                     logger.info("   ℹ️  No synergies to store")
                     job_result['synergies_detected'] = 0

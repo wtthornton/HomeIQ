@@ -214,7 +214,13 @@ class PatternSynergyValidator:
         device_ids: List[str]
     ) -> Tuple[float, List[Dict], List[Dict]]:
         """
-        Calculate pattern support score for a synergy.
+        Calculate pattern support score for a synergy using multi-criteria approach.
+        
+        Quality Improvement: Priority 2.2 - Enhanced validation with multiple criteria:
+        - Direct co-occurrence pattern (0.5 weight)
+        - Sequence pattern where trigger → action (0.3 weight)
+        - Temporal alignment (time-of-day overlap, 0.2 weight)
+        - Context alignment (both respond to context, 0.2 weight)
         
         Args:
             synergy: Synergy opportunity dictionary
@@ -226,64 +232,113 @@ class PatternSynergyValidator:
         """
         supporting_patterns = []
         conflicting_patterns = []
-        total_score = 0.0
-        max_score = 0.0
         
-        synergy_type = synergy.get('synergy_type', 'device_pair')
+        # Extract trigger and action entities from synergy
+        trigger_entity = synergy.get('opportunity_metadata', {}).get('trigger_entity_id') or synergy.get('trigger_entity')
+        action_entity = synergy.get('opportunity_metadata', {}).get('action_entity_id') or synergy.get('action_entity')
         
+        if not trigger_entity or not action_entity:
+            # Fallback to device_ids if metadata not available
+            if len(device_ids) >= 2:
+                trigger_entity = device_ids[0]
+                action_entity = device_ids[1]
+            else:
+                trigger_entity = device_ids[0] if device_ids else None
+                action_entity = None
+        
+        support_score = 0.0
+        supporting_pattern_ids = []
+        
+        # Criterion 1: Direct co-occurrence pattern (0.5 weight)
         for pattern in patterns:
-            pattern_info = {
-                'pattern_id': pattern.id,
-                'pattern_type': pattern.pattern_type,
-                'device_id': pattern.device_id,
-                'confidence': pattern.confidence,
-                'trend_direction': pattern.trend_direction,
-                'trend_strength': pattern.trend_strength
-            }
-            
-            # Calculate pattern relevance score
-            relevance = self._calculate_pattern_relevance(pattern, synergy_type, device_ids)
-            
-            if relevance > 0:
-                # Supporting pattern
-                # Weight by pattern confidence and type relevance
-                pattern_score = pattern.confidence * relevance
-                
-                # Boost if pattern is increasing in confidence
-                if pattern.trend_direction == 'increasing':
-                    pattern_score *= 1.2
-                
-                # Boost co-occurrence patterns for device_pair synergies
-                if synergy_type == 'device_pair' and pattern.pattern_type == 'co_occurrence':
-                    pattern_score *= 1.2
-                # Less weight for time-of-day patterns in device_pair synergies
-                elif synergy_type == 'device_pair' and pattern.pattern_type == 'time_of_day':
-                    pattern_score *= 0.8
-                
-                supporting_patterns.append({
-                    **pattern_info,
-                    'relevance': relevance,
-                    'score_contribution': pattern_score
-                })
-                total_score += pattern_score
-                
-            elif relevance < 0:
-                # Conflicting pattern
-                conflicting_patterns.append({
-                    **pattern_info,
-                    'relevance': relevance,
-                    'conflict_strength': abs(relevance)
-                })
-                # Reduce score for conflicts
-                total_score -= abs(relevance) * pattern.confidence * 0.5
-            
-            max_score += pattern.confidence
+            if pattern.pattern_type == 'co_occurrence':
+                pattern_devices = self._extract_devices_from_pattern(pattern)
+                if trigger_entity and action_entity:
+                    if ((trigger_entity in pattern_devices and action_entity in pattern_devices) or
+                        (action_entity in pattern_devices and trigger_entity in pattern_devices)):
+                        # Direct match - strong support
+                        contribution = pattern.confidence * 0.5
+                        support_score += contribution
+                        supporting_pattern_ids.append(pattern.id)
+                        supporting_patterns.append({
+                            'pattern_id': pattern.id,
+                            'pattern_type': pattern.pattern_type,
+                            'device_id': pattern.device_id,
+                            'confidence': pattern.confidence,
+                            'criterion': 'direct_co_occurrence',
+                            'weight': 0.5,
+                            'score_contribution': contribution
+                        })
         
-        # Normalize score to 0-1 range
-        if max_score > 0:
-            support_score = max(0.0, min(1.0, total_score / max_score))
-        else:
-            support_score = 0.0
+        # Criterion 2: Sequence pattern where trigger → action (0.3 weight)
+        for pattern in patterns:
+            if pattern.pattern_type == 'sequence':
+                pattern_metadata = pattern.pattern_metadata or {}
+                sequence_devices = pattern_metadata.get('sequence_devices', [])
+                
+                if trigger_entity and action_entity and sequence_devices:
+                    # Check if trigger → action appears in sequence
+                    if trigger_entity in sequence_devices and action_entity in sequence_devices:
+                        trigger_idx = sequence_devices.index(trigger_entity)
+                        action_idx = sequence_devices.index(action_entity)
+                        
+                        if action_idx > trigger_idx:  # Action comes after trigger
+                            contribution = pattern.confidence * 0.3
+                            support_score += contribution
+                            if pattern.id not in supporting_pattern_ids:
+                                supporting_pattern_ids.append(pattern.id)
+                                supporting_patterns.append({
+                                    'pattern_id': pattern.id,
+                                    'pattern_type': pattern.pattern_type,
+                                    'device_id': pattern.device_id,
+                                    'confidence': pattern.confidence,
+                                    'criterion': 'sequence_pattern',
+                                    'weight': 0.3,
+                                    'score_contribution': contribution
+                                })
+        
+        # Criterion 3: Temporal alignment (time-of-day overlap, 0.2 weight)
+        trigger_time_patterns = [p for p in patterns 
+                                if p.pattern_type == 'time_of_day' and 
+                                (trigger_entity in self._extract_devices_from_pattern(p) if trigger_entity else False)]
+        action_time_patterns = [p for p in patterns 
+                               if p.pattern_type == 'time_of_day' and 
+                               (action_entity in self._extract_devices_from_pattern(p) if action_entity else False)]
+        
+        for t_pattern in trigger_time_patterns:
+            for a_pattern in action_time_patterns:
+                t_metadata = t_pattern.pattern_metadata or {}
+                a_metadata = a_pattern.pattern_metadata or {}
+                t_hour = t_metadata.get('hour') or t_pattern.device_id  # Fallback
+                t_minute = t_metadata.get('minute', 0)
+                a_hour = a_metadata.get('hour') or a_pattern.device_id  # Fallback
+                a_minute = a_metadata.get('minute', 0)
+                
+                # Check if times are within 30 minutes
+                if isinstance(t_hour, int) and isinstance(a_hour, int):
+                    diff_minutes = abs((t_hour * 60 + t_minute) - (a_hour * 60 + a_minute))
+                    if diff_minutes <= 30:
+                        contribution = min(t_pattern.confidence, a_pattern.confidence) * 0.2
+                        support_score += contribution
+                        # Note: Don't add to supporting_patterns (indirect support)
+        
+        # Criterion 4: Context alignment (both respond to context, 0.2 weight)
+        trigger_context_patterns = [p for p in patterns 
+                                   if p.pattern_type == 'contextual' and 
+                                   (trigger_entity in self._extract_devices_from_pattern(p) if trigger_entity else False)]
+        action_context_patterns = [p for p in patterns 
+                                  if p.pattern_type == 'contextual' and 
+                                  (action_entity in self._extract_devices_from_pattern(p) if action_entity else False)]
+        
+        if trigger_context_patterns and action_context_patterns:
+            # Both respond to context - likely related
+            avg_confidence = (sum(p.confidence for p in trigger_context_patterns) / len(trigger_context_patterns) +
+                            sum(p.confidence for p in action_context_patterns) / len(action_context_patterns)) / 2
+            contribution = avg_confidence * 0.2
+            support_score += contribution
+        
+        # Normalize score to [0, 1]
+        support_score = min(1.0, support_score)
         
         return support_score, supporting_patterns, conflicting_patterns
     

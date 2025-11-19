@@ -14,10 +14,15 @@ import time
 from ..clients.data_api_client import DataAPIClient
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from ..pattern_analyzer.pattern_cross_validator import PatternCrossValidator
+from ..pattern_analyzer.confidence_calibrator import ConfidenceCalibrator
 from ..database import get_db, store_patterns, get_patterns, get_pattern_stats, delete_old_patterns
+from ..database.models import Pattern, SynergyOpportunity, DiscoveredSynergy
 from ..integration.pattern_history_validator import PatternHistoryValidator
 from ..config import settings
 from .dependencies.auth import require_admin_user
+from sqlalchemy import select, func
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -522,6 +527,178 @@ async def incremental_pattern_update(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Incremental update failed: {str(e)}"
+        )
+
+
+@router.get("/quality-metrics")
+async def get_quality_metrics(
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get quality metrics for patterns and synergies.
+    
+    Quality Improvement: Priority 4.2
+    
+    Returns:
+        Dictionary with quality metrics including:
+        - Pattern diversity (Shannon entropy)
+        - Pattern acceptance rates
+        - Noise ratio
+        - Cross-validation scores
+        - Confidence calibration accuracy
+    """
+    try:
+        # Get all patterns
+        patterns_result = await db.execute(select(Pattern))
+        all_patterns = patterns_result.scalars().all()
+        
+        # Convert to dicts for analysis
+        patterns_list = [
+            {
+                'id': p.id,
+                'pattern_type': p.pattern_type,
+                'device_id': p.device_id,
+                'confidence': p.confidence,
+                'raw_confidence': p.raw_confidence,
+                'calibrated': p.calibrated,
+                'occurrences': p.occurrences
+            }
+            for p in all_patterns
+        ]
+        
+        # Calculate pattern diversity (Shannon entropy)
+        pattern_type_counts = {}
+        for pattern in patterns_list:
+            ptype = pattern['pattern_type']
+            pattern_type_counts[ptype] = pattern_type_counts.get(ptype, 0) + 1
+        
+        total_patterns = len(patterns_list)
+        if total_patterns > 0:
+            # Shannon entropy: -sum(p * log2(p))
+            entropy = 0.0
+            for count in pattern_type_counts.values():
+                p = count / total_patterns
+                if p > 0:
+                    entropy -= p * math.log2(p)
+            max_entropy = math.log2(len(pattern_type_counts)) if pattern_type_counts else 0
+            diversity_score = entropy / max_entropy if max_entropy > 0 else 0.0
+        else:
+            diversity_score = 0.0
+        
+        # Calculate noise ratio (patterns with low confidence or non-actionable)
+        # This is an approximation - actual noise filtering happens during detection
+        low_confidence_count = sum(1 for p in patterns_list if p['confidence'] < 0.5)
+        noise_ratio = low_confidence_count / total_patterns if total_patterns > 0 else 0.0
+        
+        # Calculate confidence calibration stats
+        calibrated_count = sum(1 for p in patterns_list if p.get('calibrated', False))
+        calibration_rate = calibrated_count / total_patterns if total_patterns > 0 else 0.0
+        
+        # Get pattern acceptance rates (from suggestions)
+        from ..database.models import Suggestion
+        suggestions_result = await db.execute(
+            select(Suggestion, Pattern)
+            .join(Pattern, Suggestion.pattern_id == Pattern.id)
+        )
+        suggestions_with_patterns = suggestions_result.all()
+        
+        acceptance_by_type = {}
+        for suggestion, pattern in suggestions_with_patterns:
+            ptype = pattern.pattern_type
+            if ptype not in acceptance_by_type:
+                acceptance_by_type[ptype] = {'total': 0, 'accepted': 0}
+            
+            acceptance_by_type[ptype]['total'] += 1
+            if suggestion.status in ('deployed', 'yaml_generated', 'approved'):
+                acceptance_by_type[ptype]['accepted'] += 1
+        
+        # Calculate acceptance rates
+        acceptance_rates = {}
+        for ptype, stats in acceptance_by_type.items():
+            if stats['total'] > 0:
+                acceptance_rates[ptype] = {
+                    'acceptance_rate': stats['accepted'] / stats['total'],
+                    'sample_count': stats['total']
+                }
+        
+        # Run cross-validation to get quality score
+        quality_score = 0.0
+        contradictions = 0
+        redundancies = 0
+        reinforcements = 0
+        
+        if patterns_list:
+            try:
+                validator = PatternCrossValidator()
+                validation_results = await validator.cross_validate(patterns_list)
+                quality_score = validation_results.get('quality_score', 0.0)
+                contradictions = len(validation_results.get('contradictions', []))
+                redundancies = len(validation_results.get('redundancies', []))
+                reinforcements = len(validation_results.get('reinforcements', []))
+            except Exception as e:
+                logger.warning(f"Cross-validation failed: {e}")
+        
+        # Get synergy validation stats
+        synergies_result = await db.execute(select(SynergyOpportunity))
+        all_synergies = synergies_result.scalars().all()
+        
+        validated_synergies = sum(1 for s in all_synergies if s.validated_by_patterns)
+        validation_rate = validated_synergies / len(all_synergies) if all_synergies else 0.0
+        
+        # Get ML-discovered synergies count
+        ml_synergies_result = await db.execute(select(DiscoveredSynergy))
+        ml_synergies = ml_synergies_result.scalars().all()
+        ml_validated = sum(1 for s in ml_synergies if s.validation_passed is True)
+        
+        return {
+            "success": True,
+            "data": {
+                "pattern_metrics": {
+                    "total_patterns": total_patterns,
+                    "diversity_score": round(diversity_score, 3),  # 0.0-1.0 (higher = more diverse)
+                    "diversity_entropy": round(entropy, 3),
+                    "pattern_type_distribution": {
+                        ptype: {
+                            "count": count,
+                            "percentage": round(count / total_patterns * 100, 1) if total_patterns > 0 else 0
+                        }
+                        for ptype, count in pattern_type_counts.items()
+                    },
+                    "noise_ratio": round(noise_ratio, 3),  # 0.0-1.0 (lower = better)
+                    "calibration_rate": round(calibration_rate, 3),  # 0.0-1.0 (higher = more calibrated)
+                    "acceptance_rates": acceptance_rates,
+                    "quality_score": round(quality_score, 3),  # 0.0-1.0 (higher = better)
+                    "contradictions": contradictions,
+                    "redundancies": redundancies,
+                    "reinforcements": reinforcements
+                },
+                "synergy_metrics": {
+                    "total_synergies": len(all_synergies),
+                    "validated_synergies": validated_synergies,
+                    "validation_rate": round(validation_rate, 3),  # 0.0-1.0 (higher = better)
+                    "ml_discovered_count": len(ml_synergies),
+                    "ml_validated_count": ml_validated,
+                    "ml_validation_rate": round(ml_validated / len(ml_synergies), 3) if ml_synergies else 0.0
+                },
+                "overall_quality": {
+                    "score": round((quality_score + (1.0 - noise_ratio) + validation_rate) / 3, 3),  # Combined score
+                    "grade": (
+                        "A" if quality_score >= 0.9 and noise_ratio < 0.05 and validation_rate >= 0.9 else
+                        "B" if quality_score >= 0.8 and noise_ratio < 0.10 and validation_rate >= 0.8 else
+                        "C" if quality_score >= 0.7 and noise_ratio < 0.15 and validation_rate >= 0.7 else
+                        "D" if quality_score >= 0.6 and noise_ratio < 0.20 and validation_rate >= 0.6 else
+                        "F"
+                    )
+                }
+            },
+            "message": "Quality metrics retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get quality metrics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get quality metrics: {str(e)}"
         )
 
 

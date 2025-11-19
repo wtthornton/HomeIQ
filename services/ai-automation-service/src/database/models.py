@@ -73,6 +73,10 @@ class Pattern(Base):
     trend_direction = Column(String(20), nullable=True)  # 'increasing', 'stable', 'decreasing' (cached)
     trend_strength = Column(Float, default=0.0, nullable=False)  # Cached trend strength (0.0-1.0)
     
+    # Quality improvement: Confidence calibration fields
+    raw_confidence = Column(Float, nullable=True)  # Original confidence before calibration
+    calibrated = Column(Boolean, default=False, nullable=False)  # Whether confidence has been calibrated
+    
     def __repr__(self):
         return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence}, trend={self.trend_direction})>"
 
@@ -351,6 +355,49 @@ class SynergyOpportunity(Base):
         validated = "✓" if self.validated_by_patterns else "✗"
         depth = getattr(self, 'synergy_depth', 2)
         return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, depth={depth}, area={self.area}, impact={self.impact_score}, validated={validated})>"
+
+
+class DiscoveredSynergy(Base):
+    """
+    ML-discovered synergies from association rule mining.
+    
+    Stores synergies found by Apriori algorithm from actual behavior,
+    not predefined rule-based relationships.
+    
+    Quality Improvement: Priority 1.4
+    """
+    __tablename__ = 'discovered_synergies'
+    
+    id = Column(Integer, primary_key=True)
+    synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
+    trigger_entity = Column(String, nullable=False, index=True)
+    action_entity = Column(String, nullable=False, index=True)
+    source = Column(String, nullable=False, default='mined')  # 'mined' for ML-discovered
+    
+    # Association rule metrics
+    support = Column(Float, nullable=False)  # P(X ∪ Y)
+    confidence = Column(Float, nullable=False)  # P(Y|X)
+    lift = Column(Float, nullable=False)  # P(Y|X) / P(Y)
+    
+    # Temporal analysis
+    frequency = Column(Integer, nullable=False)  # Number of occurrences
+    consistency = Column(Float, nullable=False)  # Consistency score (0.0-1.0)
+    time_window_seconds = Column(Integer, nullable=False)  # Time window for co-occurrence
+    
+    # Discovery metadata
+    discovered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    validation_count = Column(Integer, default=0, nullable=False)
+    validation_passed = Column(Boolean, nullable=True)  # None = not yet validated, True/False = validated
+    status = Column(String, nullable=False, default='discovered')  # 'discovered', 'validated', 'rejected'
+    rejection_reason = Column(Text, nullable=True)  # Reason if rejected
+    last_validated = Column(DateTime, nullable=True)  # Last validation timestamp
+    
+    # Metadata (JSON) - renamed from 'metadata' to avoid SQLAlchemy reserved name conflict
+    synergy_metadata = Column(JSON, nullable=True)  # Additional metadata (analysis_period, total_transactions, etc.)
+    
+    def __repr__(self):
+        status_icon = "✓" if self.validation_passed else "✗" if self.validation_passed is False else "?"
+        return f"<DiscoveredSynergy(id={self.id}, {self.trigger_entity} → {self.action_entity}, lift={self.lift:.2f}, status={status_icon})>"
 
 
 # Indexes for fast lookups (Epic AI-2)
