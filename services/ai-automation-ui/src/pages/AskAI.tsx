@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import { ContextIndicator } from '../components/ask-ai/ContextIndicator';
@@ -939,6 +940,63 @@ export const AskAI: React.FC = () => {
           if (response && response.status === 'approved' && response.automation_id) {
             console.log('🔍 Response is APPROVED - showing success');
             
+            // Trigger particle celebration
+            // Check for reduced motion preference
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!prefersReducedMotion) {
+              // Find the approve button by looking for buttons with "APPROVE & CREATE" text
+              // Use a small delay to ensure DOM is updated
+              setTimeout(() => {
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const approveButton = buttons.find(btn => 
+                  btn.textContent?.includes('APPROVE & CREATE') || 
+                  btn.textContent?.includes('PROCESSING')
+                );
+                
+                let x = 0.5; // Default to center
+                let y = 0.5;
+                
+                if (approveButton) {
+                  const rect = approveButton.getBoundingClientRect();
+                  x = (rect.left + rect.width / 2) / window.innerWidth;
+                  y = (rect.top + rect.height / 2) / window.innerHeight;
+                }
+                
+                // Fire confetti from button position (or center if not found)
+                confetti({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { x, y },
+                  colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'],
+                  gravity: 0.8,
+                  ticks: 200,
+                  decay: 0.94
+                });
+                
+                // Additional burst after short delay
+                setTimeout(() => {
+                  confetti({
+                    particleCount: 50,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x, y },
+                    colors: ['#10b981', '#3b82f6'],
+                    gravity: 0.8,
+                    ticks: 150
+                  });
+                  confetti({
+                    particleCount: 50,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x, y },
+                    colors: ['#10b981', '#3b82f6'],
+                    gravity: 0.8,
+                    ticks: 150
+                  });
+                }, 300);
+              }, 100);
+            }
+            
             // Show success with reverse engineering stats if available
             if (response.reverse_engineering?.enabled) {
               const simPercent = Math.round(response.reverse_engineering.final_similarity * 100);
@@ -957,23 +1015,27 @@ export const AskAI: React.FC = () => {
               });
             }
             
-            // Update suggestion with approve response and YAML before removing
+            // Update suggestion with approve response, YAML, and deployed status
+            // Mark as deployed and keep it visible (don't remove)
             setMessages(prev => prev.map(msg => ({
               ...msg,
               suggestions: msg.suggestions?.map(s => 
                 s.suggestion_id === suggestionId 
-                  ? { ...s, automation_yaml: response.automation_yaml || s.automation_yaml, approve_response: response }
+                  ? { 
+                      ...s, 
+                      automation_yaml: response.automation_yaml || s.automation_yaml, 
+                      approve_response: {
+                        ...response,
+                        deployed_at: new Date().toISOString()
+                      },
+                      status: 'deployed' as const
+                    }
                   : s
               ) || []
             })));
             
-            // Remove the suggestion from the UI after a delay to allow DebugPanel to show the response
-            setTimeout(() => {
-              setMessages(prev => prev.map(msg => ({
-                ...msg,
-                suggestions: msg.suggestions?.filter(s => s.suggestion_id !== suggestionId) || []
-              })));
-            }, 5000); // Keep for 5 seconds to show in DebugPanel
+            // Don't remove the suggestion - keep it visible with deployed state
+            // The card will now show the deployed badge and green border
           } else {
             // PRIORITY 3: Unexpected response - show error with details
             console.error('🔍 Unexpected approve response:', response);
@@ -1643,7 +1705,9 @@ export const AskAI: React.FC = () => {
                                   device_capabilities: suggestion.device_capabilities || {},
                                   device_info: deviceInfo.length > 0 ? deviceInfo : undefined,
                                   automation_yaml: suggestion.automation_yaml || null,
-                                  created_at: suggestion.created_at
+                                  created_at: suggestion.created_at,
+                                  approve_response: suggestion.approve_response,
+                                  ha_automation_id: suggestion.ha_automation_id
                                 }}
                                 onRefine={async (_id: number, refinement: string) => {
                                   try {
