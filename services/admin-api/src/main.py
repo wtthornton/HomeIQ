@@ -28,6 +28,25 @@ from shared.logging_config import (
 )
 from shared.correlation_middleware import FastAPICorrelationMiddleware
 
+# Import shared error handler
+try:
+    from shared.error_handler import register_error_handlers
+except ImportError:
+    logger.warning("Shared error handler not available, using default error handling")
+    register_error_handlers = None
+
+# Import observability modules
+try:
+    from shared.observability import (
+        setup_tracing,
+        instrument_fastapi,
+        CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    )
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    logger.warning("Observability modules not available")
+    OBSERVABILITY_AVAILABLE = False
+
 from .health_endpoints import HealthEndpoints
 from shared.monitoring import StatsEndpoints, MonitoringEndpoints
 from .config_endpoints import ConfigEndpoints
@@ -202,6 +221,24 @@ class AdminAPIService:
     
     def _add_middleware(self):
         """Add middleware to FastAPI app"""
+        # Observability setup (tracing and correlation ID)
+        if OBSERVABILITY_AVAILABLE:
+            # Set up OpenTelemetry tracing
+            otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+            if setup_tracing("admin-api", otlp_endpoint):
+                logger.info("✅ OpenTelemetry tracing configured")
+            
+            # Instrument FastAPI app
+            if instrument_fastapi(self.app, "admin-api"):
+                logger.info("✅ FastAPI app instrumented for tracing")
+            
+            # Add correlation ID middleware (should be early in middleware stack)
+            self.app.add_middleware(ObservabilityCorrelationMiddleware)
+            logger.info("✅ Correlation ID middleware added")
+        else:
+            # Fallback to existing correlation middleware
+            self.app.add_middleware(FastAPICorrelationMiddleware)
+        
         # CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -474,30 +511,36 @@ class AdminAPIService:
     
     def _add_exception_handlers(self):
         """Add exception handlers to FastAPI app"""
-        @self.app.exception_handler(HTTPException)
-        async def http_exception_handler(request, exc: HTTPException):
-            """Handle HTTP exceptions"""
-            return JSONResponse(
-                status_code=exc.status_code,
-                content=ErrorResponse(
-                    error=exc.detail,
-                    error_code=f"HTTP_{exc.status_code}",
-                    request_id=getattr(request.state, 'request_id', None)
-                ).model_dump()
-            )
-        
-        @self.app.exception_handler(Exception)
-        async def general_exception_handler(request, exc: Exception):
-            """Handle general exceptions"""
-            logger.error(f"Unhandled exception: {exc}", exc_info=True)
-            return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content=ErrorResponse(
-                    error="Internal server error",
-                    error_code="INTERNAL_ERROR",
-                    request_id=getattr(request.state, 'request_id', None)
-                ).model_dump()
-            )
+        # Register shared error handlers if available
+        if register_error_handlers:
+            register_error_handlers(self.app)
+            logger.info("✅ Shared error handlers registered")
+        else:
+            # Fallback to local error handlers
+            @self.app.exception_handler(HTTPException)
+            async def http_exception_handler(request, exc: HTTPException):
+                """Handle HTTP exceptions"""
+                return JSONResponse(
+                    status_code=exc.status_code,
+                    content=ErrorResponse(
+                        error=exc.detail,
+                        error_code=f"HTTP_{exc.status_code}",
+                        request_id=getattr(request.state, 'request_id', None)
+                    ).model_dump()
+                )
+            
+            @self.app.exception_handler(Exception)
+            async def general_exception_handler(request, exc: Exception):
+                """Handle general exceptions"""
+                logger.error(f"Unhandled exception: {exc}", exc_info=True)
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content=ErrorResponse(
+                        error="Internal server error",
+                        error_code="INTERNAL_ERROR",
+                        request_id=getattr(request.state, 'request_id', None)
+                    ).model_dump()
+                )
     
     def get_app(self) -> FastAPI:
         """Get FastAPI app instance"""

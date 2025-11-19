@@ -7,8 +7,10 @@ Handles:
 - Group entity expansion
 - Alias resolution
 - Fuzzy matching
+- RAG-enhanced semantic disambiguation
 
 Created: Phase 2 - Core Service Refactoring
+Enhanced: RAG integration for semantic entity disambiguation
 """
 
 import logging
@@ -18,6 +20,14 @@ from ...services.entity_validator import EntityValidator as LegacyEntityValidato
 from ...clients.data_api_client import DataAPIClient
 
 logger = logging.getLogger(__name__)
+
+# Optional RAG client import
+try:
+    from ...services.rag.client import RAGClient
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    RAGClient = None
 
 
 class EntityResolver:
@@ -29,12 +39,14 @@ class EntityResolver:
     - Group entities to individual members
     - User-defined aliases
     - Fuzzy matching for typos
+    - RAG-enhanced semantic disambiguation when exact matches are ambiguous
     """
     
     def __init__(
         self,
         ha_client: Optional[HomeAssistantClient] = None,
-        data_api_client: Optional[DataAPIClient] = None
+        data_api_client: Optional[DataAPIClient] = None,
+        rag_client: Optional[Any] = None  # RAGClient type, but optional
     ):
         """
         Initialize unified entity resolver.
@@ -42,14 +54,19 @@ class EntityResolver:
         Args:
             ha_client: Home Assistant client
             data_api_client: Data API client
+            rag_client: Optional RAG client for semantic entity disambiguation
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client or DataAPIClient()
+        self.rag_client = rag_client
         
         # Initialize validator for resolution
         self._validator: Optional[LegacyEntityValidator] = None
         
-        logger.info("EntityResolver initialized")
+        if rag_client:
+            logger.info("EntityResolver initialized with RAG client for semantic disambiguation")
+        else:
+            logger.info("EntityResolver initialized (RAG client not available)")
     
     def _get_validator(self) -> LegacyEntityValidator:
         """Get or create validator instance"""
@@ -69,6 +86,8 @@ class EntityResolver:
         """
         Resolve device names to entity IDs.
         
+        Uses RAG for semantic disambiguation when exact matches are ambiguous.
+        
         Args:
             device_names: List of device names to resolve
             query: Optional query context for better matching
@@ -83,12 +102,56 @@ class EntityResolver:
         try:
             validator = self._get_validator()
             
-            # Use legacy validator's mapping logic
-            # This will be enhanced in future iterations
+            # Step 1: Try exact matching first
             mapping = await validator.map_query_to_entities(
                 query=query or " ".join(device_names),
                 device_names=device_names
             )
+            
+            # Step 2: Use RAG for unresolved or ambiguous matches
+            unresolved_names = [name for name in device_names if name not in mapping]
+            
+            if unresolved_names and self.rag_client:
+                try:
+                    # Use RAG to find similar entities
+                    rag_query = query or " ".join(unresolved_names)
+                    
+                    # Search for entity-related knowledge
+                    rag_results = await self.rag_client.retrieve_hybrid(
+                        query=rag_query,
+                        knowledge_type="entity",  # Filter for entity knowledge
+                        top_k=10,
+                        min_similarity=0.6,  # Lower threshold for entity matching
+                        filter_metadata={"area_id": area_id} if area_id else None
+                    )
+                    
+                    # Merge RAG results with exact matches
+                    for result in rag_results:
+                        # Extract entity_id from metadata if available
+                        metadata = result.get("metadata", {})
+                        entity_id = metadata.get("entity_id")
+                        entity_name = metadata.get("name") or metadata.get("friendly_name")
+                        
+                        if entity_id and entity_name:
+                            # Match unresolved names to RAG results
+                            for unresolved_name in unresolved_names:
+                                if unresolved_name.lower() in entity_name.lower() or \
+                                   entity_name.lower() in unresolved_name.lower():
+                                    mapping[unresolved_name] = entity_id
+                                    logger.debug(
+                                        f"RAG match: '{unresolved_name}' → {entity_id} "
+                                        f"(similarity: {result.get('similarity', 0):.2f})"
+                                    )
+                                    break
+                    
+                    if len(mapping) > len([name for name in device_names if name in mapping]):
+                        logger.info(
+                            f"✅ RAG enhanced resolution: {len(mapping)}/{len(device_names)} device names resolved"
+                        )
+                
+                except Exception as e:
+                    logger.warning(f"RAG disambiguation failed (falling back to exact matching): {e}")
+                    # Continue with exact matches only
             
             logger.info(f"✅ Resolved {len(mapping)}/{len(device_names)} device names")
             return mapping

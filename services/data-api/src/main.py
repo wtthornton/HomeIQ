@@ -36,6 +36,25 @@ from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.auth import AuthManager
 from shared.influxdb_query_client import InfluxDBQueryClient
 
+# Import shared error handler
+try:
+    from shared.error_handler import register_error_handlers
+except ImportError:
+    logger.warning("Shared error handler not available, using default error handling")
+    register_error_handlers = None
+
+# Import observability modules
+try:
+    from shared.observability import (
+        setup_tracing,
+        instrument_fastapi,
+        CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    )
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    logger.warning("Observability modules not available")
+    OBSERVABILITY_AVAILABLE = False
+
 # Story 22.1: SQLite database
 from .database import init_db, check_db_health
 from .cache import cache
@@ -229,6 +248,24 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
+# Observability setup (tracing and correlation ID)
+if OBSERVABILITY_AVAILABLE:
+    # Set up OpenTelemetry tracing
+    otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+    if setup_tracing("data-api", otlp_endpoint):
+        logger.info("✅ OpenTelemetry tracing configured")
+    
+    # Instrument FastAPI app
+    if instrument_fastapi(app, "data-api"):
+        logger.info("✅ FastAPI app instrumented for tracing")
+    
+    # Add correlation ID middleware (should be early in middleware stack)
+    app.add_middleware(ObservabilityCorrelationMiddleware)
+    logger.info("✅ Correlation ID middleware added")
+else:
+    # Fallback to existing correlation middleware
+    app.add_middleware(FastAPICorrelationMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -237,9 +274,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add correlation middleware
-app.add_middleware(FastAPICorrelationMiddleware)
 
 # Add rate limiting middleware
 @app.middleware("http")
@@ -410,37 +444,41 @@ async def api_info():
     )
 
 
-# Exception handlers with request tracking
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc: HTTPException):
-    """Handle HTTP exceptions and track error metrics"""
-    data_api_service.total_requests += 1
-    if exc.status_code >= 400:
+# Register shared error handlers if available
+if register_error_handlers:
+    register_error_handlers(app)
+    logger.info("✅ Shared error handlers registered")
+else:
+    # Fallback to local error handlers with request tracking
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request, exc: HTTPException):
+        """Handle HTTP exceptions and track error metrics"""
+        data_api_service.total_requests += 1
+        if exc.status_code >= 400:
+            data_api_service.failed_requests += 1
+
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(
+                error=exc.detail,
+                error_code=f"HTTP_{exc.status_code}"
+            ).model_dump()
+        )
+
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request, exc: Exception):
+        """Handle general exceptions and track error metrics"""
+        data_api_service.total_requests += 1
         data_api_service.failed_requests += 1
 
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=ErrorResponse(
-            error=exc.detail,
-            error_code=f"HTTP_{exc.status_code}"
-        ).model_dump()
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc: Exception):
-    """Handle general exceptions and track error metrics"""
-    data_api_service.total_requests += 1
-    data_api_service.failed_requests += 1
-
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=ErrorResponse(
-            error="Internal server error",
-            error_code="INTERNAL_ERROR"
-        ).model_dump()
-    )
+        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=ErrorResponse(
+                error="Internal server error",
+                error_code="INTERNAL_ERROR"
+            ).model_dump()
+        )
 
 
 if __name__ == "__main__":

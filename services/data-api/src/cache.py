@@ -1,25 +1,49 @@
 """
 Simple in-memory cache for frequently accessed data
 Provides TTL-based caching to reduce database queries
+
+Uses shared cache base class from shared/cache.py
 """
 
-import logging
+import sys
+import os
+from pathlib import Path
 from typing import Any, Optional, Dict
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-import asyncio
+
+# Add shared directory to path for imports
+shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+try:
+    app_root = Path(__file__).resolve().parents[3]  # Go up to project root
+except Exception:
+    app_root = Path("/app")
+
+candidate_paths = []
+if shared_path_override:
+    candidate_paths.append(Path(shared_path_override).expanduser())
+candidate_paths.extend([
+    app_root / "shared",
+    Path("/app/shared"),
+    Path.cwd() / "shared",
+    Path(__file__).parent.parent.parent.parent / "shared",  # Fallback for local dev
+])
+
+shared_path = None
+for p in candidate_paths:
+    if p.exists():
+        shared_path = p.resolve()
+        break
+
+if shared_path and str(shared_path) not in sys.path:
+    sys.path.insert(0, str(shared_path))
+
+from cache import BaseCache
+
+import logging
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class CacheEntry:
-    """Cache entry with TTL"""
-    value: Any
-    expires_at: datetime
-
-
-class SimpleCache:
+class SimpleCache(BaseCache):
     """
     Simple in-memory cache with TTL support
 
@@ -28,8 +52,10 @@ class SimpleCache:
     - Automatic cleanup of expired entries
     - Thread-safe operations
     - LRU eviction when max size reached
+    
+    Inherits from shared BaseCache for consistency.
     """
-
+    
     def __init__(self, default_ttl: int = 300, max_size: int = 1000):
         """
         Initialize cache
@@ -38,112 +64,37 @@ class SimpleCache:
             default_ttl: Default TTL in seconds (default: 5 minutes)
             max_size: Maximum cache entries before eviction
         """
-        self.default_ttl = default_ttl
-        self.max_size = max_size
-        self._cache: Dict[str, CacheEntry] = {}
-        self._lock = asyncio.Lock()
-
-        # Statistics
+        super().__init__(default_ttl=default_ttl, max_size=max_size)
+        
+        # Backward compatibility: expose stats as instance variables
+        # These will be kept in sync with self.stats
         self.hits = 0
         self.misses = 0
         self.evictions = 0
-
-        logger.info(f"Cache initialized: TTL={default_ttl}s, max_size={max_size}")
-
+    
     async def get(self, key: str) -> Optional[Any]:
-        """
-        Get value from cache
-
-        Args:
-            key: Cache key
-
-        Returns:
-            Cached value or None if not found/expired
-        """
-        async with self._lock:
-            if key not in self._cache:
-                self.misses += 1
-                return None
-
-            entry = self._cache[key]
-
-            # Check if expired
-            if datetime.now() >= entry.expires_at:
-                del self._cache[key]
-                self.misses += 1
-                return None
-
-            self.hits += 1
-            return entry.value
-
+        """Get value from cache (overrides to sync instance variables)"""
+        result = await super().get(key)
+        # Sync instance variables for backward compatibility
+        self.hits = self.stats.hits
+        self.misses = self.stats.misses
+        return result
+    
     async def set(self, key: str, value: Any, ttl: Optional[int] = None):
-        """
-        Set value in cache
-
-        Args:
-            key: Cache key
-            value: Value to cache
-            ttl: Optional TTL override (seconds)
-        """
-        async with self._lock:
-            # Evict oldest entry if at max size
-            if len(self._cache) >= self.max_size:
-                oldest_key = min(
-                    self._cache.keys(),
-                    key=lambda k: self._cache[k].expires_at
-                )
-                del self._cache[oldest_key]
-                self.evictions += 1
-
-            expires_at = datetime.now() + timedelta(seconds=ttl or self.default_ttl)
-            self._cache[key] = CacheEntry(value=value, expires_at=expires_at)
-
-    async def delete(self, key: str):
-        """Delete key from cache"""
-        async with self._lock:
-            if key in self._cache:
-                del self._cache[key]
-
-    async def clear(self):
-        """Clear all cache entries"""
-        async with self._lock:
-            self._cache.clear()
-            logger.info("Cache cleared")
-
-    async def cleanup_expired(self):
-        """Remove all expired entries"""
-        async with self._lock:
-            now = datetime.now()
-            expired_keys = [
-                key for key, entry in self._cache.items()
-                if now >= entry.expires_at
-            ]
-
-            for key in expired_keys:
-                del self._cache[key]
-
-            if expired_keys:
-                logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
-
+        """Set value in cache (overrides to sync instance variables)"""
+        result = await super().set(key, value, ttl)
+        # Sync instance variables for backward compatibility
+        self.evictions = self.stats.evictions
+        return result
+    
     def get_stats(self) -> Dict[str, Any]:
         """
-        Get cache statistics
+        Get cache statistics (backward compatibility method)
 
         Returns:
             Dictionary with cache stats
         """
-        total_requests = self.hits + self.misses
-        hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0
-
-        return {
-            "size": len(self._cache),
-            "max_size": self.max_size,
-            "hits": self.hits,
-            "misses": self.misses,
-            "hit_rate_percent": round(hit_rate, 2),
-            "evictions": self.evictions,
-            "default_ttl_seconds": self.default_ttl
-        }
+        return super().get_stats()
 
 
 # Global cache instance (5 minute TTL, 1000 entries max)

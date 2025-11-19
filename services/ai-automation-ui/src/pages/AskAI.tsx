@@ -16,6 +16,7 @@ import { ClearChatModal } from '../components/ask-ai/ClearChatModal';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import { DebugPanel } from '../components/ask-ai/DebugPanel';
 import { ClarificationDialog } from '../components/ask-ai/ClarificationDialog';
+import { ContextTimeline } from '../components/ask-ai/ContextTimeline';
 import api from '../services/api';
 import { useConversationV2 } from '../hooks/useConversationV2';
 import { ResponseType } from '../services/api-v2';
@@ -1414,64 +1415,29 @@ export const AskAI: React.FC = () => {
                   }}>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
-                    {/* Show enriched prompt if available (collapsible) */}
-                    {message.enrichedPrompt && (
-                      <details className="mt-3 text-sm">
-                        <summary 
-                          className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium"
-                          style={{ listStyle: 'none' }}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span>📝</span>
-                            <span>View what I understood from your answers</span>
-                            <span className="text-xs opacity-70">(click to expand)</span>
-                          </span>
-                        </summary>
-                        <div 
-                          className="mt-2 p-3 rounded border"
-                          style={{
-                            background: darkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(249, 250, 251, 0.9)',
-                            border: darkMode ? '1px solid rgba(51, 65, 85, 0.5)' : '1px solid rgba(229, 231, 235, 0.5)'
-                          }}
-                        >
-                          <pre 
-                            className="whitespace-pre-wrap text-sm"
-                            style={{ 
-                              color: darkMode ? '#cbd5e1' : '#1e293b',
-                              fontFamily: 'inherit'
-                            }}
+                    {/* Show suggestions with context timeline if available */}
+                    {message.suggestions && message.suggestions.length > 0 && (() => {
+                      // Find the original user request (previous user message)
+                      const messageIndex = messages.findIndex(m => m.id === message.id);
+                      const originalRequest = messageIndex > 0 && messages[messageIndex - 1]?.type === 'user'
+                        ? messages[messageIndex - 1].content
+                        : '';
+                      
+                      // Extract clarifications from questionsAndAnswers (answers are the clarifications)
+                      const clarifications = message.questionsAndAnswers?.map(qa => qa.answer) || [];
+                      
+                      // Only show timeline if we have original request or clarifications
+                      const hasContext = originalRequest || clarifications.length > 0;
+                      
+                      return hasContext ? (
+                        <div className="mt-4">
+                          <ContextTimeline
+                            originalRequest={originalRequest}
+                            clarifications={clarifications}
+                            questionsAndAnswers={message.questionsAndAnswers}
+                            darkMode={darkMode}
                           >
-                            {message.enrichedPrompt}
-                          </pre>
-                          {message.questionsAndAnswers && message.questionsAndAnswers.length > 0 && (
-                            <div className="mt-3 pt-3 border-t" style={{ borderColor: darkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(229, 231, 235, 0.5)' }}>
-                              <div className="text-xs font-semibold mb-2" style={{ color: darkMode ? '#94a3b8' : '#64748b' }}>
-                                Questions & Answers:
-                              </div>
-                              {message.questionsAndAnswers.map((qa, idx) => (
-                                <div key={idx} className="mb-2 text-xs">
-                                  <div style={{ color: darkMode ? '#94a3b8' : '#64748b' }}>
-                                    <strong>Q:</strong> {qa.question}
-                                  </div>
-                                  <div className="ml-4 mt-1" style={{ color: darkMode ? '#cbd5e1' : '#334155' }}>
-                                    <strong>A:</strong> {qa.answer}
-                                    {qa.selected_entities && qa.selected_entities.length > 0 && (
-                                      <span className="ml-2 opacity-70">
-                                        (Selected: {qa.selected_entities.join(', ')})
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </details>
-                    )}
-                    
-                    {/* Show suggestions if available */}
-                    {message.suggestions && message.suggestions.length > 0 && (
-                      <div className="mt-4 space-y-3">
+                            <div className="space-y-3">
                         {message.suggestions.map((suggestion, idx) => {
                           const isProcessing = processingActions.has(`${suggestion.suggestion_id}-approve`) || 
                                              processingActions.has(`${suggestion.suggestion_id}-reject`) ||
