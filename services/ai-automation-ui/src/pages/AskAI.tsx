@@ -38,6 +38,12 @@ interface ChatMessage {
   previousConfidence?: number;
   confidenceDelta?: number;
   confidenceSummary?: string;
+  enrichedPrompt?: string;
+  questionsAndAnswers?: Array<{
+    question: string;
+    answer: string;
+    selected_entities?: string[];
+  }>;
 }
 
 interface AskAIQuery {
@@ -1346,6 +1352,61 @@ export const AskAI: React.FC = () => {
                   }}>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
+                    {/* Show enriched prompt if available (collapsible) */}
+                    {message.enrichedPrompt && (
+                      <details className="mt-3 text-sm">
+                        <summary 
+                          className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium"
+                          style={{ listStyle: 'none' }}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span>📝</span>
+                            <span>View what I understood from your answers</span>
+                            <span className="text-xs opacity-70">(click to expand)</span>
+                          </span>
+                        </summary>
+                        <div 
+                          className="mt-2 p-3 rounded border"
+                          style={{
+                            background: darkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(249, 250, 251, 0.9)',
+                            border: darkMode ? '1px solid rgba(51, 65, 85, 0.5)' : '1px solid rgba(229, 231, 235, 0.5)'
+                          }}
+                        >
+                          <pre 
+                            className="whitespace-pre-wrap text-sm"
+                            style={{ 
+                              color: darkMode ? '#cbd5e1' : '#1e293b',
+                              fontFamily: 'inherit'
+                            }}
+                          >
+                            {message.enrichedPrompt}
+                          </pre>
+                          {message.questionsAndAnswers && message.questionsAndAnswers.length > 0 && (
+                            <div className="mt-3 pt-3 border-t" style={{ borderColor: darkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(229, 231, 235, 0.5)' }}>
+                              <div className="text-xs font-semibold mb-2" style={{ color: darkMode ? '#94a3b8' : '#64748b' }}>
+                                Questions & Answers:
+                              </div>
+                              {message.questionsAndAnswers.map((qa, idx) => (
+                                <div key={idx} className="mb-2 text-xs">
+                                  <div style={{ color: darkMode ? '#94a3b8' : '#64748b' }}>
+                                    <strong>Q:</strong> {qa.question}
+                                  </div>
+                                  <div className="ml-4 mt-1" style={{ color: darkMode ? '#cbd5e1' : '#334155' }}>
+                                    <strong>A:</strong> {qa.answer}
+                                    {qa.selected_entities && qa.selected_entities.length > 0 && (
+                                      <span className="ml-2 opacity-70">
+                                        (Selected: {qa.selected_entities.join(', ')})
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                    
                     {/* Show suggestions if available */}
                     {message.suggestions && message.suggestions.length > 0 && (
                       <div className="mt-4 space-y-3">
@@ -1606,6 +1667,8 @@ export const AskAI: React.FC = () => {
                                 previousConfidence={message.previousConfidence}
                                 confidenceDelta={message.confidenceDelta}
                                 confidenceSummary={message.confidenceSummary}
+                                enrichedPrompt={message.enrichedPrompt}
+                                questionsAndAnswers={message.questionsAndAnswers}
                               />
                               {/* Debug Panel */}
                               <DebugPanel
@@ -1801,6 +1864,19 @@ export const AskAI: React.FC = () => {
               });
               
               if (response.clarification_complete && response.suggestions) {
+                // Add enriched prompt message if available
+                if (response.enriched_prompt) {
+                  const enrichedPromptMessage: ChatMessage = {
+                    id: `enriched-prompt-${response.session_id}`,
+                    type: 'ai',
+                    content: response.enriched_prompt,
+                    timestamp: new Date(),
+                    enrichedPrompt: response.enriched_prompt,
+                    questionsAndAnswers: response.questions_and_answers
+                  };
+                  setMessages(prev => [...prev, enrichedPromptMessage]);
+                }
+                
                 // Add suggestions to conversation
                 // Use session_id as the message id so approval can find the query record
                 // Build enhanced message content with confidence improvement info
@@ -1848,7 +1924,9 @@ export const AskAI: React.FC = () => {
                   clarificationSessionId: response.session_id,  // Also store for reference
                   previousConfidence: response.previous_confidence,
                   confidenceDelta: response.confidence_delta,
-                  confidenceSummary: response.confidence_summary
+                  confidenceSummary: response.confidence_summary,
+                  enrichedPrompt: response.enriched_prompt,
+                  questionsAndAnswers: response.questions_and_answers
                 };
                 
                 setMessages(prev => [...prev, suggestionMessage]);

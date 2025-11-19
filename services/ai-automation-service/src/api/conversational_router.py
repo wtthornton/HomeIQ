@@ -989,10 +989,18 @@ async def approve_suggestion(
                         # Note: This is a best-effort approach - HA may use the alias for matching
                         if 'id' not in automation_data and base_id:
                             # Use create_automation which handles updates properly
-                            deployment_result = await ha_client.create_automation(automation_yaml)
+                            deployment_result = await ha_client.create_automation(
+                                automation_yaml, 
+                                automation_id=existing_automation_id,
+                                force_new=False  # Update existing automation
+                            )
                         else:
                             # YAML has an ID, use create_automation which will update if ID exists
-                            deployment_result = await ha_client.create_automation(automation_yaml)
+                            deployment_result = await ha_client.create_automation(
+                                automation_yaml,
+                                automation_id=existing_automation_id,
+                                force_new=False  # Update existing automation
+                            )
                     else:
                         # Fallback to deploy_automation if YAML parsing fails
                         deployment_result = await ha_client.deploy_automation(

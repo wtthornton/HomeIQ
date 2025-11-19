@@ -540,6 +540,8 @@ class ClarificationResponse(BaseModel):
     previous_confidence: Optional[float] = None  # Previous confidence before this round
     confidence_delta: Optional[float] = None  # Change in confidence (positive = increase)
     confidence_summary: Optional[str] = None  # Human-readable summary of what improved
+    enriched_prompt: Optional[str] = None  # User-friendly prompt showing all answers
+    questions_and_answers: Optional[List[Dict[str, Any]]] = None  # Structured Q&A data
 
 
 # ============================================================================
@@ -1998,7 +2000,7 @@ actions:
 
 REQUIRED STRUCTURE:
 ```yaml
-id: '<unique_id>'
+id: '<base_id>'              # Base ID (will be made unique automatically with timestamp/UUID suffix)
 alias: <descriptive_name>
 description: "<quoted_if_contains_colons>"
 mode: single|restart|queued|parallel
@@ -2013,6 +2015,8 @@ actions:                     # ✅ PLURAL "actions:" (2025 standard)
     data:
       <parameters>
 ```
+
+NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix appended) to ensure each approval creates a NEW automation, not an update to an existing one.
 
 🔴 CRITICAL RULES (Automation will FAIL if violated):
 1. Entity IDs: MUST use EXACT IDs from VALIDATED ENTITIES list above
@@ -4550,6 +4554,39 @@ def _rebuild_user_query_from_qa(
     return enriched_query
 
 
+def _generate_user_friendly_prompt(
+    original_query: str,
+    clarification_context: Dict[str, Any]
+) -> str:
+    """
+    Generate a user-friendly prompt that summarizes the original request
+    with all clarification answers incorporated.
+    
+    This is what the AI will use to generate the automation, formatted
+    in a way that's easy for users to understand.
+    
+    Args:
+        original_query: Original user query
+        clarification_context: Dictionary with questions_and_answers
+        
+    Returns:
+        User-friendly prompt string
+    """
+    parts = [f"Original request: {original_query}"]
+    
+    qa_list = clarification_context.get('questions_and_answers', [])
+    if qa_list:
+        parts.append("\nClarifications provided:")
+        for qa in qa_list:
+            answer_text = qa.get('answer', '')
+            if qa.get('selected_entities'):
+                entities_str = ', '.join(qa['selected_entities'])
+                answer_text += f" (Selected: {entities_str})"
+            parts.append(f"  • {answer_text}")
+    
+    return "\n".join(parts)
+
+
 async def _re_enrich_entities_from_qa(
     entities: List[Dict[str, Any]],
     clarification_context: Dict[str, Any],
@@ -4939,17 +4976,20 @@ async def provide_clarification(
             session.status = "complete"
             
             # Build clarification context for prompt
+            # Include ALL answers from all rounds, not just validated_answers
+            all_qa_list = [
+                {
+                    'question': next((q.question_text for q in session.questions if q.id == answer.question_id), 'Unknown question'),
+                    'answer': answer.answer_text,
+                    'selected_entities': answer.selected_entities,
+                    'category': next((q.category for q in session.questions if q.id == answer.question_id), 'unknown')
+                }
+                for answer in all_answers  # Use all_answers to include all rounds
+            ]
+            
             clarification_context = {
                 'original_query': session.original_query,
-                'questions_and_answers': [
-                    {
-                        'question': next((q.question_text for q in session.questions if q.id == answer.question_id), 'Unknown question'),
-                        'answer': answer.answer_text,
-                        'selected_entities': answer.selected_entities,
-                        'category': next((q.category for q in session.questions if q.id == answer.question_id), 'unknown')
-                    }
-                    for answer in validated_answers
-                ]
+                'questions_and_answers': all_qa_list
             }
             logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
             for i, qa in enumerate(clarification_context['questions_and_answers'], 1):
@@ -5085,6 +5125,13 @@ async def provide_clarification(
                 # Rollback to avoid partial state
                 await db.rollback()
             
+            # Generate user-friendly enriched prompt
+            enriched_prompt = _generate_user_friendly_prompt(
+                original_query=session.original_query,
+                clarification_context=clarification_context
+            )
+            logger.info(f"📝 Generated enriched prompt for user display")
+            
             return ClarificationResponse(
                 session_id=request.session_id,
                 confidence=session.current_confidence,
@@ -5094,7 +5141,9 @@ async def provide_clarification(
                 suggestions=suggestions,
                 previous_confidence=previous_confidence if previous_confidence > 0 else None,
                 confidence_delta=confidence_delta,
-                confidence_summary=confidence_summary
+                confidence_summary=confidence_summary,
+                enriched_prompt=enriched_prompt,
+                questions_and_answers=clarification_context['questions_and_answers']
             )
         else:
             # Need more clarification
@@ -5352,6 +5401,13 @@ async def provide_clarification(
                     # Rollback to avoid partial state
                     await db.rollback()
                 
+                # Generate user-friendly enriched prompt
+                enriched_prompt = _generate_user_friendly_prompt(
+                    original_query=session.original_query,
+                    clarification_context=clarification_context
+                )
+                logger.info(f"📝 Generated enriched prompt for user display (all ambiguities resolved)")
+                
                 return ClarificationResponse(
                     session_id=request.session_id,
                     confidence=session.current_confidence,
@@ -5361,7 +5417,9 @@ async def provide_clarification(
                     suggestions=suggestions,
                     previous_confidence=previous_confidence if previous_confidence > 0 else None,
                     confidence_delta=confidence_delta,
-                    confidence_summary=confidence_summary
+                    confidence_summary=confidence_summary,
+                    enriched_prompt=enriched_prompt,
+                    questions_and_answers=clarification_context['questions_and_answers']
                 )
             
             # NEW: Track which questions have already been asked to prevent duplicates
