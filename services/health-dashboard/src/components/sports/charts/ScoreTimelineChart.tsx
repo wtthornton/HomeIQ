@@ -43,6 +43,9 @@ export const ScoreTimelineChart: React.FC<ScoreTimelineChartProps> = ({
   // Custom tooltip following Context7 KB pattern
   const CustomTooltip = ({ payload, label, active }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint = payload[0]?.payload;
+      const period = dataPoint?.period;
+      
       return (
         <div 
           className="px-4 py-3 rounded-lg shadow-lg"
@@ -51,6 +54,11 @@ export const ScoreTimelineChart: React.FC<ScoreTimelineChartProps> = ({
             border: `1px solid ${theme.tooltip.border}`
           }}
         >
+          {period && (
+            <p className="font-semibold mb-1 text-xs" style={{ color: theme.tooltip.text }}>
+              {period}
+            </p>
+          )}
           <p className="font-semibold mb-2" style={{ color: theme.tooltip.text }}>
             {label}
           </p>

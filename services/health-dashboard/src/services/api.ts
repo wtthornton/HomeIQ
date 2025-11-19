@@ -521,6 +521,14 @@ class DataApiClient extends BaseApiClient {
     const encodedTeam = encodeURIComponent(team);
     return this.fetchWithErrorHandling<any>(`/api/v1/ha/game-status/${encodedTeam}`);
   }
+
+  async getGameTimeline(gameId: string, league?: string): Promise<any> {
+    const queryParams = new URLSearchParams();
+    if (league) queryParams.append('league', league);
+    
+    const url = `/api/v1/sports/games/timeline/${gameId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.fetchWithErrorHandling<any>(url);
+  }
 }
 
 /**

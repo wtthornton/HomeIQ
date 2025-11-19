@@ -143,11 +143,99 @@ export const GameTimelineModal: React.FC<GameTimelineModalProps> = ({
                 Score Progression
               </h3>
               <ScoreTimelineChart
-                timeline={timeline}
-                homeTeam={game.home_team}
-                awayTeam={game.away_team}
+                data={timeline.map((point, index) => {
+                  // Format time label: prefer time_remaining, fallback to period, then index
+                  let timeLabel = point.time_remaining || '';
+                  if (!timeLabel && point.quarter_period) {
+                    timeLabel = point.quarter_period;
+                  }
+                  if (!timeLabel) {
+                    timeLabel = `Point ${index + 1}`;
+                  }
+                  
+                  return {
+                    time: timeLabel,
+                    homeScore: point.home_score,
+                    awayScore: point.away_score,
+                    period: point.quarter_period || undefined
+                  };
+                })}
+                homeTeamName={game.home_team}
+                awayTeamName={game.away_team}
                 darkMode={darkMode}
               />
+              
+              {/* Quarter/Period Breakdown */}
+              <div className="mt-6">
+                <h4 className={`text-md font-semibold ${textPrimary} mb-3`}>
+                  Period Breakdown
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {(() => {
+                    // Group timeline points by period
+                    const periodMap = new Map<string, { start: TimelinePoint; end: TimelinePoint }>();
+                    
+                    timeline.forEach((point) => {
+                      const period = point.quarter_period || 'Unknown';
+                      if (!periodMap.has(period)) {
+                        periodMap.set(period, { start: point, end: point });
+                      } else {
+                        const existing = periodMap.get(period)!;
+                        existing.end = point;
+                      }
+                    });
+                    
+                    // Sort periods: Q1, Q2, Q3, Q4, OT, OT2, etc.
+                    const sortedPeriods = Array.from(periodMap.entries()).sort((a, b) => {
+                      const aPeriod = a[0].toUpperCase();
+                      const bPeriod = b[0].toUpperCase();
+                      
+                      // Extract numbers for sorting
+                      const aNum = parseInt(aPeriod.match(/\d+/)?.[0] || '999');
+                      const bNum = parseInt(bPeriod.match(/\d+/)?.[0] || '999');
+                      
+                      if (aNum !== bNum) return aNum - bNum;
+                      
+                      // Handle OT (overtime) periods
+                      if (aPeriod.includes('OT') && !bPeriod.includes('OT')) return 1;
+                      if (!aPeriod.includes('OT') && bPeriod.includes('OT')) return -1;
+                      
+                      return aPeriod.localeCompare(bPeriod);
+                    });
+                    
+                    return sortedPeriods.map(([period, { start, end }]) => (
+                      <div
+                        key={period}
+                        className={`p-3 rounded-lg border ${
+                          darkMode
+                            ? 'bg-gray-700 border-gray-600'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className={`text-sm font-semibold ${textPrimary} mb-2`}>
+                          {period}
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <div className={textSecondary}>
+                            <div className="text-xs mb-1">{game.home_team}</div>
+                            <div className="font-bold text-lg">{end.home_score}</div>
+                          </div>
+                          <div className={`text-lg font-bold ${textSecondary}`}>-</div>
+                          <div className={textSecondary}>
+                            <div className="text-xs mb-1">{game.away_team}</div>
+                            <div className="font-bold text-lg">{end.away_score}</div>
+                          </div>
+                        </div>
+                        {end.time_remaining && (
+                          <div className={`text-xs mt-2 ${textSecondary}`}>
+                            {end.time_remaining}
+                          </div>
+                        )}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
             </div>
           )}
 
