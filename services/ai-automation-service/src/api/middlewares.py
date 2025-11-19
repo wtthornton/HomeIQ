@@ -142,7 +142,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.internal_bucket_capacity = internal_requests_per_minute
     
     async def dispatch(self, request: Request, call_next: Callable):
-        # Exempt health checks and status endpoints from rate limiting
+        # Skip rate limiting entirely if disabled (for internal single-home projects)
+        if not settings.rate_limit_enabled:
+            return await call_next(request)
+        
+        # Exempt health checks, status endpoints, and read-only GET endpoints from rate limiting
         # Context7 Best Practice: Early return for exempt paths (performance)
         exempt_paths = [
             '/health',
@@ -151,18 +155,41 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             '/api/analysis/schedule'
         ]
         
-        if any(request.url.path.startswith(path) for path in exempt_paths):
+        # Exempt read-only GET endpoints (they're just reading data, not causing load)
+        read_only_get_paths = [
+            '/api/patterns/list',
+            '/api/patterns/stats',
+            '/api/patterns/',  # Pattern detail endpoints (GET)
+            '/api/synergies',  # Synergies list (GET)
+            '/api/synergies/stats',
+            '/api/suggestions',  # Suggestions list (GET)
+            '/api/devices/names',  # Device name lookup (GET)
+        ]
+        
+        # Check if this is a read-only GET request
+        is_read_only_get = (
+            request.method == "GET" and 
+            any(request.url.path.startswith(path) for path in read_only_get_paths)
+        )
+        
+        if any(request.url.path.startswith(path) for path in exempt_paths) or is_read_only_get:
             # Process request without rate limiting
             return await call_next(request)
         
         # Get identifier (user ID or IP)
         identifier = request.headers.get(self.key_header)
+        client_ip = request.client.host if request.client else "unknown"
+        
         if not identifier:
             # Fallback to IP
-            identifier = request.client.host if request.client else "unknown"
+            identifier = client_ip
         
-        # Detect internal traffic (Context7: Clear separation of concerns)
-        is_internal = any(identifier.startswith(prefix) for prefix in self.internal_network_prefixes)
+        # Detect internal traffic using actual IP address (not just identifier)
+        # Context7: Clear separation of concerns - check both identifier and IP
+        is_internal = (
+            any(identifier.startswith(prefix) for prefix in self.internal_network_prefixes) or
+            any(client_ip.startswith(prefix) for prefix in self.internal_network_prefixes)
+        )
         
         # Use appropriate limits based on traffic type
         if is_internal:
