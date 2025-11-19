@@ -293,14 +293,18 @@ app.add_middleware(
     enabled=settings.enable_authentication
 )
 
-# Rate limiting middleware (before idempotency)
-app.add_middleware(
-    RateLimitMiddleware,
-    requests_per_minute=settings.rate_limit_requests_per_minute,
-    requests_per_hour=settings.rate_limit_requests_per_hour,
-    internal_requests_per_minute=settings.rate_limit_internal_requests_per_minute,
-    key_header="X-HomeIQ-API-Key"
-)
+# Rate limiting middleware (before idempotency) - only if enabled
+if settings.rate_limit_enabled:
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.rate_limit_requests_per_minute,
+        requests_per_hour=settings.rate_limit_requests_per_hour,
+        internal_requests_per_minute=settings.rate_limit_internal_requests_per_minute,
+        key_header="X-HomeIQ-API-Key"
+    )
+    logger.info("✅ Rate limiting middleware enabled")
+else:
+    logger.info("ℹ️  Rate limiting disabled (internal project)")
 
 # Idempotency middleware
 app.add_middleware(IdempotencyMiddleware)

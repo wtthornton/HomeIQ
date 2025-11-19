@@ -95,7 +95,8 @@ class Settings(BaseSettings):
     ai_automation_api_key: str = "change-me"
     ai_automation_admin_api_key: Optional[str] = None
     
-    # Rate limiting (single-home defaults)
+    # Rate limiting (disabled for internal single-home use)
+    rate_limit_enabled: bool = False  # Disable rate limiting for internal projects
     rate_limit_requests_per_minute: int = 120
     rate_limit_requests_per_hour: int = 2400
     rate_limit_internal_requests_per_minute: int = 600
