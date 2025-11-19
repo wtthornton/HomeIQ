@@ -4818,16 +4818,53 @@ async def provide_clarification(
     logger.info(f"🔍 Processing clarification for session {request.session_id}")
     
     try:
+        # Validation: Check request data
+        if not request.session_id:
+            logger.error(f"❌ Missing session_id in request")
+            raise HTTPException(
+                status_code=400,
+                detail="session_id is required"
+            )
+        
+        if not request.answers or len(request.answers) == 0:
+            logger.error(f"❌ No answers provided in request")
+            raise HTTPException(
+                status_code=400,
+                detail="At least one answer is required"
+            )
+        
         # Get session
         session = _clarification_sessions.get(request.session_id)
         if not session:
+            logger.error(f"❌ Clarification session {request.session_id} not found in memory")
             raise HTTPException(
                 status_code=404,
                 detail=f"Clarification session {request.session_id} not found"
             )
         
+        # Validation: Check session data
+        if not session.original_query:
+            logger.error(f"❌ Session {request.session_id} has no original_query")
+            raise HTTPException(
+                status_code=500,
+                detail="Session is missing original query"
+            )
+        
+        if not session.questions:
+            logger.warning(f"⚠️ Session {request.session_id} has no questions")
+        
+        logger.info(f"✅ Session validation passed: query='{session.original_query[:100]}...', questions={len(session.questions)}, answers={len(session.answers)}")
+        
         # Get clarification services
+        logger.info(f"🔧 Initializing clarification services")
         _, _, answer_validator, confidence_calculator = await get_clarification_services(db)
+        if not answer_validator or not confidence_calculator:
+            logger.error(f"❌ Failed to initialize clarification services")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize clarification services"
+            )
+        logger.info(f"✅ Clarification services initialized")
         
         # Validate answers
         validated_answers = []
@@ -4996,32 +5033,96 @@ async def provide_clarification(
                 logger.info(f"  Q&A {i}: Q: {qa['question']} | A: {qa['answer']} | Entities: {qa.get('selected_entities', [])}")
             
             # NEW: Rebuild enriched user query from original question + Q&A answers
-            enriched_query = _rebuild_user_query_from_qa(
-                original_query=session.original_query,
-                clarification_context=clarification_context
-            )
-            logger.info(f"📝 Rebuilt enriched query: '{enriched_query}'")
+            logger.info(f"🔧 Step 1: Rebuilding enriched query from {len(clarification_context.get('questions_and_answers', []))} Q&A pairs")
+            try:
+                enriched_query = _rebuild_user_query_from_qa(
+                    original_query=session.original_query,
+                    clarification_context=clarification_context
+                )
+                # Validation: Ensure enriched_query is not None or empty
+                if not enriched_query or not enriched_query.strip():
+                    logger.error(f"❌ Enriched query is empty or None after rebuilding")
+                    raise ValueError("Enriched query cannot be empty")
+                logger.info(f"📝 Step 1 complete: Rebuilt enriched query (length: {len(enriched_query)} chars): '{enriched_query[:200]}...'")
+            except Exception as e:
+                logger.error(f"❌ Failed to rebuild enriched query: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to rebuild enriched query: {str(e)}"
+                )
             
             # NEW: Re-extract entities from enriched query (original + Q&A)
-            entities = await extract_entities_with_ha(enriched_query)
-            logger.info(f"🔍 Re-extracted {len(entities)} entities from enriched query")
+            logger.info(f"🔧 Step 2: Extracting entities from enriched query (timeout: 30s)")
+            try:
+                entities = await asyncio.wait_for(
+                    extract_entities_with_ha(enriched_query),
+                    timeout=30.0
+                )
+                logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
+                if not entities:
+                    logger.warning(f"⚠️ No entities extracted from enriched query - continuing with empty list")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Entity extraction timed out after 30 seconds")
+                raise HTTPException(
+                    status_code=504,
+                    detail="Entity extraction timed out. Please try again."
+                )
+            except Exception as e:
+                logger.error(f"❌ Failed to extract entities from enriched query: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to extract entities: {str(e)}"
+                )
             
             # NEW: Re-enrich devices based on selected entities from Q&A answers
-            entities = await _re_enrich_entities_from_qa(
-                entities=entities,
-                clarification_context=clarification_context,
-                ha_client=ha_client
-            )
-            logger.info(f"✅ Re-enriched entities with Q&A information: {len(entities)} entities")
+            logger.info(f"🔧 Step 3: Re-enriching entities with Q&A information (timeout: 45s)")
+            try:
+                entities = await asyncio.wait_for(
+                    _re_enrich_entities_from_qa(
+                        entities=entities,
+                        clarification_context=clarification_context,
+                        ha_client=ha_client
+                    ),
+                    timeout=45.0
+                )
+                logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Entity re-enrichment timed out after 45 seconds")
+                raise HTTPException(
+                    status_code=504,
+                    detail="Entity re-enrichment timed out. Please try again."
+                )
+            except Exception as e:
+                logger.error(f"❌ Failed to re-enrich entities: {e}", exc_info=True)
+                # Don't fail the request - continue with un-enriched entities
+                logger.warning(f"⚠️ Continuing with un-enriched entities due to re-enrichment failure")
             
             # Generate suggestions WITH enriched query and clarification context
-            suggestions = await generate_suggestions_from_query(
-                enriched_query,  # NEW: Use enriched query instead of original
-                entities,  # NEW: Re-extracted and re-enriched entities
-                "anonymous",  # TODO: Get from session
-                db_session=db,
-                clarification_context=clarification_context  # Pass structured clarification
-            )
+            logger.info(f"🔧 Step 4: Generating suggestions from enriched query (timeout: 60s)")
+            try:
+                suggestions = await asyncio.wait_for(
+                    generate_suggestions_from_query(
+                        enriched_query,  # NEW: Use enriched query instead of original
+                        entities,  # NEW: Re-extracted and re-enriched entities
+                        "anonymous",  # TODO: Get from session
+                        db_session=db,
+                        clarification_context=clarification_context  # Pass structured clarification
+                    ),
+                    timeout=60.0
+                )
+                logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Suggestion generation timed out after 60 seconds")
+                raise HTTPException(
+                    status_code=504,
+                    detail="Suggestion generation timed out. Please try again."
+                )
+            except Exception as e:
+                logger.error(f"❌ Failed to generate suggestions: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to generate suggestions: {str(e)}"
+                )
             
             # Add conversation history to suggestions
             for suggestion in suggestions:
@@ -5161,17 +5262,45 @@ async def provide_clarification(
                     if any(a.question_id == q.id for a in session.answers)
                 ]
             }
-            enriched_query = _rebuild_user_query_from_qa(
-                original_query=session.original_query,
-                clarification_context=all_qa_context
-            )
+            logger.info(f"🔧 Rebuilding enriched query for re-detection (timeout: 5s)")
+            try:
+                enriched_query = _rebuild_user_query_from_qa(
+                    original_query=session.original_query,
+                    clarification_context=all_qa_context
+                )
+                # Validation: Ensure enriched_query is not None or empty
+                if not enriched_query or not enriched_query.strip():
+                    logger.error(f"❌ Enriched query is empty or None after rebuilding (re-detection path)")
+                    raise ValueError("Enriched query cannot be empty")
+                logger.info(f"📝 Rebuilt enriched query for re-detection (length: {len(enriched_query)} chars)")
+            except Exception as e:
+                logger.error(f"❌ Failed to rebuild enriched query (re-detection path): {e}", exc_info=True)
+                # Don't fail - use original query as fallback
+                enriched_query = session.original_query
+                logger.warning(f"⚠️ Using original query as fallback: '{enriched_query}'")
             
             # NEW: Re-detect ambiguities based on enriched query (original + all previous answers)
             # This ensures we find new ambiguities that may have emerged from the answers
             clarification_detector, question_generator, _, _ = await get_clarification_services(db)
             
             # Re-extract entities from enriched query
-            entities = await extract_entities_with_ha(enriched_query)
+            logger.info(f"🔧 Re-extracting entities for re-detection (timeout: 30s)")
+            try:
+                entities = await asyncio.wait_for(
+                    extract_entities_with_ha(enriched_query),
+                    timeout=30.0
+                )
+                logger.info(f"🔍 Re-extracted {len(entities)} entities for re-detection")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Entity extraction timed out during re-detection")
+                # Don't fail - continue with empty entities
+                entities = []
+                logger.warning(f"⚠️ Continuing with empty entities due to timeout")
+            except Exception as e:
+                logger.error(f"❌ Failed to extract entities during re-detection: {e}", exc_info=True)
+                # Don't fail - continue with empty entities
+                entities = []
+                logger.warning(f"⚠️ Continuing with empty entities due to extraction failure")
             
             # Get automation context for re-detection
             automation_context = {}
@@ -5299,32 +5428,96 @@ async def provide_clarification(
                 logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
                 
                 # Rebuild enriched user query from original question + Q&A answers
-                enriched_query = _rebuild_user_query_from_qa(
-                    original_query=session.original_query,
-                    clarification_context=clarification_context
-                )
-                logger.info(f"📝 Rebuilt enriched query: '{enriched_query}'")
+                logger.info(f"🔧 Step 1 (all-ambiguities-resolved): Rebuilding enriched query")
+                try:
+                    enriched_query = _rebuild_user_query_from_qa(
+                        original_query=session.original_query,
+                        clarification_context=clarification_context
+                    )
+                    # Validation: Ensure enriched_query is not None or empty
+                    if not enriched_query or not enriched_query.strip():
+                        logger.error(f"❌ Enriched query is empty or None after rebuilding (all-ambiguities-resolved path)")
+                        raise ValueError("Enriched query cannot be empty")
+                    logger.info(f"📝 Step 1 complete: Rebuilt enriched query (length: {len(enriched_query)} chars): '{enriched_query[:200]}...'")
+                except Exception as e:
+                    logger.error(f"❌ Failed to rebuild enriched query (all-ambiguities-resolved path): {e}", exc_info=True)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to rebuild enriched query: {str(e)}"
+                    )
                 
                 # Re-extract entities from enriched query
-                entities = await extract_entities_with_ha(enriched_query)
-                logger.info(f"🔍 Re-extracted {len(entities)} entities from enriched query")
+                logger.info(f"🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 30s)")
+                try:
+                    entities = await asyncio.wait_for(
+                        extract_entities_with_ha(enriched_query),
+                        timeout=30.0
+                    )
+                    logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
+                    if not entities:
+                        logger.warning(f"⚠️ No entities extracted from enriched query - continuing with empty list")
+                except asyncio.TimeoutError:
+                    logger.error(f"❌ Entity extraction timed out after 30 seconds (all-ambiguities-resolved path)")
+                    raise HTTPException(
+                        status_code=504,
+                        detail="Entity extraction timed out. Please try again."
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to extract entities (all-ambiguities-resolved path): {e}", exc_info=True)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to extract entities: {str(e)}"
+                    )
                 
                 # Re-enrich devices based on selected entities from Q&A answers
-                entities = await _re_enrich_entities_from_qa(
-                    entities=entities,
-                    clarification_context=clarification_context,
-                    ha_client=ha_client
-                )
-                logger.info(f"✅ Re-enriched entities with Q&A information: {len(entities)} entities")
+                logger.info(f"🔧 Step 3 (all-ambiguities-resolved): Re-enriching entities (timeout: 45s)")
+                try:
+                    entities = await asyncio.wait_for(
+                        _re_enrich_entities_from_qa(
+                            entities=entities,
+                            clarification_context=clarification_context,
+                            ha_client=ha_client
+                        ),
+                        timeout=45.0
+                    )
+                    logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
+                except asyncio.TimeoutError:
+                    logger.error(f"❌ Entity re-enrichment timed out after 45 seconds (all-ambiguities-resolved path)")
+                    raise HTTPException(
+                        status_code=504,
+                        detail="Entity re-enrichment timed out. Please try again."
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to re-enrich entities (all-ambiguities-resolved path): {e}", exc_info=True)
+                    # Don't fail the request - continue with un-enriched entities
+                    logger.warning(f"⚠️ Continuing with un-enriched entities due to re-enrichment failure")
                 
                 # Generate suggestions WITH enriched query and clarification context
-                suggestions = await generate_suggestions_from_query(
-                    enriched_query,
-                    entities,
-                    "anonymous",  # TODO: Get from session
-                    db_session=db,
-                    clarification_context=clarification_context
-                )
+                logger.info(f"🔧 Step 4 (all-ambiguities-resolved): Generating suggestions (timeout: 60s)")
+                try:
+                    suggestions = await asyncio.wait_for(
+                        generate_suggestions_from_query(
+                            enriched_query,
+                            entities,
+                            "anonymous",  # TODO: Get from session
+                            db_session=db,
+                            clarification_context=clarification_context
+                        ),
+                        timeout=60.0
+                    )
+                    logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions (all-ambiguities-resolved path)")
+                except asyncio.TimeoutError:
+                    logger.error(f"❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
+                    raise HTTPException(
+                        status_code=504,
+                        detail="Suggestion generation timed out. Please try again."
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to generate suggestions (all-ambiguities-resolved path): {e}", exc_info=True)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to generate suggestions: {str(e)}"
+                    )
                 
                 # Add conversation history to suggestions
                 for suggestion in suggestions:
