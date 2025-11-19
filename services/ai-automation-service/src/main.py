@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import sys
+import os
 import logging
 from pathlib import Path
 
@@ -23,6 +24,25 @@ except ImportError:
     # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("ai-automation-service")
+
+# Import shared error handler
+try:
+    from shared.error_handler import register_error_handlers
+except ImportError:
+    logger.warning("Shared error handler not available, using default error handling")
+    register_error_handlers = None
+
+# Import observability modules
+try:
+    from shared.observability import (
+        setup_tracing,
+        instrument_fastapi,
+        CorrelationMiddleware
+    )
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    logger.warning("Observability modules not available")
+    OBSERVABILITY_AVAILABLE = False
 
 from .config import settings
 from .database.models import init_db
@@ -234,6 +254,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Observability setup (tracing and correlation ID)
+if OBSERVABILITY_AVAILABLE:
+    # Set up OpenTelemetry tracing
+    otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+    if setup_tracing("ai-automation-service", otlp_endpoint):
+        logger.info("✅ OpenTelemetry tracing configured")
+    
+    # Instrument FastAPI app
+    if instrument_fastapi(app, "ai-automation-service"):
+        logger.info("✅ FastAPI app instrumented for tracing")
+    
+    # Add correlation ID middleware (should be early in middleware stack)
+    app.add_middleware(CorrelationMiddleware)
+    logger.info("✅ Correlation ID middleware added")
+
 # CORS middleware (allow frontend at ports 3000, 3001)
 app.add_middleware(
     CORSMiddleware,
@@ -270,35 +305,40 @@ app.add_middleware(
 # Idempotency middleware
 app.add_middleware(IdempotencyMiddleware)
 
-# Add error handling middleware
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle request validation errors with detailed logging."""
-    logger.error(f"❌ Validation error on {request.method} {request.url.path}: {exc}")
-    logger.error(f"❌ Validation details: {exc.errors()}")
-    return JSONResponse(
-        status_code=422,
-        content={
-            "error": "Validation Error",
-            "detail": exc.errors(),
-            "path": str(request.url.path),
-            "method": request.method
-        }
-    )
+# Register shared error handlers if available
+if register_error_handlers:
+    register_error_handlers(app)
+    logger.info("✅ Shared error handlers registered")
+else:
+    # Fallback to local error handlers
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        """Handle request validation errors with detailed logging."""
+        logger.error(f"❌ Validation error on {request.method} {request.url.path}: {exc}")
+        logger.error(f"❌ Validation details: {exc.errors()}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "Validation Error",
+                "detail": exc.errors(),
+                "path": str(request.url.path),
+                "method": request.method
+            }
+        )
 
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    """Handle general exceptions with logging."""
-    logger.error(f"❌ Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "detail": str(exc),
-            "path": str(request.url.path),
-            "method": request.method
-        }
-    )
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception):
+        """Handle general exceptions with logging."""
+        logger.error(f"❌ Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal Server Error",
+                "detail": str(exc),
+                "path": str(request.url.path),
+                "method": request.method
+            }
+        )
 
 # Include routers
 app.include_router(health_router)

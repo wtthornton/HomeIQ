@@ -171,9 +171,21 @@ class ServiceContainer:
         if self._entity_resolver is None:
             from .entity.resolver import EntityResolver
             from ..clients.data_api_client import DataAPIClient
+            
+            # Try to get RAG client if available (optional)
+            rag_client = None
+            try:
+                # RAG client requires database session, so we'll get it on-demand
+                # For now, pass None and let EntityResolver work without RAG
+                # RAG can be added later when database session is available
+                pass
+            except Exception:
+                pass
+            
             self._entity_resolver = EntityResolver(
                 ha_client=self.ha_client,
-                data_api_client=DataAPIClient()
+                data_api_client=DataAPIClient(),
+                rag_client=rag_client  # None for now, can be set later
             )
             logger.info("✅ EntityResolver initialized")
         return self._entity_resolver

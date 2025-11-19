@@ -2,128 +2,102 @@
 Device Intelligence Service - In-Memory Cache Service
 
 Simple in-memory cache with TTL support for device data.
-Follows the same pattern as sports-data service.
+Uses shared cache base class from shared/cache.py
 """
 
-import asyncio
-import json
-import logging
-import time
-from datetime import datetime, timezone
+import sys
+import os
+from pathlib import Path
 from typing import Optional, Any, Dict, List
-from collections import OrderedDict
+
+# Add shared directory to path for imports
+shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+try:
+    app_root = Path(__file__).resolve().parents[4]  # Go up to project root
+except Exception:
+    app_root = Path("/app")
+
+candidate_paths = []
+if shared_path_override:
+    candidate_paths.append(Path(shared_path_override).expanduser())
+candidate_paths.extend([
+    app_root / "shared",
+    Path("/app/shared"),
+    Path.cwd() / "shared",
+    Path(__file__).parent.parent.parent.parent.parent / "shared",  # Fallback for local dev
+])
+
+shared_path = None
+for p in candidate_paths:
+    if p.exists():
+        shared_path = p.resolve()
+        break
+
+if shared_path and str(shared_path) not in sys.path:
+    sys.path.insert(0, str(shared_path))
+
+from cache import BaseCache
+
+import logging
 
 logger = logging.getLogger(__name__)
 
 
-class DeviceCache:
+class DeviceCache(BaseCache):
     """Simple in-memory cache with TTL support for device data."""
     
     def __init__(self, max_size: int = 1000, default_ttl: int = 300):
-        self.max_size = max_size
-        self.default_ttl = default_ttl
-        self.cache: OrderedDict[str, tuple[Any, float]] = OrderedDict()
+        """
+        Initialize device cache.
+        
+        Args:
+            max_size: Maximum cache entries
+            default_ttl: Default TTL in seconds
+        """
+        # Note: BaseCache expects (default_ttl, max_size) but DeviceCache uses (max_size, default_ttl)
+        super().__init__(default_ttl=default_ttl, max_size=max_size)
+        
+        # Backward compatibility: expose stats as instance variables
         self.hits = 0
         self.misses = 0
         self.evictions = 0
-        self._lock = asyncio.Lock()
     
     async def get(self, key: str) -> Optional[Any]:
-        """Get value from cache if not expired."""
-        async with self._lock:
-            if key in self.cache:
-                value, expiry = self.cache[key]
-                current_time = time.time()
-                
-                if expiry > current_time:
-                    # Move to end (LRU)
-                    self.cache.move_to_end(key)
-                    self.hits += 1
-                    return value
-                else:
-                    # Expired, remove it
-                    del self.cache[key]
-                    self.misses += 1
-            else:
-                self.misses += 1
-            
-            return None
+        """Get value from cache (overrides to sync instance variables)"""
+        result = await super().get(key)
+        # Sync instance variables for backward compatibility
+        self.hits = self.stats.hits
+        self.misses = self.stats.misses
+        return result
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """Set value in cache with TTL in seconds."""
-        async with self._lock:
-            try:
-                expiry = time.time() + (ttl or self.default_ttl)
-                
-                # Remove if already exists
-                if key in self.cache:
-                    del self.cache[key]
-                
-                # Add new entry
-                self.cache[key] = (value, expiry)
-                
-                # Evict if over max size
-                while len(self.cache) > self.max_size:
-                    self.cache.popitem(last=False)  # Remove oldest
-                    self.evictions += 1
-                
-                return True
-                
-            except Exception as e:
-                logger.error(f"❌ Cache set error for key {key}: {e}")
-                return False
-    
-    async def delete(self, key: str) -> bool:
-        """Delete a key from cache."""
-        async with self._lock:
-            if key in self.cache:
-                del self.cache[key]
-                return True
-            return False
-    
-    async def clear(self):
-        """Clear all cache."""
-        async with self._lock:
-            self.cache.clear()
-            self.hits = 0
-            self.misses = 0
-            self.evictions = 0
-    
-    async def cleanup_expired(self) -> int:
-        """Remove expired entries and return count of removed items."""
-        async with self._lock:
-            current_time = time.time()
-            expired_keys = []
-            
-            for key, (value, expiry) in self.cache.items():
-                if expiry <= current_time:
-                    expired_keys.append(key)
-            
-            for key in expired_keys:
-                del self.cache[key]
-            
-            return len(expired_keys)
+        """Set value in cache (overrides to sync instance variables)"""
+        result = await super().set(key, value, ttl)
+        # Sync instance variables for backward compatibility
+        self.evictions = self.stats.evictions
+        return result
     
     def is_connected(self) -> bool:
         """Check if cache is available (always true for in-memory)."""
         return True
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics."""
-        total_requests = self.hits + self.misses
-        hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0
+        """Get cache statistics (extended version with device-specific fields)."""
+        base_stats = super().get_stats()
+        total_requests = self.stats.hits + self.stats.misses
         
         return {
             "cache_type": "in_memory",
-            "hit_count": self.hits,
-            "miss_count": self.misses,
+            "hit_count": self.stats.hits,
+            "miss_count": self.stats.misses,
             "total_requests": total_requests,
-            "hit_rate": round(hit_rate, 2),
-            "current_size": len(self.cache),
-            "max_size": self.max_size,
-            "evictions": self.evictions,
-            "memory_usage": f"{len(self.cache)} entries",
-            "connected": True
+            "hit_rate": round(self.stats.hit_rate * 100, 2),
+            "current_size": self.stats.size,
+            "max_size": self.stats.max_size,
+            "evictions": self.stats.evictions,
+            "memory_usage": f"{self.stats.size} entries",
+            "connected": True,
+            **base_stats  # Include base stats for compatibility
         }
     
     async def get_device(self, device_id: str) -> Optional[Dict[str, Any]]:
