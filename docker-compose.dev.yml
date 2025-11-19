@@ -132,6 +132,7 @@ services:
         condition: service_healthy
     networks:
       - homeiq-network-dev
+      - homeiq_homeiq-network  # Connect to production network for InfluxDB access
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8009/health"]
       interval: 30s
@@ -270,3 +271,5 @@ volumes:
 networks:
   homeiq-network-dev:
     driver: bridge
+  homeiq_homeiq-network:
+    external: true  # Reference production network
