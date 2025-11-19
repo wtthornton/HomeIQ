@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from ..clients.ha_client import HomeAssistantClient
+from ...clients.ha_client import HomeAssistantClient
 from .action_parser import ActionParser
 from .action_models import ActionItem, ActionExecutionResult, ActionExecutionSummary
 from .action_state_machine import ActionExecutionState, ActionExecutionStateMachine
