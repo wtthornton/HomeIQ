@@ -66,12 +66,6 @@ interface Props {
   previousConfidence?: number;
   confidenceDelta?: number;
   confidenceSummary?: string;
-  enrichedPrompt?: string;
-  questionsAndAnswers?: Array<{
-    question: string;
-    answer: string;
-    selected_entities?: string[];
-  }>;
 }
 
 export const ConversationalSuggestionCard: React.FC<Props> = ({
@@ -87,9 +81,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   onDeviceToggle,
   darkMode = false,
   disabled = false,
-  tested = false,
-  enrichedPrompt,
-  questionsAndAnswers
+  tested = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editInput, setEditInput] = useState('');
@@ -319,60 +311,6 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         }}>
           {suggestion.description_only || 'No description available'}
         </div>
-        
-        {/* Enriched Prompt Display (collapsible) */}
-        {enrichedPrompt && (
-          <details className="mt-3 text-sm">
-            <summary 
-              className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium"
-              style={{ listStyle: 'none' }}
-            >
-              <span className="flex items-center gap-2">
-                <span>📝</span>
-                <span>View what I understood from your answers</span>
-              </span>
-            </summary>
-            <div 
-              className="mt-2 p-3 rounded border"
-              style={{
-                background: 'rgba(30, 41, 59, 0.8)',
-                border: '1px solid rgba(51, 65, 85, 0.5)'
-              }}
-            >
-              <pre 
-                className="whitespace-pre-wrap text-sm"
-                style={{ 
-                  color: '#cbd5e1',
-                  fontFamily: 'inherit'
-                }}
-              >
-                {enrichedPrompt}
-              </pre>
-              {questionsAndAnswers && questionsAndAnswers.length > 0 && (
-                <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(51, 65, 85, 0.5)' }}>
-                  <div className="text-xs font-semibold mb-2" style={{ color: '#94a3b8' }}>
-                    Questions & Answers:
-                  </div>
-                  {questionsAndAnswers.map((qa, idx) => (
-                    <div key={idx} className="mb-2 text-xs">
-                      <div style={{ color: '#94a3b8' }}>
-                        <strong>Q:</strong> {qa.question}
-                      </div>
-                      <div className="ml-4 mt-1" style={{ color: '#cbd5e1' }}>
-                        <strong>A:</strong> {qa.answer}
-                        {qa.selected_entities && qa.selected_entities.length > 0 && (
-                          <span className="ml-2 opacity-70">
-                            (Selected: {qa.selected_entities.join(', ')})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </details>
-        )}
         
         {/* Device Information Buttons - Selectable */}
         {suggestion.device_info && suggestion.device_info.length > 0 && (
