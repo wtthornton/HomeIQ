@@ -573,9 +573,9 @@ async def get_quality_metrics(
             pattern_type_counts[ptype] = pattern_type_counts.get(ptype, 0) + 1
         
         total_patterns = len(patterns_list)
+        entropy = 0.0  # Initialize entropy
         if total_patterns > 0:
             # Shannon entropy: -sum(p * log2(p))
-            entropy = 0.0
             for count in pattern_type_counts.values():
                 p = count / total_patterns
                 if p > 0:

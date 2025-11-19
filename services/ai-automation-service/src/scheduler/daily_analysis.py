@@ -224,12 +224,23 @@ class DailyAnalysisScheduler:
                 influxdb_org=settings.influxdb_org,
                 influxdb_bucket=settings.influxdb_bucket
             )
-            start_date = datetime.now(timezone.utc) - timedelta(days=30)
+            # Use 7 days lookback (or adjust based on available data)
+            # If no events found, try shorter periods
+            start_date = datetime.now(timezone.utc) - timedelta(days=7)
             
             events_df = await data_client.fetch_events(
                 start_time=start_date,
                 limit=100000
             )
+            
+            # If no events with 7 days, try 24 hours
+            if events_df.empty:
+                logger.info("No events in last 7 days, trying last 24 hours...")
+                start_date = datetime.now(timezone.utc) - timedelta(hours=24)
+                events_df = await data_client.fetch_events(
+                    start_time=start_date,
+                    limit=100000
+                )
             
             if events_df.empty:
                 logger.warning("❌ No events available for analysis")
