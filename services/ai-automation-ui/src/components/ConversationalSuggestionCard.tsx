@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
 import { DeviceMappingModal } from './DeviceMappingModal';
+import { DeployedBadge } from './DeployedBadge';
 
 interface DeviceInfo {
   friendly_name: string;
@@ -43,6 +44,12 @@ interface ConversationalSuggestion {
   device_info?: DeviceInfo[]; // List of devices involved in the suggestion
   automation_yaml?: string | null;
   created_at: string;
+  approve_response?: {
+    automation_id?: string;
+    status?: string;
+    deployed_at?: string;
+  };
+  ha_automation_id?: string | null;
 }
 
 interface Props {
@@ -178,6 +185,11 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   };
 
   const isApproved = suggestion.status === 'yaml_generated' || suggestion.status === 'deployed';
+  
+  // Check if automation is deployed
+  const automationId = suggestion.approve_response?.automation_id || suggestion.ha_automation_id;
+  const isDeployed = !!automationId && (suggestion.status === 'deployed' || !!suggestion.approve_response?.automation_id);
+  const deployedAt = suggestion.approve_response?.deployed_at || (isDeployed ? new Date().toISOString() : undefined);
 
   return (
     <>
@@ -187,8 +199,12 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       className="rounded-lg border overflow-hidden shadow-lg"
       style={{
         background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
-        border: '1px solid rgba(51, 65, 85, 0.5)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
+        border: isDeployed 
+          ? '2px solid rgba(16, 185, 129, 0.6)' 
+          : '1px solid rgba(51, 65, 85, 0.5)',
+        boxShadow: isDeployed
+          ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(16, 185, 129, 0.3), 0 0 20px rgba(16, 185, 129, 0.2)'
+          : '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
       }}
     >
       {/* Header */}
@@ -273,6 +289,24 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   </span>
                 ) : null;
               })()}
+              
+              {/* Deployed Badge */}
+              {isDeployed && automationId && (
+                <DeployedBadge
+                  automationId={automationId}
+                  deployedAt={deployedAt}
+                  status="active"
+                  darkMode={darkMode}
+                  onEdit={() => {
+                    // TODO: Implement edit functionality
+                    toast('Edit functionality coming soon', { icon: 'ℹ️' });
+                  }}
+                  onDisable={() => {
+                    // TODO: Implement disable functionality
+                    toast('Disable functionality coming soon', { icon: 'ℹ️' });
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -687,36 +721,56 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   </button>
                 )}
 
-                {/* Approve Button */}
-                <button
-                  onClick={handleApprove}
-                  disabled={disabled}
-                  style={getButtonStyles(disabled ? 'secondary' : 'primary', {
-                    flex: 1,
-                    minWidth: '120px',
-                    maxWidth: '200px',
-                    background: disabled ? undefined : 'linear-gradient(to right, #10b981, #059669)',
-                    boxShadow: disabled ? undefined : '0 2px 4px -1px rgba(0, 0, 0, 0.2)'
-                  })}
-                  className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
-                >
-                  {disabled ? (
-                    <>
-                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>PROCESSING...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>APPROVE & CREATE</span>
-                    </>
-                  )}
-                </button>
+                {/* Approve Button - Shows DEPLOYED when automation is deployed */}
+                {isDeployed ? (
+                  <button
+                    disabled
+                    style={getButtonStyles('secondary', {
+                      flex: 1,
+                      minWidth: '120px',
+                      maxWidth: '200px',
+                      background: 'linear-gradient(to right, #10b981, #059669)',
+                      opacity: 0.8
+                    })}
+                    className="opacity-80 cursor-default"
+                    title="Automation is deployed and active"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>✅ DEPLOYED</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleApprove}
+                    disabled={disabled}
+                    style={getButtonStyles(disabled ? 'secondary' : 'primary', {
+                      flex: 1,
+                      minWidth: '120px',
+                      maxWidth: '200px',
+                      background: disabled ? undefined : 'linear-gradient(to right, #10b981, #059669)',
+                      boxShadow: disabled ? undefined : '0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                    })}
+                    className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  >
+                    {disabled ? (
+                      <>
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>PROCESSING...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>APPROVE & CREATE</span>
+                      </>
+                    )}
+                  </button>
+                )}
 
                 {/* Edit Button */}
                 <button
