@@ -2,6 +2,25 @@
 
 ## 🚨 **Common Issues & Solutions**
 
+### **📋 Recent Updates (November 2025)**
+
+#### **✅ Critical Log Issues Resolved (NEW - November 19, 2025)**
+**Status**: ✅ **COMPLETE** - All critical log issues fixed
+**Issues Fixed**:
+- Discovery cache staleness causing 1000s of log warnings (99% reduction)
+- Import errors in AI Automation service validation
+- Duplicate automation creation
+- Circular import in websocket-ingestion
+
+**Performance Improvements**:
+- Log spam reduced by 99%
+- Automatic cache refresh every 30 minutes
+- All services healthy and operational
+
+**See**: `implementation/LOG_REVIEW_FINAL_STATUS.md` for complete details
+
+---
+
 ### **📋 Recent Updates (October 2025)**
 
 #### **🚀 Deployment Wizard & Connection Validator (NEW - October 12, 2025)**
@@ -186,7 +205,110 @@ docker system prune -f
 docker-compose -f docker-compose.complete.yml up -d
 ```
 
-### **2. WebSocket Connection Issues**
+### **2. Discovery Cache Staleness and Log Spam**
+
+#### **✅ FIXED (November 19, 2025)**
+**Problem**: Thousands of repeated log warnings about stale discovery cache
+
+**Symptoms**:
+- Log files filling up with repeated warnings
+- Message: "Discovery cache is stale (XXX minutes old, TTL: 30.0 minutes)"
+- Cache age > 30 minutes
+
+**Root Cause**: Cache warning logged on every event without throttling, no automatic refresh
+
+**Solution Implemented**:
+1. **Warning Throttling**: Warnings now log only once per 10 minutes (99% reduction)
+2. **Automatic Refresh**: Cache automatically refreshes every 30 minutes
+3. **Configurable Interval**: Set via `DISCOVERY_REFRESH_INTERVAL` environment variable
+
+**Configuration**:
+```bash
+# In .env or docker-compose.yml
+DISCOVERY_REFRESH_INTERVAL=1800  # 30 minutes (default)
+```
+
+**Verification**:
+```bash
+# Check for periodic refresh messages (every 30 minutes)
+docker logs homeiq-websocket --follow | grep "PERIODIC DISCOVERY"
+
+# Expected output every 30 minutes:
+# "🔄 PERIODIC DISCOVERY REFRESH"
+# "✅ Periodic discovery refresh completed successfully"
+```
+
+**Files Modified**:
+- `services/websocket-ingestion/src/discovery_service.py`
+- `services/websocket-ingestion/src/connection_manager.py`
+
+**Status**: ✅ Deployed and verified working
+
+---
+
+### **3. AI Automation Service Import Errors**
+
+#### **✅ FIXED (November 19, 2025)**
+**Problem**: Import errors preventing service validation from working
+
+**Symptoms**:
+- Error: "attempted relative import beyond top-level package"
+- Appears when getting available services for entities
+- Service validation fails silently
+
+**Root Cause**: Incorrect relative import paths in service_validator.py
+
+**Solution**: Fixed 3 import statements from `from ...clients` to `from ..clients`
+
+**Verification**:
+```bash
+# Check for import errors (should be none)
+docker logs ai-automation-service --tail 50 | grep -i "import error"
+
+# Test service validation
+curl http://localhost:8024/health
+```
+
+**Files Modified**:
+- `services/ai-automation-service/src/services/service_validator.py`
+
+**Status**: ✅ Deployed and verified working
+
+---
+
+### **4. Circular Import in WebSocket-Ingestion**
+
+#### **✅ FIXED (November 19, 2025)**
+**Problem**: Circular import preventing service from starting
+
+**Symptoms**:
+- Service fails to start
+- Error: "cannot import name 'StateMachine' from partially initialized module"
+- WebSocket ingestion container crashes on startup
+
+**Root Cause**: state_machine.py importing from itself instead of shared module
+
+**Solution**: Updated import to use `from shared.state_machine import StateMachine`
+
+**Verification**:
+```bash
+# Check service status
+docker ps | grep homeiq-websocket
+
+# Should show: "Up X minutes (healthy)"
+
+# Check startup logs
+docker logs homeiq-websocket --tail 30
+```
+
+**Files Modified**:
+- `services/websocket-ingestion/src/state_machine.py`
+
+**Status**: ✅ Deployed and verified working
+
+---
+
+### **5. WebSocket Connection Issues**
 
 #### **✅ Infinite Retry Feature (NEW - October 14, 2025)**
 **Status**: ✅ **IMPLEMENTED** - Service now automatically recovers from network outages

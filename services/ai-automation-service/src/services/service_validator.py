@@ -49,7 +49,7 @@ class ServiceValidator:
         
         try:
             # Use DataAPIClient to fetch entity metadata
-            from ...clients.data_api_client import DataAPIClient
+            from ..clients.data_api_client import DataAPIClient
             
             data_api_client = DataAPIClient()
             entity_metadata = await data_api_client.get_entity_metadata(entity_id)
@@ -112,7 +112,7 @@ class ServiceValidator:
             return True, None  # Skip validation if no DB session
         
         try:
-            from ...clients.data_api_client import DataAPIClient
+            from ..clients.data_api_client import DataAPIClient
             
             data_api_client = DataAPIClient()
             entity_metadata = await data_api_client.get_entity_metadata(entity_id)
@@ -174,7 +174,7 @@ class ServiceValidator:
             return []
         
         try:
-            from ...clients.data_api_client import DataAPIClient
+            from ..clients.data_api_client import DataAPIClient
             
             data_api_client = DataAPIClient()
             entity_metadata = await data_api_client.get_entity_metadata(entity_id)

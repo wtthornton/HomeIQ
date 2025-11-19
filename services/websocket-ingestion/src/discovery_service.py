@@ -33,6 +33,8 @@ class DiscoveryService:
         # Cache expiration tracking (refresh every 30 minutes to handle stale data)
         self._cache_timestamp: Optional[float] = None
         self._cache_ttl_seconds = 1800  # 30 minutes - devices/areas don't change often
+        self._last_stale_warning_timestamp: Optional[float] = None  # Track when we last warned about stale cache
+        self._stale_warning_interval = 600  # Only warn every 10 minutes to avoid log spam
         
         logger.info("Discovery service initialized with device/area mapping caches")
         
@@ -967,15 +969,26 @@ class DiscoveryService:
         
         Cache is considered stale if it's older than TTL and has entries.
         This helps identify when discovery hasn't run recently.
+        
+        Only logs warning once per interval to avoid log spam.
         """
         if self._cache_timestamp and len(self.entity_to_device) > 0:
             cache_age = time.time() - self._cache_timestamp
             if cache_age > self._cache_ttl_seconds:
-                logger.warning(
-                    f"⚠️ Discovery cache is stale ({cache_age/60:.1f} minutes old, "
-                    f"TTL: {self._cache_ttl_seconds/60:.1f} minutes). "
-                    f"Consider triggering discovery to refresh device/area mappings."
+                # Only log warning if we haven't warned recently
+                current_time = time.time()
+                should_warn = (
+                    self._last_stale_warning_timestamp is None or
+                    (current_time - self._last_stale_warning_timestamp) > self._stale_warning_interval
                 )
+                
+                if should_warn:
+                    logger.warning(
+                        f"⚠️ Discovery cache is stale ({cache_age/60:.1f} minutes old, "
+                        f"TTL: {self._cache_ttl_seconds/60:.1f} minutes). "
+                        f"Consider triggering discovery to refresh device/area mappings."
+                    )
+                    self._last_stale_warning_timestamp = current_time
     
     def is_cache_stale(self) -> bool:
         """

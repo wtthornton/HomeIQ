@@ -7,6 +7,23 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 **Container:** `homeiq-ai-automation-service`
 **Database:** SQLite (ai_automation.db - 13 tables)
 
+## Recent Updates (November 2025)
+
+### ✅ Import Errors Fixed (November 19, 2025)
+**Status**: ✅ **DEPLOYED** - Service validation now working correctly
+
+**What Changed**:
+- Fixed 3 relative import errors in `service_validator.py`
+- Changed `from ...clients` to `from ..clients`
+- Service validation now works reliably
+
+**Impact**:
+- No more "attempted relative import beyond top-level package" errors
+- Entity service capabilities properly validated
+- Improved automation generation reliability
+
+---
+
 ## Overview
 
 **Epic AI-1: Pattern Automation** - Analyzes historical usage to detect patterns and suggest automations

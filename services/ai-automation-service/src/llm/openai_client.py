@@ -1,12 +1,12 @@
 """
 OpenAI Client for Automation Suggestion Generation
 
-Uses GPT-4o-mini to convert detected patterns into natural language
+Uses GPT-5.1 to convert detected patterns into natural language
 automation suggestions with valid Home Assistant YAML.
 
-**Model:** GPT-4o-mini (cost-effective, sufficient for YAML generation)
+**Model:** GPT-5.1 (latest and best model - released Nov 2025)
 **Temperature:** 0.7 (balanced creativity + consistency)
-**Typical Cost:** $0.000137 per suggestion (~$0.50/year for daily runs)
+**Typical Cost:** Varies based on GPT-5.1 pricing
 
 **Complete Documentation:**
 See implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md for:
@@ -46,13 +46,13 @@ class AutomationSuggestion(BaseModel):
 class OpenAIClient:
     """Client for generating automation suggestions via OpenAI API"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model: str = "gpt-5.1"):
         """
         Initialize OpenAI client.
         
         Args:
             api_key: OpenAI API key
-            model: Model to use (default: gpt-4o-mini for cost savings)
+            model: Model to use (default: gpt-5.1 - latest and best model for accuracy)
         """
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model

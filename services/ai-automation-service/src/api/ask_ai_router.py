@@ -471,7 +471,7 @@ if settings.ha_url and settings.ha_token:
 
 if settings.openai_api_key:
     try:
-        openai_client = OpenAIClient(api_key=settings.openai_api_key, model="gpt-4o-mini")
+        openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
         logger.info("✅ OpenAI client initialized for Ask AI")
     except Exception as e:
         logger.error(f"❌ Failed to initialize OpenAI client: {e}")
@@ -1918,12 +1918,12 @@ id: '1234567891'
 alias: Periodic Light Effect
 description: "Change light effect every 10 minutes"
 mode: single
-triggers:
-  - trigger: time_pattern
+trigger:
+  - platform: time_pattern
     minutes: '/10'
 conditions: []
-actions:
-  - action: light.turn_on
+action:
+  - service: light.turn_on
     target:
       entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
     data:
@@ -1931,15 +1931,15 @@ actions:
 ```
 
 CRITICAL TIME TRIGGER RULES:
-- Use "trigger: time" with "at:" field ONLY for SPECIFIC times (e.g., "at 7 AM", "at 14:30:00")
-  ✅ CORRECT: trigger: time → at: '07:00:00'
-  ❌ WRONG: trigger: time → at: '/10 * * * *' (cron expressions NOT supported in 'at:' field)
+- Use "platform: time" with "at:" field ONLY for SPECIFIC times (e.g., "at 7 AM", "at 14:30:00")
+  ✅ CORRECT: platform: time → at: '07:00:00'
+  ❌ WRONG: platform: time → at: '/10 * * * *' (cron expressions NOT supported in 'at:' field)
   
-- Use "trigger: time_pattern" with "minutes:", "hours:", or "seconds:" for RECURRING intervals
-  ✅ CORRECT: trigger: time_pattern → minutes: '/10' (every 10 minutes)
-  ✅ CORRECT: trigger: time_pattern → hours: '/2' (every 2 hours)
-  ✅ CORRECT: trigger: time_pattern → seconds: '/30' (every 30 seconds)
-  ❌ WRONG: trigger: time → at: '/10 * * * *' (cron syntax not supported)
+- Use "platform: time_pattern" with "minutes:", "hours:", or "seconds:" for RECURRING intervals
+  ✅ CORRECT: platform: time_pattern → minutes: '/10' (every 10 minutes)
+  ✅ CORRECT: platform: time_pattern → hours: '/2' (every 2 hours)
+  ✅ CORRECT: platform: time_pattern → seconds: '/30' (every 30 seconds)
+  ❌ WRONG: platform: time → at: '/10 * * * *' (cron syntax not supported)
 
 Example 2 - Advanced Automation with Sequences and Conditions:
 ```yaml
@@ -1947,12 +1947,12 @@ id: '1234567893'
 alias: Smart Door Alert
 description: "Color-coded notifications for different doors"
 mode: single
-triggers:
-  - trigger: state
+trigger:
+  - platform: state
     entity_id: {example_door_sensor if example_door_sensor else 'REPLACE_WITH_VALIDATED_SENSOR'}
     to: 'on'
     id: front_door
-  - trigger: state
+  - platform: state
     entity_id: {example_sensor if example_sensor else 'REPLACE_WITH_VALIDATED_SENSOR'}
     to: 'on'
     id: back_door
@@ -1960,7 +1960,7 @@ conditions:
   - condition: time
     after: "18:00:00"
     before: "06:00:00"
-actions:
+action:
   - choose:
       - conditions:
           - condition: trigger
@@ -1995,7 +1995,7 @@ actions:
 ```
 
 ═══════════════════════════════════════════════════════════════════════════════
-2025 YAML FORMAT REQUIREMENTS (MANDATORY)
+HOME ASSISTANT YAML FORMAT (CURRENT STANDARD)
 ═══════════════════════════════════════════════════════════════════════════════
 
 REQUIRED STRUCTURE:
@@ -2004,12 +2004,12 @@ id: '<base_id>'              # Base ID (will be made unique automatically with t
 alias: <descriptive_name>
 description: "<quoted_if_contains_colons>"
 mode: single|restart|queued|parallel
-triggers:                    # ✅ PLURAL "triggers:" (2025 standard)
-  - trigger: state|time|...  # ✅ "trigger:" field (NOT "platform:")
+trigger:                     # ✅ SINGULAR "trigger:" (Home Assistant standard)
+  - platform: state|time|time_pattern|...  # ✅ "platform:" field (REQUIRED)
     <trigger_fields>
 conditions: []               # Optional
-actions:                     # ✅ PLURAL "actions:" (2025 standard)
-  - action: domain.service   # ✅ "action:" field (NOT "service:")
+action:                      # ✅ SINGULAR "action:" (Home Assistant standard)
+  - service: domain.service  # ✅ "service:" field (REQUIRED)
     target:
       entity_id: <validated_entity>
     data:
@@ -2024,20 +2024,21 @@ NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix 
    - NEVER invent IDs (causes "Entity not found" error)
    - NEVER use incomplete IDs like "wled", "office" (missing domain)
    
-2. 2025 Format: MUST use new structure
-   - Top-level: "triggers:" and "actions:" (PLURAL)
-   - Inside items: "trigger:" and "action:" fields
-   - OLD format with "platform:" and "service:" is DEPRECATED
+2. Home Assistant Format: MUST use correct structure
+   - Top-level: "trigger:" and "action:" (SINGULAR, not plural)
+   - Inside trigger items: "platform:" field (REQUIRED - platform: state, platform: time, etc.)
+   - Inside action items: "service:" field (REQUIRED - service: light.turn_on, etc.)
+   - ❌ WRONG: "triggers:", "actions:", "trigger: state", "action: light.turn_on" (these formats don't exist)
    
-3. Time Triggers: MUST use correct trigger type for time-based automations
-   - SPECIFIC times (e.g., "at 7 AM"): Use "trigger: time" with "at: 'HH:MM:SS'"
-   - RECURRING intervals (e.g., "every 10 minutes"): Use "trigger: time_pattern" with "minutes: '/10'"
+3. Time Triggers: MUST use correct platform type for time-based automations
+   - SPECIFIC times (e.g., "at 7 AM"): Use "platform: time" with "at: 'HH:MM:SS'"
+   - RECURRING intervals (e.g., "every 10 minutes"): Use "platform: time_pattern" with "minutes: '/10'"
    - ❌ NEVER use cron expressions in "at:" field (e.g., '/10 * * * *' - NOT supported)
-   - ❌ NEVER use "trigger: time" for recurring intervals
+   - ❌ NEVER use "platform: time" for recurring intervals
    
 4. Target Structure: MUST use target.entity_id
-   - ✅ CORRECT: action: light.turn_on → target: → entity_id: light.example
-   - ❌ WRONG: action: light.turn_on with entity_id directly in action
+   - ✅ CORRECT: service: light.turn_on → target: → entity_id: light.example
+   - ❌ WRONG: service: light.turn_on with entity_id directly in action
 
 5. WLED Entities: Use light.turn_on (NOT wled.turn_on - doesn't exist)
 

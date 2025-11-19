@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Multi-Model Entity Extraction
     entity_extraction_method: str = "multi_model"  # multi_model, enhanced, pattern
     ner_model: str = "dslim/bert-base-NER"  # Hugging Face NER model
-    openai_model: str = "gpt-4o-mini"  # OpenAI model for complex queries
+    openai_model: str = "gpt-5.1"  # OpenAI model for complex queries (GPT-5.1 - latest and best)
     ner_confidence_threshold: float = 0.8  # Minimum confidence for NER results
     enable_entity_caching: bool = True  # Enable LRU cache for NER
     max_cache_size: int = 1000  # Maximum cache size
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     
     # Natural Language Generation (AI1.21)
     nl_generation_enabled: bool = True
-    nl_model: str = "gpt-4o-mini"  # OpenAI model for NL generation
+    nl_model: str = "gpt-5.1"  # OpenAI model for NL generation (GPT-5.1 - latest and best)
     nl_max_tokens: int = 1500
     nl_temperature: float = 0.3  # Lower = more consistent
     

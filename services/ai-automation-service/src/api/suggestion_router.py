@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/suggestions", tags=["Suggestions"])
 
 # Initialize OpenAI client
-openai_client = OpenAIClient(api_key=settings.openai_api_key, model="gpt-4o-mini")
+openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
 
 # Initialize Unified Prompt Builder
 prompt_builder = UnifiedPromptBuilder()

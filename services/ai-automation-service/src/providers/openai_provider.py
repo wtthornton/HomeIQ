@@ -23,13 +23,13 @@ class OpenAIProvider(BaseProvider):
     JSON-only responses that can be validated against schema.
     """
     
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model: str = "gpt-5.1"):
         """
         Initialize OpenAI provider.
         
         Args:
             api_key: OpenAI API key
-            model: Model identifier (default: gpt-4o-mini)
+            model: Model identifier (default: gpt-5.1 - latest and best model)
         """
         self.client = AsyncOpenAI(api_key=api_key)
         self._model = model
