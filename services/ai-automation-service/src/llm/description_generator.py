@@ -123,7 +123,7 @@ class DescriptionGenerator:
                     }
                 ],
                 temperature=0.7,  # Higher for natural, creative language
-                max_tokens=200    # Short descriptions only
+                max_completion_tokens=200    # Short descriptions only (use max_completion_tokens for newer models)
             )
             
             # Track token usage
@@ -315,19 +315,21 @@ Your description (1-2 sentences, NO YAML):"""
         Returns:
             Dictionary with token counts and estimated cost
         """
-        # Calculate cost (gpt-4o-mini pricing)
-        INPUT_COST_PER_1M = 0.150   # $0.15 per 1M input tokens
-        OUTPUT_COST_PER_1M = 0.600  # $0.60 per 1M output tokens
+        # Use CostTracker for consistent cost calculation
+        from .cost_tracker import CostTracker
         
-        input_cost = (self.total_input_tokens / 1_000_000) * INPUT_COST_PER_1M
-        output_cost = (self.total_output_tokens / 1_000_000) * OUTPUT_COST_PER_1M
-        total_cost = input_cost + output_cost
+        total_cost = CostTracker.calculate_cost(
+            self.total_input_tokens,
+            self.total_output_tokens,
+            model=self.model
+        )
         
         return {
             'total_tokens': self.total_tokens,
             'input_tokens': self.total_input_tokens,
             'output_tokens': self.total_output_tokens,
             'estimated_cost_usd': round(total_cost, 6),
+            'total_cost_usd': round(total_cost, 6),
             'model': self.model
         }
     

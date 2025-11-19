@@ -150,6 +150,7 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
+      - AI_AUTOMATION_URL=http://ai-automation-service:8018
     depends_on:
       influxdb:
         condition: service_healthy

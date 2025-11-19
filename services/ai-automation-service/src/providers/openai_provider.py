@@ -101,7 +101,7 @@ CRITICAL RULES:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_completion_tokens=max_tokens,  # Use max_completion_tokens for newer models (gpt-5.1+)
                 response_format={"type": "json_object"}  # JSON mode enforcement
             )
             

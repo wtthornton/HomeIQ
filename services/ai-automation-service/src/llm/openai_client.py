@@ -24,12 +24,22 @@ See implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md for:
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import logging
 import re
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from ..utils.token_counter import count_message_tokens, get_token_breakdown
+from .cost_tracker import CostTracker
 
 logger = logging.getLogger(__name__)
+
+# Import settings for prompt caching (lazy import to avoid circular dependency)
+def _get_settings():
+    try:
+        from ..config import settings
+        return settings
+    except ImportError:
+        return None
 
 
 class AutomationSuggestion(BaseModel):
@@ -46,20 +56,28 @@ class AutomationSuggestion(BaseModel):
 class OpenAIClient:
     """Client for generating automation suggestions via OpenAI API"""
     
-    def __init__(self, api_key: str, model: str = "gpt-5.1"):
+    def __init__(self, api_key: str, model: str = "gpt-5.1", enable_token_counting: bool = True):
         """
         Initialize OpenAI client.
         
         Args:
             api_key: OpenAI API key
             model: Model to use (default: gpt-5.1 - latest and best model for accuracy)
+            enable_token_counting: Enable token counting before API calls (default: True)
         """
         self.client = AsyncOpenAI(api_key=api_key)
+        self.api_key = api_key  # Store API key for creating new client instances
         self.model = model
         self.total_tokens_used = 0
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self.total_cost_usd = 0.0
         self.last_usage = None  # Store last token usage for debug panel
+        self._token_counter_enabled = enable_token_counting
+        
+        # Phase 5: Endpoint-level tracking (in-memory)
+        self.endpoint_stats: Dict[str, Dict[str, Any]] = {}  # endpoint_name -> {tokens, cost, calls}
+        
         logger.info(f"OpenAI client initialized with model={model}")
     
     def _parse_automation_response(self, llm_response: str, pattern: Dict) -> AutomationSuggestion:
@@ -297,21 +315,85 @@ actions:
         Get API usage statistics.
         
         Returns:
-            Dictionary with token counts and estimated cost
+            Dictionary with token counts, estimated cost, and endpoint breakdown
         """
-        from .cost_tracker import CostTracker
-        
         cost = CostTracker.calculate_cost(
             self.total_input_tokens,
-            self.total_output_tokens
+            self.total_output_tokens,
+            model=self.model
         )
+        
+        # Phase 5: Format endpoint stats (enhanced with model breakdown)
+        endpoint_breakdown = {}
+        model_breakdown = {}  # Aggregate by model across all endpoints
+        
+        for endpoint_key, stats in self.endpoint_stats.items():
+            # Extract endpoint and model from composite key
+            if ':' in endpoint_key:
+                endpoint, model = endpoint_key.rsplit(':', 1)
+            else:
+                endpoint = endpoint_key
+                model = stats.get('model', self.model)
+            
+            # Endpoint breakdown (grouped by endpoint)
+            if endpoint not in endpoint_breakdown:
+                endpoint_breakdown[endpoint] = {
+                    'calls': 0,
+                    'input_tokens': 0,
+                    'output_tokens': 0,
+                    'total_tokens': 0,
+                    'cost_usd': 0.0,
+                    'models': {}  # Per-model breakdown within endpoint
+                }
+            
+            endpoint_breakdown[endpoint]['calls'] += stats['calls']
+            endpoint_breakdown[endpoint]['input_tokens'] += stats['input_tokens']
+            endpoint_breakdown[endpoint]['output_tokens'] += stats['output_tokens']
+            endpoint_breakdown[endpoint]['total_tokens'] += stats['total_tokens']
+            endpoint_breakdown[endpoint]['cost_usd'] += stats['cost_usd']
+            
+            # Per-model breakdown within endpoint
+            endpoint_breakdown[endpoint]['models'][model] = {
+                'calls': stats['calls'],
+                'input_tokens': stats['input_tokens'],
+                'output_tokens': stats['output_tokens'],
+                'total_tokens': stats['total_tokens'],
+                'cost_usd': round(stats['cost_usd'], 4),
+                'avg_cost_per_call': round(stats['cost_usd'] / stats['calls'], 4) if stats['calls'] > 0 else 0.0
+            }
+            
+            # Model-level aggregation (across all endpoints)
+            if model not in model_breakdown:
+                model_breakdown[model] = {
+                    'calls': 0,
+                    'input_tokens': 0,
+                    'output_tokens': 0,
+                    'total_tokens': 0,
+                    'cost_usd': 0.0
+                }
+            
+            model_breakdown[model]['calls'] += stats['calls']
+            model_breakdown[model]['input_tokens'] += stats['input_tokens']
+            model_breakdown[model]['output_tokens'] += stats['output_tokens']
+            model_breakdown[model]['total_tokens'] += stats['total_tokens']
+            model_breakdown[model]['cost_usd'] += stats['cost_usd']
+        
+        # Calculate averages for endpoint breakdown
+        for endpoint in endpoint_breakdown.values():
+            if endpoint['calls'] > 0:
+                endpoint['avg_cost_per_call'] = round(endpoint['cost_usd'] / endpoint['calls'], 4)
+            else:
+                endpoint['avg_cost_per_call'] = 0.0
         
         return {
             'total_tokens': self.total_tokens_used,
             'input_tokens': self.total_input_tokens,
             'output_tokens': self.total_output_tokens,
             'estimated_cost_usd': round(cost, 4),
-            'model': self.model
+            'total_cost_usd': round(self.total_cost_usd, 4),
+            'model': self.model,
+            'endpoint_breakdown': endpoint_breakdown,  # Phase 5: Add endpoint breakdown
+            'model_breakdown': model_breakdown  # Model-level aggregation
         }
     
     def reset_usage_stats(self):
@@ -319,6 +401,8 @@ actions:
         self.total_tokens_used = 0
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self.total_cost_usd = 0.0
+        self.endpoint_stats = {}  # Phase 5: Reset endpoint stats
         logger.info("Usage statistics reset")
     
     @retry(
@@ -332,7 +416,8 @@ actions:
         prompt_dict: Dict[str, str],
         temperature: float = 0.7,
         max_tokens: int = 600,
-        output_format: str = "yaml"  # "yaml" | "description" | "json"
+        output_format: str = "yaml",  # "yaml" | "description" | "json"
+        endpoint: Optional[str] = None  # Phase 5: Track which endpoint made the call
     ) -> Dict:
         """
         Generate automation suggestion using unified prompt format.
@@ -379,23 +464,87 @@ actions:
 
             messages.append({"role": "user", "content": prompt_dict["user_prompt"]})
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
+            # Count tokens before API call for logging and budgeting
+            if hasattr(self, '_token_counter_enabled') and self._token_counter_enabled:
+                try:
+                    estimated_tokens = count_message_tokens(messages, model=self.model)
+                    token_breakdown = get_token_breakdown(messages, model=self.model)
+                    logger.info(
+                        f"📊 Token estimate before API call: {estimated_tokens} tokens "
+                        f"(breakdown: {token_breakdown})"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to count tokens before API call: {e}")
+
+            # OpenAI Native Prompt Caching (Phase 4) - 90% discount on cached inputs
+            # NOTE: Prompt caching via cache_control parameter is not currently supported
+            # in the OpenAI Python SDK. This feature may be available in future SDK versions
+            # or via extra_headers. For now, we log the cache intent but don't pass it to the API.
+            settings = _get_settings()
+            if settings and getattr(settings, 'enable_prompt_caching', True):
+                # Generate cache key from system prompt (most stable part)
+                system_prompt = messages[0].get('content', '') if messages else ''
+                if system_prompt:
+                    import hashlib
+                    cache_key = hashlib.md5(system_prompt.encode()).hexdigest()
+                    # Log cache intent (cache_control parameter not supported in current SDK)
+                    logger.debug(f"Prompt caching requested (cache key: {cache_key[:8]}...) - not implemented in current SDK version")
+            
+            # Build API call parameters
+            api_params = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_completion_tokens": max_tokens  # Use max_completion_tokens for newer models (gpt-5.1+)
+            }
+            
+            # NOTE: cache_control parameter is not supported in OpenAI Python SDK
+            # Remove if present to avoid TypeError
+            api_params.pop("cache_control", None)
+            
+            response = await self.client.chat.completions.create(**api_params)
             
             # Track token usage (OpenAI best practice)
             usage = response.usage
             self.total_input_tokens += usage.prompt_tokens
             self.total_output_tokens += usage.completion_tokens
             self.total_tokens_used += usage.total_tokens
+            
+            # Calculate cost for this request
+            request_cost = CostTracker.calculate_cost(
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                model=self.model
+            )
+            self.total_cost_usd += request_cost
+            
+            # Phase 5: Track endpoint-level stats (enhanced with model name)
+            if endpoint:
+                # Use composite key to track model per endpoint
+                endpoint_key = f"{endpoint}:{self.model}"
+                if endpoint_key not in self.endpoint_stats:
+                    self.endpoint_stats[endpoint_key] = {
+                        'calls': 0,
+                        'input_tokens': 0,
+                        'output_tokens': 0,
+                        'total_tokens': 0,
+                        'cost_usd': 0.0,
+                        'model': self.model  # Include model name in stats
+                    }
+                self.endpoint_stats[endpoint_key]['calls'] += 1
+                self.endpoint_stats[endpoint_key]['input_tokens'] += usage.prompt_tokens
+                self.endpoint_stats[endpoint_key]['output_tokens'] += usage.completion_tokens
+                self.endpoint_stats[endpoint_key]['total_tokens'] += usage.total_tokens
+                self.endpoint_stats[endpoint_key]['cost_usd'] += request_cost
+            
             # Store last usage for debug panel
             self.last_usage = {
                 'prompt_tokens': usage.prompt_tokens,
                 'completion_tokens': usage.completion_tokens,
-                'total_tokens': usage.total_tokens
+                'total_tokens': usage.total_tokens,
+                'cost_usd': round(request_cost, 4),
+                'model': self.model,
+                'endpoint': endpoint  # Phase 5: Include endpoint in last usage
             }
             
             logger.info(
@@ -468,6 +617,7 @@ actions:
         Infer category and priority from automation description.
         
         Used for regenerating category when description changes during redeploy.
+        Uses GPT-5 Nano for classification (96% cost savings vs GPT-5.1).
         
         Args:
             description: Automation description
@@ -475,6 +625,16 @@ actions:
         Returns:
             Dictionary with 'category' and 'priority' keys
         """
+        # Use classification model (GPT-5 Nano) for cost efficiency
+        from ..config import settings
+        classification_model = getattr(settings, 'classification_model', 'gpt-5-nano')
+        
+        # Create temporary client with classification model if different
+        original_model = self.model
+        if classification_model != self.model:
+            # Temporarily switch model for this call
+            self.model = classification_model
+        
         try:
             result = await self.generate_with_unified_prompt(
                 prompt_dict={
@@ -529,4 +689,7 @@ Choose the category that BEST fits the primary purpose of this automation."""
                 'category': 'convenience',
                 'priority': 'medium'
             }
+        finally:
+            # Restore original model
+            self.model = original_model
     

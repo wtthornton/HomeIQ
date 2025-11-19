@@ -591,7 +591,7 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
                     }
                 ],
                 temperature=temperature,
-                max_tokens=1500,
+                max_completion_tokens=1500,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}  # Force JSON output
             )
             

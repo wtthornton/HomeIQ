@@ -241,7 +241,7 @@ Respond with JSON:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=200
+                max_completion_tokens=200  # Use max_completion_tokens for newer models
             )
             
             import json

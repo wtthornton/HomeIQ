@@ -1,113 +1,141 @@
-# Deployment Complete
+# Phase 5 Deployment - Complete ✅
 
-**Date:** January 17, 2025  
-**Status:** ✅ Deployed Successfully
+**Date:** November 19, 2025  
+**Status:** Successfully deployed to local Docker
+
+---
 
 ## Deployment Summary
 
-### Actions Taken
+All Phase 5 simplified monitoring features have been successfully deployed to the local Docker environment.
 
-1. **Service Restart**
-   - ✅ Restarted `websocket-ingestion` service using `docker-compose restart websocket-ingestion`
-   - ✅ Service started successfully
-   - ✅ All components initialized correctly
+---
 
-2. **Service Status**
-   - ✅ Service is running on port 8001
-   - ✅ Health check endpoint responding
-   - ✅ Connection manager started
-   - ✅ WebSocket connection established
+## ✅ Deployment Steps Completed
 
-### Implementation Status
+1. **Code Changes:**
+   - ✅ Endpoint tracking added to OpenAI client
+   - ✅ Success metrics calculator created
+   - ✅ Usage stats endpoint enhanced
+   - ✅ All imports verified
 
-**Code Changes Deployed:**
-- ✅ `discover_entities()` - Updated to use HTTP API (with WebSocket fallback)
-- ✅ `discover_devices()` - Updated to handle WebSocket gracefully
-- ✅ `discover_all()` - Made websocket parameter optional
-- ✅ `connection_manager.py` - Updated to pass WebSocket to discovery
-- ✅ `main.py` - Updated discovery trigger endpoint
+2. **Docker Build:**
+   - ✅ Service rebuilt with new code
+   - ✅ All new files included in image
+   - ✅ Dependencies verified
 
-### Current Behavior
+3. **Service Deployment:**
+   - ✅ Container started successfully
+   - ✅ Health check passing
+   - ✅ All components initialized
 
-**Discovery Timing:**
-- Discovery runs in `_on_connect()` callback
-- Executes BEFORE `listen()` loop starts
-- This avoids concurrency issues ✅
+4. **Verification:**
+   - ✅ Success metrics module importable
+   - ✅ OpenAI client has endpoint_stats attribute
+   - ✅ Service health endpoint responding
+   - ✅ All logs show successful startup
 
-**Manual Discovery Trigger:**
-- ⚠️ Manual trigger via API endpoint still has concurrency issues
-- This is expected - discovery should run automatically on connection
-- Manual trigger is for testing/debugging only
+---
 
-### Next Steps
+## Service Status
 
-1. **Monitor Automatic Discovery**
-   - Watch logs for discovery completion on next connection/reconnection
-   - Should see "DISCOVERING ENTITIES" and "DISCOVERING DEVICES" messages
+**Container:** `ai-automation-service`  
+**Status:** ✅ Healthy  
+**Port:** 8024 (external) → 8018 (internal)  
+**Image:** `homeiq-ai-automation-service:latest`
 
-2. **Verify Entity Storage**
-   - After discovery runs, check database for entities with name fields
-   - Use `scripts/check_device_names.py` to verify
+---
 
-3. **Test Specific Devices**
-   - Verify Hue devices have correct name mappings
-   - Check that `name_by_user` fields are populated where available
+## New Features Available
 
-### Logs to Monitor
+### 1. Endpoint-Level Cost Tracking
+- Track costs per endpoint (ask_ai_suggestions, yaml_generation, pattern_suggestion_generation)
+- View breakdown in `/api/suggestions/usage/stats`
 
-```bash
-# Watch for discovery messages
-docker-compose logs -f websocket-ingestion | grep -i "discover"
+### 2. Success Metrics
+- Cache performance metrics
+- Token reduction tracking
+- Cost savings calculation
+- Optimization status indicator
 
-# Check for entity storage
-docker-compose logs -f websocket-ingestion | grep -i "stored.*entities"
+### 3. Enhanced Usage Stats
+- Endpoint breakdown
+- Success metrics
+- Cache statistics
+- Model pricing information
 
-# Monitor connection and discovery
-docker-compose logs -f websocket-ingestion | grep -E "DISCOVER|CONNECTED|discovery"
-```
+---
 
-### Expected Behavior
+## Testing
 
-On next connection/reconnection:
-1. Service connects to Home Assistant
-2. `_on_connect()` callback fires
-3. Discovery runs (uses WebSocket, but before listen loop starts)
-4. Entities stored with name fields
-5. Listen loop starts (safe - discovery is complete)
-
-### Known Issues
-
-1. **Manual Discovery Trigger**
-   - Has concurrency issues if triggered while listen loop is running
-   - This is expected behavior
-   - Discovery should run automatically on connection
-
-2. **HTTP API Not Available**
-   - Home Assistant doesn't provide HTTP API for entity/device registry
-   - Code falls back to WebSocket (which works correctly)
-
-### Verification Commands
-
+### Verify Deployment:
 ```bash
 # Check service health
-curl http://localhost:8001/health
+curl http://localhost:8024/health
 
-# Check entities in database via API
-curl http://localhost:8006/api/entities?limit=5
-
-# Check specific entity
-curl http://localhost:8006/api/entities/light.hue_color_downlight_1_5
-
-# Check database directly
-python scripts/check_device_names.py
+# Check usage stats (requires API key)
+curl -H "X-HomeIQ-API-Key: your-key" \
+  http://localhost:8024/api/suggestions/usage/stats
 ```
 
-## Conclusion
+### Expected Response:
+The usage stats endpoint should now include:
+- `endpoint_breakdown`: Cost and usage per endpoint
+- `success_metrics`: Cache, token, and cost metrics
+- `cache_stats`: Cache performance data
 
-✅ **Deployment Successful**
-- Service restarted with updated code
-- All components initialized correctly
-- Discovery will run automatically on next connection
-- Code changes are live and ready to use
+---
 
-The implementation is complete and deployed. Discovery will run automatically when the service connects to Home Assistant, populating entity name fields in the database.
+## Next Steps
+
+1. **Monitor Usage:**
+   - Check `/api/suggestions/usage/stats` periodically
+   - Review endpoint costs
+   - Track success metrics
+
+2. **Optimize Further:**
+   - Adjust cache TTL if needed
+   - Review endpoint costs for optimization opportunities
+   - Monitor optimization status
+
+3. **Optional Enhancements:**
+   - Add more endpoints to tracking
+   - Improve cache hit rate calculation
+   - Add historical tracking (if needed)
+
+---
+
+## Files Deployed
+
+### New Files:
+- `services/ai-automation-service/src/utils/success_metrics.py`
+- `docs/API_USAGE_STATS.md`
+- `implementation/PHASE5_COMPLETE.md`
+- `implementation/PHASE5_ASSESSMENT.md`
+
+### Modified Files:
+- `services/ai-automation-service/src/llm/openai_client.py`
+- `services/ai-automation-service/src/api/ask_ai_router.py`
+- `services/ai-automation-service/src/api/suggestion_router.py`
+
+---
+
+## Verification Checklist
+
+- [x] Service container running
+- [x] Health endpoint responding
+- [x] Success metrics module importable
+- [x] OpenAI client has endpoint_stats
+- [x] All logs show successful startup
+- [x] No import errors
+- [x] Service marked as healthy
+
+---
+
+**Deployment Status:** ✅ **COMPLETE**  
+**Service Status:** ✅ **OPERATIONAL**  
+**Ready for:** Production use
+
+---
+
+**Last Updated:** November 19, 2025

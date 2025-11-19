@@ -5,6 +5,7 @@ import { SkeletonCard } from './skeletons';
 import { apiService, ContainerInfo, adminApi } from '../services/api';
 import type { ServiceStatus, ServiceDefinition } from '../types';
 import { fetchAIStats, AIStatsData } from './AIStats';
+import { aiApi } from '../services/api';
 import type { ServicesHealthResponse } from '../types/health';
 
 interface ServicesTabProps {
@@ -15,6 +16,7 @@ interface ServicesTabProps {
 const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // Core Services
   { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '🏠', type: 'core', port: 8001, description: 'Home Assistant WebSocket client' },
+  { id: 'ai-automation-service', name: 'AI Automation Service', icon: '🤖', type: 'core', port: 8018, description: 'AI-powered automation and entity extraction' },
   // DEPRECATED: enrichment-pipeline (Port 8002) - Epic 31: Direct writes to InfluxDB
   // { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', port: 8002, description: 'Multi-source data enrichment' },
   // { id: 'data-retention', name: 'Data Retention', icon: '💾', type: 'core', port: 8080, description: 'Storage optimization' }, // TODO: Enable when service is deployed
@@ -41,6 +43,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
   const [selectedService, setSelectedService] = useState<{ service: ServiceStatus; icon: string } | null>(null);
   const [operatingServices, setOperatingServices] = useState<Set<string>>(new Set());
   const [aiStats, setAiStats] = useState<AIStatsData | null>(null);
+  const [modelComparison, setModelComparison] = useState<any | null>(null);
 
   const loadServices = async () => {
     try {
@@ -100,6 +103,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
     // Only fetch for ai-automation-service
     if (selectedService.service.service !== 'ai-automation-service') {
       setAiStats(null);
+      setModelComparison(null);
       return;
     }
 
@@ -113,10 +117,24 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       }
     };
 
+    const loadModelComparison = async () => {
+      try {
+        const comparison = await aiApi.getModelComparison();
+        setModelComparison(comparison);
+      } catch (err) {
+        console.error('Failed to load model comparison:', err);
+        setModelComparison(null);
+      }
+    };
+
     loadAIStats();
+    loadModelComparison();
 
     // Auto-refresh every 30 seconds
-    const interval = setInterval(loadAIStats, 30000);
+    const interval = setInterval(() => {
+      loadAIStats();
+      loadModelComparison();
+    }, 30000);
     return () => clearInterval(interval);
   }, [selectedService]);
 
@@ -237,17 +255,50 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
     );
   }
 
+  // Prepare modal props when a service is selected
+  const modalProps = selectedService ? (() => {
+    try {
+      const serviceDef = getServiceDefinition(selectedService.service.service);
+      const container = containers.find(c => c.service_name === selectedService.service.service);
+      const serviceStatus = selectedService.service?.status || 'stopped';
+      const status: 'healthy' | 'degraded' | 'unhealthy' | 'paused' = 
+        serviceStatus === 'running' ? 'healthy' : 
+        serviceStatus === 'error' ? 'unhealthy' :
+        serviceStatus === 'degraded' ? 'degraded' : 'paused';
+      const details = [
+        { label: 'Service Name', value: selectedService.service.service || 'Unknown' },
+        { label: 'Status', value: serviceStatus || 'unknown' },
+        { label: 'Container Status', value: container?.status || 'unknown' },
+        { label: 'Last Check', value: selectedService.service?.timestamp ? new Date(selectedService.service.timestamp).toLocaleString() : 'N/A' },
+      ];
+      return {
+        title: serviceDef.name || selectedService.service.service || 'Service',
+        service: selectedService.service.service || 'unknown',
+        icon: selectedService.icon || '🔧',
+        status,
+        details,
+      };
+    } catch (err) {
+      console.error('Error preparing modal props:', err);
+      return null;
+    }
+  })() : null;
+
   return (
     <>
       {/* Service Details Modal */}
-      {selectedService && (
+      {selectedService && modalProps && (
         <ServiceDetailsModal
-          service={selectedService.service}
-          icon={selectedService.icon}
+          title={modalProps.title}
+          service={modalProps.service}
+          icon={modalProps.icon}
+          status={modalProps.status}
+          details={modalProps.details}
           isOpen={true}
           onClose={() => setSelectedService(null)}
           darkMode={darkMode}
           aiStats={aiStats}
+          modelComparison={modelComparison}
         />
       )}
 

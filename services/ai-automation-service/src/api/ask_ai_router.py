@@ -54,6 +54,7 @@ from ..services.clarification import (
     ClarificationQuestion,
     ClarificationAnswer
 )
+from ..services.clarification.models import AmbiguityType, AmbiguitySeverity, Ambiguity
 from ..services.rag import RAGClient
 from ..services.service_container import ServiceContainer
 import os
@@ -159,6 +160,55 @@ def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict
 def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, Any]]) -> str:
     """Backwards compatibility wrapper."""
     return _build_entity_validation_context_with_comprehensive_data(entities, enriched_data=None)
+
+
+def _get_ambiguity_id(amb: Any) -> str:
+    """Safely get ambiguity ID from either Ambiguity object or dictionary."""
+    if isinstance(amb, dict):
+        return amb.get('id', '')
+    return amb.id if hasattr(amb, 'id') else ''
+
+
+def _get_ambiguity_type(amb: Any) -> str:
+    """Safely get ambiguity type from either Ambiguity object or dictionary."""
+    if isinstance(amb, dict):
+        amb_type = amb.get('type', '')
+        # Handle both string and enum value
+        if isinstance(amb_type, str):
+            return amb_type
+        return amb_type.value if hasattr(amb_type, 'value') else str(amb_type)
+    if hasattr(amb, 'type'):
+        amb_type = amb.type
+        return amb_type.value if hasattr(amb_type, 'value') else str(amb_type)
+    return ''
+
+
+def _get_ambiguity_context(amb: Any) -> Dict[str, Any]:
+    """Safely get ambiguity context from either Ambiguity object or dictionary."""
+    if isinstance(amb, dict):
+        return amb.get('context', {})
+    return amb.context if hasattr(amb, 'context') else {}
+
+
+def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> float:
+    """
+    Get the appropriate temperature value for a given model.
+    
+    Some models (gpt-5-mini, gpt-5-nano) only support temperature=1.0.
+    For other models, use the desired temperature.
+    
+    Args:
+        model: The model name (e.g., 'gpt-5-mini', 'gpt-5.1')
+        desired_temperature: The desired temperature value (default: 0.1)
+    
+    Returns:
+        The temperature value to use (1.0 for fixed-temperature models, desired_temperature otherwise)
+    """
+    models_with_fixed_temperature = ['gpt-5-mini', 'gpt-5-nano']
+    if model in models_with_fixed_temperature:
+        logger.debug(f"Using temperature=1.0 for {model} (model only supports default temperature)")
+        return 1.0
+    return desired_temperature
 
 # Global device intelligence client and extractors
 _device_intelligence_client: Optional[DeviceIntelligenceClient] = None
@@ -590,10 +640,17 @@ def _generate_confidence_summary(
     critical_resolved = 0
     important_resolved = 0
     for amb in session.ambiguities:
-        if amb.id in resolved_ambiguity_ids:
-            if amb.severity.value == "critical":
+        amb_id = _get_ambiguity_id(amb)
+        if amb_id in resolved_ambiguity_ids:
+            # Get severity safely
+            if isinstance(amb, dict):
+                severity = amb.get('severity', '')
+            else:
+                severity = amb.severity.value if hasattr(amb.severity, 'value') else str(amb.severity) if hasattr(amb, 'severity') else ''
+            
+            if severity == "critical":
                 critical_resolved += 1
-            elif amb.severity.value == "important":
+            elif severity == "important":
                 important_resolved += 1
     
     # Build summary based on what improved
@@ -2110,17 +2167,34 @@ Generate ONLY the YAML content:
 """
 
     try:
-        # Call OpenAI to generate YAML
-        response = await openai_client.client.chat.completions.create(
-            model=openai_client.model,
+        # Use configured model for YAML generation (GPT-5 Mini for 80% cost savings)
+        yaml_model = getattr(settings, 'yaml_generation_model', 'gpt-5-mini')
+        
+        # Create temporary client with YAML model if different from default
+        if yaml_model != openai_client.model:
+            yaml_client = OpenAIClient(
+                api_key=openai_client.api_key,
+                model=yaml_model,
+                enable_token_counting=getattr(settings, 'enable_token_counting', True)
+            )
+        else:
+            yaml_client = openai_client
+        
+        # Determine temperature based on model capabilities
+        # Some models (gpt-5-mini, gpt-5-nano) only support temperature=1.0
+        yaml_temperature = _get_temperature_for_model(yaml_model, desired_temperature=0.1)
+        
+        # Call OpenAI to generate YAML using configured model
+        response = await yaml_client.client.chat.completions.create(
+            model=yaml_client.model,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You are a Home Assistant 2025 YAML automation expert. "
-                        "Your output is production-ready YAML that passes Home Assistant validation. "
-                        "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
-                        "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
+                        "You are a Home Assistant 2025 YAML automation expert. " 
+                        "Your output is production-ready YAML that passes Home Assistant validation. " 
+                        "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
+                        "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
                         "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
                     )
                 },
@@ -2129,11 +2203,40 @@ Generate ONLY the YAML content:
                     "content": prompt
                 }
             ],
-            temperature=0.1,  # Very low temperature for deterministic, structured YAML output
-            max_tokens=2000  # Increased to prevent truncation of complex automations
+            temperature=yaml_temperature,
+            max_completion_tokens=2000  # Increased to prevent truncation of complex automations (use max_completion_tokens for newer models)
         )
         
+        # Phase 5: Track endpoint-level stats for YAML generation
+        if hasattr(response, 'usage') and response.usage:
+            usage = response.usage
+            endpoint = "yaml_generation"
+            if not hasattr(yaml_client, 'endpoint_stats'):
+                yaml_client.endpoint_stats = {}
+            if endpoint not in yaml_client.endpoint_stats:
+                yaml_client.endpoint_stats[endpoint] = {
+                    'calls': 0,
+                    'input_tokens': 0,
+                    'output_tokens': 0,
+                    'total_tokens': 0,
+                    'cost_usd': 0.0
+                }
+            from ..llm.cost_tracker import CostTracker
+            request_cost = CostTracker.calculate_cost(
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                model=yaml_client.model
+            )
+            yaml_client.endpoint_stats[endpoint]['calls'] += 1
+            yaml_client.endpoint_stats[endpoint]['input_tokens'] += usage.prompt_tokens
+            yaml_client.endpoint_stats[endpoint]['output_tokens'] += usage.completion_tokens
+            yaml_client.endpoint_stats[endpoint]['total_tokens'] += usage.total_tokens
+            yaml_client.endpoint_stats[endpoint]['cost_usd'] += request_cost
+        
         yaml_content = response.choices[0].message.content.strip()
+        
+        logger.info(f"📥 [YAML_RAW] OpenAI returned {len(yaml_content)} chars")
+        logger.info(f"📄 [YAML_RAW] First 300 chars: {yaml_content[:300]}")
         
         # Remove markdown code blocks if present
         if yaml_content.startswith('```yaml'):
@@ -2146,6 +2249,8 @@ Generate ONLY the YAML content:
         
         yaml_content = yaml_content.strip()
         
+        logger.info(f"🧹 [YAML_CLEANED] After cleanup: {len(yaml_content)} chars")
+        
         # Validate YAML syntax
         try:
             yaml_lib.safe_load(yaml_content)
@@ -2157,7 +2262,12 @@ Generate ONLY the YAML content:
         # Validate YAML structure and fix service names (e.g., wled.turn_on → light.turn_on)
         from ..services.yaml_structure_validator import YAMLStructureValidator
         validator = YAMLStructureValidator()
+        
+        logger.info(f"🔍 [VALIDATOR] Before validation: {len(yaml_content)} chars")
         validation = validator.validate(yaml_content)
+        logger.info(f"🔍 [VALIDATOR] Validation complete: is_valid={validation.is_valid}, has_fixed={bool(validation.fixed_yaml)}")
+        if validation.fixed_yaml:
+            logger.info(f"🔍 [VALIDATOR] Fixed YAML length: {len(validation.fixed_yaml)} chars")
         
         # Use fixed YAML if validation made fixes
         if validation.fixed_yaml:
@@ -2174,7 +2284,8 @@ Generate ONLY the YAML content:
                 # Log the actual fix for debugging
                 logger.info(f"🔍 Fixed YAML preview (first 500 chars): {yaml_content[:500]}")
         else:
-            logger.debug(f"⚠️ No fixed YAML available from validator (errors: {len(validation.errors)})")
+            logger.info(f"⚠️ [VALIDATOR] No fixed YAML available - keeping original (errors: {len(validation.errors)})")
+            logger.info(f"⚠️ [VALIDATOR] Original YAML length: {len(yaml_content)} chars")
         
         if not validation.is_valid:
             logger.warning(f"⚠️ YAML structure validation found issues: {validation.errors[:3]}")
@@ -2312,7 +2423,7 @@ CONSTRAINTS:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,  # Research-backed: 0.1-0.2 for extraction tasks (deterministic, consistent)
-            max_tokens=60,     # Short output - just the command
+            max_completion_tokens=60,     # Short output - just the command (use max_completion_tokens for newer models)
             top_p=0.9         # Nucleus sampling for slight creativity while staying focused
         )
         logger.info(f" Got OpenAI response")
@@ -3190,16 +3301,33 @@ async def generate_suggestions_from_query(
                     else:
                         logger.info("ℹ️  Enrichment context disabled via ENABLE_ENRICHMENT_CONTEXT=false")
 
-                    # Use comprehensive enrichment service that combines ALL data sources
-                    from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
-                    enriched_data = await enrich_entities_comprehensively(
-                        entity_ids=set(resolved_entity_ids),
-                        ha_client=ha_client,
-                        device_intelligence_client=_device_intelligence_client,
-                        data_api_client=None,  # Could add DataAPIClient if historical patterns needed
-                        include_historical=False,  # Set to True to include usage patterns
-                        enrichment_context=enrichment_context  # NEW: Add enrichment context
+                    # Check cache first (Phase 4: Entity Context Caching)
+                    from ..services.entity_context_cache import get_entity_cache
+                    
+                    entity_cache = get_entity_cache(
+                        ttl_seconds=getattr(settings, 'entity_cache_ttl_seconds', 300)
                     )
+                    
+                    cached_data = entity_cache.get(set(resolved_entity_ids))
+                    
+                    if cached_data:
+                        logger.info(f"✅ Cache hit: Using cached entity data for {len(resolved_entity_ids)} entities")
+                        enriched_data = cached_data
+                    else:
+                        # Use comprehensive enrichment service that combines ALL data sources
+                        from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                        enriched_data = await enrich_entities_comprehensively(
+                            entity_ids=set(resolved_entity_ids),
+                            ha_client=ha_client,
+                            device_intelligence_client=_device_intelligence_client,
+                            data_api_client=None,  # Could add DataAPIClient if historical patterns needed
+                            include_historical=False,  # Set to True to include usage patterns
+                            enrichment_context=enrichment_context  # NEW: Add enrichment context
+                        )
+                        
+                        # Cache the enriched data
+                        entity_cache.set(set(resolved_entity_ids), enriched_data)
+                        logger.info(f"✅ Cached entity data for {len(resolved_entity_ids)} entities")
                     
                     # ========================================================================
                     # LOCATION-AWARE ENTITY EXPANSION (NEW)
@@ -3472,6 +3600,24 @@ async def generate_suggestions_from_query(
                         if entity_id in enriched_data
                     }
                     
+                    # Compress entity context to reduce token usage (Phase 3)
+                    if getattr(settings, 'enable_token_counting', True):
+                        from ..utils.entity_context_compressor import compress_entity_context
+                        
+                        max_entity_tokens = getattr(settings, 'max_entity_context_tokens', 10_000)
+                        suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+                        
+                        filtered_enriched_data_for_prompt = compress_entity_context(
+                            filtered_enriched_data_for_prompt,
+                            max_tokens=max_entity_tokens,
+                            model=suggestion_model
+                        )
+                        
+                        logger.info(
+                            f"✅ Compressed entity context to {len(filtered_enriched_data_for_prompt)} entities "
+                            f"(max {max_entity_tokens} tokens)"
+                        )
+                    
                     context_builder = EntityContextBuilder()
                     entity_context_json = await context_builder.build_entity_context_json(
                         entities=enriched_entities,
@@ -3499,6 +3645,51 @@ async def generate_suggestions_from_query(
             entity_context_json=entity_context_json,  # Pass enriched context
             clarification_context=clarification_context  # NEW: Pass clarification Q&A
         )
+        
+        # Enforce token budget before API call (Phase 2)
+        if getattr(settings, 'enable_token_counting', True):
+            from ..utils.token_budget import enforce_token_budget, check_token_budget
+            from ..utils.token_counter import count_message_tokens
+            
+            # Build budget from settings
+            token_budget = {
+                'max_entity_context_tokens': getattr(settings, 'max_entity_context_tokens', 10_000),
+                'max_enrichment_context_tokens': getattr(settings, 'max_enrichment_context_tokens', 2_000),
+                'max_conversation_history_tokens': getattr(settings, 'max_conversation_history_tokens', 1_000),
+                'max_total_tokens': 30_000  # OpenAI rate limit (will be 500K after tier verification)
+            }
+            
+            # Enforce budget on prompt components
+            prompt_dict = enforce_token_budget(
+                prompt_dict,
+                token_budget,
+                model=getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+            )
+            
+            # Check total token budget and log warning if approaching limit
+            # Build messages to check
+            check_messages = [
+                {"role": "system", "content": prompt_dict.get("system_prompt", "")},
+                {"role": "user", "content": prompt_dict.get("user_prompt", "")}
+            ]
+            
+            budget_status = check_token_budget(
+                check_messages,
+                token_budget,
+                model=getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+            )
+            
+            if budget_status['usage_percent'] > 80:
+                logger.warning(
+                    f"⚠️ Token usage at {budget_status['usage_percent']:.1f}% of budget "
+                    f"({budget_status['total_tokens']}/{budget_status['max_tokens']} tokens)"
+                )
+            
+            if budget_status['total_tokens'] > getattr(settings, 'warn_on_token_threshold', 20_000):
+                logger.warning(
+                    f"⚠️ Token count ({budget_status['total_tokens']}) exceeds warning threshold "
+                    f"({getattr(settings, 'warn_on_token_threshold', 20_000)})"
+                )
 
         if getattr(settings, "enable_langchain_prompt_builder", False):
             try:
@@ -3534,12 +3725,31 @@ async def generate_suggestions_from_query(
         }
         
         try:
-            suggestions_data = await openai_client.generate_with_unified_prompt(
+            # Use configured model for suggestion generation (GPT-5.1 for creativity)
+            suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+            
+            # Create temporary client with suggestion model if different
+            if suggestion_model != openai_client.model:
+                suggestion_client = OpenAIClient(
+                    api_key=openai_client.api_key,
+                    model=suggestion_model,
+                    enable_token_counting=getattr(settings, 'enable_token_counting', True)
+                )
+            else:
+                suggestion_client = openai_client
+            
+            suggestions_data = await suggestion_client.generate_with_unified_prompt(
+                endpoint="ask_ai_suggestions",  # Phase 5: Track endpoint
                 prompt_dict=prompt_dict,
                 temperature=settings.creative_temperature,
                 max_tokens=1200,
                 output_format="json"
             )
+            
+            # Update debug data with actual model used
+            if suggestion_client.last_usage:
+                openai_debug_data['token_usage'] = suggestion_client.last_usage
+                openai_debug_data['model_used'] = suggestion_model
             
             # Store OpenAI response (parsed JSON)
             openai_debug_data['openai_response'] = suggestions_data
@@ -4912,7 +5122,7 @@ async def provide_clarification(
         # Find remaining (unresolved) ambiguities for confidence calculation
         remaining_ambiguities_for_confidence = [
             amb for amb in session.ambiguities
-            if amb.id not in resolved_ambiguity_ids
+            if _get_ambiguity_id(amb) not in resolved_ambiguity_ids
         ]
         
         # OPTION 2: Check RAG with enriched query after answers received
@@ -5380,28 +5590,33 @@ async def provide_clarification(
                 if question and question.category == 'device' and answer.selected_entities:
                     # If user selected specific devices, mark device ambiguities as resolved
                     for amb in session.ambiguities:
-                        if amb.type.value == 'device' and amb.id not in answered_ambiguity_ids:
+                        amb_type = _get_ambiguity_type(amb)
+                        amb_id = _get_ambiguity_id(amb)
+                        amb_context = _get_ambiguity_context(amb)
+                        
+                        if amb_type == 'device' and amb_id not in answered_ambiguity_ids:
                             # Check if this ambiguity is about the same devices
-                            amb_entities = amb.context.get('matches', [])
+                            amb_entities = amb_context.get('matches', [])
                             if amb_entities:
                                 amb_entity_ids = [e.get('entity_id') for e in amb_entities if isinstance(e, dict)]
                                 if any(eid in answer.selected_entities for eid in amb_entity_ids):
-                                    answered_ambiguity_ids.add(amb.id)
-                                    logger.info(f"✅ Marked ambiguity {amb.id} as resolved by device selection")
+                                    answered_ambiguity_ids.add(amb_id)
+                                    logger.info(f"✅ Marked ambiguity {amb_id} as resolved by device selection")
             
             # Combine original and new ambiguities, excluding answered ones
             all_ambiguities = session.ambiguities + new_ambiguities
             remaining_ambiguities = [
                 amb for amb in all_ambiguities
-                if amb.id not in answered_ambiguity_ids
+                if _get_ambiguity_id(amb) not in answered_ambiguity_ids
             ]
             
             # Remove duplicates by ambiguity ID
             seen_ambiguity_ids = set()
             unique_remaining = []
             for amb in remaining_ambiguities:
-                if amb.id not in seen_ambiguity_ids:
-                    seen_ambiguity_ids.add(amb.id)
+                amb_id = _get_ambiguity_id(amb)
+                if amb_id not in seen_ambiguity_ids:
+                    seen_ambiguity_ids.add(amb_id)
                     unique_remaining.append(amb)
             remaining_ambiguities = unique_remaining
             
@@ -6262,7 +6477,7 @@ Response format: ONLY JSON, no other text:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,  # Low temperature for consistent analysis
-                max_tokens=400,
+                max_completion_tokens=400,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}  # Force JSON mode
             )
             
@@ -6868,7 +7083,7 @@ Response format: ONLY JSON, no other text:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,  # Very low temperature for deterministic, consistent restoration
-            max_tokens=500,  # Increased for nested component descriptions
+            max_completion_tokens=500,  # Increased for nested component descriptions (use max_completion_tokens for newer models)
             response_format={"type": "json_object"}
         )
         
@@ -6922,15 +7137,21 @@ async def approve_suggestion_from_query(
     """
     Approve a suggestion and create the automation in Home Assistant.
     """
-    logger.info(f"✅ Approving suggestion {suggestion_id} from query {query_id}")
+    # Phase 1: Add comprehensive logging for debugging
+    logger.info(f"🚀 [APPROVAL START] query_id={query_id}, suggestion_id={suggestion_id}")
+    logger.info(f"📝 [APPROVAL] Request body: {request}")
     
     try:
         # Get the query from database
+        logger.info(f"🔍 [APPROVAL] Fetching query record: {query_id}")
         query = await db.get(AskAIQueryModel, query_id)
         if not query:
+            logger.error(f"❌ [APPROVAL] Query {query_id} not found in database")
             raise HTTPException(status_code=404, detail=f"Query {query_id} not found")
+        logger.info(f"✅ [APPROVAL] Found query with {len(query.suggestions)} suggestions")
         
         # Find the specific suggestion
+        logger.info(f"🔍 [APPROVAL] Searching for suggestion_id={suggestion_id}")
         suggestion = None
         for s in query.suggestions:
             if s.get('suggestion_id') == suggestion_id:
@@ -6938,7 +7159,10 @@ async def approve_suggestion_from_query(
                 break
         
         if not suggestion:
+            logger.error(f"❌ [APPROVAL] Suggestion {suggestion_id} not found in query suggestions")
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
+        
+        logger.info(f"✅ [APPROVAL] Found suggestion: {suggestion.get('title', 'Untitled')[:50]}")
         
         # Fail fast if validated_entities is missing - should already be set during suggestion creation
         validated_entities = suggestion.get('validated_entities')
@@ -6986,8 +7210,15 @@ async def approve_suggestion_from_query(
                     final_suggestion['validated_entities'].update(request.custom_entity_mapping)
         
         # Generate YAML for the suggestion (validated_entities already in final_suggestion)
+        logger.info(f"🔧 [YAML_GEN] Starting YAML generation for suggestion {suggestion_id}")
+        logger.info(f"📋 [YAML_GEN] Validated entities: {final_suggestion.get('validated_entities')}")
+        logger.info(f"📝 [YAML_GEN] Suggestion title: {final_suggestion.get('title', 'Untitled')}")
+        
         try:
             automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, [], db_session=db, ha_client=ha_client)
+            
+            logger.info(f"✅ [YAML_GEN] YAML generated successfully ({len(automation_yaml)} chars)")
+            logger.info(f"📄 [YAML_GEN] First 200 chars: {automation_yaml[:200]}")
         except ValueError as e:
             # Catch validation errors and return proper error response
             error_msg = str(e)
@@ -7243,13 +7474,19 @@ async def approve_suggestion_from_query(
         
         # Create automation in Home Assistant
         if not ha_client:
+            logger.error(f"❌ [DEPLOY] Home Assistant client not initialized")
             raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
+        
+        logger.info(f"🚀 [DEPLOY] Starting deployment to Home Assistant")
+        logger.info(f"🔗 [DEPLOY] HA URL: {ha_client.base_url if hasattr(ha_client, 'base_url') else 'N/A'}")
         
         try:
             creation_result = await ha_client.create_automation(automation_yaml)
             
             if creation_result.get('success'):
-                logger.info(f"✅ Automation created successfully: {creation_result.get('automation_id')}")
+                automation_id = creation_result.get('automation_id')
+                logger.info(f"✅ [DEPLOY] Successfully created automation: {automation_id}")
+                logger.info(f"🎉 [DEPLOY] Automation is now active in Home Assistant")
                 return {
                     "suggestion_id": suggestion_id,
                     "query_id": query_id,
@@ -7265,7 +7502,8 @@ async def approve_suggestion_from_query(
             else:
                 # Deployment failed but return YAML for user review
                 error_message = creation_result.get('error', 'Unknown error')
-                logger.error(f"❌ Failed to create automation: {error_message}")
+                logger.error(f"❌ [DEPLOY] Failed to create automation: {error_message}")
+                logger.error(f"❌ [DEPLOY] Full error details: {creation_result}")
                 return {
                     "suggestion_id": suggestion_id,
                     "query_id": query_id,
@@ -7284,7 +7522,8 @@ async def approve_suggestion_from_query(
                 }
         except Exception as e:
             error_message = str(e)
-            logger.error(f"❌ Failed to create automation: {error_message}")
+            logger.error(f"❌ [DEPLOY] Exception during HA deployment: {type(e).__name__}: {error_message}")
+            logger.error(f"❌ [DEPLOY] Stack trace:", exc_info=True)
             return {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
@@ -7305,8 +7544,9 @@ async def approve_suggestion_from_query(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error approving suggestion: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"❌ [APPROVAL] Unexpected exception: {type(e).__name__}: {str(e)}")
+        logger.error(f"❌ [APPROVAL] Full stack trace:", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")
 
 
 # ============================================================================

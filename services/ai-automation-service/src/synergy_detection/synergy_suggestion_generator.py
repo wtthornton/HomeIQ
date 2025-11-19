@@ -134,7 +134,7 @@ class SynergySuggestionGenerator:
                     }
                 ],
                 temperature=0.7,  # Balanced creativity
-                max_tokens=600  # Sufficient for automation YAML
+                max_completion_tokens=600  # Sufficient for automation YAML (use max_completion_tokens for newer models)
             )
             
             # Track token usage
