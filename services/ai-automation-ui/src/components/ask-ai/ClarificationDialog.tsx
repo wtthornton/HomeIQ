@@ -48,6 +48,7 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
 }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedEntities, setSelectedEntities] = useState<Record<string, string[]>>({});
+  const [optionDescriptions, setOptionDescriptions] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize answers
@@ -73,6 +74,18 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+    // Clear description when option changes
+    const descriptionKey = `${questionId}_desc`;
+    setOptionDescriptions(prev => {
+      const newState = { ...prev };
+      delete newState[descriptionKey];
+      return newState;
+    });
+  };
+
+  const handleDescriptionChange = (questionId: string, description: string) => {
+    const descriptionKey = `${questionId}_desc`;
+    setOptionDescriptions(prev => ({ ...prev, [descriptionKey]: description }));
   };
 
   const handleEntityToggle = (questionId: string, entityId: string) => {
@@ -85,13 +98,43 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
     });
   };
 
+  // Check if an option requires additional description
+  const requiresDescription = (option: string): boolean => {
+    if (!option) return false;
+    const lowerOption = option.toLowerCase();
+    return lowerOption.includes('(please describe)') ||
+           lowerOption.includes('(please specify)') ||
+           lowerOption.includes('(describe)') ||
+           lowerOption.includes('(specify)') ||
+           lowerOption.includes('please describe') ||
+           lowerOption.includes('please specify');
+  };
+
   const handleSubmit = async () => {
     // Validate all questions are answered
     const unanswered = questions.filter(q => {
       if (q.question_type === 'entity_selection') {
         return !selectedEntities[q.id] || selectedEntities[q.id].length === 0;
       }
-      return !answers[q.id] || answers[q.id].trim() === '';
+      
+      const answer = answers[q.id];
+      if (!answer || answer.trim() === '') {
+        return true;
+      }
+      
+      // Check if option requires description and it's missing
+      if (q.question_type === 'multiple_choice' && q.options) {
+        const selectedOption = answer;
+        if (requiresDescription(selectedOption)) {
+          const descriptionKey = `${q.id}_desc`;
+          const description = optionDescriptions[descriptionKey] || '';
+          if (!description || description.trim() === '') {
+            return true;
+          }
+        }
+      }
+      
+      return false;
     });
 
     if (unanswered.length > 0) {
@@ -109,9 +152,20 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
             selected_entities: selectedEntities[q.id] || []
           };
         } else {
+          let answerText = answers[q.id] || '';
+          
+          // Append description if option requires it
+          if (q.question_type === 'multiple_choice' && requiresDescription(answerText)) {
+            const descriptionKey = `${q.id}_desc`;
+            const description = optionDescriptions[descriptionKey] || '';
+            if (description && description.trim() !== '') {
+              answerText = `${answerText}: ${description.trim()}`;
+            }
+          }
+          
           return {
             question_id: q.id,
-            answer_text: answers[q.id] || '',
+            answer_text: answerText,
             selected_entities: undefined
           };
         }
@@ -131,29 +185,50 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
 
     switch (question.question_type) {
       case 'multiple_choice':
+        const descriptionKey = `${question.id}_desc`;
+        const description = optionDescriptions[descriptionKey] || '';
+        const needsDescription = answer && requiresDescription(answer);
+        
         return (
           <div className="space-y-2">
             {question.options?.map((option, idx) => (
-              <label
-                key={idx}
-                className="flex items-center space-x-2 p-3 rounded-lg cursor-pointer transition-colors"
-                style={{
-                  background: answer === option
-                    ? 'rgba(59, 130, 246, 0.2)'
-                    : 'rgba(30, 41, 59, 0.6)',
-                  border: `1px solid ${answer === option ? 'rgba(59, 130, 246, 0.5)' : 'rgba(51, 65, 85, 0.5)'}`
-                }}
-              >
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={option}
-                  checked={answer === option}
-                  onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span style={{ color: '#cbd5e1' }}>{option}</span>
-              </label>
+              <div key={idx}>
+                <label
+                  className="flex items-center space-x-2 p-3 rounded-lg cursor-pointer transition-colors"
+                  style={{
+                    background: answer === option
+                      ? 'rgba(59, 130, 246, 0.2)'
+                      : 'rgba(30, 41, 59, 0.6)',
+                    border: `1px solid ${answer === option ? 'rgba(59, 130, 246, 0.5)' : 'rgba(51, 65, 85, 0.5)'}`
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name={question.id}
+                    value={option}
+                    checked={answer === option}
+                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span style={{ color: '#cbd5e1' }}>{option}</span>
+                </label>
+                {answer === option && needsDescription && (
+                  <div className="mt-2 ml-7">
+                    <input
+                      type="text"
+                      value={description}
+                      onChange={(e) => handleDescriptionChange(question.id, e.target.value)}
+                      placeholder="Please provide details..."
+                      className="w-full px-4 py-2 rounded-lg border transition-colors"
+                      style={{
+                        background: 'rgba(30, 41, 59, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 0.5)',
+                        color: '#cbd5e1'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         );

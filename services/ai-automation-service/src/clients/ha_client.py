@@ -13,6 +13,8 @@ import logging
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
 import yaml
+import time
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -661,7 +663,7 @@ class HomeAssistantClient:
         extract_from_dict(automation_data)
         return list(entity_ids)
     
-    async def create_automation(self, automation_yaml: str, automation_id: Optional[str] = None) -> Dict[str, Any]:
+    async def create_automation(self, automation_yaml: str, automation_id: Optional[str] = None, force_new: bool = True) -> Dict[str, Any]:
         """
         Create or update an automation in Home Assistant.
         
@@ -670,6 +672,9 @@ class HomeAssistantClient:
         Args:
             automation_yaml: YAML string for the automation
             automation_id: Optional automation entity ID to enforce (e.g. "automation.my_automation")
+                          If provided and force_new=False, will update existing automation.
+            force_new: If True (default), always generate a unique ID to create a new automation.
+                      If False and automation_id is provided, will update existing automation.
         
         Returns:
             Dict with creation result including automation_id and status
@@ -690,12 +695,46 @@ class HomeAssistantClient:
             if not isinstance(automation_data, dict):
                 raise ValueError("Invalid automation YAML: must be a dict")
 
-            # Generate automation ID if not present or override when provided
+            # Generate automation ID
             if automation_id:
-                automation_data['id'] = automation_id.replace('automation.', '')
+                # Explicit ID provided
+                base_id = automation_id.replace('automation.', '')
+                if force_new:
+                    # Force new: append unique suffix even if ID is provided
+                    timestamp = int(time.time())
+                    unique_suffix = uuid.uuid4().hex[:8]
+                    automation_data['id'] = f"{base_id}_{timestamp}_{unique_suffix}"
+                    logger.info(f"🆕 Force new automation: {base_id} → {automation_data['id']}")
+                else:
+                    # Update existing: use provided ID as-is
+                    automation_data['id'] = base_id
+                    logger.info(f"🔄 Updating existing automation: {automation_data['id']}")
             elif 'id' not in automation_data:
+                # No ID in YAML: generate from alias
                 alias = automation_data.get('alias', 'ai_automation')
-                automation_data['id'] = alias.lower().replace(' ', '_').replace('-', '_')
+                base_id = alias.lower().replace(' ', '_').replace('-', '_')
+                if force_new:
+                    # Always create new: append unique suffix
+                    timestamp = int(time.time())
+                    unique_suffix = uuid.uuid4().hex[:8]
+                    automation_data['id'] = f"{base_id}_{timestamp}_{unique_suffix}"
+                    logger.info(f"🆕 Generated unique ID from alias '{alias}': {automation_data['id']}")
+                else:
+                    # Use base ID (may update existing)
+                    automation_data['id'] = base_id
+                    logger.info(f"📝 Using base ID from alias '{alias}': {automation_data['id']}")
+            else:
+                # ID exists in YAML
+                base_id = automation_data['id']
+                if force_new:
+                    # Force new: append unique suffix to existing ID
+                    timestamp = int(time.time())
+                    unique_suffix = uuid.uuid4().hex[:8]
+                    automation_data['id'] = f"{base_id}_{timestamp}_{unique_suffix}"
+                    logger.info(f"🆕 Force new: {base_id} → {automation_data['id']}")
+                else:
+                    # Use ID as-is (may update existing)
+                    logger.info(f"📝 Using ID from YAML: {automation_data['id']}")
 
             automation_entity_id = f"automation.{automation_data['id']}"
             

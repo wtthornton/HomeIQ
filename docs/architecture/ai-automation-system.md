@@ -1,10 +1,14 @@
 # AI Automation System Architecture
 
 **Epic:** AI1 - AI Automation Suggestion System (Enhanced)  
-**Last Updated:** November 18, 2025  
+**Last Updated:** January 20, 2025  
 **Status:** Production Ready
 
 **🔄 Recent Updates:**
+- **Jan 20, 2025:** Unique automation ID generation implemented:
+  - ✅ Each approval creates a new automation with unique ID (timestamp + UUID suffix)
+  - ✅ Prevents multiple approvals from updating the same automation
+  - ✅ Re-deployments can still update existing automations when needed
 - **Nov 18, 2025:** Home Assistant Pattern Improvements implemented:
   - ✅ Template Engine for dynamic automation values (Jinja2-based)
   - ✅ Condition Evaluation Engine with AND/OR/NOT logic
@@ -526,6 +530,12 @@ CREATE INDEX idx_automation_versions_automation_id ON automation_versions(automa
 - `GET /api/deploy/{id}/versions` - Get version history
 - `POST /api/deploy/{id}/rollback` - Rollback to previous
 - `GET /api/deploy/test-connection` - Test HA connection
+
+**Automation ID Generation (Jan 2025):**
+- Each approval/deployment creates a **new automation** with a unique ID by default
+- Format: `{base_id}_{timestamp}_{uuid_8chars}` (e.g., `office_lights_flash_1737123456_a1b2c3d4`)
+- Prevents multiple approvals from updating the same automation
+- Re-deployments can update existing automations when `force_new=False` is specified
 
 **Suggestions:**
 - `GET /api/suggestions` - List all suggestions

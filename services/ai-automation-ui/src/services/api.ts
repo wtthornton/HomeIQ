@@ -461,6 +461,12 @@ export const api = {
     previous_confidence?: number;
     confidence_delta?: number;
     confidence_summary?: string;
+    enriched_prompt?: string;
+    questions_and_answers?: Array<{
+      question: string;
+      answer: string;
+      selected_entities?: string[];
+    }>;
   }> {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
       method: 'POST',
