@@ -1697,8 +1697,6 @@ export const AskAI: React.FC = () => {
                                 previousConfidence={message.previousConfidence}
                                 confidenceDelta={message.confidenceDelta}
                                 confidenceSummary={message.confidenceSummary}
-                                enrichedPrompt={message.enrichedPrompt}
-                                questionsAndAnswers={message.questionsAndAnswers}
                               />
                               {/* Debug Panel */}
                               <DebugPanel
@@ -1724,8 +1722,233 @@ export const AskAI: React.FC = () => {
                             </div>
                           );
                         })}
-                      </div>
-                    )}
+                            </div>
+                          </ContextTimeline>
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          {message.suggestions.map((suggestion, idx) => {
+                            const isProcessing = processingActions.has(`${suggestion.suggestion_id}-approve`) || 
+                                               processingActions.has(`${suggestion.suggestion_id}-reject`) ||
+                                               processingActions.has(`${suggestion.suggestion_id}-refine`);
+                            
+                            const suggestionStatus = suggestion.status || 'draft';
+                            const refinementCount = suggestion.refinement_count || 0;
+                            const conversationHistory = suggestion.conversation_history || [];
+                            
+                            const extractDeviceInfo = (suggestion: any, extractedEntities?: any[], suggestionId?: string): Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> => {
+                              const devices: Array<{ friendly_name: string; entity_id: string; domain?: string; selected?: boolean }> = [];
+                              const seenEntityIds = new Set<string>();
+                              
+                              const isEntityId = (str: string): boolean => {
+                                if (!str || typeof str !== 'string') return false;
+                                const parts = str.split('.');
+                                return parts.length === 2 && parts[0].length > 0 && parts[1].length > 0;
+                              };
+                              
+                              const addDevice = (friendlyName: string, entityId: string, domain?: string) => {
+                                if (friendlyName === entityId) return;
+                                if (isEntityId(friendlyName)) return;
+                                
+                                const friendlyNameLower = friendlyName.toLowerCase().trim();
+                                const genericTerms = ['light', 'lights', 'device', 'devices', 'sensor', 'sensors', 'switch', 'switches'];
+                                if (genericTerms.includes(friendlyNameLower)) return;
+                                
+                                if (entityId && entityId.split('.').length === 2 && 
+                                    entityId.split('.')[1].toLowerCase() === entityId.split('.')[0].toLowerCase()) {
+                                  return;
+                                }
+                                
+                                if (entityId && !seenEntityIds.has(entityId)) {
+                                  let isSelected = true;
+                                  if (suggestionId && deviceSelections.has(suggestionId)) {
+                                    const selectionMap = deviceSelections.get(suggestionId)!;
+                                    if (selectionMap.has(entityId)) {
+                                      isSelected = selectionMap.get(entityId)!;
+                                    }
+                                  }
+                                  
+                                  devices.push({
+                                    friendly_name: friendlyName,
+                                    entity_id: entityId,
+                                    domain: domain || entityId.split('.')[0],
+                                    selected: isSelected
+                                  });
+                                  seenEntityIds.add(entityId);
+                                }
+                              };
+                              
+                              if (suggestion.entity_id_annotations && typeof suggestion.entity_id_annotations === 'object') {
+                                Object.entries(suggestion.entity_id_annotations).forEach(([queryTerm, annotation]: [string, any]) => {
+                                  if (annotation?.entity_id && !isEntityId(queryTerm)) {
+                                    const actualFriendlyName = annotation.friendly_name || queryTerm;
+                                    if (!isEntityId(actualFriendlyName)) {
+                                      addDevice(actualFriendlyName, annotation.entity_id, annotation.domain);
+                                    }
+                                  }
+                                });
+                              }
+                              
+                              if (devices.length === 0 && suggestion.validated_entities && typeof suggestion.validated_entities === 'object') {
+                                Object.entries(suggestion.validated_entities).forEach(([queryTerm, entityId]: [string, any]) => {
+                                  if (entityId && typeof entityId === 'string' && !isEntityId(queryTerm)) {
+                                    addDevice(queryTerm, entityId);
+                                  }
+                                });
+                              }
+                              
+                              if (suggestion.device_mentions && typeof suggestion.device_mentions === 'object') {
+                                Object.entries(suggestion.device_mentions).forEach(([mention, entityId]: [string, any]) => {
+                                  if (entityId && typeof entityId === 'string' && !isEntityId(mention)) {
+                                    addDevice(mention, entityId);
+                                  }
+                                });
+                              }
+                              
+                              if (suggestion.entity_ids_used && Array.isArray(suggestion.entity_ids_used)) {
+                                suggestion.entity_ids_used.forEach((entityId: string) => {
+                                  if (entityId && typeof entityId === 'string') {
+                                    const parts = entityId.split('.');
+                                    const friendlyName = parts.length > 1 
+                                      ? parts[1].split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                                      : entityId;
+                                    addDevice(friendlyName, entityId);
+                                  }
+                                });
+                              }
+                              
+                              if (suggestion.devices_involved && Array.isArray(suggestion.devices_involved)) {
+                                const seenFriendlyNames = new Set(devices.map(d => d.friendly_name.toLowerCase()));
+                                
+                                suggestion.devices_involved.forEach((deviceName: string) => {
+                                  if (typeof deviceName === 'string' && deviceName.trim()) {
+                                    if (isEntityId(deviceName)) return;
+                                    
+                                    const deviceNameLower = deviceName.toLowerCase().trim();
+                                    if (seenFriendlyNames.has(deviceNameLower)) return;
+                                    
+                                    if (suggestion.validated_entities && 
+                                        typeof suggestion.validated_entities === 'object' &&
+                                        suggestion.validated_entities[deviceName]) {
+                                      const actualEntityId = suggestion.validated_entities[deviceName];
+                                      if (actualEntityId && typeof actualEntityId === 'string') {
+                                        addDevice(deviceName, actualEntityId);
+                                        seenFriendlyNames.add(deviceNameLower);
+                                        return;
+                                      }
+                                    }
+                                    
+                                    const normalizedName = deviceName.toLowerCase().replace(/\s+/g, '_');
+                                    const inferredEntityId = `light.${normalizedName}`;
+                                    addDevice(deviceName, inferredEntityId, 'light');
+                                    seenFriendlyNames.add(deviceNameLower);
+                                  }
+                                });
+                              }
+                              
+                              if (extractedEntities && Array.isArray(extractedEntities)) {
+                                extractedEntities.forEach((entity: any) => {
+                                  const entityId = entity.entity_id || entity.id;
+                                  if (entityId) {
+                                    const friendlyName = entity.name || entity.friendly_name || 
+                                      (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
+                                        word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
+                                    addDevice(friendlyName, entityId, entity.domain);
+                                  }
+                                });
+                              }
+                              
+                              if (devices.length === 0) {
+                                const text = `${suggestion.description || ''} ${suggestion.action_summary || ''} ${suggestion.trigger_summary || ''}`.toLowerCase();
+                                
+                                const devicePatterns = [
+                                  { pattern: /\bwled\b.*?\bled\b.*?\bstrip\b/gi, defaultName: 'WLED LED Strip', defaultDomain: 'light' },
+                                  { pattern: /\bceiling\b.*?\blights?\b/gi, defaultName: 'Ceiling Lights', defaultDomain: 'light' },
+                                  { pattern: /\boffice\b.*?\blights?\b/gi, defaultName: 'Office Lights', defaultDomain: 'light' },
+                                  { pattern: /\bliving\b.*?\broom\b.*?\blights?\b/gi, defaultName: 'Living Room Lights', defaultDomain: 'light' },
+                                  { pattern: /\bbedroom\b.*?\blights?\b/gi, defaultName: 'Bedroom Lights', defaultDomain: 'light' },
+                                  { pattern: /\bkitchen\b.*?\blights?\b/gi, defaultName: 'Kitchen Lights', defaultDomain: 'light' },
+                                ];
+                                
+                                devicePatterns.forEach(({ pattern, defaultName, defaultDomain }) => {
+                                  if (pattern.test(text)) {
+                                    const deviceId = `${defaultDomain}.${defaultName.toLowerCase().replace(/\s+/g, '_').replace(/s$/, '')}`;
+                                    addDevice(defaultName, deviceId, defaultDomain);
+                                  }
+                                });
+                              }
+                              
+                              return devices;
+                            };
+                            
+                            const deviceInfo = extractDeviceInfo(suggestion, message.entities, suggestion.suggestion_id);
+                            
+                            return (
+                              <div key={idx}>
+                                <ConversationalSuggestionCard
+                                  key={suggestion.suggestion_id}
+                                  suggestion={{
+                                    id: parseInt(suggestion.suggestion_id.replace(/\D/g, '')) || idx + 1,
+                                    description_only: suggestion.description,
+                                    title: `${suggestion.trigger_summary} → ${suggestion.action_summary}`,
+                                    category: suggestion.category || 'automation',
+                                    confidence: suggestion.confidence,
+                                    status: suggestionStatus as 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected',
+                                    refinement_count: refinementCount,
+                                    conversation_history: conversationHistory,
+                                    device_capabilities: suggestion.device_capabilities || {},
+                                    device_info: deviceInfo.length > 0 ? deviceInfo : undefined,
+                                    automation_yaml: suggestion.automation_yaml || null,
+                                    created_at: suggestion.created_at,
+                                    approve_response: suggestion.approve_response,
+                                    ha_automation_id: suggestion.ha_automation_id
+                                  }}
+                                  onRefine={async (_id: number, refinement: string) => {
+                                    try {
+                                      await handleSuggestionAction(suggestion.suggestion_id, 'refine', refinement);
+                                    } catch (error) {
+                                      throw error;
+                                    }
+                                  }}
+                                  onApprove={async (_id: number, customMappings?: Record<string, string>) => handleSuggestionAction(suggestion.suggestion_id, 'approve', undefined, customMappings)}
+                                  onReject={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'reject')}
+                                  onTest={async (_id: number) => handleSuggestionAction(suggestion.suggestion_id, 'test')}
+                                  onDeviceToggle={(id: number, entityId: string, selected: boolean) => {
+                                    handleDeviceToggle(id, entityId, selected);
+                                    setMessages(prev => [...prev]);
+                                  }}
+                                  darkMode={darkMode}
+                                  disabled={isProcessing}
+                                  tested={testedSuggestions.has(suggestion.suggestion_id)}
+                                  previousConfidence={message.previousConfidence}
+                                  confidenceDelta={message.confidenceDelta}
+                                  confidenceSummary={message.confidenceSummary}
+                                />
+                                <DebugPanel
+                                  debug={suggestion.debug}
+                                  technicalPrompt={suggestion.technical_prompt}
+                                  deviceInfo={deviceInfo.length > 0 ? deviceInfo : undefined}
+                                  automation_yaml={suggestion.automation_yaml || null}
+                                  originalQuery={(() => {
+                                    const messageIndex = messages.findIndex(m => m.id === message.id);
+                                    if (messageIndex > 0) {
+                                      const prevMessage = messages[messageIndex - 1];
+                                      if (prevMessage.type === 'user') {
+                                        return prevMessage.content;
+                                      }
+                                    }
+                                    return undefined;
+                                  })()}
+                                  extractedEntities={message.entities}
+                                  approveResponse={suggestion.approve_response}
+                                  darkMode={darkMode}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                     
                     {/* Show follow-up prompts if available */}
                     {message.followUpPrompts && message.followUpPrompts.length > 0 && (
