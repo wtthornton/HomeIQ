@@ -17,12 +17,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 # System noise filtering constants (Task 2: Filter System Noise)
+# Phase 1: Domain-level exclusions
+EXCLUDED_DOMAINS = {
+    'image',      # Maps, camera images
+    'event',      # System events
+    'update',     # Software updates
+    'camera',     # Camera entities
+    'button',     # Buttons (not automation targets)
+}
+
 EXCLUDED_ENTITY_PREFIXES = [
     'sensor.home_assistant_',  # System sensors
     'sensor.slzb_',            # Coordinator sensors
     'image.',                  # Images/maps (Roborock, cameras)
     'event.',                  # System events
     'binary_sensor.system_',   # System binary sensors
+    'camera.',                 # Camera entities
+    'button.',                 # Button entities
+    'update.',                 # Update entities
 ]
 
 # Patterns to match (using contains check)
@@ -32,7 +44,29 @@ EXCLUDED_PATTERNS = [
     '_temp',                   # Temperature sensors (system)
     '_chip_',                  # Chip temperature sensors
     'coordinator_',            # Coordinator-related sensors
+    '_battery',                # Battery level sensors
+    '_memory_',                # Memory sensors
+    '_signal_strength',        # Signal strength
+    '_linkquality',            # Zigbee link quality
+    '_update_',                # Update status
+    '_uptime',                 # Uptime sensors
+    '_last_seen',              # Last seen timestamps
 ]
+
+# Domain categorization for pattern validation
+ACTIONABLE_DOMAINS = {
+    'light', 'switch', 'climate', 'media_player', 
+    'lock', 'cover', 'fan', 'vacuum', 'scene'
+}
+
+TRIGGER_DOMAINS = {
+    'binary_sensor', 'sensor', 'device_tracker', 
+    'person', 'input_boolean', 'input_select'
+}
+
+PASSIVE_DOMAINS = {
+    'image', 'camera', 'weather', 'sun', 'event', 'update'
+}
 
 
 class CoOccurrencePatternDetector:
@@ -171,7 +205,7 @@ class CoOccurrencePatternDetector:
                 if device_b != device_a:
                     # Task 2: Filter system noise in pairs (double-check)
                     if self.filter_system_noise:
-                        if not self._is_actionable_pattern(device_a, device_b):
+                        if not self._is_meaningful_automation_pattern(device_a, device_b):
                             continue
                     
                     # Create sorted pair to avoid duplicates (A,B) vs (B,A)
@@ -216,6 +250,14 @@ class CoOccurrencePatternDetector:
 
             # Filter by thresholds
             if count >= support_threshold and confidence >= confidence_threshold:
+                # Quality check: Ensure meaningful automation pattern
+                if self.filter_system_noise:
+                    if not self._is_meaningful_automation_pattern(device1, device2):
+                        logger.debug(
+                            f"❌ Rejected pattern {device1}+{device2}: not a meaningful automation pattern"
+                        )
+                        continue
+                
                 # Task 3: Calculate time variance and filter by threshold
                 time_deltas = pair_time_deltas.get((device1, device2), [])
                 
@@ -486,6 +528,11 @@ class CoOccurrencePatternDetector:
         Returns:
             True if actionable, False if system noise
         """
+        # Check domain-level exclusions
+        domain = self._get_domain(device_id)
+        if domain in EXCLUDED_DOMAINS:
+            return False
+        
         # Check prefixes
         for prefix in EXCLUDED_ENTITY_PREFIXES:
             if device_id.startswith(prefix):
@@ -498,11 +545,80 @@ class CoOccurrencePatternDetector:
         
         return True
     
+    def _is_meaningful_automation_pattern(self, device1: str, device2: str) -> bool:
+        """
+        Validate that pattern represents a meaningful automation opportunity.
+        
+        Rules:
+        1. At least one device must be actionable (controllable)
+        2. At least one device must be a trigger or both actionable
+        3. Avoid sensor-to-sensor patterns (no action possible)
+        4. Avoid status-to-status patterns (informational only)
+        
+        Args:
+            device1: First device ID
+            device2: Second device ID
+            
+        Returns:
+            True if meaningful automation pattern, False otherwise
+        """
+        # First check basic actionable entity filter
+        if not (self._is_actionable_entity(device1) and self._is_actionable_entity(device2)):
+            return False
+        
+        # Get domains
+        domain1 = self._get_domain(device1)
+        domain2 = self._get_domain(device2)
+        
+        # Both must be actionable OR one trigger + one actionable
+        both_actionable = domain1 in ACTIONABLE_DOMAINS and domain2 in ACTIONABLE_DOMAINS
+        trigger_action = ((domain1 in TRIGGER_DOMAINS and domain2 in ACTIONABLE_DOMAINS) or
+                         (domain2 in TRIGGER_DOMAINS and domain1 in ACTIONABLE_DOMAINS))
+        
+        if not (both_actionable or trigger_action):
+            return False
+        
+        # Additional quality checks
+        if self._is_redundant_pairing(device1, device2):
+            return False
+        
+        return True
+    
+    def _is_redundant_pairing(self, device1: str, device2: str) -> bool:
+        """
+        Check for redundant/meaningless pairings.
+        
+        Args:
+            device1: First device ID
+            device2: Second device ID
+            
+        Returns:
+            True if redundant pairing, False otherwise
+        """
+        # Same device (shouldn't happen but check)
+        if device1 == device2:
+            return True
+        
+        # Both are passive sensors (no actionable automation)
+        domain1 = self._get_domain(device1)
+        domain2 = self._get_domain(device2)
+        
+        sensor_domains = {'sensor', 'binary_sensor'}
+        if (domain1 in sensor_domains and domain2 in sensor_domains):
+            return True
+        
+        # Both are informational only
+        if (domain1 in PASSIVE_DOMAINS and domain2 in PASSIVE_DOMAINS):
+            return True
+        
+        return False
+    
     def _is_actionable_pattern(self, device1: str, device2: str) -> bool:
         """
         Check if a device pair represents an actionable pattern.
         
-        Task 2: Filter System Noise
+        DEPRECATED: Use _is_meaningful_automation_pattern() instead.
+        Kept for backward compatibility.
         
         Args:
             device1: First device ID
@@ -511,7 +627,7 @@ class CoOccurrencePatternDetector:
         Returns:
             True if both devices are actionable
         """
-        return self._is_actionable_entity(device1) and self._is_actionable_entity(device2)
+        return self._is_meaningful_automation_pattern(device1, device2)
     
     def get_pattern_summary(self, patterns: List[Dict]) -> Dict:
         """

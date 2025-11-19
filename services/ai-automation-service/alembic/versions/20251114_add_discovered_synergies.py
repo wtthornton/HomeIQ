@@ -49,8 +49,8 @@ def upgrade():
         sa.Column('validation_count', sa.Integer(), nullable=False, default=0),
         sa.Column('validation_passed', sa.Boolean(), nullable=True),
 
-        # Analysis metadata (JSON)
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        # Analysis metadata (JSON) - renamed from 'metadata' to avoid SQLAlchemy reserved name
+        sa.Column('synergy_metadata', sa.JSON(), nullable=True),
         # Example metadata:
         # {
         #   'analysis_period': {'start': '2025-10-14', 'end': '2025-11-14'},
