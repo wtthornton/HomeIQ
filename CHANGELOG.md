@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Implement quality-focused improvements for pattern and synergy detection** (39129fa) - wtthornton
+- **Implement shared base classes and observability infrastructure** (5a80b2d) - wtthornton
+- **Add approval success indicators with particle celebration and deployed badge** (463237a) - wtthornton
+- **Implement Action Execution Engine and major system improvements** (f6fd9a7) - wtthornton
+- **Complete HA Conversation v2 API implementation** (e462b6c) - wtthornton
+- **Implement persistent clarification session storage (AI1.26)** (83967c9) - wtthornton
+- **Fix clarification flow and standardize HA token configuration** (6bf1312) - wtthornton
+- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (45cb1c1) - wtthornton
+- **Add cache expiration and staleness detection across services** (9b1fda6) - wtthornton
+
+### Changed
+
+- **Update AskAI UI components** (349230a) - wtthornton
+- **Update AI automation UI, health dashboard, and add implementation documentation** (bd40a0c) - wtthornton
+
+### Fixed
+
+- **Fix critical log issues and update documentation (November 2025)** (b62e615) - wtthornton
+- **Fix game timeline display: add missing API method and period breakdown** (d0ed6cf) - wtthornton
+- **Fix weather-dev service: network connectivity and health check port** (d6f0b5f) - wtthornton
+- **Fix healthcheck port and import path in ai-automation-service** (f8b6dbc) - wtthornton
+- **Fix quality metrics endpoint and adjust analysis lookback period** (170d50b) - wtthornton
+- **Fix event details loading stuck issue** (4a085d6) - wtthornton
+- **Ensure unique automation IDs to prevent duplicate updates** (6ec6471) - wtthornton
+- **Fix entities endpoint database schema issue and update documentation** (10d8837) - wtthornton
+- **Fix dashboard API routing, RAG status calculation, and error handling** (31541fd) - wtthornton
+- **Fix Weather API InfluxDB connection and WebSocket ingestion issues** (c2f4c86) - wtthornton
+- **Fix websocket ingestion, dashboard, and AI automation improvements** (f1c20b4) - wtthornton
+- **Fix device discovery trigger endpoint websocket access bug** (917a1f8) - wtthornton
+- **Fix event details loading issue in Live Event Stream** (dcfaf7a) - wtthornton
+- **Fix device entities not displaying in device detail popup** (4fcbfd6) - wtthornton
+- **Fix HA Core version detection in health monitoring service** (28c9ae1) - wtthornton
+
+
+### Added
+
 - **Periodic discovery cache refresh mechanism** - Automatic device/area mapping refresh every 30 minutes
 - **Discovery cache warning throttling** - Reduced log spam by 99% with intelligent warning intervals
 - **Configurable discovery refresh interval** - New `DISCOVERY_REFRESH_INTERVAL` environment variable
