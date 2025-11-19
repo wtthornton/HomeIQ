@@ -364,7 +364,7 @@ class EventsEndpoints:
         Retrieve a single event from InfluxDB with full detail payload.
         
         Strategy:
-            - If the identifier is a context_id (default HA pattern), query by context_id
+            - If the identifier is a context_id (default HA pattern), query by context_id using direct field filter
             - If the identifier is the synthetic `event_<timestamp>_<entity>` format,
               parse the timestamp/entity and query within a narrow time range
         """
@@ -394,7 +394,7 @@ class EventsEndpoints:
                 )
                 entity_id = entity_part.replace("_", ".")
             except Exception as parse_err:
-                logger.debug(f"Failed to parse synthetic event id {event_id}: {parse_err}")
+                logger.warning(f"Failed to parse synthetic event id {event_id}: {parse_err}")
         else:
             context_id = event_id
         
@@ -404,9 +404,17 @@ class EventsEndpoints:
             query_api = client.query_api()
             
             if context_id:
-                # Query based on context_id
+                # Improved approach: Query by context_id using a more efficient strategy
+                # First, try to find the event by context_id field value to get timestamp
                 context_value = sanitize_flux_value(context_id)
-                query = f'''
+                if not context_value:
+                    logger.warning(f"Context ID {event_id} was sanitized to empty string - cannot query")
+                    return None
+                
+                logger.info(f"Looking up event by context_id: {event_id} (sanitized: {context_value})")
+                
+                # Query 1: Find the event by context_id to get timestamp and entity_id
+                context_query = f'''
 from(bucket: "{influxdb_bucket}")
   |> range(start: -30d)
   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
@@ -414,7 +422,7 @@ from(bucket: "{influxdb_bucket}")
   |> filter(fn: (r) => r["_value"] == "{context_value}")
   |> limit(n: 1)
 '''
-                context_result = query_api.query(query)
+                context_result = query_api.query(context_query)
                 
                 event_time = None
                 event_entity = None
@@ -423,16 +431,25 @@ from(bucket: "{influxdb_bucket}")
                     for record in table.records:
                         event_time = record.get_time()
                         event_entity = record.values.get("entity_id")
+                        break  # Only need first match
+                    if event_time:
+                        break
                 
-                if event_time:
-                    timestamp_window = (
-                        event_time - timedelta(seconds=5),
-                        event_time + timedelta(seconds=5)
-                    )
-                    entity_id = event_entity
+                if not event_time:
+                    logger.warning(f"Event with context_id {event_id} not found in InfluxDB (checked last 30 days)")
+                    return None
+                
+                logger.info(f"Found event with context_id {event_id} at time {event_time}, entity {event_entity}")
+                
+                # Create timestamp window for detail query
+                timestamp_window = (
+                    event_time - timedelta(seconds=5),
+                    event_time + timedelta(seconds=5)
+                )
+                entity_id = event_entity
             
             if not timestamp_window:
-                logger.debug(f"Unable to determine timestamp range for event {event_id}")
+                logger.warning(f"Unable to determine timestamp range for event {event_id}")
                 return None
             
             start_iso = self._format_flux_time(timestamp_window[0])
@@ -444,6 +461,7 @@ from(bucket: "{influxdb_bucket}")
                 if entity_id_safe:
                     filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
             
+            # Query 2: Get full event details with pivot
             detail_query = f'''
 from(bucket: "{influxdb_bucket}")
   |> range(start: time(v: "{start_iso}"), stop: time(v: "{stop_iso}"))
@@ -459,17 +477,20 @@ from(bucket: "{influxdb_bucket}")
                 for record in table.records:
                     event_payload = self._build_event_from_record(record, event_id)
                     if event_payload:
+                        logger.info(f"Successfully retrieved event details for {event_id}")
                         return event_payload
             
+            logger.warning(f"Event detail query found no records for {event_id} in time window {start_iso} to {stop_iso}")
             return None
         except Exception as e:
             logger.error(f"Error fetching event {event_id} from InfluxDB: {e}", exc_info=True)
             return None
         finally:
-            try:
-                client.close()
-            except Exception:
-                pass
+            if client:
+                try:
+                    client.close()
+                except Exception:
+                    pass
 
     def _build_event_from_record(self, record, fallback_id: str) -> Optional[EventData]:
         """Build EventData object from a pivoted Flux record."""

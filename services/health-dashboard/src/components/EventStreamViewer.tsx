@@ -172,9 +172,9 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
       return;
     }
 
-    // Add timeout to prevent infinite loading (10 seconds)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout: Event details took too long to load')), 10000);
+    // Reduce timeout to 8 seconds for better UX
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout: Event details took too long to load (8s)')), 8000);
     });
 
     try {
@@ -190,8 +190,24 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
         [eventId]: { status: 'loaded', data: detail }
       }));
     } catch (err: any) {
-      const message = err?.message || 'Failed to load event details';
-      console.error(`[EventStreamViewer] Error loading event details for ID: ${eventId}`, err);
+      // Extract better error message
+      let message = 'Failed to load event details';
+      if (err?.message) {
+        message = err.message;
+      } else if (err?.response?.status === 404) {
+        message = 'Event not found in database';
+      } else if (err?.response?.status) {
+        message = `Server error (${err.response.status}): ${err.response.statusText || 'Unknown error'}`;
+      } else if (err?.name === 'TypeError' && err?.message?.includes('fetch')) {
+        message = 'Network error: Unable to reach server';
+      }
+      
+      console.error(`[EventStreamViewer] Error loading event details for ID: ${eventId}`, {
+        error: err,
+        message,
+        stack: err?.stack
+      });
+      
       setDetailState(prev => ({
         ...prev,
         [eventId]: { status: 'error', error: message }
@@ -451,17 +467,32 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
                         );
                       }
                       if (detail.status === 'error') {
+                        // Show fallback with basic event data if detail fetch fails
+                        const fallbackData = {
+                          id: event.id,
+                          timestamp: event.timestamp,
+                          service: event.service,
+                          type: event.type,
+                          severity: event.severity,
+                          message: event.message,
+                          note: 'Full details unavailable - showing basic event data'
+                        };
+                        
                         return (
                           <div className="space-y-2">
-                            <div className="text-red-400">
-                              Failed to load details: {detail.error}
+                            <div className="text-yellow-400 text-xs mb-2">
+                              ⚠️ Failed to load full details: {detail.error}
                             </div>
-                            <button
-                              onClick={() => handleRetry(event.id)}
-                              className="btn-secondary text-xs"
-                            >
-                              Retry
-                            </button>
+                            <div className="space-y-1">
+                              <button
+                                onClick={() => handleRetry(event.id)}
+                                className="btn-secondary text-xs mb-2"
+                              >
+                                🔄 Retry
+                              </button>
+                              <div className="text-xs text-gray-400 mb-2">Basic event data:</div>
+                              <pre className="text-xs">{JSON.stringify(fallbackData, null, 2)}</pre>
+                            </div>
                           </div>
                         );
                       }
