@@ -31,6 +31,7 @@ class ConnectionManager:
         self.state_machine = ConnectionStateMachine()
         self.reconnect_task: Optional[asyncio.Task] = None
         self.listen_task: Optional[asyncio.Task] = None
+        self.periodic_discovery_task: Optional[asyncio.Task] = None
         
         # Event management components
         self.event_subscription = EventSubscriptionManager()
@@ -39,6 +40,9 @@ class ConnectionManager:
         self.discovery_service = DiscoveryService(influxdb_manager=influxdb_manager)
         # Epic 23.2: Pass discovery_service to event_processor for device/area enrichment
         self.event_processor = EventProcessor(discovery_service=self.discovery_service)
+        
+        # Periodic discovery refresh interval (default: 30 minutes to match cache TTL)
+        self.discovery_refresh_interval = int(os.getenv('DISCOVERY_REFRESH_INTERVAL', '1800'))  # 30 minutes
         
         # Retry configuration (configurable via environment)
         # -1 = infinite retries (recommended for production)
@@ -402,6 +406,58 @@ class ConnectionManager:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
     
+    async def _periodic_discovery_refresh(self):
+        """
+        Periodically refresh the discovery cache to keep device/area mappings up-to-date.
+        
+        Runs every DISCOVERY_REFRESH_INTERVAL seconds (default: 30 minutes).
+        Automatically retries if discovery fails.
+        """
+        logger.info(f"🔄 Periodic discovery refresh task started (interval: {self.discovery_refresh_interval/60:.1f} minutes)")
+        
+        while True:
+            try:
+                # Wait for the refresh interval
+                await asyncio.sleep(self.discovery_refresh_interval)
+                
+                # Check if we're still connected
+                current_state = self.state_machine.get_state()
+                if current_state != ConnectionState.CONNECTED:
+                    logger.warning(f"⚠️  Skipping periodic discovery refresh - not connected (state: {current_state.value})")
+                    continue
+                
+                # Check if client and websocket are available
+                if not self.client or not self.client.websocket:
+                    logger.warning("⚠️  Skipping periodic discovery refresh - WebSocket not available")
+                    continue
+                
+                # Run discovery refresh
+                logger.info("=" * 80)
+                logger.info("🔄 PERIODIC DISCOVERY REFRESH")
+                logger.info("=" * 80)
+                
+                try:
+                    await self.discovery_service.discover_all(self.client.websocket, store=True)
+                    logger.info("✅ Periodic discovery refresh completed successfully")
+                except Exception as discovery_error:
+                    logger.error(f"❌ Periodic discovery refresh failed: {discovery_error}")
+                    # Log but continue - will try again next interval
+                    import traceback
+                    logger.error(traceback.format_exc())
+                
+                logger.info("=" * 80)
+                
+            except asyncio.CancelledError:
+                logger.info("🛑 Periodic discovery refresh task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"❌ Error in periodic discovery refresh task: {e}")
+                # Log but continue - will try again next interval
+                import traceback
+                logger.error(traceback.format_exc())
+                # Short sleep to avoid rapid retries on persistent errors
+                await asyncio.sleep(60)
+    
     async def _on_connect(self):
         """Handle successful connection"""
         logger.info("=" * 80)
@@ -426,6 +482,11 @@ class ConnectionManager:
                 logger.info("📡 Subscribing to registry update events...")
                 await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
                 await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
+                
+                # Start periodic discovery refresh task
+                if not self.periodic_discovery_task or self.periodic_discovery_task.done():
+                    logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
+                    self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
             else:
                 logger.warning("⚠️  WebSocket not available - skipping discovery")
         except Exception as e:
@@ -442,6 +503,15 @@ class ConnectionManager:
     async def _on_disconnect(self):
         """Handle disconnection"""
         logger.info("Disconnected from Home Assistant")
+        
+        # Cancel periodic discovery task if running
+        if self.periodic_discovery_task and not self.periodic_discovery_task.done():
+            logger.info("🛑 Cancelling periodic discovery refresh task...")
+            self.periodic_discovery_task.cancel()
+            try:
+                await self.periodic_discovery_task
+            except asyncio.CancelledError:
+                pass
         
         # Transition to reconnecting or disconnected based on current state
         current_state = self.state_machine.get_state()

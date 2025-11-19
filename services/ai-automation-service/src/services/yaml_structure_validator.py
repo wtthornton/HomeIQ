@@ -70,24 +70,47 @@ class YAMLStructureValidator:
                 fixed_yaml=None
             )
         
-        # Check for plural keys (common mistake)
+        # Track if we need to regenerate YAML due to fixes
+        trigger_fix_needed = False
+        
+        # Check for plural keys (common mistake - NOT Home Assistant format)
         if 'triggers' in data:
-            errors.append("❌ Found 'triggers:' (plural) - should be 'trigger:' (singular)")
+            errors.append(
+                "❌ Found 'triggers:' (plural) at top level - Home Assistant requires 'trigger:' (singular). "
+                "The plural format does NOT exist in Home Assistant and will be rejected."
+            )
+            # Auto-fix: rename to singular
+            data['trigger'] = data.pop('triggers')
+            trigger_fix_needed = True
+            logger.info("🔧 Auto-fixed: Converted 'triggers:' to 'trigger:' at top level")
         
         if 'actions' in data:
-            errors.append("❌ Found 'actions:' (plural) - should be 'action:' (singular)")
+            errors.append(
+                "❌ Found 'actions:' (plural) at top level - Home Assistant requires 'action:' (singular). "
+                "The plural format does NOT exist in Home Assistant and will be rejected."
+            )
+            # Auto-fix: rename to singular
+            data['action'] = data.pop('actions')
+            trigger_fix_needed = True  # Reuse flag to force YAML regeneration
+            logger.info("🔧 Auto-fixed: Converted 'actions:' to 'action:' at top level")
         
         # Check trigger structure
-        triggers = data.get('trigger', data.get('triggers', []))
-        trigger_fix_needed = False
+        triggers = data.get('trigger', [])
         if isinstance(triggers, list):
             for i, trigger in enumerate(triggers):
                 if isinstance(trigger, dict):
-                    # Check for wrong field name
-                    if 'trigger' in trigger and trigger.get('trigger') == 'state':
+                    # Check for wrong field name - convert 'trigger:' to 'platform:' for ALL trigger types
+                    if 'trigger' in trigger:
+                        trigger_type = trigger.get('trigger')
                         errors.append(
-                            f"❌ Trigger {i+1}: Found 'trigger: state' - should be 'platform: state'"
+                            f"❌ Trigger {i+1}: Found 'trigger: {trigger_type}' field inside trigger item. "
+                            f"Home Assistant requires 'platform: {trigger_type}'. Auto-fixing."
                         )
+                        # Convert 'trigger:' field to 'platform:' field (Home Assistant requires 'platform:')
+                        trigger['platform'] = trigger_type
+                        del trigger['trigger']
+                        trigger_fix_needed = True
+                        logger.info(f"🔧 Fixed trigger {i+1}: Converted 'trigger: {trigger_type}' to 'platform: {trigger_type}'")
                     
                     # CRITICAL FIX: If trigger: time has minutes/hours/seconds, it should be trigger: time_pattern
                     # Also fix if 'at' field contains cron expressions (like '/10 * * * *')

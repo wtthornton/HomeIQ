@@ -34,7 +34,7 @@ data_api_client = DataAPIClient(
 
 openai_client = OpenAIClient(
     api_key=settings.openai_api_key,
-    model=getattr(settings, 'nl_model', 'gpt-4o-mini')
+    model=getattr(settings, 'nl_model', 'gpt-5.1')
 )
 
 safety_validator = get_safety_validator(getattr(settings, 'safety_level', 'moderate'))

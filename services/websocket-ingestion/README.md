@@ -19,6 +19,7 @@ The WebSocket Ingestion Service connects to Home Assistant's WebSocket API to ca
 - 🔐 **Secure Authentication** - Token-based authentication with validation
 - 📊 **Event Processing** - Captures and normalizes state_changed events
 - 🔍 **Device Discovery** - Automatic discovery of devices and entities (stores to SQLite via data-api)
+- 🔄 **Auto-Refresh Cache** - Periodic device/area cache refresh (November 2025)
 - 📈 **Health Monitoring** - Comprehensive health checks and metrics
 - 🔁 **Automatic Reconnection** - Smart exponential backoff on connection failures
 - 💾 **Direct InfluxDB Writes** - Events written directly to InfluxDB (Epic 31)
@@ -27,6 +28,44 @@ The WebSocket Ingestion Service connects to Home Assistant's WebSocket API to ca
 - 🛡️ **Circuit Breaker** - Prevents cascading failures during outages
 - 🧰 **Shared Module Auto-Discovery** - Override shared path via `HOMEIQ_SHARED_PATH`
 - 🧊 **Backpressure-Protected Influx Writes** - Configurable queue + overflow strategies stop runaway memory usage
+
+## Recent Updates (November 2025)
+
+### ✅ Discovery Cache Auto-Refresh (November 19, 2025)
+**Status**: ✅ **DEPLOYED** - Automatic cache refresh every 30 minutes
+
+**What Changed**:
+- Device/area mappings now refresh automatically every 30 minutes
+- Cache staleness warnings throttled to once per 10 minutes (99% log reduction)
+- Configurable refresh interval via `DISCOVERY_REFRESH_INTERVAL`
+
+**Configuration**:
+```bash
+# In docker-compose.yml or .env
+DISCOVERY_REFRESH_INTERVAL=1800  # 30 minutes (default)
+```
+
+**Monitoring**:
+```bash
+# Watch for periodic refresh (every 30 minutes)
+docker logs homeiq-websocket --follow | grep "PERIODIC DISCOVERY"
+
+# Expected output:
+# "🔄 PERIODIC DISCOVERY REFRESH"
+# "✅ Periodic discovery refresh completed successfully"
+```
+
+### ✅ Circular Import Fix (November 19, 2025)
+**Status**: ✅ **DEPLOYED** - State machine import corrected
+
+**What Changed**:
+- Fixed circular import in `state_machine.py`
+- Now correctly imports from shared module
+- Improved error handling and fallback mechanisms
+
+**Impact**:
+- Service starts reliably every time
+- No more "partially initialized module" errors
 
 ## Network Resilience
 

@@ -50,7 +50,7 @@ openai_client = None
 prompt_builder = None
 if settings.openai_api_key:
     try:
-        openai_client = OpenAIClient(api_key=settings.openai_api_key, model="gpt-4o-mini")
+        openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
         prompt_builder = UnifiedPromptBuilder()
         logger.info("✅ OpenAI client initialized")
     except Exception as e:

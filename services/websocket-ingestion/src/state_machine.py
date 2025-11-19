@@ -42,9 +42,20 @@ if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
 # Import shared state machine base class
-from state_machine import StateMachine
-# Re-export InvalidStateTransition for backward compatibility
-from state_machine import InvalidStateTransition
+# Avoid circular import by importing from shared.state_machine explicitly
+try:
+    from shared.state_machine import StateMachine, InvalidStateTransition
+except ImportError:
+    # Fallback for different import path
+    import importlib.util
+    if shared_path:
+        spec = importlib.util.spec_from_file_location("shared_state_machine", shared_path / "state_machine.py")
+        shared_sm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shared_sm)
+        StateMachine = shared_sm.StateMachine
+        InvalidStateTransition = shared_sm.InvalidStateTransition
+    else:
+        raise ImportError("Cannot find shared state_machine module")
 
 logger = logging.getLogger(__name__)
 

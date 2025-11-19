@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Periodic discovery cache refresh mechanism** - Automatic device/area mapping refresh every 30 minutes
+- **Discovery cache warning throttling** - Reduced log spam by 99% with intelligent warning intervals
+- **Configurable discovery refresh interval** - New `DISCOVERY_REFRESH_INTERVAL` environment variable
 - **Implement shared base classes and observability infrastructure** (5a80b2d) - wtthornton
 - **Add approval success indicators with particle celebration and deployed badge** (463237a) - wtthornton
 - **Implement Action Execution Engine and major system improvements** (f6fd9a7) - wtthornton
@@ -27,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Fix discovery cache staleness causing log spam** (November 19, 2025) - Resolved 1000s of repeated cache warnings, implemented auto-refresh every 30 minutes
+- **Fix circular import in websocket-ingestion state_machine** (November 19, 2025) - Resolved module import conflicts with shared state machine
+- **Fix relative import errors in ai-automation-service** (November 19, 2025) - Corrected 3 import paths in service_validator.py
+- **Fix duplicate automation creation** (November 19, 2025) - Resolved duplicate automation generation issue
 - **Fix event details loading stuck issue** (4a085d6) - wtthornton
 - **Ensure unique automation IDs to prevent duplicate updates** (6ec6471) - wtthornton
 - **Fix entities endpoint database schema issue and update documentation** (10d8837) - wtthornton

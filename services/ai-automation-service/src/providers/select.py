@@ -92,7 +92,7 @@ def get_default_provider() -> Optional[BaseProvider]:
     return None
 
 
-def initialize_default_providers(openai_api_key: str, openai_model: str = "gpt-4o-mini"):
+def initialize_default_providers(openai_api_key: str, openai_model: str = "gpt-5.1"):
     """
     Initialize default providers (OpenAI).
     
