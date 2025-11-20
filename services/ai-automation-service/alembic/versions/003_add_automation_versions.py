@@ -4,9 +4,8 @@ Revision ID: 20251016_120000
 Revises: 20251016_095206
 Create Date: 2025-10-16
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20251016_120000'
@@ -25,7 +24,7 @@ def upgrade():
         sa.Column('deployed_at', sa.DateTime(), nullable=False),
         sa.Column('safety_score', sa.Integer(), nullable=False)
     )
-    
+
     # Create index for fast lookups
     op.create_index('ix_automation_versions_automation_id', 'automation_versions', ['automation_id'])
 

@@ -11,12 +11,12 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 import aiohttp
 
 
-def _get_nested(data: Dict[str, Any], *keys: str, default: Optional[Any] = None) -> Any:
+def _get_nested(data: dict[str, Any], *keys: str, default: Any | None = None) -> Any:
     """Safely extract nested keys from dictionaries."""
     current: Any = data
     for key in keys:
@@ -32,7 +32,7 @@ def _get_nested(data: Dict[str, Any], *keys: str, default: Optional[Any] = None)
 class WeatherData:
     """Normalized weather data from OpenWeatherMap responses."""
 
-    api_response: Dict[str, Any]
+    api_response: dict[str, Any]
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = "openweathermap"
 
@@ -44,24 +44,24 @@ class WeatherData:
         coord_block = self.api_response.get("coord", {})
         sys_block = self.api_response.get("sys", {})
 
-        self.temperature: Optional[float] = main_block.get("temp")
-        self.feels_like: Optional[float] = main_block.get("feels_like")
-        self.humidity: Optional[int] = main_block.get("humidity")
-        self.pressure: Optional[int] = main_block.get("pressure")
-        self.weather_condition: Optional[str] = weather_block.get("main")
-        self.weather_description: Optional[str] = weather_block.get("description")
-        self.wind_speed: Optional[float] = wind_block.get("speed")
-        self.wind_direction: Optional[int] = wind_block.get("deg")
-        self.cloudiness: Optional[int] = clouds_block.get("all")
-        self.visibility: Optional[int] = self.api_response.get("visibility")
-        self.location: Optional[str] = self.api_response.get("name")
-        self.country: Optional[str] = sys_block.get("country")
-        self.coordinates: Dict[str, Optional[float]] = {
+        self.temperature: float | None = main_block.get("temp")
+        self.feels_like: float | None = main_block.get("feels_like")
+        self.humidity: int | None = main_block.get("humidity")
+        self.pressure: int | None = main_block.get("pressure")
+        self.weather_condition: str | None = weather_block.get("main")
+        self.weather_description: str | None = weather_block.get("description")
+        self.wind_speed: float | None = wind_block.get("speed")
+        self.wind_direction: int | None = wind_block.get("deg")
+        self.cloudiness: int | None = clouds_block.get("all")
+        self.visibility: int | None = self.api_response.get("visibility")
+        self.location: str | None = self.api_response.get("name")
+        self.country: str | None = sys_block.get("country")
+        self.coordinates: dict[str, float | None] = {
             "lat": coord_block.get("lat"),
             "lon": coord_block.get("lon"),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return a serializable representation of the weather data."""
         return {
             "temperature": self.temperature,
@@ -88,13 +88,13 @@ class OpenWeatherMapClient:
     def __init__(self, api_key: str, base_url: str = "https://api.openweathermap.org/data/2.5") -> None:
         self.api_key = api_key
         self.base_url = base_url
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
         self.rate_limit_delay = 1.0
 
         self.total_requests = 0
         self.successful_requests = 0
         self.failed_requests = 0
-        self.last_error: Optional[str] = None
+        self.last_error: str | None = None
 
         self._lock = asyncio.Lock()
 
@@ -112,14 +112,14 @@ class OpenWeatherMapClient:
             await self.session.close()
             self.session = None
 
-    async def get_current_weather(self, city: str, *, units: str = "metric") -> Optional[WeatherData]:
+    async def get_current_weather(self, city: str, *, units: str = "metric") -> WeatherData | None:
         """Fetch current weather by city name."""
         params = {"q": city, "appid": self.api_key, "units": units}
         return await self._fetch_weather(params)
 
     async def get_current_weather_by_coordinates(
         self, latitude: float, longitude: float, *, units: str = "metric"
-    ) -> Optional[WeatherData]:
+    ) -> WeatherData | None:
         """Fetch current weather by latitude/longitude."""
         params = {"lat": latitude, "lon": longitude, "appid": self.api_key, "units": units}
         return await self._fetch_weather(params)
@@ -130,7 +130,7 @@ class OpenWeatherMapClient:
             raise ValueError("Rate limit delay must be greater than zero")
         self.rate_limit_delay = delay_seconds
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Return request statistics."""
         success_rate = 0.0
         if self.total_requests:
@@ -152,7 +152,7 @@ class OpenWeatherMapClient:
         self.failed_requests = 0
         self.last_error = None
 
-    async def _fetch_weather(self, params: Dict[str, Any]) -> Optional[WeatherData]:
+    async def _fetch_weather(self, params: dict[str, Any]) -> WeatherData | None:
         """Internal helper to execute the HTTP request."""
         if not self.session or self.session.closed:
             await self.start()

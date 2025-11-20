@@ -2,9 +2,8 @@
 Unit tests for blueprint parser
 Tests YAML parsing for Home Assistant blueprints
 """
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add service src to path
 service_dir = Path(__file__).parent.parent

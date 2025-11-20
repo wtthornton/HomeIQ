@@ -10,11 +10,12 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from ..config import settings
-from ...entity_extraction.multi_model_extractor import MultiModelEntityExtractor
-from ...entity_extraction.enhanced_extractor import EnhancedEntityExtractor
+from typing import Any
+
 from ...clients.device_intelligence_client import DeviceIntelligenceClient
+from ...entity_extraction.enhanced_extractor import EnhancedEntityExtractor
+from ...entity_extraction.multi_model_extractor import MultiModelEntityExtractor
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,13 @@ class EntityExtractor:
     2. EnhancedEntityExtractor (fallback)
     3. Pattern-based extraction (emergency)
     """
-    
+
     def __init__(
         self,
-        device_intelligence_client: Optional[DeviceIntelligenceClient] = None,
-        openai_api_key: Optional[str] = None,
-        ner_model: Optional[str] = None,
-        openai_model: Optional[str] = None
+        device_intelligence_client: DeviceIntelligenceClient | None = None,
+        openai_api_key: str | None = None,
+        ner_model: str | None = None,
+        openai_model: str | None = None
     ):
         """
         Initialize unified entity extractor.
@@ -46,18 +47,18 @@ class EntityExtractor:
             openai_model: OpenAI model name (defaults to settings)
         """
         self.device_intelligence_client = device_intelligence_client
-        
+
         # Use provided values or fall back to settings
         self.openai_api_key = openai_api_key or settings.openai_api_key
         self.ner_model = ner_model or settings.ner_model
         self.openai_model = openai_model or settings.openai_model
-        
+
         # Initialize primary extractor
-        self._multi_model_extractor: Optional[MultiModelEntityExtractor] = None
-        self._enhanced_extractor: Optional[EnhancedEntityExtractor] = None
-        
+        self._multi_model_extractor: MultiModelEntityExtractor | None = None
+        self._enhanced_extractor: EnhancedEntityExtractor | None = None
+
         logger.info("EntityExtractor initialized")
-    
+
     def _get_multi_model_extractor(self) -> MultiModelEntityExtractor:
         """Get or create multi-model extractor"""
         if self._multi_model_extractor is None:
@@ -68,8 +69,8 @@ class EntityExtractor:
                 openai_model=self.openai_model
             )
         return self._multi_model_extractor
-    
-    def _get_enhanced_extractor(self) -> Optional[EnhancedEntityExtractor]:
+
+    def _get_enhanced_extractor(self) -> EnhancedEntityExtractor | None:
         """Get or create enhanced extractor (fallback)"""
         if self._enhanced_extractor is None and self.device_intelligence_client:
             try:
@@ -79,12 +80,12 @@ class EntityExtractor:
             except Exception as e:
                 logger.warning(f"Failed to initialize EnhancedEntityExtractor: {e}")
         return self._enhanced_extractor
-    
+
     async def extract(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        context: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Extract entities from natural language query.
         
@@ -99,11 +100,11 @@ class EntityExtractor:
             # Primary: Use multi-model extractor
             extractor = self._get_multi_model_extractor()
             entities = await extractor.extract_entities(query)
-            
+
             if entities:
                 logger.info(f"✅ Extracted {len(entities)} entities using MultiModelEntityExtractor")
                 return entities
-            
+
             # Fallback: Use enhanced extractor
             enhanced_extractor = self._get_enhanced_extractor()
             if enhanced_extractor:
@@ -111,17 +112,17 @@ class EntityExtractor:
                 if entities:
                     logger.info(f"✅ Extracted {len(entities)} entities using EnhancedEntityExtractor")
                     return entities
-            
+
             # Emergency: Pattern-based extraction
             from ...entity_extraction.pattern_extractor import extract_entities_from_query
             entities = extract_entities_from_query(query)
             if entities:
                 logger.info(f"✅ Extracted {len(entities)} entities using pattern extraction")
                 return entities
-            
+
             logger.warning(f"⚠️ No entities extracted from query: {query[:50]}...")
             return []
-            
+
         except Exception as e:
             logger.error(f"❌ Entity extraction failed: {e}", exc_info=True)
             # Return empty list on error

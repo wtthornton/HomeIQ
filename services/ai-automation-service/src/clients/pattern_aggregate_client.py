@@ -5,12 +5,13 @@ Stores and retrieves daily pattern aggregates from InfluxDB
 Story: AI5.2 - InfluxDB Daily Aggregates Implementation
 """
 
+import json
+import logging
+from datetime import datetime, timedelta
+from typing import Any
+
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
-import logging
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class PatternAggregateClient:
     Supports Layer 2 (Daily Aggregates) storage for all detector types.
     Story: AI5.2 - InfluxDB Daily Aggregates Implementation
     """
-    
+
     def __init__(
         self,
         url: str,
@@ -37,22 +38,22 @@ class PatternAggregateClient:
         self.org = org
         self.bucket_daily = bucket_daily
         self.bucket_weekly = bucket_weekly
-        
+
         self.client = InfluxDBClient(url=url, token=token, org=org)
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
         self.query_api = self.client.query_api()
-        
+
         logger.info(f"PatternAggregateClient initialized: buckets={bucket_daily}, {bucket_weekly}")
-    
+
     # ==================== GROUP A DETECTORS - DAILY AGGREGATES ====================
-    
+
     def write_time_based_daily(
         self,
         date: str,
         entity_id: str,
         domain: str,
-        hourly_distribution: List[int],
-        peak_hours: List[int],
+        hourly_distribution: list[int],
+        peak_hours: list[int],
         frequency: float,
         confidence: float,
         occurrences: int
@@ -80,10 +81,10 @@ class PatternAggregateClient:
             .field("confidence", confidence) \
             .field("occurrences", occurrences) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote time_based_daily aggregate: {entity_id} on {date}")
-    
+
     def write_co_occurrence_daily(
         self,
         date: str,
@@ -91,7 +92,7 @@ class PatternAggregateClient:
         co_occurrence_count: int,
         time_window_seconds: int,
         confidence: float,
-        typical_hours: List[int]
+        typical_hours: list[int]
     ) -> None:
         """Write co-occurrence daily aggregate."""
         point = Point("co_occurrence_daily") \
@@ -102,15 +103,15 @@ class PatternAggregateClient:
             .field("confidence", confidence) \
             .field("typical_hours", json.dumps(typical_hours)) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote co_occurrence_daily aggregate: {device_pair} on {date}")
-    
+
     def write_sequence_daily(
         self,
         date: str,
         sequence_id: str,
-        sequence: List[str],
+        sequence: list[str],
         frequency: int,
         avg_duration_seconds: float,
         confidence: float
@@ -124,18 +125,18 @@ class PatternAggregateClient:
             .field("avg_duration_seconds", avg_duration_seconds) \
             .field("confidence", confidence) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote sequence_daily aggregate: {sequence_id} on {date}")
-    
+
     def write_room_based_daily(
         self,
         date: str,
         area_id: str,
         activity_level: float,
-        device_usage: Dict[str, Any],
-        transition_patterns: List[Dict[str, Any]],
-        peak_activity_hours: List[int]
+        device_usage: dict[str, Any],
+        transition_patterns: list[dict[str, Any]],
+        peak_activity_hours: list[int]
     ) -> None:
         """Write room-based daily aggregate."""
         point = Point("room_based_daily") \
@@ -146,10 +147,10 @@ class PatternAggregateClient:
             .field("transition_patterns", json.dumps(transition_patterns)) \
             .field("peak_activity_hours", json.dumps(peak_activity_hours)) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote room_based_daily aggregate: {area_id} on {date}")
-    
+
     def write_duration_daily(
         self,
         date: str,
@@ -170,10 +171,10 @@ class PatternAggregateClient:
             .field("duration_variance", duration_variance) \
             .field("efficiency_score", efficiency_score) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote duration_daily aggregate: {entity_id} on {date}")
-    
+
     def write_anomaly_daily(
         self,
         date: str,
@@ -194,20 +195,20 @@ class PatternAggregateClient:
             .field("occurrences", occurrences) \
             .field("severity", severity) \
             .time(datetime.fromisoformat(date), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_daily, record=point)
         logger.debug(f"Wrote anomaly_daily aggregate: {entity_id} on {date}")
-    
+
     # ==================== GROUP B DETECTORS - WEEKLY AGGREGATES ====================
-    
+
     def write_session_weekly(
         self,
         week: str,
         session_type: str,
         avg_session_duration: float,
         session_count: int,
-        typical_start_times: List[int],
-        devices_used: List[str],
+        typical_start_times: list[int],
+        devices_used: list[str],
         confidence: float = 1.0
     ) -> None:
         """
@@ -231,17 +232,17 @@ class PatternAggregateClient:
             .field("devices_used", json.dumps(devices_used)) \
             .field("confidence", confidence) \
             .time(datetime.now(), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_weekly, record=point)
         logger.debug(f"Wrote session_weekly aggregate: {session_type} for {week}")
-    
+
     def write_day_type_weekly(
         self,
         week: str,
         day_type: str,
         avg_events: float,
-        typical_hours: List[int],
-        device_usage: Dict[str, Any],
+        typical_hours: list[int],
+        device_usage: dict[str, Any],
         confidence: float = 1.0
     ) -> None:
         """
@@ -263,17 +264,17 @@ class PatternAggregateClient:
             .field("device_usage", json.dumps(device_usage)) \
             .field("confidence", confidence) \
             .time(datetime.now(), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_weekly, record=point)
         logger.debug(f"Wrote day_type_weekly aggregate: {day_type} for {week}")
-    
+
     # ==================== GROUP C DETECTORS - MONTHLY AGGREGATES ====================
-    
+
     def write_contextual_monthly(
         self,
         month: str,
         weather_context: str,
-        device_activity: Dict[str, Any],
+        device_activity: dict[str, Any],
         correlation_score: float,
         occurrences: int,
         confidence: float = 1.0
@@ -297,15 +298,15 @@ class PatternAggregateClient:
             .field("occurrences", occurrences) \
             .field("confidence", confidence) \
             .time(datetime.now(), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_weekly, record=point)  # Store in weekly bucket
         logger.debug(f"Wrote contextual_monthly aggregate: {weather_context} for {month}")
-    
+
     def write_seasonal_monthly(
         self,
         month: str,
         season: str,
-        seasonal_patterns: Dict[str, Any],
+        seasonal_patterns: dict[str, Any],
         trend_direction: str,
         confidence: float = 1.0
     ) -> None:
@@ -326,19 +327,19 @@ class PatternAggregateClient:
             .field("trend_direction", trend_direction) \
             .field("confidence", confidence) \
             .time(datetime.now(), WritePrecision.NS)
-        
+
         self.write_api.write(bucket=self.bucket_weekly, record=point)  # Store in weekly bucket
         logger.debug(f"Wrote seasonal_monthly aggregate: {season} for {month}")
-    
+
     # ==================== QUERY METHODS ====================
-    
+
     def query_daily_aggregates_by_date_range(
         self,
         measurement: str,
         start_date: str,
         end_date: str,
         **tags
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query daily aggregates by date range.
         
@@ -356,31 +357,31 @@ class PatternAggregateClient:
               |> range(start: {start_date}T00:00:00Z, stop: {end_date}T23:59:59Z)
               |> filter(fn: (r) => r["_measurement"] == "{measurement}")
         '''
-        
+
         # Add tag filters
         for tag_key, tag_value in tags.items():
             flux_query += f'\n  |> filter(fn: (r) => r["{tag_key}"] == "{tag_value}")'
-        
+
         flux_query += '''
               |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
-        
+
         logger.debug(f"Querying {measurement} from {start_date} to {end_date}")
         tables = self.query_api.query(flux_query, org=self.org)
-        
+
         results = []
         for table in tables:
             for record in table.records:
                 results.append(dict(record.values))
-        
+
         return results
-    
+
     def query_daily_aggregates_by_entity(
         self,
         measurement: str,
         entity_id: str,
         days: int = 30
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query daily aggregates for a specific entity.
         
@@ -394,17 +395,17 @@ class PatternAggregateClient:
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
-        
+
         return self.query_daily_aggregates_by_date_range(
             measurement=measurement,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
             entity_id=entity_id
         )
-    
+
     # ==================== BATCH OPERATIONS ====================
-    
-    def write_batch(self, points: List[Point], bucket: str = None) -> None:
+
+    def write_batch(self, points: list[Point], bucket: str = None) -> None:
         """
         Write multiple points in a single batch operation.
         
@@ -414,10 +415,10 @@ class PatternAggregateClient:
         """
         if bucket is None:
             bucket = self.bucket_daily
-        
+
         self.write_api.write(bucket=bucket, record=points)
         logger.info(f"Wrote {len(points)} points to {bucket}")
-    
+
     def close(self) -> None:
         """Close the InfluxDB client connection."""
         if self.client:

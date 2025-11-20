@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +44,7 @@ MAX_DATA_POINTS = int(os.getenv("ML_MAX_DATA_POINTS", "50000"))
 ALGORITHM_TIMEOUT_SECONDS = float(os.getenv("ML_ALGORITHM_TIMEOUT_SECONDS", "8"))
 
 
-def _parse_allowed_origins(raw_origins: Optional[str]) -> List[str]:
+def _parse_allowed_origins(raw_origins: str | None) -> list[str]:
     if raw_origins:
         parsed = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
         if parsed:
@@ -60,7 +60,7 @@ def _estimate_payload_bytes(num_points: int, num_dimensions: int) -> int:
     return num_points * num_dimensions * 8
 
 
-def _validate_data_matrix(data: List[List[float]]) -> Tuple[int, int]:
+def _validate_data_matrix(data: list[list[float]]) -> tuple[int, int]:
     if not isinstance(data, list) or not data:
         raise ValueError("Data must contain at least one row.")
 
@@ -154,29 +154,29 @@ app.add_middleware(
 
 # Pydantic models
 class ClusteringRequest(BaseModel):
-    data: List[List[float]] = Field(..., description="Data points to cluster")
+    data: list[list[float]] = Field(..., description="Data points to cluster")
     algorithm: str = Field("kmeans", description="Clustering algorithm (kmeans, dbscan)")
-    n_clusters: Optional[int] = Field(None, description="Number of clusters (for KMeans)")
-    eps: Optional[float] = Field(None, description="Epsilon parameter (for DBSCAN)")
+    n_clusters: int | None = Field(None, description="Number of clusters (for KMeans)")
+    eps: float | None = Field(None, description="Epsilon parameter (for DBSCAN)")
 
 class ClusteringResponse(BaseModel):
-    labels: List[int] = Field(..., description="Cluster labels")
+    labels: list[int] = Field(..., description="Cluster labels")
     n_clusters: int = Field(..., description="Number of clusters found")
     algorithm: str = Field(..., description="Algorithm used")
     processing_time: float = Field(..., description="Processing time in seconds")
 
 class AnomalyRequest(BaseModel):
-    data: List[List[float]] = Field(..., description="Data points to analyze")
+    data: list[list[float]] = Field(..., description="Data points to analyze")
     contamination: float = Field(0.1, description="Expected proportion of outliers")
 
 class AnomalyResponse(BaseModel):
-    labels: List[int] = Field(..., description="Anomaly labels (1=normal, -1=anomaly)")
-    scores: List[float] = Field(..., description="Anomaly scores")
+    labels: list[int] = Field(..., description="Anomaly labels (1=normal, -1=anomaly)")
+    scores: list[float] = Field(..., description="Anomaly scores")
     n_anomalies: int = Field(..., description="Number of anomalies detected")
     processing_time: float = Field(..., description="Processing time in seconds")
 
 class BatchProcessRequest(BaseModel):
-    operations: List[Dict[str, Any]] = Field(
+    operations: list[dict[str, Any]] = Field(
         ...,
         description="List of operations to process",
         min_length=1,
@@ -184,7 +184,7 @@ class BatchProcessRequest(BaseModel):
     )
 
 class BatchProcessResponse(BaseModel):
-    results: List[Dict[str, Any]] = Field(..., description="Results for each operation")
+    results: list[dict[str, Any]] = Field(..., description="Results for each operation")
     processing_time: float = Field(..., description="Total processing time in seconds")
 
 # API Endpoints

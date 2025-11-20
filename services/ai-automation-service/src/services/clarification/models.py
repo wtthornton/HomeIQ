@@ -8,8 +8,8 @@ Data models for clarification system
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Literal
 from enum import Enum
+from typing import Any, Literal
 
 
 class AmbiguityType(str, Enum):
@@ -43,9 +43,9 @@ class Ambiguity:
     type: AmbiguityType
     severity: AmbiguitySeverity
     description: str
-    context: Dict[str, Any] = field(default_factory=dict)
-    related_entities: Optional[List[str]] = None
-    detected_text: Optional[str] = None
+    context: dict[str, Any] = field(default_factory=dict)
+    related_entities: list[str] | None = None
+    detected_text: str | None = None
 
 
 @dataclass
@@ -55,11 +55,11 @@ class ClarificationQuestion:
     category: str  # 'device', 'trigger', 'action', 'timing', 'condition'
     question_text: str  # Human-readable question
     question_type: QuestionType
-    options: Optional[List[str]] = None  # For multiple choice
-    context: Dict[str, Any] = field(default_factory=dict)  # Additional context
+    options: list[str] | None = None  # For multiple choice
+    context: dict[str, Any] = field(default_factory=dict)  # Additional context
     priority: int = 2  # 1=critical, 2=important, 3=optional
-    related_entities: Optional[List[str]] = None  # Entity IDs mentioned
-    ambiguity_id: Optional[str] = None  # Related ambiguity ID
+    related_entities: list[str] | None = None  # Entity IDs mentioned
+    ambiguity_id: str | None = None  # Related ambiguity ID
 
 
 @dataclass
@@ -67,10 +67,10 @@ class ClarificationAnswer:
     """User's answer to a clarification question"""
     question_id: str
     answer_text: str
-    selected_entities: Optional[List[str]] = None  # For entity selection
+    selected_entities: list[str] | None = None  # For entity selection
     confidence: float = 0.0  # How confident we are in interpreting the answer
     validated: bool = False  # Whether answer was validated
-    validation_errors: Optional[List[str]] = None  # Validation error messages
+    validation_errors: list[str] | None = None  # Validation error messages
 
 
 @dataclass
@@ -82,13 +82,13 @@ class ClarificationSession:
     """
     session_id: str
     original_query: str
-    questions: List[ClarificationQuestion] = field(default_factory=list)
-    answers: List[ClarificationAnswer] = field(default_factory=list)
+    questions: list[ClarificationQuestion] = field(default_factory=list)
+    answers: list[ClarificationAnswer] = field(default_factory=list)
     current_confidence: float = 0.0
     confidence_threshold: float = 0.85  # Default threshold (can be adaptive)
     rounds_completed: int = 0
     max_rounds: int = 3  # Maximum clarification rounds
     status: Literal["in_progress", "complete", "abandoned"] = "in_progress"  # Type-safe status
-    ambiguities: List[Ambiguity] = field(default_factory=list)
-    query_id: Optional[str] = None  # Related AskAI query ID
+    ambiguities: list[Ambiguity] = field(default_factory=list)
+    query_id: str | None = None  # Related AskAI query ID
 

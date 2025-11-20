@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-
 from pkgutil import extend_path
 
 # Allow other service `src` packages to resolve through this namespace. This keeps

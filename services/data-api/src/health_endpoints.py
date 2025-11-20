@@ -5,12 +5,12 @@ Epic 17.2: Enhanced Service Health Monitoring
 
 import asyncio
 import logging
-import sys
-import time
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-import aiohttp
 import os
+import sys
+from datetime import datetime
+from typing import Any
+
+import aiohttp
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
@@ -18,16 +18,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
+from shared.alert_manager import get_alert_manager
 from shared.types.health import (
-    HealthStatus as HealthStatusEnum,
     DependencyType,
-    DependencyHealth,
+    check_dependency_health,
     create_health_response,
     determine_overall_status,
-    check_dependency_health
 )
-
-from shared.alert_manager import get_alert_manager, AlertSeverity
+from shared.types.health import HealthStatus as HealthStatusEnum
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +36,9 @@ class HealthStatus(BaseModel):
     timestamp: str  # Changed to string for JSON serialization
     uptime_seconds: float
     version: str
-    services: Dict[str, Any]
-    dependencies: Dict[str, Any]
-    metrics: Dict[str, Any]
+    services: dict[str, Any]
+    dependencies: dict[str, Any]
+    metrics: dict[str, Any]
 
 
 class ServiceHealth(BaseModel):
@@ -48,13 +46,13 @@ class ServiceHealth(BaseModel):
     name: str
     status: str
     last_check: str  # Changed to string for JSON serialization
-    response_time_ms: Optional[float] = None
-    error_message: Optional[str] = None
+    response_time_ms: float | None = None
+    error_message: str | None = None
 
 
 class HealthEndpoints:
     """Health monitoring endpoints"""
-    
+
     def __init__(self):
         """Initialize health endpoints"""
         self.router = APIRouter()
@@ -65,21 +63,21 @@ class HealthEndpoints:
             "influxdb": os.getenv("INFLUXDB_URL", "http://localhost:8086"),
             "weather-api": "https://api.openweathermap.org/data/2.5"
         }
-        
+
         self._add_routes()
-    
+
     def _add_routes(self):
         """Add health routes"""
-        
+
         @self.router.get("/health")
         async def get_health():
             """Get enhanced health status with dependency checks"""
             try:
                 uptime = (datetime.now() - self.start_time).total_seconds()
-                
+
                 # Check dependencies
                 dependencies = []
-                
+
                 # Check InfluxDB connection
                 influxdb_dep = await check_dependency_health(
                     name="InfluxDB",
@@ -88,7 +86,7 @@ class HealthEndpoints:
                     timeout=3.0
                 )
                 dependencies.append(influxdb_dep)
-                
+
                 # Check WebSocket Ingestion service
                 websocket_dep = await check_dependency_health(
                     name="WebSocket Ingestion",
@@ -99,10 +97,10 @@ class HealthEndpoints:
                     timeout=2.0
                 )
                 dependencies.append(websocket_dep)
-                
+
                 # Determine overall status
                 overall_status = determine_overall_status(dependencies)
-                
+
                 # Check for alert conditions (Epic 17.4)
                 for dep in dependencies:
                     if dep.status == HealthStatusEnum.CRITICAL:
@@ -115,7 +113,7 @@ class HealthEndpoints:
                                 "message": dep.message
                             }
                         )
-                
+
                 # Create standardized health response
                 return create_health_response(
                     service="admin-api",
@@ -130,15 +128,15 @@ class HealthEndpoints:
                     uptime_seconds=uptime,
                     version="1.0.0"
                 )
-                
+
             except Exception as e:
                 logger.error(f"Error getting health status: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health status"
                 )
-        
-        @self.router.get("/health/services", response_model=Dict[str, ServiceHealth])
+
+        @self.router.get("/health/services", response_model=dict[str, ServiceHealth])
         async def get_services_health():
             """Get services health status"""
             try:
@@ -150,8 +148,8 @@ class HealthEndpoints:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get services health"
                 )
-        
-        @self.router.get("/health/dependencies", response_model=Dict[str, Any])
+
+        @self.router.get("/health/dependencies", response_model=dict[str, Any])
         async def get_dependencies_health():
             """Get dependencies health status"""
             try:
@@ -163,8 +161,8 @@ class HealthEndpoints:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get dependencies health"
                 )
-        
-        @self.router.get("/health/metrics", response_model=Dict[str, Any])
+
+        @self.router.get("/health/metrics", response_model=dict[str, Any])
         async def get_health_metrics():
             """Get health metrics"""
             try:
@@ -176,19 +174,19 @@ class HealthEndpoints:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health metrics"
                 )
-    
-    async def _check_services(self) -> Dict[str, ServiceHealth]:
+
+    async def _check_services(self) -> dict[str, ServiceHealth]:
         """Check health of all services"""
         services_health = {}
-        
+
         for service_name, service_url in self.service_urls.items():
             try:
                 start_time = datetime.now()
-                
+
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
                     async with session.get(f"{service_url}/health") as response:
                         response_time = (datetime.now() - start_time).total_seconds() * 1000
-                        
+
                         if response.status == 200:
                             data = await response.json()
                             services_health[service_name] = ServiceHealth(
@@ -205,7 +203,7 @@ class HealthEndpoints:
                                 response_time_ms=response_time,
                                 error_message=f"HTTP {response.status}"
                             )
-                            
+
             except asyncio.TimeoutError:
                 services_health[service_name] = ServiceHealth(
                     name=service_name,
@@ -220,16 +218,16 @@ class HealthEndpoints:
                     last_check=datetime.now().isoformat(),  # Convert to ISO string
                     error_message=str(e)
                 )
-        
+
         return services_health
-    
-    async def _get_websocket_service_data(self) -> Dict[str, Any]:
+
+    async def _get_websocket_service_data(self) -> dict[str, Any]:
         """Get detailed data from websocket service"""
         try:
             websocket_url = self.service_urls.get("websocket-ingestion")
             if not websocket_url:
                 return {}
-            
+
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(f"{websocket_url}/health") as response:
                     if response.status == 200:
@@ -240,11 +238,11 @@ class HealthEndpoints:
         except Exception as e:
             logger.error(f"Error getting websocket service data: {e}")
             return {}
-    
-    async def _check_dependencies(self) -> Dict[str, Any]:
+
+    async def _check_dependencies(self) -> dict[str, Any]:
         """Check health of external dependencies"""
         dependencies_health = {}
-        
+
         # Check InfluxDB
         try:
             influxdb_url = self.service_urls["influxdb"]
@@ -261,7 +259,7 @@ class HealthEndpoints:
                 "last_check": datetime.now().isoformat(),
                 "error": str(e)
             }
-        
+
         # Check Weather API
         try:
             weather_api_key = os.getenv("WEATHER_API_KEY")
@@ -286,13 +284,13 @@ class HealthEndpoints:
                 "last_check": datetime.now().isoformat(),
                 "error": str(e)
             }
-        
+
         return dependencies_health
-    
-    async def _get_metrics(self) -> Dict[str, Any]:
+
+    async def _get_metrics(self) -> dict[str, Any]:
         """Get health metrics"""
         uptime = (datetime.now() - self.start_time).total_seconds()
-        
+
         return {
             "uptime_seconds": uptime,
             "uptime_human": self._format_uptime(uptime),
@@ -302,7 +300,7 @@ class HealthEndpoints:
             "cpu_usage": self._get_cpu_usage(),
             "disk_usage": self._get_disk_usage()
         }
-    
+
     async def _check_influxdb_health(self) -> bool:
         """Check InfluxDB health"""
         try:
@@ -313,7 +311,7 @@ class HealthEndpoints:
         except Exception as e:
             logger.error(f"InfluxDB health check failed: {e}")
             return False
-    
+
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
@@ -323,14 +321,14 @@ class HealthEndpoints:
         except Exception as e:
             logger.error(f"Service health check failed for {service_url}: {e}")
             return False
-    
+
     def _format_uptime(self, seconds: float) -> str:
         """Format uptime in human readable format"""
         days = int(seconds // 86400)
         hours = int((seconds % 86400) // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
-        
+
         if days > 0:
             return f"{days}d {hours}h {minutes}m {secs}s"
         elif hours > 0:
@@ -339,8 +337,8 @@ class HealthEndpoints:
             return f"{minutes}m {secs}s"
         else:
             return f"{secs}s"
-    
-    def _get_memory_usage(self) -> Dict[str, Any]:
+
+    def _get_memory_usage(self) -> dict[str, Any]:
         """Get memory usage information"""
         try:
             import psutil
@@ -353,8 +351,8 @@ class HealthEndpoints:
             }
         except ImportError:
             return {"error": "psutil not available"}
-    
-    def _get_cpu_usage(self) -> Dict[str, Any]:
+
+    def _get_cpu_usage(self) -> dict[str, Any]:
         """Get CPU usage information"""
         try:
             import psutil
@@ -367,8 +365,8 @@ class HealthEndpoints:
             }
         except ImportError:
             return {"error": "psutil not available"}
-    
-    def _get_disk_usage(self) -> Dict[str, Any]:
+
+    def _get_disk_usage(self) -> dict[str, Any]:
         """Get disk usage information"""
         try:
             import psutil
@@ -381,14 +379,14 @@ class HealthEndpoints:
             }
         except ImportError:
             return {"error": "psutil not available"}
-    
-    @self.router.get("/event-rate", response_model=Dict[str, Any])
+
+    @self.router.get("/event-rate", response_model=dict[str, Any])
     async def get_event_rate(self):
         """Get standardized event rate metrics for data-api service"""
         try:
             # Get current time for uptime calculation
             current_time = datetime.now()
-            
+
             # Story 24.1: Calculate uptime from service start time
             try:
                 from .main import SERVICE_START_TIME
@@ -396,18 +394,18 @@ class HealthEndpoints:
             except Exception as e:
                 logger.warning(f"Could not get SERVICE_START_TIME: {e}")
                 uptime_seconds = 3600  # Fallback estimate
-            
+
             # Simulate some realistic metrics for data-api
             # In production, these would come from actual request tracking
             import random
             events_per_second = random.uniform(0.5, 5.0)  # Simulate 0.5-5.0 req/sec
             events_per_hour = events_per_second * 3600
-            
+
             # Simulate some processing statistics
             processed_events = int(events_per_second * uptime_seconds)
             failed_events = int(processed_events * 0.01)  # 1% failure rate
             success_rate = 99.0
-            
+
             # Build response
             response_data = {
                 "service": "data-api",
@@ -446,9 +444,9 @@ class HealthEndpoints:
                 },
                 "timestamp": current_time.isoformat()
             }
-            
+
             return response_data
-            
+
         except Exception as e:
             logger.error(f"Error getting event rate: {e}")
             return {

@@ -11,11 +11,10 @@ All prompts leverage device intelligence when available for enhanced context.
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from ..utils.capability_utils import normalize_capability, format_capability_for_display
+from ..utils.capability_utils import format_capability_for_display, normalize_capability
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class UnifiedPromptBuilder:
     Unified prompt builder that consolidates all AI prompt generation
     with device intelligence integration.
     """
-    
+
     # Unified system prompt for all AI interactions
     UNIFIED_SYSTEM_PROMPT = """You are a HIGHLY CREATIVE and experienced Home Assistant automation expert with deep knowledge of device capabilities and smart home best practices.
 
@@ -78,7 +77,7 @@ Guidelines:
 - Leverage enum values for state-specific automations"""
 
     PATTERN_FILE = Path(__file__).with_name("ask_ai_prompt_patterns.json")
-    _pattern_cache: Optional[Dict[str, Any]] = None
+    _pattern_cache: dict[str, Any] | None = None
 
     def __init__(self, device_intelligence_client=None):
         """
@@ -91,7 +90,7 @@ Guidelines:
         self.prompt_patterns = self._load_prompt_patterns()
 
     @classmethod
-    def _load_prompt_patterns(cls) -> Dict[str, Any]:
+    def _load_prompt_patterns(cls) -> dict[str, Any]:
         """Load reusable prompt pattern guidance from JSON file."""
         if cls._pattern_cache is not None:
             return cls._pattern_cache
@@ -110,12 +109,12 @@ Guidelines:
 
         return cls._pattern_cache
 
-    def _render_pattern_sections(self, pattern_ids: List[str]) -> str:
+    def _render_pattern_sections(self, pattern_ids: list[str]) -> str:
         """Render guideline sections for the provided pattern identifiers."""
         if not pattern_ids:
             return ""
 
-        sections: List[str] = []
+        sections: list[str] = []
         for pattern_id in pattern_ids:
             pattern = self.prompt_patterns.get(pattern_id)
             if not pattern:
@@ -144,13 +143,13 @@ Guidelines:
             sections.pop()
 
         return "\n".join(sections)
-        
+
     async def build_pattern_prompt(
-        self, 
-        pattern: Dict, 
-        device_context: Optional[Dict] = None,
+        self,
+        pattern: dict,
+        device_context: dict | None = None,
         output_mode: str = "yaml"  # "yaml" | "description"
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Build prompt for pattern-based suggestion generation (3AM batch process).
         
@@ -164,10 +163,10 @@ Guidelines:
         """
         pattern_type = pattern.get('type', 'unknown')
         device_id = pattern.get('device_id')
-        
+
         # Build device context section
         device_section = await self._build_device_context_section(device_context)
-        
+
         # Pattern-specific user prompt
         if pattern_type == 'time_of_day':
             user_prompt = self._build_time_of_day_prompt(pattern, device_section, output_mode)
@@ -177,14 +176,14 @@ Guidelines:
             user_prompt = self._build_synergy_prompt(pattern, device_section, output_mode)
         else:
             user_prompt = self._build_generic_pattern_prompt(pattern, device_section, output_mode)
-            
+
         pattern_summary = self._summarize_pattern(pattern)
         synergy_context = self._summarize_synergy(pattern)
         feedback_hint = pattern.get('feedback_hint') or (
             "No explicit user feedback recorded for this device yet. "
             "Favor low-friction, easy-to-accept automations."
         )
-        
+
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
             "user_prompt": user_prompt,
@@ -193,15 +192,15 @@ Guidelines:
             "feedback_hint": feedback_hint,
             "pattern_source": pattern
         }
-    
+
     async def build_query_prompt(
         self,
         query: str,
-        entities: List[Dict],
+        entities: list[dict],
         output_mode: str = "suggestions",  # "suggestions" | "yaml"
-        entity_context_json: Optional[str] = None,  # Enriched entity context JSON
-        clarification_context: Optional[Dict[str, Any]] = None  # NEW: Clarification Q&A context
-    ) -> Dict[str, str]:
+        entity_context_json: str | None = None,  # Enriched entity context JSON
+        clarification_context: dict[str, Any] | None = None  # NEW: Clarification Q&A context
+    ) -> dict[str, str]:
         """
         Build prompt for Ask AI query-based suggestion generation.
         
@@ -220,7 +219,7 @@ Guidelines:
         except Exception as e:
             logger.warning(f"Failed to build entity context section: {e}")
             entity_section = "No device information available."
-        
+
         # Add enriched entity context JSON if available
         enriched_context_section = ""
         if entity_context_json:
@@ -235,7 +234,7 @@ Use this enriched context to:
 - Generate automations that respect device types (e.g., don't control individual Hue lights when room group is available)
 - Create appropriate service calls based on entity attributes
 """
-        
+
         # Add clarification context if available
         clarification_section = ""
         if clarification_context and clarification_context.get('questions_and_answers'):
@@ -245,7 +244,7 @@ Use this enriched context to:
                 if qa.get('selected_entities'):
                     qa_text += f"\nSelected entities: {', '.join(qa['selected_entities'])}"
                 qa_list.append(qa_text)
-            
+
             clarification_section = f"""
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -275,10 +274,10 @@ DO NOT:
 ═══════════════════════════════════════════════════════════════════════════════
 """
             logger.info(f"📝 Added clarification section to prompt with {len(qa_list)} Q&A pairs")
-        
+
         # Generate capability-specific examples
         capability_examples = self._generate_capability_examples(entities)
-        
+
         # Determine which prompt patterns to surface
         pattern_ids = ["baseline", "safety", "creative"]
         if clarification_context and clarification_context.get('questions_and_answers'):
@@ -294,7 +293,7 @@ DO NOT:
             # The query passed in should already be enriched, but show original for context
             original_query = clarification_context.get('original_query', query)
             query_display = f"{original_query}\n\n(Enriched with user clarifications - see CLARIFICATION CONTEXT below)"
-        
+
         user_prompt = f"""Based on this query: "{query_display}"
 
 Available devices and capabilities:
@@ -362,13 +361,13 @@ CRITICAL: For devices_involved, extract the exact "friendly_name" values from th
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
             "user_prompt": user_prompt
         }
-    
+
     async def build_yaml_generation_prompt(
         self,
-        suggestion: Dict[str, Any],
-        entities: List[Dict[str, Any]],
-        device_context: Optional[Dict] = None
-    ) -> Dict[str, str]:
+        suggestion: dict[str, Any],
+        entities: list[dict[str, Any]],
+        device_context: dict | None = None
+    ) -> dict[str, str]:
         """
         Build prompt for YAML generation with device validation.
         
@@ -382,10 +381,10 @@ CRITICAL: For devices_involved, extract the exact "friendly_name" values from th
         """
         # Build entity validation context
         entity_context = await self._build_entity_validation_context(entities)
-        
+
         # Build device context section
         device_section = await self._build_device_context_section(device_context)
-        
+
         user_prompt = f"""Generate a sophisticated Home Assistant automation YAML configuration that brings this creative suggestion to life.
 
 Suggestion: "{suggestion.get('description', '')}"
@@ -424,37 +423,37 @@ Generate a complete, valid Home Assistant automation YAML."""
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
             "user_prompt": user_prompt
         }
-    
-    async def _build_entity_validation_context(self, entities: List[Dict[str, Any]]) -> str:
+
+    async def _build_entity_validation_context(self, entities: list[dict[str, Any]]) -> str:
         """Build entity validation context for YAML generation."""
         if not entities:
             return "No entities available for validation."
-        
+
         sections = []
         for entity in entities:
             entity_id = entity.get('entity_id', 'unknown')
             friendly_name = entity.get('friendly_name', entity_id)
             domain = entity.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
-            
+
             entity_info = f"- {friendly_name}: {entity_id} (domain: {domain})"
-            
+
             # Add capabilities if available
             capabilities = entity.get('capabilities', [])
             if capabilities:
                 supported_caps = [cap.get('feature', cap) for cap in capabilities if isinstance(cap, dict) and cap.get('supported', False)]
                 if supported_caps:
                     entity_info += f" [Supported: {', '.join(supported_caps)}]"
-            
+
             sections.append(entity_info)
-        
+
         return "\n".join(sections)
-    
+
     async def build_feature_prompt(
         self,
-        opportunity: Dict,
-        device_context: Dict,
+        opportunity: dict,
+        device_context: dict,
         output_mode: str = "description"
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Build prompt for device feature-based suggestion generation.
         
@@ -467,7 +466,7 @@ Generate a complete, valid Home Assistant automation YAML."""
             Dictionary with "system_prompt" and "user_prompt" keys
         """
         device_section = await self._build_device_context_section(device_context)
-        
+
         user_prompt = f"""Device Feature Opportunity:
 {opportunity.get('description', 'Unknown feature')}
 
@@ -481,8 +480,8 @@ Focus on practical applications that enhance the user experience."""
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
             "user_prompt": user_prompt
         }
-    
-    def _summarize_pattern(self, pattern: Dict) -> str:
+
+    def _summarize_pattern(self, pattern: dict) -> str:
         """Create a concise summary string for the detected pattern."""
         if not pattern:
             return "Pattern details unavailable."
@@ -529,7 +528,7 @@ Focus on practical applications that enhance the user experience."""
 
         return "\n".join(summary_lines)
 
-    def _summarize_synergy(self, pattern: Dict) -> str:
+    def _summarize_synergy(self, pattern: dict) -> str:
         """Create a synergy-specific context summary if available."""
         metadata = pattern.get('metadata') or {}
         synergy_meta = metadata if metadata.get('synergy_type') else metadata.get('synergy_metadata', {})
@@ -556,8 +555,8 @@ Focus on practical applications that enhance the user experience."""
             synergy_lines.append(f"Pattern support score: {support_score:.2f}")
 
         return "\n".join(synergy_lines)
-    
-    async def get_enhanced_device_context(self, pattern: Dict) -> Dict:
+
+    async def get_enhanced_device_context(self, pattern: dict) -> dict:
         """
         Get enhanced device context with intelligence data.
         
@@ -570,7 +569,7 @@ Focus on practical applications that enhance the user experience."""
         device_id = pattern.get('device_id')
         if not device_id or not self.device_intel_client:
             return {}
-            
+
         try:
             device_details = await self.device_intel_client.get_device_details(device_id)
             return {
@@ -585,30 +584,30 @@ Focus on practical applications that enhance the user experience."""
         except Exception as e:
             logger.warning(f"Device intelligence unavailable for {device_id}: {e}")
             return {'device_id': device_id}
-    
-    async def _build_device_context_section(self, device_context: Optional[Dict]) -> str:
+
+    async def _build_device_context_section(self, device_context: dict | None) -> str:
         """Build device context section for prompts."""
         if not device_context:
             return "No specific device context available."
-            
+
         sections = []
-        
+
         # Basic device info
         if device_context.get('friendly_name'):
             sections.append(f"Device: {device_context['friendly_name']}")
-        
+
         if device_context.get('manufacturer'):
             sections.append(f"Manufacturer: {device_context['manufacturer']}")
-            
+
         if device_context.get('model'):
             sections.append(f"Model: {device_context['model']}")
-            
+
         # Health score
         health_score = device_context.get('health_score')
         if health_score is not None:
             health_status = "Excellent" if health_score > 80 else "Good" if health_score > 60 else "Fair"
             sections.append(f"Health Score: {health_score} ({health_status})")
-            
+
         # Capabilities with detailed descriptions
         capabilities = device_context.get('capabilities', [])
         if capabilities:
@@ -622,27 +621,27 @@ Focus on practical applications that enhance the user experience."""
                 else:
                     capability_descriptions.append(str(cap))
             sections.append(f"Capabilities: {', '.join(capability_descriptions)}")
-            
+
         return "\n".join(sections) if sections else "No device context available."
-    
-    async def _build_entity_context_section(self, entities: List[Dict]) -> str:
+
+    async def _build_entity_context_section(self, entities: list[dict]) -> str:
         """Build entity context section for Ask AI prompts with enhanced capability details."""
         if not entities:
             return "No devices detected in query."
-            
+
         sections = []
         for entity in entities:
             # Try 'name' first (from device intelligence), then fall back to friendly_name, entity_id
             entity_name = entity.get('name', entity.get('friendly_name', entity.get('entity_id', 'Unknown')))
             entity_info = f"- {entity_name}"
-            
+
             # Add manufacturer and model if available
             if entity.get('manufacturer'):
                 entity_info += f" ({entity['manufacturer']}"
                 if entity.get('model'):
                     entity_info += f" {entity['model']}"
                 entity_info += ")"
-            
+
             # Add capabilities with DETAILED information using normalization
             capabilities = entity.get('capabilities', [])
             if capabilities:
@@ -656,28 +655,28 @@ Focus on practical applications that enhance the user experience."""
                     else:
                         capability_descriptions.append(str(cap))
                 entity_info += f" [Capabilities: {', '.join(capability_descriptions)}]"
-                
+
             # Add health score with status
             health_score = entity.get('health_score')
             if health_score is not None:
                 health_status = "Excellent" if health_score > 80 else "Good" if health_score > 60 else "Fair"
                 entity_info += f" [Health: {health_score} ({health_status})]"
-            
+
             # Add area if available
             if entity.get('area'):
                 entity_info += f" [Area: {entity['area']}]"
-                
+
             sections.append(entity_info)
-            
+
         return "\n".join(sections)
-    
-    def _generate_capability_examples(self, entities: List[Dict]) -> str:
+
+    def _generate_capability_examples(self, entities: list[dict]) -> str:
         """Generate capability-specific examples based on detected devices."""
         examples = []
-        
+
         # Collect unique capability types across all entities
         capability_types_found = {}
-        
+
         for entity in entities:
             capabilities = entity.get('capabilities', [])
             for cap in capabilities:
@@ -685,28 +684,28 @@ Focus on practical applications that enhance the user experience."""
                     normalized = normalize_capability(cap)
                     cap_type = normalized.get('type', 'unknown')
                     props = normalized.get('properties', {})
-                    
+
                     if cap_type not in capability_types_found:
                         capability_types_found[cap_type] = []
                     capability_types_found[cap_type].append((normalized.get('name', 'unknown'), props))
-        
+
         # Generate examples based on capabilities found
         for cap_type, caps in capability_types_found.items():
             if cap_type == 'numeric':
                 examples.append("- For numeric capabilities (brightness, color_temp, timer): Use ranges for smooth transitions - 'Fade to 50% over 5 seconds', 'Warm from 500K to 300K over 10 minutes'")
-            
+
             elif cap_type == 'enum':
                 examples.append("- For enum capabilities (speed, mode, state): Use specific values - 'Set fan to medium speed when temperature > 75F'")
-            
+
             elif cap_type == 'composite':
                 examples.append("- For composite capabilities (breeze_mode, LED_notifications): Configure multiple features - 'Set fan to high for 30s, then low for 15s'")
-            
+
             elif cap_type == 'binary':
                 examples.append("- For binary capabilities (state, toggle): Use state changes - 'Toggle device when door opens'")
-        
+
         return '\n'.join(examples) if examples else "- Use available device capabilities creatively"
-    
-    def _filter_suggestions_by_capabilities(self, suggestions: List[Dict], entities: List[Dict]) -> List[Dict]:
+
+    def _filter_suggestions_by_capabilities(self, suggestions: list[dict], entities: list[dict]) -> list[dict]:
         """
         Filter suggestions to only include those using available capabilities.
         
@@ -721,7 +720,7 @@ Focus on practical applications that enhance the user experience."""
         """
         if not entities or not suggestions:
             return suggestions
-        
+
         # Collect all available capabilities from entities
         entity_capabilities = set()
         for entity in entities:
@@ -731,38 +730,38 @@ Focus on practical applications that enhance the user experience."""
                     normalized = normalize_capability(cap)
                     if normalized.get('supported'):
                         entity_capabilities.add(normalized.get('name', '').lower())
-        
+
         # Filter suggestions based on capabilities used
         filtered = []
         for suggestion in suggestions:
             capabilities_used = suggestion.get('capabilities_used', [])
-            
+
             # Check if any capability is mentioned
             if not capabilities_used:
                 filtered.append(suggestion)  # Generic suggestion, keep it
                 continue
-            
+
             # Check if capabilities exist in available entities
             caps_mentioned = [c.lower() for c in capabilities_used]
-            
+
             # Allow if at least one capability matches (fuzzy match)
             matches = [cap for cap in caps_mentioned if cap in entity_capabilities]
-            
+
             if matches:
                 filtered.append(suggestion)
                 logger.debug(f"Kept suggestion: {suggestion.get('description', '')} - using capabilities: {matches}")
             else:
                 logger.debug(f"Filtered suggestion: {suggestion.get('description', '')} - capabilities not available")
-        
+
         # If all suggestions filtered out, return original (better than nothing)
         return filtered if filtered else suggestions
-    
-    def _build_time_of_day_prompt(self, pattern: Dict, device_section: str, output_mode: str) -> str:
+
+    def _build_time_of_day_prompt(self, pattern: dict, device_section: str, output_mode: str) -> str:
         """Build time-of-day pattern prompt."""
         time_range = pattern.get('time_range', 'unknown time')
         frequency = pattern.get('frequency', 'unknown')
         confidence = pattern.get('confidence', 0.0)
-        
+
         prompt = f"""Time-based Pattern Detected:
 - Time Range: {time_range}
 - Frequency: {frequency}
@@ -784,13 +783,13 @@ Generate automation suggestions for this time-based pattern that leverage device
             prompt += "\n\nProvide a clear, descriptive automation idea without YAML that explains what it does and why it's helpful."
 
         return prompt
-    
-    def _build_co_occurrence_prompt(self, pattern: Dict, device_section: str, output_mode: str) -> str:
+
+    def _build_co_occurrence_prompt(self, pattern: dict, device_section: str, output_mode: str) -> str:
         """Build co-occurrence pattern prompt."""
         entities = pattern.get('entities', [])
         confidence = pattern.get('confidence', 0)
         time_delta = pattern.get('time_delta', 0)
-        
+
         prompt = f"""Co-occurrence Pattern Detected:
 - Entities: {', '.join(entities)}
 - Confidence: {confidence:.1%}
@@ -813,12 +812,12 @@ Generate automation suggestions for this co-occurrence pattern that create smoot
             prompt += "\n\nProvide a clear, descriptive automation idea without YAML that explains the device interaction and its benefits."
 
         return prompt
-    
-    def _build_synergy_prompt(self, pattern: Dict, device_section: str, output_mode: str) -> str:
+
+    def _build_synergy_prompt(self, pattern: dict, device_section: str, output_mode: str) -> str:
         """Build synergy pattern prompt."""
         synergy_type = pattern.get('synergy_type', 'unknown')
         devices = pattern.get('devices', [])
-        
+
         prompt = f"""Synergy Pattern Detected:
 - Type: {synergy_type}
 - Devices: {', '.join(devices)}
@@ -832,11 +831,11 @@ Generate automation suggestions that leverage the synergy between these devices.
             prompt += "\n\nProvide a clear, descriptive automation idea without YAML."
 
         return prompt
-    
-    def _build_generic_pattern_prompt(self, pattern: Dict, device_section: str, output_mode: str) -> str:
+
+    def _build_generic_pattern_prompt(self, pattern: dict, device_section: str, output_mode: str) -> str:
         """Build generic pattern prompt."""
         pattern_data = pattern.get('data', {})
-        
+
         prompt = f"""Pattern Detected:
 - Pattern Data: {pattern_data}
 - Device Context: {device_section}

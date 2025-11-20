@@ -2,15 +2,16 @@
 Diff Generation - Generate JSON/YAML diffs for automation plans
 """
 
-from typing import Dict, Any, List
 import json
-import yaml
 import logging
+from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
 
-def generate_json_diff(old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+def generate_json_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
     """
     Generate JSON diff between two automation plans.
     
@@ -26,14 +27,14 @@ def generate_json_diff(old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, An
         "removed": {},
         "modified": {}
     }
-    
+
     # Compare recursively
     _compare_dicts(old, new, diff, "")
-    
+
     return diff
 
 
-def generate_yaml_diff(old_yaml: str, new_yaml: str) -> Dict[str, Any]:
+def generate_yaml_diff(old_yaml: str, new_yaml: str) -> dict[str, Any]:
     """
     Generate diff between two YAML strings.
     
@@ -58,14 +59,14 @@ def generate_yaml_diff(old_yaml: str, new_yaml: str) -> Dict[str, Any]:
         }
 
 
-def _compare_dicts(old: Dict[str, Any], new: Dict[str, Any], diff: Dict[str, Any], path: str):
+def _compare_dicts(old: dict[str, Any], new: dict[str, Any], diff: dict[str, Any], path: str):
     """Recursively compare two dictionaries"""
     # Check for removed keys
     for key in old:
         full_path = f"{path}.{key}" if path else key
         if key not in new:
             _set_nested_value(diff["removed"], full_path, old[key])
-    
+
     # Check for added/modified keys
     for key in new:
         full_path = f"{path}.{key}" if path else key
@@ -74,7 +75,7 @@ def _compare_dicts(old: Dict[str, Any], new: Dict[str, Any], diff: Dict[str, Any
         else:
             old_val = old[key]
             new_val = new[key]
-            
+
             if isinstance(old_val, dict) and isinstance(new_val, dict):
                 _compare_dicts(old_val, new_val, diff, full_path)
             elif isinstance(old_val, list) and isinstance(new_val, list):
@@ -86,7 +87,7 @@ def _compare_dicts(old: Dict[str, Any], new: Dict[str, Any], diff: Dict[str, Any
                 })
 
 
-def _compare_lists(old: List[Any], new: List[Any], diff: Dict[str, Any], path: str):
+def _compare_lists(old: list[Any], new: list[Any], diff: dict[str, Any], path: str):
     """Compare two lists"""
     if len(old) != len(new):
         _set_nested_value(diff["modified"], path, {
@@ -108,7 +109,7 @@ def _compare_lists(old: List[Any], new: List[Any], diff: Dict[str, Any], path: s
                     })
 
 
-def _set_nested_value(d: Dict[str, Any], path: str, value: Any):
+def _set_nested_value(d: dict[str, Any], path: str, value: Any):
     """Set a nested value in a dict using dot notation path"""
     keys = path.split(".")
     current = d
@@ -119,7 +120,7 @@ def _set_nested_value(d: Dict[str, Any], path: str, value: Any):
     current[keys[-1]] = value
 
 
-def format_diff_for_display(diff: Dict[str, Any]) -> str:
+def format_diff_for_display(diff: dict[str, Any]) -> str:
     """
     Format diff for human-readable display.
     
@@ -130,17 +131,17 @@ def format_diff_for_display(diff: Dict[str, Any]) -> str:
         Human-readable diff string
     """
     lines = []
-    
+
     if diff.get("added"):
         lines.append("Added:")
         for path, value in _flatten_dict(diff["added"]).items():
             lines.append(f"  + {path}: {json.dumps(value)}")
-    
+
     if diff.get("removed"):
         lines.append("Removed:")
         for path, value in _flatten_dict(diff["removed"]).items():
             lines.append(f"  - {path}: {json.dumps(value)}")
-    
+
     if diff.get("modified"):
         lines.append("Modified:")
         for path, change in _flatten_dict(diff["modified"]).items():
@@ -150,11 +151,11 @@ def format_diff_for_display(diff: Dict[str, Any]) -> str:
                 lines.append(f"    new: {json.dumps(change['new'])}")
             else:
                 lines.append(f"  ~ {path}: {json.dumps(change)}")
-    
+
     return "\n".join(lines) if lines else "No changes"
 
 
-def _flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> dict[str, Any]:
     """Flatten nested dict to dot-notation keys"""
     items = []
     for k, v in d.items():

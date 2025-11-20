@@ -7,10 +7,8 @@ Create Date: 2025-11-17 08:06:50.232263
 Rename 'metadata' column to 'knowledge_metadata' in semantic_knowledge table
 to avoid SQLAlchemy reserved word conflict.
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '398ef0bf19ba'
@@ -34,7 +32,7 @@ def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     columns = [col['name'] for col in inspector.get_columns('semantic_knowledge')]
-    
+
     if 'metadata' in columns and 'knowledge_metadata' not in columns:
         # Create temporary table with renamed column
         op.create_table(
@@ -49,25 +47,25 @@ def upgrade() -> None:
             sa.Column('updated_at', sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint('id')
         )
-        
+
         # Drop indexes on old table before dropping it
         op.drop_index('idx_knowledge_type', table_name='semantic_knowledge')
         op.drop_index('idx_success_score', table_name='semantic_knowledge')
         op.drop_index('idx_created_at', table_name='semantic_knowledge')
-        
+
         # Copy data from old table to new table
         op.execute("""
             INSERT INTO semantic_knowledge_new (id, text, embedding, knowledge_type, knowledge_metadata, success_score, created_at, updated_at)
             SELECT id, text, embedding, knowledge_type, metadata, success_score, created_at, updated_at
             FROM semantic_knowledge
         """)
-        
+
         # Drop old table
         op.drop_table('semantic_knowledge')
-        
+
         # Rename new table to original name (SQLite supports this)
         op.execute("ALTER TABLE semantic_knowledge_new RENAME TO semantic_knowledge")
-        
+
         # Recreate indexes
         op.create_index('idx_knowledge_type', 'semantic_knowledge', ['knowledge_type'])
         op.create_index('idx_success_score', 'semantic_knowledge', ['success_score'])
@@ -84,7 +82,7 @@ def downgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     columns = [col['name'] for col in inspector.get_columns('semantic_knowledge')]
-    
+
     if 'knowledge_metadata' in columns and 'metadata' not in columns:
         # Create temporary table with original column name
         op.create_table(
@@ -99,25 +97,25 @@ def downgrade() -> None:
             sa.Column('updated_at', sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint('id')
         )
-        
+
         # Drop indexes on current table before dropping it
         op.drop_index('idx_knowledge_type', table_name='semantic_knowledge')
         op.drop_index('idx_success_score', table_name='semantic_knowledge')
         op.drop_index('idx_created_at', table_name='semantic_knowledge')
-        
+
         # Copy data from current table to new table
         op.execute("""
             INSERT INTO semantic_knowledge_new (id, text, embedding, knowledge_type, metadata, success_score, created_at, updated_at)
             SELECT id, text, embedding, knowledge_type, knowledge_metadata, success_score, created_at, updated_at
             FROM semantic_knowledge
         """)
-        
+
         # Drop current table
         op.drop_table('semantic_knowledge')
-        
+
         # Rename new table to original name (SQLite supports this)
         op.execute("ALTER TABLE semantic_knowledge_new RENAME TO semantic_knowledge")
-        
+
         # Recreate indexes
         op.create_index('idx_knowledge_type', 'semantic_knowledge', ['knowledge_type'])
         op.create_index('idx_success_score', 'semantic_knowledge', ['success_score'])

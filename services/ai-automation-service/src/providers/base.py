@@ -3,9 +3,9 @@ Base Provider Interface for LLM Providers
 All providers must implement this interface for deterministic JSON generation.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
 import logging
+from abc import ABC, abstractmethod
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class BaseProvider(ABC):
     - model_id() - model identifier
     - generate_json() - generate schema-valid JSON
     """
-    
+
     @abstractmethod
     def provider_id(self) -> str:
         """
@@ -29,7 +29,7 @@ class BaseProvider(ABC):
             Provider identifier string
         """
         pass
-    
+
     @abstractmethod
     def model_id(self) -> str:
         """
@@ -39,17 +39,17 @@ class BaseProvider(ABC):
             Model identifier string
         """
         pass
-    
+
     @abstractmethod
     async def generate_json(
         self,
         *,
-        schema: Dict[str, Any],
+        schema: dict[str, Any],
         prompt: str,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate JSON output conforming to the provided schema.
         
@@ -74,8 +74,8 @@ class BaseProvider(ABC):
             RuntimeError: If provider API call fails
         """
         pass
-    
-    def get_metadata(self) -> Dict[str, str]:
+
+    def get_metadata(self) -> dict[str, str]:
         """
         Get provider and model metadata.
         

@@ -13,7 +13,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,7 +49,7 @@ openvino_manager: OpenVINOManager = None
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global openvino_manager
-    
+
     logger.info("🚀 Starting OpenVINO Service...")
     try:
         openvino_manager = OpenVINOManager()
@@ -61,9 +61,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("❌ Failed to start OpenVINO Service")
         raise
-    
+
     yield
-    
+
     # Shutdown
     logger.info("🛑 Shutting down OpenVINO Service...")
     if openvino_manager:
@@ -89,21 +89,21 @@ app.add_middleware(
 
 # Pydantic models
 class EmbeddingRequest(BaseModel):
-    texts: List[str] = Field(..., description="List of texts to embed")
+    texts: list[str] = Field(..., description="List of texts to embed")
     normalize: bool = Field(True, description="Normalize embeddings")
 
 class EmbeddingResponse(BaseModel):
-    embeddings: List[List[float]] = Field(..., description="Generated embeddings")
+    embeddings: list[list[float]] = Field(..., description="Generated embeddings")
     model_name: str = Field(..., description="Model used")
     processing_time: float = Field(..., description="Processing time in seconds")
 
 class RerankRequest(BaseModel):
     query: str = Field(..., description="Query text")
-    candidates: List[Dict[str, Any]] = Field(..., description="Candidates to re-rank")
+    candidates: list[dict[str, Any]] = Field(..., description="Candidates to re-rank")
     top_k: int = Field(10, description="Number of top results to return")
 
 class RerankResponse(BaseModel):
-    ranked_candidates: List[Dict[str, Any]] = Field(..., description="Re-ranked candidates")
+    ranked_candidates: list[dict[str, Any]] = Field(..., description="Re-ranked candidates")
     model_name: str = Field(..., description="Model used")
     processing_time: float = Field(..., description="Processing time in seconds")
 
@@ -123,7 +123,7 @@ def _require_manager() -> OpenVINOManager:
     return openvino_manager
 
 
-def _validate_text_batch(texts: List[str]) -> None:
+def _validate_text_batch(texts: list[str]) -> None:
     if not texts:
         raise HTTPException(status_code=400, detail="At least one text is required")
     if len(texts) > MAX_TEXTS:
@@ -138,7 +138,7 @@ def _validate_text_batch(texts: List[str]) -> None:
             raise HTTPException(status_code=400, detail="Texts cannot be empty strings")
 
 
-def _validate_rerank_payload(query: str, candidates: List[Dict[str, Any]], top_k: int) -> None:
+def _validate_rerank_payload(query: str, candidates: list[dict[str, Any]], top_k: int) -> None:
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
     if len(query) > MAX_QUERY_LENGTH:
@@ -183,12 +183,12 @@ async def health_check():
     """Health check endpoint - reports readiness and model status."""
     manager = _require_manager()
     readiness = manager.is_ready()
-    
+
     model_status = manager.get_model_status()
-    
+
     model_status = openvino_manager.get_model_status()
     ready_state = "ready" if model_status.get("all_models_loaded") else "warming"
-    
+
     return {
         "status": "healthy" if readiness else "initializing",
         "service": "openvino-service",
@@ -207,25 +207,25 @@ async def generate_embeddings(request: EmbeddingRequest):
     """Generate embeddings for texts"""
     manager = _require_manager()
     _validate_text_batch(request.texts)
-    
+
     _validate_text_batch(request.texts)
-    
+
     try:
         start_time = time.perf_counter()
-        
+
         embeddings = await manager.generate_embeddings(
             texts=request.texts,
             normalize=request.normalize
         )
-        
+
         processing_time = time.perf_counter() - start_time
-        
+
         return EmbeddingResponse(
             embeddings=embeddings.tolist(),
             model_name="all-MiniLM-L6-v2",
             processing_time=processing_time
         )
-    
+
     except asyncio.TimeoutError:
         timeout = manager.inference_timeout
         logger.warning("Embedding generation timed out after %.2fs", timeout)
@@ -241,27 +241,27 @@ async def rerank_candidates(request: RerankRequest):
     """Re-rank candidates using bge-reranker"""
     manager = _require_manager()
     _validate_rerank_payload(request.query, request.candidates, request.top_k)
-    
+
     max_allowed = min(MAX_RERANK_TOP_K, len(request.candidates))
     top_k = max(1, min(request.top_k, max_allowed))
-    
+
     try:
         start_time = time.perf_counter()
-        
+
         ranked_candidates = await manager.rerank(
             query=request.query,
             candidates=request.candidates,
             top_k=top_k
         )
-        
+
         processing_time = time.perf_counter() - start_time
-        
+
         return RerankResponse(
             ranked_candidates=ranked_candidates,
             model_name="bge-reranker-base",
             processing_time=processing_time
         )
-    
+
     except asyncio.TimeoutError:
         timeout = manager.inference_timeout
         logger.warning("Re-ranking timed out after %.2fs", timeout)
@@ -277,25 +277,25 @@ async def classify_pattern(request: ClassifyRequest):
     """Classify pattern using flan-t5-small"""
     manager = _require_manager()
     _validate_pattern_description(request.pattern_description)
-    
+
     _validate_pattern_description(request.pattern_description)
-    
+
     try:
         start_time = time.perf_counter()
-        
+
         classification = await manager.classify_pattern(
             pattern_description=request.pattern_description
         )
-        
+
         processing_time = time.perf_counter() - start_time
-        
+
         return ClassifyResponse(
             category=classification['category'],
             priority=classification['priority'],
             model_name="flan-t5-small",
             processing_time=processing_time
         )
-    
+
     except asyncio.TimeoutError:
         timeout = manager.inference_timeout
         logger.warning("Pattern classification timed out after %.2fs", timeout)

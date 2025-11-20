@@ -10,7 +10,6 @@ Example outputs:
 - "smart thermostat controlling HVAC temperature in whole house"
 """
 
-from typing import Dict, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ class DeviceDescriptorBuilder:
     Story AI4.1: Device Embedding Generation
     Context7 Best Practice: Clear, semantic descriptors for embedding quality
     """
-    
+
     def __init__(self, capability_service=None):
         """
         Initialize descriptor builder.
@@ -34,12 +33,12 @@ class DeviceDescriptorBuilder:
         self.capability_service = capability_service
         self._action_mappings = self._load_action_mappings()
         self._friendly_device_names = self._load_friendly_names()
-    
+
     def create_descriptor(
         self,
-        device: Dict,
-        entity: Dict,
-        capabilities: Optional[Dict] = None
+        device: dict,
+        entity: dict,
+        capabilities: dict | None = None
     ) -> str:
         """
         Create semantic device descriptor.
@@ -67,19 +66,19 @@ class DeviceDescriptorBuilder:
         primary_action = self._get_primary_action(entity, capabilities)
         area = entity.get('area_id', 'unknown')
         capability_features = self._get_top_capabilities(capabilities, limit=3)
-        
+
         # Build descriptor
         descriptor = f"{device_class} that {primary_action}"
         descriptor += f" in {area} area"
-        
+
         if capability_features:
             descriptor += f" with {', '.join(capability_features)}"
-        
+
         logger.debug(f"Generated descriptor for {entity.get('entity_id')}: {descriptor}")
-        
+
         return descriptor
-    
-    def _get_device_class(self, entity: Dict) -> str:
+
+    def _get_device_class(self, entity: dict) -> str:
         """
         Get friendly device class name.
         
@@ -91,23 +90,23 @@ class DeviceDescriptorBuilder:
         """
         domain = entity['entity_id'].split('.')[0]
         device_class = entity.get('device_class', entity.get('original_device_class'))
-        
+
         # Check friendly name mapping
         if domain in self._friendly_device_names:
             domain_mapping = self._friendly_device_names[domain]
-            
+
             if isinstance(domain_mapping, dict) and device_class:
                 return domain_mapping.get(device_class, f"{domain} device")
             elif isinstance(domain_mapping, str):
                 return domain_mapping
-        
+
         # Fallback to domain
         return f"{domain} device"
-    
+
     def _get_primary_action(
         self,
-        entity: Dict,
-        capabilities: Optional[Dict] = None
+        entity: dict,
+        capabilities: dict | None = None
     ) -> str:
         """
         Determine primary action/purpose of device.
@@ -121,24 +120,24 @@ class DeviceDescriptorBuilder:
         """
         domain = entity['entity_id'].split('.')[0]
         device_class = entity.get('device_class', entity.get('original_device_class'))
-        
+
         # Check action mapping
         if domain in self._action_mappings:
             domain_actions = self._action_mappings[domain]
-            
+
             if isinstance(domain_actions, dict) and device_class:
                 return domain_actions.get(device_class, 'controls state')
             elif isinstance(domain_actions, str):
                 return domain_actions
-        
+
         # Fallback
         return 'controls state'
-    
+
     def _get_top_capabilities(
         self,
-        capabilities: Optional[Dict],
+        capabilities: dict | None,
         limit: int = 3
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Extract top N capabilities for descriptor.
         
@@ -151,31 +150,31 @@ class DeviceDescriptorBuilder:
         """
         if not capabilities or not isinstance(capabilities, dict):
             return []
-        
+
         cap_list = capabilities.get('capabilities', {})
         if not cap_list:
             return []
-        
+
         # Prioritize user-facing capabilities
         priority_caps = ['brightness', 'color_xy', 'color_temp', 'speed', 'position']
-        
+
         friendly_caps = []
-        
+
         # Add priority caps first
         for cap_name in priority_caps:
             if cap_name in cap_list:
                 friendly_caps.append(self._friendly_cap_name(cap_name))
-        
+
         # Add remaining caps
         for cap_name in cap_list.keys():
             if cap_name not in priority_caps:
                 friendly_caps.append(self._friendly_cap_name(cap_name))
-            
+
             if len(friendly_caps) >= limit:
                 break
-        
+
         return friendly_caps[:limit]
-    
+
     def _friendly_cap_name(self, cap_name: str) -> str:
         """
         Convert capability name to friendly format.
@@ -196,10 +195,10 @@ class DeviceDescriptorBuilder:
             'smart_bulb_mode': 'smart bulb mode',
             'led_notifications': 'LED notifications'
         }
-        
+
         return mappings.get(cap_name, cap_name.replace('_', ' '))
-    
-    def _load_friendly_names(self) -> Dict:
+
+    def _load_friendly_names(self) -> dict:
         """
         Load friendly device name mappings.
         
@@ -231,8 +230,8 @@ class DeviceDescriptorBuilder:
             'media_player': 'media player',
             'camera': 'security camera'
         }
-    
-    def _load_action_mappings(self) -> Dict:
+
+    def _load_action_mappings(self) -> dict:
         """
         Load primary action mappings.
         

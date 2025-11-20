@@ -7,9 +7,10 @@ Create Date: 2025-10-29 12:00:00.000000
 Epic: Entity Resolution Enhancements
 Priority 3: User-Defined Aliases
 """
-from alembic import op
-import sqlalchemy as sa
 from datetime import datetime
+
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '005_entity_aliases'
@@ -25,7 +26,7 @@ def upgrade():
     Allows users to create personalized names for entities (e.g., "sleepy light" → light.bedroom_1).
     Supports multi-user alias management with fast indexed lookups.
     """
-    
+
     # Create entity_aliases table
     op.create_table(
         'entity_aliases',
@@ -38,12 +39,12 @@ def upgrade():
         sa.UniqueConstraint('alias', 'user_id', name='uq_alias_user'),
         comment='User-defined aliases/nicknames for entities (priority: fast indexed lookups)'
     )
-    
+
     # Create indexes for fast lookups
     op.create_index('idx_alias_lookup', 'entity_aliases', ['alias', 'user_id'])
     op.create_index('ix_entity_aliases_entity_id', 'entity_aliases', ['entity_id'])
     op.create_index('ix_entity_aliases_user_id', 'entity_aliases', ['user_id'])
-    
+
     logger.info("Created entity_aliases table with indexes")
 
 

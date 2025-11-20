@@ -5,19 +5,19 @@ Story AI1.21: Natural Language Request Generation
 API endpoints for generating automations from natural language requests.
 """
 
+import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime, timezone
-import logging
-
-from ..config import settings
-from ..clients.data_api_client import DataAPIClient
-from ..llm.openai_client import OpenAIClient
-from ..safety_validator import get_safety_validator
-from ..nl_automation_generator import get_nl_generator, NLAutomationRequest
-from ..database.models import get_db_session, Suggestion
 from sqlalchemy import select
+
+from ..clients.data_api_client import DataAPIClient
+from ..config import settings
+from ..database.models import Suggestion, get_db_session
+from ..llm.openai_client import OpenAIClient
+from ..nl_automation_generator import NLAutomationRequest, get_nl_generator
+from ..safety_validator import get_safety_validator
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
         Generated automation with YAML, explanation, and safety validation
     """
     logger.info(f"📝 NL generation request: '{request.request_text}'")
-    
+
     # Generate automation
     try:
         nl_request = NLAutomationRequest(
@@ -79,16 +79,16 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
             user_id=request.user_id,
             context=request.context
         )
-        
+
         generated = await nl_generator.generate(nl_request)
-        
+
     except Exception as e:
         logger.error(f"Generation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate automation: {str(e)}"
         )
-    
+
     # Store as suggestion (if generation succeeded)
     suggestion_id = None
     if generated.automation_yaml:
@@ -106,18 +106,18 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc)
                 )
-                
+
                 db.add(suggestion)
                 await db.commit()
                 await db.refresh(suggestion)
-                
+
                 suggestion_id = suggestion.id
                 logger.info(f"✅ Suggestion {suggestion_id} created from NL request")
-                
+
         except Exception as e:
             logger.error(f"Failed to store suggestion: {e}")
             # Don't fail the request, just log the error
-    
+
     # Build response
     response = {
         "success": generated.automation_yaml != "",
@@ -130,7 +130,7 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
             "confidence": generated.confidence
         }
     }
-    
+
     # Add safety information
     if generated.safety_result:
         response["safety"] = {
@@ -138,24 +138,24 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
             "passed": generated.safety_result.passed,
             "summary": generated.safety_result.summary
         }
-    
+
     # Add clarification if needed
     if generated.clarification_needed:
         response["clarification_needed"] = generated.clarification_needed
         response["next_steps"] = "Please provide clarification using the /api/nl/clarify endpoint"
     else:
         response["next_steps"] = f"Review and approve suggestion #{suggestion_id} to deploy" if suggestion_id else "Generation failed"
-    
+
     # Add warnings
     if generated.warnings:
         response["warnings"] = generated.warnings
-    
+
     logger.info(
         f"NL generation complete: success={response['success']}, "
         f"confidence={generated.confidence:.0%}, "
         f"suggestion_id={suggestion_id}"
     )
-    
+
     return response
 
 
@@ -176,7 +176,7 @@ async def clarify_automation_request(
         Regenerated automation with clarification incorporated
     """
     logger.info(f"Clarification provided for suggestion {suggestion_id}")
-    
+
     try:
         async with get_db_session() as db:
             # Get original suggestion
@@ -184,19 +184,19 @@ async def clarify_automation_request(
                 select(Suggestion).where(Suggestion.id == suggestion_id)
             )
             suggestion = result.scalar_one_or_none()
-            
+
             if not suggestion:
                 raise HTTPException(status_code=404, detail="Suggestion not found")
-            
+
             # Extract original request from description (or use description as fallback)
             original_request = suggestion.description
-            
+
             # Regenerate with clarification
             generated = await nl_generator.regenerate_with_clarification(
                 original_request=original_request,
                 clarification=request.clarification_text
             )
-            
+
             # Update suggestion with regenerated automation
             if generated.automation_yaml:
                 suggestion.automation_yaml = generated.automation_yaml
@@ -205,9 +205,9 @@ async def clarify_automation_request(
                 suggestion.confidence = generated.confidence
                 suggestion.updated_at = datetime.now(timezone.utc)
                 await db.commit()
-                
+
                 logger.info(f"✅ Suggestion {suggestion_id} updated with clarification")
-            
+
             # Build response
             response = {
                 "success": generated.automation_yaml != "",
@@ -220,7 +220,7 @@ async def clarify_automation_request(
                     "confidence": generated.confidence
                 }
             }
-            
+
             # Add safety information
             if generated.safety_result:
                 response["safety"] = {
@@ -228,13 +228,13 @@ async def clarify_automation_request(
                     "passed": generated.safety_result.passed,
                     "summary": generated.safety_result.summary
                 }
-            
+
             # Add warnings
             if generated.warnings:
                 response["warnings"] = generated.warnings
-            
+
             return response
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -272,7 +272,7 @@ async def get_example_requests():
             "Reduce heating when carbon intensity is very high"
         ]
     }
-    
+
     return {
         "success": True,
         "examples": examples,
@@ -300,16 +300,16 @@ async def get_nl_generation_stats():
                 select(Suggestion).where(Suggestion.category == 'user_request')
             )
             nl_suggestions = result.scalars().all()
-            
+
             total_requests = len(nl_suggestions)
             approved_count = sum(1 for s in nl_suggestions if s.status in ['approved', 'deployed'])
             deployed_count = sum(1 for s in nl_suggestions if s.status == 'deployed')
-            
+
             approval_rate = (approved_count / total_requests * 100) if total_requests > 0 else 0
             deployment_rate = (deployed_count / total_requests * 100) if total_requests > 0 else 0
-            
+
             avg_confidence = sum(s.confidence for s in nl_suggestions) / total_requests if total_requests > 0 else 0
-            
+
             return {
                 "success": True,
                 "stats": {
@@ -326,7 +326,7 @@ async def get_nl_generation_stats():
                     "output_tokens": openai_client.total_output_tokens
                 }
             }
-            
+
     except Exception as e:
         logger.error(f"Failed to get NL stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))

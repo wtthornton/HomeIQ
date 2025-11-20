@@ -5,7 +5,6 @@ Configuration Manager - Simple .env file reader/writer
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ MASK_VALUE = "********"
 
 class ConfigManager:
     """Simple configuration manager for .env files"""
-    
+
     def __init__(self, config_dir: str = "infrastructure"):
         """
         Initialize config manager
@@ -26,8 +25,8 @@ class ConfigManager:
         self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
         if not self.config_dir.exists():
             logger.warning(f"Config directory {config_dir} does not exist")
-    
-    def list_services(self) -> List[str]:
+
+    def list_services(self) -> list[str]:
         """
         List all available service configurations
         
@@ -37,7 +36,7 @@ class ConfigManager:
         services = []
         if not self.config_dir.exists():
             return services
-        
+
         for file in self.config_dir.glob(".env.*"):
             # Skip .env.example and template files
             if file.name.endswith(".example") or file.name.endswith(".template"):
@@ -46,10 +45,10 @@ class ConfigManager:
             if file.name.startswith(".env."):
                 service_name = file.name.replace(".env.", "")
                 services.append(service_name)
-        
+
         return sorted(services)
-    
-    def read_config(self, service: str) -> Dict[str, str]:
+
+    def read_config(self, service: str) -> dict[str, str]:
         """
         Read configuration for a service
         
@@ -63,19 +62,19 @@ class ConfigManager:
             FileNotFoundError: If config file doesn't exist
         """
         env_file = self.config_dir / f".env.{service}"
-        
+
         if not env_file.exists():
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
-        
+
         config = {}
-        with open(env_file, 'r') as f:
+        with open(env_file) as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
-                
+
                 # Skip empty lines and comments
                 if not line or line.startswith('#'):
                     continue
-                
+
                 # Parse key=value
                 if '=' in line:
                     key, value = line.split('=', 1)
@@ -84,16 +83,16 @@ class ConfigManager:
                     logger.warning(
                         f"Invalid line {line_num} in {env_file}: {line}"
                     )
-        
+
         logger.info(f"Read {len(config)} settings for {service}")
         return config
-    
+
     def write_config(
         self,
         service: str,
-        updates: Dict[str, str],
+        updates: dict[str, str],
         create_if_missing: bool = False
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Update configuration for a service
         
@@ -109,35 +108,35 @@ class ConfigManager:
             FileNotFoundError: If config file doesn't exist and create_if_missing=False
         """
         env_file = self.config_dir / f".env.{service}"
-        
+
         if not env_file.exists() and not create_if_missing:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
 
         if not self.allow_secret_writes:
-            blocked = [key for key in updates.keys() if self._is_sensitive_key(key)]
+            blocked = [key for key in updates if self._is_sensitive_key(key)]
             if blocked:
                 raise PermissionError(
                     f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"
                 )
-        
+
         # Read existing config if file exists
         lines = []
         if env_file.exists():
-            with open(env_file, 'r') as f:
+            with open(env_file) as f:
                 lines = f.readlines()
-        
+
         # Update or add new values
         updated_keys = set()
         new_lines = []
-        
+
         for line in lines:
             stripped = line.strip()
-            
+
             # Keep comments and empty lines as-is
             if not stripped or stripped.startswith('#'):
                 new_lines.append(line)
                 continue
-            
+
             # Update existing key
             if '=' in stripped:
                 key = stripped.split('=')[0].strip()
@@ -148,17 +147,17 @@ class ConfigManager:
                     new_lines.append(line)
             else:
                 new_lines.append(line)
-        
+
         # Add new keys that weren't in the file
         for key, value in updates.items():
             if key not in updated_keys:
                 new_lines.append(f"{key}={value}\n")
                 updated_keys.add(key)
-        
+
         # Write back
         with open(env_file, 'w') as f:
             f.writelines(new_lines)
-        
+
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes
         try:
             os.chmod(env_file, 0o600)
@@ -167,15 +166,15 @@ class ConfigManager:
             logger.debug(f"Could not change permissions for {env_file} (mounted volume)")
         except Exception as e:
             logger.warning(f"Could not change permissions for {env_file}: {e}")
-        
+
         logger.info(
             f"Updated {len(updated_keys)} settings for {service}"
         )
-        
+
         # Return updated config
         return self.read_config(service)
-    
-    def validate_config(self, service: str, config: Dict[str, str]) -> Dict[str, List[str]]:
+
+    def validate_config(self, service: str, config: dict[str, str]) -> dict[str, list[str]]:
         """
         Validate service configuration against service-specific rules and requirements.
         
@@ -221,59 +220,59 @@ class ConfigManager:
         """
         errors = []
         warnings = []
-        
+
         # Service-specific validation
         if service == "websocket":
             if "HA_URL" not in config:
                 errors.append("HA_URL is required")
             elif not config["HA_URL"].startswith("ws://") and not config["HA_URL"].startswith("wss://"):
                 errors.append("HA_URL must start with ws:// or wss://")
-            
+
             if "HA_TOKEN" not in config:
                 errors.append("HA_TOKEN is required")
             elif len(config.get("HA_TOKEN", "")) < 10:
                 warnings.append("HA_TOKEN seems too short")
-        
+
         elif service == "weather":
             if "WEATHER_API_KEY" not in config:
                 errors.append("WEATHER_API_KEY is required")
-            
+
             try:
                 lat = float(config.get("WEATHER_LAT", "0"))
                 if not -90 <= lat <= 90:
                     errors.append("WEATHER_LAT must be between -90 and 90")
             except ValueError:
                 errors.append("WEATHER_LAT must be a number")
-            
+
             try:
                 lon = float(config.get("WEATHER_LON", "0"))
                 if not -180 <= lon <= 180:
                     errors.append("WEATHER_LON must be between -180 and 180")
             except ValueError:
                 errors.append("WEATHER_LON must be a number")
-        
+
         elif service == "influxdb":
             if "INFLUXDB_URL" not in config:
                 errors.append("INFLUXDB_URL is required")
             elif not config["INFLUXDB_URL"].startswith("http"):
                 errors.append("INFLUXDB_URL must start with http:// or https://")
-            
+
             if "INFLUXDB_TOKEN" not in config:
                 errors.append("INFLUXDB_TOKEN is required")
-            
+
             if "INFLUXDB_ORG" not in config:
                 errors.append("INFLUXDB_ORG is required")
-            
+
             if "INFLUXDB_BUCKET" not in config:
                 errors.append("INFLUXDB_BUCKET is required")
-        
+
         return {
             "errors": errors,
             "warnings": warnings,
             "valid": len(errors) == 0
         }
-    
-    def get_config_template(self, service: str) -> Dict[str, Dict[str, str]]:
+
+    def get_config_template(self, service: str) -> dict[str, dict[str, str]]:
         """
         Get configuration template with field metadata
         
@@ -390,12 +389,12 @@ class ConfigManager:
                 }
             }
         }
-        
+
         return templates.get(service, {})
 
-    def sanitize_config(self, config: Dict[str, str]) -> Dict[str, str]:
+    def sanitize_config(self, config: dict[str, str]) -> dict[str, str]:
         """Return a copy of the provided config with sensitive values masked."""
-        sanitized: Dict[str, str] = {}
+        sanitized: dict[str, str] = {}
         for key, value in config.items():
             if self._is_sensitive_key(key) and value:
                 sanitized[key] = MASK_VALUE

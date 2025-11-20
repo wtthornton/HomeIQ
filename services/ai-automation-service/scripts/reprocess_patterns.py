@@ -29,15 +29,16 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from database.models import init_db, get_db_session, Pattern, Suggestion
-from sqlalchemy import select, delete
-from datetime import datetime
 import logging
+from datetime import datetime
+
+from clients.data_api_client import DataAPIClient
+from database.models import Pattern, Suggestion, get_db_session, init_db
+from llm.description_generator import DescriptionGenerator
 
 # Phase 2: Import OpenAI and description generator
 from openai import AsyncOpenAI
-from llm.description_generator import DescriptionGenerator
-from clients.data_api_client import DataAPIClient
+from sqlalchemy import delete, select
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -49,12 +50,12 @@ async def delete_all_suggestions():
         result = await db.execute(select(Suggestion))
         suggestions = result.scalars().all()
         count = len(suggestions)
-        
+
         logger.info(f"🗑️  Deleting {count} existing suggestions...")
-        
+
         await db.execute(delete(Suggestion))
         await db.commit()
-        
+
         logger.info(f"✅ Deleted {count} suggestions")
         return count
 
@@ -91,25 +92,25 @@ async def generate_description_with_openai(
         'occurrences': pattern.occurrences,
         'metadata': pattern.pattern_metadata or {}
     }
-    
+
     # Extract specific fields for different pattern types
     metadata = pattern.pattern_metadata or {}
-    
+
     if pattern.pattern_type == 'time_of_day':
         pattern_dict['hour'] = int(metadata.get('avg_time_decimal', 0))
         pattern_dict['minute'] = int((metadata.get('avg_time_decimal', 0) % 1) * 60)
-    
+
     elif pattern.pattern_type == 'co_occurrence':
         # Device ID format: "device1+device2"
         if '+' in pattern.device_id:
             device1, device2 = pattern.device_id.split('+', 1)
             pattern_dict['device1'] = device1
             pattern_dict['device2'] = device2
-    
+
     # Fetch device capabilities from data-api
     try:
         capabilities = await data_api_client.fetch_device_capabilities(pattern.device_id)
-        
+
         device_context = {
             'name': capabilities.get('friendly_name', pattern.device_id),
             'area': capabilities.get('area', ''),
@@ -120,16 +121,16 @@ async def generate_description_with_openai(
         logger.warning(f"Failed to fetch capabilities for {pattern.device_id}: {e}")
         device_context = None
         capabilities = {}
-    
+
     # Generate description via OpenAI
     try:
         description = await description_generator.generate_description(
             pattern=pattern_dict,
             device_context=device_context
         )
-        
+
         return description, capabilities
-        
+
     except Exception as e:
         logger.error(f"OpenAI generation failed for {pattern.pattern_type}: {e}")
         # Fallback to basic description
@@ -145,13 +146,13 @@ def generate_fallback_description(pattern: Pattern) -> str:
     pattern_type = pattern.pattern_type
     device_id = pattern.device_id
     friendly_name = device_id.split('.')[-1].replace('_', ' ').title() if '.' in device_id else device_id
-    
+
     if pattern_type == 'time_of_day':
         metadata = pattern.pattern_metadata or {}
         hour = int(metadata.get('avg_time_decimal', 0))
         minute = int((metadata.get('avg_time_decimal', 0) % 1) * 60)
         return f"Automatically control {friendly_name} at {hour:02d}:{minute:02d} based on consistent usage pattern"
-    
+
     elif pattern_type == 'co_occurrence':
         metadata = pattern.pattern_metadata or {}
         if '+' in device_id:
@@ -160,10 +161,10 @@ def generate_fallback_description(pattern: Pattern) -> str:
             name2 = d2.split('.')[-1].replace('_', ' ').title()
             return f"When {name1} activates, automatically turn on {name2}"
         return f"Automate {friendly_name} based on co-occurrence pattern"
-    
+
     elif pattern_type == 'anomaly':
         return f"Get notified when {friendly_name} shows unusual activity"
-    
+
     else:
         return f"Automate {friendly_name} based on detected usage pattern"
 
@@ -178,7 +179,7 @@ def generate_title_placeholder(pattern: Pattern) -> str:
 def infer_category(pattern: Pattern) -> str:
     """Infer category from device ID"""
     device_id = pattern.device_id.lower()
-    
+
     if any(k in device_id for k in ['light', 'switch']):
         return 'convenience'
     elif any(k in device_id for k in ['climate', 'thermostat', 'temperature']):
@@ -217,29 +218,29 @@ async def create_suggestion_from_pattern(
         description_generator,
         data_api_client
     )
-    
+
     suggestion = Suggestion(
         pattern_id=pattern.id,
-        
+
         # NEW: Description-first fields (Phase 2: Real OpenAI!)
         description_only=description,
         conversation_history=[],
         device_capabilities=capabilities,  # Cached from data-api
         refinement_count=0,
-        
+
         # YAML (NULL until approved)
         automation_yaml=None,
         yaml_generated_at=None,
-        
+
         # Status
         status='draft',
-        
+
         # Legacy fields
         title=generate_title_placeholder(pattern),
         category=infer_category(pattern),
         priority=infer_priority(pattern.confidence),
         confidence=pattern.confidence,
-        
+
         # Timestamps
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -247,7 +248,7 @@ async def create_suggestion_from_pattern(
         deployed_at=None,
         ha_automation_id=None
     )
-    
+
     return suggestion
 
 
@@ -256,51 +257,51 @@ async def reprocess_all_patterns():
     logger.info("="*80)
     logger.info("🔄 Starting pattern reprocessing with OpenAI (Phase 2)")
     logger.info("="*80)
-    
+
     # Check for OpenAI API key
     openai_api_key = os.getenv('OPENAI_API_KEY')
     if not openai_api_key:
         logger.error("❌ OPENAI_API_KEY environment variable not set!")
         logger.error("   Set it with: export OPENAI_API_KEY='sk-...'")
         return
-    
+
     logger.info(f"✅ OpenAI API key found: {openai_api_key[:10]}...")
-    
+
     # Initialize database
     await init_db()
-    
+
     # Initialize OpenAI client and description generator
     logger.info("🤖 Initializing OpenAI description generator...")
     openai_client = AsyncOpenAI(api_key=openai_api_key)
     description_generator = DescriptionGenerator(openai_client, model="gpt-4o-mini")
-    
+
     # Initialize data-api client for capabilities
     logger.info("📡 Initializing data-api client...")
     data_api_client = DataAPIClient(base_url="http://localhost:8006")
-    
+
     # Step 1: Delete existing suggestions
     deleted_count = await delete_all_suggestions()
-    
+
     # Step 2: Fetch all patterns
     patterns = await fetch_all_patterns()
-    
+
     if not patterns:
         logger.warning("⚠️  No patterns found! Run pattern detection first.")
         logger.info("   Command: python scripts/detect_patterns.py")
         return
-    
+
     # Step 3: Generate new suggestions with OpenAI
     logger.info(f"🤖 Generating {len(patterns)} new suggestions with OpenAI...")
-    logger.info(f"   Model: gpt-4o-mini (cost-effective)")
-    logger.info(f"   Temperature: 0.7 (natural language)")
+    logger.info("   Model: gpt-4o-mini (cost-effective)")
+    logger.info("   Temperature: 0.7 (natural language)")
     logger.info("")
-    
+
     async with get_db_session() as db:
         created_count = 0
         failed_count = 0
         openai_calls = 0
         fallback_count = 0
-        
+
         for i, pattern in enumerate(patterns, 1):
             try:
                 # This makes an OpenAI API call!
@@ -309,31 +310,31 @@ async def reprocess_all_patterns():
                     description_generator,
                     data_api_client
                 )
-                
+
                 db.add(suggestion)
                 created_count += 1
                 openai_calls += 1
-                
+
                 # Check if fallback was used
                 if "usage pattern" in suggestion.description_only.lower():
                     fallback_count += 1
-                
+
                 logger.info(
                     f"  ✅ [{i}/{len(patterns)}] {suggestion.title} "
                     f"(confidence: {suggestion.confidence:.0%})"
                 )
                 logger.debug(f"     Description: {suggestion.description_only[:60]}...")
-                
+
             except Exception as e:
                 failed_count += 1
                 logger.error(f"  ❌ [{i}/{len(patterns)}] Failed: {pattern.pattern_type} - {e}")
-        
+
         # Commit all suggestions
         await db.commit()
-    
+
     # Get token usage stats
     usage_stats = description_generator.get_usage_stats()
-    
+
     # Summary
     logger.info("")
     logger.info("="*80)
@@ -342,7 +343,7 @@ async def reprocess_all_patterns():
     logger.info(f"   Deleted:         {deleted_count} old suggestions")
     logger.info(f"   Created:         {created_count} new suggestions")
     logger.info(f"   Failed:          {failed_count}")
-    logger.info(f"   Status:          All in 'draft' state")
+    logger.info("   Status:          All in 'draft' state")
     logger.info("")
     logger.info("OpenAI Usage:")
     logger.info(f"   API calls:       {openai_calls}")
@@ -352,7 +353,7 @@ async def reprocess_all_patterns():
     logger.info(f"   Output tokens:   {usage_stats['output_tokens']}")
     logger.info(f"   Estimated cost:  ${usage_stats['estimated_cost_usd']:.6f}")
     logger.info("="*80)
-    
+
     # Next steps
     logger.info("")
     logger.info("Next steps:")

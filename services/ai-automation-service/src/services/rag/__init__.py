@@ -11,7 +11,7 @@ Can be used for:
 """
 
 from .client import RAGClient
-from .exceptions import RAGError, EmbeddingGenerationError, StorageError, RetrievalError
+from .exceptions import EmbeddingGenerationError, RAGError, RetrievalError, StorageError
 from .models import SemanticKnowledge
 
 __all__ = [

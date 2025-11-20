@@ -5,18 +5,19 @@ Prunes conversation history to keep only recent turns and reduce token usage.
 """
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import Any
+
 from ..utils.token_counter import count_tokens
 
 logger = logging.getLogger(__name__)
 
 
 def prune_conversation_history(
-    history: List[Dict[str, Any]],
+    history: list[dict[str, Any]],
     max_turns: int = 3,
     max_tokens: int = 1_000,
     model: str = "gpt-4o"
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Prune conversation history to keep only recent turns.
     
@@ -31,7 +32,7 @@ def prune_conversation_history(
     """
     if not history:
         return []
-    
+
     # Keep only last N turns
     if len(history) <= max_turns:
         pruned = history
@@ -41,11 +42,11 @@ def prune_conversation_history(
             f"Pruned conversation history: {len(history)} → {len(pruned)} turns "
             f"(keeping last {max_turns} turns)"
         )
-    
+
     # Check token count and truncate if needed
     history_text = _history_to_text(pruned)
     history_tokens = count_tokens(history_text, model)
-    
+
     if history_tokens > max_tokens:
         logger.warning(
             f"Conversation history exceeds token limit: {history_tokens} > {max_tokens}. "
@@ -56,16 +57,16 @@ def prune_conversation_history(
             pruned = pruned[1:]  # Remove oldest turn
             history_text = _history_to_text(pruned)
             history_tokens = count_tokens(history_text, model)
-        
+
         logger.info(
             f"Truncated conversation history to {len(pruned)} turns "
             f"({history_tokens} tokens, limit: {max_tokens})"
         )
-    
+
     return pruned
 
 
-def _history_to_text(history: List[Dict[str, Any]]) -> str:
+def _history_to_text(history: list[dict[str, Any]]) -> str:
     """
     Convert conversation history to text for token counting.
     
@@ -81,12 +82,12 @@ def _history_to_text(history: List[Dict[str, Any]]) -> str:
         content = turn.get('content', '') or turn.get('message', '')
         if content:
             text_parts.append(f"{role}: {content}")
-    
+
     return "\n".join(text_parts)
 
 
 def summarize_old_context(
-    old_turns: List[Dict[str, Any]],
+    old_turns: list[dict[str, Any]],
     model: str = "gpt-4o"
 ) -> str:
     """
@@ -103,18 +104,18 @@ def summarize_old_context(
     """
     if not old_turns:
         return ""
-    
+
     # Simple summary: count turns and extract key topics
     user_messages = [
         turn.get('content', '') or turn.get('message', '')
         for turn in old_turns
         if turn.get('role') == 'user'
     ]
-    
+
     if len(user_messages) == 1:
         return f"Previous query: {user_messages[0][:100]}..."
     elif len(user_messages) > 1:
         return f"{len(user_messages)} previous queries about: {', '.join([m[:50] for m in user_messages[:3]])}..."
-    
+
     return f"{len(old_turns)} previous conversation turns"
 

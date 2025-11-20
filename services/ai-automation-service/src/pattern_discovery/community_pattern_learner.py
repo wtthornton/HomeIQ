@@ -5,11 +5,12 @@ Discovers automation patterns from automation-miner corpus.
 Automatically expands the Common Patterns Library with proven community templates.
 """
 
-from typing import Dict, List, Optional, Any, Tuple
-from collections import Counter
 import logging
-import httpx
 import re
+from collections import Counter
+from typing import Any
+
+import httpx
 
 from ..patterns import PatternDefinition, PatternVariable
 
@@ -38,7 +39,7 @@ class CommunityPatternLearner:
         self,
         min_quality: float = 0.7,
         min_occurrences: int = 10
-    ) -> List[PatternDefinition]:
+    ) -> list[PatternDefinition]:
         """
         Discover common automation patterns from community corpus.
 
@@ -86,7 +87,7 @@ class CommunityPatternLearner:
     async def _fetch_quality_automations(
         self,
         min_quality: float
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Fetch high-quality automations from miner.
 
@@ -119,8 +120,8 @@ class CommunityPatternLearner:
 
     def _group_by_devices(
         self,
-        automations: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        automations: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Group automations by device combination.
 
@@ -151,9 +152,9 @@ class CommunityPatternLearner:
 
     async def _extract_pattern(
         self,
-        device_combo: Tuple[str, ...],
-        automations: List[Dict[str, Any]]
-    ) -> Optional[PatternDefinition]:
+        device_combo: tuple[str, ...],
+        automations: list[dict[str, Any]]
+    ) -> PatternDefinition | None:
         """
         Extract common pattern from group of similar automations.
 
@@ -214,8 +215,8 @@ class CommunityPatternLearner:
     def _extract_keywords(
         self,
         text: str,
-        device_combo: Tuple[str, ...]
-    ) -> List[str]:
+        device_combo: tuple[str, ...]
+    ) -> list[str]:
         """Extract relevant keywords from text"""
         # Start with device names
         keywords = list(device_combo)
@@ -238,7 +239,7 @@ class CommunityPatternLearner:
 
     def _generate_pattern_name(
         self,
-        device_combo: Tuple[str, ...],
+        device_combo: tuple[str, ...],
         titles_text: str
     ) -> str:
         """Generate friendly pattern name"""
@@ -276,7 +277,7 @@ class CommunityPatternLearner:
 
     def _generate_placeholder_template(
         self,
-        device_combo: Tuple[str, ...],
+        device_combo: tuple[str, ...],
         pattern_id: str
     ) -> str:
         """
@@ -303,7 +304,7 @@ actions:
       entity_id: {{{device_combo[-1] if len(device_combo) > 1 else device_combo[0]}}}
 """
 
-    async def get_pattern_statistics(self) -> Dict[str, Any]:
+    async def get_pattern_statistics(self) -> dict[str, Any]:
         """
         Get statistics about patterns in the corpus.
 

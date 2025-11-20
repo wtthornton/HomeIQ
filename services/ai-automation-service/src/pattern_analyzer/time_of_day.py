@@ -7,12 +7,11 @@ Simple, proven algorithm with low resource usage.
 Story AI5.3: Converted to incremental processing with aggregate storage.
 """
 
-import pandas as pd
-import numpy as np
-from sklearn.cluster import KMeans
-from typing import List, Dict, Optional
-from datetime import datetime, timezone
 import logging
+
+import numpy as np
+import pandas as pd
+from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +26,14 @@ class TimeOfDayPatternDetector:
         - Thermostat adjusts at 6:00 PM in evening
         - Coffee maker starts at 6:30 AM weekdays
     """
-    
+
     def __init__(
         self,
         min_occurrences: int = 3,
         min_confidence: float = 0.7,
         aggregate_client=None,
-        domain_occurrence_overrides: Optional[Dict[str, int]] = None,
-        domain_confidence_overrides: Optional[Dict[str, float]] = None
+        domain_occurrence_overrides: dict[str, int] | None = None,
+        domain_confidence_overrides: dict[str, float] | None = None
     ):
         """
         Initialize pattern detector.
@@ -56,8 +55,8 @@ class TimeOfDayPatternDetector:
             list((domain_occurrence_overrides or {}).keys()),
             list((domain_confidence_overrides or {}).keys())
         )
-    
-    def detect_patterns(self, events: pd.DataFrame) -> List[Dict]:
+
+    def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
         """
         Detect time-of-day patterns using KMeans clustering.
         
@@ -81,39 +80,39 @@ class TimeOfDayPatternDetector:
         if events.empty:
             logger.warning("No events provided for pattern detection")
             return []
-        
+
         # Validate required columns
         required_cols = ['device_id', 'timestamp']
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
             return []
-        
+
         # 1. Feature engineering (keep simple!)
         logger.info(f"Analyzing {len(events)} events for time-of-day patterns")
-        
+
         events = events.copy()  # Avoid modifying original
         events['hour'] = events['timestamp'].dt.hour
         events['minute'] = events['timestamp'].dt.minute
         events['time_decimal'] = events['hour'] + events['minute'] / 60.0
-        
+
         patterns = []
-        
+
         # 2. Analyze each device separately
         unique_devices = events['device_id'].unique()
         logger.info(f"Analyzing {len(unique_devices)} unique devices")
-        
+
         for device_id in unique_devices:
             device_events = events[events['device_id'] == device_id]
             domain = self._get_domain(device_id)
             required_occurrences = self.domain_occurrence_overrides.get(domain, self.min_occurrences)
             required_confidence = self.domain_confidence_overrides.get(domain, self.min_confidence)
-            
+
             # Need minimum data (5 events to form meaningful clusters)
             if len(device_events) < 5:
                 logger.debug(f"Skipping {device_id}: insufficient data ({len(device_events)} events)")
                 continue
-            
+
             try:
                 # 3. Cluster time patterns (simple KMeans)
                 times = device_events[['time_decimal']].values
@@ -125,41 +124,41 @@ class TimeOfDayPatternDetector:
                     n_clusters = 2
                 else:
                     n_clusters = 3
-                
+
                 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
                 labels = kmeans.fit_predict(times)
-                
+
                 # 4. Find consistent clusters (confidence = size / total)
                 for cluster_id in range(n_clusters):
                     cluster_mask = labels == cluster_id
                     cluster_times = times[cluster_mask]
-                    
+
                     if len(cluster_times) >= required_occurrences:
                         avg_time = cluster_times.mean()
                         # Calculate confidence based on occurrence ratio and consistency
                         occurrence_ratio = len(cluster_times) / len(times)
-                        
+
                         # Penalize high variance (less consistent = lower confidence)
                         std_minutes = float(cluster_times.std() * 60) if len(cluster_times) > 1 else 0.0
                         variance_penalty = min(std_minutes / 120.0, 0.3)  # Max 30% penalty for high variance
-                        
+
                         # Boost for high occurrence count
                         if len(cluster_times) >= self.min_occurrences * 2:
                             threshold_boost = 0.1
                         else:
                             threshold_boost = 0.0
-                        
+
                         # Calculate confidence: occurrence ratio adjusted for variance
                         confidence = min(0.95, occurrence_ratio * (1 - variance_penalty) + threshold_boost)
                         confidence = max(0.5, confidence)  # Minimum 50% confidence
-                        
+
                         if confidence >= required_confidence:
                             hour = int(avg_time)
                             minute = int((avg_time % 1) * 60)
-                            
+
                             # Calculate variability (standard deviation in minutes)
                             std_minutes = float(cluster_times.std() * 60) if len(cluster_times) > 1 else 0.0
-                            
+
                             pattern = {
                                 'device_id': str(device_id),
                                 'pattern_type': 'time_of_day',
@@ -181,25 +180,25 @@ class TimeOfDayPatternDetector:
                                     }
                                 }
                             }
-                            
+
                             patterns.append(pattern)
-                            
+
                             logger.info(
                                 f"✅ Pattern detected: {device_id} at {hour:02d}:{minute:02d} "
                                 f"({len(cluster_times)}/{len(times)} = {confidence:.0%}, "
                                 f"std={std_minutes:.1f}min)"
                             )
-                
+
             except Exception as e:
                 logger.error(f"Error analyzing {device_id}: {e}", exc_info=True)
                 continue
-        
+
         logger.info(f"✅ Detected {len(patterns)} time-of-day patterns across {len(unique_devices)} devices")
-        
+
         # Story AI5.3: Store daily aggregates to InfluxDB
         if self.aggregate_client and patterns:
             self._store_daily_aggregates(patterns, events)
-        
+
         return patterns
 
     @staticmethod
@@ -208,8 +207,8 @@ class TimeOfDayPatternDetector:
         if not device_id or '.' not in str(device_id):
             return 'default'
         return str(device_id).split('.', 1)[0]
-    
-    def _store_daily_aggregates(self, patterns: List[Dict], events: pd.DataFrame) -> None:
+
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """
         Store daily aggregates to InfluxDB.
         
@@ -224,41 +223,41 @@ class TimeOfDayPatternDetector:
             if events.empty or 'timestamp' not in events.columns:
                 logger.warning("Cannot determine date from events for aggregate storage")
                 return
-            
+
             # Use the date of the first event (assuming 24h window)
             date = events['timestamp'].min().date()
             date_str = date.strftime("%Y-%m-%d")
-            
+
             logger.info(f"Storing daily aggregates for {date_str}")
-            
+
             # Calculate hourly distribution for each device
             events['hour'] = events['timestamp'].dt.hour
-            
+
             for pattern in patterns:
                 device_id = pattern['device_id']
                 domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
-                
+
                 # Get device events for this date
                 device_events = events[events['device_id'] == device_id]
-                
+
                 if device_events.empty:
                     continue
-                
+
                 # Calculate hourly distribution (24 values)
                 hourly_distribution = [0] * 24
                 for hour in range(24):
                     hourly_distribution[hour] = len(device_events[device_events['hour'] == hour])
-                
+
                 # Get peak hours (top 25% of hours)
                 sorted_hours = sorted(range(24), key=lambda h: hourly_distribution[h], reverse=True)
                 top_count = max(1, len([h for h in sorted_hours if hourly_distribution[h] > 0]) // 4)
                 peak_hours = sorted_hours[:top_count] if top_count > 0 else sorted_hours[:6]
-                
+
                 # Calculate metrics
                 frequency = sum(hourly_distribution) / 24.0
                 confidence = pattern.get('confidence', 0.0)
                 occurrences = pattern.get('occurrences', len(device_events))
-                
+
                 # Store aggregate
                 try:
                     self.aggregate_client.write_time_based_daily(
@@ -273,13 +272,13 @@ class TimeOfDayPatternDetector:
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {device_id}: {e}", exc_info=True)
-            
+
             logger.info(f"✅ Stored {len(patterns)} daily aggregates to InfluxDB")
-            
+
         except Exception as e:
             logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
-    
-    def get_pattern_summary(self, patterns: List[Dict]) -> Dict:
+
+    def get_pattern_summary(self, patterns: list[dict]) -> dict:
         """
         Get summary statistics for detected patterns.
         
@@ -296,7 +295,7 @@ class TimeOfDayPatternDetector:
                 'avg_confidence': 0.0,
                 'avg_occurrences': 0.0
             }
-        
+
         return {
             'total_patterns': len(patterns),
             'unique_devices': len(set(p['device_id'] for p in patterns)),

@@ -5,8 +5,9 @@ Utilities for integrating automation-miner with AI automation service.
 Provides functions to fetch community data and enrich pattern generation.
 """
 
-from typing import Dict, List, Optional, Any
 import logging
+from typing import Any
+
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -58,11 +59,11 @@ class MinerIntegration:
 
     async def search_automations(
         self,
-        device: Optional[str] = None,
-        use_case: Optional[str] = None,
+        device: str | None = None,
+        use_case: str | None = None,
         min_quality: float = 0.7,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search community automations.
 
@@ -108,7 +109,7 @@ class MinerIntegration:
     async def get_device_usage_stats(
         self,
         device: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get usage statistics for a device type from community.
 
@@ -147,9 +148,9 @@ class MinerIntegration:
 
     async def get_similar_automations(
         self,
-        devices: List[str],
+        devices: list[str],
         limit: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Find similar automations based on device types.
 
@@ -185,7 +186,7 @@ class MinerIntegration:
     async def enrich_llm_prompt(
         self,
         base_prompt: str,
-        devices: List[str]
+        devices: list[str]
     ) -> str:
         """
         Enrich LLM prompt with community examples.
@@ -223,7 +224,7 @@ class MinerIntegration:
         else:
             return base_prompt + examples_section
 
-    async def get_corpus_stats(self) -> Dict[str, Any]:
+    async def get_corpus_stats(self) -> dict[str, Any]:
         """
         Get overall corpus statistics.
 

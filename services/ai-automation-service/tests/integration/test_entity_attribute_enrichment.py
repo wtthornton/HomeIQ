@@ -11,18 +11,18 @@ Tests:
 4. Hue group detection
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from src.services.entity_attribute_service import EntityAttributeService
 from src.prompt_building.entity_context_builder import EntityContextBuilder
+from src.services.entity_attribute_service import EntityAttributeService
 from src.services.entity_validator import EntityValidator
-from src.clients.ha_client import HomeAssistantClient
 
 
 @pytest.mark.asyncio
 async def test_entity_enrichment_with_hue_group():
     """Test entity enrichment detects Hue group correctly"""
-    
+
     # Mock HA client
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.return_value = {
@@ -37,13 +37,13 @@ async def test_entity_enrichment_with_hue_group():
         'last_changed': '2025-01-24T10:00:00',
         'last_updated': '2025-01-24T10:00:00'
     }
-    
+
     # Create service
     attribute_service = EntityAttributeService(mock_ha_client)
-    
+
     # Enrich entity
     result = await attribute_service.enrich_entity_with_attributes('light.office')
-    
+
     # Verify enrichment
     assert result is not None
     assert result['entity_id'] == 'light.office'
@@ -56,13 +56,13 @@ async def test_entity_enrichment_with_hue_group():
 @pytest.mark.asyncio
 async def test_entity_context_builder_creates_json():
     """Test EntityContextBuilder creates enriched JSON"""
-    
+
     # Mock entity data
     entities = [
         {'entity_id': 'light.office'},
         {'entity_id': 'light.hue_office_back_left'}
     ]
-    
+
     enriched_data = {
         'light.office': {
             'entity_id': 'light.office',
@@ -86,13 +86,13 @@ async def test_entity_context_builder_creates_json():
             }
         }
     }
-    
+
     # Create context builder
     context_builder = EntityContextBuilder()
-    
+
     # Build context JSON
     json_str = await context_builder.build_entity_context_json(entities, enriched_data)
-    
+
     # Verify JSON contains expected structure
     assert json_str is not None
     assert 'light.office' in json_str
@@ -105,7 +105,7 @@ async def test_entity_context_builder_creates_json():
 @pytest.mark.asyncio
 async def test_attribute_based_scoring_boosts_groups():
     """Test attribute-based scoring boosts group entities for appropriate queries"""
-    
+
     # Mock entities
     mock_entities = [
         {
@@ -121,7 +121,7 @@ async def test_attribute_based_scoring_boosts_groups():
             'device_name': 'Office Back Left Light'
         }
     ]
-    
+
     # Mock HA client
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.side_effect = [
@@ -134,23 +134,23 @@ async def test_attribute_based_scoring_boosts_groups():
             'attributes': {'is_hue_group': False}
         }
     ]
-    
+
     # Mock data API client
     mock_data_api = AsyncMock()
     mock_data_api.get_all_entities = AsyncMock(return_value=mock_entities)
-    
+
     # Create entity validator with HA client
     entity_validator = EntityValidator(
         data_api_client=mock_data_api,
         ha_client=mock_ha_client
     )
-    
+
     # Test query suggesting a group
     query = "flash all office lights"
-    
+
     with patch.object(entity_validator, '_get_embedding_model', return_value=None):
         result = await entity_validator.map_query_to_entities(query, ['office lights'])
-        
+
         # Verify group entity was matched (should be preferred for "all lights" query)
         if result and 'office lights' in result:
             # The group entity should be preferred over individual lights
@@ -160,7 +160,7 @@ async def test_attribute_based_scoring_boosts_groups():
 @pytest.mark.asyncio
 async def test_hue_group_vs_individual_discrimination():
     """Test system correctly discriminates between Hue groups and individual lights"""
-    
+
     # Mock HA client
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.side_effect = [
@@ -181,18 +181,18 @@ async def test_hue_group_vs_individual_discrimination():
             }
         }
     ]
-    
+
     # Create service
     attribute_service = EntityAttributeService(mock_ha_client)
-    
+
     # Test group entity
     group_result = await attribute_service.enrich_entity_with_attributes('light.office')
     assert group_result['is_group'] is True
-    
+
     # Test individual entity
     individual_result = await attribute_service.enrich_entity_with_attributes('light.hue_office_back_left')
     assert individual_result['is_group'] is False
-    
+
     # Verify discrimination
     assert group_result['is_group'] != individual_result['is_group']
 
@@ -200,17 +200,17 @@ async def test_hue_group_vs_individual_discrimination():
 @pytest.mark.asyncio
 async def test_enrichment_error_handling():
     """Test graceful error handling in enrichment"""
-    
+
     # Mock HA client to raise error
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.side_effect = Exception("Network error")
-    
+
     # Create service
     attribute_service = EntityAttributeService(mock_ha_client)
-    
+
     # Enrich should handle error gracefully
     result = await attribute_service.enrich_entity_with_attributes('light.office')
-    
+
     # Should return None on error
     assert result is None
 
@@ -218,20 +218,20 @@ async def test_enrichment_error_handling():
 @pytest.mark.asyncio
 async def test_batch_enrichment_performance():
     """Test batch enrichment handles multiple entities efficiently"""
-    
+
     # Mock HA client
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.side_effect = [
         {'state': 'on', 'attributes': {'is_hue_group': True}} for _ in range(5)
     ]
-    
+
     # Create service
     attribute_service = EntityAttributeService(mock_ha_client)
-    
+
     # Enrich multiple entities
     entity_ids = ['light.office', 'light.kitchen', 'light.bedroom', 'light.living_room', 'light.bathroom']
     result = await attribute_service.enrich_multiple_entities(entity_ids)
-    
+
     # Verify all entities were enriched
     assert len(result) == 5
     for entity_id in entity_ids:
@@ -241,7 +241,7 @@ async def test_batch_enrichment_performance():
 @pytest.mark.asyncio
 async def test_capability_extraction():
     """Test capability extraction from supported_features"""
-    
+
     # Mock HA client with capabilities
     mock_ha_client = AsyncMock()
     mock_ha_client.get_entity_state.return_value = {
@@ -254,16 +254,16 @@ async def test_capability_extraction():
             'rgb_color': [255, 255, 255]
         }
     }
-    
+
     # Create context builder
     context_builder = EntityContextBuilder()
-    
+
     # Extract capabilities
     capabilities = context_builder._extract_capabilities(
         mock_ha_client.get_entity_state.return_value['attributes'],
         'light'
     )
-    
+
     # Verify capabilities
     assert 'brightness' in capabilities
     assert 'color_temp' in capabilities
@@ -274,7 +274,7 @@ async def test_capability_extraction():
 @pytest.mark.asyncio
 async def test_end_to_end_attribute_enrichment():
     """End-to-end test of attribute enrichment in entity resolution"""
-    
+
     # This test should run against real HA instance if available
     # Skip if not running in integration environment
     pytest.skip("Skipping integration test without real HA instance")

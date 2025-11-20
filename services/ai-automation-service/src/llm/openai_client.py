@@ -22,12 +22,14 @@ See implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md for:
 - Anomaly: Unusual activity detection (future)
 """
 
-from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
-from typing import Dict, Optional, Any
 import logging
 import re
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from typing import Any
+
+from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 from ..utils.token_counter import count_message_tokens, get_token_breakdown
 from .cost_tracker import CostTracker
 
@@ -55,7 +57,7 @@ class AutomationSuggestion(BaseModel):
 
 class OpenAIClient:
     """Client for generating automation suggestions via OpenAI API"""
-    
+
     def __init__(self, api_key: str, model: str = "gpt-4o", enable_token_counting: bool = True):
         """
         Initialize OpenAI client.
@@ -74,13 +76,13 @@ class OpenAIClient:
         self.total_cost_usd = 0.0
         self.last_usage = None  # Store last token usage for debug panel
         self._token_counter_enabled = enable_token_counting
-        
+
         # Phase 5: Endpoint-level tracking (in-memory)
-        self.endpoint_stats: Dict[str, Dict[str, Any]] = {}  # endpoint_name -> {tokens, cost, calls}
-        
+        self.endpoint_stats: dict[str, dict[str, Any]] = {}  # endpoint_name -> {tokens, cost, calls}
+
         logger.info(f"OpenAI client initialized with model={model}")
-    
-    def _parse_automation_response(self, llm_response: str, pattern: Dict) -> AutomationSuggestion:
+
+    def _parse_automation_response(self, llm_response: str, pattern: dict) -> AutomationSuggestion:
         """
         Parse LLM response into structured AutomationSuggestion.
         
@@ -98,7 +100,7 @@ class OpenAIClient:
         rationale = self._extract_rationale(llm_response) or "Based on observed usage patterns"
         category = self._extract_category(llm_response) or self._infer_category(pattern)
         priority = self._extract_priority(llm_response) or "medium"
-        
+
         return AutomationSuggestion(
             alias=alias,
             description=description,
@@ -108,49 +110,49 @@ class OpenAIClient:
             priority=priority,
             confidence=pattern.get('confidence', 0.0)
         )
-    
-    def _extract_alias(self, text: str) -> Optional[str]:
+
+    def _extract_alias(self, text: str) -> str | None:
         """Extract alias from LLM response"""
         # Look for 'alias: "..."' in YAML block
         match = re.search(r'alias:\s*["\']?([^"\'\n]+)["\']?', text, re.IGNORECASE)
         return match.group(1).strip() if match else None
-    
-    def _extract_description(self, text: str) -> Optional[str]:
+
+    def _extract_description(self, text: str) -> str | None:
         """Extract description from LLM response"""
         match = re.search(r'description:\s*["\']?([^"\'\n]+)["\']?', text, re.IGNORECASE)
         return match.group(1).strip() if match else None
-    
-    def _extract_yaml(self, text: str) -> Optional[str]:
+
+    def _extract_yaml(self, text: str) -> str | None:
         """Extract YAML block from LLM response"""
         # Look for YAML code block
         match = re.search(r'```(?:yaml)?\n(.*?)\n```', text, re.DOTALL)
         if match:
             return match.group(1).strip()
-        
+
         # Fallback: Look for alias: as start of YAML
         lines = text.split('\n')
         yaml_lines = []
         in_yaml = False
-        
+
         for line in lines:
             if line.strip().startswith('alias:'):
                 in_yaml = True
-            
+
             if in_yaml:
                 yaml_lines.append(line)
-                
+
                 # Stop at RATIONALE or CATEGORY markers
                 if any(marker in line.upper() for marker in ['RATIONALE:', 'CATEGORY:', 'PRIORITY:']):
                     break
-        
+
         return '\n'.join(yaml_lines).strip() if yaml_lines else None
-    
-    def _extract_rationale(self, text: str) -> Optional[str]:
+
+    def _extract_rationale(self, text: str) -> str | None:
         """Extract rationale explanation from LLM response"""
         match = re.search(r'RATIONALE:\s*(.+?)(?:CATEGORY:|PRIORITY:|$)', text, re.IGNORECASE | re.DOTALL)
         return match.group(1).strip() if match else None
-    
-    def _extract_category(self, text: str) -> Optional[str]:
+
+    def _extract_category(self, text: str) -> str | None:
         """Extract category from LLM response"""
         match = re.search(r'CATEGORY:\s*(\w+)', text, re.IGNORECASE)
         if match:
@@ -158,8 +160,8 @@ class OpenAIClient:
             if category in ['energy', 'comfort', 'security', 'convenience']:
                 return category
         return None
-    
-    def _extract_priority(self, text: str) -> Optional[str]:
+
+    def _extract_priority(self, text: str) -> str | None:
         """Extract priority from LLM response"""
         match = re.search(r'PRIORITY:\s*(\w+)', text, re.IGNORECASE)
         if match:
@@ -167,8 +169,8 @@ class OpenAIClient:
             if priority in ['high', 'medium', 'low']:
                 return priority
         return None
-    
-    def _infer_category(self, pattern: Dict) -> str:
+
+    def _infer_category(self, pattern: dict) -> str:
         """
         Infer category from pattern and device type.
         
@@ -179,7 +181,7 @@ class OpenAIClient:
             Category string
         """
         device_id = pattern.get('device_id', '').lower()
-        
+
         # Simple heuristics based on device type
         if any(keyword in device_id for keyword in ['light', 'switch']):
             return 'convenience'
@@ -191,8 +193,8 @@ class OpenAIClient:
             return 'energy'
         else:
             return 'convenience'
-    
-    def _parse_description_response(self, text: str) -> Dict:
+
+    def _parse_description_response(self, text: str) -> dict:
         """
         Parse LLM description response into structured format.
         
@@ -210,38 +212,38 @@ class OpenAIClient:
             'category': 'convenience',
             'priority': 'medium'
         }
-        
+
         # Try to extract structured fields if present
         # Look for title/heading pattern
         title_match = re.search(r'^#?\s*(.+?)(?::|\n)', text, re.MULTILINE)
         if title_match:
             result['title'] = title_match.group(1).strip()
-        
+
         # Look for rationale section
         rationale_match = re.search(r'(?:RATIONALE|WHY|REASON):\s*(.+?)(?:\n\n|$)', text, re.IGNORECASE | re.DOTALL)
         if rationale_match:
             result['rationale'] = rationale_match.group(1).strip()
-        
+
         # Look for category
         category_match = re.search(r'CATEGORY:\s*(\w+)', text, re.IGNORECASE)
         if category_match:
             category = category_match.group(1).lower()
             if category in ['convenience', 'comfort', 'security', 'energy']:
                 result['category'] = category
-        
+
         # Look for priority
         priority_match = re.search(r'PRIORITY:\s*(high|medium|low)', text, re.IGNORECASE)
         if priority_match:
             result['priority'] = priority_match.group(1).lower()
-        
+
         # If no title extracted, use first sentence
         if not result['title']:
             first_sentence = text.strip().split('.')[0]
             result['title'] = first_sentence[:100]  # Limit length
-        
+
         return result
-    
-    def _generate_fallback_yaml(self, pattern: Dict) -> str:
+
+    def _generate_fallback_yaml(self, pattern: dict) -> str:
         """
         Generate fallback YAML if LLM parsing fails.
         
@@ -253,7 +255,7 @@ class OpenAIClient:
         """
         pattern_type = pattern.get('pattern_type', 'unknown')
         device_id = pattern.get('device_id', 'unknown.entity')
-        
+
         if pattern_type == 'time_of_day':
             hour = pattern.get('hour', 0)
             minute = pattern.get('minute', 0)
@@ -271,7 +273,7 @@ actions:
     target:
       entity_id: {device_id}
 """
-        
+
         elif pattern_type == 'co_occurrence':
             device1 = pattern.get('device1', 'unknown')
             device2 = pattern.get('device2', 'unknown')
@@ -294,7 +296,7 @@ actions:
     target:
       entity_id: {device2}
 """
-        
+
         else:
             return f"""id: '{hash(device_id) % 10000000000}'
 alias: "AI Suggested Automation"
@@ -309,8 +311,8 @@ actions:
     target:
       entity_id: {device_id}
 """
-    
-    def get_usage_stats(self) -> Dict:
+
+    def get_usage_stats(self) -> dict:
         """
         Get API usage statistics.
         
@@ -322,11 +324,11 @@ actions:
             self.total_output_tokens,
             model=self.model
         )
-        
+
         # Phase 5: Format endpoint stats (enhanced with model breakdown)
         endpoint_breakdown = {}
         model_breakdown = {}  # Aggregate by model across all endpoints
-        
+
         for endpoint_key, stats in self.endpoint_stats.items():
             # Extract endpoint and model from composite key
             if ':' in endpoint_key:
@@ -334,7 +336,7 @@ actions:
             else:
                 endpoint = endpoint_key
                 model = stats.get('model', self.model)
-            
+
             # Endpoint breakdown (grouped by endpoint)
             if endpoint not in endpoint_breakdown:
                 endpoint_breakdown[endpoint] = {
@@ -345,13 +347,13 @@ actions:
                     'cost_usd': 0.0,
                     'models': {}  # Per-model breakdown within endpoint
                 }
-            
+
             endpoint_breakdown[endpoint]['calls'] += stats['calls']
             endpoint_breakdown[endpoint]['input_tokens'] += stats['input_tokens']
             endpoint_breakdown[endpoint]['output_tokens'] += stats['output_tokens']
             endpoint_breakdown[endpoint]['total_tokens'] += stats['total_tokens']
             endpoint_breakdown[endpoint]['cost_usd'] += stats['cost_usd']
-            
+
             # Per-model breakdown within endpoint
             endpoint_breakdown[endpoint]['models'][model] = {
                 'calls': stats['calls'],
@@ -361,7 +363,7 @@ actions:
                 'cost_usd': round(stats['cost_usd'], 4),
                 'avg_cost_per_call': round(stats['cost_usd'] / stats['calls'], 4) if stats['calls'] > 0 else 0.0
             }
-            
+
             # Model-level aggregation (across all endpoints)
             if model not in model_breakdown:
                 model_breakdown[model] = {
@@ -371,20 +373,20 @@ actions:
                     'total_tokens': 0,
                     'cost_usd': 0.0
                 }
-            
+
             model_breakdown[model]['calls'] += stats['calls']
             model_breakdown[model]['input_tokens'] += stats['input_tokens']
             model_breakdown[model]['output_tokens'] += stats['output_tokens']
             model_breakdown[model]['total_tokens'] += stats['total_tokens']
             model_breakdown[model]['cost_usd'] += stats['cost_usd']
-        
+
         # Calculate averages for endpoint breakdown
         for endpoint in endpoint_breakdown.values():
             if endpoint['calls'] > 0:
                 endpoint['avg_cost_per_call'] = round(endpoint['cost_usd'] / endpoint['calls'], 4)
             else:
                 endpoint['avg_cost_per_call'] = 0.0
-        
+
         return {
             'total_tokens': self.total_tokens_used,
             'input_tokens': self.total_input_tokens,
@@ -395,7 +397,7 @@ actions:
             'endpoint_breakdown': endpoint_breakdown,  # Phase 5: Add endpoint breakdown
             'model_breakdown': model_breakdown  # Model-level aggregation
         }
-    
+
     def reset_usage_stats(self):
         """Reset usage statistics (for testing or daily reset)"""
         self.total_tokens_used = 0
@@ -404,7 +406,7 @@ actions:
         self.total_cost_usd = 0.0
         self.endpoint_stats = {}  # Phase 5: Reset endpoint stats
         logger.info("Usage statistics reset")
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -413,12 +415,12 @@ actions:
     )
     async def generate_with_unified_prompt(
         self,
-        prompt_dict: Dict[str, str],
+        prompt_dict: dict[str, str],
         temperature: float = 0.7,
         max_tokens: int = 600,
         output_format: str = "yaml",  # "yaml" | "description" | "json"
-        endpoint: Optional[str] = None  # Phase 5: Track which endpoint made the call
-    ) -> Dict:
+        endpoint: str | None = None  # Phase 5: Track which endpoint made the call
+    ) -> dict:
         """
         Generate automation suggestion using unified prompt format.
         
@@ -489,7 +491,7 @@ actions:
                     cache_key = hashlib.md5(system_prompt.encode()).hexdigest()
                     # Log cache intent (cache_control parameter not supported in current SDK)
                     logger.debug(f"Prompt caching requested (cache key: {cache_key[:8]}...) - not implemented in current SDK version")
-            
+
             # Build API call parameters
             api_params = {
                 "model": self.model,
@@ -497,19 +499,19 @@ actions:
                 "temperature": temperature,
                 "max_completion_tokens": max_tokens  # Use max_completion_tokens for newer models (gpt-4o+)
             }
-            
+
             # NOTE: cache_control parameter is not supported in OpenAI Python SDK
             # Remove if present to avoid TypeError
             api_params.pop("cache_control", None)
-            
+
             response = await self.client.chat.completions.create(**api_params)
-            
+
             # Track token usage (OpenAI best practice)
             usage = response.usage
             self.total_input_tokens += usage.prompt_tokens
             self.total_output_tokens += usage.completion_tokens
             self.total_tokens_used += usage.total_tokens
-            
+
             # Calculate cost for this request
             request_cost = CostTracker.calculate_cost(
                 usage.prompt_tokens,
@@ -517,7 +519,7 @@ actions:
                 model=self.model
             )
             self.total_cost_usd += request_cost
-            
+
             # Phase 5: Track endpoint-level stats (enhanced with model name)
             if endpoint:
                 # Use composite key to track model per endpoint
@@ -536,7 +538,7 @@ actions:
                 self.endpoint_stats[endpoint_key]['output_tokens'] += usage.completion_tokens
                 self.endpoint_stats[endpoint_key]['total_tokens'] += usage.total_tokens
                 self.endpoint_stats[endpoint_key]['cost_usd'] += request_cost
-            
+
             # Store last usage for debug panel
             self.last_usage = {
                 'prompt_tokens': usage.prompt_tokens,
@@ -546,23 +548,23 @@ actions:
                 'model': self.model,
                 'endpoint': endpoint  # Phase 5: Include endpoint in last usage
             }
-            
+
             logger.info(
                 f"✅ Unified prompt generation successful: {usage.total_tokens} tokens "
                 f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
             )
             logger.info(f"OpenAI response has {len(response.choices)} choices")
             logger.info(f"Response finish reason: {response.choices[0].finish_reason}")
-            
+
             # Parse based on output_format
             content = response.choices[0].message.content
-            
+
             # Enhanced error handling for empty responses
             if not content:
                 finish_reason = response.choices[0].finish_reason if response.choices else "unknown"
                 logger.error(f"❌ Empty content from OpenAI API. Finish reason: {finish_reason}, Model: {self.model}")
                 logger.error(f"Response object: {response}")
-                
+
                 # Check if it's a model error (invalid model name)
                 if finish_reason == "stop" and not content:
                     raise ValueError(
@@ -575,9 +577,9 @@ actions:
                         f"Empty content from OpenAI API. Finish reason: {finish_reason}. "
                         f"This may be due to API rate limiting, content filtering, or model unavailability."
                     )
-            
+
             logger.info(f"OpenAI response content (length={len(content)}): {content[:200]}")
-            
+
             pattern_source = prompt_dict.get("pattern_source", {})
 
             if output_format == "json":
@@ -596,17 +598,17 @@ actions:
             else:  # description
                 # Parse structured description response
                 return self._parse_description_response(content.strip())
-                
+
         except Exception as e:
             logger.error(f"❌ Unified prompt generation error: {e}")
             import traceback
             logger.error(f"Stack trace:\n{traceback.format_exc()}")
             raise
-    
+
     async def generate_automation_suggestion(
         self,
-        pattern: Dict,
-        device_context: Optional[Dict] = None,
+        pattern: dict,
+        device_context: dict | None = None,
         output_mode: str = "yaml"
     ):
         """
@@ -629,8 +631,8 @@ actions:
         )
 
         return result
-    
-    async def infer_category_and_priority(self, description: str) -> Dict[str, str]:
+
+    async def infer_category_and_priority(self, description: str) -> dict[str, str]:
         """
         Infer category and priority from automation description.
         
@@ -646,13 +648,13 @@ actions:
         # Use classification model (GPT-4o-mini) for cost efficiency
         from ..config import settings
         classification_model = getattr(settings, 'classification_model', 'gpt-5.1')
-        
+
         # Create temporary client with classification model if different
         original_model = self.model
         if classification_model != self.model:
             # Temporarily switch model for this call
             self.model = classification_model
-        
+
         try:
             result = await self.generate_with_unified_prompt(
                 prompt_dict={
@@ -679,27 +681,27 @@ Choose the category that BEST fits the primary purpose of this automation."""
                 max_tokens=100,
                 output_format="json"
             )
-            
+
             category = result.get('category', 'convenience')
             priority = result.get('priority', 'medium')
-            
+
             # Validate category
             if category not in ['energy', 'comfort', 'security', 'convenience']:
                 logger.warning(f"Invalid category '{category}' from LLM, defaulting to 'convenience'")
                 category = 'convenience'
-            
+
             # Validate priority
             if priority not in ['high', 'medium', 'low']:
                 logger.warning(f"Invalid priority '{priority}' from LLM, defaulting to 'medium'")
                 priority = 'medium'
-            
+
             logger.info(f"✅ Inferred category: {category}, priority: {priority}")
-            
+
             return {
                 'category': category,
                 'priority': priority
             }
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to infer category: {e}")
             # Return safe defaults
@@ -710,4 +712,4 @@ Choose the category that BEST fits the primary purpose of this automation."""
         finally:
             # Restore original model
             self.model = original_model
-    
+

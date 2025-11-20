@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-
 
 DEVICE_INTELLIGENCE_URL = os.getenv("DEVICE_INTELLIGENCE_URL", "http://localhost:8019")
 
@@ -20,22 +19,22 @@ class HygieneIssueResponse(BaseModel):
     issue_type: str
     severity: str
     status: str
-    device_id: Optional[str] = None
-    entity_id: Optional[str] = None
-    name: Optional[str] = None
-    summary: Optional[str] = None
-    suggested_action: Optional[str] = None
-    suggested_value: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    detected_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    resolved_at: Optional[str] = None
+    device_id: str | None = None
+    entity_id: str | None = None
+    name: str | None = None
+    summary: str | None = None
+    suggested_action: str | None = None
+    suggested_value: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    detected_at: str | None = None
+    updated_at: str | None = None
+    resolved_at: str | None = None
 
 
 class HygieneIssueListResponse(BaseModel):
     """Response model for issue list endpoint."""
 
-    issues: List[HygieneIssueResponse]
+    issues: list[HygieneIssueResponse]
     count: int
     total: int
 
@@ -48,7 +47,7 @@ class UpdateIssueStatusRequest(BaseModel):
 
 class ApplyIssueActionRequest(BaseModel):
     action: str
-    value: Optional[str] = None
+    value: str | None = None
 
 
 router = APIRouter(prefix="/api/v1/hygiene", tags=["Device Hygiene"])
@@ -57,9 +56,9 @@ router = APIRouter(prefix="/api/v1/hygiene", tags=["Device Hygiene"])
 async def _request_device_intelligence(
     method: str,
     path: str,
-    params: Optional[Dict[str, Any]] = None,
-    payload: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    params: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     url = f"{DEVICE_INTELLIGENCE_URL}{path}"
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.request(method, url, params=params, json=payload)
@@ -76,13 +75,13 @@ async def _request_device_intelligence(
 
 @router.get("/issues", response_model=HygieneIssueListResponse)
 async def list_hygiene_issues(
-    status_filter: Optional[str] = Query(default=None, alias="status"),
-    severity: Optional[str] = Query(default=None),
-    issue_type: Optional[str] = Query(default=None),
-    device_id: Optional[str] = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    severity: str | None = Query(default=None),
+    issue_type: str | None = Query(default=None),
+    device_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    params: Dict[str, Any] = {"limit": limit}
+    params: dict[str, Any] = {"limit": limit}
     if status_filter:
         params["status"] = status_filter
     if severity:

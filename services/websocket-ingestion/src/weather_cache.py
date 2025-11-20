@@ -13,25 +13,25 @@ from __future__ import annotations
 import asyncio
 from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class WeatherCache:
     """In-memory weather cache with TTL semantics and LRU eviction."""
 
-    def __init__(self, max_size: int = 100, default_ttl: int = 300, cleanup_interval: Optional[int] = None) -> None:
+    def __init__(self, max_size: int = 100, default_ttl: int = 300, cleanup_interval: int | None = None) -> None:
         self.max_size = max_size
         self.default_ttl = default_ttl
         self.cleanup_interval = cleanup_interval or default_ttl
 
-        self.cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self.hits = 0
         self.misses = 0
         self.evictions = 0
         self.total_requests = 0
 
         self.is_running = False
-        self.cleanup_task: Optional[asyncio.Task[None]] = None
+        self.cleanup_task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
 
     async def start(self) -> None:
@@ -58,7 +58,7 @@ class WeatherCache:
             finally:
                 self.cleanup_task = None
 
-    async def put(self, key: str, data: Any, ttl: Optional[int] = None) -> bool:
+    async def put(self, key: str, data: Any, ttl: int | None = None) -> bool:
         """Insert or update a cache entry."""
         ttl_value = ttl if ttl is not None else self.default_ttl
         async with self._lock:
@@ -77,7 +77,7 @@ class WeatherCache:
             self.cache.move_to_end(key, last=True)
         return True
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Fetch data from cache if present and not expired."""
         self.total_requests += 1
         async with self._lock:
@@ -111,7 +111,7 @@ class WeatherCache:
         """Return current cache keys."""
         return list(self.cache.keys())
 
-    def get_cache_statistics(self) -> Dict[str, Any]:
+    def get_cache_statistics(self) -> dict[str, Any]:
         """Return cache statistics."""
         hit_rate = 0.0
         if self.total_requests:
@@ -167,7 +167,7 @@ class WeatherCache:
             # Task cancelled during shutdown
             pass
 
-    def _is_expired(self, entry: Dict[str, Any]) -> bool:
+    def _is_expired(self, entry: dict[str, Any]) -> bool:
         """Determine if an entry has expired."""
         timestamp = self._parse_timestamp(entry["timestamp"])
         ttl = entry.get("ttl", self.default_ttl)

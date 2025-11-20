@@ -6,28 +6,28 @@ instead of querying InfluxDB directly.
 """
 
 import logging
+from typing import Any
+
 import httpx
-from typing import List, Dict, Any, Optional
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class DeviceIntelligenceClient:
     """Client for interacting with Device Intelligence Service from admin-api."""
-    
+
     def __init__(self, base_url: str = "http://device-intelligence-service:8019"):
         """Initialize the client with Device Intelligence Service URL."""
         self.base_url = base_url
         self.client = httpx.AsyncClient(timeout=30.0)
         logger.info(f"Device Intelligence Client initialized with URL: {base_url}")
-    
+
     async def get_devices(
-        self, 
-        limit: int = 100, 
-        manufacturer: Optional[str] = None,
-        model: Optional[str] = None,
-        area_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        limit: int = 100,
+        manufacturer: str | None = None,
+        model: str | None = None,
+        area_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Get devices from Device Intelligence Service.
         
@@ -48,14 +48,14 @@ class DeviceIntelligenceClient:
                 params["model"] = model
             if area_id:
                 params["area_id"] = area_id
-            
+
             response = await self.client.get(f"{self.base_url}/api/devices", params=params)
             response.raise_for_status()
-            
+
             data = response.json()
             logger.debug(f"Retrieved {data.get('count', 0)} devices from Device Intelligence Service")
             return data
-            
+
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error getting devices: {e}")
             raise
@@ -65,8 +65,8 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.error(f"Unexpected error getting devices: {e}")
             raise
-    
-    async def get_device_by_id(self, device_id: str) -> Dict[str, Any]:
+
+    async def get_device_by_id(self, device_id: str) -> dict[str, Any]:
         """
         Get a specific device by ID.
         
@@ -79,11 +79,11 @@ class DeviceIntelligenceClient:
         try:
             response = await self.client.get(f"{self.base_url}/api/devices/{device_id}")
             response.raise_for_status()
-            
+
             data = response.json()
             logger.debug(f"Retrieved device {device_id} from Device Intelligence Service")
             return data
-            
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning(f"Device {device_id} not found in Device Intelligence Service")
@@ -96,8 +96,8 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.error(f"Unexpected error getting device {device_id}: {e}")
             raise
-    
-    async def get_device_stats(self) -> Dict[str, Any]:
+
+    async def get_device_stats(self) -> dict[str, Any]:
         """
         Get device statistics from Device Intelligence Service.
         
@@ -107,11 +107,11 @@ class DeviceIntelligenceClient:
         try:
             response = await self.client.get(f"{self.base_url}/api/stats")
             response.raise_for_status()
-            
+
             data = response.json()
             logger.debug("Retrieved device statistics from Device Intelligence Service")
             return data
-            
+
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error getting device stats: {e}")
             raise
@@ -121,8 +121,8 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.error(f"Unexpected error getting device stats: {e}")
             raise
-    
-    async def get_device_capabilities(self, device_id: str) -> List[Dict[str, Any]]:
+
+    async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """
         Get device capabilities from Device Intelligence Service.
         
@@ -135,11 +135,11 @@ class DeviceIntelligenceClient:
         try:
             response = await self.client.get(f"{self.base_url}/api/devices/{device_id}/capabilities")
             response.raise_for_status()
-            
+
             data = response.json()
             logger.debug(f"Retrieved {len(data)} capabilities for device {device_id}")
             return data
-            
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning(f"Device {device_id} not found for capabilities")
@@ -152,7 +152,7 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.error(f"Unexpected error getting capabilities for device {device_id}: {e}")
             raise
-    
+
     async def close(self):
         """Close the HTTP client."""
         try:

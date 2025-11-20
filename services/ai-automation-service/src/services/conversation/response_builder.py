@@ -8,9 +8,9 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,23 +37,23 @@ class ResponseBuilder:
     - Confidence scores
     - Next actions
     """
-    
+
     def __init__(self):
         """Initialize response builder"""
         logger.info("ResponseBuilder initialized")
-    
+
     def build_response(
         self,
         response_type: ResponseType,
         content: str,
         conversation_id: str,
         turn_number: int,
-        suggestions: Optional[List[Dict[str, Any]]] = None,
-        clarification_questions: Optional[List[Dict[str, Any]]] = None,
-        confidence: Optional[float] = None,
+        suggestions: list[dict[str, Any]] | None = None,
+        clarification_questions: list[dict[str, Any]] | None = None,
+        confidence: float | None = None,
         processing_time_ms: int = 0,
-        next_actions: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        next_actions: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Build structured response.
         
@@ -79,25 +79,25 @@ class ResponseBuilder:
             "processing_time_ms": processing_time_ms,
             "created_at": datetime.utcnow().isoformat()
         }
-        
+
         if suggestions:
             response["suggestions"] = suggestions
-        
+
         if clarification_questions:
             response["clarification_questions"] = clarification_questions
-        
+
         if confidence is not None:
             response["confidence"] = confidence
-        
+
         if next_actions:
             response["next_actions"] = next_actions
         else:
             # Generate default next actions based on response type
             response["next_actions"] = self._generate_default_next_actions(response_type)
-        
+
         return response
-    
-    def _generate_default_next_actions(self, response_type: ResponseType) -> List[str]:
+
+    def _generate_default_next_actions(self, response_type: ResponseType) -> list[str]:
         """Generate default next actions based on response type"""
         if response_type == ResponseType.AUTOMATION_GENERATED:
             return [

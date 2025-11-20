@@ -11,9 +11,9 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 from .context_manager import ConversationContextManager
+from .history_manager import HistoryManager
 from .intent_matcher import IntentMatcher
 from .response_builder import ResponseBuilder
-from .history_manager import HistoryManager
 
 __all__ = [
     'ConversationContextManager',

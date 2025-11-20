@@ -4,7 +4,6 @@ Provides KMeans and DBSCAN clustering for pattern detection
 """
 
 import logging
-from typing import List, Tuple, Optional
 
 import numpy as np
 from sklearn.cluster import DBSCAN, KMeans
@@ -24,7 +23,7 @@ class ClusteringManager:
         logger.info("ClusteringManager initialized")
 
     @staticmethod
-    def _scale_features(data: List[List[float]]) -> np.ndarray:
+    def _scale_features(data: list[list[float]]) -> np.ndarray:
         """
         Scale the provided data using a fresh StandardScaler per request.
 
@@ -36,10 +35,10 @@ class ClusteringManager:
 
     def kmeans_cluster(
         self,
-        data: List[List[float]],
-        n_clusters: Optional[int] = None,
+        data: list[list[float]],
+        n_clusters: int | None = None,
         max_clusters: int = 100,
-    ) -> Tuple[List[int], int]:
+    ) -> tuple[list[int], int]:
         """
         Perform KMeans clustering.
 
@@ -71,9 +70,9 @@ class ClusteringManager:
 
     def dbscan_cluster(
         self,
-        data: List[List[float]],
-        eps: Optional[float] = None,
-    ) -> Tuple[List[int], int]:
+        data: list[list[float]],
+        eps: float | None = None,
+    ) -> tuple[list[int], int]:
         """
         Perform DBSCAN clustering.
 

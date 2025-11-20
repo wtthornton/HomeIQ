@@ -6,9 +6,9 @@ This replaces hardcoded elif chains with a data-driven approach using HA constan
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any
 
-from .constants import get_domain_constants, LightEntityFeature
+from .constants import LightEntityFeature
 from .feature_mapper import generate_friendly_capabilities
 
 logger = logging.getLogger(__name__)
@@ -21,19 +21,19 @@ class BitmaskCapabilityParser:
     Replaces hardcoded elif chains with a data-driven approach.
     Uses Home Assistant's official feature constants for accuracy.
     """
-    
+
     def __init__(self):
         """Initialize the parser with domain constants."""
         self.domain_constants = {
             'light': LightEntityFeature,
         }
-    
+
     def parse_capabilities(
         self,
         domain: str,
         supported_features: int,
-        attributes: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+        attributes: dict | None = None
+    ) -> dict[str, Any]:
         """
         Parse supported_features bitmask into structured capabilities.
         
@@ -52,13 +52,13 @@ class BitmaskCapabilityParser:
             >>> caps['supported_features']['color_temp']  # True
         """
         features = self._parse_supported_features(domain, supported_features)
-        
+
         return {
             'supported_features': features,
             'friendly_capabilities': generate_friendly_capabilities(domain, features)
         }
-    
-    def _parse_supported_features(self, domain: str, bitmask: int) -> Dict[str, bool]:
+
+    def _parse_supported_features(self, domain: str, bitmask: int) -> dict[str, bool]:
         """
         Parse bitmask into feature flags using domain constants.
         
@@ -81,8 +81,8 @@ class BitmaskCapabilityParser:
             # Generic fallback for unknown domains
             logger.debug(f"Unknown domain '{domain}', using generic capabilities")
             return {'on_off': True}
-    
-    def _parse_light_features(self, bitmask: int) -> Dict[str, bool]:
+
+    def _parse_light_features(self, bitmask: int) -> dict[str, bool]:
         """Parse light entity features from bitmask."""
         return {
             'brightness': bool(bitmask & LightEntityFeature.SUPPORT_BRIGHTNESS),
@@ -93,11 +93,11 @@ class BitmaskCapabilityParser:
             'transition': bool(bitmask & LightEntityFeature.SUPPORT_TRANSITION),
             'white_value': bool(bitmask & LightEntityFeature.SUPPORT_WHITE_VALUE),
         }
-    
-    def _parse_climate_features(self, bitmask: int) -> Dict[str, bool]:
+
+    def _parse_climate_features(self, bitmask: int) -> dict[str, bool]:
         """Parse climate entity features from bitmask."""
         from .constants import ClimateEntityFeature
-        
+
         return {
             'temperature': bool(bitmask & ClimateEntityFeature.SUPPORT_TARGET_TEMPERATURE),
             'temperature_range': bool(bitmask & ClimateEntityFeature.SUPPORT_TARGET_TEMPERATURE_RANGE),
@@ -107,11 +107,11 @@ class BitmaskCapabilityParser:
             'swing_mode': bool(bitmask & ClimateEntityFeature.SUPPORT_SWING_MODE),
             'aux_heat': bool(bitmask & ClimateEntityFeature.SUPPORT_AUX_HEAT),
         }
-    
-    def _parse_cover_features(self, bitmask: int) -> Dict[str, bool]:
+
+    def _parse_cover_features(self, bitmask: int) -> dict[str, bool]:
         """Parse cover entity features from bitmask."""
         from .constants import CoverEntityFeature
-        
+
         return {
             'open': bool(bitmask & CoverEntityFeature.SUPPORT_OPEN),
             'close': bool(bitmask & CoverEntityFeature.SUPPORT_CLOSE),
@@ -121,11 +121,11 @@ class BitmaskCapabilityParser:
             'tilt_close': bool(bitmask & CoverEntityFeature.SUPPORT_CLOSE_TILT),
             'tilt_position': bool(bitmask & CoverEntityFeature.SUPPORT_SET_TILT_POSITION),
         }
-    
-    def _parse_fan_features(self, bitmask: int) -> Dict[str, bool]:
+
+    def _parse_fan_features(self, bitmask: int) -> dict[str, bool]:
         """Parse fan entity features from bitmask."""
         from .constants import FanEntityFeature
-        
+
         return {
             'speed': bool(bitmask & FanEntityFeature.SUPPORT_SET_SPEED),
             'direction': bool(bitmask & FanEntityFeature.SUPPORT_DIRECTION),

@@ -12,11 +12,12 @@ Provides unified access to all 6 data enrichment services:
 Epic: Multi-Source Contextual Fusion (#2)
 """
 
-import httpx
 import logging
-from typing import Dict, Optional, Any, List
 from datetime import datetime, timezone
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from typing import Any
+
+import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False  # Don't raise, return None for graceful degradation
     )
-    async def get_weather(self) -> Optional[Dict[str, Any]]:
+    async def get_weather(self) -> dict[str, Any] | None:
         """
         Get current weather data.
 
@@ -113,7 +114,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False
     )
-    async def get_carbon_intensity(self) -> Optional[Dict[str, Any]]:
+    async def get_carbon_intensity(self) -> dict[str, Any] | None:
         """
         Get current grid carbon intensity.
 
@@ -148,7 +149,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False
     )
-    async def get_electricity_pricing(self) -> Optional[Dict[str, Any]]:
+    async def get_electricity_pricing(self) -> dict[str, Any] | None:
         """
         Get current electricity pricing data.
 
@@ -186,7 +187,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False
     )
-    async def get_air_quality(self) -> Optional[Dict[str, Any]]:
+    async def get_air_quality(self) -> dict[str, Any] | None:
         """
         Get current air quality data.
 
@@ -223,7 +224,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False
     )
-    async def get_occupancy_prediction(self) -> Optional[Dict[str, Any]]:
+    async def get_occupancy_prediction(self) -> dict[str, Any] | None:
         """
         Get current occupancy prediction from calendar service.
 
@@ -259,7 +260,7 @@ class DataEnrichmentClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=False
     )
-    async def get_smart_meter_data(self) -> Optional[Dict[str, Any]]:
+    async def get_smart_meter_data(self) -> dict[str, Any] | None:
         """
         Get current smart meter power consumption data.
 
@@ -291,7 +292,7 @@ class DataEnrichmentClient:
             self.services_available['smart_meter'] = False
             return None
 
-    async def get_all_enrichment_data(self) -> Dict[str, Any]:
+    async def get_all_enrichment_data(self) -> dict[str, Any]:
         """
         Get all enrichment data from all 6 services in parallel.
 

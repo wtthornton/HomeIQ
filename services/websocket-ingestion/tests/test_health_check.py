@@ -2,11 +2,10 @@
 Unit tests for HealthCheckHandler - Critical monitoring component
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock
-from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
+from unittest.mock import Mock
+
+import pytest
 from health_check import HealthCheckHandler
 
 

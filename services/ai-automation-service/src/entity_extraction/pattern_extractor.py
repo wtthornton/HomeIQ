@@ -4,13 +4,13 @@ Pattern-based Entity Extraction
 Safe entity extraction using regex patterns without triggering Home Assistant actions.
 """
 
-import re
 import logging
-from typing import List, Dict, Any
+import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
+def extract_entities_from_query(query: str) -> list[dict[str, Any]]:
     """
     Extract entities from query using regex patterns (PRIMARY method).
     
@@ -25,7 +25,7 @@ def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
     """
     entities = []
     query_lower = query.lower()
-    
+
     # Extract common device patterns from the query - be more selective
     device_patterns = [
         r'(office|living room|bedroom|kitchen|garage|front|back)\s+(?:light|lights|sensor|sensors|switch|switches|door|doors|window|windows)',
@@ -33,7 +33,7 @@ def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
         r'(front|back|garage|office)\s+(?:door|doors)',
         r'(?:light|lights)\s+(?:in|of)\s+(office|living room|bedroom|kitchen|garage)'
     ]
-    
+
     for pattern in device_patterns:
         matches = re.findall(pattern, query, re.IGNORECASE)
         for match in matches:
@@ -54,7 +54,7 @@ def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
                     'state': 'unknown',
                     'extraction_method': 'pattern_matching'
                 })
-    
+
     # If still no entities, add some generic ones based on common terms
     if not entities:
         if 'office' in query_lower:
@@ -67,6 +67,6 @@ def extract_entities_from_query(query: str) -> List[Dict[str, Any]]:
             entities.append({'name': 'front door', 'domain': 'binary_sensor', 'state': 'unknown', 'extraction_method': 'pattern_matching'})
         if 'garage' in query_lower:
             entities.append({'name': 'garage door', 'domain': 'binary_sensor', 'state': 'unknown', 'extraction_method': 'pattern_matching'})
-    
+
     logger.info(f"Extracted {len(entities)} entities from query using pattern matching")
     return entities

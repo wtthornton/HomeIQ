@@ -1,17 +1,20 @@
 """Settings API endpoints."""
 
-from pathlib import Path
 import logging
-from typing import Optional
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings as runtime_settings
 from ..database import (
     get_db,
+)
+from ..database import (
     get_system_settings as db_get_system_settings,
+)
+from ..database import (
     update_system_settings as db_update_system_settings,
 )
 from .ask_ai_router import (
@@ -39,10 +42,10 @@ class EnabledCategoriesModel(BaseModel):
 
 class ParallelTestingModelsModel(BaseModel):
     """Nested representation of parallel testing model configuration."""
-    
+
     suggestion: list[str] = Field(default=["gpt-5.1"])
     yaml: list[str] = Field(default=["gpt-5.1"])
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -64,7 +67,7 @@ class SystemSettingsSchema(BaseModel):
     guardrail_model_name: str = Field(..., alias="guardrailModelName")
     guardrail_threshold: float = Field(..., alias="guardrailThreshold")
     enable_parallel_model_testing: bool = Field(default=False, alias="enableParallelModelTesting")
-    parallel_testing_models: Optional[ParallelTestingModelsModel] = Field(
+    parallel_testing_models: ParallelTestingModelsModel | None = Field(
         default_factory=lambda: ParallelTestingModelsModel(),
         alias="parallelTestingModels"
     )

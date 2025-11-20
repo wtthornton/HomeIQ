@@ -4,28 +4,29 @@ Suggestion Generation Router
 Endpoints for generating automation suggestions from detected patterns using LLM.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Query, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field
 import logging
 import time
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from ..llm.openai_client import OpenAIClient
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..clients.data_api_client import DataAPIClient
+from ..config import settings
 from ..database import (
+    can_trigger_manual_refresh,
     get_db,
     get_patterns,
-    store_suggestion,
     get_suggestions,
-    can_trigger_manual_refresh,
     record_manual_refresh,
+    store_suggestion,
 )
-from ..config import settings
-from ..clients.data_api_client import DataAPIClient
-from ..validation.device_validator import DeviceValidator, ValidationResult
+from ..llm.openai_client import OpenAIClient
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 from ..services.model_comparison_service import ModelComparisonService
+from ..validation.device_validator import DeviceValidator, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class ModelStats(BaseModel):
     avg_input_tokens: float = Field(..., description="Average input tokens per request")
     avg_output_tokens: float = Field(..., description="Average output tokens per request")
     is_local: bool = Field(..., description="Whether model is local (no API cost)")
-    sources: List[str] = Field(..., description="Sources that use this model")
+    sources: list[str] = Field(..., description="Sources that use this model")
 
 
 class ComparisonSummary(BaseModel):
@@ -80,11 +81,11 @@ class CostSavingsOpportunity(BaseModel):
 
 class ModelRecommendations(BaseModel):
     """Model recommendations"""
-    best_overall: Optional[str] = Field(None, description="Best overall model")
-    best_cost: Optional[str] = Field(None, description="Best cost-optimized model")
-    best_quality: Optional[str] = Field(None, description="Best quality model")
-    reasoning: Dict[str, str] = Field(..., description="Reasoning for each recommendation")
-    cost_savings_opportunities: List[CostSavingsOpportunity] = Field(
+    best_overall: str | None = Field(None, description="Best overall model")
+    best_cost: str | None = Field(None, description="Best cost-optimized model")
+    best_quality: str | None = Field(None, description="Best quality model")
+    reasoning: dict[str, str] = Field(..., description="Reasoning for each recommendation")
+    cost_savings_opportunities: list[CostSavingsOpportunity] = Field(
         default_factory=list,
         description="Cost savings opportunities"
     )
@@ -92,7 +93,7 @@ class ModelRecommendations(BaseModel):
 
 class ModelComparisonResponse(BaseModel):
     """Response for model comparison endpoint"""
-    models: List[ModelStats] = Field(..., description="Statistics for each model")
+    models: list[ModelStats] = Field(..., description="Statistics for each model")
     summary: ComparisonSummary = Field(..., description="Summary statistics")
     recommendations: ModelRecommendations = Field(..., description="Model recommendations")
     timestamp: str = Field(..., description="Timestamp of the comparison")
@@ -106,7 +107,7 @@ def get_model_comparison_service() -> ModelComparisonService:
     """
     # Get OpenAIClient (already initialized)
     openai_client_instance = openai_client
-    
+
     # Try to get MultiModelEntityExtractor from ask_ai_router
     multi_model_extractor = None
     try:
@@ -115,12 +116,12 @@ def get_model_comparison_service() -> ModelComparisonService:
         multi_model_extractor = getattr(ask_ai_router, '_multi_model_extractor', None)
     except (ImportError, AttributeError) as e:
         logger.debug(f"Could not access multi_model_extractor: {e}")
-    
+
     # Try to get DescriptionGenerator and SuggestionRefiner
     # These are typically created on-demand, so we may not have global instances
     description_generator = None
     suggestion_refiner = None
-    
+
     return ModelComparisonService(
         openai_client=openai_client_instance,
         multi_model_extractor=multi_model_extractor,
@@ -130,7 +131,7 @@ def get_model_comparison_service() -> ModelComparisonService:
 
 
 @router.get("/usage/stats")
-async def get_usage_stats() -> Dict[str, Any]:
+async def get_usage_stats() -> dict[str, Any]:
     """
     Get OpenAI API usage statistics including token counts and cost estimates.
     
@@ -142,12 +143,12 @@ async def get_usage_stats() -> Dict[str, Any]:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OpenAI client not initialized"
         )
-    
+
     stats = openai_client.get_usage_stats()
-    
+
     # Add model-specific cost breakdown
     from ..llm.cost_tracker import CostTracker
-    
+
     model_breakdown = {
         'gpt-4o': {
             'input_cost_per_1m': CostTracker.GPT4O_INPUT_COST_PER_1M,
@@ -160,7 +161,7 @@ async def get_usage_stats() -> Dict[str, Any]:
             'cached_input_cost_per_1m': CostTracker.GPT4O_MINI_CACHED_INPUT_COST_PER_1M
         }
     }
-    
+
     # Add cache statistics (Phase 4)
     cache_stats = {}
     try:
@@ -170,18 +171,18 @@ async def get_usage_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to get cache stats: {e}")
         cache_stats = {'error': str(e)}
-    
+
     # Phase 5: Calculate success metrics
     success_metrics = {}
     try:
         from ..utils.success_metrics import calculate_success_metrics
-        
+
         # Estimate total requests from endpoint breakdown
         total_requests = sum(
             endpoint_data.get('calls', 0)
             for endpoint_data in stats.get('endpoint_breakdown', {}).values()
         )
-        
+
         success_metrics = calculate_success_metrics(
             current_stats=stats,
             cache_stats=cache_stats if 'error' not in cache_stats else None,
@@ -190,7 +191,7 @@ async def get_usage_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to calculate success metrics: {e}")
         success_metrics = {'error': str(e)}
-    
+
     return {
         **stats,
         'model_pricing': model_breakdown,
@@ -217,11 +218,11 @@ async def compare_models() -> ModelComparisonResponse:
     """
     try:
         comparison_service = get_model_comparison_service()
-        
+
         # Get comparison data
         comparison = comparison_service.compare_models()
         recommendations = comparison_service.calculate_recommendations()
-        
+
         # Convert to Pydantic models
         models = [ModelStats(**model_data) for model_data in comparison.get('models', [])]
         summary_data = comparison.get('summary', {})
@@ -231,10 +232,10 @@ async def compare_models() -> ModelComparisonResponse:
             total_cost_usd=summary_data.get('total_cost_usd', 0.0),
             avg_cost_per_request=summary_data.get('avg_cost_per_request', 0.0)
         )
-        
+
         # Convert recommendations
         cost_savings = [
-            CostSavingsOpportunity(**opp) 
+            CostSavingsOpportunity(**opp)
             for opp in recommendations.get('cost_savings_opportunities', [])
         ]
         model_recommendations = ModelRecommendations(
@@ -244,7 +245,7 @@ async def compare_models() -> ModelComparisonResponse:
             reasoning=recommendations.get('reasoning', {}),
             cost_savings_opportunities=cost_savings
         )
-        
+
         return ModelComparisonResponse(
             models=models,
             summary=summary,
@@ -262,7 +263,7 @@ async def compare_models() -> ModelComparisonResponse:
 @router.get("/refresh/status")
 async def refresh_status(
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Return the current manual refresh status and cooldown timer.
     """
@@ -284,7 +285,7 @@ async def refresh_status(
 async def refresh_suggestions(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Manually trigger the nightly suggestion pipeline with a 1-per-day guard.
     """
@@ -325,11 +326,11 @@ async def refresh_suggestions(
 
 @router.post("/generate")
 async def generate_suggestions(
-    pattern_type: Optional[str] = Query(default=None, description="Generate suggestions for specific pattern type"),
+    pattern_type: str | None = Query(default=None, description="Generate suggestions for specific pattern type"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum pattern confidence"),
     max_suggestions: int = Query(default=10, ge=1, le=50, description="Maximum suggestions to generate"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate automation suggestions from detected patterns using OpenAI.
     
@@ -340,10 +341,10 @@ async def generate_suggestions(
     4. Returns summary with token usage and costs
     """
     start_time = time.time()
-    
+
     try:
         logger.info(f"Starting suggestion generation: pattern_type={pattern_type}, min_confidence={min_confidence}")
-        
+
         # Step 1: Retrieve patterns from database
         patterns = await get_patterns(
             db,
@@ -351,7 +352,7 @@ async def generate_suggestions(
             min_confidence=min_confidence,
             limit=max_suggestions
         )
-        
+
         if not patterns:
             return {
                 "success": False,
@@ -361,25 +362,24 @@ async def generate_suggestions(
                     "patterns_processed": 0
                 }
             }
-        
+
         logger.info(f"✅ Retrieved {len(patterns)} patterns from database")
-        
+
         # Step 2: Generate suggestions using OpenAI
         suggestions_generated = 0
         suggestions_stored = []
         errors = []
-        
+
         # Generate predictive suggestions (NEW - Proactive Opportunities)
         logger.info("→ Generating predictive automation suggestions...")
         try:
             from ..suggestion_generation.predictive_generator import PredictiveAutomationGenerator
-            from ..clients.data_api_client import DataAPIClient
-            
+
             # Fetch recent events for predictive analysis
             predictive_generator = PredictiveAutomationGenerator()
             end_dt = datetime.now(timezone.utc)
             start_dt = end_dt - timedelta(days=30)
-            
+
             try:
                 events_df = await data_api_client.fetch_events(
                     start_time=start_dt,
@@ -388,7 +388,7 @@ async def generate_suggestions(
                 )
                 predictive_suggestions = predictive_generator.generate_predictive_suggestions(events_df)
                 logger.info(f"   ✅ Generated {len(predictive_suggestions)} predictive suggestions")
-                
+
                 # Store predictive suggestions
                 for pred_sugg in predictive_suggestions:
                     try:
@@ -417,12 +417,12 @@ async def generate_suggestions(
                 logger.warning(f"Failed to fetch events for predictive generation: {e}")
         except Exception as e:
             logger.warning(f"Predictive suggestion generation failed: {e}")
-        
+
         for pattern in patterns:
             try:
                 logger.info(f"Processing pattern #{pattern.id}: type={pattern.pattern_type}, device_id={pattern.device_id}")
                 logger.info(f"Pattern metadata type: {type(pattern.pattern_metadata)}, value: {pattern.pattern_metadata}")
-                
+
                 # Convert SQLAlchemy model to dict
                 # Handle pattern_metadata safely - it might be string, dict, or None
                 metadata = pattern.pattern_metadata
@@ -434,7 +434,7 @@ async def generate_suggestions(
                         metadata = {}
                 elif not isinstance(metadata, dict):
                     metadata = {}
-                
+
                 pattern_dict = {
                     'device_id': pattern.device_id,
                     'pattern_type': pattern.pattern_type,
@@ -442,14 +442,14 @@ async def generate_suggestions(
                     'occurrences': pattern.occurrences,
                     'metadata': metadata
                 }
-                
+
                 logger.info(f"Created pattern_dict: {pattern_dict}")
-                
+
                 # Extract hour/minute for time_of_day patterns
                 if pattern.pattern_type == 'time_of_day' and metadata:
                     pattern_dict['hour'] = int(metadata.get('avg_time_decimal', 0))
                     pattern_dict['minute'] = int((metadata.get('avg_time_decimal', 0) % 1) * 60)
-                
+
                 # Extract device1/device2 for co_occurrence patterns
                 if pattern.pattern_type == 'co_occurrence' and metadata:
                     # Device ID is stored as "device1+device2"
@@ -457,10 +457,10 @@ async def generate_suggestions(
                         device1, device2 = pattern.device_id.split('+', 1)
                         pattern_dict['device1'] = device1
                         pattern_dict['device2'] = device2
-                
+
                 # ==== NEW: Fetch device metadata for friendly names ====
                 device_context = await _build_device_context(pattern_dict)
-                
+
                 # Generate cascade suggestions (NEW - Progressive Enhancement)
                 try:
                     from ..suggestion_generation.cascade_generator import CascadeSuggestionGenerator
@@ -470,7 +470,7 @@ async def generate_suggestions(
                         device_context=device_context
                     )
                     logger.info(f"   → Generated {len(cascade_suggestions)} cascade suggestions")
-                    
+
                     # Store cascade suggestions (store first level, others as alternatives)
                     for cascade_sugg in cascade_suggestions[:1]:  # Store first level for now
                         cascade_data = {
@@ -495,12 +495,12 @@ async def generate_suggestions(
                         suggestions_generated += 1
                 except Exception as e:
                     logger.warning(f"Cascade generation failed for pattern {pattern.id}: {e}")
-                
+
                 logger.info(f"Generating suggestion for pattern #{pattern.id}: {pattern.device_id}")
-                
+
                 # ==== VALIDATION ENABLED: Validate suggestion feasibility before generating ====
                 validation_result = await _validate_pattern_feasibility(pattern_dict, device_context)
-                
+
                 if not validation_result.is_valid:
                     logger.warning(f"Pattern #{pattern.id} validation failed: {validation_result.error_message}")
                     # Skip this pattern or generate alternative suggestion
@@ -508,8 +508,8 @@ async def generate_suggestions(
                         logger.info(f"Found alternatives for pattern #{pattern.id}: {validation_result.available_alternatives}")
                         # Generate alternative suggestion using available devices
                         description_data = await _generate_alternative_suggestion(
-                            pattern_dict, 
-                            device_context, 
+                            pattern_dict,
+                            device_context,
                             validation_result
                         )
                     else:
@@ -523,7 +523,7 @@ async def generate_suggestions(
                         device_context=device_context,
                         output_mode="description"
                     )
-                    
+
                     # Generate with unified method
                     result = await openai_client.generate_with_unified_prompt(
                         prompt_dict=prompt_dict,
@@ -532,7 +532,7 @@ async def generate_suggestions(
                         endpoint="pattern_suggestion_generation",  # Phase 5: Track endpoint
                         output_format="description"
                     )
-                    
+
                     # Parse result to match expected format
                     description_data = {
                         'title': result.get('title', pattern_dict.get('device_id', 'Automation')),
@@ -541,7 +541,7 @@ async def generate_suggestions(
                         'category': result.get('category', 'convenience'),
                         'priority': result.get('priority', 'medium')
                     }
-                
+
                 # Build device info entries from context
                 device_info_entries = []
                 if device_context:
@@ -594,13 +594,13 @@ async def generate_suggestions(
                     'device_capabilities': device_capabilities if device_capabilities else None,
                     'device_info': device_info_entries or None
                 }
-                
+
                 stored_suggestion = await store_suggestion(db, suggestion_data)
                 suggestions_stored.append(stored_suggestion)
                 suggestions_generated += 1
-                
+
                 logger.info(f"✅ Generated and stored suggestion: {description_data['title']}")
-                
+
             except Exception as e:
                 import traceback
                 error_msg = f"Failed to generate suggestion for pattern #{pattern.id}: {str(e)}"
@@ -608,16 +608,16 @@ async def generate_suggestions(
                 logger.error(f"Full traceback: {traceback.format_exc()}")
                 errors.append(error_msg)
                 # Continue with next pattern
-        
+
         # Step 3: Get usage stats
         usage_stats = openai_client.get_usage_stats()
-        
+
         # Calculate performance
         duration = time.time() - start_time
-        
+
         logger.info(f"✅ Suggestion generation completed in {duration:.2f}s")
         logger.info(f"   Tokens used: {usage_stats['total_tokens']}, Cost: ${usage_stats['estimated_cost_usd']:.4f}")
-        
+
         return {
             "success": True,
             "message": f"Generated {suggestions_generated} automation suggestions",
@@ -643,7 +643,7 @@ async def generate_suggestions(
                 ]
             }
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Suggestion generation failed: {e}", exc_info=True)
         raise HTTPException(
@@ -654,10 +654,10 @@ async def generate_suggestions(
 
 @router.get("/list")
 async def list_suggestions(
-    status_filter: Optional[str] = Query(default=None, description="Filter by status (pending, approved, deployed, rejected)"),
+    status_filter: str | None = Query(default=None, description="Filter by status (pending, approved, deployed, rejected)"),
     limit: int = Query(default=50, ge=1, le=200, description="Maximum suggestions to return"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List automation suggestions with optional filters.
     """
@@ -721,7 +721,7 @@ async def list_suggestions(
             },
             "message": f"Retrieved {len(suggestions_list)} suggestions"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to list suggestions: {e}", exc_info=True)
         raise HTTPException(
@@ -731,20 +731,20 @@ async def list_suggestions(
 
 
 @router.get("/usage-stats")
-async def get_usage_stats() -> Dict[str, Any]:
+async def get_usage_stats() -> dict[str, Any]:
     """
     Get OpenAI API usage statistics and cost estimates.
     """
     try:
         stats = openai_client.get_usage_stats()
-        
+
         # Add budget alert
         from ..llm.cost_tracker import CostTracker
         budget_alert = CostTracker.check_budget_alert(
             total_cost=stats['estimated_cost_usd'],
             budget=10.0  # $10/month default budget
         )
-        
+
         return {
             "success": True,
             "data": {
@@ -753,7 +753,7 @@ async def get_usage_stats() -> Dict[str, Any]:
             },
             "message": "Usage statistics retrieved successfully"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get usage stats: {e}", exc_info=True)
         raise HTTPException(
@@ -763,18 +763,18 @@ async def get_usage_stats() -> Dict[str, Any]:
 
 
 @router.post("/usage-stats/reset")
-async def reset_usage_stats() -> Dict[str, Any]:
+async def reset_usage_stats() -> dict[str, Any]:
     """
     Reset OpenAI API usage statistics (for monthly reset).
     """
     try:
         openai_client.reset_usage_stats()
-        
+
         return {
             "success": True,
             "message": "Usage statistics reset successfully"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to reset usage stats: {e}", exc_info=True)
         raise HTTPException(
@@ -785,7 +785,7 @@ async def reset_usage_stats() -> Dict[str, Any]:
 
 # ==== Helper Functions ====
 
-async def _build_device_context(pattern_dict: Dict[str, Any]) -> Dict[str, Any]:
+async def _build_device_context(pattern_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Build device context with friendly names for OpenAI prompts.
     
@@ -796,11 +796,11 @@ async def _build_device_context(pattern_dict: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with friendly names and device metadata
     """
     context = {}
-    
+
     try:
         logger.info(f"Building device context for pattern: {pattern_dict}")
         pattern_type = pattern_dict.get('pattern_type')
-        
+
         # For time_of_day patterns: single device
         if pattern_type == 'time_of_day':
             device_id = pattern_dict.get('device_id')
@@ -852,26 +852,26 @@ async def _build_device_context(pattern_dict: Dict[str, Any]) -> Dict[str, Any]:
                                     break
                         except Exception as e:
                             logger.warning(f"Failed to fetch device metadata for {device_id}: {e}")
-                    
+
                     friendly_name = data_api_client.extract_friendly_name(device_id, metadata)
                     domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
-                
+
                 context = {
                     'device_id': device_id,
                     'name': friendly_name,
                     'domain': domain
                 }
-                
+
                 # Add extra metadata if available
                 if metadata:
                     context['device_class'] = metadata.get('device_class')
                     context['area'] = metadata.get('area_name')
-        
+
         # For co_occurrence patterns: two devices
         elif pattern_type == 'co_occurrence':
             device1 = pattern_dict.get('device1')
             device2 = pattern_dict.get('device2')
-            
+
             if device1:
                 # Check if device1 looks like a device ID (long hex string) or entity ID
                 if '.' not in device1 and len(device1) > 20:
@@ -901,16 +901,16 @@ async def _build_device_context(pattern_dict: Dict[str, Any]) -> Dict[str, Any]:
                                     break
                         except Exception as e:
                             logger.warning(f"Failed to fetch device metadata for {device1}: {e}")
-                    
+
                     friendly1 = data_api_client.extract_friendly_name(device1, metadata1)
                     domain1 = device1.split('.')[0] if '.' in device1 else 'unknown'
-                
+
                 context['device1'] = {
                     'entity_id': device1,
                     'name': friendly1,
                     'domain': domain1
                 }
-            
+
             if device2:
                 # Check if device2 looks like a device ID (long hex string) or entity ID
                 if '.' not in device2 and len(device2) > 20:
@@ -940,26 +940,26 @@ async def _build_device_context(pattern_dict: Dict[str, Any]) -> Dict[str, Any]:
                                     break
                         except Exception as e:
                             logger.warning(f"Failed to fetch device metadata for {device2}: {e}")
-                    
+
                     friendly2 = data_api_client.extract_friendly_name(device2, metadata2)
                     domain2 = device2.split('.')[0] if '.' in device2 else 'unknown'
-                
+
                 context['device2'] = {
                     'entity_id': device2,
                     'name': friendly2,
                     'domain': domain2
                 }
-        
+
         logger.debug(f"Built device context: {context}")
         return context
-        
+
     except Exception as e:
         logger.warning(f"Failed to build device context: {e}")
         # Return empty context on error - OpenAI will use entity IDs as fallback
         return {}
 
 
-async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_context: Dict[str, Any]) -> 'ValidationResult':
+async def _validate_pattern_feasibility(pattern_dict: dict[str, Any], device_context: dict[str, Any]) -> 'ValidationResult':
     """
     Validate that a pattern can be implemented with available devices.
     
@@ -974,9 +974,9 @@ async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_con
         # Extract entities and trigger conditions from pattern
         suggested_entities = []
         trigger_conditions = []
-        
+
         pattern_type = pattern_dict.get('pattern_type')
-        
+
         if pattern_type == 'time_of_day':
             # Time-based patterns don't need sensor validation
             device_id = pattern_dict.get('device_id')
@@ -989,7 +989,7 @@ async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_con
                 missing_sensors=[],
                 available_alternatives={}
             )
-        
+
         elif pattern_type == 'co_occurrence':
             # Co-occurrence patterns need both devices to exist
             device1 = pattern_dict.get('device1')
@@ -998,7 +998,7 @@ async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_con
                 suggested_entities.append(device1)
             if device2:
                 suggested_entities.append(device2)
-        
+
         # For now, assume time-based and co-occurrence patterns are valid
         # Future: Add more sophisticated validation for complex trigger conditions
         return ValidationResult(
@@ -1008,7 +1008,7 @@ async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_con
             missing_sensors=[],
             available_alternatives={}
         )
-        
+
     except Exception as e:
         logger.error(f"Pattern validation failed: {e}")
         return ValidationResult(
@@ -1022,10 +1022,10 @@ async def _validate_pattern_feasibility(pattern_dict: Dict[str, Any], device_con
 
 
 async def _generate_alternative_suggestion(
-    pattern_dict: Dict[str, Any], 
-    device_context: Dict[str, Any], 
+    pattern_dict: dict[str, Any],
+    device_context: dict[str, Any],
     validation_result: 'ValidationResult'
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate an alternative suggestion using available devices.
     
@@ -1040,15 +1040,15 @@ async def _generate_alternative_suggestion(
     try:
         # For now, generate a simple fallback suggestion
         # Future: Use alternatives to create more sophisticated suggestions
-        
+
         pattern_type = pattern_dict.get('pattern_type', 'unknown')
         device_id = pattern_dict.get('device_id', 'unknown')
         device_name = device_context.get('name', device_id) if device_context else device_id
-        
+
         if pattern_type == 'time_of_day':
             hour = pattern_dict.get('hour', 0)
             minute = pattern_dict.get('minute', 0)
-            
+
             return {
                 'title': f"Alternative: {device_name} at {hour:02d}:{minute:02d}",
                 'description': f"Automatically control {device_name} at {hour:02d}:{minute:02d} based on your usage pattern. This uses only devices that are confirmed to exist in your system.",
@@ -1056,7 +1056,7 @@ async def _generate_alternative_suggestion(
                 'priority': 'medium',
                 'confidence': pattern_dict.get('confidence', 0.5)
             }
-        
+
         else:
             # Generic fallback
             return {
@@ -1066,7 +1066,7 @@ async def _generate_alternative_suggestion(
                 'priority': 'low',
                 'confidence': pattern_dict.get('confidence', 0.3)
             }
-            
+
     except Exception as e:
         logger.error(f"Failed to generate alternative suggestion: {e}")
         # Return minimal fallback

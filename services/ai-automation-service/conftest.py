@@ -3,9 +3,10 @@ Pytest Configuration and Shared Fixtures
 """
 import os
 import sys
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add parent directory to path for shared module imports
 project_root = Path(__file__).parent.parent.parent
@@ -181,7 +182,7 @@ def pytest_sessionstart(session):
         Path(__file__).parent / '.env.test',
         Path(__file__).parent.parent / '.env.test'
     ]
-    
+
     loaded_from = None
     for env_file in env_files:
         if env_file.exists():
@@ -189,25 +190,25 @@ def pytest_sessionstart(session):
             load_dotenv(env_file)
             loaded_from = env_file
             break
-    
+
     if loaded_from:
         print(f"[OK] Loaded test environment from {loaded_from}")
     else:
         print("[WARN] No .env.test file found - using system environment")
-    
+
     # Validate required test variables
     required_vars = {
         'HA_URL': 'Home Assistant test URL',
-        'HA_TOKEN': 'Home Assistant test token', 
+        'HA_TOKEN': 'Home Assistant test token',
         'MQTT_BROKER': 'MQTT test broker',
         'OPENAI_API_KEY': 'OpenAI test API key'
     }
-    
+
     missing_vars = []
     for var, description in required_vars.items():
         if not os.getenv(var):
             missing_vars.append(f"{var} ({description})")
-    
+
     if missing_vars:
         print(f"[ERROR] Missing required test variables: {', '.join(missing_vars)}")
         print("   Create a .env.test file with test values")

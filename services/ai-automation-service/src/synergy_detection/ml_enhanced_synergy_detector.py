@@ -13,12 +13,11 @@ Epic: Dynamic Synergy Discovery (#3)
 
 import logging
 import uuid
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select
+from datetime import datetime, timezone
+from typing import Any
 
+from .ml_synergy_miner import DiscoveredSynergy, DynamicSynergyMiner
 from .synergy_detector import DeviceSynergyDetector
-from .ml_synergy_miner import DynamicSynergyMiner, DiscoveredSynergy
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +72,8 @@ class MLEnhancedSynergyDetector:
             )
 
         # Cache for ML-discovered synergies
-        self._ml_synergy_cache: List[DiscoveredSynergy] = []
-        self._last_ml_discovery: Optional[datetime] = None
+        self._ml_synergy_cache: list[DiscoveredSynergy] = []
+        self._last_ml_discovery: datetime | None = None
 
         logger.info(
             f"MLEnhancedSynergyDetector initialized: "
@@ -84,7 +83,7 @@ class MLEnhancedSynergyDetector:
     async def detect_synergies(
         self,
         force_ml_refresh: bool = False
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Detect synergies using both predefined and ML-discovered patterns.
 
@@ -125,7 +124,7 @@ class MLEnhancedSynergyDetector:
     async def _get_ml_discovered_synergies(
         self,
         force_refresh: bool = False
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Get ML-discovered synergies from cache or run new discovery.
 
@@ -175,8 +174,8 @@ class MLEnhancedSynergyDetector:
 
     def _convert_discovered_to_dict(
         self,
-        discovered_synergies: List[DiscoveredSynergy]
-    ) -> List[Dict]:
+        discovered_synergies: list[DiscoveredSynergy]
+    ) -> list[dict]:
         """
         Convert DiscoveredSynergy objects to synergy dictionary format.
 
@@ -281,9 +280,9 @@ class MLEnhancedSynergyDetector:
 
     def _merge_synergies(
         self,
-        predefined: List[Dict],
-        ml_discovered: List[Dict]
-    ) -> List[Dict]:
+        predefined: list[dict],
+        ml_discovered: list[dict]
+    ) -> list[dict]:
         """
         Merge predefined and ML-discovered synergies, removing duplicates.
 
@@ -332,7 +331,7 @@ class MLEnhancedSynergyDetector:
 
     async def _store_discovered_synergies(
         self,
-        discovered_synergies: List[DiscoveredSynergy],
+        discovered_synergies: list[DiscoveredSynergy],
         db
     ) -> int:
         """
@@ -347,12 +346,12 @@ class MLEnhancedSynergyDetector:
         """
         if not discovered_synergies:
             return 0
-        
+
         try:
             from ..database.models import DiscoveredSynergy as DiscoveredSynergyDB
-            
+
             stored_count = 0
-            
+
             for synergy in discovered_synergies:
                 try:
                     # Check if synergy already exists
@@ -364,7 +363,7 @@ class MLEnhancedSynergyDetector:
                         )
                     )
                     existing_synergy = existing.scalar_one_or_none()
-                    
+
                     if existing_synergy:
                         # Update existing synergy
                         existing_synergy.support = synergy.support
@@ -388,23 +387,23 @@ class MLEnhancedSynergyDetector:
                             trigger_entity=synergy.trigger_entity,
                             action_entity=synergy.action_entity,
                             source='mined',  # ML-discovered
-                            
+
                             # Association rule metrics
                             support=synergy.support,
                             confidence=synergy.confidence,
                             lift=synergy.lift,
-                            
+
                             # Temporal analysis
                             frequency=synergy.frequency,
                             consistency=synergy.consistency,
                             time_window_seconds=synergy.time_window_seconds,
-                            
+
                             # Discovery metadata
                             discovered_at=synergy.discovered_at,
                             validation_count=0,
                             validation_passed=None,  # Not yet validated
                             status='discovered',
-                            
+
                             # Metadata - renamed from 'metadata' to avoid SQLAlchemy reserved name
                             synergy_metadata={
                                 'analysis_period': getattr(synergy, 'analysis_period', None),
@@ -415,30 +414,30 @@ class MLEnhancedSynergyDetector:
                             }
                         )
                         db.add(discovered)
-                    
+
                     stored_count += 1
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to store discovered synergy {synergy.trigger_entity} → {synergy.action_entity}: {e}")
                     continue
-            
+
             await db.commit()
-            
+
             logger.info(f"✅ Stored {stored_count} ML-discovered synergies")
-            
+
             return stored_count
-            
+
         except Exception as e:
             logger.error(f"Error storing discovered synergies: {e}", exc_info=True)
             await db.rollback()
             return 0
-    
+
     async def _validate_discovered_synergies(
         self,
-        discovered_synergies: List[DiscoveredSynergy],
-        patterns: List[Dict],
+        discovered_synergies: list[DiscoveredSynergy],
+        patterns: list[dict],
         db
-    ) -> List[DiscoveredSynergy]:
+    ) -> list[DiscoveredSynergy]:
         """
         Validate ML-discovered synergies against detected patterns.
         
@@ -456,13 +455,13 @@ class MLEnhancedSynergyDetector:
             List of validated DiscoveredSynergy objects
         """
         from ..database.models import DiscoveredSynergy as DiscoveredSynergyDB
-        
+
         validated = []
-        
+
         for synergy in discovered_synergies:
             validation_score = 0.0
             validation_reasons = []
-            
+
             # Check 1: Pattern support
             matching_patterns = [
                 p for p in patterns
@@ -470,26 +469,26 @@ class MLEnhancedSynergyDetector:
                     p.get('device1') == synergy.trigger_entity or
                     p.get('device2') == synergy.trigger_entity)
             ]
-            
+
             if matching_patterns:
                 validation_score += 0.4
                 validation_reasons.append('pattern_support')
-            
+
             # Check 2: Statistical significance
             if synergy.lift > 1.5:  # Strong association
                 validation_score += 0.3
                 validation_reasons.append('strong_lift')
-            
+
             # Check 3: Consistency
             if synergy.consistency > 0.7:
                 validation_score += 0.2
                 validation_reasons.append('high_consistency')
-            
+
             # Check 4: Frequency
             if synergy.frequency > 10:
                 validation_score += 0.1
                 validation_reasons.append('high_frequency')
-            
+
             # Validate if score >= 0.6
             if validation_score >= 0.6:
                 # Update database record
@@ -501,7 +500,7 @@ class MLEnhancedSynergyDetector:
                     )
                 )
                 db_synergy = existing.scalar_one_or_none()
-                
+
                 if db_synergy:
                     db_synergy.validation_passed = True
                     db_synergy.status = 'validated'
@@ -511,7 +510,7 @@ class MLEnhancedSynergyDetector:
                         db_synergy.synergy_metadata = {}
                     db_synergy.synergy_metadata['validation_score'] = validation_score
                     db_synergy.synergy_metadata['validation_reasons'] = validation_reasons
-                
+
                 validated.append(synergy)
             else:
                 # Update database record as rejected
@@ -523,19 +522,19 @@ class MLEnhancedSynergyDetector:
                     )
                 )
                 db_synergy = existing.scalar_one_or_none()
-                
+
                 if db_synergy:
                     db_synergy.validation_passed = False
                     db_synergy.status = 'rejected'
                     db_synergy.rejection_reason = f"Low validation score: {validation_score:.2f}"
-        
+
         await db.commit()
-        
+
         logger.info(f"✅ Validated {len(validated)}/{len(discovered_synergies)} ML synergies")
-        
+
         return validated
 
-    async def get_ml_discovery_statistics(self) -> Dict[str, Any]:
+    async def get_ml_discovery_statistics(self) -> dict[str, Any]:
         """
         Get statistics about ML synergy discovery.
 

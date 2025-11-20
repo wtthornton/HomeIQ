@@ -5,14 +5,12 @@ Statistics endpoints for the admin API (lightweight test implementation).
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
-from .alerting_service import Alert, AlertSeverity, AlertStatus
-from .logging_service import logging_service
+from .alerting_service import Alert, AlertSeverity, AlertStatus, alerting_service
 from .metrics_service import metrics_service
-from .alerting_service import alerting_service
 
 
 class StatsEndpoints:
@@ -24,7 +22,7 @@ class StatsEndpoints:
 
     def __init__(self) -> None:
         self.router = FastAPI()
-        self.service_urls: Dict[str, str] = {
+        self.service_urls: dict[str, str] = {
             "websocket-ingestion": "http://localhost:8001",
             "admin-api": "http://localhost:8003",
             "data-api": "http://localhost:8006",
@@ -59,7 +57,7 @@ class StatsEndpoints:
 
     def _register_routes(self) -> None:
         @self.router.get("/stats")
-        def get_stats(period: str = Query(default="24h"), service: Optional[str] = None):
+        def get_stats(period: str = Query(default="24h"), service: str | None = None):
             try:
                 return self._get_all_stats(period=period, service=service)
             except Exception as exc:  # pragma: no cover - defensive
@@ -75,8 +73,8 @@ class StatsEndpoints:
         @self.router.get("/stats/metrics")
         def get_metrics(
             limit: int = Query(default=100, ge=1, le=500),
-            metric_name: Optional[str] = None,
-            service: Optional[str] = None,
+            metric_name: str | None = None,
+            service: str | None = None,
         ):
             try:
                 return self._get_metrics(limit=limit, metric_name=metric_name, service=service)
@@ -97,7 +95,7 @@ class StatsEndpoints:
             except Exception as exc:  # pragma: no cover - defensive
                 raise HTTPException(status_code=500, detail=f"Failed to get alerts: {exc}") from exc
 
-    def _get_all_stats(self, *, period: str, service: Optional[str]) -> Dict[str, Any]:
+    def _get_all_stats(self, *, period: str, service: str | None) -> dict[str, Any]:
         service_stats = self._get_service_stats(service=service)
         metrics = self._get_metrics(limit=100)
         trends = self._build_trends(period=period)
@@ -112,7 +110,7 @@ class StatsEndpoints:
             "services": service_stats,
         }
 
-    def _get_service_stats(self, service: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    def _get_service_stats(self, service: str | None = None) -> dict[str, dict[str, Any]]:
         services = {}
         for index, (svc_name, url) in enumerate(self.service_urls.items(), start=1):
             stats = {
@@ -138,10 +136,10 @@ class StatsEndpoints:
         self,
         *,
         limit: int = 100,
-        metric_name: Optional[str] = None,
-        service: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        metrics_list: List[Dict[str, Any]] = []
+        metric_name: str | None = None,
+        service: str | None = None,
+    ) -> list[dict[str, Any]]:
+        metrics_list: list[dict[str, Any]] = []
         base_services = [service] if service and service in self.service_urls else list(self.service_urls.keys())
 
         for svc in base_services:
@@ -167,7 +165,7 @@ class StatsEndpoints:
 
         return metrics_list[:limit]
 
-    def _get_performance_stats(self) -> Dict[str, Any]:
+    def _get_performance_stats(self) -> dict[str, Any]:
         services_stats = self._get_service_stats()
         overall = self._calculate_overall_performance(services_stats)
         recommendations = self._generate_recommendations(services_stats)
@@ -177,7 +175,7 @@ class StatsEndpoints:
             "recommendations": recommendations,
         }
 
-    def _get_alerts(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def _get_alerts(self, limit: int = 20) -> list[dict[str, Any]]:
         alerts = alerting_service.get_alert_manager().get_alert_history(limit=limit)
         if not alerts:
             alerts = [
@@ -197,10 +195,10 @@ class StatsEndpoints:
             ]
         return [alert.to_dict() for alert in alerts][:limit]
 
-    def _build_trends(self, *, period: str) -> List[Dict[str, Any]]:
+    def _build_trends(self, *, period: str) -> list[dict[str, Any]]:
         window = 5
         now = datetime.now(timezone.utc)
-        trends: List[Dict[str, Any]] = []
+        trends: list[dict[str, Any]] = []
         for i in range(window):
             trends.append(
                 {
@@ -211,7 +209,7 @@ class StatsEndpoints:
             )
         return trends
 
-    def _calculate_overall_performance(self, services_stats: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    def _calculate_overall_performance(self, services_stats: dict[str, dict[str, Any]]) -> dict[str, Any]:
         total_requests = 0
         total_errors = 0
         total_response_time = 0.0
@@ -240,12 +238,12 @@ class StatsEndpoints:
             "success_rate": round(success_rate, 2),
         }
 
-    def _generate_recommendations(self, services_stats: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
-        recommendations: List[Dict[str, Any]] = []
+    def _generate_recommendations(self, services_stats: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+        recommendations: list[dict[str, Any]] = []
         for service, stats in services_stats.items():
             if "error" in stats:
                 continue
-            service_recommendations: List[str] = []
+            service_recommendations: list[str] = []
             if stats.get("average_response_time", 0) > 1000:
                 service_recommendations.append("Investigate high response time")
             if stats.get("success_rate", 100) < 95:

@@ -7,9 +7,8 @@ Create Date: 2025-10-18
 Story AI3.1: Device Synergy Detector Foundation
 Epic AI-3: Cross-Device Synergy & Contextual Opportunities
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20251018_synergy'
@@ -38,7 +37,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     # Create indexes for fast lookups
     op.create_index('ix_synergy_opportunities_synergy_id', 'synergy_opportunities', ['synergy_id'], unique=True)
     op.create_index('ix_synergy_opportunities_synergy_type', 'synergy_opportunities', ['synergy_type'], unique=False)

@@ -1,15 +1,14 @@
 """Tests for HA Setup Service environment health endpoint."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
-
-from src.main import app, health_services
 from src.database import get_db
 from src.health_service import HealthMonitoringService
+from src.main import app, health_services
 from src.schemas import IntegrationStatus
 
 

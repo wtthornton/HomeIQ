@@ -7,7 +7,6 @@ Implements 2025 best practices for natural language understanding.
 
 import logging
 import re
-from typing import List, Set
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class QueryExpander:
     - Adding related terms (office → workspace, desk)
     - Expanding abbreviations (LR → Living Room)
     """
-    
+
     # Device type synonyms
     DEVICE_SYNONYMS = {
         'light': ['lamp', 'bulb', 'fixture', 'luminaire', 'lighting'],
@@ -43,7 +42,7 @@ class QueryExpander:
         'window': ['opening'],
         'windows': ['openings'],
     }
-    
+
     # Location synonyms and abbreviations
     LOCATION_SYNONYMS = {
         'office': ['workspace', 'study', 'desk area'],
@@ -61,7 +60,7 @@ class QueryExpander:
         'gar': 'garage',
         'bas': 'basement',
     }
-    
+
     # Action synonyms
     ACTION_SYNONYMS = {
         'turn on': ['activate', 'enable', 'power on', 'switch on'],
@@ -71,7 +70,7 @@ class QueryExpander:
         'flash': ['blink', 'pulse', 'strobe'],
         'fade': ['gradually change', 'smooth transition'],
     }
-    
+
     def expand(self, query: str) -> str:
         """
         Expand query with synonyms and related terms.
@@ -84,19 +83,19 @@ class QueryExpander:
         """
         if not query or not query.strip():
             return query
-        
+
         original_query = query
-        expanded_terms: Set[str] = set()
-        
+        expanded_terms: set[str] = set()
+
         # Split query into words (preserve case for matching)
         query_lower = query.lower()
         words = re.findall(r'\b\w+\b', query_lower)
-        
+
         # Expand device synonyms
         for word in words:
             if word in self.DEVICE_SYNONYMS:
                 expanded_terms.update(self.DEVICE_SYNONYMS[word])
-        
+
         # Expand location synonyms and abbreviations
         for word in words:
             if word in self.LOCATION_SYNONYMS:
@@ -106,7 +105,7 @@ class QueryExpander:
                     expanded_terms.add(synonym)
                 elif isinstance(synonym, list):
                     expanded_terms.update(synonym)
-        
+
         # Check for multi-word location matches
         for location, synonyms in self.LOCATION_SYNONYMS.items():
             if location in query_lower:
@@ -114,22 +113,22 @@ class QueryExpander:
                     expanded_terms.update(synonyms)
                 elif isinstance(synonyms, str):
                     expanded_terms.add(synonyms)
-        
+
         # Expand action synonyms (for phrase matching)
         for action, synonyms in self.ACTION_SYNONYMS.items():
             if action in query_lower:
                 expanded_terms.update(synonyms)
-        
+
         # Build expanded query
         if expanded_terms:
             # Add expanded terms to original query
             expanded_query = f"{query} {' '.join(sorted(expanded_terms))}"
             logger.debug(f"Query expansion: '{query}' → '{expanded_query}' (added {len(expanded_terms)} terms)")
             return expanded_query
-        
+
         return query
-    
-    def expand_with_context(self, query: str, context: List[str]) -> str:
+
+    def expand_with_context(self, query: str, context: list[str]) -> str:
         """
         Expand query with context-aware synonyms.
         
@@ -141,7 +140,7 @@ class QueryExpander:
             Expanded query
         """
         expanded = self.expand(query)
-        
+
         # Add context terms that might help matching
         if context:
             # Filter context terms (avoid duplicates, very short terms)
@@ -149,10 +148,10 @@ class QueryExpander:
                 term for term in context
                 if len(term) > 2 and term.lower() not in expanded.lower()
             ]
-            
+
             if context_terms:
                 expanded = f"{expanded} {' '.join(context_terms[:5])}"  # Limit to 5 context terms
                 logger.debug(f"Added {len(context_terms[:5])} context terms to query")
-        
+
         return expanded
 

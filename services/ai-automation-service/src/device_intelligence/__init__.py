@@ -16,11 +16,11 @@ Stories:
 - AI2.3: Device Matching & Feature Analysis
 """
 
+from .capability_batch import update_device_capabilities_batch
 from .capability_parser import CapabilityParser
-from .mqtt_capability_listener import MQTTCapabilityListener
 from .feature_analyzer import FeatureAnalyzer
 from .feature_suggestion_generator import FeatureSuggestionGenerator
-from .capability_batch import update_device_capabilities_batch
+from .mqtt_capability_listener import MQTTCapabilityListener
 
 __all__ = [
     "CapabilityParser",

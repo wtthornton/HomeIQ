@@ -2,7 +2,7 @@
 ML Algorithms Package
 """
 
-from .clustering import ClusteringManager
 from .anomaly_detection import AnomalyDetectionManager
+from .clustering import ClusteringManager
 
 __all__ = ['ClusteringManager', 'AnomalyDetectionManager']

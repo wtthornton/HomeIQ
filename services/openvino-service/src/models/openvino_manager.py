@@ -16,9 +16,10 @@ import gc
 import logging
 import os
 import shutil
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 import numpy as np
 
@@ -35,11 +36,11 @@ class OpenVINOManager:
     Manages all OpenVINO models for pattern detection
     Lazy-loads models on first use
     """
-    
+
     def __init__(self, models_dir: str = "/app/models"):
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Model instances (lazy loaded)
         self._embed_model = None
         self._embed_tokenizer = None
@@ -49,47 +50,47 @@ class OpenVINOManager:
         self._classifier_tokenizer = None
 
         # Asyncio locks (created lazily once an event loop is running)
-        self._embed_lock: Optional[asyncio.Lock] = None
-        self._reranker_lock: Optional[asyncio.Lock] = None
-        self._classifier_lock: Optional[asyncio.Lock] = None
-        
+        self._embed_lock: asyncio.Lock | None = None
+        self._reranker_lock: asyncio.Lock | None = None
+        self._classifier_lock: asyncio.Lock | None = None
+
         self.model_load_timeout = MODEL_LOAD_TIMEOUT_SECONDS
         self.inference_timeout = INFERENCE_TIMEOUT_SECONDS
         self.clear_cache_on_cleanup = CLEAN_CACHE_ON_SHUTDOWN
-        
+
         self.use_openvino = False  # Use standard models for compatibility
         self._initialized = True  # Ready for lazy loading immediately
         self._startup_strategy = "lazy"
-        
+
         logger.info("OpenVINOManager initialized (models will load on first use)")
-    
+
     async def initialize(self):
         """Initialize the model manager"""
         try:
             # Pre-load all models for better performance
             logger.info("🔄 Pre-loading OpenVINO models...")
-            
+
             # Load embedding model
             await self._load_embedding_model()
-            
+
             # Load reranker model
             await self._load_reranker_model()
-            
+
             # Load classifier model
             await self._load_classifier_model()
-            
+
             self._initialized = True
             self._startup_strategy = "preloaded"
             logger.info("✅ All OpenVINO models loaded successfully")
-            
-        except Exception as e:
+
+        except Exception:
             logger.exception("❌ Failed to initialize OpenVINO models")
             raise
-    
+
     async def cleanup(self):
         """Cleanup resources"""
         logger.info("🧹 Cleaning up OpenVINO models...")
-        
+
         # Unload models to free memory
         self._embed_model = None
         self._embed_tokenizer = None
@@ -97,7 +98,7 @@ class OpenVINOManager:
         self._reranker_tokenizer = None
         self._classifier_model = None
         self._classifier_tokenizer = None
-        
+
         self._initialized = False
         self._startup_strategy = "lazy"
 
@@ -105,11 +106,11 @@ class OpenVINOManager:
         self._purge_model_cache()
 
         logger.info("✅ OpenVINO models cleaned up")
-    
+
     def is_ready(self) -> bool:
         """Check if service is ready to accept requests (lazy or preloaded)."""
         return self._initialized
-    
+
     async def _load_embedding_model(self):
         """Load embedding model (lazy load)"""
         if self._embed_model is not None:
@@ -121,11 +122,11 @@ class OpenVINOManager:
                 return
 
             logger.info("Loading embedding model: all-MiniLM-L6-v2...")
-            
+
             try:
                 if self.use_openvino:
                     logger.debug("Attempting to load OpenVINO embedding model")
-                    
+
                     def _load_openvino():
                         from optimum.intel import OVModelForFeatureExtraction  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
@@ -140,7 +141,7 @@ class OpenVINOManager:
                             cache_dir=str(self.models_dir)
                         )
                         return model, tokenizer
-                    
+
                     self._embed_model, self._embed_tokenizer = await self._run_blocking(
                         _load_openvino,
                         timeout=self.model_load_timeout
@@ -148,18 +149,18 @@ class OpenVINOManager:
                     logger.info("✅ Loaded OpenVINO optimized embedding model (20MB)")
                 else:
                     raise ImportError("OpenVINO not available")
-                    
+
             except ImportError:
                 logger.warning("OpenVINO not available, using standard model")
                 self.use_openvino = False
-                
+
                 def _load_standard():
                     from sentence_transformers import SentenceTransformer  # type: ignore
                     return SentenceTransformer(
                         "sentence-transformers/all-MiniLM-L6-v2",
                         cache_folder=str(self.models_dir)
                     )
-                
+
                 self._embed_model = await self._run_blocking(
                     _load_standard,
                     timeout=self.model_load_timeout
@@ -169,7 +170,7 @@ class OpenVINOManager:
             except Exception as exc:
                 logger.exception("Failed to load embedding model")
                 raise RuntimeError("Failed to load embedding model") from exc
-    
+
     async def _load_reranker_model(self):
         """Load re-ranker model (lazy load)"""
         if self._reranker_model is not None:
@@ -181,11 +182,11 @@ class OpenVINOManager:
                 return
 
             logger.info("Loading re-ranker model: bge-reranker-base...")
-            
+
             try:
                 if self.use_openvino:
                     logger.debug("Attempting to load OpenVINO re-ranker")
-                    
+
                     def _load_openvino():
                         from optimum.intel import OVModelForSequenceClassification  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
@@ -198,7 +199,7 @@ class OpenVINOManager:
                             cache_dir=str(self.models_dir)
                         )
                         return model, tokenizer
-                    
+
                     self._reranker_model, self._reranker_tokenizer = await self._run_blocking(
                         _load_openvino,
                         timeout=self.model_load_timeout
@@ -206,12 +207,15 @@ class OpenVINOManager:
                     logger.info("✅ Loaded OpenVINO re-ranker (280MB INT8)")
                 else:
                     raise ImportError("OpenVINO not available")
-                    
+
             except ImportError:
                 logger.warning("OpenVINO re-ranker not available, using standard")
-                
+
                 def _load_standard():
-                    from transformers import AutoTokenizer, AutoModelForSequenceClassification  # type: ignore
+                    from transformers import (  # type: ignore
+                        AutoModelForSequenceClassification,
+                        AutoTokenizer,
+                    )
                     tokenizer = AutoTokenizer.from_pretrained(
                         "BAAI/bge-reranker-base",
                         cache_dir=str(self.models_dir)
@@ -221,7 +225,7 @@ class OpenVINOManager:
                         cache_dir=str(self.models_dir)
                     )
                     return model, tokenizer
-                
+
                 self._reranker_model, self._reranker_tokenizer = await self._run_blocking(
                     _load_standard,
                     timeout=self.model_load_timeout
@@ -230,7 +234,7 @@ class OpenVINOManager:
             except Exception as exc:
                 logger.exception("Failed to load reranker model")
                 raise RuntimeError("Failed to load reranker model") from exc
-    
+
     async def _load_classifier_model(self):
         """Load classifier model (lazy load)"""
         if self._classifier_model is not None:
@@ -242,11 +246,11 @@ class OpenVINOManager:
                 return
 
             logger.info("Loading classifier model: flan-t5-small...")
-            
+
             try:
                 if self.use_openvino:
                     logger.debug("Attempting to load OpenVINO classifier")
-                    
+
                     def _load_openvino():
                         from optimum.intel import OVModelForSeq2SeqLM  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
@@ -260,7 +264,7 @@ class OpenVINOManager:
                             cache_dir=str(self.models_dir)
                         )
                         return model, tokenizer
-                    
+
                     self._classifier_model, self._classifier_tokenizer = await self._run_blocking(
                         _load_openvino,
                         timeout=self.model_load_timeout
@@ -268,12 +272,12 @@ class OpenVINOManager:
                     logger.info("✅ Loaded OpenVINO classifier (80MB INT8)")
                 else:
                     raise ImportError("OpenVINO not available")
-                    
+
             except ImportError:
                 logger.warning("OpenVINO not available, using standard model")
-                
+
                 def _load_standard():
-                    from transformers import T5Tokenizer, T5ForConditionalGeneration  # type: ignore
+                    from transformers import T5ForConditionalGeneration, T5Tokenizer  # type: ignore
                     tokenizer = T5Tokenizer.from_pretrained(
                         "google/flan-t5-small",
                         cache_dir=str(self.models_dir)
@@ -283,7 +287,7 @@ class OpenVINOManager:
                         cache_dir=str(self.models_dir)
                     )
                     return model, tokenizer
-                
+
                 self._classifier_model, self._classifier_tokenizer = await self._run_blocking(
                     _load_standard,
                     timeout=self.model_load_timeout
@@ -292,17 +296,17 @@ class OpenVINOManager:
             except Exception as exc:
                 logger.exception("Failed to load classifier model")
                 raise RuntimeError("Failed to load classifier model") from exc
-    
-    async def generate_embeddings(self, texts: List[str], normalize: bool = True) -> np.ndarray:
+
+    async def generate_embeddings(self, texts: list[str], normalize: bool = True) -> np.ndarray:
         """
         Generate embeddings for texts
         Returns: (N, 384) numpy array
         """
         if not texts:
             raise ValueError("At least one text is required for embedding generation")
-        
+
         await self._load_embedding_model()
-        
+
         if self.use_openvino and self._embed_tokenizer is not None:
             # OpenVINO path
             def _encode_openvino() -> np.ndarray:
@@ -333,7 +337,7 @@ class OpenVINOManager:
                 convert_to_numpy=True
             )
             gc.collect()
-        
+
         # Normalize for dot-product scoring
         if normalize:
             # Normalize embeddings using numpy (sentence_transformers.util has compatibility issues)
@@ -341,10 +345,10 @@ class OpenVINOManager:
             # Avoid division by zero
             norms = np.where(norms == 0, 1, norms)
             embeddings = embeddings / norms
-        
+
         return embeddings
-    
-    async def rerank(self, query: str, candidates: List[Dict], top_k: int = 10) -> List[Dict]:
+
+    async def rerank(self, query: str, candidates: list[dict], top_k: int = 10) -> list[dict]:
         """
         Re-rank candidates using bge-reranker
         
@@ -358,16 +362,16 @@ class OpenVINOManager:
         """
         if not candidates:
             return []
-        
+
         await self._load_reranker_model()
         top_k = min(top_k, len(candidates))
 
-        def _rerank() -> List[Dict]:
+        def _rerank() -> list[dict]:
             scores = []
             for candidate in candidates:
                 text = candidate.get('description', str(candidate))
                 pair = f"{query} [SEP] {text}"
-                
+
                 inputs = self._reranker_tokenizer(pair, return_tensors='pt', truncation=True, max_length=512)
                 outputs = None
                 try:
@@ -379,13 +383,13 @@ class OpenVINOManager:
                     if outputs is not None:
                         del outputs
                     gc.collect()
-            
+
             ranked = sorted(scores, key=lambda x: x[1], reverse=True)
             return [candidate for candidate, _ in ranked[:top_k]]
 
         return await self._run_blocking(_rerank)
-    
-    async def classify_pattern(self, pattern_description: str) -> Dict[str, str]:
+
+    async def classify_pattern(self, pattern_description: str) -> dict[str, str]:
         """
         Classify pattern category and priority using flan-t5-small
         
@@ -397,7 +401,7 @@ class OpenVINOManager:
         """
         if not pattern_description or not pattern_description.strip():
             raise ValueError("Pattern description is required for classification")
-        
+
         await self._load_classifier_model()
 
         category_prompt = f"""Classify this smart home pattern into ONE category: energy, comfort, security, or convenience.
@@ -408,7 +412,7 @@ Respond with only the category name (one word).
 
 Category:"""
 
-        def _classify() -> Dict[str, str]:
+        def _classify() -> dict[str, str]:
             def _generate(prompt: str) -> str:
                 local_inputs = self._classifier_tokenizer(prompt, return_tensors='pt', max_length=512, truncation=True)
                 local_outputs = None
@@ -443,7 +447,7 @@ Priority:"""
 
         return await self._run_blocking(_classify)
 
-    async def _run_blocking(self, func: Callable[..., T], *args, timeout: Optional[float] = None, **kwargs) -> T:
+    async def _run_blocking(self, func: Callable[..., T], *args, timeout: float | None = None, **kwargs) -> T:
         """Run blocking model operations in a thread pool with a timeout."""
         loop = asyncio.get_running_loop()
         bound = functools.partial(func, *args, **kwargs)
@@ -480,21 +484,21 @@ Priority:"""
                 logger.warning("Unable to remove cached model %s: %s", child, exc)
 
         self.models_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def _parse_category(self, text: str) -> str:
         """Parse flan-t5 output to valid category with fallback"""
         text = text.strip().lower()
         valid = ['energy', 'comfort', 'security', 'convenience']
-        
+
         # Direct match
         if text in valid:
             return text
-        
+
         # Keyword matching
         for category in valid:
             if category in text:
                 return category
-        
+
         # Rule-based fallback
         if any(word in text for word in ['power', 'electricity', 'consumption']):
             return 'energy'
@@ -502,26 +506,26 @@ Priority:"""
             return 'comfort'
         if any(word in text for word in ['lock', 'door', 'alarm', 'camera', 'monitor', 'safety']):
             return 'security'
-        
+
         return 'convenience'  # Default fallback
-    
+
     def _parse_priority(self, text: str) -> str:
         """Parse flan-t5 output to valid priority with fallback"""
         text = text.strip().lower()
         valid = ['high', 'medium', 'low']
-        
+
         # Direct match
         if text in valid:
             return text
-        
+
         # Keyword matching
         for priority in valid:
             if priority in text:
                 return priority
-        
+
         return 'medium'  # Default fallback
 
-    def get_model_status(self) -> Dict[str, Any]:
+    def get_model_status(self) -> dict[str, Any]:
         """Return a detailed snapshot of model readiness."""
         return {
             'embedding_model': 'all-MiniLM-L6-v2',
@@ -536,4 +540,4 @@ Priority:"""
             'inference_timeout_seconds': self.inference_timeout,
             'model_cache_dir': str(self.models_dir)
         }
-    
+

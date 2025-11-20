@@ -17,13 +17,12 @@ if str(tests_path) not in sys.path:
 
 from utils import TestOpenVINOManager
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(scope="module")
 def ner_benchmark():
-    with open(FIXTURES / "ner_benchmark.json", "r", encoding="utf-8") as handle:
+    with open(FIXTURES / "ner_benchmark.json", encoding="utf-8") as handle:
         return json.load(handle)
 
 

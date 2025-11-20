@@ -10,23 +10,22 @@ Created: Phase 3 - New API Routers
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import get_db
-from ...services.service_container import get_service_container, ServiceContainer
+from ...services.service_container import ServiceContainer, get_service_container
 from .models import (
-    ConversationStartRequest,
-    ConversationResponse,
-    MessageRequest,
-    ConversationTurnResponse,
-    ConversationDetail,
-    ResponseType,
-    ConversationType,
     AutomationSuggestion,
-    ClarificationQuestion
+    ConversationDetail,
+    ConversationResponse,
+    ConversationStartRequest,
+    ConversationTurnResponse,
+    ConversationType,
+    MessageRequest,
+    ResponseType,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,21 +47,21 @@ async def start_conversation(
     Creates a new conversation and processes the initial query.
     """
     conversation_id = f"conv-{uuid.uuid4().hex[:12]}"
-    
+
     # Determine conversation type
     intent_matcher = container.intent_matcher
     intent = intent_matcher.match_intent(request.query)
-    
+
     conversation_type = ConversationType.AUTOMATION
     if intent.value == "action":
         conversation_type = ConversationType.ACTION
     elif intent.value == "information":
         conversation_type = ConversationType.INFORMATION
-    
+
     # Override with explicit type if provided
     if request.conversation_type:
         conversation_type = request.conversation_type
-    
+
     try:
         # Create conversation in database
         await db.execute(text("""
@@ -81,7 +80,7 @@ async def start_conversation(
             "context": str(request.context) if request.context else None,
             "created_at": datetime.utcnow().isoformat()
         })
-        
+
         # Create context
         context_manager = container.context_manager
         context_manager.create_context(
@@ -89,7 +88,7 @@ async def start_conversation(
             user_id=request.user_id,
             initial_query=request.query
         )
-        
+
         # Process initial query (create first turn)
         turn_response = await _process_message(
             conversation_id=conversation_id,
@@ -98,9 +97,9 @@ async def start_conversation(
             container=container,
             db=db
         )
-        
+
         await db.commit()
-        
+
         return ConversationResponse(
             conversation_id=conversation_id,
             user_id=request.user_id,
@@ -109,7 +108,7 @@ async def start_conversation(
             initial_query=request.query,
             created_at=datetime.utcnow().isoformat()
         )
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Failed to start conversation: {e}", exc_info=True)
@@ -135,23 +134,23 @@ async def send_message(
     result = await db.execute(text("""
         SELECT conversation_id FROM conversations WHERE conversation_id = :conversation_id
     """), {"conversation_id": conversation_id})
-    
+
     conversation = result.fetchone()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Conversation {conversation_id} not found"
         )
-    
+
     # Get current turn number
     turn_result = await db.execute(text("""
         SELECT MAX(turn_number) as max_turn FROM conversation_turns
         WHERE conversation_id = :conversation_id
     """), {"conversation_id": conversation_id})
-    
+
     max_turn_row = turn_result.fetchone()
     turn_number = (max_turn_row[0] or 0) + 1 if max_turn_row else 1
-    
+
     # Process message
     turn_response = await _process_message(
         conversation_id=conversation_id,
@@ -160,9 +159,9 @@ async def send_message(
         container=container,
         db=db
     )
-    
+
     await db.commit()
-    
+
     return turn_response
 
 
@@ -176,18 +175,18 @@ async def get_conversation(
     result = await db.execute(text("""
         SELECT * FROM conversations WHERE conversation_id = :conversation_id
     """), {"conversation_id": conversation_id})
-    
+
     conversation = result.fetchone()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Conversation {conversation_id} not found"
         )
-    
+
     # Get turns
     history_manager = get_service_container().history_manager
     turns_data = await history_manager.get_conversation_history(conversation_id, db)
-    
+
     # Convert to response models
     turns = []
     for turn_data in turns_data:
@@ -205,7 +204,7 @@ async def get_conversation(
             response_type_str = turn_data[5] if len(turn_data) > 5 else "information_provided"  # response_type
             processing_time = turn_data[9] if len(turn_data) > 9 else 0  # processing_time_ms
             created_at_str = turn_data[10].isoformat() if len(turn_data) > 10 and turn_data[10] else datetime.utcnow().isoformat()  # created_at
-        
+
         turns.append(ConversationTurnResponse(
             conversation_id=conversation_id,
             turn_number=turn_number,
@@ -218,7 +217,7 @@ async def get_conversation(
             next_actions=[],
             created_at=created_at_str
         ))
-    
+
     return ConversationDetail(
         conversation_id=conversation_id,
         user_id=conversation_row[1],  # user_id
@@ -232,18 +231,18 @@ async def get_conversation(
     )
 
 
-@router.get("/{conversation_id}/suggestions", response_model=List[AutomationSuggestion])
+@router.get("/{conversation_id}/suggestions", response_model=list[AutomationSuggestion])
 async def get_suggestions(
     conversation_id: str,
     db: AsyncSession = Depends(get_db)
-) -> List[AutomationSuggestion]:
+) -> list[AutomationSuggestion]:
     """Get all automation suggestions from conversation"""
     result = await db.execute(text("""
         SELECT * FROM automation_suggestions
         WHERE conversation_id = :conversation_id
         ORDER BY created_at DESC
     """), {"conversation_id": conversation_id})
-    
+
     import json
     suggestions = []
     for row in result:
@@ -254,7 +253,7 @@ async def get_suggestions(
                 validated_entities = json.loads(row[9])
             elif isinstance(row[9], dict):
                 validated_entities = row[9]
-        
+
         suggestions.append(AutomationSuggestion(
             suggestion_id=row[1] if len(row) > 1 else "",  # suggestion_id
             title=row[4] if len(row) > 4 else "",  # title
@@ -264,7 +263,7 @@ async def get_suggestions(
             validated_entities=validated_entities,
             status=row[10] if len(row) > 10 else "draft"  # status
         ))
-    
+
     return suggestions
 
 
@@ -282,18 +281,18 @@ async def _process_message(
     in later phases with full entity extraction, suggestion generation, etc.
     """
     start_time = datetime.utcnow()
-    
+
     # Extract entities
     entity_extractor = container.entity_extractor
     entities = await entity_extractor.extract(message)
-    
+
     # Match intent
     intent_matcher = container.intent_matcher
     intent = intent_matcher.match_intent(message)
-    
+
     # Build response (placeholder - will be enhanced)
     response_builder = container.response_builder
-    
+
     # For now, return a simple response
     # Full implementation will generate suggestions, handle clarification, etc.
     response = response_builder.build_response(
@@ -303,7 +302,7 @@ async def _process_message(
         turn_number=turn_number,
         processing_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
     )
-    
+
     # Save turn to database
     await db.execute(text("""
         INSERT INTO conversation_turns (
@@ -325,6 +324,6 @@ async def _process_message(
         "processing_time_ms": response["processing_time_ms"],
         "created_at": datetime.utcnow().isoformat()
     })
-    
+
     return ConversationTurnResponse(**response)
 

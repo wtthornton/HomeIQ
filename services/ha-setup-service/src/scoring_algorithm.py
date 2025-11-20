@@ -6,8 +6,6 @@ Context7 Best Practices Applied:
 - Configurable weighting
 - Extensible scoring system
 """
-from typing import Dict, List, Tuple
-from datetime import datetime, timedelta
 from enum import Enum
 
 
@@ -29,7 +27,7 @@ class HealthScoringAlgorithm:
     - Performance: 15% (reduced from 20%)
     - Reliability: 15% (new - based on uptime and error rates)
     """
-    
+
     def __init__(
         self,
         ha_core_weight: float = 0.35,
@@ -50,21 +48,21 @@ class HealthScoringAlgorithm:
         total = ha_core_weight + integrations_weight + performance_weight + reliability_weight
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"Weights must sum to 1.0, got {total}")
-        
+
         self.weights = {
             ScoreComponent.HA_CORE: ha_core_weight,
             ScoreComponent.INTEGRATIONS: integrations_weight,
             ScoreComponent.PERFORMANCE: performance_weight,
             ScoreComponent.RELIABILITY: reliability_weight
         }
-    
+
     def calculate_score(
         self,
-        ha_status: Dict,
-        integrations: List[Dict],
-        performance: Dict,
-        reliability_data: Dict = None
-    ) -> Tuple[int, Dict[str, int]]:
+        ha_status: dict,
+        integrations: list[dict],
+        performance: dict,
+        reliability_data: dict = None
+    ) -> tuple[int, dict[str, int]]:
         """
         Calculate overall health score with component breakdown
         
@@ -78,31 +76,31 @@ class HealthScoringAlgorithm:
             Tuple of (total_score, component_scores_breakdown)
         """
         component_scores = {}
-        
+
         # Calculate HA Core score
         component_scores[ScoreComponent.HA_CORE.value] = self._score_ha_core(ha_status)
-        
+
         # Calculate Integrations score
         component_scores[ScoreComponent.INTEGRATIONS.value] = self._score_integrations(integrations)
-        
+
         # Calculate Performance score
         component_scores[ScoreComponent.PERFORMANCE.value] = self._score_performance(performance)
-        
+
         # Calculate Reliability score
         if reliability_data:
             component_scores[ScoreComponent.RELIABILITY.value] = self._score_reliability(reliability_data)
         else:
             component_scores[ScoreComponent.RELIABILITY.value] = 100  # Default to perfect if no data
-        
+
         # Calculate weighted total score
         total_score = sum(
             component_scores[component.value] * self.weights[component]
             for component in ScoreComponent
         )
-        
+
         return int(total_score), component_scores
-    
-    def _score_ha_core(self, ha_status: Dict) -> int:
+
+    def _score_ha_core(self, ha_status: dict) -> int:
         """
         Score HA core status
         
@@ -112,15 +110,15 @@ class HealthScoringAlgorithm:
         - critical/error: 0 points
         """
         status = ha_status.get("status", "unknown").lower()
-        
+
         if status == "healthy":
             return 100
         elif status == "warning":
             return 50
         else:
             return 0
-    
-    def _score_integrations(self, integrations: List[Dict]) -> int:
+
+    def _score_integrations(self, integrations: list[dict]) -> int:
         """
         Score integrations health
         
@@ -132,30 +130,30 @@ class HealthScoringAlgorithm:
         """
         if not integrations:
             return 0
-        
+
         # Filter out Zigbee2MQTT - it's not a separate integration, just MQTT with different topic
         relevant_integrations = [
-            i for i in integrations 
+            i for i in integrations
             if i.get("type") != "zigbee2mqtt"
         ]
-        
+
         if not relevant_integrations:
             return 0
-        
+
         total_score = 0
         for integration in relevant_integrations:
             status = integration.get("status", "error")
-            
+
             if status == "healthy":
                 total_score += 100
             elif status == "warning":
                 total_score += 50
             # error and not_configured = 0 points
-        
+
         # Average across relevant integrations only
         return int(total_score / len(relevant_integrations))
-    
-    def _score_performance(self, performance: Dict) -> int:
+
+    def _score_performance(self, performance: dict) -> int:
         """
         Score performance metrics
         
@@ -167,7 +165,7 @@ class HealthScoringAlgorithm:
         - >= 1000ms: 0 points
         """
         response_time = performance.get("response_time_ms", 0)
-        
+
         if response_time < 100:
             return 100
         elif response_time < 250:
@@ -178,8 +176,8 @@ class HealthScoringAlgorithm:
             return 30
         else:
             return 0
-    
-    def _score_reliability(self, reliability_data: Dict) -> int:
+
+    def _score_reliability(self, reliability_data: dict) -> int:
         """
         Score reliability metrics
         
@@ -191,7 +189,7 @@ class HealthScoringAlgorithm:
         uptime_seconds = reliability_data.get("uptime_seconds", 0)
         error_count = reliability_data.get("error_count", 0)
         total_checks = reliability_data.get("total_checks", 1)
-        
+
         # Uptime score (50 points max)
         # Perfect uptime = 50 points, scales down linearly
         if uptime_seconds >= 86400:  # 1 day+
@@ -202,7 +200,7 @@ class HealthScoringAlgorithm:
             uptime_score = 10
         else:
             uptime_score = 0
-        
+
         # Error rate score (50 points max)
         # 0 errors = 50 points, scales down based on error percentage
         if total_checks > 0:
@@ -210,14 +208,14 @@ class HealthScoringAlgorithm:
             error_score = max(0, 50 - (error_rate * 100))
         else:
             error_score = 50
-        
+
         return int(uptime_score + error_score)
-    
+
     def get_score_breakdown_explanation(
         self,
         total_score: int,
-        component_scores: Dict[str, int]
-    ) -> Dict:
+        component_scores: dict[str, int]
+    ) -> dict:
         """
         Generate human-readable explanation of score breakdown
         
@@ -226,35 +224,35 @@ class HealthScoringAlgorithm:
         """
         explanations = []
         recommendations = []
-        
+
         # HA Core analysis
         ha_score = component_scores.get(ScoreComponent.HA_CORE.value, 0)
         if ha_score < 100:
             explanations.append(f"HA Core score: {ha_score}/100 - Check Home Assistant status")
             if ha_score == 0:
                 recommendations.append("Critical: Home Assistant core is not responding")
-        
+
         # Integrations analysis
         int_score = component_scores.get(ScoreComponent.INTEGRATIONS.value, 0)
         if int_score < 100:
             explanations.append(f"Integrations score: {int_score}/100 - Some integrations need attention")
             if int_score < 50:
                 recommendations.append("Fix integration errors to improve health score")
-        
+
         # Performance analysis
         perf_score = component_scores.get(ScoreComponent.PERFORMANCE.value, 0)
         if perf_score < 80:
             explanations.append(f"Performance score: {perf_score}/100 - System response time is high")
             if perf_score < 50:
                 recommendations.append("Investigate performance bottlenecks")
-        
+
         # Reliability analysis
         rel_score = component_scores.get(ScoreComponent.RELIABILITY.value, 0)
         if rel_score < 80:
             explanations.append(f"Reliability score: {rel_score}/100 - Connection stability issues")
             if rel_score < 50:
                 recommendations.append("Check for frequent disconnections or errors")
-        
+
         # Overall assessment
         if total_score >= 80:
             overall = "Excellent - Your environment is healthy"
@@ -262,7 +260,7 @@ class HealthScoringAlgorithm:
             overall = "Good - Minor issues detected"
         else:
             overall = "Critical - Immediate attention required"
-        
+
         return {
             "total_score": total_score,
             "overall_assessment": overall,

@@ -2,18 +2,19 @@
 Tests for Context Hierarchy Tracking (Epic 23.1)
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from src.event_processor import EventProcessor
 
 
 class TestContextHierarchy:
     """Test suite for context.parent_id extraction"""
-    
+
     def setup_method(self):
         """Set up test fixtures"""
         self.processor = EventProcessor()
-    
+
     def test_extract_context_with_parent_id(self):
         """Test extraction of context with parent_id"""
         event_data = {
@@ -39,14 +40,14 @@ class TestContextHierarchy:
                 }
             }
         }
-        
+
         result = self.processor.process_event(event_data)
-        
+
         assert result is not None
         assert result.get("context_id") == "context123"
         assert result.get("context_parent_id") == "parent_context456"
         assert result.get("context_user_id") == "user789"
-    
+
     def test_extract_context_without_parent_id(self):
         """Test extraction of context without parent_id (user-initiated event)"""
         event_data = {
@@ -66,14 +67,14 @@ class TestContextHierarchy:
                 }
             }
         }
-        
+
         result = self.processor.process_event(event_data)
-        
+
         assert result is not None
         assert result.get("context_id") == "context123"
         assert result.get("context_parent_id") is None
         assert result.get("context_user_id") == "user789"
-    
+
     def test_extract_context_missing(self):
         """Test extraction when context is missing"""
         event_data = {
@@ -88,14 +89,14 @@ class TestContextHierarchy:
                 }
             }
         }
-        
+
         result = self.processor.process_event(event_data)
-        
+
         assert result is not None
         assert result.get("context_id") is None
         assert result.get("context_parent_id") is None
         assert result.get("context_user_id") is None
-    
+
     def test_validation_statistics(self):
         """Test that validation statistics are tracked"""
         # Process valid event
@@ -115,9 +116,9 @@ class TestContextHierarchy:
                 }
             }
         }
-        
+
         self.processor.process_event(valid_event)
-        
+
         stats = self.processor.get_processing_statistics()
         assert stats["processed_events"] > 0
 

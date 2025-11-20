@@ -6,15 +6,15 @@ Provides version history (last 3 versions) and rollback capability.
 Simplified for single-home use case - no complex audit, just undo functionality.
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from datetime import datetime
-from typing import Optional, List
 import logging
+from datetime import datetime
 
-from .database.models import AutomationVersion
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .clients.ha_client import HomeAssistantClient
-from .safety_validator import SafetyValidator, SafetyResult
+from .database.models import AutomationVersion
+from .safety_validator import SafetyResult, SafetyValidator
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +48,9 @@ async def store_version(
     db.add(version)
     await db.commit()
     await db.refresh(version)
-    
+
     logger.info(f"📝 Stored version for {automation_id} (score: {safety_score})")
-    
+
     # Clean up old versions (keep last 3)
     query = (
         select(AutomationVersion)
@@ -59,21 +59,21 @@ async def store_version(
     )
     result = await db.execute(query)
     versions = result.scalars().all()
-    
+
     # Delete anything beyond the last 3
     if len(versions) > 3:
         for old_version in versions[3:]:
             await db.delete(old_version)
         await db.commit()
         logger.info(f"🧹 Cleaned up old versions for {automation_id}, kept last 3")
-    
+
     return version
 
 
 async def get_versions(
     db: AsyncSession,
     automation_id: str
-) -> List[AutomationVersion]:
+) -> list[AutomationVersion]:
     """
     Get version history for automation.
     
@@ -92,7 +92,7 @@ async def get_versions(
     )
     result = await db.execute(query)
     versions = result.scalars().all()
-    
+
     logger.debug(f"Found {len(versions)} versions for {automation_id}")
     return versions
 
@@ -121,26 +121,26 @@ async def rollback_to_previous(
     """
     # Get version history
     versions = await get_versions(db, automation_id)
-    
+
     if len(versions) < 2:
         raise ValueError(
             f"No previous version available for {automation_id}. "
             "Need at least 2 versions to rollback."
         )
-    
+
     # Previous version is index 1 (0 is current)
     previous_version = versions[1]
-    
+
     logger.info(
         f"⏪ Rolling back {automation_id} to version from "
         f"{previous_version.deployed_at.isoformat()}"
     )
-    
+
     # Validate safety of previous version
     safety_result: SafetyResult = await safety_validator.validate(
         previous_version.yaml_content
     )
-    
+
     if not safety_result.passed:
         error_msg = (
             f"Previous version fails current safety checks (score: {safety_result.safety_score}/100). "
@@ -149,21 +149,21 @@ async def rollback_to_previous(
         )
         logger.error(f"❌ Rollback blocked: {error_msg}")
         raise ValueError(error_msg)
-    
+
     logger.info(
         f"✅ Previous version passes safety (score: {safety_result.safety_score})"
     )
-    
+
     # Deploy previous version to HA
     deployment_result = await ha_client.deploy_automation(
         automation_yaml=previous_version.yaml_content,
         automation_id=automation_id
     )
-    
+
     if not deployment_result.get('success'):
         error = deployment_result.get('error', 'Unknown error')
         raise ValueError(f"Failed to deploy previous version: {error}")
-    
+
     # Store this rollback as new version (creates audit trail)
     await store_version(
         db,
@@ -171,9 +171,9 @@ async def rollback_to_previous(
         previous_version.yaml_content,
         safety_result.safety_score
     )
-    
+
     logger.info(f"✅ Successfully rolled back {automation_id}")
-    
+
     return {
         "success": True,
         "automation_id": automation_id,
@@ -187,7 +187,7 @@ async def rollback_to_previous(
 async def get_latest_version(
     db: AsyncSession,
     automation_id: str
-) -> Optional[AutomationVersion]:
+) -> AutomationVersion | None:
     """
     Get the most recent version for an automation.
     

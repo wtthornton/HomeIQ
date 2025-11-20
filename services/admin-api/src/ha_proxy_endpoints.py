@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
@@ -47,16 +47,16 @@ async def _fetch_from_home_assistant(path: str) -> Any:
 
 @router.get("/states", summary="List Home Assistant entity states")
 async def list_states(
-    domain: Optional[str] = Query(None, description="Filter by HA domain, e.g. sensor"),
-    entity_prefix: Optional[str] = Query(None, description="Filter by entity_id prefix, e.g. sensor.team_tracker"),
+    domain: str | None = Query(None, description="Filter by HA domain, e.g. sensor"),
+    entity_prefix: str | None = Query(None, description="Filter by entity_id prefix, e.g. sensor.team_tracker"),
     limit: int = Query(1000, ge=1, le=5000, description="Max entities to return"),
-) -> List[Any]:
+) -> list[Any]:
     states = await _fetch_from_home_assistant("/api/states")
 
     if not isinstance(states, list):
         raise HTTPException(status_code=502, detail="Unexpected response from Home Assistant")
 
-    filtered: List[Any] = []
+    filtered: list[Any] = []
     for state in states:
         entity_id = state.get("entity_id", "")
         if domain and not entity_id.startswith(f"{domain}."):

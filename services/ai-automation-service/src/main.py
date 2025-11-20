@@ -3,15 +3,16 @@ AI Automation Service - Main FastAPI Application
 Phase 1 MVP - Pattern detection and suggestion generation
 """
 
+import logging
+import os
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-import sys
-import os
-import logging
-from pathlib import Path
 
 # Add parent directory to path for shared imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -34,41 +35,52 @@ except ImportError:
 
 # Import observability modules
 try:
-    from shared.observability import (
-        setup_tracing,
-        instrument_fastapi,
-        CorrelationMiddleware
-    )
+    from shared.observability import CorrelationMiddleware, instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .config import settings
-from .database.models import init_db
-from .api import health_router, data_router, pattern_router, suggestion_router, analysis_router, suggestion_management_router, deployment_router, nl_generation_router, conversational_router, ask_ai_router, devices_router, settings_router, admin_router, set_device_intelligence_client
-from .api.v2.conversation_router import router as conversation_router_v2
-from .api.v2.automation_router import router as automation_router_v2
+from .api import (
+    admin_router,
+    analysis_router,
+    ask_ai_router,
+    conversational_router,
+    data_router,
+    deployment_router,
+    devices_router,
+    health_router,
+    nl_generation_router,
+    pattern_router,
+    set_device_intelligence_client,
+    settings_router,
+    suggestion_management_router,
+    suggestion_router,
+)
+from .api.analysis_router import set_scheduler
+from .api.community_pattern_router import router as community_pattern_router
+from .api.health import set_capability_listener
+from .api.mcp_router import router as mcp_router
+from .api.middlewares import AuthenticationMiddleware, IdempotencyMiddleware, RateLimitMiddleware
+from .api.ranking_router import router as ranking_router
+from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
 from .api.v2.action_router import router as action_router_v2
+from .api.v2.automation_router import router as automation_router_v2
+from .api.v2.conversation_router import router as conversation_router_v2
 from .api.v2.streaming_router import router as streaming_router_v2
 from .api.validation_router import router as validation_router
-from .api.ranking_router import router as ranking_router
-from .api.middlewares import AuthenticationMiddleware, IdempotencyMiddleware, RateLimitMiddleware
-from .api.community_pattern_router import router as community_pattern_router
-from .api.mcp_router import router as mcp_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
-from .api.synergy_router import router as synergy_router  # Epic AI-3, Story AI3.8
-from .api.analysis_router import set_scheduler
-from .api.health import set_capability_listener
-from .scheduler import DailyAnalysisScheduler
 
 # Epic AI-2: Device Intelligence (Story AI2.1)
 from .clients.mqtt_client import MQTTNotificationClient
+from .config import settings
+from .database.models import init_db
 from .device_intelligence import CapabilityParser, MQTTCapabilityListener
 
 # Phase 1: Containerized AI Models
 from .models.model_manager import get_model_manager
+from .scheduler import DailyAnalysisScheduler
 
 # Global variables for lifecycle management
 mqtt_client = None
@@ -203,7 +215,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("AI Automation Service shutting down")
-    
+
     # Shutdown ActionExecutor
     try:
         from .services.service_container import ServiceContainer
@@ -260,11 +272,11 @@ if OBSERVABILITY_AVAILABLE:
     otlp_endpoint = os.getenv('OTLP_ENDPOINT')
     if setup_tracing("ai-automation-service", otlp_endpoint):
         logger.info("✅ OpenTelemetry tracing configured")
-    
+
     # Instrument FastAPI app
     if instrument_fastapi(app, "ai-automation-service"):
         logger.info("✅ FastAPI app instrumented for tracing")
-    
+
     # Add correlation ID middleware (should be early in middleware stack)
     app.add_middleware(CorrelationMiddleware)
     logger.info("✅ Correlation ID middleware added")
@@ -387,7 +399,9 @@ data_api_client = DataAPIClient(base_url=settings.data_api_url)
 device_intelligence_client = DeviceIntelligenceClient(base_url=settings.device_intelligence_url)
 
 # Make device intelligence client available to routers
-from .api.ask_ai_router import set_device_intelligence_client as set_ask_ai_client, get_model_orchestrator, get_multi_model_extractor
+from .api.ask_ai_router import get_model_orchestrator, get_multi_model_extractor
+from .api.ask_ai_router import set_device_intelligence_client as set_ask_ai_client
+
 set_ask_ai_client(device_intelligence_client)  # For Ask AI router
 set_device_intelligence_client(device_intelligence_client)  # For devices router
 

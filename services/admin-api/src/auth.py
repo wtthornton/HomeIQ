@@ -7,7 +7,8 @@ reused by multiple services. This module simply re-exports the shared
 the admin-api codebase and tests.
 """
 
-from shared.auth import AuthManager as SharedAuthManager, User
+from shared.auth import AuthManager as SharedAuthManager
+from shared.auth import User
 
 __all__ = ["AuthManager", "User"]
 

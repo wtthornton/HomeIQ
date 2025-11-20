@@ -2,12 +2,12 @@
 Shared test fixtures for electricity-pricing-service
 """
 
-import pytest
-from datetime import datetime, timedelta
-from typing import Dict, List
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -32,7 +32,7 @@ def mock_influxdb_client():
 
 
 @pytest.fixture
-def sample_pricing_data() -> Dict:
+def sample_pricing_data() -> dict:
     """Sample pricing data from provider"""
     now = datetime.now()
     return {
@@ -53,7 +53,7 @@ def sample_pricing_data() -> Dict:
 
 
 @pytest.fixture
-def sample_cheap_pricing() -> Dict:
+def sample_cheap_pricing() -> dict:
     """Sample cheap pricing (off-peak)"""
     now = datetime.now()
     return {
@@ -69,7 +69,7 @@ def sample_cheap_pricing() -> Dict:
 
 
 @pytest.fixture
-def sample_expensive_pricing() -> Dict:
+def sample_expensive_pricing() -> dict:
     """Sample expensive pricing (peak)"""
     now = datetime.now()
     return {

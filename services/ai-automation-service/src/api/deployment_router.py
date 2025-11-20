@@ -4,19 +4,19 @@ Deploy approved automations to Home Assistant
 Story AI1.11: Home Assistant Integration
 """
 
+import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime, timezone
-import logging
-
-from ..config import settings
-from ..clients.ha_client import HomeAssistantClient
-from ..database.models import get_db_session, Suggestion
-from ..safety_validator import get_safety_validator, SafetyResult
-from ..rollback import store_version, rollback_to_previous, get_versions
-from ..observability.trace import create_trace, write_trace
 from sqlalchemy import select
+
+from ..clients.ha_client import HomeAssistantClient
+from ..config import settings
+from ..database.models import Suggestion, get_db_session
+from ..observability.trace import create_trace, write_trace
+from ..rollback import get_versions, rollback_to_previous, store_version
+from ..safety_validator import SafetyResult, get_safety_validator
 from .dependencies.auth import require_authenticated_user
 
 logger = logging.getLogger(__name__)
@@ -57,33 +57,33 @@ async def deploy_suggestion(
                 select(Suggestion).where(Suggestion.id == suggestion_id)
             )
             suggestion = result.scalar_one_or_none()
-            
+
             if not suggestion:
                 raise HTTPException(status_code=404, detail="Suggestion not found")
-            
+
             # Validate status
             if suggestion.status not in ['approved', 'deployed'] and not request.skip_validation:
                 raise HTTPException(
-                    status_code=400, 
+                    status_code=400,
                     detail=f"Cannot deploy suggestion with status '{suggestion.status}'. Must be 'approved'."
                 )
             if request.skip_validation and auth.role != "admin":
                 raise HTTPException(status_code=403, detail="skip_validation is restricted to admin users")
-            
+
             logger.info(f"🚀 Deploying suggestion {suggestion_id}: {suggestion.title}")
-            
+
             # SAFETY VALIDATION (AI1.19)
             logger.info(f"🛡️ Running safety validation for suggestion {suggestion_id}")
-            
+
             # Get existing automations for conflict detection
             existing_automations = await ha_client.list_automations()
-            
+
             # Run safety validation
             safety_result: SafetyResult = await safety_validator.validate(
                 suggestion.automation_yaml,
                 existing_automations
             )
-            
+
             if not safety_result.passed:
                 if request.force_deploy:
                     if auth.role != "admin":
@@ -129,15 +129,15 @@ async def deploy_suggestion(
                     f"✅ Safety validation passed: score={safety_result.safety_score}/100, "
                     f"issues={len(safety_result.issues)}"
                 )
-            
+
             # Deploy to Home Assistant
             deployment_result = await ha_client.deploy_automation(
                 automation_yaml=suggestion.automation_yaml
             )
-            
+
             if deployment_result.get('success'):
                 automation_id = deployment_result.get('automation_id')
-                
+
                 # Store version for rollback (AI1.20)
                 await store_version(
                     db,
@@ -145,8 +145,8 @@ async def deploy_suggestion(
                     suggestion.automation_yaml,
                     safety_result.safety_score if safety_result else 100
                 )
-                logger.info(f"📝 Version stored for rollback capability")
-                
+                logger.info("📝 Version stored for rollback capability")
+
                 # Create decision trace
                 trace = create_trace(
                     final_plan={"automation_id": automation_id, "yaml": suggestion.automation_yaml},
@@ -156,16 +156,16 @@ async def deploy_suggestion(
                     } if safety_result else None
                 )
                 trace_id = write_trace(trace)
-                
+
                 # Update suggestion status
                 suggestion.status = 'deployed'
                 suggestion.ha_automation_id = automation_id
                 suggestion.deployed_at = datetime.now(timezone.utc)
                 suggestion.updated_at = datetime.now(timezone.utc)
                 await db.commit()
-                
+
                 logger.info(f"✅ Successfully deployed suggestion {suggestion_id}")
-                
+
                 response_data = {
                     "success": True,
                     "message": "Automation deployed successfully to Home Assistant",
@@ -177,7 +177,7 @@ async def deploy_suggestion(
                         "trace_id": trace_id
                     }
                 }
-                
+
                 # Include safety score if validation was run
                 if safety_result:
                     response_data["data"]["safety_score"] = safety_result.safety_score
@@ -190,18 +190,18 @@ async def deploy_suggestion(
                             for issue in safety_result.issues
                             if issue.severity in ['warning', 'info']
                         ]
-                
+
                 return response_data
             else:
                 # Deployment failed
                 error_msg = deployment_result.get('error', 'Unknown error')
                 logger.error(f"❌ Deployment failed for suggestion {suggestion_id}: {error_msg}")
-                
+
                 raise HTTPException(
                     status_code=500,
                     detail=f"Deployment failed: {error_msg}"
                 )
-                
+
     except HTTPException:
         raise
     except Exception as e:
@@ -224,7 +224,7 @@ async def batch_deploy_suggestions(suggestion_ids: list[int]):
         deployed_count = 0
         failed_count = 0
         failed_ids = []
-        
+
         for suggestion_id in suggestion_ids:
             try:
                 result = await deploy_suggestion(suggestion_id, DeployRequest())
@@ -237,9 +237,9 @@ async def batch_deploy_suggestions(suggestion_ids: list[int]):
                 logger.error(f"Failed to deploy suggestion {suggestion_id}: {e}")
                 failed_count += 1
                 failed_ids.append(suggestion_id)
-        
+
         logger.info(f"📊 Batch deployment: {deployed_count} succeeded, {failed_count} failed")
-        
+
         return {
             "success": True,
             "message": f"Deployed {deployed_count} of {len(suggestion_ids)} automations",
@@ -250,7 +250,7 @@ async def batch_deploy_suggestions(suggestion_ids: list[int]):
                 "total_requested": len(suggestion_ids)
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Batch deployment error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -266,13 +266,13 @@ async def list_deployed_automations():
     """
     try:
         automations = await ha_client.list_automations()
-        
+
         return {
             "success": True,
             "data": automations,
             "count": len(automations)
         }
-        
+
     except Exception as e:
         logger.error(f"Error listing automations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -291,7 +291,7 @@ async def get_automation_status(automation_id: str):
     """
     try:
         automation = await ha_client.get_automation(automation_id)
-        
+
         if automation:
             return {
                 "success": True,
@@ -299,7 +299,7 @@ async def get_automation_status(automation_id: str):
             }
         else:
             raise HTTPException(status_code=404, detail="Automation not found in HA")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -320,7 +320,7 @@ async def enable_automation(automation_id: str):
     """
     try:
         success = await ha_client.enable_automation(automation_id)
-        
+
         if success:
             return {
                 "success": True,
@@ -328,7 +328,7 @@ async def enable_automation(automation_id: str):
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to enable automation")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -349,7 +349,7 @@ async def disable_automation(automation_id: str):
     """
     try:
         success = await ha_client.disable_automation(automation_id)
-        
+
         if success:
             return {
                 "success": True,
@@ -357,7 +357,7 @@ async def disable_automation(automation_id: str):
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to disable automation")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -378,7 +378,7 @@ async def trigger_automation(automation_id: str):
     """
     try:
         success = await ha_client.trigger_automation(automation_id)
-        
+
         if success:
             return {
                 "success": True,
@@ -386,7 +386,7 @@ async def trigger_automation(automation_id: str):
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to trigger automation")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -404,7 +404,7 @@ async def test_ha_connection():
     """
     try:
         is_connected = await ha_client.test_connection()
-        
+
         if is_connected:
             return {
                 "success": True,
@@ -416,7 +416,7 @@ async def test_ha_connection():
                 status_code=503,
                 detail="Failed to connect to Home Assistant. Check HA_URL and HA_TOKEN."
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -448,15 +448,15 @@ async def rollback_automation(automation_id: str):
                 ha_client,
                 safety_validator
             )
-            
+
             logger.info(f"✅ Rollback completed for {automation_id}")
-            
+
             return {
                 "success": True,
                 "message": f"Automation {automation_id} rolled back successfully",
                 "data": result
             }
-            
+
     except ValueError as e:
         # Expected errors (no previous version, safety failure)
         logger.warning(f"Rollback rejected: {e}")
@@ -480,7 +480,7 @@ async def get_version_history(automation_id: str):
     try:
         async with get_db_session() as db:
             versions = await get_versions(db, automation_id)
-            
+
             return {
                 "success": True,
                 "automation_id": automation_id,
@@ -497,7 +497,7 @@ async def get_version_history(automation_id: str):
                 "count": len(versions),
                 "can_rollback": len(versions) >= 2
             }
-            
+
     except Exception as e:
         logger.error(f"Error getting versions for {automation_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """List all Home Assistant Assist agents and their pipelines."""
+import json
 import os
 import sys
-import json
 from pathlib import Path
 
 # Try to load .env from multiple locations (check root .env first)
@@ -67,13 +67,13 @@ try:
         "Authorization": f"Bearer {ha_token}",
         "Content-Type": "application/json"
     }
-    
+
     print(f"🔍 Querying: {url}", file=sys.stderr)
     response = requests.get(url, headers=headers, timeout=10)
-    
+
     if response.status_code == 200:
         agents = response.json()
-        
+
         if not agents:
             print("ℹ️  No agents found. You may need to create assistants in Home Assistant.", file=sys.stderr)
             print("\nTo create assistants:", file=sys.stderr)
@@ -81,9 +81,9 @@ try:
             print("  2. Go to Settings → Voice Assistants (Assist)", file=sys.stderr)
             print("  3. Click 'Create Assistant'", file=sys.stderr)
             sys.exit(0)
-        
+
         print(f"\n✅ Found {len(agents)} agent(s):\n")
-        
+
         # Output as JSON for easy parsing
         output = {
             "agents": [],
@@ -92,16 +92,16 @@ try:
                 "ha_url": ha_url
             }
         }
-        
+
         for idx, agent in enumerate(agents, start=1):
             agent_name = agent.get("name", "Unknown")
             agent_id = agent.get("id", "Unknown")
             agent_type = agent.get("type", "Unknown")
-            
+
             # Try to get pipeline information if available
             pipeline_info = agent.get("pipeline", {})
             pipeline_id = agent.get("pipeline_id") or pipeline_info.get("id") or "N/A"
-            
+
             agent_info = {
                 "number": idx,
                 "name": agent_name,
@@ -111,7 +111,7 @@ try:
                 "raw_data": agent
             }
             output["agents"].append(agent_info)
-            
+
             # Pretty print
             print(f"{idx}. {agent_name}")
             print(f"   ID: {agent_id}")
@@ -120,7 +120,7 @@ try:
             if "description" in agent:
                 print(f"   Description: {agent.get('description')}")
             print()
-        
+
         # Show summary table
         print("\n" + "="*80)
         print("SUMMARY")
@@ -129,13 +129,13 @@ try:
         print("-"*80)
         for agent in output["agents"]:
             print(f"{agent['number']:<3} {agent['name']:<30} {agent['id']:<35} {agent['pipeline_id']:<30}")
-        
+
         # Also output JSON for programmatic use
         print("\n" + "="*80)
         print("JSON Output (for programmatic use)")
         print("="*80)
         print(json.dumps(output, indent=2))
-        
+
         # Show usage examples
         print("\n" + "="*80)
         print("API Usage Examples")
@@ -152,7 +152,7 @@ try:
                 "language": "en",
                 "pipeline": agent["pipeline_id"] if agent["pipeline_id"] != "N/A" else None
             }, indent=2))
-            
+
         print("\n" + "="*80)
         print("Python Code Example")
         print("="*80)
@@ -167,13 +167,13 @@ async def call_assistant(pipeline_id, text):
             json={{"text": text, "language": "en", "pipeline": pipeline_id}}
         ) as response:
             return await response.json()
-""".format(ha_url=ha_url))
-            
+""".format())
+
     elif response.status_code == 404:
         print("⚠️  API endpoint /api/conversation/agents not available (404)", file=sys.stderr)
         print("\nFor HA 2025.10, this endpoint may have changed.", file=sys.stderr)
         print("\nTrying alternative methods...", file=sys.stderr)
-        
+
         # Try to verify connectivity first
         try:
             config_response = requests.get(
@@ -189,14 +189,14 @@ async def call_assistant(pipeline_id, text):
                 print(f"⚠️  Could not verify HA version (status: {config_response.status_code})", file=sys.stderr)
         except Exception as e:
             print(f"⚠️  Could not verify connectivity: {e}", file=sys.stderr)
-        
+
         # Try alternative endpoints for HA 2025.10+
         alternative_endpoints = [
             "/api/conversation/pipelines",
             "/api/conversation/list",
             "/api/config/integrations",  # Check if Assist integration is configured
         ]
-        
+
         for alt_endpoint in alternative_endpoints:
             try:
                 alt_url = f"{ha_url.rstrip('/')}{alt_endpoint}"
@@ -205,7 +205,7 @@ async def call_assistant(pipeline_id, text):
                 if alt_response.status_code == 200:
                     print(f"✅ Alternative endpoint {alt_endpoint} works! Processing response...", file=sys.stderr)
                     data = alt_response.json()
-                    
+
                     # Handle pipelines endpoint (likely structure for HA 2025.10)
                     if alt_endpoint == "/api/conversation/pipelines":
                         if isinstance(data, list):
@@ -217,7 +217,7 @@ async def call_assistant(pipeline_id, text):
                             agents = [data] if data else []
                         else:
                             agents = []
-                        
+
                         if agents:
                             print(f"\n✅ Found {len(agents)} pipeline(s)/agent(s):\n")
                             for idx, agent in enumerate(agents, start=1):
@@ -243,7 +243,7 @@ async def call_assistant(pipeline_id, text):
                                 "assist" in item.get("domain", "").lower() or
                                 "assistant" in item.get("title", "").lower()
                             )]
-                        
+
                         if assist_integrations:
                             print(f"\n✅ Found {len(assist_integrations)} Assist/Conversation integration(s):\n")
                             for idx, integration in enumerate(assist_integrations, start=1):
@@ -272,7 +272,7 @@ async def call_assistant(pipeline_id, text):
                     print(f"⚠️  {alt_endpoint} returned {alt_response.status_code}", file=sys.stderr)
             except Exception as e:
                 print(f"⚠️  {alt_endpoint} failed: {e}", file=sys.stderr)
-        
+
         print("\nFor HA 2025.10, try the following:", file=sys.stderr)
         print("  1. Open Home Assistant UI", file=sys.stderr)
         print("  2. Go to Settings → Voice Assistants", file=sys.stderr)
@@ -284,13 +284,13 @@ async def call_assistant(pipeline_id, text):
         print(f"❌ API returned status {response.status_code}", file=sys.stderr)
         print(f"Response: {response.text[:500]}", file=sys.stderr)
         sys.exit(1)
-        
+
 except requests.exceptions.RequestException as e:
     print(f"❌ Error connecting to Home Assistant: {e}", file=sys.stderr)
-    print(f"\nPlease verify:", file=sys.stderr)
+    print("\nPlease verify:", file=sys.stderr)
     print(f"  - HA_URL is correct: {ha_url}", file=sys.stderr)
-    print(f"  - HA_TOKEN is valid and has proper permissions", file=sys.stderr)
-    print(f"  - Home Assistant is accessible from this machine", file=sys.stderr)
+    print("  - HA_TOKEN is valid and has proper permissions", file=sys.stderr)
+    print("  - Home Assistant is accessible from this machine", file=sys.stderr)
     sys.exit(1)
 except Exception as e:
     print(f"❌ Error: {e}", file=sys.stderr)

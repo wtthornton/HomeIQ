@@ -5,13 +5,10 @@ Handles API key configuration and validation for external services
 
 import logging
 import os
-import re
-import asyncio
-import aiohttp
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +29,17 @@ class APIKeyInfo:
     masked_key: str
     is_required: bool
     description: str
-    validation_url: Optional[str] = None
+    validation_url: str | None = None
 
 class APIKeyService:
     """API key management service"""
-    
+
     def __init__(self):
         """Initialize API key service"""
         self.config_file = "/app/infrastructure/.env.production"
         self.config_dir = "/app/infrastructure"
         self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
-        
+
         # API key configuration for each service
         self.api_key_config = {
             'weather': {
@@ -88,8 +85,8 @@ class APIKeyService:
                 'validation_response_check': None
             }
         }
-    
-    async def get_api_keys(self) -> List[APIKeyInfo]:
+
+    async def get_api_keys(self) -> list[APIKeyInfo]:
         """
         Get current API key status for all services
         
@@ -97,11 +94,11 @@ class APIKeyService:
             List of APIKeyInfo objects
         """
         api_keys = []
-        
+
         for service, config in self.api_key_config.items():
             # Get current key value
             current_key = os.getenv(config['env_var'])
-            
+
             # Determine status
             if not current_key:
                 status = APIKeyStatus.REQUIRED if config['required'] else APIKeyStatus.DISABLED
@@ -112,10 +109,10 @@ class APIKeyService:
                     status = APIKeyStatus.CONFIGURED if is_valid else APIKeyStatus.INVALID
                 else:
                     status = APIKeyStatus.CONFIGURED
-            
+
             # Create masked key for display
             masked_key = self._mask_api_key(current_key) if current_key else "Not configured"
-            
+
             api_key_info = APIKeyInfo(
                 service=service,
                 key_name=config['env_var'],
@@ -125,12 +122,12 @@ class APIKeyService:
                 description=config['description'],
                 validation_url=config['validation_url']
             )
-            
+
             api_keys.append(api_key_info)
-        
+
         return api_keys
-    
-    async def update_api_key(self, service: str, api_key: str) -> Tuple[bool, str]:
+
+    async def update_api_key(self, service: str, api_key: str) -> tuple[bool, str]:
         """
         Update API key for a service
         
@@ -144,33 +141,33 @@ class APIKeyService:
         try:
             if service not in self.api_key_config:
                 return False, f"Unknown service: {service}"
-            
+
             config = self.api_key_config[service]
-            
+
             # Validate API key format if needed
             if not self._validate_key_format(service, api_key):
                 return False, f"Invalid API key format for {service}"
-            
+
             # Test the API key if validation URL is available
             if config['validation_url']:
                 is_valid = await self._test_api_key(service, api_key)
                 if not is_valid:
                     return False, f"API key validation failed for {service}"
-            
+
             # Update environment variable
             os.environ[config['env_var']] = api_key
-            
+
             # Update config file
             await self._update_config_file(config['env_var'], api_key)
-            
+
             logger.info(f"Successfully updated API key for {service}")
             return True, f"API key updated successfully for {service}"
-            
+
         except Exception as e:
             logger.error(f"Error updating API key for {service}: {e}")
             return False, f"Error updating API key: {str(e)}"
-    
-    async def test_api_key(self, service: str, api_key: str) -> Tuple[bool, str]:
+
+    async def test_api_key(self, service: str, api_key: str) -> tuple[bool, str]:
         """
         Test an API key without saving it
         
@@ -184,23 +181,23 @@ class APIKeyService:
         try:
             if service not in self.api_key_config:
                 return False, f"Unknown service: {service}"
-            
+
             config = self.api_key_config[service]
-            
+
             if not config['validation_url']:
                 return True, f"No validation available for {service}"
-            
+
             is_valid = await self._test_api_key(service, api_key)
-            
+
             if is_valid:
                 return True, f"API key is valid for {service}"
             else:
                 return False, f"API key validation failed for {service}"
-                
+
         except Exception as e:
             logger.error(f"Error testing API key for {service}: {e}")
             return False, f"Error testing API key: {str(e)}"
-    
+
     def get_api_key_status(self, service: str) -> APIKeyStatus:
         """
         Get API key status for a specific service
@@ -213,15 +210,15 @@ class APIKeyService:
         """
         if service not in self.api_key_config:
             return APIKeyStatus.DISABLED
-        
+
         config = self.api_key_config[service]
         current_key = os.getenv(config['env_var'])
-        
+
         if not current_key:
             return APIKeyStatus.REQUIRED if config['required'] else APIKeyStatus.DISABLED
-        
+
         return APIKeyStatus.CONFIGURED
-    
+
     async def _test_api_key(self, service: str, api_key: str) -> bool:
         """
         Test API key validity by making a test request
@@ -235,13 +232,13 @@ class APIKeyService:
         """
         try:
             config = self.api_key_config[service]
-            
+
             if not config['validation_url']:
                 return True  # No validation available, assume valid
-            
+
             # Replace placeholder in validation URL
             test_url = config['validation_url'].format(key=api_key)
-            
+
             # Make test request
             timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -257,11 +254,11 @@ class APIKeyService:
                     else:
                         logger.warning(f"Unexpected response status {response.status} for {service}")
                         return False
-                        
+
         except Exception as e:
             logger.error(f"Error testing API key for {service}: {e}")
             return False
-    
+
     def _validate_key_format(self, service: str, api_key: str) -> bool:
         """
         Validate API key format based on service requirements
@@ -275,7 +272,7 @@ class APIKeyService:
         """
         if not api_key or len(api_key.strip()) == 0:
             return False
-        
+
         # Basic format validation based on service
         if service == 'weather':
             # OpenWeatherMap keys are typically 32 characters
@@ -289,7 +286,7 @@ class APIKeyService:
         else:
             # Generic validation - at least 5 characters
             return len(api_key) >= 5
-    
+
     def _mask_api_key(self, api_key: str) -> str:
         """
         Mask API key for display purposes
@@ -302,13 +299,13 @@ class APIKeyService:
         """
         if not api_key:
             return "Not configured"
-        
+
         if len(api_key) <= 4:
             return "*" * len(api_key)
-        
+
         # Show first 4 and last 4 characters
         return f"{api_key[:4]}...{api_key[-4:]}"
-    
+
     async def _update_config_file(self, env_var: str, value: str) -> None:
         """
         Update environment variable in config file
@@ -324,15 +321,15 @@ class APIKeyService:
                 )
             # Read current config file
             config_path = os.path.join(self.config_dir, '.env.production')
-            
+
             if not os.path.exists(config_path):
                 # Create config file if it doesn't exist
                 os.makedirs(self.config_dir, exist_ok=True)
                 lines = []
             else:
-                with open(config_path, 'r') as f:
+                with open(config_path) as f:
                     lines = f.readlines()
-            
+
             # Update or add the environment variable
             updated = False
             for i, line in enumerate(lines):
@@ -340,16 +337,16 @@ class APIKeyService:
                     lines[i] = f"{env_var}={value}\n"
                     updated = True
                     break
-            
+
             if not updated:
                 lines.append(f"{env_var}={value}\n")
-            
+
             # Write back to file
             with open(config_path, 'w') as f:
                 f.writelines(lines)
-            
+
             logger.info(f"Updated {env_var} in config file")
-            
+
         except Exception as e:
             logger.error(f"Error updating config file: {e}")
             raise

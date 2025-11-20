@@ -26,8 +26,8 @@ Description:
 Story: Auto-Draft API Generation + Expert Mode
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # Revision identifiers
 revision = '006_auto_draft_expert_mode'

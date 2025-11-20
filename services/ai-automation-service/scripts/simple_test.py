@@ -11,11 +11,11 @@ SRC_PATH = CURRENT_DIR.parent / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
-from preprocessing.event_preprocessor import EventPreprocessor
-from preprocessing.processed_events import ProcessedEvents
-from models.model_manager import get_model_manager
-import pandas as pd
 import time
+
+from models.model_manager import get_model_manager
+from preprocessing.event_preprocessor import EventPreprocessor
+
 
 async def main():
     print("🧪 Testing Preprocessing Pipeline")

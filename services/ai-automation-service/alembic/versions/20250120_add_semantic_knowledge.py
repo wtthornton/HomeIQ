@@ -8,10 +8,8 @@ Epic: Semantic Understanding Growth
 Purpose: Store semantic knowledge with embeddings for similarity search
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20250120_semantic_knowledge'
@@ -37,10 +35,10 @@ def upgrade():
         sa.Column('success_score', sa.Float(), nullable=False, server_default='0.5'),  # 0.0-1.0
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp()),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp()),
-        
+
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     # Create indexes for performance
     op.create_index('idx_knowledge_type', 'semantic_knowledge', ['knowledge_type'])
     op.create_index('idx_success_score', 'semantic_knowledge', ['success_score'])

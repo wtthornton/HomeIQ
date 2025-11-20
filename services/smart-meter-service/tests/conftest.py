@@ -2,12 +2,12 @@
 Shared test fixtures for smart-meter-service
 """
 
-import pytest
-from datetime import datetime
-from typing import Dict, List
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -32,7 +32,7 @@ def mock_influxdb_client():
 
 
 @pytest.fixture
-def sample_meter_data() -> Dict:
+def sample_meter_data() -> dict:
     """Sample power consumption data"""
     now = datetime.now()
     return {
@@ -48,7 +48,7 @@ def sample_meter_data() -> Dict:
 
 
 @pytest.fixture
-def sample_low_power() -> Dict:
+def sample_low_power() -> dict:
     """Sample low power consumption (phantom load scenario)"""
     now = datetime.now()
     return {
@@ -63,7 +63,7 @@ def sample_low_power() -> Dict:
 
 
 @pytest.fixture
-def sample_high_power() -> Dict:
+def sample_high_power() -> dict:
     """Sample high power consumption (>10kW)"""
     now = datetime.now()
     return {
@@ -79,7 +79,7 @@ def sample_high_power() -> Dict:
 
 
 @pytest.fixture
-def sample_phantom_load() -> Dict:
+def sample_phantom_load() -> dict:
     """Sample 3am baseline (phantom load detection)"""
     now = datetime.now()
     return {

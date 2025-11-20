@@ -6,9 +6,9 @@ Parses Home Assistant automation configurations to extract device relationships
 """
 
 import logging
-from typing import Dict, List, Set, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +22,15 @@ class EntityRelationship:
     """
     automation_id: str
     automation_alias: str
-    trigger_entities: Set[str]
-    action_entities: Set[str]
+    trigger_entities: set[str]
+    action_entities: set[str]
     automation_type: str  # trigger, state, time, event, etc.
-    conditions: Optional[List[Dict]] = None
-    description: Optional[str] = None
+    conditions: list[dict] | None = None
+    description: str | None = None
     enabled: bool = True
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
-    def get_entity_pairs(self) -> List[Tuple[str, str]]:
+
+    def get_entity_pairs(self) -> list[tuple[str, str]]:
         """
         Get all trigger → action entity pairs in this automation.
         
@@ -42,7 +42,7 @@ class EntityRelationship:
             for action_entity in self.action_entities:
                 pairs.append((trigger_entity, action_entity))
         return pairs
-    
+
     def involves_entities(self, entity1: str, entity2: str) -> bool:
         """
         Check if this automation involves both entities (bidirectional).
@@ -64,14 +64,14 @@ class AutomationParser:
     
     Story AI4.2: Implements configuration parsing, relationship extraction, and efficient lookup.
     """
-    
+
     def __init__(self):
         """Initialize automation parser."""
-        self._relationships: Dict[str, EntityRelationship] = {}
-        self._entity_pair_index: Dict[Tuple[str, str], Set[str]] = {}
-        self._last_parse_time: Optional[datetime] = None
-    
-    def parse_automations(self, automations: List[Dict]) -> int:
+        self._relationships: dict[str, EntityRelationship] = {}
+        self._entity_pair_index: dict[tuple[str, str], set[str]] = {}
+        self._last_parse_time: datetime | None = None
+
+    def parse_automations(self, automations: list[dict]) -> int:
         """
         Parse automation configurations and extract relationships.
         
@@ -87,12 +87,12 @@ class AutomationParser:
         if not automations:
             logger.warning("⚠️ No automations provided to parse")
             return 0
-        
+
         logger.info(f"🔍 Parsing {len(automations)} automations...")
-        
+
         self._relationships.clear()
         self._entity_pair_index.clear()
-        
+
         for automation in automations:
             try:
                 relationship = self._parse_automation(automation)
@@ -103,17 +103,17 @@ class AutomationParser:
                 automation_id = automation.get('id', automation.get('alias', 'unknown'))
                 logger.warning(f"⚠️ Failed to parse automation {automation_id}: {e}")
                 continue
-        
+
         self._last_parse_time = datetime.now(timezone.utc)
-        
+
         logger.info(
             f"✅ Parsed {len(self._relationships)} automations, "
             f"indexed {len(self._entity_pair_index)} entity pairs"
         )
-        
+
         return len(self._relationships)
-    
-    def _parse_automation(self, automation: Dict) -> Optional[EntityRelationship]:
+
+    def _parse_automation(self, automation: dict) -> EntityRelationship | None:
         """
         Parse a single automation configuration.
         
@@ -127,27 +127,27 @@ class AutomationParser:
         """
         automation_id = automation.get('id', automation.get('alias', 'unknown'))
         automation_alias = automation.get('alias', automation_id)
-        
+
         # Extract trigger entities
         trigger_entities = self._extract_trigger_entities(automation)
-        
+
         # Extract action entities
         action_entities = self._extract_action_entities(automation)
-        
+
         # Skip if no meaningful relationships found
         if not trigger_entities and not action_entities:
             logger.debug(f"⏭️  Skipping automation {automation_id}: no entities found")
             return None
-        
+
         # Determine automation type
         automation_type = self._determine_automation_type(automation)
-        
+
         # Extract conditions if present
         conditions = automation.get('condition', automation.get('conditions'))
-        
+
         # Get description
         description = automation.get('description', '')
-        
+
         relationship = EntityRelationship(
             automation_id=automation_id,
             automation_alias=automation_alias,
@@ -157,15 +157,15 @@ class AutomationParser:
             conditions=conditions if isinstance(conditions, list) else ([conditions] if conditions else None),
             description=description
         )
-        
+
         logger.debug(
             f"📋 Parsed {automation_id}: "
             f"{len(trigger_entities)} triggers → {len(action_entities)} actions"
         )
-        
+
         return relationship
-    
-    def _extract_trigger_entities(self, automation: Dict) -> Set[str]:
+
+    def _extract_trigger_entities(self, automation: dict) -> set[str]:
         """
         Extract entity IDs from automation triggers.
         
@@ -178,52 +178,34 @@ class AutomationParser:
             Set of entity IDs found in triggers
         """
         entities = set()
-        
+
         # Get triggers (can be 'trigger' or 'triggers')
         triggers = automation.get('trigger', automation.get('triggers', []))
         if not isinstance(triggers, list):
             triggers = [triggers]
-        
+
         for trigger in triggers:
             if not isinstance(trigger, dict):
                 continue
-            
+
             # State triggers
-            if trigger.get('platform') == 'state':
+            if trigger.get('platform') == 'state' or trigger.get('platform') == 'numeric_state' or trigger.get('platform') == 'zone':
                 entity_id = trigger.get('entity_id')
                 if entity_id:
                     if isinstance(entity_id, list):
                         entities.update(entity_id)
                     else:
                         entities.add(entity_id)
-            
-            # Numeric state triggers
-            elif trigger.get('platform') == 'numeric_state':
-                entity_id = trigger.get('entity_id')
-                if entity_id:
-                    if isinstance(entity_id, list):
-                        entities.update(entity_id)
-                    else:
-                        entities.add(entity_id)
-            
-            # Zone triggers
-            elif trigger.get('platform') == 'zone':
-                entity_id = trigger.get('entity_id')
-                if entity_id:
-                    if isinstance(entity_id, list):
-                        entities.update(entity_id)
-                    else:
-                        entities.add(entity_id)
-            
+
             # Template triggers (may reference entities)
             elif trigger.get('platform') == 'template':
                 # Template triggers are complex - could parse template for entities
                 # For now, skip template entity extraction
                 pass
-        
+
         return entities
-    
-    def _extract_action_entities(self, automation: Dict) -> Set[str]:
+
+    def _extract_action_entities(self, automation: dict) -> set[str]:
         """
         Extract entity IDs from automation actions.
         
@@ -236,16 +218,16 @@ class AutomationParser:
             Set of entity IDs found in actions
         """
         entities = set()
-        
+
         # Get actions (can be 'action' or 'actions')
         actions = automation.get('action', automation.get('actions', []))
         if not isinstance(actions, list):
             actions = [actions]
-        
+
         for action in actions:
             if not isinstance(action, dict):
                 continue
-            
+
             # Service calls
             if 'service' in action:
                 # Check for entity_id in action
@@ -255,7 +237,7 @@ class AutomationParser:
                         entities.update(entity_id)
                     else:
                         entities.add(entity_id)
-                
+
                 # Check for target with entity_id
                 target = action.get('target', {})
                 if isinstance(target, dict):
@@ -265,7 +247,7 @@ class AutomationParser:
                             entities.update(target_entity_id)
                         else:
                             entities.add(target_entity_id)
-                
+
                 # Check for data with entity_id
                 data = action.get('data', {})
                 if isinstance(data, dict):
@@ -275,16 +257,16 @@ class AutomationParser:
                             entities.update(data_entity_id)
                         else:
                             entities.add(data_entity_id)
-            
+
             # Device actions
             elif 'device_id' in action:
                 # Device actions don't use entity_id directly
                 # Skip for now as we focus on entity relationships
                 pass
-        
+
         return entities
-    
-    def _determine_automation_type(self, automation: Dict) -> str:
+
+    def _determine_automation_type(self, automation: dict) -> str:
         """
         Determine the type of automation based on its triggers.
         
@@ -297,14 +279,14 @@ class AutomationParser:
         triggers = automation.get('trigger', automation.get('triggers', []))
         if not isinstance(triggers, list):
             triggers = [triggers]
-        
+
         if not triggers:
             return 'unknown'
-        
+
         # Get platform of first trigger (most significant)
         first_trigger = triggers[0] if triggers else {}
         platform = first_trigger.get('platform', 'unknown')
-        
+
         # Map platform to automation type
         type_mapping = {
             'state': 'state_based',
@@ -318,9 +300,9 @@ class AutomationParser:
             'zone': 'location_based',
             'template': 'template_based'
         }
-        
+
         return type_mapping.get(platform, 'trigger_based')
-    
+
     def _index_relationship(self, relationship: EntityRelationship) -> None:
         """
         Index relationship for efficient entity pair lookup.
@@ -338,13 +320,13 @@ class AutomationParser:
                 if pair not in self._entity_pair_index:
                     self._entity_pair_index[pair] = set()
                 self._entity_pair_index[pair].add(relationship.automation_id)
-                
+
                 # Also index reverse (action → trigger) for bidirectional lookup
                 reverse_pair = (action_entity, trigger_entity)
                 if reverse_pair not in self._entity_pair_index:
                     self._entity_pair_index[reverse_pair] = set()
                 self._entity_pair_index[reverse_pair].add(relationship.automation_id)
-    
+
     def has_relationship(self, entity1: str, entity2: str) -> bool:
         """
         Check if two entities have a relationship in any automation.
@@ -363,12 +345,12 @@ class AutomationParser:
             (entity1, entity2) in self._entity_pair_index or
             (entity2, entity1) in self._entity_pair_index
         )
-    
+
     def get_relationships_for_pair(
-        self, 
-        entity1: str, 
+        self,
+        entity1: str,
         entity2: str
-    ) -> List[EntityRelationship]:
+    ) -> list[EntityRelationship]:
         """
         Get all automations that connect two entities.
         
@@ -382,24 +364,24 @@ class AutomationParser:
             List of EntityRelationship objects connecting these entities
         """
         automation_ids = set()
-        
+
         # Check both directions
         pair1 = (entity1, entity2)
         pair2 = (entity2, entity1)
-        
+
         if pair1 in self._entity_pair_index:
             automation_ids.update(self._entity_pair_index[pair1])
-        
+
         if pair2 in self._entity_pair_index:
             automation_ids.update(self._entity_pair_index[pair2])
-        
+
         return [
-            self._relationships[auto_id] 
-            for auto_id in automation_ids 
+            self._relationships[auto_id]
+            for auto_id in automation_ids
             if auto_id in self._relationships
         ]
-    
-    def get_all_relationships(self) -> List[EntityRelationship]:
+
+    def get_all_relationships(self) -> list[EntityRelationship]:
         """
         Get all parsed relationships.
         
@@ -407,7 +389,7 @@ class AutomationParser:
             List of all EntityRelationship objects
         """
         return list(self._relationships.values())
-    
+
     def get_entity_pair_count(self) -> int:
         """
         Get number of unique entity pairs indexed.
@@ -416,8 +398,8 @@ class AutomationParser:
             Number of entity pairs
         """
         return len(self._entity_pair_index)
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """
         Get parser statistics.
         
@@ -427,7 +409,7 @@ class AutomationParser:
         automation_types = {}
         for rel in self._relationships.values():
             automation_types[rel.automation_type] = automation_types.get(rel.automation_type, 0) + 1
-        
+
         return {
             'total_automations': len(self._relationships),
             'entity_pairs_indexed': len(self._entity_pair_index),

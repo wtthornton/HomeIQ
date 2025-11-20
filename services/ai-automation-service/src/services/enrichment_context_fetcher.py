@@ -8,8 +8,8 @@ Performance: <100ms for all enrichment data (cached queries)
 """
 
 import logging
-from typing import Dict, Optional, Any, Set
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class EnrichmentContextFetcher:
 
         logger.info("EnrichmentContextFetcher initialized")
 
-    async def get_all_enrichment(self, entity_ids: Optional[Set[str]] = None) -> Dict[str, Any]:
+    async def get_all_enrichment(self, entity_ids: set[str] | None = None) -> dict[str, Any]:
         """
         Get all available enrichment data.
 
@@ -81,7 +81,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"⚠️ Failed to fetch enrichment data: {e}")
             return {}
 
-    async def get_current_weather(self) -> Optional[Dict[str, Any]]:
+    async def get_current_weather(self) -> dict[str, Any] | None:
         """
         Get current weather data from InfluxDB cache.
 
@@ -125,7 +125,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to fetch weather data: {e}")
             return None
 
-    async def get_carbon_intensity(self) -> Optional[Dict[str, Any]]:
+    async def get_carbon_intensity(self) -> dict[str, Any] | None:
         """
         Get current grid carbon intensity from InfluxDB cache.
 
@@ -169,7 +169,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to fetch carbon intensity data: {e}")
             return None
 
-    async def get_electricity_pricing(self) -> Optional[Dict[str, Any]]:
+    async def get_electricity_pricing(self) -> dict[str, Any] | None:
         """
         Get current electricity pricing from InfluxDB cache.
 
@@ -213,7 +213,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to fetch electricity pricing data: {e}")
             return None
 
-    async def get_air_quality(self) -> Optional[Dict[str, Any]]:
+    async def get_air_quality(self) -> dict[str, Any] | None:
         """
         Get current air quality (AQI) from InfluxDB cache.
 
@@ -265,7 +265,7 @@ class EnrichmentContextFetcher:
         age = (datetime.now(timezone.utc) - self._cache[key]['timestamp']).total_seconds()
         return age < self._cache_ttl
 
-    def _parse_weather_data(self, result) -> Dict[str, Any]:
+    def _parse_weather_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB weather query result"""
         try:
             # Extract latest values from result
@@ -296,7 +296,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to parse weather data: {e}")
             return {}
 
-    def _parse_carbon_data(self, result) -> Dict[str, Any]:
+    def _parse_carbon_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB carbon intensity query result"""
         try:
             if hasattr(result, 'iloc'):
@@ -321,7 +321,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to parse carbon data: {e}")
             return {}
 
-    def _parse_energy_data(self, result) -> Dict[str, Any]:
+    def _parse_energy_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB electricity pricing query result"""
         try:
             if hasattr(result, 'iloc'):
@@ -344,7 +344,7 @@ class EnrichmentContextFetcher:
             logger.warning(f"Failed to parse energy pricing data: {e}")
             return {}
 
-    def _parse_air_quality_data(self, result) -> Dict[str, Any]:
+    def _parse_air_quality_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB air quality query result"""
         try:
             if hasattr(result, 'iloc'):
@@ -373,7 +373,7 @@ class EnrichmentContextFetcher:
 
 
 # Query intent classification functions
-def should_include_weather(query_text: str, entity_ids: Set[str]) -> bool:
+def should_include_weather(query_text: str, entity_ids: set[str]) -> bool:
     """
     Determine if weather enrichment is relevant to the query.
 
@@ -406,7 +406,7 @@ def should_include_weather(query_text: str, entity_ids: Set[str]) -> bool:
     return False
 
 
-def should_include_carbon(query_text: str, entity_ids: Set[str]) -> bool:
+def should_include_carbon(query_text: str, entity_ids: set[str]) -> bool:
     """
     Determine if carbon intensity enrichment is relevant to the query.
 
@@ -437,7 +437,7 @@ def should_include_carbon(query_text: str, entity_ids: Set[str]) -> bool:
     return False
 
 
-def should_include_energy(query_text: str, entity_ids: Set[str]) -> bool:
+def should_include_energy(query_text: str, entity_ids: set[str]) -> bool:
     """
     Determine if electricity pricing enrichment is relevant to the query.
 
@@ -468,7 +468,7 @@ def should_include_energy(query_text: str, entity_ids: Set[str]) -> bool:
     return False
 
 
-def should_include_air_quality(query_text: str, entity_ids: Set[str]) -> bool:
+def should_include_air_quality(query_text: str, entity_ids: set[str]) -> bool:
     """
     Determine if air quality enrichment is relevant to the query.
 
@@ -501,9 +501,9 @@ def should_include_air_quality(query_text: str, entity_ids: Set[str]) -> bool:
 
 def get_selective_enrichment(
     query_text: str,
-    entity_ids: Set[str],
+    entity_ids: set[str],
     fetcher: EnrichmentContextFetcher
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get only relevant enrichment data based on query and entities.
 

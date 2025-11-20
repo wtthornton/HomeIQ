@@ -241,10 +241,13 @@ export const AskAI: React.FC = () => {
             confidence: turnResponse.confidence?.overall,
             clarificationNeeded: turnResponse.response_type === ResponseType.CLARIFICATION_NEEDED,
             questions: turnResponse.clarification_questions?.map(q => ({
-              question_id: q.id,
+              id: q.id,
+              category: q.category || 'unknown',
               question_text: q.question_text,
               question_type: q.question_type,
-              options: q.options,
+              options: q.options || [],
+              priority: q.priority ?? 2,
+              related_entities: q.related_entities || [],
             })),
           };
 
@@ -257,10 +260,13 @@ export const AskAI: React.FC = () => {
               turnResponse.clarification_questions.length > 0) {
             setClarificationDialog({
               questions: turnResponse.clarification_questions.map(q => ({
-                question_id: q.id,
+                id: q.id,
+                category: q.category || 'unknown',
                 question_text: q.question_text,
                 question_type: q.question_type,
-                options: q.options,
+                options: q.options || [],
+                priority: q.priority ?? 2,
+                related_entities: q.related_entities || [],
               })),
               sessionId: turnResponse.conversation_id,
               confidence: turnResponse.confidence?.overall || 0.5,

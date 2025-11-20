@@ -1,7 +1,9 @@
 """Database configuration using SQLAlchemy 2.0 async patterns"""
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from typing import AsyncGenerator
+
 from .config import get_settings
 
 settings = get_settings()

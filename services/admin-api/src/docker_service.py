@@ -3,12 +3,11 @@ Docker Management Service
 Handles Docker container operations for the HA Ingestor system
 """
 
+import asyncio
 import logging
 import os
-import asyncio
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
 try:
@@ -42,13 +41,13 @@ class ContainerInfo:
     status: ContainerStatus
     image: str
     created: str
-    ports: Dict[str, str]
-    labels: Dict[str, str]
+    ports: dict[str, str]
+    labels: dict[str, str]
     is_project_container: bool = True
 
 class DockerService:
     """Docker container management service"""
-    
+
     def __init__(self):
         """Initialize Docker service"""
         if docker is None:
@@ -83,10 +82,10 @@ class DockerService:
                 logger.error(f"Failed to initialize Docker service: {e}")
                 self.client = None
                 logger.warning("Docker client disabled - running in mock mode")
-        
+
         # Container name mapping - maps service names to Docker container names
         self.container_mapping = {
-            'websocket-ingestion': 'homeiq-websocket', 
+            'websocket-ingestion': 'homeiq-websocket',
             'admin-api': 'homeiq-admin',
             'health-dashboard': 'homeiq-dashboard',
             'influxdb': 'homeiq-influxdb',
@@ -98,11 +97,11 @@ class DockerService:
             'smart-meter-service': 'homeiq-smart-meter',
             'data-retention': 'homeiq-data-retention'
         }
-        
+
         # Project label for filtering containers
         self.project_label = "com.docker.compose.project=homeiq"
-    
-    async def list_containers(self) -> List[ContainerInfo]:
+
+    async def list_containers(self) -> list[ContainerInfo]:
         """
         List all project containers with their status
         
@@ -113,31 +112,31 @@ class DockerService:
             if self.client is None:
                 # Return mock data when Docker is not available
                 return await self._get_mock_containers()
-            
+
             # Get all containers (including stopped ones)
             containers = self.client.containers.list(all=True)
-            
+
             project_containers = []
-            
+
             for container in containers:
                 # Check if this is a project container
                 labels = container.labels or {}
                 project_name = labels.get('com.docker.compose.project')
-                
+
                 if project_name == 'homeiq':
                     # Map container name to service name
                     service_name = self._get_service_name_from_container(container.name)
-                    
+
                     # Get container status
                     status = self._get_container_status(container)
-                    
+
                     # Get port mappings
                     ports = {}
                     if container.attrs.get('NetworkSettings', {}).get('Ports'):
                         for container_port, host_bindings in container.attrs['NetworkSettings']['Ports'].items():
                             if host_bindings:
                                 ports[container_port] = host_bindings[0]['HostPort']
-                    
+
                     container_info = ContainerInfo(
                         name=container.name,
                         service_name=service_name,
@@ -148,18 +147,18 @@ class DockerService:
                         labels=labels,
                         is_project_container=True
                     )
-                    
+
                     project_containers.append(container_info)
-            
+
             logger.info(f"Found {len(project_containers)} project containers")
             return project_containers
-            
+
         except Exception as e:
             logger.error(f"Error listing containers: {e}")
             # Return mock data on error
             return await self._get_mock_containers()
-    
-    async def start_container(self, service_name: str) -> Tuple[bool, str]:
+
+    async def start_container(self, service_name: str) -> tuple[bool, str]:
         """
         Start a Docker container
         
@@ -173,22 +172,22 @@ class DockerService:
             if self.client is None:
                 # Mock response when Docker is not available
                 return True, f"Mock: Container {service_name} started successfully (Docker not available)"
-            
+
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
-            
+
             container = self.client.containers.get(container_name)
-            
+
             if container.status == 'running':
                 return True, f"Container {container_name} is already running"
-            
+
             # Start the container
             container.start()
-            
+
             # Wait a moment for startup
             await asyncio.sleep(2)
-            
+
             # Check if it started successfully
             container.reload()
             if container.status == 'running':
@@ -197,15 +196,15 @@ class DockerService:
             else:
                 logger.warning(f"Container {container_name} may not have started properly")
                 return False, f"Container {container_name} failed to start properly"
-                
+
         except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
             logger.error(f"Error starting container {service_name}: {e}")
             return False, f"Error starting container: {str(e)}"
-    
-    async def stop_container(self, service_name: str) -> Tuple[bool, str]:
+
+    async def stop_container(self, service_name: str) -> tuple[bool, str]:
         """
         Stop a Docker container
         
@@ -219,22 +218,22 @@ class DockerService:
             if self.client is None:
                 # Mock response when Docker is not available
                 return True, f"Mock: Container {service_name} stopped successfully (Docker not available)"
-            
+
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
-            
+
             container = self.client.containers.get(container_name)
-            
+
             if container.status != 'running':
                 return True, f"Container {container_name} is not running"
-            
+
             # Stop the container
             container.stop(timeout=10)
-            
+
             # Wait a moment for shutdown
             await asyncio.sleep(2)
-            
+
             # Check if it stopped successfully
             container.reload()
             if container.status != 'running':
@@ -243,15 +242,15 @@ class DockerService:
             else:
                 logger.warning(f"Container {container_name} may not have stopped properly")
                 return False, f"Container {container_name} failed to stop properly"
-                
+
         except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
             logger.error(f"Error stopping container {service_name}: {e}")
             return False, f"Error stopping container: {str(e)}"
-    
-    async def restart_container(self, service_name: str) -> Tuple[bool, str]:
+
+    async def restart_container(self, service_name: str) -> tuple[bool, str]:
         """
         Restart a Docker container
         
@@ -265,19 +264,19 @@ class DockerService:
             if self.client is None:
                 # Mock response when Docker is not available
                 return True, f"Mock: Container {service_name} restarted successfully (Docker not available)"
-            
+
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
-            
+
             container = self.client.containers.get(container_name)
-            
+
             # Restart the container
             container.restart(timeout=10)
-            
+
             # Wait a moment for restart
             await asyncio.sleep(3)
-            
+
             # Check if it restarted successfully
             container.reload()
             if container.status == 'running':
@@ -286,14 +285,14 @@ class DockerService:
             else:
                 logger.warning(f"Container {container_name} may not have restarted properly")
                 return False, f"Container {container_name} failed to restart properly"
-                
+
         except DockerNotFoundError:
             logger.error(f"Container not found for service: {service_name}")
             return False, f"Container not found for service: {service_name}"
         except Exception as e:
             logger.error(f"Error restarting container {service_name}: {e}")
             return False, f"Error restarting container: {str(e)}"
-    
+
     async def get_container_logs(self, service_name: str, tail: int = 100) -> str:
         """
         Get container logs
@@ -312,37 +311,37 @@ class DockerService:
                        f"{datetime.now().isoformat()} INFO: Service {service_name} is running\n" + \
                        f"{datetime.now().isoformat()} INFO: Mock mode - Docker not available\n" + \
                        f"{datetime.now().isoformat()} INFO: Container would be running normally\n"
-            
+
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return f"Unknown service: {service_name}"
-            
+
             container = self.client.containers.get(container_name)
             logs = container.logs(tail=tail, timestamps=True).decode('utf-8')
-            
+
             return logs
-            
+
         except DockerNotFoundError:
             return f"Container not found for service: {service_name}"
         except Exception as e:
             logger.error(f"Error getting logs for {service_name}: {e}")
             return f"Error getting logs: {str(e)}"
-    
-    def _get_container_name(self, service_name: str) -> Optional[str]:
+
+    def _get_container_name(self, service_name: str) -> str | None:
         """Get Docker container name from service name"""
         return self.container_mapping.get(service_name)
-    
+
     def _get_service_name_from_container(self, container_name: str) -> str:
         """Get service name from Docker container name"""
         for service, container in self.container_mapping.items():
             if container == container_name:
                 return service
         return container_name
-    
+
     def _get_container_status(self, container) -> ContainerStatus:
         """Get container status as enum"""
         status = container.status.lower()
-        
+
         if status == 'running':
             return ContainerStatus.RUNNING
         elif status == 'exited':
@@ -351,8 +350,8 @@ class DockerService:
             return ContainerStatus.STARTING
         else:
             return ContainerStatus.UNKNOWN
-    
-    async def get_container_stats(self, service_name: str) -> Optional[Dict]:
+
+    async def get_container_stats(self, service_name: str) -> dict | None:
         """
         Get container resource usage statistics
         
@@ -372,28 +371,28 @@ class DockerService:
                     'memory_percent': 50.0,
                     'timestamp': datetime.now().isoformat()
                 }
-            
+
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return None
-            
+
             container = self.client.containers.get(container_name)
-            
+
             if container.status != 'running':
                 return None
-            
+
             stats = container.stats(stream=False)
-            
+
             # Calculate CPU usage
             cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - stats['precpu_stats']['cpu_usage']['total_usage']
             system_delta = stats['cpu_stats']['system_cpu_usage'] - stats['precpu_stats']['system_cpu_usage']
             cpu_percent = (cpu_delta / system_delta) * len(stats['cpu_stats']['cpu_usage']['percpu_usage']) * 100.0
-            
+
             # Memory usage
             memory_usage = stats['memory_stats']['usage']
             memory_limit = stats['memory_stats']['limit']
             memory_percent = (memory_usage / memory_limit) * 100.0
-            
+
             return {
                 'cpu_percent': round(cpu_percent, 2),
                 'memory_usage': memory_usage,
@@ -401,12 +400,12 @@ class DockerService:
                 'memory_percent': round(memory_percent, 2),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting stats for {service_name}: {e}")
             return None
-    
-    async def _get_mock_containers(self) -> List[ContainerInfo]:
+
+    async def _get_mock_containers(self) -> list[ContainerInfo]:
         """
         Get mock container data when Docker is not available
         
@@ -414,7 +413,7 @@ class DockerService:
             List of mock ContainerInfo objects
         """
         mock_containers = []
-        
+
         # Create mock data for all known services
         for service_name, container_name in self.container_mapping.items():
             # Mock different statuses for variety
@@ -427,7 +426,7 @@ class DockerService:
             else:
                 status = ContainerStatus.RUNNING
                 ports = {}
-            
+
             container_info = ContainerInfo(
                 name=container_name,
                 service_name=service_name,
@@ -438,8 +437,8 @@ class DockerService:
                 labels={'com.docker.compose.project': 'homeiq'},
                 is_project_container=True
             )
-            
+
             mock_containers.append(container_info)
-        
+
         logger.info(f"Returning {len(mock_containers)} mock containers")
         return mock_containers

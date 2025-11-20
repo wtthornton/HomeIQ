@@ -9,34 +9,33 @@ Context7 Best Practices Applied:
 """
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, status
+from datetime import datetime
+
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-from typing import Dict
 
 from .config import get_settings
 from .database import get_db, init_db
 from .health_service import HealthMonitoringService
 from .integration_checker import IntegrationHealthChecker
 from .monitoring_service import ContinuousHealthMonitor
-from .setup_wizard import Zigbee2MQTTSetupWizard, MQTTSetupWizard
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
-from .zigbee_bridge_manager import ZigbeeBridgeManager
-from .zigbee_setup_wizard import Zigbee2MQTTSetupWizard as ZigbeeSetupWizard, SetupWizardRequest
 from .schemas import (
     EnvironmentHealthResponse,
     HealthCheckResponse,
-    IntegrationHealthResponse,
-    PerformanceMetricResponse,
-    IntegrationStatus
+    IntegrationStatus,
 )
+from .setup_wizard import MQTTSetupWizard, Zigbee2MQTTSetupWizard
+from .zigbee_bridge_manager import ZigbeeBridgeManager
+from .zigbee_setup_wizard import SetupWizardRequest
+from .zigbee_setup_wizard import Zigbee2MQTTSetupWizard as ZigbeeSetupWizard
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # Global service instances (initialized in lifespan)
-health_services: Dict = {}
+health_services: dict = {}
 
 
 @asynccontextmanager
@@ -51,65 +50,65 @@ async def lifespan(app: FastAPI):
     print("=" * 80)
     print("🚀 HA Setup Service Starting")
     print("=" * 80)
-    
+
     # Initialize database
     await init_db()
     print("✅ Database initialized")
-    
+
     # Initialize health monitoring service
     health_services["monitor"] = HealthMonitoringService()
     print("✅ Health monitoring service initialized")
-    
+
     # Initialize integration health checker
     health_services["integration_checker"] = IntegrationHealthChecker()
     print("✅ Integration health checker initialized")
-    
+
     # Initialize continuous monitoring
     continuous_monitor = ContinuousHealthMonitor(
         health_services["monitor"],
         health_services["integration_checker"]
     )
     health_services["continuous_monitor"] = continuous_monitor
-    
+
     # Start background monitoring
     await continuous_monitor.start()
     print("✅ Continuous health monitoring started")
-    
+
     # Initialize setup wizards
     health_services["zigbee2mqtt_wizard"] = Zigbee2MQTTSetupWizard()
     health_services["mqtt_wizard"] = MQTTSetupWizard()
     print("✅ Setup wizards initialized")
-    
+
     # Initialize optimization engine
     health_services["performance_analyzer"] = PerformanceAnalysisEngine()
     health_services["recommendation_engine"] = RecommendationEngine()
     print("✅ Optimization engine initialized")
-    
+
     # Initialize bridge manager
     health_services["bridge_manager"] = ZigbeeBridgeManager()
     print("✅ Zigbee2MQTT bridge manager initialized")
-    
+
     # Initialize enhanced setup wizard
     health_services["zigbee_setup_wizard"] = ZigbeeSetupWizard()
     print("✅ Enhanced Zigbee2MQTT setup wizard initialized")
-    
+
     print("=" * 80)
     print("✨ HA Setup Service Ready")
     print(f"📍 Listening on port {settings.service_port}")
     print("📊 Services: Health Monitoring, Integration Checking, Setup Wizards, Optimization")
     print("=" * 80)
-    
+
     yield  # Application runs here
-    
+
     # Shutdown: Stop monitoring before cleanup
     print("🛑 Stopping continuous monitoring...")
     await continuous_monitor.stop()
-    
+
     # Shutdown: Clean up resources
     print("=" * 80)
     print("👋 HA Setup Service Shutting Down")
     print("=" * 80)
-    
+
     # Clear service instances
     health_services.clear()
     print("✅ Services cleaned up")
@@ -182,7 +181,7 @@ async def get_environment_health(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Health monitoring service not initialized"
             )
-        
+
         response = await health_service.check_environment_health(db)
 
         logger.info(
@@ -197,7 +196,7 @@ async def get_environment_health(
         )
 
         return response
-        
+
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
@@ -208,7 +207,7 @@ async def get_environment_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error checking environment health: {str(e)}"
-        )
+        ) from e
 
 
 @app.get(
@@ -236,17 +235,17 @@ async def get_health_trends(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Continuous monitoring not initialized"
             )
-        
+
         trends = await continuous_monitor.get_health_trends(db, hours)
         return trends
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting health trends: {str(e)}"
-        )
+        ) from e
 
 
 @app.get(
@@ -277,13 +276,13 @@ async def get_integrations_health(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Integration health checker not initialized"
             )
-        
+
         # Run all integration checks
         check_results = await integration_checker.check_all_integrations()
-        
+
         # Store results in database
         await _store_integration_health_results(db, check_results)
-        
+
         # Return results
         return {
             "timestamp": datetime.now(),
@@ -294,7 +293,7 @@ async def get_integrations_health(
             "not_configured_count": sum(1 for r in check_results if r.status == IntegrationStatus.NOT_CONFIGURED),
             "integrations": [r.dict() for r in check_results]
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -311,7 +310,7 @@ async def _store_integration_health_results(
     """Store integration health check results in database"""
     try:
         from .models import IntegrationHealth
-        
+
         for result in check_results:
             integration_health = IntegrationHealth(
                 integration_name=result.integration_name,
@@ -323,11 +322,11 @@ async def _store_integration_health_results(
                 last_check=result.last_check,
                 check_details=result.check_details
             )
-            
+
             db.add(integration_health)
-        
+
         await db.commit()
-        
+
     except Exception as e:
         await db.rollback()
         # Log error but don't fail the health check
@@ -363,7 +362,7 @@ async def start_setup_wizard(integration_type: str):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unsupported integration type: {integration_type}"
             )
-        
+
         return {
             "session_id": session_id,
             "integration_type": integration_type,
@@ -387,29 +386,29 @@ async def start_setup_wizard(integration_type: str):
 async def execute_wizard_step(
     session_id: str,
     step_number: int,
-    step_data: Dict = None
+    step_data: dict = None
 ):
     """Execute a specific step in the setup wizard"""
     try:
         # Get wizard from session
         zigbee_wizard = health_services.get("zigbee2mqtt_wizard")
         mqtt_wizard = health_services.get("mqtt_wizard")
-        
+
         # Check which wizard owns this session
         session = zigbee_wizard.get_session_status(session_id) or mqtt_wizard.get_session_status(session_id)
-        
+
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Session {session_id} not found"
             )
-        
+
         # Get appropriate wizard
         wizard = zigbee_wizard if session["integration_type"] == "zigbee2mqtt" else mqtt_wizard
-        
+
         result = await wizard.execute_step(session_id, step_number, step_data)
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -440,10 +439,10 @@ async def analyze_performance():
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Performance analyzer not initialized"
             )
-        
+
         analysis = await analyzer.analyze_performance()
         return analysis
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -468,25 +467,25 @@ async def get_optimization_recommendations():
     try:
         analyzer = health_services.get("performance_analyzer")
         rec_engine = health_services.get("recommendation_engine")
-        
+
         if not analyzer or not rec_engine:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Optimization engine not initialized"
             )
-        
+
         # Run performance analysis
         analysis = await analyzer.analyze_performance()
-        
+
         # Generate recommendations
         recommendations = await rec_engine.generate_recommendations(analysis)
-        
+
         return {
             "timestamp": datetime.now(),
             "total_recommendations": len(recommendations),
             "recommendations": [r.dict() for r in recommendations]
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -504,7 +503,7 @@ async def get_bridge_status():
     try:
         bridge_manager = health_services["bridge_manager"]
         health_status = await bridge_manager.get_bridge_health_status()
-        
+
         return {
             "bridge_state": health_status.bridge_state.value,
             "is_connected": health_status.is_connected,
@@ -526,7 +525,7 @@ async def get_bridge_status():
                 } for attempt in health_status.recovery_attempts
             ]
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}")
 
@@ -537,13 +536,13 @@ async def attempt_bridge_recovery(force: bool = False):
     try:
         bridge_manager = health_services["bridge_manager"]
         success, message = await bridge_manager.attempt_bridge_recovery(force=force)
-        
+
         return {
             "success": success,
             "message": message,
             "timestamp": datetime.now()
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}")
 
@@ -554,13 +553,13 @@ async def restart_bridge():
     try:
         bridge_manager = health_services["bridge_manager"]
         success, message = await bridge_manager.attempt_bridge_recovery(force=True)
-        
+
         return {
             "success": success,
             "message": message,
             "timestamp": datetime.now()
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}")
 
@@ -571,7 +570,7 @@ async def get_bridge_health():
     try:
         bridge_manager = health_services["bridge_manager"]
         health_status = await bridge_manager.get_bridge_health_status()
-        
+
         return {
             "healthy": health_status.bridge_state.value == "online",
             "state": health_status.bridge_state.value,
@@ -579,7 +578,7 @@ async def get_bridge_health():
             "device_count": health_status.metrics.device_count,
             "last_check": health_status.last_check
         }
-        
+
     except Exception as e:
         return {
             "healthy": False,
@@ -599,7 +598,7 @@ async def start_zigbee_setup_wizard(request: SetupWizardRequest):
         setup_wizard = health_services["zigbee_setup_wizard"]
         response = await setup_wizard.start_setup_wizard(request)
         return response
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start setup wizard: {str(e)}")
 
@@ -611,7 +610,7 @@ async def continue_zigbee_setup_wizard(wizard_id: str):
         setup_wizard = health_services["zigbee_setup_wizard"]
         response = await setup_wizard.continue_wizard(wizard_id)
         return response
-        
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -624,12 +623,12 @@ async def get_zigbee_setup_wizard_status(wizard_id: str):
     try:
         setup_wizard = health_services["zigbee_setup_wizard"]
         response = await setup_wizard.get_wizard_status(wizard_id)
-        
+
         if response is None:
             raise HTTPException(status_code=404, detail="Wizard not found")
-        
+
         return response
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -642,12 +641,12 @@ async def cancel_zigbee_setup_wizard(wizard_id: str):
     try:
         setup_wizard = health_services["zigbee_setup_wizard"]
         success = await setup_wizard.cancel_wizard(wizard_id)
-        
+
         if success:
             return {"message": "Wizard cancelled successfully", "wizard_id": wizard_id}
         else:
             raise HTTPException(status_code=404, detail="Wizard not found")
-        
+
     except HTTPException:
         raise
     except Exception as e:

@@ -2,9 +2,9 @@
 Unit tests for EventRateMonitor - Critical monitoring component
 """
 
-import pytest
 import time
 from datetime import datetime, timedelta
+
 from event_rate_monitor import EventRateMonitor
 
 

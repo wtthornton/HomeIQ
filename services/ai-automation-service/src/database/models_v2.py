@@ -7,10 +7,21 @@ These models represent the v2 schema tables.
 Created: Phase 1 - Architecture & Database Design
 """
 
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON, Boolean, Index
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
-from typing import Optional
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.ext.declarative import declarative_base
 
 # Use the same Base as existing models
 # This ensures all models are in the same metadata
@@ -25,7 +36,7 @@ except ImportError:
 class Conversation(Base):
     """Core conversation tracking"""
     __tablename__ = 'conversations'
-    
+
     conversation_id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     conversation_type = Column(String, nullable=False)  # 'automation', 'clarification', 'action', 'information'
@@ -36,7 +47,7 @@ class Conversation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
-    
+
     def __repr__(self):
         return f"<Conversation(conversation_id={self.conversation_id}, type={self.conversation_type}, status={self.status})>"
 
@@ -44,7 +55,7 @@ class Conversation(Base):
 class ConversationTurn(Base):
     """Individual conversation turns"""
     __tablename__ = 'conversation_turns'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     conversation_id = Column(String, ForeignKey('conversations.conversation_id', ondelete='CASCADE'), nullable=False)
     turn_number = Column(Integer, nullable=False)
@@ -56,11 +67,11 @@ class ConversationTurn(Base):
     confidence = Column(Float, nullable=True)
     processing_time_ms = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index('idx_conversation_turns_conversation', 'conversation_id', 'turn_number'),
     )
-    
+
     def __repr__(self):
         return f"<ConversationTurn(id={self.id}, conversation_id={self.conversation_id}, turn_number={self.turn_number})>"
 
@@ -68,7 +79,7 @@ class ConversationTurn(Base):
 class ConfidenceFactor(Base):
     """Enhanced confidence tracking"""
     __tablename__ = 'confidence_factors'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     conversation_id = Column(String, ForeignKey('conversations.conversation_id', ondelete='CASCADE'), nullable=False)
     turn_id = Column(Integer, nullable=False)
@@ -77,7 +88,7 @@ class ConfidenceFactor(Base):
     factor_weight = Column(Float, nullable=False)
     explanation = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index('idx_confidence_conversation', 'conversation_id', 'turn_id'),
     )
@@ -86,7 +97,7 @@ class ConfidenceFactor(Base):
 class FunctionCall(Base):
     """Function call tracking"""
     __tablename__ = 'function_calls'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     conversation_id = Column(String, ForeignKey('conversations.conversation_id', ondelete='CASCADE'), nullable=False)
     turn_id = Column(Integer, nullable=False)
@@ -97,7 +108,7 @@ class FunctionCall(Base):
     success = Column(Boolean, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index('idx_function_calls_conversation', 'conversation_id', 'created_at'),
     )
@@ -106,7 +117,7 @@ class FunctionCall(Base):
 class AutomationSuggestionV2(Base):
     """Enhanced automation suggestions"""
     __tablename__ = 'automation_suggestions'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     suggestion_id = Column(String, unique=True, nullable=False)
     conversation_id = Column(String, ForeignKey('conversations.conversation_id', ondelete='CASCADE'), nullable=False)
@@ -121,12 +132,12 @@ class AutomationSuggestionV2(Base):
     status = Column(String, default='draft')  # 'draft', 'tested', 'approved', 'deployed', 'rejected'
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     __table_args__ = (
         Index('idx_suggestions_conversation', 'conversation_id'),
         Index('idx_suggestions_status', 'status', 'created_at'),
     )
-    
+
     def __repr__(self):
         return f"<AutomationSuggestionV2(suggestion_id={self.suggestion_id}, status={self.status})>"
 

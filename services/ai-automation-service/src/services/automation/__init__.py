@@ -11,11 +11,11 @@ Consolidates automation-related functionality:
 Created: Phase 2 - Core Service Refactoring
 """
 
+from .deployer import AutomationDeployer
+from .test_executor import AutomationTestExecutor
+from .yaml_corrector import AutomationYAMLCorrector
 from .yaml_generator import AutomationYAMLGenerator
 from .yaml_validator import AutomationYAMLValidator
-from .yaml_corrector import AutomationYAMLCorrector
-from .test_executor import AutomationTestExecutor
-from .deployer import AutomationDeployer
 
 __all__ = [
     'AutomationYAMLGenerator',

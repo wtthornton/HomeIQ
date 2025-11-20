@@ -5,22 +5,21 @@ Revises: 001
 Create Date: 2025-01-14
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '002'
-down_revision: Union[str, None] = '001'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '001'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create devices and entities tables"""
-    
+
     # Create devices table
     op.create_table(
         'devices',
@@ -35,12 +34,12 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('device_id')
     )
-    
+
     # Create indexes for devices
     op.create_index('idx_device_area', 'devices', ['area_id'])
     op.create_index('idx_device_integration', 'devices', ['integration'])
     op.create_index('idx_device_manufacturer', 'devices', ['manufacturer'])
-    
+
     # Create entities table
     op.create_table(
         'entities',
@@ -55,7 +54,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['device_id'], ['devices.device_id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('entity_id')
     )
-    
+
     # Create indexes for entities
     op.create_index('idx_entity_device', 'entities', ['device_id'])
     op.create_index('idx_entity_domain', 'entities', ['domain'])
@@ -64,20 +63,20 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop devices and entities tables"""
-    
+
     # Drop indexes first
     op.drop_index('idx_entity_area', table_name='entities')
     op.drop_index('idx_entity_domain', table_name='entities')
     op.drop_index('idx_entity_device', table_name='entities')
-    
+
     # Drop entities table
     op.drop_table('entities')
-    
+
     # Drop device indexes
     op.drop_index('idx_device_manufacturer', table_name='devices')
     op.drop_index('idx_device_integration', table_name='devices')
     op.drop_index('idx_device_area', table_name='devices')
-    
+
     # Drop devices table
     op.drop_table('devices')
 

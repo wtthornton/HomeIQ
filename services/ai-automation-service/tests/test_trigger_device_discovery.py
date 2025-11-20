@@ -4,27 +4,28 @@ Unit tests for Trigger Device Discovery
 Tests sensor discovery, entity conversion, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.trigger_analysis.trigger_device_discovery import TriggerDeviceDiscovery
+
+import pytest
 from src.clients.device_intelligence_client import DeviceIntelligenceClient
+from src.trigger_analysis.trigger_device_discovery import TriggerDeviceDiscovery
 
 
 class TestTriggerDeviceDiscovery:
     """Test suite for TriggerDeviceDiscovery"""
-    
+
     @pytest.fixture
     def mock_device_client(self):
         """Create mock device intelligence client"""
         client = MagicMock(spec=DeviceIntelligenceClient)
         client.search_sensors_by_condition = AsyncMock()
         return client
-    
+
     @pytest.fixture
     def discovery(self, mock_device_client):
         """Create discovery instance with mocked client"""
         return TriggerDeviceDiscovery(mock_device_client)
-    
+
     @pytest.fixture
     def sample_presence_condition(self):
         """Sample presence trigger condition"""
@@ -38,7 +39,7 @@ class TestTriggerDeviceDiscovery:
             'confidence': 0.8,
             'extraction_method': 'pattern_matching'
         }
-    
+
     @pytest.fixture
     def sample_motion_condition(self):
         """Sample motion trigger condition"""
@@ -52,7 +53,7 @@ class TestTriggerDeviceDiscovery:
             'confidence': 0.8,
             'extraction_method': 'pattern_matching'
         }
-    
+
     @pytest.fixture
     def sample_sensor_device(self):
         """Sample sensor device from device intelligence"""
@@ -76,16 +77,16 @@ class TestTriggerDeviceDiscovery:
                 }
             ]
         }
-    
+
     @pytest.mark.asyncio
     async def test_discover_presence_sensor(self, discovery, mock_device_client, sample_presence_condition, sample_sensor_device):
         """Test discovery of presence sensor"""
         # Mock device client response
         mock_device_client.search_sensors_by_condition.return_value = [sample_sensor_device]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 1
         device = devices[0]
         assert device['name'] == 'PS FP2 Desk'
@@ -93,14 +94,14 @@ class TestTriggerDeviceDiscovery:
         assert device['device_class'] == 'occupancy'
         assert device['trigger_type'] == 'presence'
         assert device['area'] == 'office'
-        
+
         # Verify client was called correctly
         mock_device_client.search_sensors_by_condition.assert_called_once_with(
             trigger_type='presence',
             location='office',
             device_class='occupancy'
         )
-    
+
     @pytest.mark.asyncio
     async def test_discover_motion_sensor(self, discovery, mock_device_client, sample_motion_condition):
         """Test discovery of motion sensor"""
@@ -115,26 +116,26 @@ class TestTriggerDeviceDiscovery:
                 {'entity_id': 'binary_sensor.motion_kitchen', 'domain': 'binary_sensor'}
             ]
         }
-        
+
         mock_device_client.search_sensors_by_condition.return_value = [sample_motion_sensor]
-        
+
         conditions = [sample_motion_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 1
         assert devices[0]['entity_id'] == 'binary_sensor.motion_kitchen'
         assert devices[0]['device_class'] == 'motion'
-    
+
     @pytest.mark.asyncio
     async def test_no_matching_sensors(self, discovery, mock_device_client, sample_presence_condition):
         """Test when no sensors match"""
         mock_device_client.search_sensors_by_condition.return_value = []
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 0
-    
+
     @pytest.mark.asyncio
     async def test_multiple_matching_sensors(self, discovery, mock_device_client, sample_presence_condition):
         """Test when multiple sensors match"""
@@ -156,29 +157,29 @@ class TestTriggerDeviceDiscovery:
             'area_name': 'office',
             'entities': [{'entity_id': 'binary_sensor.ps_fp2_chair'}]
         }
-        
+
         mock_device_client.search_sensors_by_condition.return_value = [sensor1, sensor2]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 2
         entity_ids = [d['entity_id'] for d in devices]
         assert 'binary_sensor.ps_fp2_desk' in entity_ids
         assert 'binary_sensor.ps_fp2_chair' in entity_ids
-    
+
     @pytest.mark.asyncio
     async def test_duplicate_entities_filtered(self, discovery, mock_device_client, sample_presence_condition, sample_sensor_device):
         """Test that duplicate entities are filtered"""
         # Return same sensor twice (shouldn't happen but test defensive code)
         mock_device_client.search_sensors_by_condition.return_value = [sample_sensor_device, sample_sensor_device]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         # Should only return one device
         assert len(devices) == 1
-    
+
     @pytest.mark.asyncio
     async def test_multiple_conditions(self, discovery, mock_device_client, sample_presence_condition, sample_motion_condition):
         """Test discovery with multiple trigger conditions"""
@@ -200,7 +201,7 @@ class TestTriggerDeviceDiscovery:
             'area_name': 'kitchen',
             'entities': [{'entity_id': 'binary_sensor.motion_kitchen'}]
         }
-        
+
         # Mock different responses for different conditions
         async def mock_search(trigger_type, location, device_class):
             if trigger_type == 'presence':
@@ -208,24 +209,24 @@ class TestTriggerDeviceDiscovery:
             elif trigger_type == 'motion':
                 return [motion_sensor]
             return []
-        
+
         mock_device_client.search_sensors_by_condition.side_effect = mock_search
-        
+
         conditions = [sample_presence_condition, sample_motion_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 2
         trigger_types = [d['trigger_type'] for d in devices]
         assert 'presence' in trigger_types
         assert 'motion' in trigger_types
-    
+
     @pytest.mark.asyncio
     async def test_empty_conditions_list(self, discovery):
         """Test with empty conditions list"""
         devices = await discovery.discover_trigger_devices([])
-        
+
         assert devices == []
-    
+
     @pytest.mark.asyncio
     async def test_condition_without_trigger_type(self, discovery, mock_device_client):
         """Test handling of condition without trigger_type"""
@@ -234,25 +235,25 @@ class TestTriggerDeviceDiscovery:
             'condition_text': 'some condition',
             'location': 'office'
         }
-        
+
         conditions = [invalid_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         # Should skip invalid condition
         assert len(devices) == 0
         mock_device_client.search_sensors_by_condition.assert_not_called()
-    
+
     @pytest.mark.asyncio
     async def test_sensor_to_entity_conversion(self, discovery, mock_device_client, sample_presence_condition, sample_sensor_device):
         """Test sensor to entity conversion"""
         mock_device_client.search_sensors_by_condition.return_value = [sample_sensor_device]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 1
         entity = devices[0]
-        
+
         # Check all required fields
         assert entity['name'] == 'PS FP2 Desk'
         assert entity['entity_id'] == 'binary_sensor.ps_fp2_desk'
@@ -267,7 +268,7 @@ class TestTriggerDeviceDiscovery:
         assert entity['extraction_method'] == 'trigger_discovery'
         assert 'capabilities' in entity
         assert 'health_score' in entity
-    
+
     @pytest.mark.asyncio
     async def test_sensor_with_missing_entity_id(self, discovery, mock_device_client, sample_presence_condition):
         """Test sensor conversion when entity_id is missing"""
@@ -277,27 +278,27 @@ class TestTriggerDeviceDiscovery:
             'domain': 'binary_sensor',
             'entities': []  # Empty entities list
         }
-        
+
         mock_device_client.search_sensors_by_condition.return_value = [sensor_no_entity_id]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         # Should handle gracefully - may return None or use device_id as fallback
         # Implementation dependent
         assert isinstance(devices, list)
-    
+
     @pytest.mark.asyncio
     async def test_client_error_handling(self, discovery, mock_device_client, sample_presence_condition):
         """Test error handling when client raises exception"""
         mock_device_client.search_sensors_by_condition.side_effect = Exception("Connection error")
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         # Should return empty list on error (graceful degradation)
         assert devices == []
-    
+
     @pytest.mark.asyncio
     async def test_sensor_with_entities_list(self, discovery, mock_device_client, sample_presence_condition):
         """Test sensor conversion when entity_id is in entities list"""
@@ -313,22 +314,22 @@ class TestTriggerDeviceDiscovery:
                 }
             ]
         }
-        
+
         mock_device_client.search_sensors_by_condition.return_value = [sensor_with_entities]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 1
         assert devices[0]['entity_id'] == 'binary_sensor.test_sensor'
-    
+
     @pytest.mark.asyncio
     async def test_entity_extraction_method(self, discovery, mock_device_client, sample_presence_condition, sample_sensor_device):
         """Test that extraction_method is set correctly"""
         mock_device_client.search_sensors_by_condition.return_value = [sample_sensor_device]
-        
+
         conditions = [sample_presence_condition]
         devices = await discovery.discover_trigger_devices(conditions)
-        
+
         assert len(devices) == 1
         assert devices[0]['extraction_method'] == 'trigger_discovery'

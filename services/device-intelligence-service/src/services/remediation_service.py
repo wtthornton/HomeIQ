@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HomeAssistantClient
 from ..models.database import DeviceHygieneIssue
@@ -23,7 +22,7 @@ class DeviceHygieneRemediationService:
         self,
         issue: DeviceHygieneIssue,
         action: str,
-        value: Optional[str] = None,
+        value: str | None = None,
     ) -> bool:
         if action == "rename_device":
             return await self._rename_device(issue, value)
@@ -36,7 +35,7 @@ class DeviceHygieneRemediationService:
         raise ValueError(f"Unsupported remediation action: {action}")
 
     async def _rename_device(
-        self, issue: DeviceHygieneIssue, name: Optional[str]
+        self, issue: DeviceHygieneIssue, name: str | None
     ) -> bool:
         if not issue.device_id or not name or not name.strip():
             return False
@@ -48,7 +47,7 @@ class DeviceHygieneRemediationService:
         return await self._mark_resolved(issue, {"applied_value": result.get("name", name.strip())})
 
     async def _assign_area(
-        self, issue: DeviceHygieneIssue, area_id: Optional[str]
+        self, issue: DeviceHygieneIssue, area_id: str | None
     ) -> bool:
         if not issue.device_id or not area_id:
             return False
@@ -70,7 +69,7 @@ class DeviceHygieneRemediationService:
         return await self._mark_resolved(issue, {})
 
     async def _start_config_flow(
-        self, issue: DeviceHygieneIssue, handler: Optional[str]
+        self, issue: DeviceHygieneIssue, handler: str | None
     ) -> bool:
         integration = handler or (issue.metadata_json or {}).get("integration")
         if not integration:

@@ -5,18 +5,8 @@ Story AI3.1: Device Synergy Detector Foundation
 Epic AI-3: Cross-Device Synergy & Contextual Opportunities
 """
 
+
 import pytest
-import json
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
-
-from src.database.crud import (
-    store_synergy_opportunity,
-    store_synergy_opportunities,
-    get_synergy_opportunities,
-    get_synergy_stats
-)
-
 
 # ============================================================================
 # Fixtures
@@ -89,7 +79,7 @@ def test_synergy_data_structure(sample_synergy):
         'synergy_id', 'synergy_type', 'devices', 'impact_score',
         'complexity', 'confidence'
     ]
-    
+
     for field in required_fields:
         assert field in sample_synergy
 
@@ -100,7 +90,7 @@ def test_synergy_metadata_structure(sample_synergy):
         'trigger_entity', 'trigger_name', 'action_entity',
         'action_name', 'relationship', 'rationale'
     ]
-    
+
     for field in metadata_fields:
         assert field in sample_synergy
 
@@ -132,10 +122,10 @@ def test_confidence_threshold_logic():
         {'confidence': 0.75},
         {'confidence': 0.65}
     ]
-    
+
     min_confidence = 0.7
     filtered = [s for s in test_synergies if s['confidence'] >= min_confidence]
-    
+
     assert len(filtered) == 3  # Only >= 0.7
 
 
@@ -147,7 +137,7 @@ def test_synergy_type_filtering():
         {'synergy_type': 'weather_context'},
         {'synergy_type': 'energy_context'}
     ]
-    
+
     device_pairs = [s for s in test_synergies if s['synergy_type'] == 'device_pair']
     assert len(device_pairs) == 2
 
@@ -163,16 +153,16 @@ def test_stats_calculation():
         {'synergy_type': 'device_pair', 'complexity': 'medium', 'impact_score': 0.9},
         {'synergy_type': 'weather_context', 'complexity': 'low', 'impact_score': 0.7}
     ]
-    
+
     # Count by type
     by_type = {}
     for item in test_data:
         stype = item['synergy_type']
         by_type[stype] = by_type.get(stype, 0) + 1
-    
+
     assert by_type['device_pair'] == 2
     assert by_type['weather_context'] == 1
-    
+
     # Average impact
     avg_impact = sum(item['impact_score'] for item in test_data) / len(test_data)
     assert 0.7 <= avg_impact <= 0.9

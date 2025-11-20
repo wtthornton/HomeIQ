@@ -9,20 +9,19 @@ Usage:
     python scripts/export_legacy_data.py [--output output.json]
 """
 
-import asyncio
-import sys
-import json
 import argparse
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, List
+import asyncio
+import json
 import logging
+import sys
+from datetime import datetime
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.database.models import AskAIQuery, ClarificationSessionDB
 
 logging.basicConfig(level=logging.INFO)
@@ -31,24 +30,24 @@ logger = logging.getLogger(__name__)
 
 async def export_legacy_data(output_path: Path) -> bool:
     """Export legacy data to JSON"""
-    
+
     db_path = Path(__file__).parent.parent / "data" / "ai_automation.db"
-    
+
     if not db_path.exists():
         logger.error(f"Database not found: {db_path}")
         return False
-    
+
     db_url = f"sqlite+aiosqlite:///{db_path}"
     engine = create_async_engine(db_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     try:
         async with async_session() as session:
             # Export ask_ai_queries
             logger.info("Exporting ask_ai_queries...")
             result = await session.execute(select(AskAIQuery))
             queries = result.scalars().all()
-            
+
             queries_data = []
             for query in queries:
                 queries_data.append({
@@ -62,14 +61,14 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "processing_time_ms": query.processing_time_ms,
                     "created_at": query.created_at.isoformat() if query.created_at else None
                 })
-            
+
             logger.info(f"✅ Exported {len(queries_data)} queries")
-            
+
             # Export clarification_sessions
             logger.info("Exporting clarification_sessions...")
             result = await session.execute(select(ClarificationSessionDB))
             sessions = result.scalars().all()
-            
+
             sessions_data = []
             for session in sessions:
                 sessions_data.append({
@@ -90,9 +89,9 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "completed_at": session.completed_at.isoformat() if session.completed_at else None,
                     "clarification_query_id": session.clarification_query_id
                 })
-            
+
             logger.info(f"✅ Exported {len(sessions_data)} clarification sessions")
-            
+
             # Combine export data
             export_data = {
                 "export_version": "1.0",
@@ -107,18 +106,18 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "active_sessions": sum(1 for s in sessions_data if s.get("status") == "in_progress")
                 }
             }
-            
+
             # Write to file
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(export_data, f, indent=2, ensure_ascii=False)
-            
+
             logger.info(f"✅ Export completed: {output_path}")
             logger.info(f"   - {len(queries_data)} queries")
             logger.info(f"   - {len(sessions_data)} clarification sessions")
-            
+
             return True
-            
+
     except Exception as e:
         logger.error(f"❌ Export failed: {e}", exc_info=True)
         return False
@@ -135,7 +134,7 @@ async def main():
         help="Output JSON file path"
     )
     args = parser.parse_args()
-    
+
     success = await export_legacy_data(args.output)
     sys.exit(0 if success else 1)
 

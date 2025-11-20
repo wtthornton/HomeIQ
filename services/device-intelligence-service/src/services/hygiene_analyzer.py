@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,13 +36,13 @@ class HygieneFinding:
     issue_key: str
     issue_type: str
     severity: str
-    name: Optional[str]
+    name: str | None
     summary: str
-    suggested_action: Optional[str]
-    suggested_value: Optional[str]
-    device_id: Optional[str]
-    entity_id: Optional[str]
-    metadata: Dict[str, Any]
+    suggested_action: str | None
+    suggested_value: str | None
+    device_id: str | None
+    entity_id: str | None
+    metadata: dict[str, Any]
 
 
 class DeviceHygieneAnalyzer:
@@ -55,16 +56,16 @@ class DeviceHygieneAnalyzer:
         ha_devices: Sequence[HADevice],
         ha_entities: Sequence[HAEntity],
         areas: Sequence[HAArea],
-    ) -> List[HygieneFinding]:
+    ) -> list[HygieneFinding]:
         """Run analysis and persist findings."""
 
         area_lookup = {area.area_id: area for area in areas if area.area_id}
-        entity_lookup: Dict[str, List[HAEntity]] = {}
+        entity_lookup: dict[str, list[HAEntity]] = {}
         for entity in ha_entities:
             if entity.device_id:
                 entity_lookup.setdefault(entity.device_id, []).append(entity)
 
-        findings: List[HygieneFinding] = []
+        findings: list[HygieneFinding] = []
         findings.extend(self._detect_duplicate_names(ha_devices, area_lookup, entity_lookup))
         findings.extend(self._detect_placeholder_names(ha_devices, area_lookup, entity_lookup))
         findings.extend(self._detect_unassigned_areas(ha_devices, area_lookup, entity_lookup))
@@ -78,10 +79,10 @@ class DeviceHygieneAnalyzer:
     def _detect_duplicate_names(
         self,
         ha_devices: Sequence[HADevice],
-        areas: Dict[str, HAArea],
-        entity_lookup: Dict[str, List[HAEntity]],
-    ) -> List[HygieneFinding]:
-        by_name: Dict[str, List[HADevice]] = {}
+        areas: dict[str, HAArea],
+        entity_lookup: dict[str, list[HAEntity]],
+    ) -> list[HygieneFinding]:
+        by_name: dict[str, list[HADevice]] = {}
         for device in ha_devices:
             candidate = device.name_by_user or device.name
             normalized = self._normalize_name(candidate)
@@ -89,7 +90,7 @@ class DeviceHygieneAnalyzer:
                 continue
             by_name.setdefault(normalized, []).append(device)
 
-        findings: List[HygieneFinding] = []
+        findings: list[HygieneFinding] = []
         for normalized, devices in by_name.items():
             if len(devices) < 2:
                 continue
@@ -119,10 +120,10 @@ class DeviceHygieneAnalyzer:
     def _detect_placeholder_names(
         self,
         ha_devices: Sequence[HADevice],
-        areas: Dict[str, HAArea],
-        entity_lookup: Dict[str, List[HAEntity]],
-    ) -> List[HygieneFinding]:
-        findings: List[HygieneFinding] = []
+        areas: dict[str, HAArea],
+        entity_lookup: dict[str, list[HAEntity]],
+    ) -> list[HygieneFinding]:
+        findings: list[HygieneFinding] = []
         for device in ha_devices:
             candidate = device.name_by_user or device.name
             if not candidate:
@@ -151,10 +152,10 @@ class DeviceHygieneAnalyzer:
     def _detect_unassigned_areas(
         self,
         ha_devices: Sequence[HADevice],
-        areas: Dict[str, HAArea],
-        entity_lookup: Dict[str, List[HAEntity]],
-    ) -> List[HygieneFinding]:
-        findings: List[HygieneFinding] = []
+        areas: dict[str, HAArea],
+        entity_lookup: dict[str, list[HAEntity]],
+    ) -> list[HygieneFinding]:
+        findings: list[HygieneFinding] = []
         for device in ha_devices:
             if device.area_id:
                 continue
@@ -182,10 +183,10 @@ class DeviceHygieneAnalyzer:
     def _detect_stale_discoveries(
         self,
         ha_devices: Sequence[HADevice],
-        entity_lookup: Dict[str, List[HAEntity]],
-    ) -> List[HygieneFinding]:
+        entity_lookup: dict[str, list[HAEntity]],
+    ) -> list[HygieneFinding]:
         now = datetime.now(timezone.utc)
-        findings: List[HygieneFinding] = []
+        findings: list[HygieneFinding] = []
         for device in ha_devices:
             age = now - device.created_at
             if age < STALE_DISCOVERY_AGE:
@@ -214,8 +215,8 @@ class DeviceHygieneAnalyzer:
             )
         return findings
 
-    def _detect_disabled_entities(self, ha_entities: Sequence[HAEntity]) -> List[HygieneFinding]:
-        findings: List[HygieneFinding] = []
+    def _detect_disabled_entities(self, ha_entities: Sequence[HAEntity]) -> list[HygieneFinding]:
+        findings: list[HygieneFinding] = []
         for entity in ha_entities:
             if not entity.disabled_by:
                 continue
@@ -292,15 +293,15 @@ class DeviceHygieneAnalyzer:
 
         await self.session.commit()
 
-    def _normalize_name(self, value: Optional[str]) -> Optional[str]:
+    def _normalize_name(self, value: str | None) -> str | None:
         if not value:
             return None
         simplified = re.sub(r"[^a-z0-9]+", " ", value.lower())
         simplified = re.sub(r"\s+", " ", simplified).strip()
         return simplified or None
 
-    def _suggest_device_name(self, device: HADevice, areas: Dict[str, HAArea]) -> Optional[str]:
-        parts: List[str] = []
+    def _suggest_device_name(self, device: HADevice, areas: dict[str, HAArea]) -> str | None:
+        parts: list[str] = []
         if device.area_id and device.area_id in areas:
             parts.append(areas[device.area_id].name)
         elif device.suggested_area and device.suggested_area in areas:

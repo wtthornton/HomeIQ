@@ -5,10 +5,10 @@ Analyzes user requests to find matching automation patterns and extracts
 required variables from available entities.
 """
 
-from typing import Dict, List, Optional, Any, Set
-from dataclasses import dataclass
 import logging
 import re
+from dataclasses import dataclass
+from typing import Any
 
 from .common_patterns import PatternDefinition, PatternVariable, get_all_patterns
 
@@ -20,9 +20,9 @@ class PatternMatch:
     """Result of matching a pattern to a user request"""
     pattern_id: str
     pattern: PatternDefinition
-    variables: Dict[str, str]  # variable_name -> entity_id (or value)
+    variables: dict[str, str]  # variable_name -> entity_id (or value)
     confidence: float  # 0.0 - 1.0
-    missing_variables: List[str] = None
+    missing_variables: list[str] = None
 
     def __post_init__(self):
         if self.missing_variables is None:
@@ -39,7 +39,7 @@ class PatternMatcher:
     3. Return ranked list of matches with confidence scores
     """
 
-    def __init__(self, patterns: Optional[Dict[str, PatternDefinition]] = None):
+    def __init__(self, patterns: dict[str, PatternDefinition] | None = None):
         """
         Initialize pattern matcher.
 
@@ -51,8 +51,8 @@ class PatternMatcher:
     async def match_patterns(
         self,
         user_request: str,
-        available_entities: List[Dict[str, Any]]
-    ) -> List[PatternMatch]:
+        available_entities: list[dict[str, Any]]
+    ) -> list[PatternMatch]:
         """
         Find patterns that match the user's request.
 
@@ -111,7 +111,7 @@ class PatternMatcher:
 
         return matches
 
-    def _calculate_keyword_match(self, request: str, keywords: List[str]) -> float:
+    def _calculate_keyword_match(self, request: str, keywords: list[str]) -> float:
         """
         Calculate how well request matches pattern keywords.
 
@@ -136,9 +136,9 @@ class PatternMatcher:
     async def _extract_variables(
         self,
         user_request: str,
-        variable_defs: List[PatternVariable],
-        available_entities: List[Dict[str, Any]]
-    ) -> tuple[Dict[str, str], List[str]]:
+        variable_defs: list[PatternVariable],
+        available_entities: list[dict[str, Any]]
+    ) -> tuple[dict[str, str], list[str]]:
         """
         Extract variable values from user request and available entities.
 
@@ -205,8 +205,8 @@ class PatternMatcher:
         self,
         request: str,
         var_def: PatternVariable,
-        entities: List[Dict[str, Any]]
-    ) -> Optional[str]:
+        entities: list[dict[str, Any]]
+    ) -> str | None:
         """
         Find best matching entity for variable definition.
 
@@ -272,8 +272,8 @@ class PatternMatcher:
     async def _find_any_entity_match(
         self,
         request: str,
-        entities: List[Dict[str, Any]]
-    ) -> Optional[str]:
+        entities: list[dict[str, Any]]
+    ) -> str | None:
         """Find any entity that appears in the request"""
         for entity in entities:
             friendly_name = entity.get('friendly_name', '').lower()
@@ -285,7 +285,7 @@ class PatternMatcher:
         self,
         request: str,
         var_def: PatternVariable
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Extract numeric/time values from request.
 

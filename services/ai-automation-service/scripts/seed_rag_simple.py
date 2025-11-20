@@ -3,11 +3,11 @@ Simple RAG Seeding Script - Direct SQLite Access
 Seeds from patterns only (doesn't require OpenVINO or full environment)
 """
 
-import sqlite3
 import json
+import sqlite3
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Fix Windows encoding
 if sys.platform == 'win32':
@@ -46,19 +46,19 @@ if existing_count > 0:
 try:
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from src.patterns.common_patterns import PATTERNS
-    
+
     print(f"\n📚 Seeding from {len(PATTERNS)} common patterns...")
-    
+
     count = 0
     for pattern_id, pattern in PATTERNS.items():
         try:
             # Create descriptive text from pattern
             pattern_text = f"{pattern.name}. {pattern.description}. Keywords: {', '.join(pattern.keywords)}"
-            
+
             # Create a simple embedding placeholder (will be replaced when real embeddings are generated)
             # For now, we'll store a placeholder that indicates this needs embedding
             embedding_placeholder = json.dumps([0.0] * 384)  # 384-dim zero vector placeholder
-            
+
             # Store pattern
             cursor.execute("""
                 INSERT INTO semantic_knowledge 
@@ -79,17 +79,17 @@ try:
                 datetime.utcnow().isoformat()
             ))
             count += 1
-            
+
             if count % 10 == 0:
                 print(f"  Processed {count} patterns...")
-                
+
         except Exception as e:
             print(f"⚠️  Failed to seed pattern {pattern_id}: {e}")
             continue
-    
+
     conn.commit()
     print(f"✅ Seeded {count} patterns")
-    
+
 except ImportError as e:
     print(f"⚠️  Could not import patterns: {e}")
     print("   Patterns will be seeded when full seeding script runs with OpenVINO service")

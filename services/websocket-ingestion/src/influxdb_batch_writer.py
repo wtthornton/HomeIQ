@@ -4,24 +4,25 @@ InfluxDB Batch Writer for Optimal Performance
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Callable
-from datetime import datetime, timedelta
 from collections import deque
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
 
 try:
     from influxdb_client import Point
 except ImportError:
     Point = None
 
-from .influxdb_wrapper import InfluxDBConnectionManager
 from .influxdb_schema import InfluxDBSchema
+from .influxdb_wrapper import InfluxDBConnectionManager
 
 logger = logging.getLogger(__name__)
 
 
 class InfluxDBBatchWriter:
     """High-performance batch writer for InfluxDB"""
-    
+
     def __init__(self,
                  connection_manager: InfluxDBConnectionManager,
                  batch_size: int = 1000,
@@ -47,59 +48,59 @@ class InfluxDBBatchWriter:
         self.retry_delay = retry_delay
         self.max_pending_points = max_pending_points
         self.overflow_strategy = overflow_strategy
-        
+
         # Schema for point creation
         self.schema = InfluxDBSchema()
-        
+
         # Batch management
-        self.current_batch: List[Point] = []
-        self.batch_start_time: Optional[datetime] = None
+        self.current_batch: list[Point] = []
+        self.batch_start_time: datetime | None = None
         self.batch_lock = asyncio.Lock()
-        
+
         # Processing statistics
         self.total_batches_written = 0
         self.total_points_written = 0
         self.total_points_failed = 0
         self.processing_start_time = datetime.now()
-        
+
         # Performance monitoring
         self.batch_write_times: deque = deque(maxlen=100)
         self.batch_sizes: deque = deque(maxlen=100)
         self.write_rates: deque = deque(maxlen=100)
-        
+
         # Processing task
-        self.processing_task: Optional[asyncio.Task] = None
+        self.processing_task: asyncio.Task | None = None
         self.is_running = False
-        
+
         # Error handling
-        self.error_callbacks: List[Callable] = []
+        self.error_callbacks: list[Callable] = []
         self.queue_overflow_events = 0
         self.dropped_points = 0
-    
+
     async def start(self):
         """Start the batch writer"""
         if self.is_running:
             logger.warning("InfluxDB batch writer is already running")
             return
-        
+
         self.is_running = True
         self.processing_start_time = datetime.now()
-        
+
         # Start processing task
         self.processing_task = asyncio.create_task(self._processing_loop())
-        
+
         logger.info(f"Started InfluxDB batch writer with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
-    
+
     async def stop(self):
         """Stop the batch writer"""
         if not self.is_running:
             return
-        
+
         self.is_running = False
-        
+
         # Process any remaining points
         await self._process_current_batch()
-        
+
         # Cancel processing task
         if self.processing_task:
             self.processing_task.cancel()
@@ -107,10 +108,10 @@ class InfluxDBBatchWriter:
                 await self.processing_task
             except asyncio.CancelledError:
                 pass
-        
+
         logger.info("Stopped InfluxDB batch writer")
-    
-    async def write_event(self, event_data: Dict[str, Any]) -> bool:
+
+    async def write_event(self, event_data: dict[str, Any]) -> bool:
         """
         Write event data to InfluxDB
         
@@ -126,14 +127,14 @@ class InfluxDBBatchWriter:
             if not point:
                 logger.warning("Failed to create InfluxDB point from event data")
                 return False
-            
+
             return await self._enqueue_point(point)
-                
+
         except Exception as e:
             logger.error(f"Error writing event to InfluxDB: {e}")
             return False
-    
-    async def write_weather_data(self, weather_data: Dict[str, Any], location: str) -> bool:
+
+    async def write_weather_data(self, weather_data: dict[str, Any], location: str) -> bool:
         """
         Write weather data to InfluxDB
         
@@ -150,13 +151,13 @@ class InfluxDBBatchWriter:
             if not point:
                 logger.warning("Failed to create InfluxDB point from weather data")
                 return False
-            
+
             return await self._enqueue_point(point)
-                
+
         except Exception as e:
             logger.error(f"Error writing weather data to InfluxDB: {e}")
             return False
-    
+
     async def _processing_loop(self):
         """Main processing loop"""
         while self.is_running:
@@ -181,7 +182,7 @@ class InfluxDBBatchWriter:
         await self._process_batch_with_metrics(batch_to_process)
 
     async def _enqueue_point(self, point: Point) -> bool:
-        batch_to_process: Optional[List[Point]] = None
+        batch_to_process: list[Point] | None = None
 
         async with self.batch_lock:
             if not self._apply_backpressure_locked():
@@ -203,11 +204,11 @@ class InfluxDBBatchWriter:
 
         return True
 
-    async def _drain_current_batch(self) -> List[Point]:
+    async def _drain_current_batch(self) -> list[Point]:
         async with self.batch_lock:
             return self._drain_current_batch_locked()
 
-    def _drain_current_batch_locked(self) -> List[Point]:
+    def _drain_current_batch_locked(self) -> list[Point]:
         batch_to_process = self.current_batch.copy()
         self.current_batch.clear()
         self.batch_start_time = None
@@ -249,7 +250,7 @@ class InfluxDBBatchWriter:
         self.overflow_strategy = "drop_oldest"
         return self._apply_backpressure_locked()
 
-    async def _process_batch_with_metrics(self, batch_to_process: List[Point]):
+    async def _process_batch_with_metrics(self, batch_to_process: list[Point]):
         if not batch_to_process:
             return
 
@@ -269,8 +270,8 @@ class InfluxDBBatchWriter:
         if write_time > 0:
             rate = len(batch_to_process) / write_time
             self.write_rates.append(rate)
-    
-    async def _write_batch(self, batch: List[Point]) -> bool:
+
+    async def _write_batch(self, batch: list[Point]) -> bool:
         """
         Write a batch of points to InfluxDB
         
@@ -290,20 +291,20 @@ class InfluxDBBatchWriter:
                         valid_points.append(point)
                     else:
                         logger.warning(f"Invalid point: {errors}")
-                
+
                 if not valid_points:
                     logger.error("No valid points in batch")
                     return False
-                
+
                 # Write points to InfluxDB
                 success = await self.connection_manager.write_points(valid_points)
-                
+
                 if success:
                     logger.debug(f"Successfully wrote batch of {len(valid_points)} points to InfluxDB")
                     return True
                 else:
                     logger.error(f"Failed to write batch to InfluxDB (attempt {attempt + 1})")
-                    
+
                     if attempt < self.max_retries - 1:
                         # Wait before retry
                         await asyncio.sleep(self.retry_delay * (attempt + 1))
@@ -311,10 +312,10 @@ class InfluxDBBatchWriter:
                         # All retries failed
                         logger.error(f"Failed to write batch after {self.max_retries} attempts")
                         return False
-                
+
             except Exception as e:
                 logger.error(f"Error writing batch (attempt {attempt + 1}): {e}")
-                
+
                 if attempt < self.max_retries - 1:
                     # Wait before retry
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
@@ -322,75 +323,75 @@ class InfluxDBBatchWriter:
                     # All retries failed
                     logger.error(f"Failed to write batch after {self.max_retries} attempts")
                     return False
-        
+
         return False
-    
+
     def add_error_callback(self, callback: Callable):
         """Add error callback"""
         self.error_callbacks.append(callback)
         logger.debug(f"Added error callback: {callback.__name__}")
-    
+
     def remove_error_callback(self, callback: Callable):
         """Remove error callback"""
         if callback in self.error_callbacks:
             self.error_callbacks.remove(callback)
             logger.debug(f"Removed error callback: {callback.__name__}")
-    
+
     def configure_batch_size(self, batch_size: int):
         """Configure batch size"""
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
-        
+
         self.batch_size = batch_size
         logger.info(f"Updated batch size to {batch_size}")
-    
+
     def configure_batch_timeout(self, timeout: float):
         """Configure batch timeout"""
         if timeout <= 0:
             raise ValueError("timeout must be positive")
-        
+
         self.batch_timeout = timeout
         logger.info(f"Updated batch timeout to {timeout}s")
-    
+
     def configure_retry_settings(self, max_retries: int, retry_delay: float):
         """Configure retry settings"""
         if max_retries < 0:
             raise ValueError("max_retries must be non-negative")
         if retry_delay < 0:
             raise ValueError("retry_delay must be non-negative")
-        
+
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         logger.info(f"Updated retry settings: max_retries={max_retries}, retry_delay={retry_delay}s")
-    
-    def get_writing_statistics(self) -> Dict[str, Any]:
+
+    def get_writing_statistics(self) -> dict[str, Any]:
         """Get writing statistics"""
         uptime = (datetime.now() - self.processing_start_time).total_seconds()
-        
+
         # Calculate average batch size
         avg_batch_size = 0
         if self.batch_sizes:
             avg_batch_size = sum(self.batch_sizes) / len(self.batch_sizes)
-        
+
         # Calculate average write time
         avg_write_time = 0
         if self.batch_write_times:
             avg_write_time = sum(self.batch_write_times) / len(self.batch_write_times)
-        
+
         # Calculate average write rate
         avg_write_rate = 0
         if self.write_rates:
             avg_write_rate = sum(self.write_rates) / len(self.write_rates)
-        
+
         # Calculate overall write rate
         overall_rate = 0
         if uptime > 0:
             overall_rate = self.total_points_written / uptime
-        
+
         # Calculate success rate
         total_points = self.total_points_written + self.total_points_failed
         success_rate = (self.total_points_written / total_points * 100) if total_points > 0 else 0
-        
+
         return {
             "is_running": self.is_running,
             "batch_size": self.batch_size,

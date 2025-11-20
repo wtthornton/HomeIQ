@@ -4,14 +4,11 @@ Tests for Home Assistant Client
 Story AI4.1: HA Client Foundation
 """
 
-import pytest
-import aiohttp
-from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
-from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
-from typing import Dict, Any
 
+import pytest
+from aiohttp import web
+from aiohttp.test_utils import AioHTTPTestCase
 from src.clients.ha_client import HomeAssistantClient
 
 
@@ -21,7 +18,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
     
     Story AI4.1: Tests authentication, retry logic, error handling, and health checks
     """
-    
+
     async def get_application(self):
         """
         Create mock HA API server for testing
@@ -29,7 +26,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         async def health_endpoint(request):
             """Mock /api/ endpoint"""
             return web.json_response({"message": "API running."})
-        
+
         async def config_endpoint(request):
             """Mock /api/config endpoint"""
             return web.json_response({
@@ -39,7 +36,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                 "longitude": -115.1398,
                 "time_zone": "America/Los_Angeles"
             })
-        
+
         async def states_endpoint(request):
             """Mock /api/states endpoint"""
             return web.json_response([
@@ -59,7 +56,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                     "attributes": {"friendly_name": "Living Room Light"}
                 }
             ])
-        
+
         async def automation_config_endpoint(request):
             """Mock /api/config/automation/config endpoint"""
             return web.json_response([
@@ -80,16 +77,16 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                     ]
                 }
             ])
-        
+
         async def server_error_endpoint(request):
             """Mock endpoint that returns 500 error"""
             return web.json_response({"error": "Internal Server Error"}, status=500)
-        
+
         async def timeout_endpoint(request):
             """Mock endpoint that times out"""
             await asyncio.sleep(15)  # Longer than client timeout
             return web.json_response({"message": "OK"})
-        
+
         app = web.Application()
         app.router.add_get('/api/', health_endpoint)
         app.router.add_get('/api/config', config_endpoint)
@@ -98,7 +95,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         app.router.add_get('/api/error', server_error_endpoint)
         app.router.add_get('/api/timeout', timeout_endpoint)
         return app
-    
+
     async def test_initialization(self):
         """
         Test AC1: Client initialization with authentication
@@ -110,14 +107,14 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             retry_delay=0.1,
             timeout=5
         )
-        
+
         assert client.ha_url == "http://test.local:8123"
         assert client.access_token == "test_token_12345"
         assert client.headers["Authorization"] == "Bearer test_token_12345"
         assert client.max_retries == 3
         assert client.retry_delay == 0.1
         assert client.timeout == 5
-    
+
     async def test_connection_success(self):
         """
         Test AC2: Successful connection and health check
@@ -128,16 +125,16 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         # Test connection
         result = await client.test_connection()
         assert result is True
-        
+
         # Verify last health check was updated
         assert client._last_health_check is not None
-        
+
         await client.close()
-    
+
     async def test_get_version(self):
         """
         Test AC2: Version detection
@@ -148,17 +145,17 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         version_info = await client.get_version()
-        
+
         assert version_info is not None
         assert version_info["version"] == "2024.1.0"
         assert version_info["location_name"] == "Home"
         assert "latitude" in version_info
         assert "longitude" in version_info
-        
+
         await client.close()
-    
+
     async def test_health_check(self):
         """
         Test AC2: Comprehensive health check
@@ -169,18 +166,18 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         is_healthy, status_info = await client.health_check()
-        
+
         assert is_healthy is True
         assert status_info["connected"] is True
         assert status_info["url"] == server_url
         assert status_info["last_check"] is not None
         assert status_info["version_info"] is not None
         assert status_info["version_info"]["version"] == "2024.1.0"
-        
+
         await client.close()
-    
+
     async def test_list_automations(self):
         """
         Test automation listing
@@ -191,15 +188,15 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         automations = await client.list_automations()
-        
+
         assert len(automations) == 2
         assert automations[0]["entity_id"] == "automation.morning_lights"
         assert automations[1]["entity_id"] == "automation.night_mode"
-        
+
         await client.close()
-    
+
     async def test_get_automations(self):
         """
         Test automation configuration retrieval
@@ -210,17 +207,17 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         configs = await client.get_automations()
-        
+
         assert len(configs) == 1
         assert configs[0]["id"] == "morning_lights"
         assert configs[0]["alias"] == "Morning Lights"
         assert "trigger" in configs[0]
         assert "action" in configs[0]
-        
+
         await client.close()
-    
+
     async def test_connection_pooling(self):
         """
         Test AC2: Connection pooling and session reuse
@@ -231,19 +228,19 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         # Get session
         session1 = await client._get_session()
         assert session1 is not None
         assert not session1.closed
-        
+
         # Get session again - should reuse same session
         session2 = await client._get_session()
         assert session2 is session1
-        
+
         await client.close()
         assert session1.closed
-    
+
     async def test_retry_on_server_error(self):
         """
         Test AC3: Retry logic on server errors with exponential backoff
@@ -256,15 +253,15 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             retry_delay=0.1,  # Fast retry for testing
             timeout=5
         )
-        
+
         # This should retry and eventually return the error response
         result = await client._retry_request('GET', '/api/error')
-        
+
         assert result is not None
         assert result['status'] == 500
-        
+
         await client.close()
-    
+
     async def test_graceful_connection_failure(self):
         """
         Test AC3: Graceful handling of connection failures
@@ -277,18 +274,18 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             retry_delay=0.1,
             timeout=2
         )
-        
+
         # Should handle connection failure gracefully
         result = await client.test_connection()
         assert result is False
-        
+
         # Health check should also handle failure
         is_healthy, status_info = await client.health_check()
         assert is_healthy is False
         assert status_info["connected"] is False
-        
+
         await client.close()
-    
+
     async def test_session_cleanup(self):
         """
         Test AC3: Proper resource cleanup
@@ -299,16 +296,16 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             timeout=5
         )
-        
+
         # Create session
         await client.test_connection()
         assert client._session is not None
         assert not client._session.closed
-        
+
         # Close client
         await client.close()
         assert client._session.closed
-    
+
     async def test_authentication_header(self):
         """
         Test AC1: Authentication header is properly set
@@ -317,7 +314,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             ha_url="http://test.local:8123",
             access_token="my_secret_token"
         )
-        
+
         assert client.headers["Authorization"] == "Bearer my_secret_token"
         assert client.headers["Content-Type"] == "application/json"
 
@@ -334,10 +331,10 @@ async def test_invalid_url_handling():
         retry_delay=0.1,
         timeout=2
     )
-    
+
     result = await client.test_connection()
     assert result is False
-    
+
     await client.close()
 
 
@@ -354,7 +351,7 @@ async def test_configuration_validation():
     assert client1.max_retries == 3  # Default
     assert client1.retry_delay == 1.0  # Default
     assert client1.timeout == 10  # Default
-    
+
     # Test with custom config
     client2 = HomeAssistantClient(
         ha_url="http://test.local:8123",
@@ -366,7 +363,7 @@ async def test_configuration_validation():
     assert client2.max_retries == 5
     assert client2.retry_delay == 2.0
     assert client2.timeout == 30
-    
+
     await client1.close()
     await client2.close()
 
@@ -380,9 +377,9 @@ async def test_url_normalization():
         ha_url="http://test.local:8123/",  # With trailing slash
         access_token="token"
     )
-    
+
     assert client.ha_url == "http://test.local:8123"  # Should be stripped
-    
+
     await client.close()
 
 

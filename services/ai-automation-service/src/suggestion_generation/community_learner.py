@@ -9,9 +9,6 @@ Learns from proven Home Assistant automations in the community:
 """
 
 import logging
-import json
-from typing import Dict, List, Optional, Any
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +112,8 @@ class CommunityPatternLearner:
     
     Matches community-proven patterns to user's devices and context.
     """
-    
-    def __init__(self, patterns_db: Optional[List[Dict]] = None):
+
+    def __init__(self, patterns_db: list[dict] | None = None):
         """
         Initialize community pattern learner.
         
@@ -125,13 +122,13 @@ class CommunityPatternLearner:
         """
         self.patterns_db = patterns_db or COMMUNITY_PATTERNS
         logger.info(f"CommunityPatternLearner initialized with {len(self.patterns_db)} patterns")
-    
+
     def match_patterns_to_user(
         self,
-        user_devices: List[Dict],
-        user_entities: List[Dict],
-        user_context: Optional[Dict] = None
-    ) -> List[Dict]:
+        user_devices: list[dict],
+        user_entities: list[dict],
+        user_context: dict | None = None
+    ) -> list[dict]:
         """
         Match community patterns to user's devices.
         
@@ -144,70 +141,70 @@ class CommunityPatternLearner:
             List of matched community patterns with user adaptations
         """
         matched = []
-        
+
         # Create lookup dictionaries
-        entity_domains = {e.get('entity_id', ''): e.get('domain', '') 
+        entity_domains = {e.get('entity_id', ''): e.get('domain', '')
                          for e in user_entities if e.get('entity_id')}
-        
+
         for pattern in self.patterns_db:
             # Check if user has required devices
             if self._can_apply_pattern(pattern, entity_domains, user_entities):
                 adapted = self._adapt_pattern(pattern, user_entities, user_context)
                 if adapted:
                     matched.append(adapted)
-        
+
         # Sort by popularity and relevance
         matched.sort(key=lambda x: (
             x.get('popularity', 0),
             x.get('relevance_score', 0)
         ), reverse=True)
-        
+
         logger.info(f"Matched {len(matched)} community patterns to user devices")
         return matched
-    
+
     def _can_apply_pattern(
         self,
-        pattern: Dict,
-        entity_domains: Dict[str, str],
-        user_entities: List[Dict]
+        pattern: dict,
+        entity_domains: dict[str, str],
+        user_entities: list[dict]
     ) -> bool:
         """Check if pattern can be applied to user's devices."""
         trigger = pattern.get('trigger', '')
         action = pattern.get('action', '')
-        
+
         # Extract domains
         trigger_domain = trigger.split('.')[0] if '.' in trigger else ''
         action_domain = action.split('.')[0] if '.' in action else ''
-        
+
         # Check if user has devices in these domains
         has_trigger = any(
-            e.get('domain') == trigger_domain or 
+            e.get('domain') == trigger_domain or
             trigger_domain in str(e.get('entity_id', ''))
             for e in user_entities
         )
-        
+
         has_action = any(
             e.get('domain') == action_domain or
             action_domain in str(e.get('entity_id', ''))
             for e in user_entities
         )
-        
+
         return has_trigger and has_action
-    
+
     def _adapt_pattern(
         self,
-        pattern: Dict,
-        user_entities: List[Dict],
-        user_context: Optional[Dict]
-    ) -> Optional[Dict]:
+        pattern: dict,
+        user_entities: list[dict],
+        user_context: dict | None
+    ) -> dict | None:
         """Adapt community pattern to user's specific devices."""
         # Find matching entities
         trigger = pattern.get('trigger', '')
         action = pattern.get('action', '')
-        
+
         trigger_domain = trigger.split('.')[0] if '.' in trigger else ''
         action_domain = action.split('.')[0] if '.' in action else ''
-        
+
         # Find user entities in these domains
         trigger_entities = [
             e for e in user_entities
@@ -217,14 +214,14 @@ class CommunityPatternLearner:
             e for e in user_entities
             if e.get('domain') == action_domain or action_domain in str(e.get('entity_id', ''))
         ]
-        
+
         if not trigger_entities or not action_entities:
             return None
-        
+
         # Use first matching entities (can be enhanced to select best match)
         trigger_entity = trigger_entities[0].get('entity_id', '')
         action_entity = action_entities[0].get('entity_id', '')
-        
+
         adapted = {
             'pattern_id': pattern['pattern_id'],
             'name': pattern['name'],
@@ -242,21 +239,21 @@ class CommunityPatternLearner:
                 'adaptation': 'auto'
             }
         }
-        
+
         return adapted
-    
-    def get_pattern_by_id(self, pattern_id: str) -> Optional[Dict]:
+
+    def get_pattern_by_id(self, pattern_id: str) -> dict | None:
         """Get community pattern by ID."""
         for pattern in self.patterns_db:
             if pattern.get('pattern_id') == pattern_id:
                 return pattern
         return None
-    
-    def get_patterns_by_category(self, category: str) -> List[Dict]:
+
+    def get_patterns_by_category(self, category: str) -> list[dict]:
         """Get community patterns by category."""
         return [p for p in self.patterns_db if p.get('category') == category]
-    
-    def get_top_patterns(self, limit: int = 10) -> List[Dict]:
+
+    def get_top_patterns(self, limit: int = 10) -> list[dict]:
         """Get top N most popular patterns."""
         sorted_patterns = sorted(
             self.patterns_db,

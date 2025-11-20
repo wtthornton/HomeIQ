@@ -20,9 +20,9 @@ __version__ = "1.0.0"
 __author__ = "AI Automation Team"
 
 from .descriptor_builder import DeviceDescriptorBuilder
-from .embedding_model import DeviceEmbeddingModel
-from .embedding_cache import EmbeddingCache
 from .device_embedding_generator import DeviceEmbeddingGenerator
+from .embedding_cache import EmbeddingCache
+from .embedding_model import DeviceEmbeddingModel
 
 __all__ = [
     'DeviceDescriptorBuilder',

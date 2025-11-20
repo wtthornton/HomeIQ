@@ -9,10 +9,10 @@ Created: Phase 3 - New API Routers
 
 import logging
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...services.service_container import get_service_container, ServiceContainer
+from fastapi import APIRouter, Depends
+
+from ...services.service_container import ServiceContainer, get_service_container
 from .models import ActionRequest, ActionResult
 
 logger = logging.getLogger(__name__)
@@ -31,15 +31,15 @@ async def execute_immediate_action(
     Uses function calling to execute HA services directly.
     """
     start_time = datetime.utcnow()
-    
+
     try:
         # Extract entities and intent
         entity_extractor = container.entity_extractor
         entities = await entity_extractor.extract(request.query)
-        
+
         intent_matcher = container.intent_matcher
         intent = intent_matcher.match_intent(request.query)
-        
+
         if intent.value != "action":
             return ActionResult(
                 success=False,
@@ -49,19 +49,19 @@ async def execute_immediate_action(
                 message="Query does not appear to be an immediate action. Use /api/v2/conversations for automation creation.",
                 execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
             )
-        
+
         # Resolve entities
         entity_resolver = container.entity_resolver
         if entities:
             # Extract entity IDs from entities
             entity_ids = [e.get("entity_id") for e in entities if e.get("entity_id")]
-            
+
             if entity_ids:
                 # Determine action type and function
                 query_lower = request.query.lower()
                 function_name = None
                 params = {"entity_id": entity_ids[0]}
-                
+
                 if "turn on" in query_lower or "switch on" in query_lower:
                     if entity_ids[0].startswith("light."):
                         function_name = "turn_on_light"
@@ -80,14 +80,14 @@ async def execute_immediate_action(
                         brightness = int((int(brightness_match.group(1)) / 100) * 255)
                         params["brightness"] = brightness
                         function_name = "set_light_brightness"
-                
+
                 if function_name:
                     # Execute function
                     function_registry = container.function_registry
                     result = await function_registry.call_function(function_name, params)
-                    
+
                     execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-                    
+
                     return ActionResult(
                         success=result.get("success", False),
                         action_type=function_name,
@@ -96,7 +96,7 @@ async def execute_immediate_action(
                         message=f"Action executed: {function_name}" if result.get("success") else f"Action failed: {result.get('error', 'Unknown error')}",
                         execution_time_ms=execution_time
                     )
-        
+
         # Fallback: couldn't determine action
         return ActionResult(
             success=False,
@@ -106,12 +106,12 @@ async def execute_immediate_action(
             message="Could not determine action to execute. Please be more specific.",
             execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
         )
-        
+
     except Exception as e:
         logger.error(f"Action execution failed: {e}", exc_info=True)
         error_recovery = container.error_recovery
         error_response = await error_recovery.handle_processing_error(e, request.query)
-        
+
         return ActionResult(
             success=False,
             action_type="error",

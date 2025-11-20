@@ -4,20 +4,17 @@ Simplified Admin API for Dashboard Integration
 
 import logging
 import os
-from datetime import datetime
+import sys
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
-import sys
-import os
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
 
-from shared.endpoints import simple_health_router, create_integration_router
+from shared.endpoints import create_integration_router, simple_health_router
 from src.config_manager import config_manager
 
 health_router = simple_health_router
@@ -78,10 +75,10 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Get configuration from environment
     host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", "8004"))
-    
+
     logger.info(f"Starting server on {host}:{port}")
     uvicorn.run(app, host=host, port=port)

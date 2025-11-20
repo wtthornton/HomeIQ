@@ -5,17 +5,17 @@ Enforces token budgets for different prompt components to prevent exceeding rate
 """
 
 import logging
-from typing import Dict, List, Optional
-from ..utils.token_counter import count_tokens, count_message_tokens
+
+from ..utils.token_counter import count_message_tokens, count_tokens
 
 logger = logging.getLogger(__name__)
 
 
 def enforce_token_budget(
-    prompt_dict: Dict[str, str],
-    budget: Dict[str, int],
+    prompt_dict: dict[str, str],
+    budget: dict[str, int],
     model: str = "gpt-4o"
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Enforce token budget limits on prompt components.
     
@@ -28,14 +28,14 @@ def enforce_token_budget(
         Modified prompt_dict with components truncated to fit budget
     """
     result = prompt_dict.copy()
-    
+
     # Enforce conversation history limit
     if 'conversation_history' in prompt_dict and 'max_conversation_history_tokens' in budget:
         history = prompt_dict.get('conversation_history', '')
         if history:
             history_tokens = count_tokens(history, model)
             max_tokens = budget['max_conversation_history_tokens']
-            
+
             if history_tokens > max_tokens:
                 logger.warning(
                     f"Conversation history exceeds budget: {history_tokens} > {max_tokens} tokens. "
@@ -44,21 +44,21 @@ def enforce_token_budget(
                 # Truncate by keeping last N tokens (simple approach)
                 # In production, you might want to summarize older context
                 result['conversation_history'] = _truncate_text_to_tokens(history, max_tokens, model)
-    
+
     # Enforce enrichment context limit
     if 'enrichment_context' in prompt_dict and 'max_enrichment_context_tokens' in budget:
         enrichment = prompt_dict.get('enrichment_context', '')
         if enrichment:
             enrichment_tokens = count_tokens(enrichment, model)
             max_tokens = budget['max_enrichment_context_tokens']
-            
+
             if enrichment_tokens > max_tokens:
                 logger.warning(
                     f"Enrichment context exceeds budget: {enrichment_tokens} > {max_tokens} tokens. "
                     f"Truncating."
                 )
                 result['enrichment_context'] = _truncate_text_to_tokens(enrichment, max_tokens, model)
-    
+
     # Enforce entity context limit (in user_prompt)
     if 'user_prompt' in prompt_dict and 'max_entity_context_tokens' in budget:
         user_prompt = prompt_dict.get('user_prompt', '')
@@ -68,7 +68,7 @@ def enforce_token_budget(
             if entity_context:
                 entity_tokens = count_tokens(entity_context, model)
                 max_tokens = budget['max_entity_context_tokens']
-                
+
                 if entity_tokens > max_tokens:
                     logger.warning(
                         f"Entity context exceeds budget: {entity_tokens} > {max_tokens} tokens. "
@@ -76,7 +76,7 @@ def enforce_token_budget(
                     )
                     truncated_context = _truncate_text_to_tokens(entity_context, max_tokens, model)
                     result['user_prompt'] = user_prompt.replace(entity_context, truncated_context)
-    
+
     return result
 
 
@@ -94,18 +94,18 @@ def _truncate_text_to_tokens(text: str, max_tokens: int, model: str) -> str:
     except (KeyError, ImportError):
         from tiktoken import get_encoding
         encoding = get_encoding("cl100k_base")
-    
+
     tokens = encoding.encode(text)
-    
+
     if len(tokens) <= max_tokens:
         return text
-    
+
     # Keep last max_tokens tokens
     truncated_tokens = tokens[-max_tokens:]
     return encoding.decode(truncated_tokens)
 
 
-def _extract_entity_context(user_prompt: str) -> Optional[str]:
+def _extract_entity_context(user_prompt: str) -> str | None:
     """
     Extract entity context section from user prompt.
     
@@ -118,21 +118,21 @@ def _extract_entity_context(user_prompt: str) -> Optional[str]:
         r'Entities:.*?(?=Query:|$)',
         r'Available entities:.*?(?=Request:|$)',
     ]
-    
+
     import re
     for pattern in patterns:
         match = re.search(pattern, user_prompt, re.IGNORECASE | re.DOTALL)
         if match:
             return match.group(0)
-    
+
     return None
 
 
 def check_token_budget(
-    messages: List[Dict],
-    budget: Dict[str, int],
+    messages: list[dict],
+    budget: dict[str, int],
     model: str = "gpt-4o"
-) -> Dict[str, any]:
+) -> dict[str, any]:
     """
     Check if messages fit within token budget and return status.
     
@@ -146,7 +146,7 @@ def check_token_budget(
     """
     total_tokens = count_message_tokens(messages, model)
     max_total = budget.get('max_total_tokens', 30_000)  # Default OpenAI limit
-    
+
     breakdown = {}
     for message in messages:
         role = message.get('role', '')
@@ -154,7 +154,7 @@ def check_token_budget(
         if content:
             tokens = count_tokens(content, model)
             breakdown[role] = breakdown.get(role, 0) + tokens
-    
+
     status = {
         'total_tokens': total_tokens,
         'max_tokens': max_total,
@@ -163,13 +163,13 @@ def check_token_budget(
         'breakdown': breakdown,
         'warnings': []
     }
-    
+
     # Add warnings
     if total_tokens > max_total * 0.9:
         status['warnings'].append(f"Token usage at {status['usage_percent']:.1f}% of budget")
-    
+
     if total_tokens > max_total:
         status['warnings'].append(f"Token usage exceeds budget by {total_tokens - max_total} tokens")
-    
+
     return status
 

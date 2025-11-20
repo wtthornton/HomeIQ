@@ -9,11 +9,10 @@ Following Context7 KB best practices from /pytest-dev/pytest
 
 import os
 import sys
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
-
-from pathlib import Path
 
 if not os.getenv("DATA_API_TESTS"):
     pytest.skip(
@@ -23,9 +22,10 @@ if not os.getenv("DATA_API_TESTS"):
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 sys.path.append(str(ROOT_DIR))
-from httpx import ASGITransport, AsyncClient
-from unittest.mock import patch
 from datetime import datetime
+from unittest.mock import patch
+
+from httpx import ASGITransport, AsyncClient
 
 
 # ✅ Context7 Best Practice: Shared async HTTP client fixture
@@ -38,7 +38,7 @@ async def client():
     Use with async tests: async def test_endpoint(client):
     """
     from src.main import app
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -58,7 +58,7 @@ def mock_influxdb():
         yield mock
 
 
-# ✅ Context7 Best Practice: Shared SQLite mock fixture  
+# ✅ Context7 Best Practice: Shared SQLite mock fixture
 @pytest.fixture
 def mock_sqlite():
     """Mock SQLite database for testing"""

@@ -4,12 +4,13 @@ Device Intelligence Service - Storage API Tests
 Tests for the storage API endpoints.
 """
 
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone
-
 from src.models.database import Device, DeviceCapability, DeviceHealthMetric
+
 
 @pytest.fixture
 def mock_device():

@@ -16,57 +16,62 @@ Integration:
 - Reuses ConversationalSuggestionCard components
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Body, Query
-import os
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
-from datetime import datetime
-import logging
-import uuid
+import asyncio
 import json
-import time
+import logging
+import os
 import re
-import yaml as yaml_lib
+import time
+import uuid
+from datetime import datetime
+from typing import Any
 
-from ..database import get_db
-from ..config import settings
-from ..clients.ha_client import HomeAssistantClient
+import yaml as yaml_lib
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
-from ..entity_extraction import extract_entities_from_query, EnhancedEntityExtractor, MultiModelEntityExtractor
-from ..model_services.orchestrator import ModelOrchestrator
-from ..model_services.soft_prompt_adapter import SoftPromptAdapter, get_soft_prompt_adapter
+from ..clients.ha_client import HomeAssistantClient
+from ..config import settings
+from ..database import get_db
+from ..database.models import AskAIQuery as AskAIQueryModel
+from ..database.models import ClarificationSessionDB
+from ..entity_extraction import (
+    EnhancedEntityExtractor,
+    MultiModelEntityExtractor,
+    extract_entities_from_query,
+)
 from ..guardrails.hf_guardrails import get_guardrail_checker
 from ..llm.openai_client import OpenAIClient
-from ..database.models import Suggestion as SuggestionModel, AskAIQuery as AskAIQueryModel, ClarificationSessionDB
-from ..utils.capability_utils import normalize_capability, format_capability_for_display
-from ..services.entity_attribute_service import EntityAttributeService
+from ..model_services.orchestrator import ModelOrchestrator
+from ..model_services.soft_prompt_adapter import SoftPromptAdapter, get_soft_prompt_adapter
 from ..prompt_building.entity_context_builder import EntityContextBuilder
-from ..services.component_detector import ComponentDetector
-from ..services.safety_validator import SafetyValidator
-from ..services.yaml_self_correction import YAMLSelfCorrectionService
 from ..services.clarification import (
-    ClarificationDetector,
-    QuestionGenerator,
     AnswerValidator,
-    ConfidenceCalculator,
+    ClarificationAnswer,
+    ClarificationDetector,
     ClarificationSession,
-    ClarificationQuestion,
-    ClarificationAnswer
+    ConfidenceCalculator,
+    QuestionGenerator,
 )
 from ..services.clarification.confidence_calibrator import ClarificationConfidenceCalibrator
+from ..services.clarification.models import AmbiguitySeverity
 from ..services.clarification.outcome_tracker import ClarificationOutcomeTracker
-from ..services.clarification.models import AmbiguityType, AmbiguitySeverity, Ambiguity
+from ..services.component_detector import ComponentDetector
+from ..services.entity_attribute_service import EntityAttributeService
 from ..services.rag import RAGClient
+from ..services.safety_validator import SafetyValidator
 from ..services.service_container import ServiceContainer
-import os
-from sqlalchemy import select, update
-import asyncio
+from ..services.yaml_self_correction import YAMLSelfCorrectionService
+from ..utils.capability_utils import format_capability_for_display, normalize_capability
 
 # Use service logger instead of module logger for proper JSON logging
 logger = logging.getLogger("ai-automation-service")
 # Also log to stderr to ensure we see output
 import sys
+
 console_handler = logging.StreamHandler(sys.stderr)
 console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
@@ -84,7 +89,7 @@ CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS = 60.0
 async def _update_model_comparison_metrics_on_approval(
     db: AsyncSession,
     suggestion_id: str,
-    query_id: Optional[str],
+    query_id: str | None,
     model_used: str,
     task_type: str = 'suggestion'
 ):
@@ -99,32 +104,33 @@ async def _update_model_comparison_metrics_on_approval(
         task_type: 'suggestion' or 'yaml'
     """
     try:
+        from sqlalchemy import select
+
         from ..database.models import ModelComparisonMetrics
-        from sqlalchemy import select, update
-        
+
         # Find metrics record for this suggestion/query
         query_filter = select(ModelComparisonMetrics).where(
             ModelComparisonMetrics.task_type == task_type
         )
-        
+
         if query_id:
             query_filter = query_filter.where(ModelComparisonMetrics.query_id == query_id)
         if suggestion_id:
             query_filter = query_filter.where(ModelComparisonMetrics.suggestion_id == suggestion_id)
-        
+
         # Order by most recent
         query_filter = query_filter.order_by(ModelComparisonMetrics.created_at.desc()).limit(1)
-        
+
         result = await db.execute(query_filter)
         metrics = result.scalar_one_or_none()
-        
+
         if metrics:
             # Determine which model was used and update approval
             if metrics.model1_name == model_used:
                 metrics.model1_approved = True
             elif metrics.model2_name == model_used:
                 metrics.model2_approved = True
-            
+
             await db.commit()
             logger.info(f"Updated model comparison metrics: {task_type} - {model_used} approved")
     except Exception as e:
@@ -148,25 +154,26 @@ async def _update_model_comparison_metrics_on_yaml_validation(
         yaml_valid: Whether YAML validation passed
     """
     try:
-        from ..database.models import ModelComparisonMetrics
         from sqlalchemy import select
-        
+
+        from ..database.models import ModelComparisonMetrics
+
         # Find metrics record for this suggestion (YAML task)
         query = select(ModelComparisonMetrics).where(
             ModelComparisonMetrics.task_type == 'yaml',
             ModelComparisonMetrics.suggestion_id == suggestion_id
         ).order_by(ModelComparisonMetrics.created_at.desc()).limit(1)
-        
+
         result = await db.execute(query)
         metrics = result.scalar_one_or_none()
-        
+
         if metrics:
             # Determine which model was used and update validation
             if metrics.model1_name == model_used:
                 metrics.model1_yaml_valid = yaml_valid
             elif metrics.model2_name == model_used:
                 metrics.model2_yaml_valid = yaml_valid
-            
+
             await db.commit()
             logger.info(f"Updated model comparison metrics: yaml - {model_used} validation={yaml_valid}")
     except Exception as e:
@@ -175,7 +182,7 @@ async def _update_model_comparison_metrics_on_yaml_validation(
 
 # Global device intelligence client and extractors
 
-def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict[str, Any]], enriched_data: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
+def _build_entity_validation_context_with_comprehensive_data(entities: list[dict[str, Any]], enriched_data: dict[str, dict[str, Any]] | None = None) -> str:
     """
     Build entity validation context with COMPREHENSIVE data from ALL sources.
     
@@ -188,32 +195,34 @@ def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict
     Returns:
         Formatted string with ALL available entity information
     """
-    from ..services.comprehensive_entity_enrichment import format_comprehensive_enrichment_for_prompt
-    
+    from ..services.comprehensive_entity_enrichment import (
+        format_comprehensive_enrichment_for_prompt,
+    )
+
     # Use comprehensive enrichment if available
     if enriched_data:
         logger.info(f"📋 Building context from comprehensive enrichment ({len(enriched_data)} entities)")
         return format_comprehensive_enrichment_for_prompt(enriched_data)
-    
+
     # Fallback to basic entities list
     if not entities:
         return "No entities available for validation."
-    
+
     logger.info(f"📋 Building context from entities list ({len(entities)} entities)")
     sections = []
     for entity in entities:
         entity_id = entity.get('entity_id', 'unknown')
         domain = entity.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
         entity_name = entity.get('name', entity.get('friendly_name', entity_id))
-        
+
         section = f"- {entity_name} ({entity_id}, domain: {domain})\n"
-        
+
         # Add location if available
         if entity.get('area_name'):
             section += f"  Location: {entity['area_name']}\n"
         elif entity.get('area_id'):
             section += f"  Location: {entity['area_id']}\n"
-        
+
         # Add device info if available
         device_info = []
         if entity.get('manufacturer'):
@@ -222,12 +231,12 @@ def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict
             device_info.append(entity['model'])
         if device_info:
             section += f"  Device: {' '.join(device_info)}\n"
-        
+
         # Add health score if available
         if entity.get('health_score') is not None:
             health_status = "Excellent" if entity['health_score'] > 80 else "Good" if entity['health_score'] > 60 else "Fair"
             section += f"  Health: {entity['health_score']}/100 ({health_status})\n"
-        
+
         # Add capabilities with details
         capabilities = entity.get('capabilities', [])
         if capabilities:
@@ -243,21 +252,21 @@ def _build_entity_validation_context_with_comprehensive_data(entities: List[Dict
                     section += f"    - {formatted}\n"
         else:
             section += "  Capabilities: Basic on/off\n"
-        
+
         # Add integration if available
         if entity.get('integration') and entity.get('integration') != 'unknown':
             section += f"  Integration: {entity['integration']}\n"
-        
+
         # Add supported features if available
         if entity.get('supported_features'):
             section += f"  Supported Features: {entity['supported_features']}\n"
-        
+
         sections.append(section.strip())
-    
+
     return "\n".join(sections)
 
 
-def _build_entity_validation_context_with_capabilities(entities: List[Dict[str, Any]]) -> str:
+def _build_entity_validation_context_with_capabilities(entities: list[dict[str, Any]]) -> str:
     """Backwards compatibility wrapper."""
     return _build_entity_validation_context_with_comprehensive_data(entities, enriched_data=None)
 
@@ -283,7 +292,7 @@ def _get_ambiguity_type(amb: Any) -> str:
     return ''
 
 
-def _get_ambiguity_context(amb: Any) -> Dict[str, Any]:
+def _get_ambiguity_context(amb: Any) -> dict[str, Any]:
     """Safely get ambiguity context from either Ambiguity object or dictionary."""
     if isinstance(amb, dict):
         return amb.get('context', {})
@@ -310,15 +319,15 @@ def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> 
     return desired_temperature
 
 # Global device intelligence client and extractors
-_device_intelligence_client: Optional[DeviceIntelligenceClient] = None
-_enhanced_extractor: Optional[EnhancedEntityExtractor] = None
-_multi_model_extractor: Optional[MultiModelEntityExtractor] = None
-_model_orchestrator: Optional[ModelOrchestrator] = None
-_self_correction_service: Optional[YAMLSelfCorrectionService] = None
+_device_intelligence_client: DeviceIntelligenceClient | None = None
+_enhanced_extractor: EnhancedEntityExtractor | None = None
+_multi_model_extractor: MultiModelEntityExtractor | None = None
+_model_orchestrator: ModelOrchestrator | None = None
+_self_correction_service: YAMLSelfCorrectionService | None = None
 _soft_prompt_adapter_initialized = False
 _guardrail_checker_initialized = False
 
-def get_self_correction_service() -> Optional[YAMLSelfCorrectionService]:
+def get_self_correction_service() -> YAMLSelfCorrectionService | None:
     """Get self-correction service singleton"""
     global _self_correction_service
     if _self_correction_service is None:
@@ -354,16 +363,16 @@ def set_device_intelligence_client(client: DeviceIntelligenceClient):
         )
     logger.info("Device Intelligence client set for Ask AI router")
 
-def get_multi_model_extractor() -> Optional[MultiModelEntityExtractor]:
+def get_multi_model_extractor() -> MultiModelEntityExtractor | None:
     """Get multi-model extractor instance"""
     return _multi_model_extractor
 
-def get_model_orchestrator() -> Optional[ModelOrchestrator]:
+def get_model_orchestrator() -> ModelOrchestrator | None:
     """Get model orchestrator instance"""
     return _model_orchestrator
 
 
-def get_soft_prompt() -> Optional[SoftPromptAdapter]:
+def get_soft_prompt() -> SoftPromptAdapter | None:
     """Get cached soft prompt adapter when enabled."""
     global _soft_prompt_adapter_initialized
 
@@ -395,7 +404,7 @@ def reset_soft_prompt_adapter() -> None:
         get_soft_prompt._adapter = None
 
 
-def reload_soft_prompt_adapter() -> Optional[SoftPromptAdapter]:
+def reload_soft_prompt_adapter() -> SoftPromptAdapter | None:
     """Force reinitialization of the soft prompt adapter."""
     reset_soft_prompt_adapter()
     return get_soft_prompt()
@@ -494,9 +503,9 @@ async def get_reverse_engineering_analytics(
     """
     try:
         from ..services.reverse_engineering_metrics import get_reverse_engineering_analytics
-        
+
         analytics = await get_reverse_engineering_analytics(db_session=db, days=days)
-        
+
         return {
             "status": "success",
             "analytics": analytics
@@ -511,11 +520,11 @@ async def get_reverse_engineering_analytics(
 
 @router.get("/entities/search")
 async def search_entities(
-    domain: Optional[str] = Query(None, description="Filter by domain (light, switch, sensor, etc.)"),
-    search_term: Optional[str] = Query(None, description="Search term to match against entity_id or friendly_name"),
+    domain: str | None = Query(None, description="Filter by domain (light, switch, sensor, etc.)"),
+    search_term: str | None = Query(None, description="Search term to match against entity_id or friendly_name"),
     limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
     ha_client: HomeAssistantClient = Depends(get_ha_client)
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Search available entities for device mapping.
     
@@ -533,18 +542,18 @@ async def search_entities(
     """
     try:
         from ..clients.data_api_client import DataAPIClient
-        
+
         logger.info(f"🔍 Searching entities - domain: {domain}, search_term: {search_term}, limit: {limit}")
-        
+
         # Use DataAPIClient to fetch entities
         data_api_client = DataAPIClient()
-        
+
         # Fetch entities from data-api
         entities = await data_api_client.fetch_entities(
             domain=domain,
             limit=limit * 2  # Fetch more than needed for filtering
         )
-        
+
         # Filter by search_term if provided
         if search_term:
             search_lower = search_term.lower()
@@ -553,17 +562,17 @@ async def search_entities(
                 if search_lower in e.get('entity_id', '').lower() or
                    search_lower in e.get('friendly_name', '').lower()
             ]
-        
+
         # Limit results
         entities = entities[:limit]
-        
+
         # Enrich with state and attributes from HA if available
         enriched_entities = []
         for entity in entities:
             entity_id = entity.get('entity_id')
             if not entity_id:
                 continue
-                
+
             enriched = {
                 'entity_id': entity_id,
                 'friendly_name': entity.get('friendly_name', entity_id),
@@ -572,7 +581,7 @@ async def search_entities(
                 'area_id': entity.get('area_id'),
                 'platform': entity.get('platform')
             }
-            
+
             # Try to get current state and attributes from HA
             if ha_client:
                 try:
@@ -580,7 +589,7 @@ async def search_entities(
                     if state_data:
                         enriched['state'] = state_data.get('state')
                         enriched['attributes'] = state_data.get('attributes', {})
-                        
+
                         # Extract capabilities from attributes if available
                         supported_features = enriched['attributes'].get('supported_features', 0)
                         capabilities = []
@@ -596,12 +605,12 @@ async def search_entities(
                         enriched['capabilities'] = capabilities
                 except Exception as e:
                     logger.debug(f"Could not fetch state for {entity_id}: {e}")
-            
+
             enriched_entities.append(enriched)
-        
+
         logger.info(f"✅ Found {len(enriched_entities)} entities matching search criteria")
         return enriched_entities
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to search entities: {e}", exc_info=True)
         raise HTTPException(
@@ -636,8 +645,8 @@ class AskAIQueryRequest(BaseModel):
     """Request to process natural language query"""
     query: str = Field(..., description="Natural language question about devices/automations")
     user_id: str = Field(default="anonymous", description="User identifier")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
-    conversation_history: Optional[List[Dict[str, Any]]] = Field(default=None, description="Conversation history for context")
+    context: dict[str, Any] | None = Field(default=None, description="Additional context")
+    conversation_history: list[dict[str, Any]] | None = Field(default=None, description="Conversation history for context")
 
 
 class AskAIQueryResponse(BaseModel):
@@ -645,16 +654,16 @@ class AskAIQueryResponse(BaseModel):
     query_id: str
     original_query: str
     parsed_intent: str
-    extracted_entities: List[Dict[str, Any]]
-    suggestions: List[Dict[str, Any]]
+    extracted_entities: list[dict[str, Any]]
+    suggestions: list[dict[str, Any]]
     confidence: float
     processing_time_ms: int
     created_at: str
     # NEW: Clarification fields
     clarification_needed: bool = False
-    clarification_session_id: Optional[str] = None
-    questions: Optional[List[Dict[str, Any]]] = None
-    message: Optional[str] = None
+    clarification_session_id: str | None = None
+    questions: list[dict[str, Any]] | None = None
+    message: str | None = None
 
 
 class QueryRefinementRequest(BaseModel):
@@ -666,8 +675,8 @@ class QueryRefinementRequest(BaseModel):
 class QueryRefinementResponse(BaseModel):
     """Response from query refinement"""
     query_id: str
-    refined_suggestions: List[Dict[str, Any]]
-    changes_made: List[str]
+    refined_suggestions: list[dict[str, Any]]
+    changes_made: list[str]
     confidence: float
     refinement_count: int
 
@@ -675,8 +684,8 @@ class QueryRefinementResponse(BaseModel):
 class ClarificationRequest(BaseModel):
     """Request to provide clarification answers"""
     session_id: str = Field(..., description="Clarification session ID")
-    answers: List[Dict[str, Any]] = Field(..., description="Answers to clarification questions")
-    
+    answers: list[dict[str, Any]] = Field(..., description="Answers to clarification questions")
+
 class ClarificationResponse(BaseModel):
     """Response from clarification"""
     session_id: str
@@ -684,13 +693,13 @@ class ClarificationResponse(BaseModel):
     confidence_threshold: float
     clarification_complete: bool
     message: str
-    suggestions: Optional[List[Dict[str, Any]]] = None
-    questions: Optional[List[Dict[str, Any]]] = None  # If more questions needed
-    previous_confidence: Optional[float] = None  # Previous confidence before this round
-    confidence_delta: Optional[float] = None  # Change in confidence (positive = increase)
-    confidence_summary: Optional[str] = None  # Human-readable summary of what improved
-    enriched_prompt: Optional[str] = None  # User-friendly prompt showing all answers
-    questions_and_answers: Optional[List[Dict[str, Any]]] = None  # Structured Q&A data
+    suggestions: list[dict[str, Any]] | None = None
+    questions: list[dict[str, Any]] | None = None  # If more questions needed
+    previous_confidence: float | None = None  # Previous confidence before this round
+    confidence_delta: float | None = None  # Change in confidence (positive = increase)
+    confidence_summary: str | None = None  # Human-readable summary of what improved
+    enriched_prompt: str | None = None  # User-friendly prompt showing all answers
+    questions_and_answers: list[dict[str, Any]] | None = None  # Structured Q&A data
 
 
 # ============================================================================
@@ -700,11 +709,11 @@ class ClarificationResponse(BaseModel):
 def _generate_confidence_summary(
     previous_confidence: float,
     current_confidence: float,
-    confidence_delta: Optional[float],
-    validated_answers: List[Any],
+    confidence_delta: float | None,
+    validated_answers: list[Any],
     session: Any,
     resolved_ambiguity_ids: set
-) -> Optional[str]:
+) -> str | None:
     """
     Generate a human-readable summary of what contributed to confidence improvement.
     
@@ -721,9 +730,9 @@ def _generate_confidence_summary(
     """
     if confidence_delta is None or confidence_delta <= 0:
         return None
-    
+
     summary_parts = []
-    
+
     # Count critical and important questions answered
     critical_answered = 0
     important_answered = 0
@@ -734,7 +743,7 @@ def _generate_confidence_summary(
                 critical_answered += 1
             elif question.priority == 2:  # Important
                 important_answered += 1
-    
+
     # Count resolved ambiguities by severity
     critical_resolved = 0
     important_resolved = 0
@@ -746,40 +755,40 @@ def _generate_confidence_summary(
                 severity = amb.get('severity', '')
             else:
                 severity = amb.severity.value if hasattr(amb.severity, 'value') else str(amb.severity) if hasattr(amb, 'severity') else ''
-            
+
             if severity == "critical":
                 critical_resolved += 1
             elif severity == "important":
                 important_resolved += 1
-    
+
     # Build summary based on what improved
     if critical_resolved > 0:
         summary_parts.append(f"Resolved {critical_resolved} critical ambiguities")
     if important_resolved > 0:
         summary_parts.append(f"Resolved {important_resolved} important ambiguities")
-    
+
     # Check answer quality
     high_quality_answers = sum(1 for a in validated_answers if a.confidence > 0.8)
     if high_quality_answers > 0:
         summary_parts.append(f"Provided {high_quality_answers} high-quality answer{'s' if high_quality_answers > 1 else ''}")
-    
+
     # If no specific improvements, use generic message
     if not summary_parts:
         summary_parts.append("Your answers helped clarify the automation requirements")
-    
+
     # Add confidence change
     delta_percent = int(confidence_delta * 100)
     if delta_percent > 0:
         summary_parts.append(f"Confidence increased by {delta_percent}%")
-    
+
     return " • ".join(summary_parts)
 
 # Global clarification service instances
-_clarification_detector: Optional[ClarificationDetector] = None
-_question_generator: Optional[QuestionGenerator] = None
-_answer_validator: Optional[AnswerValidator] = None
-_confidence_calculator: Optional[ConfidenceCalculator] = None
-_clarification_sessions: Dict[str, ClarificationSession] = {}  # In-memory storage (TODO: persist to DB)
+_clarification_detector: ClarificationDetector | None = None
+_question_generator: QuestionGenerator | None = None
+_answer_validator: AnswerValidator | None = None
+_confidence_calculator: ConfidenceCalculator | None = None
+_clarification_sessions: dict[str, ClarificationSession] = {}  # In-memory storage (TODO: persist to DB)
 
 async def get_clarification_services(db: AsyncSession = None):
     """
@@ -790,7 +799,7 @@ async def get_clarification_services(db: AsyncSession = None):
             If provided and RAG is enabled, will create RAG client for semantic understanding.
     """
     global _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
-    
+
     if _clarification_detector is None:
         # Try to initialize with RAG client if database session is available
         rag_client = None
@@ -804,7 +813,7 @@ async def get_clarification_services(db: AsyncSession = None):
                 logger.info("✅ RAG client initialized for ClarificationDetector (semantic understanding enabled)")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize RAG client, falling back to hardcoded rules: {e}")
-        
+
         _clarification_detector = ClarificationDetector(rag_client=rag_client)
     if _question_generator is None and openai_client:
         _question_generator = QuestionGenerator(openai_client)
@@ -833,18 +842,18 @@ async def get_clarification_services(db: AsyncSession = None):
                 logger.info("✅ Clarification confidence calibrator initialized")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize calibrator: {e}")
-        
+
         _confidence_calculator = ConfidenceCalculator(
             default_threshold=0.85,
             rag_client=rag_client_for_confidence,
             calibrator=calibrator,
             calibration_enabled=getattr(settings, "clarification_calibration_enabled", True)
         )
-    
+
     return _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
 
 
-async def _get_rag_client(db: AsyncSession) -> Optional[RAGClient]:
+async def _get_rag_client(db: AsyncSession) -> RAGClient | None:
     """
     Get or initialize RAG client for semantic knowledge storage and retrieval.
     
@@ -866,10 +875,10 @@ async def _get_rag_client(db: AsyncSession) -> Optional[RAGClient]:
         return None
 
 async def expand_group_entities_to_members(
-    entity_ids: List[str],
-    ha_client: Optional[HomeAssistantClient],
-    entity_validator: Optional[Any] = None
-) -> List[str]:
+    entity_ids: list[str],
+    ha_client: HomeAssistantClient | None,
+    entity_validator: Any | None = None
+) -> list[str]:
     """
     Generic function to expand group entities to their individual member entities.
     
@@ -888,21 +897,21 @@ async def expand_group_entities_to_members(
     if not ha_client:
         logger.warning("⚠️ No HA client available, cannot expand group entities")
         return entity_ids
-    
+
     expanded_entity_ids = []
-    
+
     # Always enrich entities to check for group indicators (is_group, is_hue_group, entity_id attribute)
     from ..services.entity_attribute_service import EntityAttributeService
     attribute_service = EntityAttributeService(ha_client)
-    
+
     # Batch enrich all entities to get attributes for group detection
     enriched_data = await attribute_service.enrich_multiple_entities(entity_ids)
-    
+
     for entity_id in entity_ids:
         try:
             # Check if this is a group entity
             is_group = False
-            
+
             # Method 1: Check enriched attributes (is_group flag, is_hue_group, entity_id attribute)
             if entity_id in enriched_data:
                 enriched = enriched_data[entity_id]
@@ -912,7 +921,7 @@ async def expand_group_entities_to_members(
                 # Group entities have an 'entity_id' attribute containing member list
                 if attributes.get('is_hue_group') or attributes.get('entity_id'):
                     is_group = True
-            
+
             # Method 2: Use entity validator's heuristic-based group detection if available
             if not is_group and entity_validator:
                 # Create minimal entity dict from enriched data for group detection
@@ -923,18 +932,18 @@ async def expand_group_entities_to_members(
                     'friendly_name': enriched.get('friendly_name')
                 }
                 is_group = entity_validator._is_group_entity(entity_dict)
-            
+
             if is_group:
                 logger.info(f"🔍 Group entity detected: {entity_id}, fetching members...")
-                
+
                 # Fetch entity state to get member entity IDs
                 state_data = await ha_client.get_entity_state(entity_id)
                 if state_data:
                     attributes = state_data.get('attributes', {})
-                    
+
                     # Group entities store member IDs in 'entity_id' attribute
                     member_entity_ids = attributes.get('entity_id')
-                    
+
                     if member_entity_ids:
                         if isinstance(member_entity_ids, list):
                             # List of entity IDs
@@ -959,27 +968,27 @@ async def expand_group_entities_to_members(
             else:
                 # Not a group entity - keep it as-is
                 expanded_entity_ids.append(entity_id)
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Error checking/expanding entity {entity_id}: {e}, keeping original")
             expanded_entity_ids.append(entity_id)
-    
+
     # Deduplicate the expanded list
     expanded_entity_ids = list(dict.fromkeys(expanded_entity_ids))  # Preserves order while deduplicating
-    
+
     if len(expanded_entity_ids) != len(entity_ids):
         logger.info(f"✅ Expanded {len(entity_ids)} entities to {len(expanded_entity_ids)} individual entities")
-    
+
     return expanded_entity_ids
 
 
 async def verify_entities_exist_in_ha(
-    entity_ids: List[str],
-    ha_client: Optional[HomeAssistantClient],
+    entity_ids: list[str],
+    ha_client: HomeAssistantClient | None,
     use_ensemble: bool = True,
-    query_context: Optional[str] = None,
-    available_entities: Optional[List[Dict[str, Any]]] = None
-) -> Dict[str, bool]:
+    query_context: str | None = None,
+    available_entities: list[dict[str, Any]] | None = None
+) -> dict[str, bool]:
     """
     Verify which entity IDs actually exist in Home Assistant.
     
@@ -996,13 +1005,13 @@ async def verify_entities_exist_in_ha(
         Dictionary mapping entity_id -> exists (True/False)
     """
     if not ha_client or not entity_ids:
-        return {eid: False for eid in entity_ids} if entity_ids else {}
-    
+        return dict.fromkeys(entity_ids, False) if entity_ids else {}
+
     # Try ensemble validation if enabled and models available
     if use_ensemble:
         try:
             from ..services.ensemble_entity_validator import EnsembleEntityValidator
-            
+
             # Get models if available
             sentence_model = None
             if _self_correction_service and hasattr(_self_correction_service, 'similarity_model'):
@@ -1010,7 +1019,7 @@ async def verify_entities_exist_in_ha(
             elif _multi_model_extractor:
                 # Could also get from multi_model_extractor if needed
                 pass
-            
+
             # Initialize ensemble validator
             ensemble_validator = EnsembleEntityValidator(
                 ha_client=ha_client,
@@ -1019,7 +1028,7 @@ async def verify_entities_exist_in_ha(
                 device_intelligence_client=_device_intelligence_client,
                 min_consensus_threshold=0.5  # Moderate threshold - HA API is ground truth
             )
-            
+
             # Validate using ensemble
             logger.info(f"🔍 Using ensemble validation for {len(entity_ids)} entities")
             ensemble_results = await ensemble_validator.validate_entities_batch(
@@ -1027,10 +1036,10 @@ async def verify_entities_exist_in_ha(
                 query_context=query_context,
                 available_entities=available_entities
             )
-            
+
             # Extract existence results
             verified = {eid: result.exists for eid, result in ensemble_results.items()}
-            
+
             # Log warnings for low consensus entities
             for eid, result in ensemble_results.items():
                 if result.exists and result.consensus_score < 0.7:
@@ -1038,14 +1047,14 @@ async def verify_entities_exist_in_ha(
                         f"⚠️ Entity {eid} validated but low consensus ({result.consensus_score:.2f}) "
                         f"- methods: {[r.method.value for r in result.method_results]}"
                     )
-            
+
             logger.info(f"✅ Ensemble validation: {sum(verified.values())}/{len(verified)} entities valid")
             return verified
-            
+
         except Exception as e:
             logger.warning(f"⚠️ Ensemble validation failed, falling back to HA API check: {e}")
             # Fall through to simple HA API check
-    
+
     # Fallback: Simple HA API verification (parallel for performance)
     import asyncio
     async def verify_one(entity_id: str) -> tuple[str, bool]:
@@ -1054,26 +1063,26 @@ async def verify_entities_exist_in_ha(
             return (entity_id, state is not None)
         except Exception:
             return (entity_id, False)
-    
+
     tasks = [verify_one(eid) for eid in entity_ids]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     verified = {}
     for result in results:
         if isinstance(result, Exception):
             continue
         entity_id, exists = result
         verified[entity_id] = exists
-    
+
     return verified
 
 
 async def map_devices_to_entities(
-    devices_involved: List[str], 
-    enriched_data: Dict[str, Dict[str, Any]],
-    ha_client: Optional[HomeAssistantClient] = None,
+    devices_involved: list[str],
+    enriched_data: dict[str, dict[str, Any]],
+    ha_client: HomeAssistantClient | None = None,
     fuzzy_match: bool = True
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Map device friendly names to entity IDs from enriched data.
     
@@ -1108,11 +1117,11 @@ async def map_devices_to_entities(
             logger.info(f"               friendly_name: {first_entity.get('friendly_name')}")
             logger.info(f"               entity_id: {first_entity.get('entity_id')}")
             logger.info(f"               name: {first_entity.get('name')}")
-    
+
     validated_entities = {}
     unmapped_devices = []
     entity_id_to_best_device_name = {}  # Track best device name for each entity_id
-    
+
     # Handle None or empty enriched_data - try to query HA directly as fallback
     if not enriched_data:
         logger.warning(f"⚠️ map_devices_to_entities called with empty/None enriched_data for {len(devices_involved)} devices")
@@ -1142,18 +1151,18 @@ async def map_devices_to_entities(
                         logger.warning(f"⚠️ Failed to query HA states: HTTP {response.status}")
             except Exception as e:
                 logger.error(f"❌ Error enriching entities with EntityAttributeService: {e}", exc_info=True)
-        
+
         # If still no enriched_data, return empty
         if not enriched_data:
-            logger.error(f"❌ Cannot map devices: no enriched_data and HA query failed")
+            logger.error("❌ Cannot map devices: no enriched_data and HA query failed")
             return {}
-    
+
     for device_name in devices_involved:
         mapped = False
         device_name_lower = device_name.lower()
         matched_entity_id = None
         match_quality = 0  # 3=exact, 2=fuzzy, 1=domain
-        
+
         # Strategy 1: Exact match by friendly_name or device_name (highest priority)
         for entity_id, enriched in enriched_data.items():
             friendly_name = enriched.get('friendly_name', '')
@@ -1166,12 +1175,12 @@ async def map_devices_to_entities(
                 name_type = 'friendly_name' if friendly_name else 'device_name'
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
                 break
-        
+
         # Strategy 2: Fuzzy matching (case-insensitive substring) - area-aware for single-home
         if not matched_entity_id and fuzzy_match:
             best_fuzzy_match = None
             best_fuzzy_score = 0
-            
+
             for entity_id, enriched in enriched_data.items():
                 friendly_name = enriched.get('friendly_name', '')
                 device_name_from_enriched = enriched.get('device_name', '')  # Fallback to device name
@@ -1182,7 +1191,7 @@ async def map_devices_to_entities(
                 name_to_check = name_to_check.lower()
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
                 area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
-                
+
                 # Calculate fuzzy match score (higher = better)
                 score = 0
                 if device_name_lower in name_to_check or name_to_check in device_name_lower:
@@ -1192,11 +1201,11 @@ async def map_devices_to_entities(
                 # Area context bonus for single-home scenarios
                 if area_name and device_name_lower in area_name:
                     score += 1  # Area context bonus
-                
+
                 if score > best_fuzzy_score:
                     best_fuzzy_score = score
                     best_fuzzy_match = entity_id
-            
+
             if best_fuzzy_match and best_fuzzy_score > 0:
                 matched_entity_id = best_fuzzy_match
                 match_quality = 2
@@ -1205,7 +1214,7 @@ async def map_devices_to_entities(
                 best_friendly_name = best_enriched.get('friendly_name', '')
                 name_type = 'friendly_name' if best_friendly_name else 'device_name'
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score})")
-        
+
         # Strategy 3: Match by domain name (lowest priority)
         if not matched_entity_id and fuzzy_match:
             for entity_id, enriched in enriched_data.items():
@@ -1215,7 +1224,7 @@ async def map_devices_to_entities(
                     match_quality = 1
                     logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (domain match)")
                     break
-        
+
         # Store mapping if found, but only keep best device name for each entity_id
         if matched_entity_id:
             existing_quality = entity_id_to_best_device_name.get(matched_entity_id, {}).get('quality', 0)
@@ -1225,7 +1234,7 @@ async def map_devices_to_entities(
                     old_device_name = entity_id_to_best_device_name[matched_entity_id]['device_name']
                     logger.debug(f"🔄 Replacing '{old_device_name}' → '{device_name}' for entity_id '{matched_entity_id}' (better match quality)")
                     validated_entities.pop(old_device_name, None)
-                
+
                 entity_id_to_best_device_name[matched_entity_id] = {
                     'device_name': device_name,
                     'quality': match_quality
@@ -1240,13 +1249,13 @@ async def map_devices_to_entities(
         else:
             unmapped_devices.append(device_name)
             logger.warning(f"⚠️ Could not map device '{device_name}' to entity_id (not found in enriched_data)")
-    
+
     # CRITICAL: Verify ALL mapped entities actually exist in Home Assistant
     if validated_entities and ha_client:
         logger.info(f"🔍 Verifying {len(validated_entities)} mapped entities exist in Home Assistant...")
         unique_entity_ids = list(set(validated_entities.values()))  # Get unique entity IDs
         verification_results = await verify_entities_exist_in_ha(unique_entity_ids, ha_client)
-        
+
         # Filter out entities that don't exist
         verified_validated_entities = {}
         invalid_entities = []
@@ -1256,13 +1265,13 @@ async def map_devices_to_entities(
             else:
                 invalid_entities.append(f"{device_name} → {entity_id}")
                 logger.warning(f"❌ Entity {entity_id} (mapped from '{device_name}') does NOT exist in HA - removed from validated_entities")
-        
+
         if invalid_entities:
             logger.warning(f"⚠️ Removed {len(invalid_entities)} invalid entity mappings: {', '.join(invalid_entities[:5])}")
-        
+
         validated_entities = verified_validated_entities
         logger.info(f"✅ Verified {len(validated_entities)}/{len(unique_entity_ids)} unique entities exist in HA")
-    
+
     # Log consolidation stats
     unique_entity_count = len(set(validated_entities.values()))
     if len(validated_entities) > unique_entity_count:
@@ -1270,7 +1279,7 @@ async def map_devices_to_entities(
             f"🔄 Consolidated {len(devices_involved)} devices → {unique_entity_count} unique entities "
             f"({len(validated_entities)} device names mapped, {len(devices_involved) - len(validated_entities)} redundant)"
         )
-    
+
     # Fallback: Query HA directly for unmapped devices if we have a client
     if unmapped_devices and ha_client:
         logger.info(f"🔄 Querying HA directly for {len(unmapped_devices)} unmapped devices...")
@@ -1291,18 +1300,18 @@ async def map_devices_to_entities(
                     for entity_id, enriched in enriched_results:
                         if enriched:
                             ha_enriched_data[entity_id] = enriched
-                    
+
                     # Try to map unmapped devices using HA entities
                     logger.info(f"🔍 Attempting to map {len(unmapped_devices)} devices against {len(ha_enriched_data)} HA entities...")
-                    
+
                     # Track which entities have already been matched to avoid duplicates
                     matched_entity_ids = set(validated_entities.values())
-                    
+
                     for device_name in unmapped_devices:
                         device_name_lower = device_name.lower()
                         best_match = None
                         best_score = 0
-                        
+
                         # Search through HA entities for best match
                         for entity_id, entity_data in ha_enriched_data.items():
                             # Skip if this entity is already mapped to another device (unless it's an exact match)
@@ -1311,13 +1320,13 @@ async def map_devices_to_entities(
                                 friendly_name = entity_data.get('friendly_name', '').lower()
                                 if device_name_lower != friendly_name:
                                     continue  # Skip already-matched entities for non-exact matches
-                            
+
                             friendly_name = entity_data.get('friendly_name', '').lower()
                             entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
-                            
+
                             # Calculate match score (higher = better)
                             score = 0
-                            
+
                             # Exact match gets highest priority
                             if device_name_lower == friendly_name:
                                 score = 10
@@ -1342,7 +1351,7 @@ async def map_devices_to_entities(
                                         except ValueError:
                                             order_match = False
                                             break
-                                    
+
                                     if order_match:
                                         score = 8  # All words match in order
                                     else:
@@ -1352,19 +1361,19 @@ async def map_devices_to_entities(
                                     score = 5  # Device name is substring of friendly name
                                 elif friendly_name in device_name_lower:
                                     score = 4  # Friendly name is substring of device name
-                            
+
                             # Entity ID part match (lower priority)
                             if device_name_lower in entity_name_part:
                                 score = max(score, 3)
-                            
+
                             # Prefer matches that haven't been used yet
                             if entity_id not in matched_entity_ids:
                                 score += 1  # Bonus for unmapped entities
-                            
+
                             if score > best_score:
                                 best_score = score
                                 best_match = entity_id
-                        
+
                         if best_match and best_score >= 3:  # Minimum threshold
                             # Verify entity exists
                             if ha_client:
@@ -1379,13 +1388,13 @@ async def map_devices_to_entities(
                                 validated_entities[device_name] = best_match
                                 matched_entity_ids.add(best_match)  # Mark as used
                                 logger.info(f"✅ Mapped unmapped device '{device_name}' → {best_match} (score: {best_score}, unverified)")
-                    
+
                     logger.info(f"✅ HA direct query mapped {len([d for d in unmapped_devices if d in validated_entities])}/{len(unmapped_devices)} previously unmapped devices")
                 else:
                     logger.warning(f"⚠️ Failed to query HA states for unmapped devices: HTTP {response.status}")
         except Exception as e:
             logger.error(f"❌ Error querying HA for unmapped devices: {e}", exc_info=True)
-    
+
     if unmapped_devices and validated_entities:
         final_unmapped = [d for d in unmapped_devices if d not in validated_entities]
         unique_entity_count = len(set(validated_entities.values()))
@@ -1398,14 +1407,14 @@ async def map_devices_to_entities(
         logger.info(f"✅ Mapped all {len(validated_entities)} devices to {unique_entity_count} verified entities")
     elif devices_involved:
         logger.warning(f"⚠️ Could not map any of {len(devices_involved)} devices to verified entities")
-    
+
     return validated_entities
 
 
 def _pre_consolidate_device_names(
-    devices_involved: List[str],
-    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
-) -> List[str]:
+    devices_involved: list[str],
+    enriched_data: dict[str, dict[str, Any]] | None = None
+) -> list[str]:
     """
     Pre-consolidate device names by removing generic/redundant terms BEFORE entity mapping.
     
@@ -1424,46 +1433,46 @@ def _pre_consolidate_device_names(
     """
     if not devices_involved:
         return devices_involved
-    
+
     # Generic terms to remove (domain names, device types, very short terms)
-    generic_terms = {'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover', 
+    generic_terms = {'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover',
                      'fan', 'lock', 'wled', 'hue', 'mqtt', 'zigbee', 'zwave'}
-    
+
     filtered = []
     removed_terms = []
-    
+
     for device_name in devices_involved:
         device_lower = device_name.lower().strip()
-        
+
         # Skip empty or very short terms
         if len(device_lower) < 3:
             removed_terms.append(device_name)
             continue
-        
+
         # Skip generic domain/integration terms
         if device_lower in generic_terms:
             removed_terms.append(device_name)
             continue
-        
+
         # Skip terms that are just numbers or single words without spaces (likely incomplete)
         # BUT keep proper entity names like "Office" or "Living Room"
         if device_lower.isdigit():
             removed_terms.append(device_name)
             continue
-        
+
         # Keep all other terms (they're likely actual device names)
         filtered.append(device_name)
-    
+
     if removed_terms:
         logger.debug(f"📋 Pre-consolidation removed generic terms: {removed_terms}")
-    
+
     return filtered if filtered else devices_involved  # Return original if we filtered everything
 
 
 def consolidate_devices_involved(
-    devices_involved: List[str],
-    validated_entities: Dict[str, str]
-) -> List[str]:
+    devices_involved: list[str],
+    validated_entities: dict[str, str]
+) -> list[str]:
     """
     Consolidate devices_involved array by removing redundant device names that map to the same entity.
     
@@ -1481,7 +1490,7 @@ def consolidate_devices_involved(
     """
     if not devices_involved or not validated_entities:
         return devices_involved
-    
+
     # Group device names by their mapped entity_id
     entity_id_to_devices = {}
     for device_name in devices_involved:
@@ -1490,12 +1499,12 @@ def consolidate_devices_involved(
             if entity_id not in entity_id_to_devices:
                 entity_id_to_devices[entity_id] = []
             entity_id_to_devices[entity_id].append(device_name)
-    
+
     # For each entity_id, keep the most specific device name
     # Priority: longer names > exact matches > shorter names
     consolidated = []
     entity_ids_seen = set()
-    
+
     for device_name in devices_involved:
         entity_id = validated_entities.get(device_name)
         if entity_id and entity_id not in entity_ids_seen:
@@ -1515,13 +1524,13 @@ def consolidate_devices_involved(
         elif entity_id not in validated_entities:
             # Keep unmapped devices (they might be groups or areas)
             consolidated.append(device_name)
-    
+
     if len(consolidated) < len(devices_involved):
         logger.info(
             f"🔄 Consolidated devices_involved: {len(devices_involved)} → {len(consolidated)} "
             f"({len(devices_involved) - len(consolidated)} redundant entries removed)"
         )
-    
+
     return consolidated
 
 
@@ -1545,9 +1554,9 @@ def _is_entity_id(mention: str) -> bool:
 
 def extract_device_mentions_from_text(
     text: str,
-    validated_entities: Dict[str, str],
-    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
-) -> Dict[str, str]:
+    validated_entities: dict[str, str],
+    enriched_data: dict[str, dict[str, Any]] | None = None
+) -> dict[str, str]:
     """
     Extract device mentions from text and map them to entity IDs.
     
@@ -1564,17 +1573,17 @@ def extract_device_mentions_from_text(
     """
     if not text:
         return {}
-    
+
     mentions = {}
     text_lower = text.lower()
-    
+
     # Extract mentions from validated_entities
     for friendly_name, entity_id in validated_entities.items():
         # Skip if friendly_name is actually an entity ID (prevents entity IDs as keys)
         if _is_entity_id(friendly_name):
             logger.debug(f"⏭️ Skipping entity ID '{friendly_name}' from validated_entities (not a friendly name)")
             continue
-            
+
         friendly_name_lower = friendly_name.lower()
         # Check if friendly name appears in text (word boundary matching)
         import re
@@ -1582,13 +1591,13 @@ def extract_device_mentions_from_text(
         if re.search(pattern, text_lower):
             mentions[friendly_name] = entity_id
             logger.debug(f"🔍 Found mention '{friendly_name}' in text → {entity_id}")
-        
+
         # Also check for partial matches (e.g., "wled" matches "WLED" or "wled strip")
         if friendly_name_lower in text_lower or text_lower in friendly_name_lower:
             if friendly_name not in mentions:
                 mentions[friendly_name] = entity_id
                 logger.debug(f"🔍 Found partial mention '{friendly_name}' in text → {entity_id}")
-    
+
     # If enriched_data available, also check entity names and domains
     if enriched_data:
         for entity_id, enriched in enriched_data.items():
@@ -1598,30 +1607,30 @@ def extract_device_mentions_from_text(
             friendly_name = friendly_name.lower()
             domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
             entity_name = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
-            
+
             # Check domain matches (e.g., "wled" text matches light entities with "wled" in the name)
             # Skip if domain looks like an entity ID (shouldn't happen, but defensive)
             if domain and domain in text_lower and len(domain) >= 3:
-                if domain not in [m.lower() for m in mentions.keys()] and not _is_entity_id(domain):
+                if domain not in [m.lower() for m in mentions] and not _is_entity_id(domain):
                     mentions[domain] = entity_id
                     logger.debug(f"🔍 Found domain mention '{domain}' in text → {entity_id}")
-            
+
             # Check entity name matches
             # Skip if entity_name looks like an entity ID (defensive check)
             if entity_name and entity_name in text_lower:
-                if entity_name not in [m.lower() for m in mentions.keys()] and not _is_entity_id(entity_name):
+                if entity_name not in [m.lower() for m in mentions] and not _is_entity_id(entity_name):
                     mentions[entity_name] = entity_id
                     logger.debug(f"🔍 Found entity name mention '{entity_name}' in text → {entity_id}")
-    
+
     return mentions
 
 
 async def enhance_suggestion_with_entity_ids(
-    suggestion: Dict[str, Any],
-    validated_entities: Dict[str, str],
-    enriched_data: Optional[Dict[str, Dict[str, Any]]] = None,
-    ha_client: Optional[HomeAssistantClient] = None
-) -> Dict[str, Any]:
+    suggestion: dict[str, Any],
+    validated_entities: dict[str, str],
+    enriched_data: dict[str, dict[str, Any]] | None = None,
+    ha_client: HomeAssistantClient | None = None
+) -> dict[str, Any]:
     """
     Enhance suggestion by adding entity IDs directly.
     
@@ -1640,7 +1649,7 @@ async def enhance_suggestion_with_entity_ids(
         Enhanced suggestion dictionary
     """
     enhanced = suggestion.copy()
-    
+
     # Extract all device mentions from suggestion text fields
     device_mentions = {}
     text_fields = [
@@ -1648,14 +1657,14 @@ async def enhance_suggestion_with_entity_ids(
         enhanced.get('trigger_summary', ''),
         enhanced.get('action_summary', '')
     ]
-    
+
     for text in text_fields:
         mentions = extract_device_mentions_from_text(text, validated_entities, enriched_data)
         device_mentions.update(mentions)
-    
+
     # Get entity IDs used
     entity_ids_used = list(set(validated_entities.values()))
-    
+
     # Build entity_id_annotations with context
     entity_id_annotations = {}
     for friendly_name, entity_id in validated_entities.items():
@@ -1667,33 +1676,33 @@ async def enhance_suggestion_with_entity_ids(
             ha_friendly_name = enriched.get('friendly_name', '')
             if ha_friendly_name and ha_friendly_name != entity_id:
                 actual_friendly_name = ha_friendly_name
-        
+
         entity_id_annotations[friendly_name] = {
             'entity_id': entity_id,
             'domain': entity_id.split('.')[0] if '.' in entity_id else '',
             'friendly_name': actual_friendly_name,  # Include actual friendly name from HA
             'mentioned_in': []
         }
-        
+
         # Track where this device is mentioned
         for field in ['description', 'trigger_summary', 'action_summary']:
             text = enhanced.get(field, '').lower()
             if friendly_name.lower() in text:
                 entity_id_annotations[friendly_name]['mentioned_in'].append(field)
-    
+
     # Add device_mentions (from text extraction)
     enhanced['device_mentions'] = device_mentions
     enhanced['entity_ids_used'] = entity_ids_used
     enhanced['entity_id_annotations'] = entity_id_annotations
     # Ensure validated_entities is preserved (required for approval)
     enhanced['validated_entities'] = validated_entities
-    
+
     logger.info(f"✅ Enhanced suggestion with {len(entity_ids_used)} entity IDs and {len(device_mentions)} device mentions")
-    
+
     return enhanced
 
 
-def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]:
+def deduplicate_entity_mapping(entity_mapping: dict[str, str]) -> dict[str, str]:
     """
     Deduplicate entity mapping - if multiple device names map to same entity_id,
     keep only unique entity_ids.
@@ -1706,7 +1715,7 @@ def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]
     """
     seen_entities = {}
     deduplicated = {}
-    
+
     for device_name, entity_id in entity_mapping.items():
         if entity_id not in seen_entities:
             # First occurrence of this entity_id
@@ -1718,21 +1727,21 @@ def deduplicate_entity_mapping(entity_mapping: Dict[str, str]) -> Dict[str, str]
                 f"⚠️ Duplicate entity mapping: '{device_name}' → {entity_id} "
                 f"(already mapped as '{seen_entities[entity_id]}')"
             )
-    
+
     if len(deduplicated) < len(entity_mapping):
         logger.info(
             f"✅ Deduplicated entities: {len(deduplicated)} unique from {len(entity_mapping)} total "
             f"({len(entity_mapping) - len(deduplicated)} duplicates removed)"
         )
-    
+
     return deduplicated
 
 
 async def pre_validate_suggestion_for_yaml(
-    suggestion: Dict[str, Any],
-    validated_entities: Dict[str, str],
-    ha_client: Optional[HomeAssistantClient] = None
-) -> Dict[str, str]:
+    suggestion: dict[str, Any],
+    validated_entities: dict[str, str],
+    ha_client: HomeAssistantClient | None = None
+) -> dict[str, str]:
     """
     Pre-validate and enhance suggestion before YAML generation.
     
@@ -1748,19 +1757,19 @@ async def pre_validate_suggestion_for_yaml(
         Enhanced validated_entities dictionary with all mentions mapped
     """
     enhanced_validated_entities = validated_entities.copy()
-    
+
     # Extract device mentions from all text fields
     text_fields = {
         'description': suggestion.get('description', ''),
         'trigger_summary': suggestion.get('trigger_summary', ''),
         'action_summary': suggestion.get('action_summary', '')
     }
-    
+
     all_mentions = {}
     for field, text in text_fields.items():
         mentions = extract_device_mentions_from_text(text, validated_entities, None)
         all_mentions.update(mentions)
-    
+
     # Add mentions to enhanced_validated_entities, but collect for verification first
     # Filter out entity IDs from being used as keys (prevents entity IDs as friendly names)
     new_mentions = {}
@@ -1772,7 +1781,7 @@ async def pre_validate_suggestion_for_yaml(
         if mention not in enhanced_validated_entities:
             new_mentions[mention] = entity_id
             logger.debug(f"🔍 Found mention '{mention}' → {entity_id}")
-    
+
     # Check for incomplete entity IDs (domain-only mentions like "wled", "office")
     if ha_client and new_mentions:
         incomplete_mentions = {}
@@ -1782,13 +1791,13 @@ async def pre_validate_suggestion_for_yaml(
                 incomplete_mentions[mention] = entity_id
             else:
                 complete_mentions[mention] = entity_id
-        
+
         # Query HA for domain entities if we found incomplete mentions
         if incomplete_mentions:
             domains_to_query = set()
             for mention, entity_id in incomplete_mentions.items():
                 domains_to_query.add(entity_id.lower().strip('.'))
-            
+
             logger.info(f"🔍 Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
             for domain in domains_to_query:
                 try:
@@ -1807,13 +1816,13 @@ async def pre_validate_suggestion_for_yaml(
                             logger.warning(f"⚠️ Entity {first_entity} from domain '{domain}' query does not exist in HA")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
-        
+
         # CRITICAL: Verify ALL complete mentions exist in HA before adding
         if complete_mentions and ha_client:
             logger.info(f"🔍 Verifying {len(complete_mentions)} extracted mentions exist in HA...")
             entity_ids_to_verify = list(complete_mentions.values())
             verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
-            
+
             # Only add verified entities
             for mention, entity_id in complete_mentions.items():
                 if verification_results.get(entity_id, False):
@@ -1821,13 +1830,13 @@ async def pre_validate_suggestion_for_yaml(
                     logger.debug(f"✅ Added verified mention '{mention}' → {entity_id} to validated entities")
                 else:
                     logger.warning(f"❌ Mention '{mention}' → {entity_id} does NOT exist in HA - skipped")
-    
+
     return enhanced_validated_entities
 
 
 async def build_suggestion_specific_entity_mapping(
-    suggestion: Dict[str, Any],
-    validated_entities: Dict[str, str]
+    suggestion: dict[str, Any],
+    validated_entities: dict[str, str]
 ) -> str:
     """
     Build suggestion-specific entity ID mapping text for LLM prompt.
@@ -1843,31 +1852,31 @@ async def build_suggestion_specific_entity_mapping(
     """
     if not validated_entities:
         return ""
-    
+
     # Extract devices mentioned in this suggestion
     description = suggestion.get('description', '').lower()
     trigger = suggestion.get('trigger_summary', '').lower()
     action = suggestion.get('action_summary', '').lower()
     combined_text = f"{description} {trigger} {action}"
-    
+
     # Build mapping for devices mentioned in this suggestion
     mappings = []
     for friendly_name, entity_id in validated_entities.items():
         friendly_name_lower = friendly_name.lower()
         # Check if this device is mentioned in the suggestion
-        if (friendly_name_lower in combined_text or 
+        if (friendly_name_lower in combined_text or
             friendly_name_lower in description or
             friendly_name_lower in trigger or
             friendly_name_lower in action):
             domain = entity_id.split('.')[0] if '.' in entity_id else ''
             mappings.append(f"  - \"{friendly_name}\" or \"{friendly_name_lower}\" → {entity_id} (domain: {domain})")
-    
+
     if not mappings:
         # Fallback: include all validated entities
         for friendly_name, entity_id in validated_entities.items():
             domain = entity_id.split('.')[0] if '.' in entity_id else ''
             mappings.append(f"  - \"{friendly_name}\" → {entity_id} (domain: {domain})")
-    
+
     if mappings:
         return f"""
 SUGGESTION-SPECIFIC ENTITY ID MAPPINGS:
@@ -1882,16 +1891,16 @@ ENTITY ID MAPPINGS FOR THIS AUTOMATION:
 
 CRITICAL: When generating YAML, use the entity IDs above. For example, if you see "wled" in the description, use the full entity ID from above (NOT just "wled").
 """
-    
+
     return ""
 
 
 async def generate_automation_yaml(
-    suggestion: Dict[str, Any], 
-    original_query: str, 
-    entities: Optional[List[Dict[str, Any]]] = None,
-    db_session: Optional[AsyncSession] = None,
-    ha_client: Optional[HomeAssistantClient] = None
+    suggestion: dict[str, Any],
+    original_query: str,
+    entities: list[dict[str, Any]] | None = None,
+    db_session: AsyncSession | None = None,
+    ha_client: HomeAssistantClient | None = None
 ) -> str:
     """
     Generate Home Assistant automation YAML from a suggestion.
@@ -1911,10 +1920,10 @@ async def generate_automation_yaml(
     """
     logger.info(f"🚀 GENERATE_YAML CALLED - Query: {original_query[:50]}...")
     logger.info(f"🚀 Suggestion: {suggestion}")
-    
+
     if not openai_client:
         raise ValueError("OpenAI client not initialized - cannot generate YAML")
-    
+
     # Get validated_entities from suggestion (already set during suggestion creation)
     validated_entities = suggestion.get('validated_entities', {})
     if not validated_entities or not isinstance(validated_entities, dict):
@@ -1927,20 +1936,20 @@ async def generate_automation_yaml(
         )
         logger.error(f"❌ {error_msg}")
         raise ValueError(error_msg)
-    
+
     # Use enriched_entity_context from suggestion (already computed during creation)
     entity_context_json = suggestion.get('enriched_entity_context', '')
     if entity_context_json:
         logger.info("✅ Using cached enriched entity context from suggestion")
     else:
         logger.warning("⚠️ No enriched_entity_context in suggestion (should be set during creation)")
-    
+
     # Build validated entities text for prompt
     if validated_entities:
         # Build explicit mapping examples GENERICALLY (not hardcoded for specific terms)
         mapping_examples = []
         entity_id_list = []
-        
+
         for term, entity_id in validated_entities.items():
             entity_id_list.append(f"- {term}: {entity_id}")
             # Build generic mapping instructions
@@ -1949,7 +1958,7 @@ async def generate_automation_yaml(
             mapping_examples.append(
                 f"  - If you see any variation of '{term}' (or domain '{domain}') in the description → use EXACTLY: {entity_id}"
             )
-        
+
         mapping_text = ""
         if mapping_examples:
             mapping_text = f"""
@@ -1957,11 +1966,11 @@ EXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified t
 {chr(10).join(mapping_examples[:15])}
 
 """
-        
+
         # Build dynamic example entity IDs for the prompt
         example_light = next((eid for eid in validated_entities.values() if eid.startswith('light.')), None)
         example_entity = list(validated_entities.values())[0] if validated_entities else '{EXAMPLE_ENTITY_ID}'
-        
+
         validated_entities_text = f"""
 VALIDATED ENTITIES (ALL verified to exist in Home Assistant - use these EXACT entity IDs):
 {chr(10).join(entity_id_list)}
@@ -1975,26 +1984,26 @@ COMMON MISTAKES TO AVOID:
 ❌ WRONG: entity_id: office (missing domain prefix - incomplete entity ID)
 ✅ CORRECT: entity_id: {example_entity} (complete domain.entity format from validated list above)
 """
-        
+
         # Add entity context JSON if available
         if entity_context_json:
             # Escape any curly braces in JSON to prevent f-string formatting errors
             escaped_json = entity_context_json.replace('{', '{{').replace('}', '}}')
-            
+
             # Query database for available services for each entity
             available_services_info = []
             if db_session:
                 try:
                     from ..services.service_validator import ServiceValidator
                     service_validator = ServiceValidator(db_session=db_session)
-                    
+
                     for entity_id in validated_entities.values():
                         available_services = await service_validator.get_available_services(entity_id, db_session)
                         if available_services:
                             available_services_info.append(f"  - {entity_id}: {', '.join(available_services)}")
                 except Exception as e:
                     logger.debug(f"Could not fetch available services: {e}")
-            
+
             available_services_text = ""
             if available_services_info:
                 available_services_text = f"""
@@ -2004,7 +2013,7 @@ AVAILABLE SERVICES (use ONLY these services for each entity):
 
 CRITICAL: Only use services listed above. Do NOT use services that are not available for an entity.
 """
-            
+
             validated_entities_text += f"""
 
 ENTITY CONTEXT (Complete Information):
@@ -2019,13 +2028,13 @@ Use this entity information to:
     else:
         # This should not happen - validated_entities check above should catch this
         raise ValueError("No validated entities available - cannot generate YAML")
-    
+
     # Check if test mode
     is_test = 'TEST_MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
-    
+
     # TASK 2.4: Check if sequence test mode (shortened delays instead of stripping)
     is_sequence_test = suggestion.get('test_mode') == 'sequence'
-    
+
     # Build dynamic example entity IDs for prompt examples (use validated entities, or generic placeholders)
     if validated_entities:
         example_light = next((eid for eid in validated_entities.values() if eid.startswith('light.')), None)
@@ -2043,7 +2052,7 @@ Use this entity information to:
         example_wled = '{WLED_ENTITY}'
         example_entity_1 = '{ENTITY_1}'
         example_entity_2 = '{ENTITY_2}'
-    
+
     prompt = f"""
 TASK: Generate Home Assistant 2025 automation YAML from this request.
 
@@ -2224,7 +2233,7 @@ ADVANCED FEATURES (Use for creative implementations):
 - delay: Timing between actions
 - template: Dynamic values
 """
-    
+
     # Build test mode adjustments (avoid backslashes in f-strings)
     test_mode_text = ""
     if is_test and not is_sequence_test:
@@ -2242,7 +2251,7 @@ TEST MODE ADJUSTMENTS:
 - REDUCE repeat counts (10 → 3, 5 → 2)
 - Keep structure but execute faster
 """
-    
+
     prompt += test_mode_text + """
 ═══════════════════════════════════════════════════════════════════════════════
 PRE-GENERATION VALIDATION CHECKLIST
@@ -2283,34 +2292,34 @@ Generate ONLY the YAML content:
         from ..database.crud import get_system_settings
         system_settings = await get_system_settings(db_session) if db_session else None
         enable_parallel = system_settings and getattr(system_settings, 'enable_parallel_model_testing', False) if system_settings else False
-        
+
         if enable_parallel:
             # Parallel model testing mode
             from ..services.parallel_model_tester import ParallelModelTester
             tester = ParallelModelTester(openai_client.api_key)
-            
+
             # Get models from settings
             parallel_models = getattr(system_settings, 'parallel_testing_models', {}) if system_settings else {}
             models = parallel_models.get('yaml', ['gpt-5.1'])
-            
+
             # Get suggestion_id if available
             suggestion_id = suggestion.get('suggestion_id') if suggestion else None
-            
+
             # Build prompt_dict for parallel tester
             prompt_dict = {
                 "system_prompt": (
-                    "You are a Home Assistant 2025 YAML automation expert. " 
-                    "Your output is production-ready YAML that passes Home Assistant validation. " 
-                    "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
-                    "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
+                    "You are a Home Assistant 2025 YAML automation expert. "
+                    "Your output is production-ready YAML that passes Home Assistant validation. "
+                    "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
+                    "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
                     "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
                 ),
                 "user_prompt": prompt
             }
-            
+
             # Determine temperature based on model capabilities
             yaml_temperature = _get_temperature_for_model(models[0], desired_temperature=0.1)
-            
+
             result = await tester.generate_yaml_parallel(
                 suggestion=suggestion,
                 prompt_dict=prompt_dict,
@@ -2320,12 +2329,12 @@ Generate ONLY the YAML content:
                 temperature=yaml_temperature,
                 max_tokens=2000
             )
-            
+
             yaml_content = result['primary_result']  # Use first model's result
             comparison_metrics = result['comparison']  # Store for metrics
-            
+
             logger.info(f"Parallel YAML testing: {models[0]} vs {models[1]} - using {models[0]} result")
-            
+
             # Store model info in suggestion for later metrics update
             if suggestion and comparison_metrics and comparison_metrics.get('model_results'):
                 primary_result = comparison_metrics['model_results'][0]
@@ -2333,7 +2342,7 @@ Generate ONLY the YAML content:
                     suggestion['debug'] = {}
                 suggestion['debug']['yaml_model_used'] = primary_result.get('model', models[0])
                 suggestion['debug']['yaml_parallel_testing'] = True
-            
+
             # Extract YAML from result - handle AutomationSuggestion object or dict/string
             if hasattr(yaml_content, 'automation_yaml'):
                 # It's an AutomationSuggestion Pydantic model - extract the YAML string
@@ -2344,46 +2353,46 @@ Generate ONLY the YAML content:
             elif not isinstance(yaml_content, str):
                 # Convert to string if it's something else
                 yaml_content = str(yaml_content)
-            
+
             # Remove markdown code blocks if present
             yaml_content = yaml_content.strip()
             if yaml_content.startswith('```yaml'):
                 yaml_content = yaml_content[7:]  # Remove ```yaml
             elif yaml_content.startswith('```'):
                 yaml_content = yaml_content[3:]  # Remove ```
-            
+
             if yaml_content.endswith('```'):
                 yaml_content = yaml_content[:-3]  # Remove closing ```
-            
+
             yaml_content = yaml_content.strip()
-            
+
             logger.info(f"📥 [YAML_RAW] OpenAI returned {len(yaml_content)} chars (parallel mode)")
-            
+
             # Continue with validation (same as single model path)
             # Validate YAML syntax
             try:
                 yaml_lib.safe_load(yaml_content)
-                logger.info(f"✅ Generated valid YAML syntax")
+                logger.info("✅ Generated valid YAML syntax")
             except yaml_lib.YAMLError as e:
                 logger.error(f"❌ Generated invalid YAML syntax: {e}")
                 raise ValueError(f"Generated YAML syntax is invalid: {e}")
-            
+
             # Validate YAML structure and fix service names
             from ..services.yaml_structure_validator import YAMLStructureValidator
             validator = YAMLStructureValidator()
-            
+
             logger.info(f"🔍 [VALIDATOR] Before validation: {len(yaml_content)} chars")
             validation = validator.validate(yaml_content)
             logger.info(f"🔍 [VALIDATOR] Validation complete: is_valid={validation.is_valid}, has_fixed={bool(validation.fixed_yaml)}")
             if validation.fixed_yaml:
                 yaml_content = validation.fixed_yaml
                 logger.info(f"✅ [VALIDATOR] YAML fixed: {len(yaml_content)} chars")
-            
+
             return yaml_content
         else:
             # Single model mode (existing behavior)
             yaml_model = getattr(settings, 'yaml_generation_model', 'gpt-5.1')
-            
+
             # Create temporary client with YAML model if different from default
             if yaml_model != openai_client.model:
                 yaml_client = OpenAIClient(
@@ -2393,17 +2402,17 @@ Generate ONLY the YAML content:
                 )
             else:
                 yaml_client = openai_client
-            
+
             # Determine temperature based on model capabilities
             yaml_temperature = _get_temperature_for_model(yaml_model, desired_temperature=0.1)
-            
+
             # Store model info in suggestion for later metrics update (single model mode)
             if suggestion:
                 if 'debug' not in suggestion:
                     suggestion['debug'] = {}
                 suggestion['debug']['yaml_model_used'] = yaml_model
                 suggestion['debug']['yaml_parallel_testing'] = False
-            
+
             # Call OpenAI to generate YAML using configured model
             response = await yaml_client.client.chat.completions.create(
                 model=yaml_client.model,
@@ -2411,10 +2420,10 @@ Generate ONLY the YAML content:
                     {
                         "role": "system",
                         "content": (
-                            "You are a Home Assistant 2025 YAML automation expert. " 
-                            "Your output is production-ready YAML that passes Home Assistant validation. " 
-                            "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
-                            "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
+                            "You are a Home Assistant 2025 YAML automation expert. "
+                            "Your output is production-ready YAML that passes Home Assistant validation. "
+                            "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
+                            "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
                             "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
                         )
                     },
@@ -2426,7 +2435,7 @@ Generate ONLY the YAML content:
                 temperature=yaml_temperature,
                 max_completion_tokens=2000  # Increased to prevent truncation of complex automations (use max_completion_tokens for newer models)
             )
-        
+
         # Phase 5: Track endpoint-level stats for YAML generation
         if hasattr(response, 'usage') and response.usage:
             usage = response.usage
@@ -2452,43 +2461,43 @@ Generate ONLY the YAML content:
             yaml_client.endpoint_stats[endpoint]['output_tokens'] += usage.completion_tokens
             yaml_client.endpoint_stats[endpoint]['total_tokens'] += usage.total_tokens
             yaml_client.endpoint_stats[endpoint]['cost_usd'] += request_cost
-        
+
         yaml_content = response.choices[0].message.content.strip()
-        
+
         logger.info(f"📥 [YAML_RAW] OpenAI returned {len(yaml_content)} chars")
         logger.info(f"📄 [YAML_RAW] First 300 chars: {yaml_content[:300]}")
-        
+
         # Remove markdown code blocks if present
         if yaml_content.startswith('```yaml'):
             yaml_content = yaml_content[7:]  # Remove ```yaml
         elif yaml_content.startswith('```'):
             yaml_content = yaml_content[3:]  # Remove ```
-        
+
         if yaml_content.endswith('```'):
             yaml_content = yaml_content[:-3]  # Remove closing ```
-        
+
         yaml_content = yaml_content.strip()
-        
+
         logger.info(f"🧹 [YAML_CLEANED] After cleanup: {len(yaml_content)} chars")
-        
+
         # Validate YAML syntax
         try:
             yaml_lib.safe_load(yaml_content)
-            logger.info(f"✅ Generated valid YAML syntax")
+            logger.info("✅ Generated valid YAML syntax")
         except yaml_lib.YAMLError as e:
             logger.error(f"❌ Generated invalid YAML syntax: {e}")
             raise ValueError(f"Generated YAML syntax is invalid: {e}")
-        
+
         # Validate YAML structure and fix service names (e.g., wled.turn_on → light.turn_on)
         from ..services.yaml_structure_validator import YAMLStructureValidator
         validator = YAMLStructureValidator()
-        
+
         logger.info(f"🔍 [VALIDATOR] Before validation: {len(yaml_content)} chars")
         validation = validator.validate(yaml_content)
         logger.info(f"🔍 [VALIDATOR] Validation complete: is_valid={validation.is_valid}, has_fixed={bool(validation.fixed_yaml)}")
         if validation.fixed_yaml:
             logger.info(f"🔍 [VALIDATOR] Fixed YAML length: {len(validation.fixed_yaml)} chars")
-        
+
         # Use fixed YAML if validation made fixes
         if validation.fixed_yaml:
             logger.info(f"🔧 Using fixed YAML from validator (original had {len(validation.errors)} errors)")
@@ -2506,25 +2515,25 @@ Generate ONLY the YAML content:
         else:
             logger.info(f"⚠️ [VALIDATOR] No fixed YAML available - keeping original (errors: {len(validation.errors)})")
             logger.info(f"⚠️ [VALIDATOR] Original YAML length: {len(yaml_content)} chars")
-        
+
         if not validation.is_valid:
             logger.warning(f"⚠️ YAML structure validation found issues: {validation.errors[:3]}")
             # Log but don't fail - will be caught by HA API when creating automation
-        
+
         # Validate with Home Assistant API if available (2025 standards compliance)
         if ha_client:
             try:
                 logger.info("🔍 Validating YAML with Home Assistant API...")
                 ha_validation = await ha_client.validate_automation(yaml_content)
-                
+
                 if not ha_validation.get('valid', False):
                     error_msg = ha_validation.get('error', 'Unknown validation error')
                     warnings = ha_validation.get('warnings', [])
-                    
+
                     logger.warning(f"⚠️ HA API validation failed: {error_msg}")
                     if warnings:
                         logger.warning(f"⚠️ HA API validation warnings: {warnings}")
-                    
+
                     # Don't fail here - let the create_automation endpoint handle it
                     # This gives better error messages to the user
                 else:
@@ -2532,22 +2541,22 @@ Generate ONLY the YAML content:
             except Exception as e:
                 logger.warning(f"⚠️ Could not validate with HA API (non-fatal): {e}")
                 # Continue - HA API validation is best-effort, not required
-        
+
         # Debug: Print the final YAML content
         logger.info("=" * 80)
         logger.info("📋 FINAL HA AUTOMATION YAML")
         logger.info("=" * 80)
         logger.info(yaml_content)
         logger.info("=" * 80)
-        
+
         return yaml_content
-        
+
     except Exception as e:
         logger.error(f"Failed to generate automation YAML: {e}", exc_info=True)
         raise
 
 
-async def simplify_query_for_test(suggestion: Dict[str, Any], openai_client) -> str:
+async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> str:
     """
     Simplify automation description to test core behavior using AI.
     
@@ -2578,22 +2587,22 @@ async def simplify_query_for_test(suggestion: Dict[str, Any], openai_client) -> 
         # Fallback to regex if OpenAI not available
         logger.warning("OpenAI not available, using fallback simplification")
         return fallback_simplify(suggestion.get('description', ''))
-    
+
     description = suggestion.get('description', '')
     trigger = suggestion.get('trigger_summary', '')
     action = suggestion.get('action_summary', '')
     logger.debug(f" Extracted description: {description[:100]}")
     logger.debug(f" Extracted trigger: {trigger[:100]}")
     logger.debug(f" Extracted action: {action[:100]}")
-    logger.info(f" About to build prompt")
-    
+    logger.info(" About to build prompt")
+
     # Research-Backed Prompt Design
     # Based on Context7 best practices and codebase temperature analysis:
     # - Extraction tasks: temperature 0.1-0.2 (very deterministic)
     # - Provide clear examples (few-shot learning)
     # - Structured prompt with task + examples + constraints
     # - Keep output simple and constrained
-    
+
     prompt = f"""Extract the core command from this automation description for quick testing.
 
 TASK: Remove all time constraints, intervals, and conditional logic. Keep only the essential trigger-action behavior.
@@ -2632,12 +2641,12 @@ CONSTRAINTS:
 - Maximum 20 words"""
 
     try:
-        logger.info(f" About to call OpenAI API")
+        logger.info(" About to call OpenAI API")
         response = await openai_client.client.chat.completions.create(
             model=openai_client.model,
             messages=[
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": "You are a command simplification expert. Extract core behaviors from automation descriptions. Return only the simplified command, no explanations."
                 },
                 {"role": "user", "content": prompt}
@@ -2646,12 +2655,12 @@ CONSTRAINTS:
             max_completion_tokens=60,     # Short output - just the command (use max_completion_tokens for newer models)
             top_p=0.9         # Nucleus sampling for slight creativity while staying focused
         )
-        logger.info(f" Got OpenAI response")
-        
+        logger.info(" Got OpenAI response")
+
         simplified = response.choices[0].message.content.strip()
         logger.info(f"Simplified '{description}' → '{simplified}'")
         return simplified
-        
+
     except Exception as e:
         logger.error(f"Failed to simplify via AI: {e}, using fallback")
         return fallback_simplify(description)
@@ -2667,7 +2676,7 @@ def fallback_simplify(description: str) -> str:
     return re.sub(r'\s+', ' ', simplified).strip()
 
 
-async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
+async def extract_entities_with_ha(query: str) -> list[dict[str, Any]]:
     """
     Extract entities from query using multi-model approach.
     
@@ -2689,7 +2698,7 @@ async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
             return await _multi_model_extractor.extract_entities(query)
         except Exception as e:
             logger.error(f"Multi-model extraction failed, falling back to enhanced: {e}")
-    
+
     # Try enhanced extraction (device intelligence)
     if _enhanced_extractor:
         try:
@@ -2697,16 +2706,16 @@ async def extract_entities_with_ha(query: str) -> List[Dict[str, Any]]:
             return await _enhanced_extractor.extract_entities_with_intelligence(query)
         except Exception as e:
             logger.error(f"Enhanced extraction failed, falling back to basic: {e}")
-    
+
     # Fallback to basic pattern matching
     logger.info("🔍 Using basic pattern matching fallback")
     return extract_entities_from_query(query)
 
 
 async def resolve_entities_to_specific_devices(
-    entities: List[Dict[str, Any]], 
-    ha_client: Optional[HomeAssistantClient] = None
-) -> List[Dict[str, Any]]:
+    entities: list[dict[str, Any]],
+    ha_client: HomeAssistantClient | None = None
+) -> list[dict[str, Any]]:
     """
     Resolve generic device entities to specific device names by querying Home Assistant.
     
@@ -2728,16 +2737,16 @@ async def resolve_entities_to_specific_devices(
     """
     if not ha_client or not entities:
         return entities
-    
+
     # Extract location and device type from entities
     mentioned_locations = []
     mentioned_domains = set()
     device_entities = []
-    
+
     for entity in entities:
         entity_type = entity.get('type', '')
         entity_name = entity.get('name', '').lower()
-        
+
         if entity_type == 'area':
             mentioned_locations.append(entity.get('name', ''))
         elif entity_type == 'device':
@@ -2751,19 +2760,19 @@ async def resolve_entities_to_specific_devices(
                 mentioned_domains.add('switch')
             elif 'hue' in entity_name:
                 mentioned_domains.add('light')  # Hue lights are light domain
-            
+
             # Check if entity has domain already
             domain = entity.get('domain', '').lower()
             if domain and domain != 'unknown':
                 mentioned_domains.add(domain)
-    
+
     # If no location or domains found, return original entities
     if not mentioned_locations or not mentioned_domains:
         logger.info(f"ℹ️ Early device resolution: No location ({len(mentioned_locations)}) or domains ({len(mentioned_domains)}) found, skipping")
         return entities
-    
+
     logger.info(f"🔍 Early device resolution: Found locations {mentioned_locations}, domains {mentioned_domains}")
-    
+
     # Query HA for specific devices in each location
     resolved_devices = []
     for location in mentioned_locations:
@@ -2778,7 +2787,7 @@ async def resolve_entities_to_specific_devices(
                     location.lower().replace(' ', '_'),
                     location.lower().replace('_', ' ')
                 ]
-                
+
                 area_entities = None
                 for loc_variant in location_variants:
                     try:
@@ -2792,21 +2801,21 @@ async def resolve_entities_to_specific_devices(
                     except Exception as e:
                         logger.debug(f"Location variant '{loc_variant}' failed: {e}")
                         continue
-                
+
                 if area_entities:
                     # Add specific devices to resolved_devices
                     for area_entity in area_entities:
                         entity_id = area_entity.get('entity_id')
                         friendly_name = area_entity.get('friendly_name') or entity_id.split('.')[-1] if entity_id else 'unknown'
-                        
+
                         # Check if this device is already in entities (avoid duplicates)
                         already_exists = any(
-                            e.get('type') == 'device' and 
-                            (e.get('name', '').lower() == friendly_name.lower() or 
+                            e.get('type') == 'device' and
+                            (e.get('name', '').lower() == friendly_name.lower() or
                              e.get('entity_id') == entity_id)
                             for e in entities
                         )
-                        
+
                         if not already_exists:
                             resolved_devices.append({
                                 'name': friendly_name,
@@ -2820,20 +2829,20 @@ async def resolve_entities_to_specific_devices(
                                 'extraction_method': 'early_device_resolution',
                                 'resolved_from': device_entities[0].get('name') if device_entities else 'generic'
                             })
-                            
+
             except Exception as e:
                 logger.warning(f"⚠️ Error resolving devices for location '{location}', domain '{domain}': {e}")
                 continue
-    
+
     # Merge resolved devices with original entities
     # Replace generic device entities with specific ones, or add if new
     if resolved_devices:
         logger.info(f"✅ Early device resolution: Resolved {len(resolved_devices)} specific devices")
-        
+
         # Create updated entities list
         updated_entities = []
         generic_device_names = {e.get('name', '').lower() for e in device_entities}
-        
+
         for entity in entities:
             # If this is a generic device entity that was resolved, skip it (we'll add specific ones)
             if entity.get('type') == 'device':
@@ -2847,22 +2856,22 @@ async def resolve_entities_to_specific_devices(
                 if was_resolved:
                     # Skip generic, will add specific below
                     continue
-            
+
             updated_entities.append(entity)
-        
+
         # Add all resolved specific devices
         updated_entities.extend(resolved_devices)
-        
+
         return updated_entities
-    
+
     return entities
 
 
 async def build_device_selection_debug_data(
-    devices_involved: List[str],
-    validated_entities: Dict[str, str],
-    enriched_data: Dict[str, Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    devices_involved: list[str],
+    validated_entities: dict[str, str],
+    enriched_data: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
     """
     Build debug data explaining why each device was selected.
     
@@ -2875,7 +2884,7 @@ async def build_device_selection_debug_data(
         List of device debug objects with selection reasoning
     """
     device_debug = []
-    
+
     for device_name in devices_involved:
         entity_id = validated_entities.get(device_name)
         if not entity_id:
@@ -2889,11 +2898,11 @@ async def build_device_selection_debug_data(
                 'actions_suggested': []
             })
             continue
-        
+
         enriched = enriched_data.get(entity_id, {})
         friendly_name = enriched.get('friendly_name', entity_id)
         entity_type = enriched.get('entity_type', 'individual')
-        
+
         # Build selection reason
         reasons = []
         if device_name.lower() == friendly_name.lower():
@@ -2902,16 +2911,16 @@ async def build_device_selection_debug_data(
             reasons.append(f"Partial match: '{device_name}' found in '{friendly_name}'")
         else:
             reasons.append(f"Fuzzy match: '{device_name}' mapped to '{friendly_name}'")
-        
+
         # Get all entities for groups
         entities = []
         if entity_type == 'group':
             member_entities = enriched.get('member_entities', [])
-            entities = [{'entity_id': eid, 'friendly_name': enriched_data.get(eid, {}).get('friendly_name', eid)} 
+            entities = [{'entity_id': eid, 'friendly_name': enriched_data.get(eid, {}).get('friendly_name', eid)}
                        for eid in member_entities]
         else:
             entities = [{'entity_id': entity_id, 'friendly_name': friendly_name}]
-        
+
         # Get capabilities
         capabilities = enriched.get('capabilities', [])
         capabilities_list = []
@@ -2923,7 +2932,7 @@ async def build_device_selection_debug_data(
                     capabilities_list.append(feature)
             else:
                 capabilities_list.append(str(cap))
-        
+
         # Determine suggested actions based on domain and capabilities
         domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
         actions_suggested = []
@@ -2940,7 +2949,7 @@ async def build_device_selection_debug_data(
             actions_suggested.append('state_change_trigger')
         elif domain == 'sensor':
             actions_suggested.append('state_reading')
-        
+
         device_debug.append({
             'device_name': device_name,
             'entity_id': entity_id,
@@ -2950,16 +2959,16 @@ async def build_device_selection_debug_data(
             'capabilities': capabilities_list,
             'actions_suggested': actions_suggested
         })
-    
+
     return device_debug
 
 
 async def generate_technical_prompt(
-    suggestion: Dict[str, Any],
-    validated_entities: Dict[str, str],
-    enriched_data: Dict[str, Dict[str, Any]],
+    suggestion: dict[str, Any],
+    validated_entities: dict[str, str],
+    enriched_data: dict[str, dict[str, Any]],
     query: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate technical prompt for YAML generation.
     
@@ -2979,29 +2988,29 @@ async def generate_technical_prompt(
         Dictionary with technical prompt details
     """
     import re
-    
+
     # Extract trigger entities from suggestion
     trigger_entities = []
     trigger_summary = suggestion.get('trigger_summary', '').lower()
     action_summary = suggestion.get('action_summary', '').lower()
     description = suggestion.get('description', '').lower()
-    
+
     # Classify entities as triggers or actions based on domain and summary
     for device_name, entity_id in validated_entities.items():
         enriched = enriched_data.get(entity_id, {})
         if not enriched:
             continue
-            
+
         domain = enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
         friendly_name = enriched.get('friendly_name', device_name)
-        
+
         # Check if this entity is mentioned in trigger context
         device_lower = device_name.lower()
         friendly_lower = friendly_name.lower()
-        
+
         # Check if entity appears in trigger-related text
         is_trigger = (
-            device_lower in trigger_summary or 
+            device_lower in trigger_summary or
             friendly_lower in trigger_summary or
             device_lower in description or
             friendly_lower in description
@@ -3012,24 +3021,24 @@ async def generate_technical_prompt(
             'when' in trigger_summary or
             'trigger' in trigger_summary
         )
-        
+
         # Check if entity appears in action context
         is_action = (
-            device_lower in action_summary or 
+            device_lower in action_summary or
             friendly_lower in action_summary or
             device_lower in description or
             friendly_lower in description
         ) and (
             domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']
         )
-        
+
         # Default: if domain suggests it's a sensor, it's a trigger; if it's a control domain, it's an action
         if not is_trigger and not is_action:
             if domain in ['binary_sensor', 'sensor', 'button', 'event']:
                 is_trigger = True
             elif domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']:
                 is_action = True
-        
+
         # Add as trigger entity
         if is_trigger:
             trigger_entity = {
@@ -3040,7 +3049,7 @@ async def generate_technical_prompt(
                 'from': None,
                 'to': None
             }
-            
+
             # Extract state transitions from trigger_summary
             if 'on' in trigger_summary or 'detect' in trigger_summary or 'trigger' in trigger_summary:
                 trigger_entity['to'] = 'on'
@@ -3048,35 +3057,35 @@ async def generate_technical_prompt(
             elif 'off' in trigger_summary:
                 trigger_entity['to'] = 'off'
                 trigger_entity['from'] = 'on'
-            
+
             trigger_entities.append(trigger_entity)
-    
+
     # Extract action entities and determine service calls
     action_entities = []
     all_service_calls = []
-    
+
     for device_name, entity_id in validated_entities.items():
         enriched = enriched_data.get(entity_id, {})
         if not enriched:
             continue
-            
+
         domain = enriched.get('domain', entity_id.split('.')[0] if '.' in entity_id else 'unknown')
         friendly_name = enriched.get('friendly_name', device_name)
-        
+
         # Check if this entity should be in actions
         device_lower = device_name.lower()
         friendly_lower = friendly_name.lower()
-        
+
         is_action_entity = (
-            device_lower in action_summary or 
+            device_lower in action_summary or
             friendly_lower in action_summary or
             device_lower in description or
             friendly_lower in description
         ) or domain in ['light', 'switch', 'fan', 'climate', 'cover', 'lock', 'media_player']
-        
+
         if not is_action_entity:
             continue
-        
+
         # Get capabilities to determine service calls
         capabilities = enriched.get('capabilities', [])
         capabilities_list = []
@@ -3089,10 +3098,10 @@ async def generate_technical_prompt(
                     capabilities_list.append(cap_name.lower())
             elif isinstance(cap, str):
                 capabilities_list.append(cap.lower())
-        
+
         # Determine service calls based on domain, capabilities, and action summary
         service_calls = []
-        
+
         if domain == 'light':
             # Check action summary for specific actions
             if 'flash' in action_summary or 'flash' in description:
@@ -3116,7 +3125,7 @@ async def generate_technical_prompt(
                     'service': 'light.turn_on',
                     'parameters': {}
                 })
-            
+
             # Add brightness if mentioned and capability exists
             if ('brightness' in action_summary or 'dim' in action_summary or 'bright' in action_summary) and 'brightness' in capabilities_list:
                 brightness_match = re.search(r'(\d+)%', action_summary)
@@ -3125,14 +3134,14 @@ async def generate_technical_prompt(
                     'service': 'light.turn_on',
                     'parameters': {'brightness_pct': brightness_pct}
                 })
-            
+
             # Add color if mentioned and capability exists
             if ('color' in action_summary or 'rgb' in action_summary or 'multi-color' in action_summary or 'multicolor' in action_summary) and ('color' in capabilities_list or 'rgb' in capabilities_list):
                 service_calls.append({
                     'service': 'light.turn_on',
                     'parameters': {'rgb_color': [255, 255, 255]}  # Default white
                 })
-            
+
             # Add effect if mentioned (e.g., "fireworks" for WLED)
             if 'effect' in capabilities_list:
                 action_lower = action_summary.lower() + ' ' + description.lower()
@@ -3146,7 +3155,7 @@ async def generate_technical_prompt(
                         })
                         logger.info(f"✅ Detected WLED effect '{effect_name}' from action summary")
                         break
-                
+
         elif domain == 'switch':
             if 'turn on' in action_summary or 'on' in action_summary:
                 service_calls.append({
@@ -3163,7 +3172,7 @@ async def generate_technical_prompt(
                     'service': 'switch.turn_on',
                     'parameters': {}
                 })
-                
+
         elif domain == 'fan':
             if 'turn on' in action_summary or 'on' in action_summary:
                 service_calls.append({
@@ -3175,7 +3184,7 @@ async def generate_technical_prompt(
                     'service': 'fan.turn_off',
                     'parameters': {}
                 })
-        
+
         elif domain == 'climate':
             if 'turn on' in action_summary or 'on' in action_summary:
                 service_calls.append({
@@ -3187,14 +3196,14 @@ async def generate_technical_prompt(
                     'service': 'climate.turn_off',
                     'parameters': {}
                 })
-        
+
         # If no service calls determined, add default based on domain
         if not service_calls and domain in ['light', 'switch', 'fan', 'climate']:
             service_calls.append({
                 'service': f'{domain}.turn_on',
                 'parameters': {}
             })
-        
+
         if service_calls:
             action_entity = {
                 'entity_id': entity_id,
@@ -3204,17 +3213,17 @@ async def generate_technical_prompt(
             }
             action_entities.append(action_entity)
             all_service_calls.extend(service_calls)
-    
+
     # Build entity capabilities mapping for ALL entities
     entity_capabilities = {}
     for entity_id in validated_entities.values():
         enriched = enriched_data.get(entity_id, {})
         if not enriched:
             continue
-            
+
         capabilities = enriched.get('capabilities', [])
         capabilities_list = []
-        
+
         for cap in capabilities:
             if isinstance(cap, dict):
                 # Try different field names
@@ -3230,7 +3239,7 @@ async def generate_technical_prompt(
                     capabilities_list.append(cap_info)
             elif isinstance(cap, str):
                 capabilities_list.append({'name': cap, 'type': 'unknown', 'properties': {}})
-        
+
         # Also include supported_features if available
         supported_features = enriched.get('supported_features')
         if supported_features is not None:
@@ -3249,7 +3258,7 @@ async def generate_technical_prompt(
                 'friendly_name': enriched.get('friendly_name', entity_id),
                 'attributes': enriched.get('attributes', {})
             }
-    
+
     technical_prompt = {
         'alias': suggestion.get('description', 'AI Generated Automation')[:100],
         'description': suggestion.get('description', ''),
@@ -3271,58 +3280,58 @@ async def generate_technical_prompt(
             'action_summary': suggestion.get('action_summary', '')
         }
     }
-    
+
     return technical_prompt
 
 
 async def generate_suggestions_from_query(
-    query: str, 
-    entities: List[Dict[str, Any]], 
+    query: str,
+    entities: list[dict[str, Any]],
     user_id: str,
-    db_session: Optional[AsyncSession] = None,
-    clarification_context: Optional[Dict[str, Any]] = None,  # NEW: Clarification Q&A
-    query_id: Optional[str] = None  # NEW: Query ID for metrics tracking
-) -> List[Dict[str, Any]]:
+    db_session: AsyncSession | None = None,
+    clarification_context: dict[str, Any] | None = None,  # NEW: Clarification Q&A
+    query_id: str | None = None  # NEW: Query ID for metrics tracking
+) -> list[dict[str, Any]]:
     """Generate automation suggestions based on query and entities"""
     if not openai_client:
         raise ValueError("OpenAI client not available - cannot generate suggestions")
-    
+
     try:
         # Use unified prompt builder for consistent prompt generation
         from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
-        
+
         unified_builder = UnifiedPromptBuilder(device_intelligence_client=_device_intelligence_client)
-        
+
         # NEW: Resolve and enrich entities with full attribute data (like YAML generation does)
         entity_context_json = ""
         resolved_entity_ids = []
         enriched_data = {}  # Initialize at function level for use in suggestion building
-        enriched_entities: List[Dict[str, Any]] = []
-        
+        enriched_entities: list[dict[str, Any]] = []
+
         try:
             logger.info("🔍 Resolving and enriching entities for suggestion generation...")
-            
+
             # Initialize HA client and entity validator
             ha_client = HomeAssistantClient(
                 ha_url=settings.ha_url,
                 access_token=settings.ha_token
             ) if settings.ha_url and settings.ha_token else None
-            
+
             if ha_client:
                 # Step 1: Fetch ALL entities matching query context (location + domain)
                 # This finds all lights in the office (e.g., all 6 lights including WLED)
                 # instead of just mapping generic names to single entities
-                from ..services.entity_validator import EntityValidator
                 from ..clients.data_api_client import DataAPIClient
-                
+                from ..services.entity_validator import EntityValidator
+
                 data_api_client = DataAPIClient()
                 entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
-                
+
                 # Extract location and ALL domains from query to get ALL matching entities
                 query_location = entity_validator._extract_location_from_query(query)
                 query_domains = entity_validator._extract_all_domains_from_query(query)  # Get ALL domains
                 query_domain = query_domains[0] if query_domains else None  # Keep single domain for logging
-                
+
                 # NEW: If clarification context has selected entities, prioritize those
                 qa_selected_entity_ids = []
                 if clarification_context and clarification_context.get('questions_and_answers'):
@@ -3331,21 +3340,21 @@ async def generate_suggestions_from_query(
                         if selected:
                             for entity_ref in selected:
                                 # Check if it's an entity_id (contains '.')
-                                if '.' in entity_ref and (entity_ref.startswith('light.') or 
+                                if '.' in entity_ref and (entity_ref.startswith('light.') or
                                                           entity_ref.startswith('switch.') or
                                                           entity_ref.startswith('binary_sensor.') or
                                                           entity_ref.startswith('sensor.')):
                                     qa_selected_entity_ids.append(entity_ref)
-                
+
                 if qa_selected_entity_ids:
                     logger.info(f"🔍 Found {len(qa_selected_entity_ids)} selected entity IDs from Q&A: {qa_selected_entity_ids}")
-                
+
                 logger.info(f"🔍 Extracted location='{query_location}', domains={query_domains} from query")
-                
+
                 # Fetch ALL entities matching the query context (all domains, all office lights, all sensors)
                 resolved_entity_ids = []
                 all_available_entities = []
-                
+
                 # NEW: If Q&A selected entities exist, start with those
                 if qa_selected_entity_ids:
                     logger.info(f"🔍 Prioritizing {len(qa_selected_entity_ids)} Q&A-selected entities")
@@ -3371,7 +3380,7 @@ async def generate_suggestions_from_query(
                                     logger.warning(f"⚠️ Failed to enrich entity {entity_id} with EntityAttributeService: {e}, using fallback")
                                     friendly_name = attributes.get('friendly_name', entity_id.split('.')[-1].replace('_', ' ').title())
                                     area_id = attributes.get('area_id')
-                                
+
                                 entity_dict = {
                                     'entity_id': entity_id,
                                     'friendly_name': friendly_name,
@@ -3382,7 +3391,7 @@ async def generate_suggestions_from_query(
                                 logger.info(f"✅ Verified Q&A-selected entity: {entity_id} ({entity_dict['friendly_name']})")
                         except Exception as e:
                             logger.warning(f"⚠️ Q&A-selected entity {entity_id} not found or invalid: {e}")
-                
+
                 # Fetch entities for each domain found in query
                 for domain in query_domains:
                     available_entities = await entity_validator._get_available_entities(
@@ -3396,17 +3405,17 @@ async def generate_suggestions_from_query(
                             if entity_id and entity_id not in qa_selected_entity_ids:
                                 all_available_entities.append(entity)
                         logger.info(f"✅ Found {len(available_entities)} entities for domain '{domain}' in location '{query_location}'")
-                
+
                 # If no domains found, try fetching without domain filter (location only)
                 if not all_available_entities and query_location:
-                    logger.info(f"⚠️ No entities found for specific domains, trying location-only fetch...")
+                    logger.info("⚠️ No entities found for specific domains, trying location-only fetch...")
                     all_available_entities = await entity_validator._get_available_entities(
                         domain=None,
                         area_id=query_location
                     )
                     if all_available_entities:
                         logger.info(f"✅ Found {len(all_available_entities)} entities in location '{query_location}' (no domain filter)")
-                
+
                 if all_available_entities:
                     # Get all entity IDs that match the query context
                     resolved_entity_ids = [e.get('entity_id') for e in all_available_entities if e.get('entity_id')]
@@ -3418,10 +3427,10 @@ async def generate_suggestions_from_query(
                             seen.add(eid)
                             unique_entity_ids.append(eid)
                     resolved_entity_ids = unique_entity_ids
-                    
+
                     logger.info(f"✅ Found {len(resolved_entity_ids)} unique entities matching query context (location={query_location}, domains={query_domains})")
                     logger.debug(f"Resolved entity IDs: {resolved_entity_ids[:10]}...")  # Log first 10
-                    
+
                     # Expand group entities to their individual member entities (generic, no hardcoding)
                     resolved_entity_ids = await expand_group_entities_to_members(
                         resolved_entity_ids,
@@ -3432,12 +3441,12 @@ async def generate_suggestions_from_query(
                     # Fallback: try mapping device names (may only return one per term)
                     device_names = [e.get('name') for e in entities if e.get('name')]
                     if device_names:
-                        logger.info(f"🔍 No entities found by location/domain, trying device name mapping...")
+                        logger.info("🔍 No entities found by location/domain, trying device name mapping...")
                         entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
                         if entity_mapping:
                             resolved_entity_ids = list(entity_mapping.values())
                             logger.info(f"✅ Resolved {len(entity_mapping)} device names to {len(resolved_entity_ids)} entity IDs")
-                            
+
                             # Expand group entities to individual members
                             resolved_entity_ids = await expand_group_entities_to_members(
                                 resolved_entity_ids,
@@ -3455,7 +3464,7 @@ async def generate_suggestions_from_query(
                     else:
                         resolved_entity_ids = []
                         logger.warning("⚠️ No entities found and no device names to map")
-                
+
                 # Step 2: Enrich resolved entity IDs with COMPREHENSIVE data from ALL sources
                 if resolved_entity_ids:
                     logger.info(f"🔍 Comprehensively enriching {len(resolved_entity_ids)} resolved entities...")
@@ -3470,10 +3479,10 @@ async def generate_suggestions_from_query(
                             logger.info("🌍 Fetching enrichment context (weather, carbon, energy, air quality)...")
                             from ..services.enrichment_context_fetcher import (
                                 EnrichmentContextFetcher,
-                                should_include_weather,
+                                should_include_air_quality,
                                 should_include_carbon,
                                 should_include_energy,
-                                should_include_air_quality
+                                should_include_weather,
                             )
 
                             # Initialize enrichment fetcher with InfluxDB client
@@ -3524,19 +3533,21 @@ async def generate_suggestions_from_query(
 
                     # Check cache first (Phase 4: Entity Context Caching)
                     from ..services.entity_context_cache import get_entity_cache
-                    
+
                     entity_cache = get_entity_cache(
                         ttl_seconds=getattr(settings, 'entity_cache_ttl_seconds', 300)
                     )
-                    
+
                     cached_data = entity_cache.get(set(resolved_entity_ids))
-                    
+
                     if cached_data:
                         logger.info(f"✅ Cache hit: Using cached entity data for {len(resolved_entity_ids)} entities")
                         enriched_data = cached_data
                     else:
                         # Use comprehensive enrichment service that combines ALL data sources
-                        from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                        from ..services.comprehensive_entity_enrichment import (
+                            enrich_entities_comprehensively,
+                        )
                         enriched_data = await enrich_entities_comprehensively(
                             entity_ids=set(resolved_entity_ids),
                             ha_client=ha_client,
@@ -3545,25 +3556,25 @@ async def generate_suggestions_from_query(
                             include_historical=False,  # Set to True to include usage patterns
                             enrichment_context=enrichment_context  # NEW: Add enrichment context
                         )
-                        
+
                         # Cache the enriched data
                         entity_cache.set(set(resolved_entity_ids), enriched_data)
                         logger.info(f"✅ Cached entity data for {len(resolved_entity_ids)} entities")
-                    
+
                     # ========================================================================
                     # LOCATION-AWARE ENTITY EXPANSION (NEW)
                     # ========================================================================
                     # Extract locations mentioned in query and clarification context
                     mentioned_locations = set()
                     query_lower = query.lower()
-                    
+
                     # Common location keywords
                     location_keywords = [
                         'office', 'living room', 'bedroom', 'kitchen', 'bathroom', 'dining room',
                         'garage', 'basement', 'attic', 'hallway', 'entryway', 'patio', 'deck',
                         'outdoor', 'outdoors', 'garden', 'yard', 'backyard', 'front yard'
                     ]
-                    
+
                     # Extract locations from query
                     for keyword in location_keywords:
                         if keyword in query_lower:
@@ -3572,7 +3583,7 @@ async def generate_suggestions_from_query(
                             mentioned_locations.add(normalized)
                             # Also try the original format
                             mentioned_locations.add(keyword)
-                    
+
                     # Extract locations from clarification context
                     if clarification_context:
                         qa_list = clarification_context.get('questions_and_answers', [])
@@ -3583,7 +3594,7 @@ async def generate_suggestions_from_query(
                                     normalized = keyword.replace(' ', '_')
                                     mentioned_locations.add(normalized)
                                     mentioned_locations.add(keyword)
-                    
+
                     # Extract device domain/type from query and entities
                     mentioned_domains = set()
                     if entities:
@@ -3599,7 +3610,7 @@ async def generate_suggestions_from_query(
                                 mentioned_domains.add('binary_sensor')
                             elif 'switch' in name:
                                 mentioned_domains.add('switch')
-                    
+
                     # Expand entities by location if location is mentioned
                     location_expanded_entity_ids = set(resolved_entity_ids)
                     if mentioned_locations and ha_client:
@@ -3616,7 +3627,7 @@ async def generate_suggestions_from_query(
                                         area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
                                         location_expanded_entity_ids.update(area_entity_ids)
                                         logger.info(f"✅ Expanded by location '{location}' + domain '{domain}': Added {len(area_entity_ids)} entities")
-                                        
+
                                         # Also enrich these new entities
                                         for area_entity in area_entities:
                                             entity_id = area_entity.get('entity_id')
@@ -3633,7 +3644,7 @@ async def generate_suggestions_from_query(
                                                 }
                                 except Exception as e:
                                     logger.warning(f"⚠️ Error expanding entities for location '{location}' + domain '{domain}': {e}")
-                            
+
                             # If no specific domain, try to get all entities in the area
                             if not mentioned_domains:
                                 try:
@@ -3645,7 +3656,7 @@ async def generate_suggestions_from_query(
                                         area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
                                         location_expanded_entity_ids.update(area_entity_ids)
                                         logger.info(f"✅ Expanded by location '{location}' (all domains): Added {len(area_entity_ids)} entities")
-                                        
+
                                         # Enrich new entities
                                         for area_entity in area_entities:
                                             entity_id = area_entity.get('entity_id')
@@ -3661,13 +3672,15 @@ async def generate_suggestions_from_query(
                                                 }
                                 except Exception as e:
                                     logger.warning(f"⚠️ Error expanding entities for location '{location}': {e}")
-                        
+
                         # Re-enrich all expanded entities comprehensively
                         if location_expanded_entity_ids != set(resolved_entity_ids):
                             new_entity_ids = location_expanded_entity_ids - set(resolved_entity_ids)
                             logger.info(f"🔄 Re-enriching {len(new_entity_ids)} location-expanded entities")
                             try:
-                                from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                                from ..services.comprehensive_entity_enrichment import (
+                                    enrich_entities_comprehensively,
+                                )
                                 new_enriched = await enrich_entities_comprehensively(
                                     entity_ids=new_entity_ids,
                                     ha_client=ha_client,
@@ -3679,10 +3692,10 @@ async def generate_suggestions_from_query(
                                 enriched_data.update(new_enriched)
                             except Exception as e:
                                 logger.warning(f"⚠️ Error re-enriching location-expanded entities: {e}")
-                    
+
                     # Update resolved_entity_ids to include location-expanded entities
                     resolved_entity_ids = list(location_expanded_entity_ids)
-                    
+
                     # ========================================================================
                     # LOCATION-PRIORITY FILTERING (NEW)
                     # ========================================================================
@@ -3692,7 +3705,7 @@ async def generate_suggestions_from_query(
                     # BUT: Don't filter if extracted names are generic domain terms (e.g., "lights", "sensor", "led")
                     # This reduces prompt size while still giving AI enough context
                     filtered_entity_ids_for_prompt = set(resolved_entity_ids)
-                    
+
                     # Generic domain terms that should NOT trigger filtering (too broad)
                     generic_terms = {
                         'light', 'lights', 'lamp', 'lamps', 'bulb', 'bulbs', 'led', 'leds',
@@ -3702,7 +3715,7 @@ async def generate_suggestions_from_query(
                         'fan', 'fans', 'climate', 'thermostat', 'thermostats',
                         'tv', 'television', 'speaker', 'speakers', 'lock', 'locks'
                     }
-                    
+
                     # Step 1: Filter by location if location is mentioned (HIGHEST PRIORITY)
                     if mentioned_locations:
                         location_filtered_entity_ids = set()
@@ -3713,35 +3726,35 @@ async def generate_suggestions_from_query(
                             entity_area_name_raw = enriched.get('area_name') or ''
                             entity_area_id = entity_area_id_raw.lower() if isinstance(entity_area_id_raw, str) else ''
                             entity_area_name = entity_area_name_raw.lower() if isinstance(entity_area_name_raw, str) else ''
-                            
+
                             # Check if entity is in any mentioned location
                             entity_matches_location = False
                             for location in mentioned_locations:
                                 location_lower = location.lower().replace('_', ' ')
                                 # Check area_id and area_name
-                                if (location_lower in entity_area_id or 
+                                if (location_lower in entity_area_id or
                                     entity_area_id in location_lower or
                                     location_lower in entity_area_name or
                                     entity_area_name in location_lower):
                                     entity_matches_location = True
                                     break
-                            
+
                             if entity_matches_location:
                                 location_filtered_entity_ids.add(entity_id)
-                        
+
                         if location_filtered_entity_ids:
                             filtered_entity_ids_for_prompt = location_filtered_entity_ids
                             logger.info(f"📍 Location-filtered: {len(location_filtered_entity_ids)}/{len(resolved_entity_ids)} entities match locations {mentioned_locations}")
                         else:
                             logger.warning(f"⚠️ No entities matched locations {mentioned_locations}, using all entities")
-                    
+
                     # Step 2: Further filter by device name if specific names are mentioned (SECONDARY)
                     if entities:
                         extracted_device_names = [e.get('name', '').lower().strip() for e in entities if e.get('name')]
                         if extracted_device_names:
                             # Check if extracted names are generic domain terms
                             specific_names = [name for name in extracted_device_names if name not in generic_terms]
-                            
+
                             if specific_names and not mentioned_locations:
                                 # Only filter by name if no location was mentioned (location takes priority)
                                 # We have specific device names, filter to match them
@@ -3753,15 +3766,15 @@ async def generate_suggestions_from_query(
                                         continue
                                     friendly_name = friendly_name.lower()
                                     entity_id_lower = entity_id.lower()
-                                    
+
                                     # Check if entity matches any specific extracted device name
                                     for device_name in specific_names:
-                                        if (device_name in friendly_name or 
+                                        if (device_name in friendly_name or
                                             friendly_name in device_name or
                                             device_name in entity_id_lower):
                                             matching_entity_ids.add(entity_id)
                                             break
-                                
+
                                 # If we found matches, use them; otherwise use all (fallback)
                                 if matching_entity_ids:
                                     filtered_entity_ids_for_prompt = matching_entity_ids
@@ -3779,20 +3792,20 @@ async def generate_suggestions_from_query(
                                         continue
                                     friendly_name = friendly_name.lower()
                                     entity_id_lower = entity_id.lower()
-                                    
+
                                     # Check if entity matches any specific extracted device name
                                     for device_name in specific_names:
-                                        if (device_name in friendly_name or 
+                                        if (device_name in friendly_name or
                                             friendly_name in device_name or
                                             device_name in entity_id_lower):
                                             device_name_filtered.add(entity_id)
                                             break
-                                    
+
                                     # Also check if entity domain matches mentioned domains
                                     entity_domain = enriched.get('domain', '').lower()
                                     if entity_domain in mentioned_domains:
                                         device_name_filtered.add(entity_id)
-                                
+
                                 if device_name_filtered:
                                     filtered_entity_ids_for_prompt = device_name_filtered
                                     logger.info(f"🔍 Location + Name filtered: {len(device_name_filtered)} entities match both location and device names")
@@ -3802,7 +3815,7 @@ async def generate_suggestions_from_query(
                                     logger.info(f"ℹ️ Generic device names {extracted_device_names} but location specified - using location-filtered entities")
                                 else:
                                     logger.info(f"ℹ️ Extracted names are generic terms {extracted_device_names}, not filtering - using all {len(resolved_entity_ids)} query-context entities")
-                    
+
                     # Build entity context JSON from filtered entities
                     # Create entity dicts for context builder from enriched data
                     enriched_entities = []
@@ -3813,51 +3826,51 @@ async def generate_suggestions_from_query(
                             'friendly_name': enriched.get('friendly_name', entity_id),
                             'name': enriched.get('friendly_name', entity_id.split('.')[-1] if '.' in entity_id else entity_id)
                         })
-                    
+
                     # Filter enriched_data to only include entities in prompt
                     filtered_enriched_data_for_prompt = {
                         entity_id: enriched_data[entity_id]
                         for entity_id in filtered_entity_ids_for_prompt
                         if entity_id in enriched_data
                     }
-                    
+
                     # Compress entity context to reduce token usage (Phase 3)
                     if getattr(settings, 'enable_token_counting', True):
                         from ..utils.entity_context_compressor import compress_entity_context
-                        
+
                         max_entity_tokens = getattr(settings, 'max_entity_context_tokens', 10_000)
                         suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
-                        
+
                         filtered_enriched_data_for_prompt = compress_entity_context(
                             filtered_enriched_data_for_prompt,
                             max_tokens=max_entity_tokens,
                             model=suggestion_model
                         )
-                        
+
                         logger.info(
                             f"✅ Compressed entity context to {len(filtered_enriched_data_for_prompt)} entities "
                             f"(max {max_entity_tokens} tokens)"
                         )
-                    
+
                     context_builder = EntityContextBuilder()
                     entity_context_json = await context_builder.build_entity_context_json(
                         entities=enriched_entities,
                         enriched_data=filtered_enriched_data_for_prompt,
                         db_session=db_session
                     )
-                    
+
                     logger.info(f"✅ Built entity context JSON with {len(filtered_enriched_data_for_prompt)}/{len(enriched_data)} enriched entities (filtered for prompt)")
                     logger.debug(f"Entity context JSON: {entity_context_json[:500]}...")
                 else:
                     logger.warning("⚠️ No entity IDs to enrich - skipping enrichment")
             else:
                 logger.warning("⚠️ Home Assistant client not available, skipping entity enrichment")
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Error resolving/enriching entities for suggestions: {e}", exc_info=True)
             entity_context_json = ""
             enriched_data = {}  # Ensure enriched_data is empty on error
-        
+
         # Build unified prompt with device intelligence AND enriched entity context
         prompt_dict = await unified_builder.build_query_prompt(
             query=query,
@@ -3866,12 +3879,11 @@ async def generate_suggestions_from_query(
             entity_context_json=entity_context_json,  # Pass enriched context
             clarification_context=clarification_context  # NEW: Pass clarification Q&A
         )
-        
+
         # Enforce token budget before API call (Phase 2)
         if getattr(settings, 'enable_token_counting', True):
-            from ..utils.token_budget import enforce_token_budget, check_token_budget
-            from ..utils.token_counter import count_message_tokens
-            
+            from ..utils.token_budget import check_token_budget, enforce_token_budget
+
             # Build budget from settings
             token_budget = {
                 'max_entity_context_tokens': getattr(settings, 'max_entity_context_tokens', 10_000),
@@ -3879,33 +3891,33 @@ async def generate_suggestions_from_query(
                 'max_conversation_history_tokens': getattr(settings, 'max_conversation_history_tokens', 1_000),
                 'max_total_tokens': 30_000  # OpenAI rate limit (will be 500K after tier verification)
             }
-            
+
             # Enforce budget on prompt components
             prompt_dict = enforce_token_budget(
                 prompt_dict,
                 token_budget,
                 model=getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
             )
-            
+
             # Check total token budget and log warning if approaching limit
             # Build messages to check
             check_messages = [
                 {"role": "system", "content": prompt_dict.get("system_prompt", "")},
                 {"role": "user", "content": prompt_dict.get("user_prompt", "")}
             ]
-            
+
             budget_status = check_token_budget(
                 check_messages,
                 token_budget,
                 model=getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
             )
-            
+
             if budget_status['usage_percent'] > 80:
                 logger.warning(
                     f"⚠️ Token usage at {budget_status['usage_percent']:.1f}% of budget "
                     f"({budget_status['total_tokens']}/{budget_status['max_tokens']} tokens)"
                 )
-            
+
             if budget_status['total_tokens'] > getattr(settings, 'warn_on_token_threshold', 20_000):
                 logger.warning(
                     f"⚠️ Token count ({budget_status['total_tokens']}) exceeds warning threshold "
@@ -3930,11 +3942,11 @@ async def generate_suggestions_from_query(
                     langchain_exc,
                     exc_info=True,
                 )
-        
+
         # Generate suggestions with unified prompt
         logger.info(f"Generating suggestions for query: {query}")
         logger.info(f"OpenAI client available: {openai_client is not None}")
-        
+
         # Capture OpenAI prompts for debug panel
         openai_debug_data = {
             'system_prompt': prompt_dict.get('system_prompt', ''),
@@ -3943,24 +3955,24 @@ async def generate_suggestions_from_query(
             'token_usage': None,
             'clarification_context': clarification_context  # NEW: Include clarification in debug
         }
-        
+
         try:
             # Check if parallel testing enabled
             from ..database.crud import get_system_settings
             system_settings = await get_system_settings(db_session) if db_session else None
             enable_parallel = system_settings and getattr(system_settings, 'enable_parallel_model_testing', False) if system_settings else False
-            
+
             if enable_parallel:
                 # Parallel model testing mode
                 from ..services.parallel_model_tester import ParallelModelTester
                 tester = ParallelModelTester(openai_client.api_key)
-                
+
                 # Get models from settings
                 parallel_models = getattr(system_settings, 'parallel_testing_models', {}) if system_settings else {}
                 models = parallel_models.get('suggestion', ['gpt-5.1'])
-                
+
                 logger.info(f"OpenAI model (parallel testing): {models[0]} vs {models[1]} - using {models[0]}")
-                
+
                 result = await tester.generate_suggestions_parallel(
                     prompt_dict=prompt_dict,
                     models=models,
@@ -3970,10 +3982,10 @@ async def generate_suggestions_from_query(
                     temperature=settings.creative_temperature,
                     max_tokens=1200
                 )
-                
+
                 suggestions_data = result['primary_result']  # Use first model's result
                 comparison_metrics = result['comparison']  # Store for metrics
-                
+
                 # Update debug data with primary model usage
                 if comparison_metrics and comparison_metrics.get('model_results'):
                     primary_result = comparison_metrics['model_results'][0]
@@ -3988,14 +4000,14 @@ async def generate_suggestions_from_query(
                     openai_debug_data['model_used'] = primary_result.get('model', models[0])
                     openai_debug_data['parallel_testing'] = True
                     openai_debug_data['comparison_metrics'] = comparison_metrics
-                
+
                 logger.info(f"Parallel testing: {models[0]} vs {models[1]} - using {models[0]} result")
             else:
                 # Single model mode (existing behavior)
                 suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
-                
+
                 logger.info(f"OpenAI model (single mode): {suggestion_model}")
-                
+
                 # Create temporary client with suggestion model if different
                 if suggestion_model != openai_client.model:
                     suggestion_client = OpenAIClient(
@@ -4005,7 +4017,7 @@ async def generate_suggestions_from_query(
                     )
                 else:
                     suggestion_client = openai_client
-                
+
                 suggestions_data = await suggestion_client.generate_with_unified_prompt(
                     endpoint="ask_ai_suggestions",  # Phase 5: Track endpoint
                     prompt_dict=prompt_dict,
@@ -4013,22 +4025,22 @@ async def generate_suggestions_from_query(
                     max_tokens=1200,
                     output_format="json"
                 )
-                
+
                 # Update debug data with actual model used
                 if suggestion_client.last_usage:
                     openai_debug_data['token_usage'] = suggestion_client.last_usage
                     openai_debug_data['model_used'] = suggestion_model
                     openai_debug_data['parallel_testing'] = False
-            
+
             # Store OpenAI response (parsed JSON)
             openai_debug_data['openai_response'] = suggestions_data
-            
+
             logger.info(f"OpenAI response received: {suggestions_data}")
-            
+
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             raise
-        
+
         # Parse OpenAI response
         suggestions = []
         try:
@@ -4036,9 +4048,9 @@ async def generate_suggestions_from_query(
             if not suggestions_data:
                 logger.warning("OpenAI returned empty response")
                 raise ValueError("Empty response from OpenAI")
-            
+
             logger.info(f"OpenAI response content: {str(suggestions_data)[:200]}...")
-            
+
             # suggestions_data is already parsed JSON from unified prompt method
             parsed = suggestions_data
             logger.info(f"🔍 [CONSOLIDATION DEBUG] Processing {len(parsed)} suggestions from OpenAI")
@@ -4048,7 +4060,7 @@ async def generate_suggestions_from_query(
                 devices_involved = suggestion.get('devices_involved', [])
                 original_devices_count = len(devices_involved)
                 logger.info(f"🔍 [CONSOLIDATION DEBUG] Suggestion {i+1}: devices_involved BEFORE processing = {devices_involved}")
-                
+
                 # PRE-CONSOLIDATION: Remove generic/redundant terms before entity mapping
                 # This handles cases where OpenAI includes generic terms like "light", "wled", domain names, etc.
                 if devices_involved:
@@ -4060,7 +4072,7 @@ async def generate_suggestions_from_query(
                             f"(removed {original_devices_count - len(devices_involved)} generic/redundant terms)"
                         )
                         original_devices_count = len(devices_involved)  # Update for next consolidation
-                    
+
                     # DEDUPLICATION: Remove exact duplicate device names (case-insensitive) while preserving order
                     seen = set()
                     seen_lower = set()  # Track lowercase versions for case-insensitive dedup
@@ -4074,7 +4086,7 @@ async def generate_suggestions_from_query(
                             deduplicated.append(device)
                         else:
                             duplicates_removed.append(device)
-                    
+
                     if len(deduplicated) < len(devices_involved):
                         logger.info(
                             f"🔄 Deduplicated devices for suggestion {i+1}: "
@@ -4087,7 +4099,7 @@ async def generate_suggestions_from_query(
                         )
                     devices_involved = deduplicated
                     original_devices_count = len(devices_involved)  # Update for next consolidation
-                
+
                 if enriched_data and devices_involved:
                     # Initialize HA client for verification if needed
                     ha_client_for_mapping = ha_client if 'ha_client' in locals() else (
@@ -4097,14 +4109,14 @@ async def generate_suggestions_from_query(
                         ) if settings.ha_url and settings.ha_token else None
                     )
                     validated_entities = await map_devices_to_entities(
-                        devices_involved, 
-                        enriched_data, 
+                        devices_involved,
+                        enriched_data,
                         ha_client=ha_client_for_mapping,
                         fuzzy_match=True
                     )
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
-                        
+
                         # Replace device names in devices_involved with actual device names from enriched_data
                         # This ensures UI displays "Office Back Left" instead of "Hue Color Downlight 1"
                         updated_devices_involved = []
@@ -4117,7 +4129,7 @@ async def generate_suggestions_from_query(
                             else:
                                 # device_name is a friendly name, look it up in validated_entities
                                 entity_id = validated_entities.get(device_name)
-                            
+
                             # Try to get enriched data for this entity_id
                             if entity_id and entity_id in enriched_data:
                                 enriched = enriched_data[entity_id]
@@ -4127,10 +4139,10 @@ async def generate_suggestions_from_query(
                                 # 3. name_by_user directly from enriched data
                                 # 4. name or original_name as fallback
                                 actual_device_name = (
-                                    enriched.get('device_name') or 
-                                    enriched.get('friendly_name') or 
-                                    enriched.get('name_by_user') or 
-                                    enriched.get('name') or 
+                                    enriched.get('device_name') or
+                                    enriched.get('friendly_name') or
+                                    enriched.get('name_by_user') or
+                                    enriched.get('name') or
                                     enriched.get('original_name')
                                 )
                                 if actual_device_name:
@@ -4145,46 +4157,46 @@ async def generate_suggestions_from_query(
                                 updated_devices_involved.append(device_name)
                                 if entity_id:
                                     logger.debug(f"⚠️ Entity {entity_id} not found in enriched_data, keeping original name")
-                        
+
                         if updated_devices_involved != devices_involved:
                             logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
                             devices_involved = updated_devices_involved
-                        
+
                         # NEW: Validate location context for matched devices
                         location_mismatch_detected = False
                         query_location = None
                         try:
                             logger.info(f"🔍 [LOCATION VALIDATION] Starting location validation for suggestion {i+1}")
                             # Extract location from query
-                            from ..services.entity_validator import EntityValidator
                             from ..clients.data_api_client import DataAPIClient
+                            from ..services.entity_validator import EntityValidator
                             data_api_client = DataAPIClient()
                             entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_for_mapping)
                             query_location = entity_validator._extract_location_from_query(query)
                             logger.info(f"🔍 [LOCATION VALIDATION] Extracted query_location: '{query_location}' from query: '{query}'")
-                            
+
                             # Check if any matched devices are in wrong location
                             if query_location:
                                 logger.info(f"🔍 [LOCATION VALIDATION] Query has location '{query_location}', checking {len(validated_entities)} matched devices")
                                 query_location_lower = query_location.lower()
                                 mismatched_devices = []
-                                
+
                                 for device_name, entity_id in validated_entities.items():
                                     entity_data = enriched_data.get(entity_id, {})
                                     entity_area_raw = (
-                                        entity_data.get('area_id') or 
+                                        entity_data.get('area_id') or
                                         entity_data.get('device_area_id') or
                                         entity_data.get('area_name')
                                     )
                                     entity_area = entity_area_raw.lower() if entity_area_raw else ''
-                                    
+
                                     logger.info(f"🔍 [LOCATION VALIDATION] Device '{device_name}' (entity_id: {entity_id}) has area: '{entity_area}' (query expects: '{query_location_lower}')")
-                                    
+
                                     # Normalize area names for comparison
                                     import re
                                     normalized_query = re.sub(r'\b(room|area|space)\b', '', query_location_lower).strip()
                                     normalized_entity = re.sub(r'\b(room|area|space)\b', '', entity_area).strip()
-                                    
+
                                     # Check if entity area matches query location
                                     area_matches = (
                                         query_location_lower in entity_area or
@@ -4192,9 +4204,9 @@ async def generate_suggestions_from_query(
                                         normalized_query in normalized_entity or
                                         normalized_entity in normalized_query
                                     )
-                                    
+
                                     logger.info(f"🔍 [LOCATION VALIDATION] Area match check: entity_area='{entity_area}', query_location='{query_location_lower}', normalized_query='{normalized_query}', normalized_entity='{normalized_entity}', matches={area_matches}")
-                                    
+
                                     # If entity has an area but doesn't match, flag it
                                     if entity_area and not area_matches:
                                         logger.warning(f"🔍 [LOCATION VALIDATION] MISMATCH DETECTED: Device '{device_name}' is in '{entity_area}' but query expects '{query_location_lower}'")
@@ -4205,7 +4217,7 @@ async def generate_suggestions_from_query(
                                             'expected_location': query_location
                                         })
                                         location_mismatch_detected = True
-                                
+
                                 if location_mismatch_detected:
                                     logger.warning(
                                         f"⚠️ LOCATION MISMATCH detected in suggestion {i+1}: "
@@ -4216,10 +4228,10 @@ async def generate_suggestions_from_query(
                                     suggestion['confidence'] = max(0.3, suggestion.get('confidence', 0.9) * 0.5)
                                     logger.info(f"📉 Lowered confidence to {suggestion['confidence']:.2f} due to location mismatch")
                             else:
-                                logger.info(f"🔍 [LOCATION VALIDATION] No location extracted from query, skipping validation")
+                                logger.info("🔍 [LOCATION VALIDATION] No location extracted from query, skipping validation")
                         except Exception as e:
                             logger.error(f"❌ Error validating location context: {e}", exc_info=True)
-                        
+
                     else:
                         logger.warning(f"⚠️ No verified entities found for suggestion {i+1} (devices: {devices_involved})")
                         # If devices_involved contains entity IDs (e.g., "light.hue_office_1"), use them directly
@@ -4234,11 +4246,11 @@ async def generate_suggestions_from_query(
                                 # Or extract a friendly name if available
                                 friendly_name = device.split('.')[-1].replace('_', ' ').title()
                                 entity_ids_found[friendly_name] = device
-                        
+
                         if entity_ids_found:
                             logger.info(f"✅ Found {len(entity_ids_found)} entity IDs in devices_involved, using them directly: {list(entity_ids_found.values())}")
                             validated_entities = entity_ids_found
-                            
+
                             # CRITICAL: Also replace entity IDs with friendly names even when validated_entities was empty
                             # This handles the case where OpenAI returns entity IDs directly
                             updated_devices_involved = []
@@ -4249,15 +4261,15 @@ async def generate_suggestions_from_query(
                                     entity_id = device_name
                                 else:
                                     entity_id = validated_entities.get(device_name)
-                                
+
                                 # Try to get enriched data for this entity_id
                                 if entity_id and entity_id in enriched_data:
                                     enriched = enriched_data[entity_id]
                                     actual_device_name = (
-                                        enriched.get('device_name') or 
-                                        enriched.get('friendly_name') or 
-                                        enriched.get('name_by_user') or 
-                                        enriched.get('name') or 
+                                        enriched.get('device_name') or
+                                        enriched.get('friendly_name') or
+                                        enriched.get('name_by_user') or
+                                        enriched.get('name') or
                                         enriched.get('original_name')
                                     )
                                     if actual_device_name:
@@ -4268,7 +4280,7 @@ async def generate_suggestions_from_query(
                                         logger.warning(f"⚠️ No device name found for {entity_id} in enriched_data (all name fields NULL)")
                                 else:
                                     updated_devices_involved.append(device_name)
-                            
+
                             if updated_devices_involved != devices_involved:
                                 logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
                                 devices_involved = updated_devices_involved
@@ -4278,14 +4290,14 @@ async def generate_suggestions_from_query(
                             # We cannot proceed without validated_entities, so we'll skip this suggestion
                             logger.error(f"❌ Skipping suggestion {i+1} - no validated entities found")
                             continue  # Skip this suggestion entirely
-                
+
                 # CRITICAL CHECK: Ensure validated_entities is not empty before saving
                 if not validated_entities or len(validated_entities) == 0:
                     logger.error(f"❌ CRITICAL: validated_entities is empty for suggestion {i+1} - cannot save suggestion without entity mapping")
                     logger.error(f"❌ devices_involved: {devices_involved}")
                     logger.error(f"❌ Skipping suggestion {i+1} - no validated entities")
                     continue  # Skip this suggestion entirely
-                
+
                 # Ensure devices are consolidated before user display (even if enrichment skipped)
                 if devices_involved and validated_entities:
                     before_consolidation_count = len(devices_involved)
@@ -4297,7 +4309,7 @@ async def generate_suggestions_from_query(
                             f"({before_consolidation_count - len(consolidated_devices)} redundant entries removed)"
                         )
                     devices_involved = consolidated_devices
-            
+
                 # Create base suggestion
                 # FINAL CHECK: Ensure no duplicates in devices_involved before storing
                 devices_set = set()
@@ -4309,7 +4321,7 @@ async def generate_suggestions_from_query(
                         devices_set.add(device)
                         devices_lower_set.add(device_lower)
                         final_devices.append(device)
-                
+
                 if len(final_devices) < len(devices_involved):
                     removed = [d for d in devices_involved if d.lower().strip() not in devices_lower_set]
                     logger.warning(
@@ -4317,22 +4329,22 @@ async def generate_suggestions_from_query(
                         f"from suggestion {i+1} before storing: {removed}"
                     )
                     devices_involved = final_devices
-                
+
                 logger.info(
                     f"📦 Suggestion {i+1} FINAL devices_involved to be stored: {devices_involved} "
                     f"(count: {len(devices_involved)}, unique: {len(set(d.lower() for d in devices_involved))})"
                 )
-                
+
                 # CRITICAL: Ensure validated_entities is not empty before saving
                 # This should never happen if the code above is working correctly
                 if not validated_entities or len(validated_entities) == 0:
                     logger.error(f"❌ CRITICAL: Cannot save suggestion {i+1} - validated_entities is empty")
                     logger.error(f"❌ devices_involved: {devices_involved}")
-                    logger.error(f"❌ This indicates a bug in entity mapping - skipping this suggestion")
+                    logger.error("❌ This indicates a bug in entity mapping - skipping this suggestion")
                     continue  # Skip this suggestion entirely - don't save it
-                
+
                 logger.info(f"✅ Suggestion {i+1} has {len(validated_entities)} validated entities - safe to save")
-                
+
                 base_suggestion = {
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
@@ -4346,7 +4358,7 @@ async def generate_suggestions_from_query(
                     'status': 'draft',
                     'created_at': datetime.now().isoformat()
                 }
-                
+
                 # Build device selection debug data
                 device_debug = []
                 if devices_involved and validated_entities and enriched_data:
@@ -4355,7 +4367,7 @@ async def generate_suggestions_from_query(
                         validated_entities,
                         enriched_data
                     )
-                
+
                 # Generate technical prompt for this suggestion
                 technical_prompt = None
                 if validated_entities and enriched_data:
@@ -4368,7 +4380,7 @@ async def generate_suggestions_from_query(
                         )
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to generate technical prompt for suggestion {i+1}: {e}")
-                
+
                 # Build filtered entity context JSON for this suggestion (only entities actually used)
                 filtered_entity_context_json = None
                 filtered_user_prompt = None
@@ -4377,7 +4389,7 @@ async def generate_suggestions_from_query(
                     'entities_used_in_suggestion': len(validated_entities) if validated_entities else 0,
                     'filtered_entity_context_json': None
                 }
-                
+
                 if validated_entities and enriched_data:
                     try:
                         # Filter enriched_data to only validated entities
@@ -4386,7 +4398,7 @@ async def generate_suggestions_from_query(
                             for entity_id in validated_entities.values()
                             if entity_id in enriched_data
                         }
-                        
+
                         # Rebuild entity context JSON with filtered entities
                         filtered_enriched_entities = []
                         for entity_id in validated_entities.values():
@@ -4397,7 +4409,7 @@ async def generate_suggestions_from_query(
                                     'friendly_name': enriched.get('friendly_name', entity_id),
                                     'name': enriched.get('friendly_name', entity_id.split('.')[-1] if '.' in entity_id else entity_id)
                                 })
-                        
+
                         if filtered_enriched_entities:
                             context_builder = EntityContextBuilder()
                             filtered_entity_context_json = await context_builder.build_entity_context_json(
@@ -4405,19 +4417,19 @@ async def generate_suggestions_from_query(
                                 enriched_data=filtered_enriched_data,
                                 db_session=db_session
                             )
-                            
+
                             # Build filtered user prompt (replace entity context JSON with filtered version)
                             original_user_prompt = openai_debug_data.get('user_prompt', '')
                             if filtered_entity_context_json:
                                 # Try to find and replace the entity context JSON section
                                 # The entity context JSON appears in the "ENRICHED ENTITY CONTEXT" section
                                 import re
-                                
+
                                 # Try to extract the JSON from the original prompt
                                 # Look for "ENRICHED ENTITY CONTEXT" section
                                 pattern = r'(ENRICHED ENTITY CONTEXT.*?:\n)(\{[\s\S]*?\n\})'
                                 match = re.search(pattern, original_user_prompt, re.MULTILINE)
-                                
+
                                 if match:
                                     # Replace the JSON portion with filtered version
                                     filtered_user_prompt = original_user_prompt[:match.start(2)] + filtered_entity_context_json + original_user_prompt[match.end(2):]
@@ -4431,18 +4443,18 @@ async def generate_suggestions_from_query(
                                     else:
                                         # Last fallback: Just append filtered context
                                         filtered_user_prompt = original_user_prompt + f"\n\n[FILTERED ENTITY CONTEXT - Only entities used in suggestion]:\n{filtered_entity_context_json}"
-                                
+
                                 # Add note about filtering
                                 note = f"\n\n[NOTE: Entity context filtered to show only {len(validated_entities)} entities used in this suggestion out of {len(enriched_data)} available]"
                                 filtered_user_prompt = filtered_user_prompt + note
-                                
+
                                 logger.debug(f"✅ Built filtered user prompt for suggestion {i+1}")
-                            
+
                             entity_context_stats['filtered_entity_context_json'] = filtered_entity_context_json
                             logger.info(f"✅ Built filtered entity context for suggestion {i+1}: {len(validated_entities)}/{len(enriched_data)} entities")
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to build filtered entity context for suggestion {i+1}: {e}")
-                
+
                 # Add debug data and technical prompt to suggestion
                 base_suggestion['debug'] = {
                     'device_selection': device_debug,
@@ -4455,7 +4467,7 @@ async def generate_suggestions_from_query(
                     'clarification_context': openai_debug_data.get('clarification_context')  # NEW: Clarification Q&A
                 }
                 base_suggestion['technical_prompt'] = technical_prompt
-                
+
                 # Enhance suggestion with entity IDs (Phase 1 & 2)
                 try:
                     enhanced_suggestion = await enhance_suggestion_with_entity_ids(
@@ -4486,7 +4498,7 @@ async def generate_suggestions_from_query(
                 'status': 'draft',
                 'created_at': datetime.now().isoformat()
             }]
-        
+
         adapter = get_soft_prompt()
         if adapter:
             suggestions = adapter.enhance_suggestions(
@@ -4518,7 +4530,7 @@ async def generate_suggestions_from_query(
 
         logger.info(f"Generated {len(suggestions)} suggestions for query: {query}")
         return suggestions
-        
+
     except Exception as e:
         logger.error(f"Failed to generate suggestions: {e}")
         raise
@@ -4540,19 +4552,19 @@ async def process_natural_language_query(
     """
     start_time = datetime.now()
     query_id = f"query-{uuid.uuid4().hex[:8]}"
-    
+
     logger.info(f"🤖 Processing Ask AI query: {request.query}")
-    
+
     # Extract area/location from query if specified (for area-based filtering)
     from ..utils.area_detection import extract_area_from_request
     area_filter = extract_area_from_request(request.query)
     if area_filter:
         logger.info(f"📍 Detected area filter in clarification phase: '{area_filter}'")
-    
+
     try:
         # Step 1: Extract entities using Home Assistant
         entities = await extract_entities_with_ha(request.query)
-        
+
         # Step 1.5: Resolve generic device entities to specific devices BEFORE ambiguity detection
         # This ensures the ambiguity prompt shows specific device names (e.g., "Office Front Left")
         # instead of generic types (e.g., "hue lights")
@@ -4564,17 +4576,18 @@ async def process_natural_language_query(
         except (HTTPException, Exception) as e:
             # HA client not available or resolution failed - continue with generic entities
             logger.debug(f"ℹ️ Early device resolution skipped (HA client unavailable or failed): {e}")
-        
+
         # Step 1.6: Check for clarification needs (NEW)
         clarification_detector, question_generator, _, confidence_calculator = await get_clarification_services(db)
-        
+
         # Build automation context for clarification detection (with area filtering)
         automation_context = {}
         try:
-            from ..clients.data_api_client import DataAPIClient
             import pandas as pd
+
+            from ..clients.data_api_client import DataAPIClient
             data_api_client = DataAPIClient()
-            
+
             # Apply area filter if detected
             if area_filter:
                 logger.info(f"🔍 Fetching entities for area(s): {area_filter}")
@@ -4606,18 +4619,18 @@ async def process_natural_language_query(
                 # No area filter - fetch all entities
                 devices_result = await data_api_client.fetch_devices(limit=100)
                 entities_result = await data_api_client.fetch_entities(limit=200)
-            
+
             # Handle both DataFrame and list responses
             devices_df = devices_result if isinstance(devices_result, pd.DataFrame) else pd.DataFrame(devices_result if isinstance(devices_result, list) else [])
             entities_df = entities_result if isinstance(entities_result, pd.DataFrame) else pd.DataFrame(entities_result if isinstance(entities_result, list) else [])
-            
+
             # Convert to dict format for clarification
             automation_context = {
                 'devices': devices_df.to_dict('records') if isinstance(devices_df, pd.DataFrame) and not devices_df.empty else (devices_result if isinstance(devices_result, list) else []),
                 'entities': entities_df.to_dict('records') if isinstance(entities_df, pd.DataFrame) and not entities_df.empty else (entities_result if isinstance(entities_result, list) else []),
                 'entities_by_domain': {}
             }
-            
+
             # Organize entities by domain
             if isinstance(entities_df, pd.DataFrame) and not entities_df.empty:
                 for _, entity in entities_df.iterrows():
@@ -4651,12 +4664,12 @@ async def process_natural_language_query(
         except Exception as e:
             logger.error(f"❌ Failed to build automation context for clarification: {e}", exc_info=True)
             automation_context = {}
-        
+
         # Detect ambiguities
         ambiguities = []
         questions = []
         clarification_session_id = None
-        
+
         if clarification_detector:
             try:
                 ambiguities = await clarification_detector.detect_ambiguities(
@@ -4665,13 +4678,13 @@ async def process_natural_language_query(
                     available_devices=automation_context,
                     automation_context=automation_context
                 )
-                
+
                 # Calculate base confidence
                 base_confidence = min(0.9, 0.5 + (len(entities) * 0.1))
-                
+
                 # Get RAG client for historical success checking
                 rag_client_for_confidence = await _get_rag_client(db)
-                
+
                 confidence = await confidence_calculator.calculate_confidence(
                     query=request.query,
                     extracted_entities=entities,
@@ -4679,7 +4692,7 @@ async def process_natural_language_query(
                     base_confidence=base_confidence,
                     rag_client=rag_client_for_confidence
                 )
-                
+
                 # Calculate adaptive threshold (Phase 1.2)
                 user_preferences = None
                 if getattr(settings, "adaptive_threshold_enabled", True):
@@ -4696,7 +4709,7 @@ async def process_natural_language_query(
                         user_preferences = {
                             'risk_tolerance': getattr(settings, "default_risk_tolerance", "medium")
                         }
-                
+
                 # Calculate adaptive threshold
                 adaptive_threshold = confidence_calculator.calculate_adaptive_threshold(
                     query=request.query,
@@ -4704,7 +4717,7 @@ async def process_natural_language_query(
                     ambiguities=ambiguities,
                     user_preferences=user_preferences
                 ) if getattr(settings, "adaptive_threshold_enabled", True) else 0.85
-                
+
                 # Check if clarification is needed
                 if confidence_calculator.should_ask_clarification(confidence, ambiguities, threshold=adaptive_threshold):
                     # Generate questions
@@ -4714,11 +4727,11 @@ async def process_natural_language_query(
                             query=request.query,
                             context=automation_context
                         )
-                    
+
                     # Create clarification session
                     if questions:
                         clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
-                        
+
                         # Create in-memory session (for real-time access)
                         session = ClarificationSession(
                             session_id=clarification_session_id,
@@ -4730,7 +4743,7 @@ async def process_natural_language_query(
                             query_id=query_id
                         )
                         _clarification_sessions[clarification_session_id] = session
-                        
+
                         # Persist to database
                         try:
                             # First, create a minimal query record so the foreign key exists
@@ -4747,7 +4760,7 @@ async def process_natural_language_query(
                             )
                             db.add(minimal_query)
                             await db.flush()  # Flush to make query_id available for foreign key
-                            
+
                             # Convert dataclass questions to dicts for JSON storage
                             questions_json = [
                                 {
@@ -4762,7 +4775,7 @@ async def process_natural_language_query(
                                     'ambiguity_id': q.ambiguity_id
                                 } for q in questions
                             ]
-                            
+
                             # Convert ambiguities to dicts
                             ambiguities_json = [
                                 {
@@ -4775,7 +4788,7 @@ async def process_natural_language_query(
                                     'detected_text': a.detected_text
                                 } for a in ambiguities
                             ] if ambiguities else []
-                            
+
                             db_session = ClarificationSessionDB(
                                 confidence_threshold=adaptive_threshold,  # Use adaptive threshold
                                 session_id=clarification_session_id,
@@ -4798,7 +4811,7 @@ async def process_natural_language_query(
                                 await db.rollback()
                             except Exception as e:
                                 logger.debug(f"Rollback failed (non-fatal): {e}")
-                        
+
                         logger.info(f"🔍 Clarification needed: {len(questions)} questions generated")
                         for i, q in enumerate(questions, 1):
                             logger.info(f"  Question {i}: {q.question_text if hasattr(q, 'question_text') else str(q)}")
@@ -4811,23 +4824,23 @@ async def process_natural_language_query(
         else:
             # Fallback confidence calculation
             confidence = min(0.9, 0.5 + (len(entities) * 0.1))
-        
+
         # Step 2: Generate suggestions if no clarification needed
         suggestions = []
         if not questions:  # Only generate suggestions if clarification not needed
             suggestions = await generate_suggestions_from_query(
-                request.query, 
-                entities, 
+                request.query,
+                entities,
                 request.user_id,
                 db_session=db,
                 clarification_context=None,
                 query_id=query_id  # Pass query_id for metrics tracking
             )
-            
+
             # Recalculate confidence with suggestions
             if suggestions:
                 confidence = min(0.9, confidence + (len(suggestions) * 0.1))
-                
+
                 # NEW: Check for location mismatches in generated suggestions
                 # If any suggestion has low confidence due to location mismatch, trigger clarification
                 location_mismatch_found = False
@@ -4841,13 +4854,13 @@ async def process_natural_language_query(
                         if validated_entities and clarification_detector:
                             try:
                                 # Extract location from query
-                                from ..services.entity_validator import EntityValidator
                                 from ..clients.data_api_client import DataAPIClient
+                                from ..services.entity_validator import EntityValidator
                                 data_api_client = DataAPIClient()
                                 ha_client_check = ha_client if 'ha_client' in locals() else get_ha_client()
                                 entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_check)
                                 query_location = entity_validator._extract_location_from_query(request.query)
-                                
+
                                 if query_location:
                                     # Check if any matched entities are in wrong location
                                     location_mismatch_found = True
@@ -4858,12 +4871,16 @@ async def process_natural_language_query(
                                     break
                             except Exception as e:
                                 logger.warning(f"⚠️ Error checking for location mismatch: {e}", exc_info=True)
-                
+
                 # If location mismatch found, generate clarification questions
                 if location_mismatch_found and not questions and clarification_detector and question_generator and query_location:
                     try:
                         # Create a location mismatch ambiguity
-                        from ..services.clarification.models import Ambiguity, AmbiguityType, AmbiguitySeverity
+                        from ..services.clarification.models import (
+                            Ambiguity,
+                            AmbiguitySeverity,
+                            AmbiguityType,
+                        )
                         location_ambiguity = Ambiguity(
                             id="amb-location-mismatch",
                             type=AmbiguityType.DEVICE,
@@ -4875,14 +4892,14 @@ async def process_natural_language_query(
                             },
                             detected_text="location mismatch"
                         )
-                        
+
                         # Generate questions for location mismatch
                         location_questions = await question_generator.generate_questions(
                             ambiguities=[location_ambiguity],
                             query=request.query,
                             context=automation_context
                         )
-                        
+
                         if location_questions:
                             questions.extend(location_questions)
                             # Create clarification session
@@ -4899,7 +4916,7 @@ async def process_natural_language_query(
                             logger.info(f"🔍 Generated {len(location_questions)} clarification questions for location mismatch")
                     except Exception as e:
                         logger.warning(f"⚠️ Error generating location mismatch clarification: {e}", exc_info=True)
-        
+
         # Step 4: Determine parsed intent
         intent_keywords = {
             'automation': ['automate', 'automatic', 'schedule', 'routine'],
@@ -4907,16 +4924,16 @@ async def process_natural_language_query(
             'monitoring': ['monitor', 'alert', 'notify', 'watch'],
             'energy': ['energy', 'power', 'electricity', 'save']
         }
-        
+
         parsed_intent = 'general'
         query_lower = request.query.lower()
         for intent, keywords in intent_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
                 parsed_intent = intent
                 break
-        
+
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
-        
+
         # Step 5: Save query to database (or update if already exists from clarification session)
         existing_query = await db.get(AskAIQueryModel, query_id)
         if existing_query:
@@ -4940,10 +4957,10 @@ async def process_natural_language_query(
                 processing_time_ms=int(processing_time)
             )
             db.add(query_record)
-        
+
         await db.commit()
         await db.refresh(query_record)
-        
+
         # Convert questions to dict format for response
         questions_dict = None
         if questions:
@@ -4959,7 +4976,7 @@ async def process_natural_language_query(
                 }
                 for q in questions
             ]
-        
+
         message = None
         if questions:
             # Build a detailed message explaining what was found and what's ambiguous
@@ -4971,9 +4988,9 @@ async def process_natural_language_query(
                     device_name = e.get('friendly_name') or e.get('name', '')
                     if device_name and device_name not in device_names:
                         device_names.append(device_name)
-            
+
             area_names = [e.get('name', '') for e in entities if e.get('type') == 'area']
-            
+
             # If we have specific devices from early resolution, show them
             if device_names:
                 device_info = f" I detected these devices: {', '.join(device_names)}."
@@ -4981,9 +4998,9 @@ async def process_natural_language_query(
                 # Fallback to generic device types if early resolution didn't work
                 generic_device_names = [e.get('name', '') for e in entities if e.get('type') == 'device']
                 device_info = f" I detected these devices: {', '.join(generic_device_names) if generic_device_names else 'none'}." if generic_device_names else ""
-            
+
             area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
-            
+
             message = f"I found some ambiguities in your request.{device_info}{area_info} Please answer {len(questions)} question(s) to help me create the automation accurately."
         elif suggestions:
             device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
@@ -4993,12 +5010,12 @@ async def process_natural_language_query(
             # No suggestions and no questions - explain why
             device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
             area_names = [e.get('name', '') for e in entities if e.get('type') == 'area']
-            
+
             device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else " I couldn't identify specific devices."
             area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
-            
+
             message = f"I couldn't generate automation suggestions for your request.{device_info}{area_info} Please provide more details about the devices and locations you want to use."
-        
+
         response = AskAIQueryResponse(
             query_id=query_id,
             original_query=request.query,
@@ -5013,15 +5030,15 @@ async def process_natural_language_query(
             questions=questions_dict,
             message=message
         )
-        
+
         # Log response details for debugging
         logger.info(f"✅ Ask AI query processed and saved: {len(suggestions)} suggestions, {confidence:.2f} confidence")
         logger.info(f"📋 Response details: clarification_needed={bool(questions)}, questions_count={len(questions) if questions else 0}, message='{message}'")
         if questions_dict:
             logger.info(f"📋 Questions being returned: {[q.get('question_text', 'NO TEXT') for q in questions_dict]}")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to process Ask AI query: {e}", exc_info=True)
         logger.error(f"❌ Error type: {type(e).__name__}")
@@ -5030,12 +5047,12 @@ async def process_natural_language_query(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process query: {str(e)}"
-        )
+        ) from e
 
 
 def _rebuild_user_query_from_qa(
     original_query: str,
-    clarification_context: Dict[str, Any]
+    clarification_context: dict[str, Any]
 ) -> str:
     """
     Rebuild enriched user query from original question + Q&A answers.
@@ -5055,7 +5072,7 @@ def _rebuild_user_query_from_qa(
     """
     # Start with original query
     enriched_parts = [f"Original request: {original_query}"]
-    
+
     # Add all Q&A pairs
     qa_list = clarification_context.get('questions_and_answers', [])
     if qa_list:
@@ -5063,26 +5080,26 @@ def _rebuild_user_query_from_qa(
         for i, qa in enumerate(qa_list, 1):
             qa_text = f"{i}. Question: {qa['question']}"
             qa_text += f"\n   Answer: {qa['answer']}"
-            
+
             # Add selected entities if available
             if qa.get('selected_entities'):
                 entities_str = ', '.join(qa['selected_entities'])
                 qa_text += f"\n   Selected devices/entities: {entities_str}"
-            
+
             enriched_parts.append(qa_text)
-    
+
     # Build final enriched query
     enriched_query = "\n".join(enriched_parts)
-    
+
     logger.info(f"📝 Rebuilt enriched query from {len(qa_list)} Q&A pairs")
     logger.debug(f"Enriched query preview: {enriched_query[:200]}...")
-    
+
     return enriched_query
 
 
 def _generate_user_friendly_prompt(
     original_query: str,
-    clarification_context: Dict[str, Any]
+    clarification_context: dict[str, Any]
 ) -> str:
     """
     Generate a user-friendly prompt that summarizes the original request
@@ -5099,7 +5116,7 @@ def _generate_user_friendly_prompt(
         User-friendly prompt string
     """
     parts = [f"Original request: {original_query}"]
-    
+
     qa_list = clarification_context.get('questions_and_answers', [])
     if qa_list:
         parts.append("\nClarifications provided:")
@@ -5109,15 +5126,15 @@ def _generate_user_friendly_prompt(
                 entities_str = ', '.join(qa['selected_entities'])
                 answer_text += f" (Selected: {entities_str})"
             parts.append(f"  • {answer_text}")
-    
+
     return "\n".join(parts)
 
 
 async def _re_enrich_entities_from_qa(
-    entities: List[Dict[str, Any]],
-    clarification_context: Dict[str, Any],
-    ha_client: Optional[HomeAssistantClient] = None
-) -> List[Dict[str, Any]]:
+    entities: list[dict[str, Any]],
+    clarification_context: dict[str, Any],
+    ha_client: HomeAssistantClient | None = None
+) -> list[dict[str, Any]]:
     """
     Re-enrich entities based on selected entities from Q&A answers.
     
@@ -5137,11 +5154,11 @@ async def _re_enrich_entities_from_qa(
         Re-enriched entities list with Q&A information
     """
     import re
-    
+
     # Collect all selected entities from Q&A answers
     selected_entity_ids = set()
     selected_entity_names = []
-    
+
     qa_list = clarification_context.get('questions_and_answers', [])
     for qa in qa_list:
         # Extract selected entities from answer
@@ -5155,32 +5172,32 @@ async def _re_enrich_entities_from_qa(
                 else:
                     # Likely a friendly_name
                     selected_entity_names.append(entity_ref)
-        
+
         # NEW: Check for "all X lights in Y area" patterns
         answer_text = qa.get('answer', '').lower()
-        
+
         # Pattern: "all four lights in office", "all 4 lights in office", "all the lights in office"
         # Try patterns in order of specificity
         patterns_to_try = [
             # Pattern 1: "all 4 lights in office" or "all four lights in office"
-            (r'all\s+(?:the\s+)?(\d+|four|five|six|seven|eight|nine|ten)\s*(lights?|lamps?|sensors?|switches?|devices?)\s+in\s+([\w\s]+)', 
+            (r'all\s+(?:the\s+)?(\d+|four|five|six|seven|eight|nine|ten)\s*(lights?|lamps?|sensors?|switches?|devices?)\s+in\s+([\w\s]+)',
              lambda m: (m.group(1) if m.group(1) and m.group(1).isdigit() else {'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10'}.get(m.group(1).lower(), None), m.group(2), m.group(3))),
             # Pattern 2: "all lights in office" (no count)
             (r'all\s+(?:the\s+)?(lights?|lamps?|sensors?|switches?|devices?)\s+in\s+([\w\s]+)',
              lambda m: (None, m.group(1), m.group(2))),
         ]
-        
+
         for pattern, extractor in patterns_to_try:
             match = re.search(pattern, answer_text)
             if match:
                 try:
                     count_str, device_type, area = extractor(match)
-                
+
                     if device_type and area:
                         count = int(count_str) if count_str else None
                         # Normalize area name
                         area = area.strip().replace(' ', '_')
-                    
+
                         # Map device type to domain
                         domain_map = {
                             'light': 'light',
@@ -5195,9 +5212,9 @@ async def _re_enrich_entities_from_qa(
                             'devices': None  # All domains
                         }
                         domain = domain_map.get(device_type.lower(), 'light')
-                        
+
                         logger.info(f"🔍 Detected pattern: 'all {count or 'all'} {device_type} in {area}' - expanding entities")
-                        
+
                         # Expand to find ALL matching entities in the area
                         if ha_client:
                             try:
@@ -5205,19 +5222,19 @@ async def _re_enrich_entities_from_qa(
                                     area_id=area,
                                     domain=domain
                                 )
-                                
+
                                 if area_entities:
                                     # Limit to count if specified
                                     if count:
                                         area_entities = area_entities[:count]
-                                    
+
                                     # Add entity IDs to selected_entity_ids
                                     for area_entity in area_entities:
                                         entity_id = area_entity.get('entity_id')
                                         if entity_id:
                                             selected_entity_ids.add(entity_id)
                                             logger.info(f"✅ Added entity from Q&A expansion: {entity_id}")
-                                    
+
                                     logger.info(f"✅ Expanded Q&A pattern to {len(area_entities)} entities in area '{area}'")
                                 else:
                                     logger.warning(f"⚠️ No entities found in area '{area}' for domain '{domain}'")
@@ -5227,17 +5244,17 @@ async def _re_enrich_entities_from_qa(
                 except Exception as e:
                     logger.warning(f"⚠️ Error processing pattern match: {e}")
                     continue
-        
+
         # Also extract entities mentioned in the answer text (original logic)
         # Look for entity patterns in answer (e.g., "office lights", "hue light 1")
         device_patterns = re.findall(r'\b([a-z]+(?:\s+[a-z]+){1,3})\s+(?:light|lights|sensor|sensors|switch|switches|device|devices)\b', answer_text)
         selected_entity_names.extend(device_patterns)
-    
+
     # Create entity lookup from existing entities
     entity_by_id = {e.get('entity_id'): e for e in entities if e.get('entity_id')}
     entity_by_name = {e.get('name', '').lower(): e for e in entities if e.get('name')}
     entity_by_friendly_name = {e.get('friendly_name', '').lower(): e for e in entities if e.get('friendly_name')}
-    
+
     # Add selected entities that aren't already in the list
     new_entities = []
     for entity_id in selected_entity_ids:
@@ -5245,7 +5262,7 @@ async def _re_enrich_entities_from_qa(
             # Create new entity entry with proper friendly name from Home Assistant
             friendly_name = entity_id.split('.')[-1].replace('_', ' ').title() if '.' in entity_id else entity_id  # Fallback
             area_id = None
-            
+
             # Try to get proper friendly name from Home Assistant using EntityAttributeService
             if ha_client:
                 try:
@@ -5258,7 +5275,7 @@ async def _re_enrich_entities_from_qa(
                         logger.info(f"✅ Enriched entity {entity_id} with friendly_name: {friendly_name}")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to enrich entity {entity_id} with EntityAttributeService: {e}, using fallback")
-            
+
             new_entity = {
                 'entity_id': entity_id,
                 'name': friendly_name,  # Use friendly_name as name too
@@ -5270,23 +5287,23 @@ async def _re_enrich_entities_from_qa(
             }
             new_entities.append(new_entity)
             entity_by_id[entity_id] = new_entity
-    
+
     # Add entities by name if not found
     for entity_name in selected_entity_names:
         entity_name_lower = entity_name.lower()
-        if (entity_name_lower not in entity_by_name and 
+        if (entity_name_lower not in entity_by_name and
             entity_name_lower not in entity_by_friendly_name):
             # Try to find by partial match
             found = False
             for existing_entity in entities:
                 existing_name = existing_entity.get('name', '').lower()
                 existing_friendly = existing_entity.get('friendly_name', '').lower()
-                if (entity_name_lower in existing_name or 
+                if (entity_name_lower in existing_name or
                     entity_name_lower in existing_friendly or
                     existing_name in entity_name_lower):
                     found = True
                     break
-            
+
             if not found:
                 # Create new entity entry
                 new_entity = {
@@ -5297,20 +5314,20 @@ async def _re_enrich_entities_from_qa(
                     'source': 'qa_mentioned'
                 }
                 new_entities.append(new_entity)
-    
+
     # Combine existing and new entities
     enriched_entities = list(entities) + new_entities
-    
+
     # Add Q&A context to entities
     for entity in enriched_entities:
         if 'qa_context' not in entity:
             entity['qa_context'] = {}
-        
+
         # Mark entities that were explicitly selected
         entity_id = entity.get('entity_id', '')
         entity_name = entity.get('name', '').lower()
         entity_friendly = entity.get('friendly_name', '').lower()
-        
+
         for qa in qa_list:
             selected = qa.get('selected_entities', [])
             if selected:
@@ -5322,9 +5339,9 @@ async def _re_enrich_entities_from_qa(
                         entity['qa_context']['explicitly_selected'] = True
                         entity['qa_context']['selected_in_qa'] = qa.get('question', '')
                         break
-    
+
     logger.info(f"✅ Re-enriched {len(enriched_entities)} entities ({len(new_entities)} new from Q&A)")
-    
+
     return enriched_entities
 
 
@@ -5342,23 +5359,23 @@ async def provide_clarification(
     - Generates suggestions if confidence threshold is met
     """
     logger.info(f"🔍 Processing clarification for session {request.session_id}")
-    
+
     try:
         # Validation: Check request data
         if not request.session_id:
-            logger.error(f"❌ Missing session_id in request")
+            logger.error("❌ Missing session_id in request")
             raise HTTPException(
                 status_code=400,
                 detail="session_id is required"
             )
-        
+
         if not request.answers or len(request.answers) == 0:
-            logger.error(f"❌ No answers provided in request")
+            logger.error("❌ No answers provided in request")
             raise HTTPException(
                 status_code=400,
                 detail="At least one answer is required"
             )
-        
+
         # Get session
         session = _clarification_sessions.get(request.session_id)
         if not session:
@@ -5367,7 +5384,7 @@ async def provide_clarification(
                 status_code=404,
                 detail=f"Clarification session {request.session_id} not found"
             )
-        
+
         # Validation: Check session data
         if not session.original_query:
             logger.error(f"❌ Session {request.session_id} has no original_query")
@@ -5375,40 +5392,40 @@ async def provide_clarification(
                 status_code=500,
                 detail="Session is missing original query"
             )
-        
+
         if not session.questions:
             logger.warning(f"⚠️ Session {request.session_id} has no questions")
-        
+
         logger.info(f"✅ Session validation passed: query='{session.original_query[:100]}...', questions={len(session.questions)}, answers={len(session.answers)}")
-        
+
         # Get clarification services
-        logger.info(f"🔧 Initializing clarification services")
+        logger.info("🔧 Initializing clarification services")
         _, _, answer_validator, confidence_calculator = await get_clarification_services(db)
         if not answer_validator or not confidence_calculator:
-            logger.error(f"❌ Failed to initialize clarification services")
+            logger.error("❌ Failed to initialize clarification services")
             raise HTTPException(
                 status_code=500,
                 detail="Failed to initialize clarification services"
             )
-        logger.info(f"✅ Clarification services initialized")
-        
+        logger.info("✅ Clarification services initialized")
+
         # Validate answers
         validated_answers = []
         for answer_data in request.answers:
             question_id = answer_data.get('question_id')
             question = next((q for q in session.questions if q.id == question_id), None)
-            
+
             if not question:
                 logger.warning(f"Question {question_id} not found in session")
                 continue
-            
+
             # Create answer object
             answer = ClarificationAnswer(
                 question_id=question_id,
                 answer_text=answer_data.get('answer_text', ''),
                 selected_entities=answer_data.get('selected_entities')
             )
-            
+
             # Validate answer
             validated_answer = await answer_validator.validate_answer(
                 answer=answer,
@@ -5416,13 +5433,13 @@ async def provide_clarification(
                 available_entities=None  # TODO: Pass available entities
             )
             validated_answers.append(validated_answer)
-        
+
         # Add answers to session - but deduplicate first to prevent duplicate Q&A pairs
         # If user resubmits, only keep the most recent answer for each question
         # Optimized: Use index map for O(1) lookups instead of O(n²) nested loop
         answer_index = {a.question_id: i for i, a in enumerate(session.answers)}
         new_answers_to_add = []
-        
+
         for validated_answer in validated_answers:
             if validated_answer.question_id in answer_index:
                 # Update existing answer - O(1) lookup
@@ -5432,39 +5449,39 @@ async def provide_clarification(
                 # New question answer
                 new_answers_to_add.append(validated_answer)
                 logger.info(f"➕ Added new answer for question {validated_answer.question_id}")
-        
+
         # Add new answers
         session.answers.extend(new_answers_to_add)
         session.rounds_completed += 1
-        
+
         logger.info(f"📊 Session now has {len(session.answers)} unique answers across {session.rounds_completed} rounds")
         logger.info(f"📋 Current session answers breakdown: {[f'{a.question_id}: {a.answer_text[:50]}...' for a in session.answers]}")
-        
+
         # NEW: Track previous confidence before recalculating
         previous_confidence = session.current_confidence
-        
+
         # NEW: Recalculate confidence with ALL answers (including previous rounds)
         # This ensures confidence properly reflects all clarification progress
-        
+
         # Map answered questions to ambiguities to track which ambiguities are resolved
         answered_question_ids = {a.question_id for a in session.answers}
         resolved_ambiguity_ids = set()
         for question in session.questions:
             if question.id in answered_question_ids and question.ambiguity_id:
                 resolved_ambiguity_ids.add(question.ambiguity_id)
-        
+
         # Find remaining (unresolved) ambiguities for confidence calculation
         remaining_ambiguities_for_confidence = [
             amb for amb in session.ambiguities
             if _get_ambiguity_id(amb) not in resolved_ambiguity_ids
         ]
-        
+
         # OPTION 2: Check RAG with enriched query after answers received
         # Build enriched query from original + all previous answers (including new ones)
         all_answers = session.answers  # Includes all previous answers + new ones
         enriched_query_from_answers = None
         rag_confidence_boost = 0.0
-        
+
         if all_answers:
             # Build enriched query from all answers
             all_qa_context = {
@@ -5480,12 +5497,12 @@ async def provide_clarification(
                     if a.validated  # Only include validated answers
                 ]
             }
-            
+
             enriched_query_from_answers = _rebuild_user_query_from_qa(
                 original_query=session.original_query,
                 clarification_context=all_qa_context
             )
-            
+
             # Check RAG for similar enriched queries with lower threshold (0.80) for enriched queries
             try:
                 rag_client = await _get_rag_client(db)
@@ -5499,18 +5516,18 @@ async def provide_clarification(
                         use_query_expansion=True,
                         use_reranking=True
                     )
-                    
+
                     # Hybrid retrieval returns 'final_score' or 'hybrid_score', fallback to 'similarity'
                     top_result = similar_queries[0] if similar_queries else None
                     if top_result:
                         similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
                         if similarity > 0.80:
                             success_score = top_result.get('success_score', 0.5)
-                            
+
                             # Boost confidence based on similarity and historical success
                             # Higher similarity and success_score = bigger boost
                             rag_confidence_boost = min(0.15, similarity * success_score * 0.2)
-                            
+
                             logger.info(
                                 f"📈 Found similar enriched query in RAG (similarity={similarity:.2f}, "
                                 f"success_score={success_score:.2f}) - boosting confidence by +{rag_confidence_boost:.2f}"
@@ -5518,13 +5535,13 @@ async def provide_clarification(
             except Exception as e:
                 # Non-critical: continue even if RAG check fails
                 logger.debug(f"⚠️ RAG check with enriched query failed: {e}")
-        
+
         # Calculate base confidence with RAG boost from Option 2
         base_confidence_with_rag = 0.5 + rag_confidence_boost
-        
+
         # Get RAG client for historical success checking (Option 3)
         rag_client_for_confidence = await _get_rag_client(db)
-        
+
         session.current_confidence = await confidence_calculator.calculate_confidence(
             query=session.original_query,
             extracted_entities=[],  # TODO: Get from session
@@ -5533,10 +5550,10 @@ async def provide_clarification(
             base_confidence=base_confidence_with_rag,  # Include RAG boost from Option 2
             rag_client=rag_client_for_confidence  # Option 3: Historical success checking
         )
-        
+
         # Calculate confidence delta
         confidence_delta = session.current_confidence - previous_confidence if previous_confidence > 0 else None
-        
+
         # Generate smart summary of what improved
         confidence_summary = _generate_confidence_summary(
             previous_confidence=previous_confidence,
@@ -5546,13 +5563,13 @@ async def provide_clarification(
             session=session,
             resolved_ambiguity_ids=resolved_ambiguity_ids
         )
-        
+
         # Format confidence delta for logging
         delta_str = f"{confidence_delta:+.2f}" if confidence_delta is not None else "N/A"
         logger.info(f"📊 Confidence recalculated: {session.current_confidence:.2f} (previous: {previous_confidence:.2f}, delta: {delta_str}, threshold: {session.confidence_threshold:.2f}, answers: {len(all_answers)}, resolved ambiguities: {len(resolved_ambiguity_ids)}, remaining: {len(remaining_ambiguities_for_confidence)})")
-        
+
         # Check if we should proceed or ask more questions
-        if (session.current_confidence >= session.confidence_threshold or 
+        if (session.current_confidence >= session.confidence_threshold or
             session.rounds_completed >= session.max_rounds):
             # Track outcome: user proceeded (Phase 2.1)
             try:
@@ -5565,22 +5582,22 @@ async def provide_clarification(
                     suggestion_approved=None,  # Will be updated when suggestion is approved/rejected
                     rounds=session.rounds_completed
                 )
-                
+
                 # Track calibration feedback (Phase 1.1)
                 if confidence_calculator.calibrator:
                     try:
                         from ..database.crud import store_clarification_confidence_feedback
-                        
+
                         # Count ambiguities for calibration
                         critical_count = sum(
                             1 for amb in session.ambiguities
                             if amb.severity == AmbiguitySeverity.CRITICAL
                         )
-                        
+
                         # Get raw confidence before calibration (we need to recalculate or store it)
                         # For now, use current confidence as approximation
                         raw_confidence = session.current_confidence
-                        
+
                         await store_clarification_confidence_feedback(
                             db=db,
                             session_id=session.session_id,
@@ -5592,7 +5609,7 @@ async def provide_clarification(
                             rounds=session.rounds_completed,
                             answer_count=len(all_answers)
                         )
-                        
+
                         # Add feedback to calibrator
                         confidence_calculator.calibrator.add_feedback(
                             raw_confidence=raw_confidence,
@@ -5609,10 +5626,10 @@ async def provide_clarification(
             except Exception as e:
                 logger.warning(f"Failed to track clarification outcome: {e}")
                 # Non-blocking: continue even if tracking fails
-            
+
             # Generate suggestions
             session.status = "complete"
-            
+
             # Build clarification context for prompt
             # Include ALL answers from all rounds, not just validated_answers
             all_qa_list = [
@@ -5624,7 +5641,7 @@ async def provide_clarification(
                 }
                 for answer in all_answers  # Use all_answers to include all rounds
             ]
-            
+
             clarification_context = {
                 'original_query': session.original_query,
                 'questions_and_answers': all_qa_list
@@ -5632,7 +5649,7 @@ async def provide_clarification(
             logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
             for i, qa in enumerate(clarification_context['questions_and_answers'], 1):
                 logger.info(f"  Q&A {i}: Q: {qa['question']} | A: {qa['answer']} | Entities: {qa.get('selected_entities', [])}")
-            
+
             # NEW: Rebuild enriched user query from original question + Q&A answers
             logger.info(f"🔧 Step 1: Rebuilding enriched query from {len(clarification_context.get('questions_and_answers', []))} Q&A pairs")
             try:
@@ -5642,7 +5659,7 @@ async def provide_clarification(
                 )
                 # Validation: Ensure enriched_query is not None or empty
                 if not enriched_query or not enriched_query.strip():
-                    logger.error(f"❌ Enriched query is empty or None after rebuilding")
+                    logger.error("❌ Enriched query is empty or None after rebuilding")
                     raise ValueError("Enriched query cannot be empty")
                 logger.info(f"📝 Step 1 complete: Rebuilt enriched query (length: {len(enriched_query)} chars): '{enriched_query[:200]}...'")
             except Exception as e:
@@ -5651,9 +5668,9 @@ async def provide_clarification(
                     status_code=500,
                     detail=f"Failed to rebuild enriched query: {str(e)}"
                 )
-            
+
             # NEW: Re-extract entities from enriched query (original + Q&A)
-            logger.info(f"🔧 Step 2: Extracting entities from enriched query (timeout: 30s)")
+            logger.info("🔧 Step 2: Extracting entities from enriched query (timeout: 30s)")
             try:
                 entities = await asyncio.wait_for(
                     extract_entities_with_ha(enriched_query),
@@ -5661,9 +5678,9 @@ async def provide_clarification(
                 )
                 logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                 if not entities:
-                    logger.warning(f"⚠️ No entities extracted from enriched query - continuing with empty list")
+                    logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
             except asyncio.TimeoutError:
-                logger.error(f"❌ Entity extraction timed out after 30 seconds")
+                logger.error("❌ Entity extraction timed out after 30 seconds")
                 raise HTTPException(
                     status_code=504,
                     detail="Entity extraction timed out. Please try again."
@@ -5674,9 +5691,9 @@ async def provide_clarification(
                     status_code=500,
                     detail=f"Failed to extract entities: {str(e)}"
                 )
-            
+
             # NEW: Re-enrich devices based on selected entities from Q&A answers
-            logger.info(f"🔧 Step 3: Re-enriching entities with Q&A information (timeout: 45s)")
+            logger.info("🔧 Step 3: Re-enriching entities with Q&A information (timeout: 45s)")
             try:
                 entities = await asyncio.wait_for(
                     _re_enrich_entities_from_qa(
@@ -5688,7 +5705,7 @@ async def provide_clarification(
                 )
                 logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
             except asyncio.TimeoutError:
-                logger.error(f"❌ Entity re-enrichment timed out after 45 seconds")
+                logger.error("❌ Entity re-enrichment timed out after 45 seconds")
                 raise HTTPException(
                     status_code=504,
                     detail="Entity re-enrichment timed out. Please try again."
@@ -5696,16 +5713,16 @@ async def provide_clarification(
             except Exception as e:
                 logger.error(f"❌ Failed to re-enrich entities: {e}", exc_info=True)
                 # Don't fail the request - continue with un-enriched entities
-                logger.warning(f"⚠️ Continuing with un-enriched entities due to re-enrichment failure")
-            
+                logger.warning("⚠️ Continuing with un-enriched entities due to re-enrichment failure")
+
             # Generate suggestions WITH enriched query and clarification context
             logger.info(f"🔧 Step 4: Generating suggestions from enriched query (timeout: {CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS}s)")
-            
+
             # Retry logic for OpenAI failures
             max_retries = CLARIFICATION_RETRY_MAX_ATTEMPTS
             retry_delay = CLARIFICATION_RETRY_DELAY_SECONDS
             suggestions = None
-            
+
             for attempt in range(max_retries):
                 try:
                     suggestions = await asyncio.wait_for(
@@ -5721,7 +5738,7 @@ async def provide_clarification(
                     )
                     logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions")
                     break  # Success, exit retry loop
-                    
+
                 except asyncio.TimeoutError:
                     if attempt < max_retries - 1:
                         logger.warning(f"⚠️ Attempt {attempt + 1}/{max_retries} timed out, retrying in {retry_delay}s...")
@@ -5737,11 +5754,11 @@ async def provide_clarification(
                                 "retry_after": 60
                             }
                         )
-                        
+
                 except ValueError as e:
                     error_str = str(e)
                     # Catch all variations of empty content/response errors
-                    if ("Empty content from OpenAI" in error_str or 
+                    if ("Empty content from OpenAI" in error_str or
                         "Empty response from OpenAI" in error_str):
                         logger.error(f"❌ OpenAI returned empty content on attempt {attempt + 1}/{max_retries} (likely rate limit or token overflow): {error_str}")
                         if attempt < max_retries - 1:
@@ -5772,7 +5789,7 @@ async def provide_clarification(
                                 "message": error_message
                             }
                         )
-                        
+
                 except Exception as e:
                     logger.error(f"❌ Unexpected error on attempt {attempt + 1}/{max_retries}: {e}", exc_info=True)
                     if attempt < max_retries - 1:
@@ -5792,10 +5809,10 @@ async def provide_clarification(
                                 "message": error_message
                             }
                         )
-            
+
             # Validate suggestions were generated
             if suggestions is None:
-                logger.error(f"❌ Suggestions is None after generation loop")
+                logger.error("❌ Suggestions is None after generation loop")
                 raise HTTPException(
                     status_code=500,
                     detail={
@@ -5803,7 +5820,7 @@ async def provide_clarification(
                         "message": "Failed to generate suggestions (no data returned)"
                     }
                 )
-            
+
             # Add conversation history to suggestions
             for suggestion in suggestions:
                 suggestion['conversation_history'] = {
@@ -5825,7 +5842,7 @@ async def provide_clarification(
                         for a in validated_answers
                     ]
                 }
-            
+
             # Create database query record so suggestions can be approved
             # Use session_id as query_id so approval endpoint can find it
             try:
@@ -5843,7 +5860,7 @@ async def provide_clarification(
                 await db.commit()
                 await db.refresh(query_record)
                 logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions")
-                
+
                 # Update clarification session in database to link the generated query
                 try:
                     stmt = update(ClarificationSessionDB).where(
@@ -5870,7 +5887,7 @@ async def provide_clarification(
                 except Exception as e:
                     logger.error(f"Failed to update clarification session in database: {e}", exc_info=True)
                     # Don't fail the request
-                
+
                 # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
                 # This enables the system to learn from successful clarification sessions
                 try:
@@ -5899,26 +5916,26 @@ async def provide_clarification(
                 except Exception as e:
                     # Non-critical: continue even if RAG storage fails
                     logger.warning(f"⚠️ Failed to store enriched query in RAG knowledge base: {e}")
-                    
+
             except Exception as e:
                 logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
                 # Continue anyway - suggestions are still returned, but approval might fail
                 # Rollback to avoid partial state
                 await db.rollback()
-            
+
             # Generate user-friendly enriched prompt
             enriched_prompt = _generate_user_friendly_prompt(
                 original_query=session.original_query,
                 clarification_context=clarification_context
             )
-            logger.info(f"📝 Generated enriched prompt for user display")
-            
+            logger.info("📝 Generated enriched prompt for user display")
+
             # Debug: Log all Q&A pairs being returned
             qa_count = len(clarification_context['questions_and_answers'])
             logger.info(f"🔍 Returning {qa_count} Q&A pairs in response:")
             for i, qa in enumerate(clarification_context['questions_and_answers'], 1):
                 logger.info(f"  Q&A {i}/{qa_count}: Q: {qa['question'][:100]}... | A: {qa['answer'][:100]}...")
-            
+
             return ClarificationResponse(
                 session_id=request.session_id,
                 confidence=session.current_confidence,
@@ -5948,7 +5965,7 @@ async def provide_clarification(
                     if any(a.question_id == q.id for a in session.answers)
                 ]
             }
-            logger.info(f"🔧 Rebuilding enriched query for re-detection (timeout: 5s)")
+            logger.info("🔧 Rebuilding enriched query for re-detection (timeout: 5s)")
             try:
                 enriched_query = _rebuild_user_query_from_qa(
                     original_query=session.original_query,
@@ -5956,7 +5973,7 @@ async def provide_clarification(
                 )
                 # Validation: Ensure enriched_query is not None or empty
                 if not enriched_query or not enriched_query.strip():
-                    logger.error(f"❌ Enriched query is empty or None after rebuilding (re-detection path)")
+                    logger.error("❌ Enriched query is empty or None after rebuilding (re-detection path)")
                     raise ValueError("Enriched query cannot be empty")
                 logger.info(f"📝 Rebuilt enriched query for re-detection (length: {len(enriched_query)} chars)")
             except Exception as e:
@@ -5964,35 +5981,36 @@ async def provide_clarification(
                 # Don't fail - use original query as fallback
                 enriched_query = session.original_query
                 logger.warning(f"⚠️ Using original query as fallback: '{enriched_query}'")
-            
+
             # NEW: Re-detect ambiguities based on enriched query (original + all previous answers)
             # This ensures we find new ambiguities that may have emerged from the answers
             clarification_detector, question_generator, _, _ = await get_clarification_services(db)
-            
+
             # PERFORMANCE FIX: Skip entity re-extraction during clarification
             # Entity extraction takes 30+ seconds and times out frequently
             # We already have entities from the initial query - no need to re-extract
-            logger.info(f"⚡ Skipping entity re-extraction during clarification (performance optimization)")
+            logger.info("⚡ Skipping entity re-extraction during clarification (performance optimization)")
             entities = []  # Use empty entities for re-detection - ambiguity detection works without them
-            
+
             # Get automation context for re-detection
             automation_context = {}
             try:
-                from ..clients.data_api_client import DataAPIClient
                 import pandas as pd
+
+                from ..clients.data_api_client import DataAPIClient
                 data_api_client = DataAPIClient()
                 devices_result = await data_api_client.fetch_devices(limit=100)
                 entities_result = await data_api_client.fetch_entities(limit=200)
-                
+
                 devices_df = devices_result if isinstance(devices_result, pd.DataFrame) else pd.DataFrame(devices_result if isinstance(devices_result, list) else [])
                 entities_df = entities_result if isinstance(entities_result, pd.DataFrame) else pd.DataFrame(entities_result if isinstance(entities_result, list) else [])
-                
+
                 automation_context = {
                     'devices': devices_df.to_dict('records') if isinstance(devices_df, pd.DataFrame) and not devices_df.empty else (devices_result if isinstance(devices_result, list) else []),
                     'entities': entities_df.to_dict('records') if isinstance(entities_df, pd.DataFrame) and not entities_df.empty else (entities_result if isinstance(entities_result, list) else []),
                     'entities_by_domain': {}
                 }
-                
+
                 # Organize entities by domain
                 if isinstance(entities_df, pd.DataFrame) and not entities_df.empty:
                     for _, entity in entities_df.iterrows():
@@ -6021,7 +6039,7 @@ async def provide_clarification(
                                 })
             except Exception as e:
                 logger.warning(f"Failed to build automation context for re-detection: {e}")
-            
+
             # NEW: Re-detect ambiguities from enriched query (this finds new ambiguities based on answers)
             new_ambiguities = []
             if clarification_detector:
@@ -6035,17 +6053,17 @@ async def provide_clarification(
                     logger.info(f"🔍 Re-detected {len(new_ambiguities)} ambiguities from enriched query")
                 except Exception as e:
                     logger.warning(f"Failed to re-detect ambiguities: {e}")
-            
+
             # NEW: Find remaining ambiguities by excluding those that have been answered
             # Track which ambiguities have been answered by checking question-ambiguity mappings
             answered_question_ids = {a.question_id for a in session.answers}
             answered_ambiguity_ids = set()
-            
+
             # Map answered questions to their ambiguity IDs
             for question in session.questions:
                 if question.id in answered_question_ids and question.ambiguity_id:
                     answered_ambiguity_ids.add(question.ambiguity_id)
-            
+
             # Also check if ambiguity was resolved by answers (e.g., device selection resolved device ambiguity)
             for answer in session.answers:
                 question = next((q for q in session.questions if q.id == answer.question_id), None)
@@ -6055,7 +6073,7 @@ async def provide_clarification(
                         amb_type = _get_ambiguity_type(amb)
                         amb_id = _get_ambiguity_id(amb)
                         amb_context = _get_ambiguity_context(amb)
-                        
+
                         if amb_type == 'device' and amb_id not in answered_ambiguity_ids:
                             # Check if this ambiguity is about the same devices
                             amb_entities = amb_context.get('matches', [])
@@ -6064,14 +6082,14 @@ async def provide_clarification(
                                 if any(eid in answer.selected_entities for eid in amb_entity_ids):
                                     answered_ambiguity_ids.add(amb_id)
                                     logger.info(f"✅ Marked ambiguity {amb_id} as resolved by device selection")
-            
+
             # Combine original and new ambiguities, excluding answered ones
             all_ambiguities = session.ambiguities + new_ambiguities
             remaining_ambiguities = [
                 amb for amb in all_ambiguities
                 if _get_ambiguity_id(amb) not in answered_ambiguity_ids
             ]
-            
+
             # Remove duplicates by ambiguity ID
             seen_ambiguity_ids = set()
             unique_remaining = []
@@ -6081,20 +6099,20 @@ async def provide_clarification(
                     seen_ambiguity_ids.add(amb_id)
                     unique_remaining.append(amb)
             remaining_ambiguities = unique_remaining
-            
+
             logger.info(f"📋 Remaining ambiguities: {len(remaining_ambiguities)} (answered: {len(answered_ambiguity_ids)}, total: {len(all_ambiguities)})")
-            
+
             # CLARIFICATION LOOP PREVENTION: If we've done multiple rounds without reaching threshold, proceed anyway
             if session.rounds_completed >= session.max_rounds:
                 logger.warning(f"⚠️ Max clarification rounds ({session.max_rounds}) reached - proceeding with suggestion generation")
                 remaining_ambiguities = []  # Force proceed
-            
+
             # If no remaining ambiguities, generate suggestions even if confidence is below threshold
             # All ambiguities have been resolved, so we should proceed
             if len(remaining_ambiguities) == 0:
                 logger.info("✅ All ambiguities resolved - generating suggestions despite low confidence")
                 session.status = "complete"
-                
+
                 # Build clarification context for prompt
                 clarification_context = {
                     'original_query': session.original_query,
@@ -6109,9 +6127,9 @@ async def provide_clarification(
                     ]
                 }
                 logger.info(f"📝 Built clarification context with {len(clarification_context['questions_and_answers'])} Q&A pairs for prompt")
-                
+
                 # Rebuild enriched user query from original question + Q&A answers
-                logger.info(f"🔧 Step 1 (all-ambiguities-resolved): Rebuilding enriched query")
+                logger.info("🔧 Step 1 (all-ambiguities-resolved): Rebuilding enriched query")
                 try:
                     enriched_query = _rebuild_user_query_from_qa(
                         original_query=session.original_query,
@@ -6119,7 +6137,7 @@ async def provide_clarification(
                     )
                     # Validation: Ensure enriched_query is not None or empty
                     if not enriched_query or not enriched_query.strip():
-                        logger.error(f"❌ Enriched query is empty or None after rebuilding (all-ambiguities-resolved path)")
+                        logger.error("❌ Enriched query is empty or None after rebuilding (all-ambiguities-resolved path)")
                         raise ValueError("Enriched query cannot be empty")
                     logger.info(f"📝 Step 1 complete: Rebuilt enriched query (length: {len(enriched_query)} chars): '{enriched_query[:200]}...'")
                 except Exception as e:
@@ -6128,9 +6146,9 @@ async def provide_clarification(
                         status_code=500,
                         detail=f"Failed to rebuild enriched query: {str(e)}"
                     )
-                
+
                 # Re-extract entities from enriched query
-                logger.info(f"🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 5s - reduced for performance)")
+                logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 5s - reduced for performance)")
                 try:
                     entities = await asyncio.wait_for(
                         extract_entities_with_ha(enriched_query),
@@ -6138,9 +6156,9 @@ async def provide_clarification(
                     )
                     logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                     if not entities:
-                        logger.warning(f"⚠️ No entities extracted from enriched query - continuing with empty list")
+                        logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
                 except asyncio.TimeoutError:
-                    logger.error(f"❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
+                    logger.error("❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
                         detail="Entity extraction timed out. Please try again."
@@ -6151,9 +6169,9 @@ async def provide_clarification(
                         status_code=500,
                         detail=f"Failed to extract entities: {str(e)}"
                     )
-                
+
                 # Re-enrich devices based on selected entities from Q&A answers
-                logger.info(f"🔧 Step 3 (all-ambiguities-resolved): Re-enriching entities (timeout: 45s)")
+                logger.info("🔧 Step 3 (all-ambiguities-resolved): Re-enriching entities (timeout: 45s)")
                 try:
                     entities = await asyncio.wait_for(
                         _re_enrich_entities_from_qa(
@@ -6165,7 +6183,7 @@ async def provide_clarification(
                     )
                     logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
                 except asyncio.TimeoutError:
-                    logger.error(f"❌ Entity re-enrichment timed out after 45 seconds (all-ambiguities-resolved path)")
+                    logger.error("❌ Entity re-enrichment timed out after 45 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
                         detail="Entity re-enrichment timed out. Please try again."
@@ -6173,10 +6191,10 @@ async def provide_clarification(
                 except Exception as e:
                     logger.error(f"❌ Failed to re-enrich entities (all-ambiguities-resolved path): {e}", exc_info=True)
                     # Don't fail the request - continue with un-enriched entities
-                    logger.warning(f"⚠️ Continuing with un-enriched entities due to re-enrichment failure")
-                
+                    logger.warning("⚠️ Continuing with un-enriched entities due to re-enrichment failure")
+
                 # Generate suggestions WITH enriched query and clarification context
-                logger.info(f"🔧 Step 4 (all-ambiguities-resolved): Generating suggestions (timeout: 60s)")
+                logger.info("🔧 Step 4 (all-ambiguities-resolved): Generating suggestions (timeout: 60s)")
                 try:
                     suggestions = await asyncio.wait_for(
                         generate_suggestions_from_query(
@@ -6191,7 +6209,7 @@ async def provide_clarification(
                     )
                     logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions (all-ambiguities-resolved path)")
                 except asyncio.TimeoutError:
-                    logger.error(f"❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
+                    logger.error("❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
                         detail="Suggestion generation timed out. Please try again."
@@ -6199,7 +6217,7 @@ async def provide_clarification(
                 except ValueError as e:
                     error_str = str(e)
                     # Catch all variations of empty content/response errors
-                    if ("Empty content from OpenAI" in error_str or 
+                    if ("Empty content from OpenAI" in error_str or
                         "Empty response from OpenAI" in error_str):
                         logger.error(f"❌ OpenAI returned empty content (all-ambiguities-resolved path): {error_str}")
                         raise HTTPException(
@@ -6228,7 +6246,7 @@ async def provide_clarification(
                             "message": f"Failed to generate suggestions: {str(e)}"
                         }
                     )
-                
+
                 # Add conversation history to suggestions
                 for suggestion in suggestions:
                     suggestion['conversation_history'] = {
@@ -6250,7 +6268,7 @@ async def provide_clarification(
                             for a in session.answers
                         ]
                     }
-                
+
                 # Create database query record so suggestions can be approved
                 # Use session_id as query_id so approval endpoint can find it
                 try:
@@ -6268,7 +6286,7 @@ async def provide_clarification(
                     await db.commit()
                     await db.refresh(query_record)
                     logger.info(f"✅ Created query record {request.session_id} with {len(suggestions)} suggestions (all ambiguities resolved)")
-                    
+
                     # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
                     # This enables the system to learn from successful clarification sessions
                     rag_client = None
@@ -6305,20 +6323,20 @@ async def provide_clarification(
                                 await rag_client.close()
                             except Exception as e:
                                 logger.debug(f"⚠️ Error closing RAG client: {e}")
-                        
+
                 except Exception as e:
                     logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
                     # Continue anyway - suggestions are still returned, but approval might fail
                     # Rollback to avoid partial state
                     await db.rollback()
-                
+
                 # Generate user-friendly enriched prompt
                 enriched_prompt = _generate_user_friendly_prompt(
                     original_query=session.original_query,
                     clarification_context=clarification_context
                 )
-                logger.info(f"📝 Generated enriched prompt for user display (all ambiguities resolved)")
-                
+                logger.info("📝 Generated enriched prompt for user display (all ambiguities resolved)")
+
                 return ClarificationResponse(
                     session_id=request.session_id,
                     confidence=session.current_confidence,
@@ -6332,10 +6350,10 @@ async def provide_clarification(
                     enriched_prompt=enriched_prompt,
                     questions_and_answers=clarification_context['questions_and_answers']
                 )
-            
+
             # NEW: Track which questions have already been asked to prevent duplicates
             asked_question_texts = {q.question_text.lower().strip() for q in session.questions}
-            
+
             # Generate new questions if needed
             new_questions = []
             if remaining_ambiguities and question_generator:
@@ -6347,7 +6365,7 @@ async def provide_clarification(
                     previous_qa=all_qa_context.get('questions_and_answers', []),  # NEW: Pass previous Q&A
                     asked_questions=session.questions  # NEW: Pass asked questions to prevent duplicates
                 )
-                
+
                 # Filter out questions that are too similar to already-asked questions
                 filtered_new_questions = []
                 for new_q in new_questions:
@@ -6364,17 +6382,17 @@ async def provide_clarification(
                                 is_duplicate = True
                                 logger.info(f"🚫 Filtered duplicate question: '{new_q.question_text}' (similarity: {similarity:.2f})")
                                 break
-                    
+
                     if not is_duplicate:
                         filtered_new_questions.append(new_q)
                         asked_question_texts.add(new_q_text_lower)  # Track this question
-                
+
                 new_questions = filtered_new_questions
-                
+
                 # Update session with new ambiguities and questions
                 session.ambiguities.extend(new_ambiguities)
                 session.questions.extend(new_questions)
-            
+
             questions_dict = None
             if new_questions:
                 questions_dict = [
@@ -6388,14 +6406,14 @@ async def provide_clarification(
                     }
                     for q in new_questions
                 ]
-            
-            message = f"Thanks for your answers! " if validated_answers else ""
+
+            message = "Thanks for your answers! " if validated_answers else ""
             message += f"Confidence is now {int(session.current_confidence * 100)}% (need {int(session.confidence_threshold * 100)}%)."
             if new_questions:
                 message += f" I have {len(new_questions)} more question(s)."
             else:
                 message += " Generating suggestions now..."
-            
+
             return ClarificationResponse(
                 session_id=request.session_id,
                 confidence=session.current_confidence,
@@ -6407,14 +6425,14 @@ async def provide_clarification(
                 confidence_delta=confidence_delta,
                 confidence_summary=confidence_summary
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ Failed to process clarification: {e}", exc_info=True)
         # Check if it's an empty content error that wasn't caught earlier
         error_str = str(e)
-        if ("Empty content from OpenAI" in error_str or 
+        if ("Empty content from OpenAI" in error_str or
             "Empty response from OpenAI" in error_str):
             raise HTTPException(
                 status_code=503,
@@ -6443,7 +6461,7 @@ async def refine_query_results(
     Refine the results of a previous Ask AI query.
     """
     logger.info(f"🔧 Refining Ask AI query {query_id}: {request.refinement}")
-    
+
     # For now, return mock refinement
     # TODO: Implement actual refinement logic
     refined_suggestions = [{
@@ -6456,7 +6474,7 @@ async def refine_query_results(
         'status': 'draft',
         'created_at': datetime.now().isoformat()
     }]
-    
+
     return QueryRefinementResponse(
         query_id=query_id,
         refined_suggestions=refined_suggestions,
@@ -6471,7 +6489,7 @@ async def get_query_suggestions(
     query_id: str,
     include_clarifications: bool = Query(default=True, description="Include suggestions from clarification sessions"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get all suggestions for a specific query.
     
@@ -6491,7 +6509,7 @@ async def get_query_suggestions(
         stmt = select(AskAIQueryModel).where(AskAIQueryModel.query_id == query_id)
         result = await db.execute(stmt)
         query = result.scalar_one_or_none()
-        
+
         if query:
             # Found query directly
             suggestions = query.suggestions or []
@@ -6501,7 +6519,7 @@ async def get_query_suggestions(
                 "total_count": len(suggestions),
                 "source": "direct"
             }
-        
+
         # If not found and include_clarifications is True, check for clarification sessions
         if include_clarifications:
             stmt = select(ClarificationSessionDB).where(
@@ -6509,7 +6527,7 @@ async def get_query_suggestions(
             ).order_by(ClarificationSessionDB.created_at.desc())
             result = await db.execute(stmt)
             clarification_session = result.scalar_one_or_none()
-            
+
             if clarification_session and clarification_session.clarification_query_id:
                 # Found clarification session, get the suggestions from the clarification query
                 stmt = select(AskAIQueryModel).where(
@@ -6517,7 +6535,7 @@ async def get_query_suggestions(
                 )
                 result = await db.execute(stmt)
                 clarification_query = result.scalar_one_or_none()
-                
+
                 if clarification_query:
                     suggestions = clarification_query.suggestions or []
                     return {
@@ -6529,13 +6547,13 @@ async def get_query_suggestions(
                         "total_count": len(suggestions),
                         "source": "clarification"
                     }
-        
+
         # Query not found
         raise HTTPException(
             status_code=404,
             detail=f"Query {query_id} not found"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -6592,19 +6610,19 @@ def _generate_test_quality_report(
     - No repeat loops (unless required by query)
     - Simple immediate execution
     """
+
     import yaml
-    import re
-    
+
     # Check if timing is expected based on query
     timing_expected = _detects_timing_requirement(original_query)
-    
+
     try:
         yaml_data = yaml.safe_load(automation_yaml)
-    except Exception as e:
+    except Exception:
         yaml_data = None
-    
+
     checks = []
-    
+
     # Check 1: Entity IDs are validated
     if validated_entities:
         uses_validated_entities = False
@@ -6629,7 +6647,7 @@ def _generate_test_quality_report(
             "status": "⚠️ SKIP",
             "details": "No validated entities provided"
         })
-    
+
     # Check 2: No delays in YAML (unless timing is expected)
     has_delay = "delay" in automation_yaml.lower()
     if timing_expected and has_delay:
@@ -6644,7 +6662,7 @@ def _generate_test_quality_report(
             "status": "✅ PASS" if not has_delay else "❌ FAIL",
             "details": "Found 'delay' in YAML" if has_delay else "No delays found"
         })
-    
+
     # Check 3: No repeat loops (unless timing is expected)
     has_repeat = "repeat:" in automation_yaml or "repeat " in automation_yaml
     if timing_expected and has_repeat:
@@ -6659,7 +6677,7 @@ def _generate_test_quality_report(
             "status": "✅ PASS" if not has_repeat else "❌ FAIL",
             "details": "Found 'repeat' in YAML" if has_repeat else "No repeat found"
         })
-    
+
     # Check 4: Has trigger
     has_trigger = yaml_data and "trigger" in yaml_data
     checks.append({
@@ -6667,7 +6685,7 @@ def _generate_test_quality_report(
         "status": "✅ PASS" if has_trigger else "❌ FAIL",
         "details": "Trigger block present" if has_trigger else "No trigger found"
     })
-    
+
     # Check 5: Has action
     has_action = yaml_data and "action" in yaml_data
     checks.append({
@@ -6675,7 +6693,7 @@ def _generate_test_quality_report(
         "status": "✅ PASS" if has_action else "❌ FAIL",
         "details": "Action block present" if has_action else "No action found"
     })
-    
+
     # Check 6: Valid YAML syntax
     valid_yaml = yaml_data is not None
     checks.append({
@@ -6683,18 +6701,18 @@ def _generate_test_quality_report(
         "status": "✅ PASS" if valid_yaml else "❌ FAIL",
         "details": "YAML parsed successfully" if valid_yaml else "YAML parsing failed"
     })
-    
+
     # Overall status
     passed = sum(1 for c in checks if c["status"] == "✅ PASS")
     failed = sum(1 for c in checks if c["status"] == "❌ FAIL")
     skipped = sum(1 for c in checks if c["status"] == "⚠️ SKIP")
     warnings = sum(1 for c in checks if "WARNING" in c["status"])
-    
+
     # Overall status: PASS if no failures (warnings from expected timing are OK)
     overall_status = "✅ PASS" if failed == 0 else "❌ FAIL"
     if warnings > 0 and failed == 0:
         overall_status = "✅ PASS (with expected warnings)"
-    
+
     return {
         "overall_status": overall_status,
         "summary": {
@@ -6735,9 +6753,9 @@ def _generate_test_quality_report(
 
 async def capture_entity_states(
     ha_client: HomeAssistantClient,
-    entity_ids: List[str],
+    entity_ids: list[str],
     timeout: float = 5.0
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """
     Capture current state of entities before test execution.
     
@@ -6752,7 +6770,7 @@ async def capture_entity_states(
         Dictionary mapping entity_id to state dictionary
     """
     states = {}
-    
+
     for entity_id in entity_ids:
         try:
             state = await ha_client.get_entity_state(entity_id)
@@ -6768,18 +6786,18 @@ async def capture_entity_states(
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }
-    
+
     logger.info(f"📸 Captured states for {len(states)} entities")
     return states
 
 
 async def validate_state_changes(
     ha_client: HomeAssistantClient,
-    before_states: Dict[str, Dict[str, Any]],
-    entity_ids: List[str],
+    before_states: dict[str, dict[str, Any]],
+    entity_ids: list[str],
     wait_timeout: float = 5.0,
     check_interval: float = 0.5
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Validate that state changes occurred after test execution.
     
@@ -6797,7 +6815,7 @@ async def validate_state_changes(
     """
     validation_results = {}
     start_time = time.time()
-    
+
     # Wait and poll for state changes
     while (time.time() - start_time) < wait_timeout:
         for entity_id in entity_ids:
@@ -6806,10 +6824,10 @@ async def validate_state_changes(
                     after_state = await ha_client.get_entity_state(entity_id)
                     before_state_data = before_states.get(entity_id, {})
                     before_state = before_state_data.get('state')
-                    
+
                     if after_state:
                         after_state_value = after_state.get('state')
-                        
+
                         # Check if state changed
                         if before_state != after_state_value:
                             validation_results[entity_id] = {
@@ -6825,7 +6843,7 @@ async def validate_state_changes(
                             # Check common attributes that might change (brightness, color, etc.)
                             before_attrs = before_state_data.get('attributes', {})
                             after_attrs = after_state.get('attributes', {})
-                            
+
                             # Check for meaningful attribute changes
                             changed_attrs = {}
                             for key in ['brightness', 'color_name', 'rgb_color', 'temperature']:
@@ -6834,7 +6852,7 @@ async def validate_state_changes(
                                         'before': before_attrs.get(key),
                                         'after': after_attrs.get(key)
                                     }
-                            
+
                             if changed_attrs:
                                 validation_results[entity_id] = {
                                     'success': True,
@@ -6855,7 +6873,7 @@ async def validate_state_changes(
                                     'pending': True,
                                     'timestamp': datetime.now().isoformat()
                                 }
-                
+
                 except Exception as e:
                     logger.warning(f"Error validating state for {entity_id}: {e}")
                     if entity_id not in validation_results:
@@ -6864,19 +6882,19 @@ async def validate_state_changes(
                             'error': str(e),
                             'timestamp': datetime.now().isoformat()
                         }
-        
+
         # Check if all entities have been validated with changes
         all_validated = all(
             entity_id in validation_results and validation_results[entity_id].get('changed', False)
             for entity_id in entity_ids
         )
-        
+
         if all_validated:
             break
-        
+
         # Wait before next check
         await asyncio.sleep(check_interval)
-    
+
     # Final validation - mark pending entities as no change
     for entity_id in entity_ids:
         if entity_id not in validation_results:
@@ -6889,12 +6907,12 @@ async def validate_state_changes(
                 'note': 'No state change detected within timeout',
                 'timestamp': datetime.now().isoformat()
             }
-    
+
     success_count = sum(1 for r in validation_results.values() if r.get('success', False))
     total_count = len(validation_results)
-    
+
     logger.info(f"✅ State validation complete: {success_count}/{total_count} entities changed")
-    
+
     return {
         'entities': validation_results,
         'summary': {
@@ -6916,17 +6934,17 @@ class TestResultAnalyzer:
     
     Task 1.3: OpenAI JSON Mode for Test Result Analysis
     """
-    
+
     def __init__(self, openai_client: OpenAIClient):
         """Initialize analyzer with OpenAI client"""
         self.client = openai_client
-    
+
     async def analyze_test_execution(
         self,
         test_yaml: str,
-        state_validation: Dict[str, Any],
-        execution_logs: Optional[str] = None
-    ) -> Dict[str, Any]:
+        state_validation: dict[str, Any],
+        execution_logs: str | None = None
+    ) -> dict[str, Any]:
         """
         Analyze test execution and return structured JSON results.
         
@@ -6946,12 +6964,12 @@ class TestResultAnalyzer:
                 'recommendations': ['Test executed, but AI analysis unavailable'],
                 'confidence': 0.7
             }
-        
+
         # Build analysis prompt
         state_summary = state_validation.get('summary', {})
         changed_count = state_summary.get('changed', 0)
         total_count = state_summary.get('total_checked', 0)
-        
+
         prompt = f"""Analyze this test automation execution and provide structured feedback.
 
 TEST YAML:
@@ -6997,13 +7015,13 @@ Response format: ONLY JSON, no other text:
                 max_completion_tokens=400,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}  # Force JSON mode
             )
-            
+
             content = response.choices[0].message.content.strip()
             analysis = json.loads(content)
-            
+
             logger.info(f"✅ Test analysis complete: success={analysis.get('success', False)}")
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Failed to analyze test execution: {e}")
             return {
@@ -7021,7 +7039,7 @@ async def test_suggestion_from_query(
     db: AsyncSession = Depends(get_db),
     ha_client: HomeAssistantClient = Depends(get_ha_client),
     openai_client: OpenAIClient = Depends(get_openai_client)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Test a suggestion by executing the core command via HA Conversation API (quick test).
     
@@ -7044,7 +7062,7 @@ async def test_suggestion_from_query(
     """
     logger.info(f"QUICK TEST START - suggestion_id: {suggestion_id}, query_id: {query_id}")
     start_time = time.time()
-    
+
     try:
         logger.debug(f"About to fetch query from database, query_id={query_id}, suggestion_id={suggestion_id}")
         # Get the query from database
@@ -7056,14 +7074,14 @@ async def test_suggestion_from_query(
                 logger.debug(f"Query has {len(query.suggestions)} suggestions")
         except Exception as e:
             logger.error(f"ERROR fetching query: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Database error: {e}")
-        
+            raise HTTPException(status_code=500, detail=f"Database error: {e}") from e
+
         if not query:
             logger.error(f"Query {query_id} not found in database")
             raise HTTPException(status_code=404, detail=f"Query {query_id} not found")
-        
+
         logger.info(f"Query found: {query.original_query}, suggestions count: {len(query.suggestions)}")
-        
+
         # Find the specific suggestion
         logger.debug(f"Searching for suggestion {suggestion_id}")
         suggestion = None
@@ -7072,36 +7090,36 @@ async def test_suggestion_from_query(
             logger.debug(f"Checking suggestion {s.get('suggestion_id')}")
             if s.get('suggestion_id') == suggestion_id:
                 suggestion = s
-                logger.debug(f"Found matching suggestion!")
+                logger.debug("Found matching suggestion!")
                 break
-        
+
         if not suggestion:
             logger.error(f"Suggestion {suggestion_id} not found in query")
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
-        
+
         logger.info(f"Testing suggestion: {suggestion.get('description', 'N/A')}")
         logger.info(f"Original query: {query.original_query}")
         logger.debug(f"Full suggestion: {json.dumps(suggestion, indent=2)}")
-        
+
         # Validate ha_client
         logger.debug("Validating ha_client...")
         if not ha_client:
             logger.error("ha_client is None!")
             raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
         logger.debug("ha_client validated")
-        
+
         # STEP 1: Simplify the suggestion to extract core command
         entity_resolution_start = time.time()
         logger.info("Simplifying suggestion for quick test...")
         simplified_command = await simplify_query_for_test(suggestion, openai_client)
         logger.info(f"Simplified command: '{simplified_command}'")
-        
+
         # STEP 2: Generate minimal YAML for testing (no triggers, just the action)
         yaml_gen_start = time.time()
         logger.info("Generating test automation YAML...")
         # For test mode, pass empty entities list so it uses validated_entities from test_suggestion
         entities = []
-        
+
         # Check if validated_entities already exists (fast path)
         if suggestion.get('validated_entities'):
             entity_mapping = suggestion['validated_entities']
@@ -7109,15 +7127,15 @@ async def test_suggestion_from_query(
             logger.info(f"✅ Using saved validated_entities mapping ({len(entity_mapping)} entities) - FAST PATH")
         else:
             # Fall back to re-resolution (slow path, backwards compatibility)
-            logger.info(f"⚠️ Re-resolving entities (validated_entities not saved) - SLOW PATH")
+            logger.info("⚠️ Re-resolving entities (validated_entities not saved) - SLOW PATH")
             # Use devices_involved from the suggestion (these are the actual device names to map)
             devices_involved = suggestion.get('devices_involved', [])
             logger.debug(f" devices_involved from suggestion: {devices_involved}")
-            
+
             # Map devices to entity_ids using the same logic as in generate_automation_yaml
-            logger.debug(f" Mapping devices to entity_ids...")
-            from ..services.entity_validator import EntityValidator
+            logger.debug(" Mapping devices to entity_ids...")
             from ..clients.data_api_client import DataAPIClient
+            from ..services.entity_validator import EntityValidator
             data_api_client = DataAPIClient()
             ha_client = HomeAssistantClient(
                 ha_url=settings.ha_url,
@@ -7127,7 +7145,7 @@ async def test_suggestion_from_query(
             resolved_entities = await entity_validator.map_query_to_entities(query.original_query, devices_involved)
             entity_resolution_time = (time.time() - entity_resolution_start) * 1000
             logger.debug(f"resolved_entities result (type={type(resolved_entities)}): {resolved_entities}")
-            
+
             # Build validated_entities mapping from resolved entities
             entity_mapping = {}
             logger.info(f" About to build entity_mapping from {len(devices_involved)} devices")
@@ -7138,23 +7156,23 @@ async def test_suggestion_from_query(
                     logger.debug(f" Mapped '{device_name}' to '{entity_id}'")
                 else:
                     logger.warning(f" Device '{device_name}' not found in resolved_entities")
-            
+
             # Deduplicate entities - if multiple device names map to same entity_id, keep only unique ones
             entity_mapping = deduplicate_entity_mapping(entity_mapping)
-        
+
         # TASK 2.4: Check if suggestion has sequences for testing with shortened delays
         component_detector_preview = ComponentDetector()
         detected_components_preview = component_detector_preview.detect_stripped_components(
             "",
             suggestion.get('description', '')
         )
-        
+
         # Check if we have sequences/repeats that can be tested with shortened delays
         has_sequences = any(
-            comp.component_type in ['repeat', 'delay'] 
+            comp.component_type in ['repeat', 'delay']
             for comp in detected_components_preview
         )
-        
+
         # TASK 2.4: Modify suggestion for test - use sequence mode if applicable
         test_suggestion = suggestion.copy()
         if has_sequences:
@@ -7169,30 +7187,32 @@ async def test_suggestion_from_query(
             test_suggestion['trigger_summary'] = "Manual trigger (test mode)"
             test_suggestion['action_summary'] = suggestion.get('action_summary', '').split('every')[0].split('Every')[0].strip()
             test_suggestion['test_mode'] = 'simple'
-        
+
         test_suggestion['validated_entities'] = entity_mapping
         logger.debug(f" Added validated_entities: {entity_mapping}")
         logger.debug(f" test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
         logger.debug(f" test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
-        
+
         automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities, db_session=db, ha_client=ha_client)
         yaml_gen_time = (time.time() - yaml_gen_start) * 1000
         logger.debug(f"After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
-        logger.info(f"Generated test automation YAML")
+        logger.info("Generated test automation YAML")
         logger.debug(f"Generated YAML preview: {str(automation_yaml)[:500]}")
-        
+
         # Reverse engineering self-correction: Validate and improve YAML to match user intent
         correction_result = None
         correction_service = get_self_correction_service()
         if correction_service:
             try:
                 logger.info("🔄 Running reverse engineering self-correction (test mode)...")
-                
+
                 # Get comprehensive enriched data for entities used in YAML
                 test_enriched_data = None
                 if entity_mapping and ha_client:
                     try:
-                        from ..services.comprehensive_entity_enrichment import enrich_entities_comprehensively
+                        from ..services.comprehensive_entity_enrichment import (
+                            enrich_entities_comprehensively,
+                        )
                         entity_ids_for_enrichment = set(entity_mapping.values())
                         test_enriched_data = await enrich_entities_comprehensively(
                             entity_ids=entity_ids_for_enrichment,
@@ -7204,7 +7224,7 @@ async def test_suggestion_from_query(
                         logger.info(f"✅ Got comprehensive enrichment for {len(test_enriched_data)} entities for reverse engineering")
                     except Exception as e:
                         logger.warning(f"⚠️ Could not get comprehensive enrichment for test: {e}")
-                
+
                 context = {
                     "entities": entities,
                     "suggestion": test_suggestion,
@@ -7217,10 +7237,12 @@ async def test_suggestion_from_query(
                     context=context,
                     comprehensive_enriched_data=test_enriched_data
                 )
-                
+
                 # Store initial metrics for test mode (test automations are temporary, so automation_created stays None)
                 try:
-                    from ..services.reverse_engineering_metrics import store_reverse_engineering_metrics
+                    from ..services.reverse_engineering_metrics import (
+                        store_reverse_engineering_metrics,
+                    )
                     await store_reverse_engineering_metrics(
                         db_session=db,
                         suggestion_id=suggestion_id,
@@ -7234,7 +7256,7 @@ async def test_suggestion_from_query(
                     logger.info("✅ Stored reverse engineering metrics for test")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to store test metrics: {e}")
-                
+
                 if correction_result.convergence_achieved or correction_result.final_similarity >= 0.80:
                     # Use corrected YAML if similarity improved significantly (lower threshold for test mode)
                     if correction_result.final_similarity > 0.80:
@@ -7249,7 +7271,7 @@ async def test_suggestion_from_query(
                 correction_result = None
         else:
             logger.debug("Self-correction service not available for test, skipping reverse engineering")
-        
+
         # TASK 1.2: Detect stripped components for restoration tracking
         component_detector = ComponentDetector()
         stripped_components = component_detector.detect_stripped_components(
@@ -7257,15 +7279,15 @@ async def test_suggestion_from_query(
             suggestion.get('description', '')
         )
         logger.info(f"🔍 Detected {len(stripped_components)} stripped components")
-        
+
         # STEP 3: Execute test using AutomationTestExecutor (uses ActionExecutor internally)
-        logger.info(f"Executing test via AutomationTestExecutor (no automation creation)...")
-        
+        logger.info("Executing test via AutomationTestExecutor (no automation creation)...")
+
         try:
             # Get AutomationTestExecutor from ServiceContainer
             service_container = ServiceContainer()
             test_executor = service_container.test_executor
-            
+
             # Prepare test context
             test_context = {
                 'query_id': query_id,
@@ -7274,35 +7296,35 @@ async def test_suggestion_from_query(
                 'automation_yaml': automation_yaml,
                 'entity_mapping': entity_mapping
             }
-            
+
             # Execute test using AutomationTestExecutor (handles state capture, execution, and validation)
             test_result = await test_executor.execute_test(
                 automation_yaml=automation_yaml,
                 expected_changes=None,
                 context=test_context
             )
-            
+
             # Extract results from test execution
             state_validation = {
                 'results': test_result.get('state_changes', {}),
                 'summary': test_result.get('state_validation', {})
             }
-            
+
             execution_summary = test_result.get('execution_summary', {})
             action_execution_time = test_result.get('execution_time_ms', 0)
-            
+
             logger.info(f"Test execution complete: {execution_summary.get('successful', 0)}/{execution_summary.get('total_actions', 0)} actions successful")
-            
+
             # Check if execution was successful
             if execution_summary.get('failed', 0) > 0:
                 logger.warning(f"Some actions failed: {execution_summary.get('failed', 0)}")
                 errors = test_result.get('errors', [])
                 if errors:
                     logger.debug(f"Failed action errors: {errors}")
-            
+
             # Set automation_id to None since we didn't create one
             automation_id = None
-            
+
             # Generate quality report for the test YAML
             quality_report = _generate_test_quality_report(
                 original_query=query.original_query,
@@ -7311,7 +7333,7 @@ async def test_suggestion_from_query(
                 automation_yaml=automation_yaml,
                 validated_entities=entity_mapping
             )
-            
+
             # TASK 1.3: Analyze test execution with OpenAI JSON mode
             logger.info("🔍 Analyzing test execution results...")
             analyzer = TestResultAnalyzer(openai_client)
@@ -7321,13 +7343,13 @@ async def test_suggestion_from_query(
                 state_validation=state_validation,
                 execution_logs=execution_logs
             )
-            
+
             # TASK 1.5: Format stripped components for preview
             stripped_components_preview = component_detector.format_components_for_preview(stripped_components)
-            
+
             # Calculate total time
             total_time = (time.time() - start_time) * 1000
-            
+
             # Calculate performance metrics
             performance_metrics = {
                 "entity_resolution_ms": round(entity_resolution_time, 2),
@@ -7340,13 +7362,13 @@ async def test_suggestion_from_query(
                 "actions_successful": execution_summary.get('successful', 0),
                 "actions_failed": execution_summary.get('failed', 0)
             }
-            
+
             # Log slow operations
             if total_time > 5000:
                 logger.warning(f"Slow operation detected: total time {total_time:.2f}ms")
             if action_execution_time > 5000:
                 logger.warning(f"Slow action execution: {action_execution_time:.2f}ms")
-            
+
             response_data = {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
@@ -7372,7 +7394,7 @@ async def test_suggestion_from_query(
                 "stripped_components": stripped_components_preview,
                 "restoration_hint": "These components will be added back when you approve"
             }
-            
+
             # Add reverse engineering correction results if available
             if correction_result:
                 response_data["reverse_engineering"] = {
@@ -7397,9 +7419,9 @@ async def test_suggestion_from_query(
                     "enabled": False,
                     "reason": "Service not available or failed"
                 }
-            
+
             return response_data
-            
+
         except Exception as action_error:
             logger.error(f"❌ ERROR in AutomationTestExecutor execution: {action_error}", exc_info=True)
             # Fallback: Try old method if AutomationTestExecutor fails
@@ -7407,23 +7429,23 @@ async def test_suggestion_from_query(
             try:
                 # Extract entity IDs for fallback
                 fallback_entity_ids = list(entity_mapping.values()) if entity_mapping else []
-                
+
                 # Capture states before fallback execution
                 fallback_before_states = await capture_entity_states(ha_client, fallback_entity_ids)
-                
+
                 # Fallback to old method
                 ha_create_start = time.time()
                 creation_result = await ha_client.create_automation(automation_yaml)
                 ha_create_time = (time.time() - ha_create_start) * 1000
                 automation_id = creation_result.get('automation_id')
-                
+
                 if automation_id:
                     await ha_client.trigger_automation(automation_id)
                     state_validation = await validate_state_changes(
                         ha_client, fallback_before_states, fallback_entity_ids, wait_timeout=5.0
                     )
                     await ha_client.delete_automation(automation_id)
-                    
+
                     total_time = (time.time() - start_time) * 1000
                     return {
                         "suggestion_id": suggestion_id,
@@ -7450,13 +7472,13 @@ async def test_suggestion_from_query(
                     detail=f"Both AutomationTestExecutor and fallback method failed. AutomationTestExecutor error: {action_error}, Fallback error: {fallback_error}"
                 )
             raise
-    
+
     except HTTPException as e:
         logger.error(f"HTTPException in test endpoint: {e.detail}")
         raise
     except Exception as e:
         logger.error(f"Error testing suggestion: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -7464,11 +7486,11 @@ async def test_suggestion_from_query(
 # ============================================================================
 
 async def restore_stripped_components(
-    original_suggestion: Dict[str, Any],
-    test_result: Optional[Dict[str, Any]],
+    original_suggestion: dict[str, Any],
+    test_result: dict[str, Any] | None,
     original_query: str,
     openai_client: OpenAIClient
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Restore components that were stripped during testing.
     
@@ -7492,7 +7514,7 @@ async def restore_stripped_components(
     stripped_components = []
     if test_result and 'stripped_components' in test_result:
         stripped_components = test_result['stripped_components']
-    
+
     # If no test result, try to detect components from original suggestion
     if not stripped_components:
         logger.info("No test result found, detecting components from original suggestion...")
@@ -7502,7 +7524,7 @@ async def restore_stripped_components(
             original_suggestion.get('description', '')
         )
         stripped_components = component_detector.format_components_for_preview(detected)
-    
+
     if not stripped_components:
         logger.info("No components to restore")
         # Preserve all original suggestion data including validated_entities
@@ -7511,7 +7533,7 @@ async def restore_stripped_components(
             'restored_components': [],
             'restoration_log': []
         }
-    
+
     # Use OpenAI to intelligently restore components with context
     if not openai_client:
         logger.warning("OpenAI client not available, skipping intelligent restoration")
@@ -7521,15 +7543,15 @@ async def restore_stripped_components(
             'restored_components': stripped_components,
             'restoration_log': [f"Found {len(stripped_components)} components to restore (restoration skipped)"]
         }
-    
+
     # TASK 2.5: Analyze component nesting (delays within repeats)
     nested_components = []
     simple_components = []
-    
+
     for comp in stripped_components:
         comp_type = comp.get('type', '')
         original_value = comp.get('original_value', '')
-        
+
         # Check if component appears to be nested (e.g., delay mentioned with repeat)
         if comp_type == 'delay' and any(
             'repeat' in str(other_comp.get('original_value', '')).lower() or other_comp.get('type') == 'repeat'
@@ -7544,17 +7566,17 @@ async def restore_stripped_components(
                 simple_components.append(comp)
         else:
             simple_components.append(comp)
-    
+
     # Build restoration prompt with enhanced context
     components_text = "\n".join([
         f"- {comp.get('type', 'unknown')}: {comp.get('original_value', 'N/A')} (confidence: {comp.get('confidence', 0.8):.2f})"
         for comp in stripped_components
     ])
-    
+
     nesting_info = ""
     if nested_components:
         nesting_info = f"\n\nNESTED COMPONENTS DETECTED: {len(nested_components)} component(s) may be nested (e.g., delays within repeat blocks). Pay special attention to restore them in the correct order and context."
-    
+
     prompt = f"""Restore these automation components that were stripped during testing.
 
 ORIGINAL USER QUERY:
@@ -7603,12 +7625,12 @@ Response format: ONLY JSON, no other text:
             max_completion_tokens=500,  # Increased for nested component descriptions (use max_completion_tokens for newer models)
             response_format={"type": "json_object"}
         )
-        
+
         content = response.choices[0].message.content.strip()
         restoration_result = json.loads(content)
-        
+
         logger.info(f"✅ Component restoration complete: {restoration_result.get('restored_components', [])}")
-        
+
         # TASK 2.5: Enhanced return with nesting and intent validation
         # Preserve all original suggestion data including validated_entities
         restored_suggestion = original_suggestion.copy()
@@ -7622,7 +7644,7 @@ Response format: ONLY JSON, no other text:
             'intent_match': restoration_result.get('intent_match', True),
             'intent_validation': restoration_result.get('intent_validation', '')
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to restore components: {e}")
         # Preserve all original suggestion data including validated_entities
@@ -7636,8 +7658,8 @@ Response format: ONLY JSON, no other text:
 
 class ApproveSuggestionRequest(BaseModel):
     """Request body for approving a suggestion with optional selected entity IDs and custom entity mappings."""
-    selected_entity_ids: Optional[List[str]] = Field(default=None, description="List of entity IDs selected by user to include in automation")
-    custom_entity_mapping: Optional[Dict[str, str]] = Field(
+    selected_entity_ids: list[str] | None = Field(default=None, description="List of entity IDs selected by user to include in automation")
+    custom_entity_mapping: dict[str, str] | None = Field(
         default=None,
         description="Custom mapping of friendly_name → entity_id overrides. Allows users to change which entity_id maps to a device name."
     )
@@ -7646,18 +7668,18 @@ class ApproveSuggestionRequest(BaseModel):
 async def approve_suggestion_from_query(
     query_id: str,
     suggestion_id: str,
-    request: Optional[ApproveSuggestionRequest] = Body(default=None),
+    request: ApproveSuggestionRequest | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
     ha_client: HomeAssistantClient = Depends(get_ha_client),
     openai_client: OpenAIClient = Depends(get_openai_client)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Approve a suggestion and create the automation in Home Assistant.
     """
     # Phase 1: Add comprehensive logging for debugging
     logger.info(f"🚀 [APPROVAL START] query_id={query_id}, suggestion_id={suggestion_id}")
     logger.info(f"📝 [APPROVAL] Request body: {request}")
-    
+
     try:
         # Get the query from database
         logger.info(f"🔍 [APPROVAL] Fetching query record: {query_id}")
@@ -7666,7 +7688,7 @@ async def approve_suggestion_from_query(
             logger.error(f"❌ [APPROVAL] Query {query_id} not found in database")
             raise HTTPException(status_code=404, detail=f"Query {query_id} not found")
         logger.info(f"✅ [APPROVAL] Found query with {len(query.suggestions)} suggestions")
-        
+
         # Find the specific suggestion
         logger.info(f"🔍 [APPROVAL] Searching for suggestion_id={suggestion_id}")
         suggestion = None
@@ -7674,45 +7696,45 @@ async def approve_suggestion_from_query(
             if s.get('suggestion_id') == suggestion_id:
                 suggestion = s
                 break
-        
+
         if not suggestion:
             logger.error(f"❌ [APPROVAL] Suggestion {suggestion_id} not found in query suggestions")
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
-        
+
         logger.info(f"✅ [APPROVAL] Found suggestion: {suggestion.get('title', 'Untitled')[:50]}")
-        
+
         # Get validated_entities from suggestion (MUST be set during suggestion creation)
         validated_entities = suggestion.get('validated_entities')
         if not validated_entities or not isinstance(validated_entities, dict) or len(validated_entities) == 0:
             # This should NEVER happen if suggestion creation is working correctly
             # Log critical error and fail fast - this indicates a bug in suggestion creation
             logger.error(f"❌ CRITICAL BUG: Suggestion {suggestion_id} missing validated_entities")
-            logger.error(f"❌ This should never happen - validated_entities must be set during suggestion creation")
+            logger.error("❌ This should never happen - validated_entities must be set during suggestion creation")
             logger.error(f"❌ Suggestion data: {suggestion.keys()}")
             logger.error(f"❌ devices_involved: {suggestion.get('devices_involved', [])}")
-            
+
             raise HTTPException(
                 status_code=500,
                 detail=f"Internal error: Suggestion {suggestion_id} is missing validated entities. This indicates a bug in suggestion creation. Please regenerate the suggestion."
             )
-        
+
         logger.info(f"✅ Using validated_entities from suggestion: {len(validated_entities)} entities")
-        
+
         # Start with suggestion as-is (no component restoration - not implemented)
         final_suggestion = suggestion.copy()
-        
+
         # Apply user filters if provided
         if request:
             # Filter by selected_entity_ids if provided
             if request.selected_entity_ids and len(request.selected_entity_ids) > 0:
                 logger.info(f"🎯 Filtering validated_entities to selected devices: {request.selected_entity_ids}")
                 final_suggestion['validated_entities'] = {
-                    friendly_name: entity_id 
+                    friendly_name: entity_id
                     for friendly_name, entity_id in validated_entities.items()
                     if entity_id in request.selected_entity_ids
                 }
                 logger.info(f"✅ Filtered to {len(final_suggestion['validated_entities'])} selected entities")
-            
+
             # Apply custom entity mappings if provided
             if request.custom_entity_mapping and len(request.custom_entity_mapping) > 0:
                 logger.info(f"🔧 Applying custom entity mappings: {request.custom_entity_mapping}")
@@ -7729,24 +7751,24 @@ async def approve_suggestion_from_query(
                             logger.warning(f"⚠️ Custom entity_id {new_entity_id} for '{friendly_name}' does not exist in HA - skipped")
                 else:
                     # No HA client - apply without verification
-                    logger.warning(f"⚠️ No HA client - applying custom mappings without verification")
+                    logger.warning("⚠️ No HA client - applying custom mappings without verification")
                     final_suggestion['validated_entities'].update(request.custom_entity_mapping)
-        
+
         # Generate YAML for the suggestion (validated_entities already in final_suggestion)
         logger.info(f"🔧 [YAML_GEN] Starting YAML generation for suggestion {suggestion_id}")
         logger.info(f"📋 [YAML_GEN] Validated entities: {final_suggestion.get('validated_entities')}")
         logger.info(f"📝 [YAML_GEN] Suggestion title: {final_suggestion.get('title', 'Untitled')}")
-        
+
         # Track which model generated the suggestion for metrics update
         suggestion_model_used = None
         if suggestion.get('debug') and suggestion['debug'].get('model_used'):
             suggestion_model_used = suggestion['debug']['model_used']
         elif suggestion.get('debug') and suggestion['debug'].get('token_usage'):
             suggestion_model_used = suggestion['debug']['token_usage'].get('model')
-        
+
         try:
             automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, [], db_session=db, ha_client=ha_client)
-            
+
             # Update metrics: Mark suggestion as approved
             if suggestion_model_used:
                 await _update_model_comparison_metrics_on_approval(
@@ -7756,21 +7778,21 @@ async def approve_suggestion_from_query(
                     model_used=suggestion_model_used,
                     task_type='suggestion'
                 )
-            
+
             logger.info(f"✅ [YAML_GEN] YAML generated successfully ({len(automation_yaml)} chars)")
             logger.info(f"📄 [YAML_GEN] First 200 chars: {automation_yaml[:200]}")
         except ValueError as e:
             # Catch validation errors and return proper error response
             error_msg = str(e)
             logger.error(f"❌ YAML generation failed: {error_msg}")
-            
+
             # Extract available entities from error message if present
             suggestion_text = "The automation contains invalid entity IDs. Please check the automation description and try again."
             if "Available validated entities" in error_msg:
                 suggestion_text += " The system attempted to auto-fix incomplete entity IDs but could not find matching entities in Home Assistant."
             elif "No validated entities were available" in error_msg:
                 suggestion_text += " No validated entities were available for auto-fixing. Please ensure device names in your query match existing Home Assistant entities."
-            
+
             return {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
@@ -7783,11 +7805,11 @@ async def approve_suggestion_from_query(
                     "suggestion": suggestion_text
                 }
             }
-        
+
         # Track validated entities for safety validator
         validated_entity_ids = list(final_suggestion['validated_entities'].values())
         logger.info(f"📋 Using {len(validated_entity_ids)} validated entities for safety check")
-        
+
         # Final validation: Verify ALL entity IDs in YAML exist in HA BEFORE creating automation
         if ha_client:
             try:
@@ -7796,14 +7818,14 @@ async def approve_suggestion_from_query(
                 if parsed_yaml:
                     from ..services.entity_id_validator import EntityIDValidator
                     entity_id_extractor = EntityIDValidator()
-                    
+
                     # Extract all entity IDs from YAML (returns list of tuples: (entity_id, location))
                     entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
                     all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
                     # Deduplicate entity IDs before validation (YAML may have same entity in multiple actions)
                     unique_entity_ids = list(set(all_entity_ids_in_yaml))
                     logger.info(f"🔍 Final validation: Checking {len(unique_entity_ids)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
-                    
+
                     # Validate each unique entity ID exists in HA
                     invalid_entities = []
                     connection_error = None
@@ -7821,7 +7843,7 @@ async def approve_suggestion_from_query(
                             # Other errors - treat as entity not found
                             logger.warning(f"⚠️ Error validating entity {entity_id}: {e}")
                             invalid_entities.append(entity_id)
-                    
+
                     # If we had a connection error, return early with clear message
                     if connection_error:
                         return {
@@ -7837,36 +7859,36 @@ async def approve_suggestion_from_query(
                                 "ha_url": ha_client.ha_url
                             }
                         }
-                    
+
                     if invalid_entities:
                         # Try to fix invalid entity IDs by matching them to validated entities
                         logger.warning(f"⚠️ Found {len(invalid_entities)} invalid entity IDs, attempting to fix...")
                         entity_replacements = {}
-                        
+
                         for invalid_entity_id in invalid_entities:
                             # Try to find a matching validated entity ID
                             best_match = None
                             best_score = 0.0
-                            
+
                             # Extract domain and name parts from invalid entity ID
                             if '.' in invalid_entity_id:
                                 invalid_domain, invalid_name = invalid_entity_id.split('.', 1)
                                 invalid_name_lower = invalid_name.lower()
-                                
+
                                 # Search through validated entities for best match
                                 for device_name, validated_entity_id in final_suggestion['validated_entities'].items():
                                     if '.' in validated_entity_id:
                                         validated_domain, validated_name = validated_entity_id.split('.', 1)
-                                        
+
                                         # Domain must match
                                         if validated_domain != invalid_domain:
                                             continue
-                                        
+
                                         # Calculate similarity score
                                         score = 0.0
                                         validated_name_lower = validated_name.lower()
                                         device_name_lower = device_name.lower()
-                                        
+
                                         # Exact name match (highest priority)
                                         if validated_name_lower == invalid_name_lower:
                                             score = 100.0
@@ -7884,17 +7906,17 @@ async def approve_suggestion_from_query(
                                             overlap = len(invalid_words & validated_words) + len(invalid_words & device_words)
                                             if overlap > 0:
                                                 score = overlap * 10.0
-                                        
+
                                         if score > best_score:
                                             best_score = score
                                             best_match = validated_entity_id
-                            
+
                             if best_match and best_score >= 30.0:  # Minimum threshold for replacement
                                 entity_replacements[invalid_entity_id] = best_match
                                 logger.info(f"🔧 Mapping invalid entity '{invalid_entity_id}' → '{best_match}' (score: {best_score:.1f})")
                             else:
                                 logger.warning(f"⚠️ Could not find match for invalid entity '{invalid_entity_id}'")
-                        
+
                         # Apply replacements to YAML if we found any matches
                         if entity_replacements:
                             sanitized_yaml = automation_yaml
@@ -7902,10 +7924,10 @@ async def approve_suggestion_from_query(
                                 # Replace with word boundaries to avoid partial matches
                                 pattern = r'\b' + re.escape(old_id) + r'\b'
                                 sanitized_yaml = re.sub(pattern, new_id, sanitized_yaml)
-                            
+
                             logger.info(f"✅ Fixed {len(entity_replacements)} entity IDs in YAML, re-validating...")
                             automation_yaml = sanitized_yaml
-                            
+
                             # Re-parse and re-validate
                             parsed_yaml = yaml_lib.safe_load(automation_yaml)
                             if parsed_yaml:
@@ -7913,7 +7935,7 @@ async def approve_suggestion_from_query(
                                 all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
                                 # Deduplicate again after fix
                                 unique_entity_ids_after_fix = list(set(all_entity_ids_in_yaml))
-                                
+
                                 # Re-validate unique entities only
                                 remaining_invalid = []
                                 connection_error_after_fix = None
@@ -7931,7 +7953,7 @@ async def approve_suggestion_from_query(
                                         # Other errors - treat as entity not found
                                         logger.warning(f"⚠️ Error re-validating entity {entity_id}: {e}")
                                         remaining_invalid.append(entity_id)
-                                
+
                                 # If we had a connection error during re-validation, return early
                                 if connection_error_after_fix:
                                     return {
@@ -7947,7 +7969,7 @@ async def approve_suggestion_from_query(
                                             "ha_url": ha_client.ha_url
                                         }
                                     }
-                                
+
                                 if remaining_invalid:
                                     error_msg = f"Invalid entity IDs in YAML (after auto-fix attempt): {', '.join(remaining_invalid)}"
                                     logger.error(f"❌ {error_msg}")
@@ -7965,7 +7987,7 @@ async def approve_suggestion_from_query(
                                         }
                                     }
                                 else:
-                                    logger.info(f"✅ All entity IDs fixed and validated successfully")
+                                    logger.info("✅ All entity IDs fixed and validated successfully")
                         else:
                             # No replacements found, return error
                             error_msg = f"Invalid entity IDs in YAML: {', '.join(invalid_entities)}"
@@ -7984,7 +8006,7 @@ async def approve_suggestion_from_query(
                             }
                     else:
                         logger.info(f"✅ Final validation passed: All {len(unique_entity_ids)} unique entity IDs exist in HA")
-                        
+
                         # Update metrics: Mark YAML as valid
                         # Get model used from YAML generation (stored in suggestion debug data)
                         yaml_model_used = None
@@ -7992,7 +8014,7 @@ async def approve_suggestion_from_query(
                             yaml_model_used = final_suggestion['debug']['yaml_model_used']
                         elif final_suggestion.get('debug') and final_suggestion['debug'].get('token_usage'):
                             yaml_model_used = final_suggestion['debug']['token_usage'].get('model')
-                        
+
                         if yaml_model_used:
                             await _update_model_comparison_metrics_on_yaml_validation(
                                 db=db,
@@ -8013,7 +8035,7 @@ async def approve_suggestion_from_query(
                         "message": f"Entity validation failed: {str(e)}"
                     }
                 }
-        
+
         # Run safety checks
         logger.info("🔒 Running safety validation...")
         safety_validator = SafetyValidator(ha_client=ha_client)
@@ -8021,28 +8043,28 @@ async def approve_suggestion_from_query(
             automation_yaml,
             validated_entities=validated_entity_ids
         )
-        
+
         # Log warnings but don't block unless critical
         if safety_report.get('warnings'):
             logger.info(f"⚠️ Safety validation warnings: {len(safety_report.get('warnings', []))}")
         if not safety_report.get('safe', True):
-            logger.warning(f"⚠️ Safety validation found issues, but continuing (user can review)")
-        
+            logger.warning("⚠️ Safety validation found issues, but continuing (user can review)")
+
         # Create automation in Home Assistant
         if not ha_client:
-            logger.error(f"❌ [DEPLOY] Home Assistant client not initialized")
+            logger.error("❌ [DEPLOY] Home Assistant client not initialized")
             raise HTTPException(status_code=500, detail="Home Assistant client not initialized")
-        
-        logger.info(f"🚀 [DEPLOY] Starting deployment to Home Assistant")
+
+        logger.info("🚀 [DEPLOY] Starting deployment to Home Assistant")
         logger.info(f"🔗 [DEPLOY] HA URL: {ha_client.base_url if hasattr(ha_client, 'base_url') else 'N/A'}")
-        
+
         try:
             creation_result = await ha_client.create_automation(automation_yaml)
-            
+
             if creation_result.get('success'):
                 automation_id = creation_result.get('automation_id')
                 logger.info(f"✅ [DEPLOY] Successfully created automation: {automation_id}")
-                logger.info(f"🎉 [DEPLOY] Automation is now active in Home Assistant")
+                logger.info("🎉 [DEPLOY] Automation is now active in Home Assistant")
                 return {
                     "suggestion_id": suggestion_id,
                     "query_id": query_id,
@@ -8079,7 +8101,7 @@ async def approve_suggestion_from_query(
         except Exception as e:
             error_message = str(e)
             logger.error(f"❌ [DEPLOY] Exception during HA deployment: {type(e).__name__}: {error_message}")
-            logger.error(f"❌ [DEPLOY] Stack trace:", exc_info=True)
+            logger.error("❌ [DEPLOY] Stack trace:", exc_info=True)
             return {
                 "suggestion_id": suggestion_id,
                 "query_id": query_id,
@@ -8096,12 +8118,12 @@ async def approve_suggestion_from_query(
                 },
                 "warnings": [f"Deployment failed: {error_message}"]
             }
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ [APPROVAL] Unexpected exception: {type(e).__name__}: {str(e)}")
-        logger.error(f"❌ [APPROVAL] Full stack trace:", exc_info=True)
+        logger.error("❌ [APPROVAL] Full stack trace:", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")
 
 
@@ -8149,20 +8171,20 @@ async def create_alias(
     """
     try:
         from ..services.alias_service import AliasService
-        
+
         alias_service = AliasService(db)
         entity_alias = await alias_service.create_alias(
             entity_id=request.entity_id,
             alias=request.alias,
             user_id=request.user_id
         )
-        
+
         if not entity_alias:
             raise HTTPException(
                 status_code=400,
                 detail=f"Alias '{request.alias}' already exists for user {request.user_id}"
             )
-        
+
         return AliasResponse(
             entity_id=entity_alias.entity_id,
             alias=entity_alias.alias,
@@ -8195,10 +8217,10 @@ async def delete_alias(
     """
     try:
         from ..services.alias_service import AliasService
-        
+
         alias_service = AliasService(db)
         deleted = await alias_service.delete_alias(alias, user_id)
-        
+
         if not deleted:
             raise HTTPException(
                 status_code=404,
@@ -8211,7 +8233,7 @@ async def delete_alias(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/aliases", response_model=Dict[str, List[str]])
+@router.get("/aliases", response_model=dict[str, list[str]])
 async def list_aliases(
     user_id: str = "anonymous",
     db: AsyncSession = Depends(get_db)
@@ -8230,10 +8252,10 @@ async def list_aliases(
     """
     try:
         from ..services.alias_service import AliasService
-        
+
         alias_service = AliasService(db)
         aliases_by_entity = await alias_service.get_all_aliases(user_id)
-        
+
         return aliases_by_entity
     except Exception as e:
         logger.error(f"Error listing aliases: {e}", exc_info=True)
@@ -8242,32 +8264,34 @@ async def list_aliases(
 
 @router.get("/model-comparison/metrics")
 async def get_model_comparison_metrics(
-    task_type: Optional[str] = Query(None, description="Filter by task type: 'suggestion' or 'yaml'"),
+    task_type: str | None = Query(None, description="Filter by task type: 'suggestion' or 'yaml'"),
     days: int = Query(7, ge=1, le=30, description="Number of days to look back"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get model comparison metrics for parallel testing.
     
     Returns aggregated metrics comparing model performance, cost, and quality.
     """
     try:
-        from ..database.models import ModelComparisonMetrics
-        from sqlalchemy import select, func, and_
         from datetime import datetime, timedelta
-        
+
+        from sqlalchemy import select
+
+        from ..database.models import ModelComparisonMetrics
+
         # Build query
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         query = select(ModelComparisonMetrics).where(
             ModelComparisonMetrics.created_at >= cutoff_date
         )
-        
+
         if task_type:
             query = query.where(ModelComparisonMetrics.task_type == task_type)
-        
+
         result = await db.execute(query)
         metrics = result.scalars().all()
-        
+
         if not metrics:
             return {
                 "total_comparisons": 0,
@@ -8276,23 +8300,23 @@ async def get_model_comparison_metrics(
                 "summary": {},
                 "model_stats": {}
             }
-        
+
         # Aggregate statistics
         total_comparisons = len(metrics)
         model1_total_cost = sum(m.model1_cost_usd for m in metrics)
         model2_total_cost = sum(m.model2_cost_usd for m in metrics)
         model1_avg_latency = sum(m.model1_latency_ms for m in metrics) / total_comparisons
         model2_avg_latency = sum(m.model2_latency_ms for m in metrics) / total_comparisons
-        
+
         # Quality metrics (only for metrics with approval/validation data)
         model1_approved = sum(1 for m in metrics if m.model1_approved is True)
         model2_approved = sum(1 for m in metrics if m.model2_approved is True)
         model1_yaml_valid = sum(1 for m in metrics if m.model1_yaml_valid is True)
         model2_yaml_valid = sum(1 for m in metrics if m.model2_yaml_valid is True)
-        
+
         approved_total = sum(1 for m in metrics if m.model1_approved is not None or m.model2_approved is not None)
         yaml_valid_total = sum(1 for m in metrics if m.model1_yaml_valid is not None or m.model2_yaml_valid is not None)
-        
+
         return {
             "total_comparisons": total_comparisons,
             "task_type": task_type or "all",
@@ -8333,17 +8357,19 @@ async def get_model_comparison_metrics(
 @router.get("/model-comparison/summary")
 async def get_model_comparison_summary(
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get summary of model comparison results with recommendations.
     
     Returns high-level summary and recommendations for which model performs better.
     """
     try:
-        from ..database.models import ModelComparisonMetrics
-        from sqlalchemy import select, func
         from datetime import datetime, timedelta
-        
+
+        from sqlalchemy import select
+
+        from ..database.models import ModelComparisonMetrics
+
         # Get metrics from last 7 days
         cutoff_date = datetime.utcnow() - timedelta(days=7)
         result = await db.execute(
@@ -8352,7 +8378,7 @@ async def get_model_comparison_summary(
             )
         )
         metrics = result.scalars().all()
-        
+
         if not metrics:
             return {
                 "total_comparisons": 0,
@@ -8361,31 +8387,31 @@ async def get_model_comparison_summary(
                     "yaml": "Insufficient data"
                 }
             }
-        
+
         # Group by task type
         suggestion_metrics = [m for m in metrics if m.task_type == 'suggestion']
         yaml_metrics = [m for m in metrics if m.task_type == 'yaml']
-        
+
         def analyze_task_type(task_metrics, task_name):
             if not task_metrics:
                 return {"recommendation": "Insufficient data", "reason": "No comparisons yet"}
-            
+
             model1_cost = sum(m.model1_cost_usd for m in task_metrics)
             model2_cost = sum(m.model2_cost_usd for m in task_metrics)
             model1_avg_latency = sum(m.model1_latency_ms for m in task_metrics) / len(task_metrics)
             model2_avg_latency = sum(m.model2_latency_ms for m in task_metrics) / len(task_metrics)
-            
+
             model1_approved = sum(1 for m in task_metrics if m.model1_approved is True)
             model2_approved = sum(1 for m in task_metrics if m.model2_approved is True)
             approved_total = sum(1 for m in task_metrics if m.model1_approved is not None)
-            
+
             model1_name = task_metrics[0].model1_name
             model2_name = task_metrics[0].model2_name
-            
+
             # Determine recommendation
             cost_savings = ((model2_cost - model1_cost) / model1_cost * 100) if model1_cost > 0 else 0
             quality_diff = ((model2_approved - model1_approved) / approved_total * 100) if approved_total > 0 else 0
-            
+
             if cost_savings > 50 and quality_diff < 5:
                 recommendation = model2_name
                 reason = f"{model2_name} is {abs(cost_savings):.1f}% cheaper with similar quality"
@@ -8395,7 +8421,7 @@ async def get_model_comparison_summary(
             else:
                 recommendation = model1_name
                 reason = f"{model1_name} provides better quality-cost balance"
-            
+
             return {
                 "recommendation": recommendation,
                 "reason": reason,
@@ -8403,7 +8429,7 @@ async def get_model_comparison_summary(
                 "cost_savings_percentage": round(cost_savings, 2),
                 "quality_difference_percentage": round(quality_diff, 2)
             }
-        
+
         return {
             "total_comparisons": len(metrics),
             "recommendations": {
@@ -8416,8 +8442,8 @@ async def get_model_comparison_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/reverse-engineer-yaml", response_model=Dict[str, Any])
-async def reverse_engineer_yaml(request: Dict[str, Any]):
+@router.post("/reverse-engineer-yaml", response_model=dict[str, Any])
+async def reverse_engineer_yaml(request: dict[str, Any]):
     """
     Reverse engineer YAML and self-correct with iterative refinement.
     
@@ -8456,10 +8482,10 @@ async def reverse_engineer_yaml(request: Dict[str, Any]):
         yaml_content = request.get("yaml", "")
         original_prompt = request.get("original_prompt", "")
         context = request.get("context")
-        
+
         if not yaml_content or not original_prompt:
             raise ValueError("yaml and original_prompt are required")
-        
+
         # Get self-correction service
         correction_service = get_self_correction_service()
         if not correction_service:
@@ -8467,23 +8493,23 @@ async def reverse_engineer_yaml(request: Dict[str, Any]):
                 status_code=503,
                 detail="Self-correction service not available - OpenAI client not configured"
             )
-        
+
         logger.info(f"🔄 Starting reverse engineering for prompt: {original_prompt[:60]}...")
-        
+
         # Run self-correction
         result = await correction_service.correct_yaml(
             user_prompt=original_prompt,
             generated_yaml=yaml_content,
             context=context
         )
-        
+
         logger.info(
             f"✅ Self-correction complete: "
             f"similarity={result.final_similarity:.2%}, "
             f"iterations={result.iterations_completed}, "
             f"converged={result.convergence_achieved}"
         )
-        
+
         # Format response
         return {
             "final_yaml": result.final_yaml,
@@ -8502,7 +8528,7 @@ async def reverse_engineer_yaml(request: Dict[str, Any]):
                 for iter_result in result.iteration_history
             ]
         }
-        
+
     except ValueError as e:
         logger.error(f"Invalid request: {e}")
         raise HTTPException(status_code=400, detail=str(e))

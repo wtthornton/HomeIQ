@@ -7,13 +7,13 @@ Provides real-time updates as suggestions are generated.
 Created: Phase 3 - New API Routers
 """
 
-import logging
 import json
-from datetime import datetime
+import logging
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from ...services.service_container import get_service_container, ServiceContainer
+from ...services.service_container import ServiceContainer, get_service_container
 from .models import MessageRequest
 
 logger = logging.getLogger(__name__)
@@ -35,34 +35,34 @@ async def stream_conversation_turn(
     - Suggestions are generated
     - Confidence is calculated
     """
-    
+
     async def generate_events():
         """Generate SSE events for conversation turn"""
         try:
             # Event: Start
             yield f"data: {json.dumps({'event': 'start', 'conversation_id': conversation_id})}\n\n"
-            
+
             # Extract entities
             entity_extractor = container.entity_extractor
             entities = await entity_extractor.extract(request.message)
-            
+
             yield f"data: {json.dumps({'event': 'entities', 'data': entities})}\n\n"
-            
+
             # Match intent
             intent_matcher = container.intent_matcher
             intent = intent_matcher.match_intent(request.message)
-            
+
             yield f"data: {json.dumps({'event': 'intent', 'intent': intent.value})}\n\n"
-            
+
             # Generate suggestions (if automation intent)
             if intent.value == "automation":
                 # Placeholder for suggestion generation
                 # Full implementation would stream suggestions as they're generated
                 suggestions = []  # await generate_suggestions_stream(...)
-                
+
                 for suggestion in suggestions:
                     yield f"data: {json.dumps({'event': 'suggestion', 'data': suggestion})}\n\n"
-            
+
             # Calculate confidence
             confidence_calculator = container.confidence_calculator
             confidence = await confidence_calculator.calculate_confidence(
@@ -71,16 +71,16 @@ async def stream_conversation_turn(
                 ambiguities=[],
                 validation_result={}
             )
-            
+
             yield f"data: {json.dumps({'event': 'confidence', 'confidence': confidence.overall, 'explanation': confidence.explanation})}\n\n"
-            
+
             # Event: Complete
             yield f"data: {json.dumps({'event': 'complete', 'conversation_id': conversation_id})}\n\n"
-            
+
         except Exception as e:
             logger.error(f"Streaming error: {e}", exc_info=True)
             yield f"data: {json.dumps({'event': 'error', 'error': str(e)})}\n\n"
-    
+
     return StreamingResponse(
         generate_events(),
         media_type="text/event-stream",

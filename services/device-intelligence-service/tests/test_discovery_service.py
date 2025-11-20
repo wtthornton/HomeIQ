@@ -2,15 +2,15 @@
 Device Intelligence Service - Discovery Service Tests
 """
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.core.discovery_service import DiscoveryService
-from src.clients.ha_client import HADevice, HAEntity, HAArea
+import pytest
+from src.clients.ha_client import HAArea, HADevice
 from src.clients.mqtt_client import ZigbeeDevice
 from src.config import Settings
+from src.core.discovery_service import DiscoveryService
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def mock_ha_area():
 async def test_discovery_service_initialization(mock_settings):
     """Test discovery service initialization."""
     service = DiscoveryService(mock_settings)
-    
+
     assert service.settings == mock_settings
     assert not service.running
     assert service.unified_devices == {}
@@ -113,7 +113,7 @@ async def test_discovery_service_initialization(mock_settings):
 async def test_discovery_service_start_failure(mock_settings):
     """Test discovery service startup failure."""
     service = DiscoveryService(mock_settings)
-    
+
     # Mock failed connection
     with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls:
         mock_client = AsyncMock()
@@ -131,7 +131,7 @@ async def test_discovery_service_start_failure(mock_settings):
 async def test_discovery_service_start_success(mock_settings):
     """Test discovery service startup success."""
     service = DiscoveryService(mock_settings)
-    
+
     # Mock successful connections
     with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls, \
          patch.object(service.mqtt_client, 'connect', return_value=True):
@@ -155,16 +155,16 @@ async def test_discovery_service_stop(mock_settings):
     service = DiscoveryService(mock_settings)
     service.running = True
     service.ha_client = AsyncMock()
-    
+
     # Create a real task that can be cancelled
     async def dummy_task():
         while True:
             await asyncio.sleep(0.1)
-    
+
     service.discovery_task = asyncio.create_task(dummy_task())
-    
+
     with patch.object(service.mqtt_client, 'disconnect', return_value=None):
-        
+
         await service.stop()
         assert not service.running
 
@@ -181,7 +181,7 @@ async def test_get_status(mock_settings):
     service.ha_client = MagicMock()
     service.ha_client.is_connected.return_value = True
     service.mqtt_client.is_connected = MagicMock(return_value=True)
-        
+
     status = service.get_status()
 
     assert status.service_running is True
@@ -195,10 +195,10 @@ async def test_get_status(mock_settings):
 async def test_force_refresh(mock_settings):
     """Test forcing discovery refresh."""
     service = DiscoveryService(mock_settings)
-    
+
     with patch.object(service, '_perform_discovery', return_value=None) as mock_discovery:
         result = await service.force_refresh()
-        
+
         assert result is True
         mock_discovery.assert_called_once()
 
@@ -207,10 +207,10 @@ async def test_force_refresh(mock_settings):
 async def test_get_devices(mock_settings):
     """Test getting all devices."""
     service = DiscoveryService(mock_settings)
-    
+
     mock_device = MagicMock()
     service.unified_devices = {"device1": mock_device, "device2": mock_device}
-    
+
     devices = service.get_devices()
     assert len(devices) == 2
 
@@ -219,13 +219,13 @@ async def test_get_devices(mock_settings):
 async def test_get_device_by_id(mock_settings):
     """Test getting specific device by ID."""
     service = DiscoveryService(mock_settings)
-    
+
     mock_device = MagicMock()
     service.unified_devices = {"device1": mock_device}
-    
+
     device = service.get_device("device1")
     assert device == mock_device
-    
+
     device = service.get_device("nonexistent")
     assert device is None
 
@@ -234,17 +234,17 @@ async def test_get_device_by_id(mock_settings):
 async def test_get_devices_by_area(mock_settings):
     """Test getting devices by area."""
     service = DiscoveryService(mock_settings)
-    
+
     mock_device1 = MagicMock()
     mock_device1.area_id = "living_room"
     mock_device2 = MagicMock()
     mock_device2.area_id = "bedroom"
-    
+
     service.unified_devices = {
         "device1": mock_device1,
         "device2": mock_device2
     }
-    
+
     devices = service.get_devices_by_area("living_room")
     assert len(devices) == 1
     assert devices[0] == mock_device1
@@ -254,17 +254,17 @@ async def test_get_devices_by_area(mock_settings):
 async def test_get_devices_by_integration(mock_settings):
     """Test getting devices by integration."""
     service = DiscoveryService(mock_settings)
-    
+
     mock_device1 = MagicMock()
     mock_device1.integration = "zigbee2mqtt"
     mock_device2 = MagicMock()
     mock_device2.integration = "homeassistant"
-    
+
     service.unified_devices = {
         "device1": mock_device1,
         "device2": mock_device2
     }
-    
+
     devices = service.get_devices_by_integration("zigbee2mqtt")
     assert len(devices) == 1
     assert devices[0] == mock_device1

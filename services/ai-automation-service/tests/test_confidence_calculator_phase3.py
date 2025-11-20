@@ -4,21 +4,21 @@ Unit tests for Confidence Calculator Phase 3 features
 Tests RL calibration and uncertainty quantification integration.
 """
 
+from unittest.mock import Mock
+
 import pytest
-import numpy as np
-from unittest.mock import Mock, AsyncMock, MagicMock
 from src.services.clarification.confidence_calculator import ConfidenceCalculator
 from src.services.clarification.confidence_calibrator import ClarificationConfidenceCalibrator
-from src.services.clarification.rl_calibrator import RLConfidenceCalibrator, RLCalibrationConfig
-from src.services.clarification.uncertainty_quantification import (
-    UncertaintyQuantifier,
-    ConfidenceWithUncertainty
-)
 from src.services.clarification.models import (
     Ambiguity,
     AmbiguitySeverity,
     AmbiguityType,
-    ClarificationAnswer
+    ClarificationAnswer,
+)
+from src.services.clarification.rl_calibrator import RLCalibrationConfig, RLConfidenceCalibrator
+from src.services.clarification.uncertainty_quantification import (
+    ConfidenceWithUncertainty,
+    UncertaintyQuantifier,
 )
 
 
@@ -39,7 +39,7 @@ def rl_calibrator_trained():
         update_frequency=3
     )
     calibrator = RLConfidenceCalibrator(config=config)
-    
+
     # Train with some samples
     for i in range(6):
         calibrator.add_feedback(
@@ -52,7 +52,7 @@ def rl_calibrator_trained():
             auto_train=False
         )
     calibrator.train()
-    
+
     return calibrator
 
 
@@ -150,7 +150,7 @@ async def test_rl_calibration_disabled_by_default(confidence_calculator_base, sa
         ambiguities=sample_ambiguities,
         base_confidence=0.8
     )
-    
+
     # Should use isotonic regression calibration only
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
@@ -167,7 +167,7 @@ async def test_rl_calibration_enabled(confidence_calculator_with_rl, sample_ambi
         ambiguities=sample_ambiguities,
         base_confidence=0.8
     )
-    
+
     # Should apply both isotonic regression and RL calibration
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
@@ -185,7 +185,7 @@ async def test_rl_calibration_with_ambiguities(confidence_calculator_with_rl, sa
         ambiguities=sample_ambiguities,
         base_confidence=0.8
     )
-    
+
             # More ambiguities should affect RL calibration
     more_ambiguities = sample_ambiguities + [
         Ambiguity(
@@ -196,14 +196,14 @@ async def test_rl_calibration_with_ambiguities(confidence_calculator_with_rl, sa
             related_entities=None
         )
     ]
-    
+
     confidence_2 = await confidence_calculator_with_rl.calculate_confidence(
         query="turn on the light",
         extracted_entities=[],
         ambiguities=more_ambiguities,
         base_confidence=0.8
     )
-    
+
     # Both should be valid
     assert 0.0 <= confidence_1 <= 1.0
     assert 0.0 <= confidence_2 <= 1.0
@@ -223,7 +223,7 @@ async def test_rl_calibration_with_answers(
         clarification_answers=sample_answers,
         base_confidence=0.8
     )
-    
+
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
 
@@ -241,7 +241,7 @@ async def test_uncertainty_quantification_disabled_by_default(
         base_confidence=0.8,
         return_uncertainty=True  # Request uncertainty but it's disabled
     )
-    
+
     # Should return float, not ConfidenceWithUncertainty
     assert isinstance(confidence, float)
     assert not isinstance(confidence, ConfidenceWithUncertainty)
@@ -260,7 +260,7 @@ async def test_uncertainty_quantification_enabled(
         base_confidence=0.8,
         return_uncertainty=True
     )
-    
+
     # Should return ConfidenceWithUncertainty
     assert isinstance(result, ConfidenceWithUncertainty)
     assert 0.0 <= result.mean <= 1.0
@@ -284,7 +284,7 @@ async def test_uncertainty_quantification_without_flag(
         base_confidence=0.8,
         return_uncertainty=False
     )
-    
+
     # Should return float even if uncertainty is enabled
     assert isinstance(confidence, float)
     assert not isinstance(confidence, ConfidenceWithUncertainty)
@@ -303,10 +303,10 @@ async def test_uncertainty_quantification_confidence_intervals(
         base_confidence=0.8,
         return_uncertainty=True
     )
-    
+
     # Mean should be within bounds
     assert result.lower_bound <= result.mean <= result.upper_bound
-    
+
     # Bounds should be reasonable (not too wide)
     width = result.upper_bound - result.lower_bound
     assert width > 0
@@ -329,10 +329,10 @@ async def test_full_phase3_integration(
         base_confidence=0.8,
         return_uncertainty=True
     )
-    
+
     assert isinstance(result_with_uncertainty, ConfidenceWithUncertainty)
     assert 0.0 <= result_with_uncertainty.mean <= 1.0
-    
+
     # Test without uncertainty (should still apply RL calibration)
     confidence = await confidence_calculator_full.calculate_confidence(
         query="turn on the light",
@@ -342,7 +342,7 @@ async def test_full_phase3_integration(
         base_confidence=0.8,
         return_uncertainty=False
     )
-    
+
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
 
@@ -356,7 +356,7 @@ async def test_rl_calibration_error_handling(
     # Create a broken RL calibrator
     broken_rl = Mock(spec=RLConfidenceCalibrator)
     broken_rl.calibrate = Mock(side_effect=Exception("RL calibration failed"))
-    
+
     calculator = ConfidenceCalculator(
         default_threshold=0.85,
         calibrator=Mock(spec=ClarificationConfidenceCalibrator),
@@ -365,7 +365,7 @@ async def test_rl_calibration_error_handling(
         rl_calibration_enabled=True,
         uncertainty_enabled=False
     )
-    
+
     # Should fall back to previous confidence (from isotonic regression)
     confidence = await calculator.calculate_confidence(
         query="turn on the light",
@@ -373,7 +373,7 @@ async def test_rl_calibration_error_handling(
         ambiguities=sample_ambiguities,
         base_confidence=0.8
     )
-    
+
     # Should still return valid confidence
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
@@ -390,7 +390,7 @@ async def test_uncertainty_quantification_error_handling(
     broken_quantifier.calculate_uncertainty = Mock(
         side_effect=Exception("Uncertainty calculation failed")
     )
-    
+
     calculator = ConfidenceCalculator(
         default_threshold=0.85,
         calibrator=Mock(spec=ClarificationConfidenceCalibrator),
@@ -399,7 +399,7 @@ async def test_uncertainty_quantification_error_handling(
         uncertainty_quantifier=broken_quantifier,
         uncertainty_enabled=True
     )
-    
+
     # Should fall back to point estimate
     confidence = await calculator.calculate_confidence(
         query="turn on the light",
@@ -408,7 +408,7 @@ async def test_uncertainty_quantification_error_handling(
         base_confidence=0.8,
         return_uncertainty=True
     )
-    
+
     # Should return float (fallback) instead of crashing
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
@@ -423,7 +423,7 @@ async def test_rl_calibration_not_trained(
     # Create untrained RL calibrator
     untrained_rl = RLConfidenceCalibrator()
     assert not untrained_rl.is_trained
-    
+
     calculator = ConfidenceCalculator(
         default_threshold=0.85,
         calibrator=Mock(spec=ClarificationConfidenceCalibrator),
@@ -432,14 +432,14 @@ async def test_rl_calibration_not_trained(
         rl_calibration_enabled=True,
         uncertainty_enabled=False
     )
-    
+
     confidence = await calculator.calculate_confidence(
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8
     )
-    
+
     # Should return valid confidence (RL should pass through if not trained)
     assert isinstance(confidence, float)
     assert 0.0 <= confidence <= 1.0
@@ -462,7 +462,7 @@ async def test_phase3_feature_combinations(
         rl_calibration_enabled=True,
         uncertainty_enabled=False
     )
-    
+
     conf_rl = await calculator_rl_only.calculate_confidence(
         query="test",
         extracted_entities=[],
@@ -470,7 +470,7 @@ async def test_phase3_feature_combinations(
         base_confidence=0.8
     )
     assert isinstance(conf_rl, float)
-    
+
     # Test 2: Only uncertainty
     calculator_uncertainty_only = ConfidenceCalculator(
         default_threshold=0.85,
@@ -480,7 +480,7 @@ async def test_phase3_feature_combinations(
         uncertainty_quantifier=uncertainty_quantifier,
         uncertainty_enabled=True
     )
-    
+
     result_uncertainty = await calculator_uncertainty_only.calculate_confidence(
         query="test",
         extracted_entities=[],
@@ -489,7 +489,7 @@ async def test_phase3_feature_combinations(
         return_uncertainty=True
     )
     assert isinstance(result_uncertainty, ConfidenceWithUncertainty)
-    
+
     # Test 3: Both enabled
     calculator_both = ConfidenceCalculator(
         default_threshold=0.85,
@@ -500,7 +500,7 @@ async def test_phase3_feature_combinations(
         uncertainty_quantifier=uncertainty_quantifier,
         uncertainty_enabled=True
     )
-    
+
     result_both = await calculator_both.calculate_confidence(
         query="test",
         extracted_entities=[],

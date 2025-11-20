@@ -10,10 +10,11 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from ...services.entity_validator import EntityValidator as LegacyEntityValidator
+from typing import Any
+
 from ...clients.data_api_client import DataAPIClient
 from ...clients.ha_client import HomeAssistantClient
+from ...services.entity_validator import EntityValidator as LegacyEntityValidator
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,11 @@ class EntityValidator:
     Validates that entities exist in Home Assistant and provides
     suggestions for similar entities if not found.
     """
-    
+
     def __init__(
         self,
-        ha_client: Optional[HomeAssistantClient] = None,
-        data_api_client: Optional[DataAPIClient] = None,
+        ha_client: HomeAssistantClient | None = None,
+        data_api_client: DataAPIClient | None = None,
         enable_ensemble: bool = True
     ):
         """
@@ -43,12 +44,12 @@ class EntityValidator:
         self.ha_client = ha_client
         self.data_api_client = data_api_client or DataAPIClient()
         self.enable_ensemble = enable_ensemble
-        
+
         # Initialize legacy validator (will be refactored later)
-        self._legacy_validator: Optional[LegacyEntityValidator] = None
-        
+        self._legacy_validator: LegacyEntityValidator | None = None
+
         logger.info("EntityValidator initialized")
-    
+
     def _get_validator(self) -> LegacyEntityValidator:
         """Get or create legacy validator instance"""
         if self._legacy_validator is None:
@@ -58,13 +59,13 @@ class EntityValidator:
                 enable_full_chain=True
             )
         return self._legacy_validator
-    
+
     async def validate_entities(
         self,
-        entity_ids: List[str],
-        query_context: Optional[str] = None,
-        available_entities: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, bool]:
+        entity_ids: list[str],
+        query_context: str | None = None,
+        available_entities: list[dict[str, Any]] | None = None
+    ) -> dict[str, bool]:
         """
         Validate that entities exist in Home Assistant.
         
@@ -78,10 +79,10 @@ class EntityValidator:
         """
         if not entity_ids:
             return {}
-        
+
         try:
             validator = self._get_validator()
-            
+
             # Use legacy validator's verify method
             results = await validator.verify_entities_exist_in_ha(
                 entity_ids=entity_ids,
@@ -90,22 +91,22 @@ class EntityValidator:
                 query_context=query_context,
                 available_entities=available_entities
             )
-            
+
             valid_count = sum(1 for v in results.values() if v)
             logger.info(f"✅ Validated {valid_count}/{len(entity_ids)} entities")
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"❌ Entity validation failed: {e}", exc_info=True)
             # Return all False on error
-            return {entity_id: False for entity_id in entity_ids}
-    
+            return dict.fromkeys(entity_ids, False)
+
     async def suggest_alternatives(
         self,
         entity_id: str,
-        query_context: Optional[str] = None
-    ) -> List[str]:
+        query_context: str | None = None
+    ) -> list[str]:
         """
         Suggest alternative entities if the given entity doesn't exist.
         
@@ -118,11 +119,11 @@ class EntityValidator:
         """
         try:
             validator = self._get_validator()
-            
+
             # Use legacy validator's suggestion logic
             # This will be enhanced in future iterations
             return []
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to suggest alternatives: {e}", exc_info=True)
             return []

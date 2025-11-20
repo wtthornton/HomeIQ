@@ -14,8 +14,9 @@ Safety Checks:
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 import re
+from typing import Any
+
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class SafetyIssue:
     severity: str  # 'critical', 'warning', 'info'
     category: str  # 'conflict', 'dangerous', 'energy', 'time', 'availability'
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     recommendation: str
 
 
@@ -36,7 +37,7 @@ class SafetyValidator:
     
     Target: 95% coverage of safety checks
     """
-    
+
     def __init__(self, ha_client=None):
         """
         Initialize safety validator.
@@ -45,7 +46,7 @@ class SafetyValidator:
             ha_client: Home Assistant client for checking existing automations
         """
         self.ha_client = ha_client
-        
+
         # Dangerous action patterns (critical severity)
         self.dangerous_actions = {
             'lock': ['lock.unlock', 'lock.lock'],  # Security risk
@@ -53,20 +54,20 @@ class SafetyValidator:
             'climate': ['climate.set_temperature'],  # Could affect safety if extreme
             'switch': [],  # Context-dependent
         }
-        
+
         # High-energy devices (> 500W) - warnings
         self.high_energy_domains = ['climate', 'water_heater', 'fan']  # Typically high power
         self.high_energy_entities = []  # Can be extended with specific entity IDs
-        
+
         # Time conflict keywords
         self.time_conflict_keywords = ['always', 'continuously', 'every 0', 'every second']
-    
+
     async def validate_automation(
         self,
         automation_yaml: str,
-        automation_id: Optional[str] = None,
-        validated_entities: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        automation_id: str | None = None,
+        validated_entities: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Validate automation for safety and conflicts.
         
@@ -78,7 +79,7 @@ class SafetyValidator:
             Safety report with issues and warnings
         """
         issues = []
-        
+
         try:
             # Parse YAML
             yaml_data = yaml.safe_load(automation_yaml)
@@ -94,37 +95,37 @@ class SafetyValidator:
                     'warnings': [],
                     'coverage': 0.0
                 }
-            
+
             # Run all safety checks
             conflict_issues = await self._check_conflicting_automations(yaml_data, automation_id)
             issues.extend(conflict_issues)
-            
+
             dangerous_issues = self._check_dangerous_actions(yaml_data)
             issues.extend(dangerous_issues)
-            
+
             energy_issues = self._check_energy_consumption(yaml_data)
             issues.extend(energy_issues)
-            
+
             time_issues = self._check_time_conflicts(yaml_data)
             issues.extend(time_issues)
-            
+
             entity_issues = await self._check_entity_availability(yaml_data, validated_entities=validated_entities)
             issues.extend(entity_issues)
-            
+
             # Categorize issues by severity
             critical_issues = [i for i in issues if i.get('severity') == 'critical']
             warnings = [i for i in issues if i.get('severity') == 'warning']
             infos = [i for i in issues if i.get('severity') == 'info']
-            
+
             # Calculate coverage (approximate)
             checks_performed = 5  # conflict, dangerous, energy, time, entity
             coverage = min(1.0, checks_performed / 5.0)  # 100% if all checks ran
-            
+
             # Determine if safe to proceed
             safe = len(critical_issues) == 0
-            
+
             logger.info(f"🔒 Safety validation: {len(issues)} issues ({len(critical_issues)} critical, {len(warnings)} warnings)")
-            
+
             return {
                 'safe': safe,
                 'issues': issues,
@@ -134,7 +135,7 @@ class SafetyValidator:
                 'coverage': coverage,
                 'message': 'Validation blocked' if not safe else 'Validation passed with warnings' if warnings else 'Validation passed'
             }
-            
+
         except Exception as e:
             logger.error(f"Error during safety validation: {e}")
             return {
@@ -148,51 +149,51 @@ class SafetyValidator:
                 'warnings': [],
                 'coverage': 0.5
             }
-    
+
     async def _check_conflicting_automations(
         self,
-        yaml_data: Dict,
-        automation_id: Optional[str]
-    ) -> List[Dict[str, Any]]:
+        yaml_data: dict,
+        automation_id: str | None
+    ) -> list[dict[str, Any]]:
         """
         Check for conflicting automations (same trigger/action).
         
         Target: 95% accuracy
         """
         issues = []
-        
+
         if not self.ha_client:
             return issues  # Skip if HA client not available
-        
+
         try:
             # Extract trigger and action from YAML
             trigger = yaml_data.get('trigger', [])
             action = yaml_data.get('action', [])
-            
+
             # Get existing automations
             existing_automations = await self.ha_client.list_automations()
-            
+
             # Check for conflicts
             conflicts = []
             for existing in existing_automations:
                 existing_id = existing.get('entity_id', '')
-                
+
                 # Skip if checking against self
                 if automation_id and existing_id == automation_id:
                     continue
-                
+
                 # Simple conflict detection: same entity in trigger and action
                 # (More sophisticated matching could be added)
                 trigger_entities = self._extract_entities_from_trigger(trigger)
                 action_entities = self._extract_entities_from_action(action)
-                
+
                 # Check if this automation already handles these entities
                 # This is a simplified check - could be enhanced with full pattern matching
                 if trigger_entities and action_entities:
                     # Look for automations with overlapping entity sets
                     # For now, we'll flag potential conflicts based on entity overlap
                     pass  # TODO: Implement full conflict detection
-            
+
             if conflicts:
                 issues.append({
                     'severity': 'warning',
@@ -201,30 +202,30 @@ class SafetyValidator:
                     'details': {'conflicts': conflicts},
                     'recommendation': 'Review existing automations to avoid conflicts'
                 })
-        
+
         except Exception as e:
             logger.warning(f"Error checking conflicts: {e}")
-        
+
         return issues
-    
-    def _check_dangerous_actions(self, yaml_data: Dict) -> List[Dict[str, Any]]:
+
+    def _check_dangerous_actions(self, yaml_data: dict) -> list[dict[str, Any]]:
         """
         Check for dangerous actions (lock/unlock, disarm alarm, etc.).
         
         Target: 100% for known patterns
         """
         issues = []
-        
+
         action = yaml_data.get('action', [])
         if not action:
             return issues
-        
+
         # Extract service calls from action
         services = self._extract_services_from_action(action)
-        
+
         for service in services:
             service_domain = service.split('.')[0] if '.' in service else service
-            
+
             # Check for dangerous services
             if service_domain in self.dangerous_actions:
                 dangerous_services = self.dangerous_actions[service_domain]
@@ -236,27 +237,27 @@ class SafetyValidator:
                         'details': {'service': service},
                         'recommendation': 'Review this action carefully before deploying'
                     })
-        
+
         return issues
-    
-    def _check_energy_consumption(self, yaml_data: Dict) -> List[Dict[str, Any]]:
+
+    def _check_energy_consumption(self, yaml_data: dict) -> list[dict[str, Any]]:
         """
         Flag high-power actions (heaters, AC units).
         
         Target: Flag devices > 500W
         """
         issues = []
-        
+
         action = yaml_data.get('action', [])
         if not action:
             return issues
-        
+
         # Extract target entities from action
         target_entities = self._extract_entities_from_action(action)
-        
+
         for entity_id in target_entities:
             domain = entity_id.split('.')[0] if '.' in entity_id else ''
-            
+
             # Check if high-energy domain
             if domain in self.high_energy_domains:
                 issues.append({
@@ -266,22 +267,22 @@ class SafetyValidator:
                     'details': {'entity_id': entity_id, 'domain': domain},
                     'recommendation': 'Monitor energy consumption and consider scheduling during off-peak hours'
                 })
-        
+
         return issues
-    
-    def _check_time_conflicts(self, yaml_data: Dict) -> List[Dict[str, Any]]:
+
+    def _check_time_conflicts(self, yaml_data: dict) -> list[dict[str, Any]]:
         """
         Validate time-based conditions don't conflict.
         
         Check for impossible time ranges, always-on patterns, etc.
         """
         issues = []
-        
+
         # Check description/alias for time conflict keywords
         alias = yaml_data.get('alias', '')
         description = yaml_data.get('description', '')
         text = f"{alias} {description}".lower()
-        
+
         for keyword in self.time_conflict_keywords:
             if keyword in text:
                 issues.append({
@@ -291,7 +292,7 @@ class SafetyValidator:
                     'details': {'keyword': keyword},
                     'recommendation': 'Review time constraints to ensure they are realistic'
                 })
-        
+
         # Check for time conditions that conflict
         conditions = yaml_data.get('condition', [])
         if isinstance(conditions, list):
@@ -299,24 +300,24 @@ class SafetyValidator:
                 c for c in conditions
                 if isinstance(c, dict) and c.get('condition') == 'time'
             ]
-            
+
             # Check for impossible ranges (e.g., after 6pm and before 5pm)
             for condition in time_conditions:
                 after = condition.get('after')
                 before = condition.get('before')
-                
+
                 if after and before:
                     # Simple check: if both are set, ensure they make sense
                     # (Could be enhanced with actual time parsing)
                     pass
-        
+
         return issues
-    
+
     async def _check_entity_availability(
-        self, 
-        yaml_data: Dict,
-        validated_entities: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+        self,
+        yaml_data: dict,
+        validated_entities: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Final check that all entities exist and are accessible.
         
@@ -330,23 +331,23 @@ class SafetyValidator:
             validated_entities: List of entity IDs that were validated during generation
         """
         issues = []
-        
+
         if not self.ha_client:
             return issues  # Skip if HA client not available
-        
+
         validated_set = set(validated_entities) if validated_entities else set()
-        
+
         # Extract all entities from YAML
         all_entities = set()
-        
+
         # From triggers
         trigger = yaml_data.get('trigger', [])
         all_entities.update(self._extract_entities_from_trigger(trigger))
-        
+
         # From actions
         action = yaml_data.get('action', [])
         all_entities.update(self._extract_entities_from_action(action))
-        
+
         # From conditions
         conditions = yaml_data.get('condition', [])
         if isinstance(conditions, list):
@@ -355,7 +356,7 @@ class SafetyValidator:
                     entity_id = condition.get('entity_id')
                     if entity_id:
                         all_entities.add(entity_id)
-        
+
         # Check each entity
         for entity_id in all_entities:
             try:
@@ -363,20 +364,20 @@ class SafetyValidator:
                 if not state:
                     # Check if this was a validated entity
                     was_validated = entity_id in validated_set
-                    
+
                     # Try to find similar entities
                     suggestions = await self._find_similar_entities(entity_id)
-                    
+
                     # Determine severity: critical if validated, warning if not
                     severity = 'critical' if was_validated else 'warning'
-                    
+
                     # Build recommendation with suggestions
                     recommendation = f'Verify entity {entity_id} exists in Home Assistant.'
                     if suggestions:
                         recommendation += f' Did you mean: {", ".join(suggestions[:3])}?'
                     elif not was_validated:
                         recommendation += ' This entity was not validated during generation - consider using a validated entity instead.'
-                    
+
                     issue = {
                         'severity': severity,
                         'category': 'availability',
@@ -396,10 +397,10 @@ class SafetyValidator:
                     )
             except Exception as e:
                 logger.warning(f"Error checking entity {entity_id}: {e}")
-        
+
         return issues
-    
-    async def _find_similar_entities(self, entity_id: str) -> List[str]:
+
+    async def _find_similar_entities(self, entity_id: str) -> list[str]:
         """
         Find similar entities in Home Assistant using fuzzy matching.
         
@@ -415,38 +416,38 @@ class SafetyValidator:
         """
         if not self.ha_client:
             return []
-        
+
         try:
             domain = entity_id.split('.')[0] if '.' in entity_id else ''
             entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
-            
+
             # Split entity name into words
             entity_words = set(re.findall(r'\w+', entity_name.lower()))
-            
+
             # Try to check a few common patterns by testing actual entities
             # Since we don't have a get_all_states method, we'll use pattern-based suggestions
             candidates = []
-            
+
             # Common binary sensor patterns to try
             if domain == 'binary_sensor':
                 # Try common variations
                 patterns_to_try = []
-                
+
                 # Extract location and type from entity name
                 words = list(entity_words)
-                
+
                 # Pattern 1: Remove last word (e.g., office_desk_presence -> office_desk)
                 if len(words) > 1:
                     patterns_to_try.append('_'.join(words[:-1]))
-                
+
                 # Pattern 2: Remove middle words, keep first and last (e.g., office_desk_presence -> office_presence)
                 if len(words) > 2:
                     patterns_to_try.append(f"{words[0]}_{words[-1]}")
-                
+
                 # Pattern 3: Just location (first word)
                 if words:
                     patterns_to_try.append(words[0])
-                
+
                 # Try each pattern
                 for pattern in patterns_to_try[:3]:  # Limit to 3 patterns to avoid too many API calls
                     test_entity_id = f"{domain}.{pattern}"
@@ -461,22 +462,22 @@ class SafetyValidator:
                                 candidates.append((test_entity_id, similarity))
                     except Exception:
                         pass  # Entity doesn't exist, skip
-            
+
             # Sort by similarity and return top matches
             candidates.sort(key=lambda x: x[1], reverse=True)
             return [eid for eid, score in candidates[:5]]
-            
+
         except Exception as e:
             logger.warning(f"Error finding similar entities for {entity_id}: {e}")
             return []
-    
-    def _extract_entities_from_trigger(self, trigger: Any) -> List[str]:
+
+    def _extract_entities_from_trigger(self, trigger: Any) -> list[str]:
         """Extract entity IDs from trigger configuration"""
         entities = []
-        
+
         if not trigger:
             return entities
-        
+
         if isinstance(trigger, list):
             for t in trigger:
                 entities.extend(self._extract_entities_from_trigger(t))
@@ -487,16 +488,16 @@ class SafetyValidator:
                     entities.extend(entity_id)
                 else:
                     entities.append(entity_id)
-        
+
         return entities
-    
-    def _extract_entities_from_action(self, action: Any) -> List[str]:
+
+    def _extract_entities_from_action(self, action: Any) -> list[str]:
         """Extract entity IDs from action configuration"""
         entities = []
-        
+
         if not action:
             return entities
-        
+
         if isinstance(action, list):
             for a in action:
                 entities.extend(self._extract_entities_from_action(a))
@@ -509,7 +510,7 @@ class SafetyValidator:
                     entities.extend(entity_id)
                 else:
                     entities.append(entity_id)
-            
+
             # Also check direct entity_id (some actions use this)
             direct_entity_id = action.get('entity_id')
             if direct_entity_id:
@@ -517,16 +518,16 @@ class SafetyValidator:
                     entities.extend(direct_entity_id)
                 else:
                     entities.append(direct_entity_id)
-        
+
         return entities
-    
-    def _extract_services_from_action(self, action: Any) -> List[str]:
+
+    def _extract_services_from_action(self, action: Any) -> list[str]:
         """Extract service names from action configuration"""
         services = []
-        
+
         if not action:
             return services
-        
+
         if isinstance(action, list):
             for a in action:
                 services.extend(self._extract_services_from_action(a))
@@ -534,7 +535,7 @@ class SafetyValidator:
             service = action.get('service')
             if service:
                 services.append(service)
-            
+
             # Handle sequence, choose, etc.
             if 'sequence' in action:
                 services.extend(self._extract_services_from_action(action['sequence']))
@@ -542,6 +543,6 @@ class SafetyValidator:
                 for choice in action['choose']:
                     if 'sequence' in choice:
                         services.extend(self._extract_services_from_action(choice['sequence']))
-        
+
         return services
 

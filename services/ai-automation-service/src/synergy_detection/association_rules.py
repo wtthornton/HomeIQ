@@ -9,12 +9,11 @@ Algorithm: Apriori (Agrawal & Srikant, 1994)
 """
 
 import logging
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Set, Tuple, Optional, FrozenSet
 from collections import defaultdict
-from itertools import combinations
 from datetime import datetime, timedelta, timezone
+from itertools import combinations
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ class AssociationRule:
 
     def __init__(
         self,
-        antecedent: FrozenSet[str],
-        consequent: FrozenSet[str],
+        antecedent: frozenset[str],
+        consequent: frozenset[str],
         support: float,
         confidence: float,
         lift: float
@@ -94,8 +93,8 @@ class AprioriMiner:
 
     def mine_frequent_itemsets(
         self,
-        transactions: List[Set[str]]
-    ) -> Dict[FrozenSet[str], float]:
+        transactions: list[set[str]]
+    ) -> dict[frozenset[str], float]:
         """
         Mine frequent itemsets using Apriori algorithm.
 
@@ -172,9 +171,9 @@ class AprioriMiner:
 
     def _generate_candidates(
         self,
-        previous_itemsets: Set[FrozenSet[str]],
+        previous_itemsets: set[frozenset[str]],
         k: int
-    ) -> Set[FrozenSet[str]]:
+    ) -> set[frozenset[str]]:
         """
         Generate k-itemset candidates from (k-1)-itemsets.
 
@@ -211,8 +210,8 @@ class AprioriMiner:
 
     def _has_frequent_subsets(
         self,
-        itemset: FrozenSet[str],
-        frequent_itemsets: Set[FrozenSet[str]]
+        itemset: frozenset[str],
+        frequent_itemsets: set[frozenset[str]]
     ) -> bool:
         """
         Check if all (k-1) subsets of itemset are frequent.
@@ -241,8 +240,8 @@ class AprioriMiner:
 
     def generate_association_rules(
         self,
-        frequent_itemsets: Dict[FrozenSet[str], float]
-    ) -> List[AssociationRule]:
+        frequent_itemsets: dict[frozenset[str], float]
+    ) -> list[AssociationRule]:
         """
         Generate association rules from frequent itemsets.
 
@@ -350,9 +349,9 @@ class TransactionBuilder:
     def build_transactions(
         self,
         events_df: pd.DataFrame,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
-    ) -> List[Set[str]]:
+        start_time: datetime | None = None,
+        end_time: datetime | None = None
+    ) -> list[set[str]]:
         """
         Build transactions from events DataFrame.
 

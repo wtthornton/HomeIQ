@@ -1,9 +1,9 @@
 """
 Standalone test for blueprint parser (no dependencies)
 """
+from typing import Any
+
 import yaml
-import re
-from typing import Dict, List, Any, Optional
 
 
 # Add custom YAML constructor for !input tag (blueprint variable references)
@@ -23,7 +23,7 @@ class TestParser:
         'cover', 'blind', 'shade', 'lock', 'camera', 'alarm'
     }
 
-    def parse_yaml(self, yaml_str: str) -> Optional[Dict[str, Any]]:
+    def parse_yaml(self, yaml_str: str) -> dict[str, Any] | None:
         """Parse YAML automation structure"""
         try:
             data = yaml.safe_load(yaml_str)
@@ -37,7 +37,7 @@ class TestParser:
             print(f"Failed to parse YAML: {e}")
             return None
 
-    def parse_blueprint(self, yaml_data: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_blueprint(self, yaml_data: dict[str, Any]) -> dict[str, Any]:
         """Parse blueprint YAML format"""
         blueprint_meta = yaml_data.get('blueprint', {})
         inputs = blueprint_meta.get('input', {})

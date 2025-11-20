@@ -3,15 +3,15 @@ Provider Selection Policy
 Simple deterministic provider selection based on task type.
 """
 
-from typing import Dict, Optional
+import logging
+
 from .base import BaseProvider
 from .openai_provider import OpenAIProvider
-import logging
 
 logger = logging.getLogger(__name__)
 
 # Provider registry
-_providers: Dict[str, BaseProvider] = {}
+_providers: dict[str, BaseProvider] = {}
 
 
 def register_provider(provider: BaseProvider):
@@ -25,7 +25,7 @@ def register_provider(provider: BaseProvider):
     logger.info(f"Registered provider: {provider.provider_id()}")
 
 
-def get_provider(provider_id: str) -> Optional[BaseProvider]:
+def get_provider(provider_id: str) -> BaseProvider | None:
     """
     Get provider by ID.
     
@@ -38,7 +38,7 @@ def get_provider(provider_id: str) -> Optional[BaseProvider]:
     return _providers.get(provider_id)
 
 
-def select_provider(task: str = "default", provider_id: Optional[str] = None) -> BaseProvider:
+def select_provider(task: str = "default", provider_id: str | None = None) -> BaseProvider:
     """
     Select provider for a given task.
     
@@ -62,7 +62,7 @@ def select_provider(task: str = "default", provider_id: Optional[str] = None) ->
         if provider:
             return provider
         raise ValueError(f"Provider '{provider_id}' not registered")
-    
+
     # Task-based selection (simple policy)
     task_to_provider = {
         "default": "openai",
@@ -70,10 +70,10 @@ def select_provider(task: str = "default", provider_id: Optional[str] = None) ->
         "entity_extraction": "openai",
         "description": "openai",
     }
-    
+
     selected_id = task_to_provider.get(task, "openai")
     provider = get_provider(selected_id)
-    
+
     if not provider:
         # Fallback: try to get any provider
         if _providers:
@@ -81,11 +81,11 @@ def select_provider(task: str = "default", provider_id: Optional[str] = None) ->
             logger.warning(f"No provider for task '{task}', using: {provider.provider_id()}")
         else:
             raise ValueError("No providers registered")
-    
+
     return provider
 
 
-def get_default_provider() -> Optional[BaseProvider]:
+def get_default_provider() -> BaseProvider | None:
     """Get default provider (first registered provider)."""
     if _providers:
         return list(_providers.values())[0]

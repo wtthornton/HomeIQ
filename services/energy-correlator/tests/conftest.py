@@ -2,12 +2,12 @@
 Shared test fixtures for energy-correlator service
 """
 
-import pytest
-from datetime import datetime, timedelta
-from typing import List, Dict
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -26,7 +26,7 @@ def mock_influxdb_client():
 
 
 @pytest.fixture
-def sample_events() -> List[Dict]:
+def sample_events() -> list[dict]:
     """Sample HA events for testing"""
     now = datetime.utcnow()
 
@@ -70,7 +70,7 @@ def sample_events() -> List[Dict]:
 
 
 @pytest.fixture
-def sample_power_data() -> Dict:
+def sample_power_data() -> dict:
     """Sample power readings for testing"""
     return {
         'before': 2450.0,
@@ -81,7 +81,7 @@ def sample_power_data() -> Dict:
 
 
 @pytest.fixture
-def sample_large_power_change() -> Dict:
+def sample_large_power_change() -> dict:
     """Sample HVAC power change (large delta)"""
     return {
         'before': 1850.0,
@@ -92,7 +92,7 @@ def sample_large_power_change() -> Dict:
 
 
 @pytest.fixture
-def sample_negative_power_change() -> Dict:
+def sample_negative_power_change() -> dict:
     """Sample light turning off (negative delta)"""
     return {
         'before': 2150.0,
@@ -103,7 +103,7 @@ def sample_negative_power_change() -> Dict:
 
 
 @pytest.fixture
-def sample_small_power_change() -> Dict:
+def sample_small_power_change() -> dict:
     """Sample small power change (below threshold)"""
     return {
         'before': 2450.0,

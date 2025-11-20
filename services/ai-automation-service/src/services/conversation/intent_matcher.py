@@ -9,8 +9,8 @@ Created: Phase 2 - Core Service Refactoring
 
 import logging
 import re
-from typing import Dict, Optional, Any
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class IntentMatcher:
     - Get information
     - Answer clarification questions
     """
-    
+
     def __init__(self):
         """Initialize intent matcher"""
         # Intent keywords
@@ -42,20 +42,20 @@ class IntentMatcher:
             'automate', 'automatic', 'schedule', 'routine', 'when', 'if',
             'create automation', 'make automation', 'set up automation'
         ]
-        
+
         self.action_keywords = [
             'turn on', 'turn off', 'switch', 'control', 'set', 'activate',
             'deactivate', 'open', 'close', 'lock', 'unlock'
         ]
-        
+
         self.information_keywords = [
             'what', 'show', 'tell', 'list', 'get', 'find', 'check',
             'status', 'state', 'how many', 'which'
         ]
-        
+
         logger.info("IntentMatcher initialized")
-    
-    def match_intent(self, query: str, context: Optional[Dict[str, Any]] = None) -> IntentType:
+
+    def match_intent(self, query: str, context: dict[str, Any] | None = None) -> IntentType:
         """
         Match intent from query.
         
@@ -67,37 +67,37 @@ class IntentMatcher:
             IntentType enum value
         """
         query_lower = query.lower()
-        
+
         # Check for clarification (answers to questions)
         if context and context.get('clarification_questions'):
             # If there are pending clarification questions, likely an answer
             if any(keyword in query_lower for keyword in ['yes', 'no', 'the', 'this', 'that', 'these', 'those']):
                 return IntentType.CLARIFICATION
-        
+
         # Check for immediate actions (imperative verbs)
         action_patterns = [
             r'\b(turn on|turn off|switch|set|activate|deactivate)\b',
             r'\b(open|close|lock|unlock)\b',
             r'^(turn|switch|set|activate|deactivate|open|close|lock|unlock)',
         ]
-        
+
         for pattern in action_patterns:
             if re.search(pattern, query_lower):
                 # Check if it's not automation-related
                 if not any(kw in query_lower for kw in ['when', 'if', 'automation', 'schedule']):
                     return IntentType.ACTION
-        
+
         # Check for automation keywords
         if any(keyword in query_lower for keyword in self.automation_keywords):
             return IntentType.AUTOMATION
-        
+
         # Check for information queries
         if any(keyword in query_lower for keyword in self.information_keywords):
             return IntentType.INFORMATION
-        
+
         # Default to automation for ambiguous queries
         return IntentType.AUTOMATION
-    
+
     def get_intent_confidence(self, query: str, intent: IntentType) -> float:
         """
         Get confidence score for intent match.
@@ -110,13 +110,13 @@ class IntentMatcher:
             Confidence score (0.0-1.0)
         """
         query_lower = query.lower()
-        
+
         if intent == IntentType.ACTION:
             # High confidence if imperative verbs present
             if re.search(r'\b(turn on|turn off|switch|set)\b', query_lower):
                 return 0.9
             return 0.7
-        
+
         elif intent == IntentType.AUTOMATION:
             # High confidence if automation keywords present
             if any(kw in query_lower for kw in ['automate', 'automation', 'schedule']):
@@ -124,12 +124,12 @@ class IntentMatcher:
             if any(kw in query_lower for kw in ['when', 'if']):
                 return 0.8
             return 0.6
-        
+
         elif intent == IntentType.INFORMATION:
             # High confidence if question words present
             if any(kw in query_lower for kw in ['what', 'show', 'tell', 'list']):
                 return 0.9
             return 0.7
-        
+
         return 0.5
 

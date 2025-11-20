@@ -5,18 +5,18 @@ API endpoints for device health scoring and monitoring.
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
 import statistics
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from ..core.health_scorer import health_scorer
-from ..core.device_state_tracker import device_state_tracker
-from ..core.performance_collector import performance_collector
-from ..core.repository import DeviceRepository
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..core.cache import DeviceCache
 from ..core.database import get_db_session
-from sqlalchemy.ext.asyncio import AsyncSession
+from ..core.device_state_tracker import device_state_tracker
+from ..core.health_scorer import health_scorer
+from ..core.repository import DeviceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -35,22 +35,22 @@ async def get_all_health_scores(
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices to return"),
     min_score: int = Query(default=0, ge=0, le=100, description="Minimum health score filter"),
     max_score: int = Query(default=100, ge=0, le=100, description="Maximum health score filter"),
-    health_status: Optional[str] = Query(default=None, description="Filter by health status"),
+    health_status: str | None = Query(default=None, description="Filter by health status"),
     session: AsyncSession = Depends(get_db_session),
     repository: DeviceRepository = Depends(get_device_repository)
 ):
     """Get all device health scores with optional filtering."""
     try:
         health_scores = []
-        
+
         # Get all devices from database
         devices = await repository.get_all_devices(session, limit=limit)
-        
+
         for device in devices[skip:skip+limit]:
             try:
                 # Get device health metrics from database
                 metrics_list = await repository.get_device_health_metrics(session, device.id)
-                
+
                 if metrics_list:
                     # Use the most recent metric
                     latest_metric = metrics_list[0]
@@ -64,7 +64,7 @@ async def get_all_health_scores(
                         "memory_usage": latest_metric.memory_usage or 0,
                         "temperature": latest_metric.temperature or 25
                     }
-                    
+
                     # Convert historical metrics to dict format
                     historical_metrics = []
                     for metric in metrics_list[:50]:  # Last 50 metrics
@@ -87,12 +87,12 @@ async def get_all_health_scores(
                         "memory_usage": 0, "temperature": 25
                     }
                     historical_metrics = []
-                
+
                 # Calculate health score
                 health_score = await health_scorer.calculate_health_score(
                     device.id, current_metrics, historical_metrics
                 )
-                
+
                 # Apply filters
                 if min_score <= health_score["overall_score"] <= max_score:
                     if health_status is None or health_score["health_status"] == health_status:
@@ -101,10 +101,10 @@ async def get_all_health_scores(
             except Exception as e:
                 logger.error(f"Error calculating health score for device {device.id}: {e}")
                 continue
-        
+
         # Get summary statistics
         summary = health_scorer.get_health_score_summary(health_scores)
-        
+
         return {
             "health_scores": health_scores,
             "summary": summary,
@@ -117,7 +117,7 @@ async def get_all_health_scores(
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting all health scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get health scores: {str(e)}")
@@ -131,7 +131,7 @@ async def get_device_health_score(device_id: str):
         device_state = device_state_tracker.get_device_state(device_id)
         if not device_state:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get current metrics
         current_metrics = {
             "response_time": device_state.get("response_time", 0),
@@ -143,17 +143,17 @@ async def get_device_health_score(device_id: str):
             "memory_usage": device_state.get("memory_usage"),
             "temperature": device_state.get("temperature")
         }
-        
+
         # Get historical metrics
         historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=100)
-        
+
         # Calculate health score
         health_score = await health_scorer.calculate_health_score(
             device_id, current_metrics, historical_metrics
         )
-        
+
         return health_score
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -172,17 +172,17 @@ async def get_device_health_trends(
         device_state = device_state_tracker.get_device_state(device_id)
         if not device_state:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get historical metrics for the specified period
         cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
         historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=1000)
-        
+
         # Filter by time range
         filtered_metrics = [
             m for m in historical_metrics
             if m["timestamp"] >= cutoff_time
         ]
-        
+
         if not filtered_metrics:
             return {
                 "device_id": device_id,
@@ -194,7 +194,7 @@ async def get_device_health_trends(
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-        
+
         # Calculate health scores for each data point
         trends = []
         for metrics in filtered_metrics:
@@ -211,14 +211,14 @@ async def get_device_health_trends(
             except Exception as e:
                 logger.warning(f"Error calculating trend score for {device_id}: {e}")
                 continue
-        
+
         # Calculate trend summary
         if trends:
             scores = [t["overall_score"] for t in trends]
             avg_score = statistics.mean(scores)
             min_score = min(scores)
             max_score = max(scores)
-            
+
             # Calculate trend direction
             if len(scores) >= 2:
                 first_half = scores[:len(scores)//2]
@@ -229,7 +229,7 @@ async def get_device_health_trends(
         else:
             avg_score = min_score = max_score = 0
             trend_direction = "no_data"
-        
+
         return {
             "device_id": device_id,
             "trends": trends,
@@ -243,7 +243,7 @@ async def get_device_health_trends(
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -253,7 +253,7 @@ async def get_device_health_trends(
 
 @router.get("/comparison")
 async def compare_device_health_scores(
-    device_ids: Optional[str] = Query(default=None, description="Comma-separated list of device IDs to compare")
+    device_ids: str | None = Query(default=None, description="Comma-separated list of device IDs to compare")
 ):
     """Compare device health scores."""
     try:
@@ -263,7 +263,7 @@ async def compare_device_health_scores(
         else:
             # Compare all devices
             target_device_ids = list(device_state_tracker.get_all_device_states().keys())
-        
+
         if not target_device_ids:
             return {
                 "comparison": [],
@@ -273,7 +273,7 @@ async def compare_device_health_scores(
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-        
+
         # Calculate health scores for each device
         health_scores = []
         for device_id in target_device_ids:
@@ -281,7 +281,7 @@ async def compare_device_health_scores(
                 device_state = device_state_tracker.get_device_state(device_id)
                 if not device_state:
                     continue
-                
+
                 current_metrics = {
                     "response_time": device_state.get("response_time", 0),
                     "error_rate": device_state.get("error_rate", 0),
@@ -292,25 +292,25 @@ async def compare_device_health_scores(
                     "memory_usage": device_state.get("memory_usage"),
                     "temperature": device_state.get("temperature")
                 }
-                
+
                 historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=50)
-                
+
                 health_score = await health_scorer.calculate_health_score(
                     device_id, current_metrics, historical_metrics
                 )
                 health_scores.append(health_score)
-                
+
             except Exception as e:
                 logger.error(f"Error calculating health score for device {device_id}: {e}")
                 continue
-        
+
         # Calculate comparison statistics
         if health_scores:
             scores = [hs["overall_score"] for hs in health_scores]
             avg_score = statistics.mean(scores)
             min_score = min(scores)
             max_score = max(scores)
-            
+
             # Health distribution
             health_distribution = {
                 "excellent": len([hs for hs in health_scores if hs["health_status"] == "excellent"]),
@@ -319,7 +319,7 @@ async def compare_device_health_scores(
                 "poor": len([hs for hs in health_scores if hs["health_status"] == "poor"]),
                 "critical": len([hs for hs in health_scores if hs["health_status"] == "critical"])
             }
-            
+
             # Top and bottom performers
             sorted_scores = sorted(health_scores, key=lambda x: x["overall_score"], reverse=True)
             top_performers = sorted_scores[:3]
@@ -329,7 +329,7 @@ async def compare_device_health_scores(
             health_distribution = {}
             top_performers = []
             bottom_performers = []
-        
+
         return {
             "comparison": health_scores,
             "summary": {
@@ -343,7 +343,7 @@ async def compare_device_health_scores(
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error comparing device health scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to compare health scores: {str(e)}")
@@ -355,7 +355,7 @@ async def get_health_summary():
     try:
         # Get all device states
         device_states = device_state_tracker.get_all_device_states()
-        
+
         if not device_states:
             return {
                 "summary": {
@@ -364,7 +364,7 @@ async def get_health_summary():
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-        
+
         # Calculate health scores for all devices
         health_scores = []
         for device_id, state in device_states.items():
@@ -379,44 +379,44 @@ async def get_health_summary():
                     "memory_usage": state.get("memory_usage"),
                     "temperature": state.get("temperature")
                 }
-                
+
                 historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=20)
-                
+
                 health_score = await health_scorer.calculate_health_score(
                     device_id, current_metrics, historical_metrics
                 )
                 health_scores.append(health_score)
-                
+
             except Exception as e:
                 logger.error(f"Error calculating health score for device {device_id}: {e}")
                 continue
-        
+
         # Get summary statistics
         summary = health_scorer.get_health_score_summary(health_scores)
-        
+
         return {
             "summary": summary,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting health summary: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get health summary: {str(e)}")
 
 
 @router.post("/calculate/{device_id}")
-async def calculate_device_health_score(device_id: str, metrics: Dict[str, Any]):
+async def calculate_device_health_score(device_id: str, metrics: dict[str, Any]):
     """Calculate health score for a device with custom metrics."""
     try:
         # Calculate health score with provided metrics
         health_score = await health_scorer.calculate_health_score(device_id, metrics)
-        
+
         return {
             "status": "success",
             "health_score": health_score,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error calculating custom health score for device {device_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to calculate health score: {str(e)}")

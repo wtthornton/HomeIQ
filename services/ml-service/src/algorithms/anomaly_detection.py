@@ -4,7 +4,6 @@ Provides Isolation Forest for anomaly detection
 """
 
 import logging
-from typing import List, Tuple
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
@@ -24,15 +23,15 @@ class AnomalyDetectionManager:
         logger.info("AnomalyDetectionManager initialized")
 
     @staticmethod
-    def _scale_features(data: List[List[float]]) -> np.ndarray:
+    def _scale_features(data: list[list[float]]) -> np.ndarray:
         scaler = StandardScaler()
         return scaler.fit_transform(np.array(data, dtype=np.float64))
 
     def detect_anomalies(
         self,
-        data: List[List[float]],
+        data: list[list[float]],
         contamination: float = 0.1,
-    ) -> Tuple[List[int], List[float]]:
+    ) -> tuple[list[int], list[float]]:
         """
         Detect anomalies using Isolation Forest.
 

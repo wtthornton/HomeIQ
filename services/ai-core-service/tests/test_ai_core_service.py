@@ -4,7 +4,6 @@ Tests for the orchestrator service
 """
 
 import os
-from typing import Any, Dict, List
 
 import httpx
 import pytest
@@ -14,7 +13,7 @@ AI_CORE_SERVICE_URL = "http://localhost:8018"
 
 class TestAICoreService:
     """Test suite for AI Core Service"""
-    
+
     @pytest.fixture
     async def client(self):
         """HTTP client for testing"""
@@ -26,7 +25,7 @@ class TestAICoreService:
         """Authentication headers required for protected endpoints"""
         api_key = os.getenv("AI_CORE_API_KEY", "test-key")
         return {"X-API-Key": api_key}
-    
+
     @pytest.fixture
     def sample_analysis_data(self):
         """Generate sample data for analysis testing"""
@@ -37,7 +36,7 @@ class TestAICoreService:
             {"description": "Turn off TV when leaving", "type": "automation"},
             {"description": "Dim lights in evening", "type": "automation"}
         ]
-    
+
     @pytest.fixture
     def sample_pattern_data(self):
         """Generate sample pattern data for testing"""
@@ -53,18 +52,18 @@ class TestAICoreService:
                 "devices": ["thermostat", "hvac_system"]
             }
         ]
-    
+
     @pytest.mark.asyncio
     async def test_health_check(self, client):
         """Test health check endpoint"""
         response = await client.get(f"{AI_CORE_SERVICE_URL}/health")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "ai-core-service"
         assert "services" in data
-    
+
     @pytest.mark.asyncio
     async def test_service_status(self, client, auth_headers):
         """Test service status endpoint"""
@@ -73,20 +72,20 @@ class TestAICoreService:
             headers=auth_headers,
         )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "openvino" in data
         assert "ml" in data
         assert "ner" in data
         assert "openai" in data
-        
+
         # Check service structure
         for service_name in ["openvino", "ml", "ner", "openai"]:
             service = data[service_name]
             assert "url" in service
             assert "healthy" in service
             assert isinstance(service["healthy"], bool)
-    
+
     @pytest.mark.asyncio
     async def test_data_analysis(self, client, sample_analysis_data, auth_headers):
         """Test comprehensive data analysis"""
@@ -102,16 +101,16 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "results" in data
         assert "services_used" in data
         assert "processing_time" in data
         assert isinstance(data["services_used"], list)
         assert data["processing_time"] > 0
-    
+
     @pytest.mark.asyncio
     async def test_pattern_detection(self, client, sample_pattern_data, auth_headers):
         """Test pattern detection"""
@@ -123,17 +122,17 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "detected_patterns" in data
         assert "services_used" in data
         assert "processing_time" in data
         assert len(data["detected_patterns"]) == len(sample_pattern_data)
         assert isinstance(data["services_used"], list)
         assert data["processing_time"] > 0
-    
+
     @pytest.mark.asyncio
     async def test_suggestion_generation(self, client, auth_headers):
         """Test AI suggestion generation"""
@@ -142,7 +141,7 @@ class TestAICoreService:
             "current_automations": 5,
             "devices": ["lights", "thermostat", "locks"]
         }
-        
+
         response = await client.post(
             f"{AI_CORE_SERVICE_URL}/suggestions",
             json={
@@ -151,17 +150,17 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "suggestions" in data
         assert "services_used" in data
         assert "processing_time" in data
         assert isinstance(data["suggestions"], list)
         assert isinstance(data["services_used"], list)
         assert data["processing_time"] > 0
-    
+
     @pytest.mark.asyncio
     async def test_error_handling(self, client, auth_headers):
         """Test error handling for invalid requests"""
@@ -175,10 +174,10 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         # Should handle gracefully (may succeed with fallback or return error)
         assert response.status_code in [200, 400, 500]
-    
+
     @pytest.mark.asyncio
     async def test_service_fallback(self, client, auth_headers):
         """Test service fallback mechanisms"""
@@ -193,10 +192,10 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         # Should either succeed with available services or fail gracefully
         assert response.status_code in [200, 503]
-    
+
     @pytest.mark.asyncio
     async def test_performance(self, client, auth_headers):
         """Test performance with larger datasets"""
@@ -205,7 +204,7 @@ class TestAICoreService:
             {"description": f"Test automation pattern {i}", "type": "automation"}
             for i in range(50)
         ]
-        
+
         response = await client.post(
             f"{AI_CORE_SERVICE_URL}/analyze",
             json={
@@ -215,7 +214,7 @@ class TestAICoreService:
             },
             headers=auth_headers,
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             # Should complete within reasonable time

@@ -8,17 +8,17 @@ sequential steps while sharing intermediate context.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 
 
-class PatternChainResult(Dict[str, Any]):
+class PatternChainResult(dict[str, Any]):
     """Typed alias to make intent explicit."""
 
 
 def _build_time_of_day_step(tod_detector):
-    async def _step(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    async def _step(inputs: dict[str, Any]) -> dict[str, Any]:
         events_df = inputs["events_df"]
         last_update = inputs.get("last_update")
         incremental = inputs.get("incremental", False)
@@ -38,7 +38,7 @@ def _build_time_of_day_step(tod_detector):
 
 
 def _build_co_occurrence_step(co_detector):
-    async def _step(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    async def _step(inputs: dict[str, Any]) -> dict[str, Any]:
         events_df = inputs["events_df"]
         last_update = inputs.get("last_update")
         incremental = inputs.get("incremental", False)

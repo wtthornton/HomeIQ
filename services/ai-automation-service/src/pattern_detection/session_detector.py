@@ -6,11 +6,11 @@ Identifies user behavior sessions and routine patterns over time.
 """
 
 import logging
+from datetime import datetime
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
-from collections import defaultdict, Counter
 
 from .ml_pattern_detector import MLPatternDetector
 
@@ -27,7 +27,7 @@ class SessionDetector(MLPatternDetector):
     - Session duration analysis
     - User behavior clustering
     """
-    
+
     def __init__(
         self,
         session_gap_minutes: int = 30,
@@ -57,10 +57,10 @@ class SessionDetector(MLPatternDetector):
         self.min_session_occurrences = min_session_occurrences
         self.routine_window_days = routine_window_days
         self.aggregate_client = aggregate_client  # Story AI5.6
-        
+
         logger.info(f"SessionDetector initialized: gap={session_gap_minutes}min, min_duration={min_session_duration_minutes}min")
-    
-    def detect_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect session patterns in events.
         
@@ -71,49 +71,49 @@ class SessionDetector(MLPatternDetector):
             List of session pattern dictionaries
         """
         start_time = datetime.utcnow()
-        
+
         if not self._validate_events_dataframe(events_df):
             return []
-        
+
         # Optimize DataFrame for processing
         events_df = self._optimize_dataframe(events_df)
-        
+
         # Detect different types of session patterns
         patterns = []
-        
+
         # 1. User session identification
         session_patterns = self._detect_user_sessions(events_df)
         patterns.extend(session_patterns)
-        
+
         # 2. Routine pattern detection
         routine_patterns = self._detect_routine_patterns(events_df)
         patterns.extend(routine_patterns)
-        
+
         # 3. Session clustering
         session_cluster_patterns = self._detect_session_clusters(events_df)
         patterns.extend(session_cluster_patterns)
-        
+
         # 4. Temporal session patterns
         temporal_session_patterns = self._detect_temporal_session_patterns(events_df)
         patterns.extend(temporal_session_patterns)
-        
+
         # Cluster similar session patterns using ML
         if self.enable_ml and len(patterns) > 2:
             patterns = self._cluster_session_patterns(patterns)
-        
+
         # Story AI5.6: Store weekly aggregates to InfluxDB
         if self.aggregate_client and patterns:
             self._store_weekly_aggregates(patterns, events_df)
-        
+
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
         self.detection_stats['total_patterns'] += len(patterns)
         self.detection_stats['processing_time'] += processing_time
-        
+
         logger.info(f"Detected {len(patterns)} session patterns in {processing_time:.2f}s")
         return patterns
-    
-    def _detect_user_sessions(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def _detect_user_sessions(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect user activity sessions.
         
@@ -124,17 +124,17 @@ class SessionDetector(MLPatternDetector):
             List of user session patterns
         """
         patterns = []
-        
+
         # Identify sessions based on activity gaps
         sessions = self._identify_sessions(events_df)
-        
+
         for session in sessions:
             if len(session['events']) < self.min_occurrences:
                 continue
-            
+
             # Analyze session characteristics
             session_confidence = self._calculate_session_confidence(session)
-            
+
             if session_confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
                     pattern_type='user_session',
@@ -154,10 +154,10 @@ class SessionDetector(MLPatternDetector):
                     }
                 )
                 patterns.append(pattern)
-        
+
         return patterns
-    
-    def _detect_routine_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def _detect_routine_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect routine patterns (morning, evening, etc.).
         
@@ -168,22 +168,22 @@ class SessionDetector(MLPatternDetector):
             List of routine patterns
         """
         patterns = []
-        
+
         # Group events by time periods
         time_periods = self._group_events_by_time_periods(events_df)
-        
+
         for period, period_events in time_periods.items():
             if len(period_events) < self.min_session_occurrences:
                 continue
-            
+
             # Analyze routine characteristics
             routine_confidence = self._calculate_routine_confidence(period_events, period)
-            
+
             if routine_confidence >= self.min_confidence:
                 # Get devices and rooms involved
                 devices = list(period_events['entity_id'].unique())
                 rooms = list(period_events.get('area', pd.Series(['unknown'])).unique())
-                
+
                 pattern = self._create_pattern_dict(
                     pattern_type='routine',
                     pattern_id=self._generate_pattern_id('routine'),
@@ -203,10 +203,10 @@ class SessionDetector(MLPatternDetector):
                     }
                 )
                 patterns.append(pattern)
-        
+
         return patterns
-    
-    def _detect_session_clusters(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def _detect_session_clusters(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect session clusters using ML clustering.
         
@@ -217,32 +217,32 @@ class SessionDetector(MLPatternDetector):
             List of session cluster patterns
         """
         patterns = []
-        
+
         # Extract session features
         session_features = self._extract_session_features(events_df)
-        
+
         if len(session_features) < 3:
             return patterns
-        
+
         try:
             from sklearn.cluster import DBSCAN
-            
+
             # Cluster sessions
             clustering = DBSCAN(eps=0.5, min_samples=2)
             cluster_labels = clustering.fit_predict(session_features)
-            
+
             # Analyze each cluster
             for cluster_id in set(cluster_labels):
                 if cluster_id == -1:  # Skip noise
                     continue
-                
+
                 cluster_sessions = session_features[cluster_labels == cluster_id]
-                
+
                 if len(cluster_sessions) < self.min_session_occurrences:
                     continue
-                
+
                 cluster_confidence = self._calculate_cluster_confidence(cluster_sessions, cluster_id)
-                
+
                 if cluster_confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
                         pattern_type='session_cluster',
@@ -258,13 +258,13 @@ class SessionDetector(MLPatternDetector):
                         }
                     )
                     patterns.append(pattern)
-                    
+
         except Exception as e:
             logger.warning(f"Session clustering failed: {e}")
-        
+
         return patterns
-    
-    def _detect_temporal_session_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def _detect_temporal_session_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect temporal patterns in sessions.
         
@@ -275,16 +275,16 @@ class SessionDetector(MLPatternDetector):
             List of temporal session patterns
         """
         patterns = []
-        
+
         # Analyze temporal patterns
         temporal_analysis = self._analyze_temporal_patterns(events_df)
-        
+
         for pattern_type, pattern_data in temporal_analysis.items():
             if pattern_data['occurrences'] < self.min_session_occurrences:
                 continue
-            
+
             pattern_confidence = self._calculate_temporal_pattern_confidence(pattern_data)
-            
+
             if pattern_confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
                     pattern_type=f'temporal_{pattern_type}',
@@ -303,10 +303,10 @@ class SessionDetector(MLPatternDetector):
                     }
                 )
                 patterns.append(pattern)
-        
+
         return patterns
-    
-    def _identify_sessions(self, events_df: pd.DataFrame) -> List[Dict]:
+
+    def _identify_sessions(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Identify user activity sessions.
         
@@ -318,13 +318,13 @@ class SessionDetector(MLPatternDetector):
         """
         sessions = []
         session_gap = pd.Timedelta(minutes=self.session_gap_minutes)
-        
+
         # Sort events by time
         events_sorted = events_df.sort_values('time').reset_index(drop=True)
-        
+
         current_session = []
         session_start = None
-        
+
         for i, (_, event) in enumerate(events_sorted.iterrows()):
             if session_start is None:
                 session_start = event['time']
@@ -332,7 +332,7 @@ class SessionDetector(MLPatternDetector):
             else:
                 # Check if event is within session gap
                 time_since_last = event['time'] - events_sorted.iloc[i-1]['time']
-                
+
                 if time_since_last <= session_gap:
                     current_session.append(event)
                 else:
@@ -341,19 +341,19 @@ class SessionDetector(MLPatternDetector):
                         session = self._create_session_dict(current_session, session_start)
                         if self._is_valid_session(session):
                             sessions.append(session)
-                    
+
                     session_start = event['time']
                     current_session = [event]
-        
+
         # Add final session
         if current_session:
             session = self._create_session_dict(current_session, session_start)
             if self._is_valid_session(session):
                 sessions.append(session)
-        
+
         return sessions
-    
-    def _create_session_dict(self, session_events: List[pd.Series], start_time: datetime) -> Dict:
+
+    def _create_session_dict(self, session_events: list[pd.Series], start_time: datetime) -> dict:
         """
         Create session dictionary from events.
         
@@ -366,20 +366,20 @@ class SessionDetector(MLPatternDetector):
         """
         end_time = session_events[-1]['time']
         duration_minutes = (end_time - start_time).total_seconds() / 60
-        
+
         devices = list(set(event['entity_id'] for event in session_events))
         rooms = list(set(event.get('area', 'unknown') for event in session_events))
         states = [event['state'] for event in session_events]
-        
+
         # Calculate activity intensity
         activity_intensity = len(session_events) / max(duration_minutes / 60, 0.1)  # Events per hour
-        
+
         # Determine session type
         session_type = self._classify_session_type(start_time, duration_minutes, activity_intensity)
-        
+
         # Calculate state distribution
         state_distribution = dict(pd.Series(states).value_counts())
-        
+
         return {
             'events': session_events,
             'start_time': start_time,
@@ -391,8 +391,8 @@ class SessionDetector(MLPatternDetector):
             'session_type': session_type,
             'state_distribution': state_distribution
         }
-    
-    def _is_valid_session(self, session: Dict) -> bool:
+
+    def _is_valid_session(self, session: dict) -> bool:
         """
         Check if session meets validity criteria.
         
@@ -407,7 +407,7 @@ class SessionDetector(MLPatternDetector):
             duration_minutes >= self.min_session_duration_minutes and
             duration_minutes <= self.max_session_duration_hours * 60
         )
-    
+
     def _classify_session_type(self, start_time: datetime, duration_minutes: float, activity_intensity: float) -> str:
         """
         Classify session type based on characteristics.
@@ -421,7 +421,7 @@ class SessionDetector(MLPatternDetector):
             Session type string
         """
         hour = start_time.hour
-        
+
         if hour < 6:
             return 'night'
         elif hour < 12:
@@ -430,8 +430,8 @@ class SessionDetector(MLPatternDetector):
             return 'afternoon'
         else:
             return 'evening'
-    
-    def _group_events_by_time_periods(self, events_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+
+    def _group_events_by_time_periods(self, events_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         """
         Group events by time periods for routine detection.
         
@@ -442,7 +442,7 @@ class SessionDetector(MLPatternDetector):
             Dictionary of time periods and their events
         """
         periods = {}
-        
+
         # Define time periods
         time_periods = {
             'morning': (6, 12),
@@ -450,27 +450,27 @@ class SessionDetector(MLPatternDetector):
             'evening': (18, 22),
             'night': (22, 6)
         }
-        
+
         for period_name, (start_hour, end_hour) in time_periods.items():
             if start_hour < end_hour:
                 # Same day period
                 period_events = events_df[
-                    (events_df['time'].dt.hour >= start_hour) & 
+                    (events_df['time'].dt.hour >= start_hour) &
                     (events_df['time'].dt.hour < end_hour)
                 ]
             else:
                 # Overnight period
                 period_events = events_df[
-                    (events_df['time'].dt.hour >= start_hour) | 
+                    (events_df['time'].dt.hour >= start_hour) |
                     (events_df['time'].dt.hour < end_hour)
                 ]
-            
+
             if len(period_events) > 0:
                 periods[period_name] = period_events
-        
+
         return periods
-    
-    def _calculate_session_confidence(self, session: Dict) -> float:
+
+    def _calculate_session_confidence(self, session: dict) -> float:
         """
         Calculate confidence for session patterns.
         
@@ -482,7 +482,7 @@ class SessionDetector(MLPatternDetector):
         """
         # Base confidence from session length
         base_confidence = min(len(session['events']) / 10.0, 1.0)
-        
+
         # Duration bonus (optimal duration range)
         duration_minutes = session['duration_minutes']
         duration_bonus = 0.0
@@ -490,19 +490,19 @@ class SessionDetector(MLPatternDetector):
             duration_bonus = 0.2
         elif 5 <= duration_minutes <= 240:  # 5 minutes to 4 hours
             duration_bonus = 0.1
-        
+
         # Activity intensity bonus
         intensity = session['activity_intensity']
         intensity_bonus = min(intensity / 10.0, 0.2)  # Max 20% bonus
-        
+
         # Device diversity bonus
         device_diversity = len(session['devices']) / max(len(session['events']), 1)
         diversity_bonus = min(device_diversity * 0.3, 0.3)  # Max 30% bonus
-        
+
         total_confidence = base_confidence + duration_bonus + intensity_bonus + diversity_bonus
-        
+
         return min(total_confidence, 1.0)
-    
+
     def _calculate_routine_confidence(self, period_events: pd.DataFrame, period: str) -> float:
         """
         Calculate confidence for routine patterns.
@@ -516,19 +516,19 @@ class SessionDetector(MLPatternDetector):
         """
         # Base confidence from occurrences
         base_confidence = min(len(period_events) / 15.0, 1.0)
-        
+
         # Consistency bonus
         consistency = self._calculate_routine_consistency(period_events)
         consistency_bonus = consistency * 0.3
-        
+
         # Frequency bonus
         frequency = self._calculate_activity_frequency(period_events)
         frequency_bonus = min(frequency * 0.2, 0.2)
-        
+
         total_confidence = base_confidence + consistency_bonus + frequency_bonus
-        
+
         return min(total_confidence, 1.0)
-    
+
     def _calculate_routine_consistency(self, period_events: pd.DataFrame) -> float:
         """
         Calculate routine consistency.
@@ -541,30 +541,30 @@ class SessionDetector(MLPatternDetector):
         """
         if len(period_events) < 2:
             return 0.0
-        
+
         # Calculate time consistency
         times = period_events['time'].dt.time
         time_diffs = []
-        
+
         for i in range(len(times) - 1):
             diff = (times.iloc[i+1] - times.iloc[i]).total_seconds()
             time_diffs.append(diff)
-        
+
         if not time_diffs:
             return 0.0
-        
+
         # Calculate coefficient of variation
         mean_diff = np.mean(time_diffs)
         std_diff = np.std(time_diffs)
-        
+
         if mean_diff == 0:
             return 0.0
-        
+
         cv = std_diff / mean_diff
         consistency = max(0.0, 1.0 - cv)
-        
+
         return min(consistency, 1.0)
-    
+
     def _calculate_activity_frequency(self, period_events: pd.DataFrame) -> float:
         """
         Calculate activity frequency.
@@ -577,14 +577,14 @@ class SessionDetector(MLPatternDetector):
         """
         if len(period_events) == 0:
             return 0.0
-        
+
         # Calculate events per day
         unique_days = period_events['time'].dt.date.nunique()
         if unique_days == 0:
             return 0.0
-        
+
         return len(period_events) / unique_days
-    
+
     def _calculate_routine_duration(self, period_events: pd.DataFrame) -> float:
         """
         Calculate routine duration in hours.
@@ -597,12 +597,12 @@ class SessionDetector(MLPatternDetector):
         """
         if len(period_events) == 0:
             return 0.0
-        
+
         start_time = period_events['time'].min()
         end_time = period_events['time'].max()
-        
+
         return (end_time - start_time).total_seconds() / 3600
-    
+
     def _extract_session_features(self, events_df: pd.DataFrame) -> np.ndarray:
         """
         Extract features for session clustering.
@@ -614,10 +614,10 @@ class SessionDetector(MLPatternDetector):
             Feature matrix for clustering
         """
         features = []
-        
+
         # Group events by day and extract daily features
         events_df['date'] = events_df['time'].dt.date
-        
+
         for date, day_events in events_df.groupby('date'):
             # Extract daily session features
             feature_vector = [
@@ -630,9 +630,9 @@ class SessionDetector(MLPatternDetector):
                 day_events.get('area', pd.Series(['unknown'])).nunique()  # Unique rooms
             ]
             features.append(feature_vector)
-        
+
         return np.array(features) if features else np.array([])
-    
+
     def _calculate_cluster_confidence(self, cluster_sessions: np.ndarray, cluster_id: int) -> float:
         """
         Calculate confidence for session clusters.
@@ -646,7 +646,7 @@ class SessionDetector(MLPatternDetector):
         """
         occurrences = len(cluster_sessions)
         base_confidence = min(occurrences / 10.0, 1.0)
-        
+
         # Cluster cohesion bonus
         if len(cluster_sessions) > 1:
             # Calculate variance in features
@@ -654,10 +654,10 @@ class SessionDetector(MLPatternDetector):
             avg_variance = np.mean(feature_variance)
             cohesion_bonus = max(0.0, 1.0 - avg_variance) * 0.2
             base_confidence += cohesion_bonus
-        
+
         return min(base_confidence, 1.0)
-    
-    def _describe_cluster_characteristics(self, cluster_sessions: np.ndarray) -> Dict[str, Any]:
+
+    def _describe_cluster_characteristics(self, cluster_sessions: np.ndarray) -> dict[str, Any]:
         """
         Describe cluster characteristics.
         
@@ -674,7 +674,7 @@ class SessionDetector(MLPatternDetector):
             'avg_active_hours': np.mean(cluster_sessions[:, 2]) if len(cluster_sessions) > 0 else 0,
             'avg_activity_span': np.mean(cluster_sessions[:, 5]) if len(cluster_sessions) > 0 else 0
         }
-    
+
     def _calculate_session_diversity(self, cluster_sessions: np.ndarray) -> float:
         """
         Calculate session diversity within cluster.
@@ -687,7 +687,7 @@ class SessionDetector(MLPatternDetector):
         """
         if len(cluster_sessions) < 2:
             return 0.0
-        
+
         # Calculate coefficient of variation for each feature
         cv_scores = []
         for i in range(cluster_sessions.shape[1]):
@@ -695,14 +695,14 @@ class SessionDetector(MLPatternDetector):
             if np.mean(feature_values) > 0:
                 cv = np.std(feature_values) / np.mean(feature_values)
                 cv_scores.append(cv)
-        
+
         # Higher CV = more diversity
         avg_cv = np.mean(cv_scores) if cv_scores else 0.0
         diversity = min(avg_cv, 1.0)
-        
+
         return diversity
-    
-    def _analyze_temporal_patterns(self, events_df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+
+    def _analyze_temporal_patterns(self, events_df: pd.DataFrame) -> dict[str, dict[str, Any]]:
         """
         Analyze temporal patterns in events.
         
@@ -713,7 +713,7 @@ class SessionDetector(MLPatternDetector):
             Dictionary of temporal patterns
         """
         patterns = {}
-        
+
         # Analyze hourly patterns
         hourly_counts = events_df['time'].dt.hour.value_counts()
         if len(hourly_counts) > 0:
@@ -728,9 +728,9 @@ class SessionDetector(MLPatternDetector):
                 'last_occurrence': events_df['time'].max(),
                 'duration_analysis': self._analyze_duration_patterns(events_df)
             }
-        
+
         return patterns
-    
+
     def _calculate_hourly_consistency(self, events_df: pd.DataFrame) -> float:
         """
         Calculate hourly consistency.
@@ -743,26 +743,26 @@ class SessionDetector(MLPatternDetector):
         """
         if len(events_df) < 2:
             return 0.0
-        
+
         # Calculate consistency of hourly distribution
         hourly_counts = events_df['time'].dt.hour.value_counts()
-        
+
         if len(hourly_counts) < 2:
             return 1.0
-        
+
         # Calculate coefficient of variation
         mean_count = hourly_counts.mean()
         std_count = hourly_counts.std()
-        
+
         if mean_count == 0:
             return 0.0
-        
+
         cv = std_count / mean_count
         consistency = max(0.0, 1.0 - cv)
-        
+
         return min(consistency, 1.0)
-    
-    def _analyze_duration_patterns(self, events_df: pd.DataFrame) -> Dict[str, Any]:
+
+    def _analyze_duration_patterns(self, events_df: pd.DataFrame) -> dict[str, Any]:
         """
         Analyze duration patterns in events.
         
@@ -774,22 +774,22 @@ class SessionDetector(MLPatternDetector):
         """
         if len(events_df) < 2:
             return {'avg_duration': 0, 'duration_consistency': 0}
-        
+
         # Calculate time differences
         time_diffs = events_df['time'].diff().dt.total_seconds().dropna()
-        
+
         if len(time_diffs) == 0:
             return {'avg_duration': 0, 'duration_consistency': 0}
-        
+
         avg_duration = time_diffs.mean()
         duration_consistency = 1.0 - (time_diffs.std() / time_diffs.mean()) if time_diffs.mean() > 0 else 0.0
-        
+
         return {
             'avg_duration': avg_duration,
             'duration_consistency': max(0.0, duration_consistency)
         }
-    
-    def _calculate_temporal_pattern_confidence(self, pattern_data: Dict[str, Any]) -> float:
+
+    def _calculate_temporal_pattern_confidence(self, pattern_data: dict[str, Any]) -> float:
         """
         Calculate confidence for temporal patterns.
         
@@ -801,20 +801,20 @@ class SessionDetector(MLPatternDetector):
         """
         # Base confidence from occurrences
         base_confidence = min(pattern_data['occurrences'] / 20.0, 1.0)
-        
+
         # Consistency bonus
         consistency = pattern_data.get('consistency', 0.0)
         consistency_bonus = consistency * 0.3
-        
+
         # Frequency bonus
         frequency = pattern_data.get('frequency', 0)
         frequency_bonus = min(frequency / 50.0, 0.2)
-        
+
         total_confidence = base_confidence + consistency_bonus + frequency_bonus
-        
+
         return min(total_confidence, 1.0)
-    
-    def _cluster_session_patterns(self, patterns: List[Dict]) -> List[Dict]:
+
+    def _cluster_session_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Cluster similar session patterns using ML.
         
@@ -826,22 +826,22 @@ class SessionDetector(MLPatternDetector):
         """
         if len(patterns) < 3:
             return patterns
-        
+
         try:
             # Extract features for clustering
             features = self._extract_session_pattern_features(patterns)
-            
+
             # Cluster patterns
             patterns = self._cluster_patterns(patterns, features)
-            
+
             logger.info(f"Clustered {len(patterns)} session patterns")
-            
+
         except Exception as e:
             logger.warning(f"Session pattern clustering failed: {e}")
-        
+
         return patterns
-    
-    def _extract_session_pattern_features(self, patterns: List[Dict]) -> np.ndarray:
+
+    def _extract_session_pattern_features(self, patterns: list[dict]) -> np.ndarray:
         """
         Extract features for session pattern clustering.
         
@@ -852,10 +852,10 @@ class SessionDetector(MLPatternDetector):
             Feature matrix for clustering
         """
         features = []
-        
+
         for pattern in patterns:
             metadata = pattern['metadata']
-            
+
             # Extract numerical features
             feature_vector = [
                 pattern['occurrences'],
@@ -867,7 +867,7 @@ class SessionDetector(MLPatternDetector):
                 metadata.get('routine_consistency', 0),
                 metadata.get('activity_frequency', 0)
             ]
-            
+
             # Add pattern type encoding
             pattern_type = pattern['pattern_type']
             type_encoding = {
@@ -877,12 +877,12 @@ class SessionDetector(MLPatternDetector):
                 'temporal_hourly_peak': 3
             }.get(pattern_type, 0)
             feature_vector.append(type_encoding)
-            
+
             features.append(feature_vector)
-        
+
         return np.array(features)
 
-    def _store_weekly_aggregates(self, patterns: List[Dict], events_df: pd.DataFrame) -> None:
+    def _store_weekly_aggregates(self, patterns: list[dict], events_df: pd.DataFrame) -> None:
         """
         Store weekly aggregates to InfluxDB.
         
@@ -897,19 +897,19 @@ class SessionDetector(MLPatternDetector):
             if events_df.empty or 'time' not in events_df.columns:
                 logger.warning("Cannot determine week from events for aggregate storage")
                 return
-            
+
             # Use ISO week format (YYYY-WW)
             first_date = pd.to_datetime(events_df['time'].min())
             week_str = first_date.strftime('%Y-W%V')
-            
+
             logger.info(f"Storing weekly aggregates for {week_str}")
-            
+
             for pattern in patterns:
                 session_type = pattern.get('metadata', {}).get('session_type', 'general')
                 avg_duration = pattern.get('metadata', {}).get('session_duration_minutes', 0) * 60  # Convert to seconds
                 session_count = pattern.get('occurrences', 0)
                 devices_used = pattern.get('devices', [])
-                
+
                 # Calculate typical start times from pattern metadata
                 start_time_str = pattern.get('metadata', {}).get('session_start', '')
                 if start_time_str:
@@ -920,9 +920,9 @@ class SessionDetector(MLPatternDetector):
                         typical_start_times = []
                 else:
                     typical_start_times = []
-                
+
                 confidence = pattern.get('confidence', 0.0)
-                
+
                 # Store aggregate
                 try:
                     self.aggregate_client.write_session_weekly(
@@ -936,8 +936,8 @@ class SessionDetector(MLPatternDetector):
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {session_type}: {e}", exc_info=True)
-            
+
             logger.info(f"✅ Stored {len(patterns)} weekly aggregates to InfluxDB")
-            
+
         except Exception as e:
             logger.error(f"Error storing weekly aggregates: {e}", exc_info=True)

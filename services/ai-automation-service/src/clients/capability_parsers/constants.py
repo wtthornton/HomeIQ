@@ -5,7 +5,8 @@ Note: In production, these would be imported from homeassistant.components.*
 For now, we define them manually to avoid the heavy HA dependency.
 """
 
-from typing import Dict, Any
+from typing import Any
+
 
 # LightEntityFeature constants (from homeassistant.components.light)
 class LightEntityFeature:
@@ -53,7 +54,7 @@ class FanEntityFeature:
     SUPPORT_DECREASE_SPEED = 32    # Bit 5
 
 # Mapping domain to its feature constants
-DOMAIN_CONSTANTS: Dict[str, Any] = {
+DOMAIN_CONSTANTS: dict[str, Any] = {
     'light': LightEntityFeature,
     'climate': ClimateEntityFeature,
     'cover': CoverEntityFeature,

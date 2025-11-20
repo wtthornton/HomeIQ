@@ -5,29 +5,30 @@ This service provides centralized device discovery and intelligence processing
 for the Home Assistant Ingestor system.
 """
 
-import time
 import logging
+import time
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 
-from .config import Settings
+from .api.database_management import router as database_management_router
+from .api.devices import router as devices_router
+from .api.discovery import router as discovery_router
+from .api.discovery import shutdown_discovery_service
 from .api.health import router as health_router
-from .api.discovery import router as discovery_router, shutdown_discovery_service
-from .api.storage import router as storage_router
-from .api.websocket_router import router as websocket_router
 from .api.health_router import router as health_api_router
+from .api.hygiene_router import router as hygiene_router
 from .api.predictions_router import router as predictions_router
 from .api.recommendations_router import router as recommendations_router
-from .api.database_management import router as database_management_router
-from .api.hygiene_router import router as hygiene_router
+from .api.storage import router as storage_router
 from .api.team_tracker_router import router as team_tracker_router
-from .api.devices import router as devices_router
-from .core.database import initialize_database, close_database
+from .api.websocket_router import router as websocket_router
+from .config import Settings
+from .core.database import close_database, initialize_database
 from .core.predictive_analytics import PredictiveAnalyticsEngine
 
 # Configure logging
@@ -43,10 +44,10 @@ settings = Settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
-    analytics_engine: Optional[PredictiveAnalyticsEngine] = None
+    analytics_engine: PredictiveAnalyticsEngine | None = None
     logger.info("🚀 Device Intelligence Service starting up...")
     logger.info(f"📊 Service configuration loaded: Port {settings.DEVICE_INTELLIGENCE_PORT}")
-    
+
     try:
         settings.validate_required_runtime_fields()
         await initialize_database(settings)
@@ -92,19 +93,19 @@ app.add_middleware(
 async def add_process_time_header(request: Request, call_next):
     """Add processing time header and log requests/responses."""
     start_time = time.perf_counter()
-    
+
     # Log request
     logger.info(f"📥 Request: {request.method} {request.url}")
-    
+
     response = await call_next(request)
-    
+
     # Calculate processing time
     process_time = time.perf_counter() - start_time
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     # Log response
     logger.info(f"📤 Response: {response.status_code} ({process_time:.3f}s)")
-    
+
     return response
 
 # Add error handling middleware
@@ -149,7 +150,7 @@ app.include_router(devices_router, prefix="/api", tags=["Devices"])
 
 # Root endpoint
 @app.get("/")
-async def root() -> Dict[str, Any]:
+async def root() -> dict[str, Any]:
     """Root endpoint providing service information."""
     return {
         "service": "Device Intelligence Service",

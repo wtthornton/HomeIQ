@@ -11,11 +11,12 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Set
-from ...services.comprehensive_entity_enrichment import enrich_entities_comprehensively
-from ...clients.ha_client import HomeAssistantClient
-from ...clients.device_intelligence_client import DeviceIntelligenceClient
+from typing import Any
+
 from ...clients.data_api_client import DataAPIClient
+from ...clients.device_intelligence_client import DeviceIntelligenceClient
+from ...clients.ha_client import HomeAssistantClient
+from ...services.comprehensive_entity_enrichment import enrich_entities_comprehensively
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,12 @@ class EntityEnricher:
     - Historical patterns (usage data)
     - Enrichment context (weather, carbon, energy, air quality)
     """
-    
+
     def __init__(
         self,
-        ha_client: Optional[HomeAssistantClient] = None,
-        device_intelligence_client: Optional[DeviceIntelligenceClient] = None,
-        data_api_client: Optional[DataAPIClient] = None
+        ha_client: HomeAssistantClient | None = None,
+        device_intelligence_client: DeviceIntelligenceClient | None = None,
+        data_api_client: DataAPIClient | None = None
     ):
         """
         Initialize unified entity enricher.
@@ -48,15 +49,15 @@ class EntityEnricher:
         self.ha_client = ha_client
         self.device_intelligence_client = device_intelligence_client
         self.data_api_client = data_api_client
-        
+
         logger.info("EntityEnricher initialized")
-    
+
     async def enrich(
         self,
-        entity_ids: List[str],
+        entity_ids: list[str],
         include_historical: bool = False,
-        enrichment_context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        enrichment_context: dict[str, Any] | None = None
+    ) -> dict[str, dict[str, Any]]:
         """
         Enrich entities with comprehensive data.
         
@@ -70,7 +71,7 @@ class EntityEnricher:
         """
         if not entity_ids:
             return {}
-        
+
         try:
             # Use comprehensive enrichment function
             enriched = await enrich_entities_comprehensively(
@@ -81,10 +82,10 @@ class EntityEnricher:
                 include_historical=include_historical,
                 enrichment_context=enrichment_context
             )
-            
+
             logger.info(f"✅ Enriched {len(enriched)}/{len(entity_ids)} entities")
             return enriched
-            
+
         except Exception as e:
             logger.error(f"❌ Entity enrichment failed: {e}", exc_info=True)
             return {}

@@ -5,20 +5,19 @@ Main discovery service that orchestrates device discovery from multiple sources.
 """
 
 import asyncio
-import json
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any
 
-from ..clients.ha_client import HADevice, HAEntity, HAArea
+from ..clients.ha_client import HAArea, HADevice, HAEntity
 from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
-from .device_parser import DeviceParser, UnifiedDevice
-from .cache import get_device_cache
+from ..config import Settings
+from ..core.database import get_db_session
 from ..services.device_service import DeviceService
 from ..services.hygiene_analyzer import DeviceHygieneAnalyzer
-from ..core.database import get_db_session
-from ..config import Settings
+from .cache import get_device_cache
+from .device_parser import DeviceParser, UnifiedDevice
 
 logger = logging.getLogger(__name__)
 
@@ -29,18 +28,18 @@ class DiscoveryStatus:
     service_running: bool
     ha_connected: bool
     mqtt_connected: bool
-    last_discovery: Optional[datetime]
+    last_discovery: datetime | None
     devices_count: int
     areas_count: int
-    errors: List[str]
+    errors: list[str]
 
 
 class DiscoveryService:
     """Main discovery service orchestrating device discovery from multiple sources."""
-    
+
     def __init__(self, settings: Settings):
         self.settings = settings
-        
+
         # Clients - HA client will be initialized with unified connection manager
         self.ha_client = None  # Will be initialized in start() method
         self.mqtt_client = MQTTClient(
@@ -49,30 +48,30 @@ class DiscoveryService:
             settings.MQTT_PASSWORD,
             settings.ZIGBEE2MQTT_BASE_TOPIC
         )
-        
+
         # Parser
         self.device_parser = DeviceParser()
-        
+
         # State
         self.running = False
-        self.discovery_task: Optional[asyncio.Task] = None
-        self.last_discovery: Optional[datetime] = None
-        self.errors: List[str] = []
-        
+        self.discovery_task: asyncio.Task | None = None
+        self.last_discovery: datetime | None = None
+        self.errors: list[str] = []
+
         # Data
-        self.unified_devices: Dict[str, UnifiedDevice] = {}
-        self.ha_devices: List[HADevice] = []
-        self.ha_entities: List[HAEntity] = []
-        self.ha_areas: List[HAArea] = []
-        self.ha_config_entries: Dict[str, str] = {}  # Maps config_entry_id -> domain/integration
-        self.zigbee_devices: Dict[str, ZigbeeDevice] = {}
-        self.zigbee_groups: Dict[int, ZigbeeGroup] = {}
-    
+        self.unified_devices: dict[str, UnifiedDevice] = {}
+        self.ha_devices: list[HADevice] = []
+        self.ha_entities: list[HAEntity] = []
+        self.ha_areas: list[HAArea] = []
+        self.ha_config_entries: dict[str, str] = {}  # Maps config_entry_id -> domain/integration
+        self.zigbee_devices: dict[str, ZigbeeDevice] = {}
+        self.zigbee_groups: dict[int, ZigbeeGroup] = {}
+
     async def start(self) -> bool:
         """Start the discovery service."""
         try:
             logger.info("🚀 Starting Device Intelligence Discovery Service")
-            
+
             # Initialize HA client with configured settings
             from ..clients.ha_client import HomeAssistantClient
             self.ha_client = HomeAssistantClient(
@@ -80,18 +79,18 @@ class DiscoveryService:
                 None,  # No fallback URL for now
                 self.settings.HA_TOKEN
             )
-            
+
             # Connect to Home Assistant
             if not await self.ha_client.connect():
                 logger.error("❌ Failed to connect to Home Assistant")
                 return False
-            
+
             # Start HA message handler
             await self.ha_client.start_message_handler()
-            
+
             # Subscribe to registry update events for real-time cache updates
             await self._subscribe_to_registry_updates()
-            
+
             # Connect to MQTT broker (optional - can discover HA devices without Zigbee)
             if await self.mqtt_client.connect():
                 logger.info("✅ Connected to MQTT broker")
@@ -100,25 +99,25 @@ class DiscoveryService:
                 self.mqtt_client.register_message_handler("groups", self._on_zigbee_groups_update)
             else:
                 logger.warning("⚠️  MQTT broker connection failed - will continue without Zigbee devices")
-            
+
             # Start discovery task
             self.running = True
             self.discovery_task = asyncio.create_task(self._discovery_loop())
-            
+
             logger.info("✅ Discovery service started successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to start discovery service: {e}")
             self.errors.append(f"Startup error: {str(e)}")
             return False
-    
+
     async def stop(self):
         """Stop the discovery service."""
         logger.info("🛑 Stopping Discovery Service")
-        
+
         self.running = False
-        
+
         # Cancel discovery task
         if self.discovery_task:
             self.discovery_task.cancel()
@@ -126,21 +125,21 @@ class DiscoveryService:
                 await self.discovery_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Disconnect clients
         if self.ha_client:
             await self.ha_client.disconnect()
         await self.mqtt_client.disconnect()
-        
+
         logger.info("✅ Discovery service stopped")
-    
+
     async def _discovery_loop(self):
         """Main discovery loop."""
         logger.info("🔄 Starting discovery loop")
-        
+
         # Initial discovery
         await self._perform_discovery()
-        
+
         # Periodic discovery
         while self.running:
             try:
@@ -153,19 +152,19 @@ class DiscoveryService:
                 logger.error(f"❌ Error in discovery loop: {e}")
                 self.errors.append(f"Discovery loop error: {str(e)}")
                 await asyncio.sleep(60)  # Wait before retry
-    
+
     async def _perform_discovery(self):
         """Perform full device discovery."""
         try:
             logger.info("🔍 Performing device discovery")
-            
+
             # Discover Home Assistant data
             await self._discover_home_assistant()
-            
+
             # Discover Zigbee2MQTT data (already handled by MQTT callbacks)
             # But we can trigger a refresh if needed
             await self._refresh_zigbee_data()
-            
+
             # Parse and unify device data
             await self._unify_device_data()
             await self._run_hygiene_analysis()
@@ -173,11 +172,11 @@ class DiscoveryService:
             # Update last discovery timestamp
             self.last_discovery = datetime.now(timezone.utc)
             logger.info(f"✅ Discovery completed at {self.last_discovery.isoformat()}: {len(self.unified_devices)} devices")
-            
+
         except Exception as e:
             logger.error(f"❌ Error during discovery: {e}")
             self.errors.append(f"Discovery error: {str(e)}")
-    
+
     async def _run_hygiene_analysis(self):
         """Analyze device hygiene and persist findings."""
         try:
@@ -215,7 +214,7 @@ class DiscoveryService:
         except Exception as e:
             logger.error(f"❌ Error discovering Home Assistant data: {e}")
             raise
-    
+
     async def _subscribe_to_registry_updates(self):
         """
         Subscribe to entity and device registry update events.
@@ -224,43 +223,43 @@ class DiscoveryService:
         are added, removed, or modified in Home Assistant.
         """
         try:
-            async def handle_entity_registry_update(event_data: Dict[str, Any]):
+            async def handle_entity_registry_update(event_data: dict[str, Any]):
                 """Handle entity registry update event."""
                 action = event_data.get("event", {}).get("action", "unknown")
                 entity_id = event_data.get("event", {}).get("entity_id", "unknown")
                 logger.info(f"📋 Entity registry updated: {action} - {entity_id}")
-                
+
                 # Trigger incremental update for entity changes
                 if action in ["create", "update", "remove"]:
                     logger.info(f"🔄 Triggering incremental discovery due to entity {action}")
                     # Perform a lightweight discovery update (just HA entities)
                     await self._discover_home_assistant()
                     await self._unify_device_data()
-            
-            async def handle_device_registry_update(event_data: Dict[str, Any]):
+
+            async def handle_device_registry_update(event_data: dict[str, Any]):
                 """Handle device registry update event."""
                 action = event_data.get("event", {}).get("action", "unknown")
                 device_id = event_data.get("event", {}).get("device_id", "unknown")
                 logger.info(f"📱 Device registry updated: {action} - {device_id}")
-                
+
                 # Trigger incremental update for device changes
                 if action in ["create", "update", "remove"]:
                     logger.info(f"🔄 Triggering incremental discovery due to device {action}")
                     # Perform a lightweight discovery update (just HA devices/entities)
                     await self._discover_home_assistant()
                     await self._unify_device_data()
-            
+
             await self.ha_client.subscribe_to_registry_updates(
                 entity_callback=handle_entity_registry_update,
                 device_callback=handle_device_registry_update
             )
-            
+
             logger.info("✅ Subscribed to registry update events")
-            
+
         except Exception as e:
             logger.warning(f"⚠️ Failed to subscribe to registry updates: {e}")
             # Don't fail startup if subscriptions fail - we still have periodic discovery
-    
+
     async def _refresh_zigbee_data(self):
         """Refresh Zigbee2MQTT data by requesting bridge info."""
         try:
@@ -271,55 +270,55 @@ class DiscoveryService:
                 request_topic = f"{base_topic}/bridge/request/device/list"
                 self.mqtt_client.client.publish(request_topic, "{}")  # Empty JSON payload
                 logger.debug(f"📡 Requested Zigbee2MQTT device list refresh via {request_topic}")
-                
+
                 # Also request groups
                 group_request_topic = f"{base_topic}/bridge/request/group/list"
                 self.mqtt_client.client.publish(group_request_topic, "{}")
                 logger.debug(f"📡 Requested Zigbee2MQTT group list refresh via {group_request_topic}")
-            
+
         except Exception as e:
             logger.error(f"❌ Error refreshing Zigbee data: {e}")
-    
+
     async def _unify_device_data(self):
         """Unify device data from all sources."""
         try:
             logger.info("🔄 Unifying device data from all sources")
-            
+
             # Parse devices
             unified_devices = self.device_parser.parse_devices(
                 self.ha_devices,
                 self.ha_entities,
                 self.zigbee_devices
             )
-            
+
             # Update unified devices in memory
             self.unified_devices = {device.id: device for device in unified_devices}
-            
+
             # Store devices in database
             await self._store_devices_in_database(unified_devices)
-            
+
             # Invalidate cache for all updated devices (device-level invalidation)
             cache = get_device_cache()
             for device in unified_devices:
                 await cache.delete(device.id)
-            
+
             if unified_devices:
                 logger.info(f"✅ Unified {len(self.unified_devices)} devices and invalidated cache")
-            
+
         except Exception as e:
             logger.error(f"❌ Error unifying device data: {e}")
             raise
-    
-    async def _store_devices_in_database(self, unified_devices: List[UnifiedDevice]):
+
+    async def _store_devices_in_database(self, unified_devices: list[UnifiedDevice]):
         """Store unified devices and their capabilities in the database."""
         try:
             logger.info(f"💾 Storing {len(unified_devices)} devices in database")
-            
+
             # Convert UnifiedDevice objects to database format
             devices_data = []
             capabilities_data = []
             missing_integrations = []
-            
+
             for device in unified_devices:
                 integration_value = (device.integration or "").strip()
                 if not integration_value:
@@ -380,9 +379,9 @@ class DiscoveryService:
                 # Remove the JSON fields that were initialized to None to avoid SQLAlchemy issues
                 device_data.pop("connections_json", None)
                 device_data.pop("identifiers_json", None)
-                
+
                 devices_data.append(device_data)
-                
+
                 # Store capabilities for this device
                 if device.capabilities:
                     for capability in device.capabilities:
@@ -397,36 +396,36 @@ class DiscoveryService:
                             "last_updated": datetime.now(timezone.utc)
                         }
                         capabilities_data.append(capability_data)
-            
+
             if missing_integrations:
                 logger.warning(
                     "⚠️ %d devices missing integration metadata (showing up to 5 IDs): %s",
                     len(missing_integrations),
                     missing_integrations[:5],
                 )
-            
+
             # Store in database using DeviceService
             async for session in get_db_session():
                 device_service = DeviceService(session)
                 await device_service.bulk_upsert_devices(devices_data)
-                
+
                 # Store capabilities if any
                 if capabilities_data:
                     await device_service.bulk_upsert_capabilities(capabilities_data)
-                
+
                 break  # Only need one session
-            
+
             logger.info(f"✅ Stored {len(devices_data)} devices and {len(capabilities_data)} capabilities in database")
-            
+
         except Exception as e:
             logger.error(f"❌ Error storing devices in database: {e}")
             raise
-    
-    async def _on_zigbee_devices_update(self, data: List[Dict[str, Any]]):
+
+    async def _on_zigbee_devices_update(self, data: list[dict[str, Any]]):
         """Handle Zigbee2MQTT devices update."""
         try:
             logger.info(f"📱 Zigbee2MQTT devices updated: {len(data)} devices")
-            
+
             # Update Zigbee devices
             for device_data in data:
                 zigbee_device = ZigbeeDevice(
@@ -446,20 +445,20 @@ class DiscoveryService:
                     exposes=device_data.get("definition", {}).get("exposes", []),
                     capabilities={}
                 )
-                
+
                 self.zigbee_devices[zigbee_device.ieee_address] = zigbee_device
-            
+
             # Trigger device unification
             await self._unify_device_data()
-            
+
         except Exception as e:
             logger.error(f"❌ Error handling Zigbee devices update: {e}")
-    
-    async def _on_zigbee_groups_update(self, data: List[Dict[str, Any]]):
+
+    async def _on_zigbee_groups_update(self, data: list[dict[str, Any]]):
         """Handle Zigbee2MQTT groups update."""
         try:
             logger.info(f"👥 Zigbee2MQTT groups updated: {len(data)} groups")
-            
+
             # Update Zigbee groups
             for group_data in data:
                 group = ZigbeeGroup(
@@ -468,12 +467,12 @@ class DiscoveryService:
                     members=group_data.get("members", []),
                     scenes=group_data.get("scenes", [])
                 )
-                
+
                 self.zigbee_groups[group.id] = group
-            
+
         except Exception as e:
             logger.error(f"❌ Error handling Zigbee groups update: {e}")
-    
+
     async def force_refresh(self) -> bool:
         """Force a complete discovery refresh."""
         try:
@@ -483,7 +482,7 @@ class DiscoveryService:
         except Exception as e:
             logger.error(f"❌ Error during forced refresh: {e}")
             return False
-    
+
     def get_status(self) -> DiscoveryStatus:
         """Get discovery service status."""
         return DiscoveryStatus(
@@ -495,27 +494,27 @@ class DiscoveryService:
             areas_count=len(self.ha_areas),
             errors=self.errors[-10:]  # Last 10 errors
         )
-    
-    def get_devices(self) -> List[UnifiedDevice]:
+
+    def get_devices(self) -> list[UnifiedDevice]:
         """Get all discovered devices."""
         return list(self.unified_devices.values())
-    
-    def get_device(self, device_id: str) -> Optional[UnifiedDevice]:
+
+    def get_device(self, device_id: str) -> UnifiedDevice | None:
         """Get specific device by ID."""
         return self.unified_devices.get(device_id)
-    
-    def get_devices_by_area(self, area_id: str) -> List[UnifiedDevice]:
+
+    def get_devices_by_area(self, area_id: str) -> list[UnifiedDevice]:
         """Get devices by area ID."""
         return [d for d in self.unified_devices.values() if d.area_id == area_id]
-    
-    def get_devices_by_integration(self, integration: str) -> List[UnifiedDevice]:
+
+    def get_devices_by_integration(self, integration: str) -> list[UnifiedDevice]:
         """Get devices by integration type."""
         return [d for d in self.unified_devices.values() if d.integration == integration]
-    
-    def get_areas(self) -> List[HAArea]:
+
+    def get_areas(self) -> list[HAArea]:
         """Get all discovered areas."""
         return self.ha_areas.copy()
-    
-    def get_zigbee_groups(self) -> List[ZigbeeGroup]:
+
+    def get_zigbee_groups(self) -> list[ZigbeeGroup]:
         """Get all discovered Zigbee groups."""
         return list(self.zigbee_groups.values())

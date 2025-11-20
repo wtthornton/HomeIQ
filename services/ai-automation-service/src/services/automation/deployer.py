@@ -8,7 +8,8 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, Optional, Any
+from typing import Any
+
 from ...clients.ha_client import HomeAssistantClient
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class AutomationDeployer:
     
     Handles deployment, validation, and error recovery.
     """
-    
+
     def __init__(
         self,
         ha_client: HomeAssistantClient
@@ -32,14 +33,14 @@ class AutomationDeployer:
             ha_client: Home Assistant client for deployment
         """
         self.ha_client = ha_client
-        
+
         logger.info("AutomationDeployer initialized")
-    
+
     async def deploy(
         self,
         automation_yaml: str,
-        automation_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        automation_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Deploy automation to Home Assistant.
         
@@ -56,10 +57,10 @@ class AutomationDeployer:
                 automation_yaml=automation_yaml,
                 automation_id=automation_id
             )
-            
+
             logger.info(f"✅ Automation deployed: {result.get('automation_id', 'unknown')}")
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Deployment failed: {e}", exc_info=True)
             raise

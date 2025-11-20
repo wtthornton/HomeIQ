@@ -5,9 +5,10 @@ Unit tests for DescriptionGenerator - Story AI1.23 Phase 2
 Tests description-only generation without YAML.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from src.llm.description_generator import DescriptionGenerator, SYSTEM_PROMPT_DESCRIPTION
+from src.llm.description_generator import SYSTEM_PROMPT_DESCRIPTION, DescriptionGenerator
 
 
 @pytest.fixture
@@ -45,7 +46,7 @@ async def test_generate_description_time_of_day(description_generator, mock_open
     """Test description generation for time-of-day pattern"""
     # Setup
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.living_room',
@@ -54,22 +55,22 @@ async def test_generate_description_time_of_day(description_generator, mock_open
         'occurrences': 24,
         'confidence': 0.89
     }
-    
+
     device_context = {
         'name': 'Living Room Light',
         'area': 'Living Room',
         'domain': 'light'
     }
-    
+
     # Execute
     description = await description_generator.generate_description(pattern, device_context)
-    
+
     # Assert
     assert description == "When motion is detected in the Living Room after 6PM, turn on the Living Room Light to 50% brightness"
     assert "Living Room" in description
     assert "light.living_room" not in description  # No entity IDs!
     assert "alias:" not in description  # No YAML!
-    
+
     # Verify OpenAI was called correctly
     mock_openai_client.chat.completions.create.assert_called_once()
     call_args = mock_openai_client.chat.completions.create.call_args
@@ -91,9 +92,9 @@ async def test_generate_description_co_occurrence(description_generator, mock_op
     mock_response.usage.prompt_tokens = 160
     mock_response.usage.completion_tokens = 20
     mock_response.usage.total_tokens = 180
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     pattern = {
         'pattern_type': 'co_occurrence',
         'device1': 'light.living_room',
@@ -102,15 +103,15 @@ async def test_generate_description_co_occurrence(description_generator, mock_op
         'confidence': 0.85,
         'metadata': {'avg_time_delta_seconds': 45}
     }
-    
+
     device_context = {
         'device1': {'name': 'Living Room Light'},
         'device2': {'name': 'Living Room Fan'}
     }
-    
+
     # Execute
     description = await description_generator.generate_description(pattern, device_context)
-    
+
     # Assert
     assert "Living Room Light" in description
     assert "Living Room Fan" in description
@@ -129,23 +130,23 @@ async def test_generate_description_anomaly(description_generator, mock_openai_c
     mock_response.usage.prompt_tokens = 140
     mock_response.usage.completion_tokens = 15
     mock_response.usage.total_tokens = 155
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     pattern = {
         'pattern_type': 'anomaly',
         'device_id': 'cover.garage_door',
         'confidence': 0.78,
         'metadata': {'anomaly_score': 0.92}
     }
-    
+
     device_context = {
         'name': 'Garage Door'
     }
-    
+
     # Execute
     description = await description_generator.generate_description(pattern, device_context)
-    
+
     # Assert
     assert "Garage Door" in description
     assert "cover.garage_door" not in description
@@ -170,19 +171,19 @@ trigger:
     mock_response.usage.prompt_tokens = 150
     mock_response.usage.completion_tokens = 30
     mock_response.usage.total_tokens = 180
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.kitchen',
         'hour': 7,
         'minute': 0
     }
-    
+
     # Execute
     description = await description_generator.generate_description(pattern, None)
-    
+
     # Assert - YAML should be filtered out
     assert description == "When motion detected, turn on light"
     assert "alias:" not in description
@@ -198,17 +199,17 @@ async def test_tracks_token_usage(description_generator, mock_openai_client, moc
     """Test that token usage is tracked correctly"""
     # Setup
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.kitchen',
         'hour': 7,
         'minute': 0
     }
-    
+
     # Execute
     await description_generator.generate_description(pattern, None)
-    
+
     # Assert
     stats = description_generator.get_usage_stats()
     assert stats['total_tokens'] == 175
@@ -223,20 +224,20 @@ async def test_resets_token_usage(description_generator, mock_openai_client, moc
     """Test that token usage can be reset"""
     # Setup
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.kitchen',
         'hour': 7
     }
-    
+
     # Generate description to accumulate tokens
     await description_generator.generate_description(pattern, None)
     assert description_generator.get_usage_stats()['total_tokens'] == 175
-    
+
     # Reset
     description_generator.reset_usage_stats()
-    
+
     # Assert reset
     stats = description_generator.get_usage_stats()
     assert stats['total_tokens'] == 0
@@ -259,16 +260,16 @@ async def test_retries_on_failure(description_generator, mock_openai_client, moc
             mock_openai_response
         ]
     )
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.kitchen',
         'hour': 7
     }
-    
+
     # Execute - should succeed after retries
     description = await description_generator.generate_description(pattern, None)
-    
+
     # Assert
     assert description is not None
     assert mock_openai_client.chat.completions.create.call_count == 3
@@ -281,17 +282,17 @@ async def test_raises_after_max_retries(description_generator, mock_openai_clien
     mock_openai_client.chat.completions.create = AsyncMock(
         side_effect=Exception("API error")
     )
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.kitchen',
         'hour': 7
     }
-    
+
     # Execute - should raise after 3 retries
     with pytest.raises(Exception, match="API error"):
         await description_generator.generate_description(pattern, None)
-    
+
     # Assert - tried 3 times
     assert mock_openai_client.chat.completions.create.call_count == 3
 
@@ -310,15 +311,15 @@ def test_build_time_of_day_prompt(description_generator):
         'occurrences': 24,
         'confidence': 0.89
     }
-    
+
     device_context = {
         'name': 'Kitchen Light',
         'area': 'Kitchen',
         'domain': 'light'
     }
-    
+
     prompt = description_generator._build_time_of_day_prompt(pattern, device_context)
-    
+
     # Assert prompt includes key information
     assert "Kitchen Light" in prompt
     assert "Kitchen" in prompt
@@ -338,14 +339,14 @@ def test_build_co_occurrence_prompt(description_generator):
         'confidence': 0.85,
         'metadata': {'avg_time_delta_seconds': 45}
     }
-    
+
     device_context = {
         'device1': {'name': 'Living Room Light'},
         'device2': {'name': 'Living Room Fan'}
     }
-    
+
     prompt = description_generator._build_co_occurrence_prompt(pattern, device_context)
-    
+
     # Assert prompt includes both devices
     assert "Living Room Light" in prompt
     assert "Living Room Fan" in prompt
@@ -362,7 +363,7 @@ async def test_generate_from_real_pattern_structure(description_generator, mock_
     """Test with pattern structure matching actual database records"""
     # Setup
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
-    
+
     # Real pattern structure from database
     pattern = {
         'id': 123,
@@ -376,10 +377,10 @@ async def test_generate_from_real_pattern_structure(description_generator, mock_
             'avg_time_decimal': 7.0
         }
     }
-    
+
     # Execute
     description = await description_generator.generate_description(pattern, None)
-    
+
     # Assert
     assert description is not None
     assert len(description) > 0
@@ -391,17 +392,17 @@ async def test_handles_missing_device_context(description_generator, mock_openai
     """Test that generator works without device context"""
     # Setup
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
-    
+
     pattern = {
         'pattern_type': 'time_of_day',
         'device_id': 'light.unknown_device',
         'hour': 12,
         'minute': 0
     }
-    
+
     # Execute - no device_context provided
     description = await description_generator.generate_description(pattern, None)
-    
+
     # Assert - should use entity_id as fallback
     assert description is not None
     # May contain either friendly name or entity ID

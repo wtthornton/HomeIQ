@@ -4,9 +4,8 @@ Device Intelligence Service - Main App Tests
 Tests for the main FastAPI application.
 """
 
-import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+
 
 class TestMainApp:
     """Test main FastAPI application."""

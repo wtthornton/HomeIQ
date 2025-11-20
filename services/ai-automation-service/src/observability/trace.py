@@ -2,13 +2,13 @@
 Decision Trace - JSON trace for every decision
 """
 
-from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
 import json
-import uuid
 import logging
+import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +30,22 @@ class DecisionTrace:
     """
     trace_id: str
     timestamp: str
-    prompt: Optional[str] = None
-    provider_id: Optional[str] = None
-    model_id: Optional[str] = None
-    prompt_pack_id: Optional[str] = None
-    raw_llm_json: Optional[Dict[str, Any]] = None
-    validation_results: Optional[Dict[str, Any]] = None
-    ranking_features: Optional[Dict[str, Any]] = None
-    ranking_scores: Optional[Dict[str, Any]] = None
-    final_plan: Optional[Dict[str, Any]] = None
-    diff: Optional[Dict[str, Any]] = None
-    timings: Optional[Dict[str, float]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    prompt: str | None = None
+    provider_id: str | None = None
+    model_id: str | None = None
+    prompt_pack_id: str | None = None
+    raw_llm_json: dict[str, Any] | None = None
+    validation_results: dict[str, Any] | None = None
+    ranking_features: dict[str, Any] | None = None
+    ranking_scores: dict[str, Any] | None = None
+    final_plan: dict[str, Any] | None = None
+    diff: dict[str, Any] | None = None
+    timings: dict[str, float] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return asdict(self)
-    
+
     def to_json(self) -> str:
         """Convert to JSON string"""
         return json.dumps(self.to_dict(), indent=2, default=str)
@@ -87,7 +87,7 @@ def write_trace(trace: DecisionTrace) -> str:
         trace_file = trace_dir / f"{trace.trace_id}.json"
         with open(trace_file, 'w') as f:
             f.write(trace.to_json())
-        
+
         logger.debug(f"Trace written: {trace.trace_id}")
         return trace.trace_id
     except Exception as e:
@@ -95,7 +95,7 @@ def write_trace(trace: DecisionTrace) -> str:
         return trace.trace_id  # Return trace_id even if write failed
 
 
-def get_trace(trace_id: str) -> Optional[DecisionTrace]:
+def get_trace(trace_id: str) -> DecisionTrace | None:
     """
     Retrieve trace by ID.
     
@@ -110,10 +110,10 @@ def get_trace(trace_id: str) -> Optional[DecisionTrace]:
         trace_file = trace_dir / f"{trace_id}.json"
         if not trace_file.exists():
             return None
-        
+
         with open(trace_file) as f:
             data = json.load(f)
-        
+
         return DecisionTrace(**data)
     except Exception as e:
         logger.error(f"Failed to read trace {trace_id}: {e}")
@@ -121,17 +121,17 @@ def get_trace(trace_id: str) -> Optional[DecisionTrace]:
 
 
 def create_trace(
-    prompt: Optional[str] = None,
-    provider_id: Optional[str] = None,
-    model_id: Optional[str] = None,
-    prompt_pack_id: Optional[str] = None,
-    raw_llm_json: Optional[Dict[str, Any]] = None,
-    validation_results: Optional[Dict[str, Any]] = None,
-    ranking_features: Optional[Dict[str, Any]] = None,
-    ranking_scores: Optional[Dict[str, Any]] = None,
-    final_plan: Optional[Dict[str, Any]] = None,
-    diff: Optional[Dict[str, Any]] = None,
-    timings: Optional[Dict[str, float]] = None
+    prompt: str | None = None,
+    provider_id: str | None = None,
+    model_id: str | None = None,
+    prompt_pack_id: str | None = None,
+    raw_llm_json: dict[str, Any] | None = None,
+    validation_results: dict[str, Any] | None = None,
+    ranking_features: dict[str, Any] | None = None,
+    ranking_scores: dict[str, Any] | None = None,
+    final_plan: dict[str, Any] | None = None,
+    diff: dict[str, Any] | None = None,
+    timings: dict[str, float] | None = None
 ) -> DecisionTrace:
     """
     Create a new decision trace.

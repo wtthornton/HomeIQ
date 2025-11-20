@@ -5,10 +5,8 @@ Revises: 20250121_model_comparison
 Create Date: 2025-11-20 13:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20251120_confidence_improvements'
@@ -21,14 +19,14 @@ def upgrade():
     # Add risk_tolerance to system_settings
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    
+
     # Check if system_settings table exists and get its columns
     if inspector.has_table('system_settings'):
         columns = [col['name'] for col in inspector.get_columns('system_settings')]
-        
+
         if 'risk_tolerance' not in columns:
             op.add_column('system_settings', sa.Column('risk_tolerance', sa.String(), nullable=False, server_default='medium'))
-    
+
     # Create clarification_confidence_feedback table
     if not inspector.has_table('clarification_confidence_feedback'):
         op.create_table(
@@ -48,7 +46,7 @@ def upgrade():
         )
         op.create_index('idx_clarification_feedback_session', 'clarification_confidence_feedback', ['session_id', 'created_at'])
         op.create_index('idx_clarification_feedback_confidence', 'clarification_confidence_feedback', ['raw_confidence'])
-    
+
     # Create clarification_outcomes table
     if not inspector.has_table('clarification_outcomes'):
         op.create_table(
@@ -79,11 +77,11 @@ def downgrade():
     op.drop_index('idx_clarification_outcome_user', table_name='clarification_outcomes')
     op.drop_index('idx_clarification_outcome_query', table_name='clarification_outcomes')
     op.drop_table('clarification_outcomes')
-    
+
     op.drop_index('idx_clarification_feedback_confidence', table_name='clarification_confidence_feedback')
     op.drop_index('idx_clarification_feedback_session', table_name='clarification_confidence_feedback')
     op.drop_table('clarification_confidence_feedback')
-    
+
     # Remove risk_tolerance from system_settings
     conn = op.get_bind()
     inspector = sa.inspect(conn)

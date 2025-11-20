@@ -5,11 +5,11 @@ Unit tests for SuggestionRefiner - Story AI1.23 Phase 3
 Tests conversational refinement with natural language edits.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import json
+from unittest.mock import AsyncMock, MagicMock
 
-from src.llm.suggestion_refiner import SuggestionRefiner, ValidationResult, RefinementResult
+import pytest
+from src.llm.suggestion_refiner import SuggestionRefiner
 
 
 @pytest.fixture
@@ -88,9 +88,9 @@ async def test_refine_with_valid_color_change(suggestion_refiner, mock_openai_cl
     mock_response.usage.prompt_tokens = 200
     mock_response.usage.completion_tokens = 50
     mock_response.usage.total_tokens = 250
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute
     result = await suggestion_refiner.refine_description(
         current_description="When motion is detected in the Living Room after 6PM, turn on the Living Room Light to 50% brightness",
@@ -98,7 +98,7 @@ async def test_refine_with_valid_color_change(suggestion_refiner, mock_openai_cl
         device_capabilities=device_capabilities_rgb,
         conversation_history=[]
     )
-    
+
     # Assert
     assert "blue" in result.updated_description.lower()
     assert result.validation.ok == True
@@ -127,9 +127,9 @@ async def test_refine_with_invalid_color_change(suggestion_refiner, mock_openai_
     mock_response.usage.prompt_tokens = 210
     mock_response.usage.completion_tokens = 60
     mock_response.usage.total_tokens = 270
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute
     result = await suggestion_refiner.refine_description(
         current_description="When motion is detected in the Bedroom after 10PM, turn on the Bedroom Light to 50% brightness",
@@ -137,7 +137,7 @@ async def test_refine_with_invalid_color_change(suggestion_refiner, mock_openai_
         device_capabilities=device_capabilities_no_rgb,
         conversation_history=[]
     )
-    
+
     # Assert
     assert result.validation.ok == False
     assert len(result.validation.warnings) > 0
@@ -169,9 +169,9 @@ async def test_refine_with_multiple_changes(suggestion_refiner, mock_openai_clie
     mock_response.usage.prompt_tokens = 220
     mock_response.usage.completion_tokens = 55
     mock_response.usage.total_tokens = 275
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute
     result = await suggestion_refiner.refine_description(
         current_description="When motion is detected in the Living Room after 6PM, turn on the Living Room Light to 50% brightness",
@@ -179,7 +179,7 @@ async def test_refine_with_multiple_changes(suggestion_refiner, mock_openai_clie
         device_capabilities=device_capabilities_rgb,
         conversation_history=[]
     )
-    
+
     # Assert
     assert "blue" in result.updated_description.lower()
     assert "weekday" in result.updated_description.lower()
@@ -198,7 +198,7 @@ async def test_validate_feasibility_color_supported(suggestion_refiner, device_c
         "Make it blue",
         device_capabilities_rgb
     )
-    
+
     assert result.ok == True
     assert any("rgb" in msg.lower() or "color" in msg.lower() for msg in result.messages)
 
@@ -210,7 +210,7 @@ async def test_validate_feasibility_color_not_supported(suggestion_refiner, devi
         "Make it blue",
         device_capabilities_no_rgb
     )
-    
+
     assert result.ok == False
     assert len(result.warnings) > 0
     assert len(result.alternatives) > 0
@@ -223,7 +223,7 @@ async def test_validate_feasibility_brightness_supported(suggestion_refiner, dev
         "Set brightness to 75%",
         device_capabilities_rgb
     )
-    
+
     assert result.ok == True
     assert any("brightness" in msg.lower() for msg in result.messages)
 
@@ -235,7 +235,7 @@ async def test_validate_feasibility_time_conditions_always_ok(suggestion_refiner
         "Only on weekdays",
         device_capabilities_rgb
     )
-    
+
     assert result.ok == True
     assert any("time" in msg.lower() or "condition" in msg.lower() for msg in result.messages)
 
@@ -260,9 +260,9 @@ async def test_includes_conversation_history_in_prompt(suggestion_refiner, mock_
     mock_response.usage.prompt_tokens = 250
     mock_response.usage.completion_tokens = 40
     mock_response.usage.total_tokens = 290
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Conversation history with 2 previous edits
     history = [
         {
@@ -276,7 +276,7 @@ async def test_includes_conversation_history_in_prompt(suggestion_refiner, mock_
             "timestamp": "2025-10-17T18:31:00Z"
         }
     ]
-    
+
     # Execute
     result = await suggestion_refiner.refine_description(
         current_description="Current description",
@@ -284,10 +284,10 @@ async def test_includes_conversation_history_in_prompt(suggestion_refiner, mock_
         device_capabilities=device_capabilities_rgb,
         conversation_history=history
     )
-    
+
     # Assert - check that OpenAI was called
     assert mock_openai_client.chat.completions.create.called
-    
+
     # Check that prompt includes history
     call_args = mock_openai_client.chat.completions.create.call_args
     prompt = call_args.kwargs['messages'][1]['content']
@@ -311,16 +311,16 @@ async def test_history_entry_created(suggestion_refiner, mock_openai_client, dev
     mock_response.usage.prompt_tokens = 200
     mock_response.usage.completion_tokens = 50
     mock_response.usage.total_tokens = 250
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute
     result = await suggestion_refiner.refine_description(
         current_description="Old description",
         user_input="Make it blue",
         device_capabilities=device_capabilities_rgb
     )
-    
+
     # Assert history entry
     assert result.history_entry is not None
     assert result.history_entry['user_input'] == "Make it blue"
@@ -344,9 +344,9 @@ async def test_refiner_handles_invalid_json(suggestion_refiner, mock_openai_clie
     mock_response.usage.prompt_tokens = 200
     mock_response.usage.completion_tokens = 10
     mock_response.usage.total_tokens = 210
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute - should raise ValueError
     with pytest.raises(ValueError, match="invalid JSON"):
         await suggestion_refiner.refine_description(
@@ -372,7 +372,7 @@ async def test_refiner_retries_on_failure(suggestion_refiner, mock_openai_client
     success_response.usage.prompt_tokens = 200
     success_response.usage.completion_tokens = 30
     success_response.usage.total_tokens = 230
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(
         side_effect=[
             Exception("Timeout"),
@@ -380,14 +380,14 @@ async def test_refiner_retries_on_failure(suggestion_refiner, mock_openai_client
             success_response
         ]
     )
-    
+
     # Execute - should succeed after retries
     result = await suggestion_refiner.refine_description(
         current_description="Current",
         user_input="Change it",
         device_capabilities=device_capabilities_rgb
     )
-    
+
     # Assert
     assert result.updated_description == "Success"
     assert mock_openai_client.chat.completions.create.call_count == 3
@@ -413,16 +413,16 @@ async def test_tracks_token_usage(suggestion_refiner, mock_openai_client, device
     mock_response.usage.prompt_tokens = 220
     mock_response.usage.completion_tokens = 45
     mock_response.usage.total_tokens = 265
-    
+
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Execute
     await suggestion_refiner.refine_description(
         current_description="Current",
         user_input="Change",
         device_capabilities=device_capabilities_rgb
     )
-    
+
     # Assert
     stats = suggestion_refiner.get_usage_stats()
     assert stats['total_tokens'] == 265

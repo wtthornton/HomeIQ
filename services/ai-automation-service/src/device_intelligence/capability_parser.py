@@ -9,7 +9,6 @@ Epic: AI-2 - Device Intelligence System
 """
 
 import logging
-from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +33,8 @@ class CapabilityParser:
         capabilities = parser.parse_exposes(zigbee2mqtt_exposes)
         # Returns: {"light_control": {...}, "smart_bulb_mode": {...}, ...}
     """
-    
-    def parse_exposes(self, exposes: List[dict]) -> Dict[str, dict]:
+
+    def parse_exposes(self, exposes: list[dict]) -> dict[str, dict]:
         """
         Parse Zigbee2MQTT exposes array into structured capabilities.
         
@@ -82,20 +81,20 @@ class CapabilityParser:
         if not exposes:
             logger.debug("Empty exposes array")
             return {}
-        
+
         capabilities = {}
-        
+
         for expose in exposes:
             if not isinstance(expose, dict):
                 logger.warning(f"Invalid expose format (not a dict): {type(expose)}")
                 continue
-                
+
             expose_type = expose.get('type')
-            
+
             if not expose_type:
                 logger.debug("Expose missing 'type' field, skipping")
                 continue
-            
+
             # Handle different expose types
             try:
                 if expose_type == 'light':
@@ -119,14 +118,14 @@ class CapabilityParser:
                 else:
                     # Unknown type - log and continue (future-proof)
                     logger.debug(f"Unknown expose type '{expose_type}', skipping")
-                    
+
             except Exception as e:
                 logger.warning(f"Error parsing expose type '{expose_type}': {e}")
                 continue
-        
+
         return capabilities
-    
-    def _parse_light_control(self, expose: dict) -> Dict[str, dict]:
+
+    def _parse_light_control(self, expose: dict) -> dict[str, dict]:
         """
         Parse light control expose (state, brightness, color, color temperature).
         
@@ -137,7 +136,7 @@ class CapabilityParser:
             Dict with "light_control" capability
         """
         features = expose.get('features', [])
-        
+
         capability = {
             "light_control": {
                 "type": "composite",
@@ -147,21 +146,21 @@ class CapabilityParser:
                 "features": []
             }
         }
-        
+
         # Parse sub-features (state, brightness, color_temp, color_xy, etc.)
         for feature in features:
             if isinstance(feature, dict):
                 feature_name = feature.get('name')
                 if feature_name:
                     capability["light_control"]["features"].append(feature_name)
-        
+
         # Assess complexity based on features
         if 'color_xy' in capability["light_control"]["features"] or 'color_hs' in capability["light_control"]["features"]:
             capability["light_control"]["complexity"] = "medium"
-        
+
         return capability
-    
-    def _parse_switch_control(self, expose: dict) -> Dict[str, dict]:
+
+    def _parse_switch_control(self, expose: dict) -> dict[str, dict]:
         """
         Parse switch control expose (basic on/off).
         
@@ -179,8 +178,8 @@ class CapabilityParser:
                 "complexity": "easy"
             }
         }
-    
-    def _parse_climate_control(self, expose: dict) -> Dict[str, dict]:
+
+    def _parse_climate_control(self, expose: dict) -> dict[str, dict]:
         """
         Parse climate/thermostat control expose.
         
@@ -191,14 +190,14 @@ class CapabilityParser:
             Dict with "climate_control" capability
         """
         features = expose.get('features', [])
-        
+
         feature_names = []
         for feature in features:
             if isinstance(feature, dict):
                 feature_name = feature.get('name')
                 if feature_name:
                     feature_names.append(feature_name)
-        
+
         return {
             "climate_control": {
                 "type": "composite",
@@ -208,8 +207,8 @@ class CapabilityParser:
                 "features": feature_names
             }
         }
-    
-    def _parse_enum_option(self, expose: dict) -> Optional[Dict[str, dict]]:
+
+    def _parse_enum_option(self, expose: dict) -> dict[str, dict] | None:
         """
         Parse enum configuration option (e.g., smartBulbMode, ledEffect).
         
@@ -223,11 +222,11 @@ class CapabilityParser:
         if not mqtt_name:
             logger.debug("Enum expose missing 'name' field")
             return None
-        
+
         friendly_name = self._map_mqtt_to_friendly(mqtt_name)
         values = expose.get('values', [])
         description = expose.get('description', '')
-        
+
         return {
             friendly_name: {
                 "type": "enum",
@@ -237,8 +236,8 @@ class CapabilityParser:
                 "complexity": self._assess_complexity(mqtt_name)
             }
         }
-    
-    def _parse_numeric_option(self, expose: dict) -> Optional[Dict[str, dict]]:
+
+    def _parse_numeric_option(self, expose: dict) -> dict[str, dict] | None:
         """
         Parse numeric configuration option (e.g., autoTimerOff, brightness).
         
@@ -252,9 +251,9 @@ class CapabilityParser:
         if not mqtt_name:
             logger.debug("Numeric expose missing 'name' field")
             return None
-        
+
         friendly_name = self._map_mqtt_to_friendly(mqtt_name)
-        
+
         return {
             friendly_name: {
                 "type": "numeric",
@@ -266,8 +265,8 @@ class CapabilityParser:
                 "complexity": self._assess_complexity(mqtt_name)
             }
         }
-    
-    def _parse_binary_option(self, expose: dict) -> Optional[Dict[str, dict]]:
+
+    def _parse_binary_option(self, expose: dict) -> dict[str, dict] | None:
         """
         Parse binary option (e.g., contact sensor, motion, vibration).
         
@@ -281,9 +280,9 @@ class CapabilityParser:
         if not mqtt_name:
             logger.debug("Binary expose missing 'name' field")
             return None
-        
+
         friendly_name = self._map_mqtt_to_friendly(mqtt_name)
-        
+
         return {
             friendly_name: {
                 "type": "binary",
@@ -294,7 +293,7 @@ class CapabilityParser:
                 "complexity": "easy"
             }
         }
-    
+
     def _map_mqtt_to_friendly(self, mqtt_name: str) -> str:
         """
         Map MQTT names to user-friendly names.
@@ -327,11 +326,11 @@ class CapabilityParser:
             'localProtection': 'local_protection',
             'remoteProtection': 'remote_protection',
         }
-        
+
         # Check mapping first
         if mqtt_name in mapping:
             return mapping[mqtt_name]
-        
+
         # Convert camelCase to snake_case
         result = []
         for i, char in enumerate(mqtt_name):
@@ -340,18 +339,18 @@ class CapabilityParser:
                 if mqtt_name[i-1].islower():
                     result.append('_')
             result.append(char.lower())
-        
+
         snake_case = ''.join(result)
-        
+
         # Replace spaces and hyphens with underscores
         snake_case = snake_case.replace(' ', '_').replace('-', '_')
-        
+
         # Remove duplicate underscores
         while '__' in snake_case:
             snake_case = snake_case.replace('__', '_')
-        
+
         return snake_case
-    
+
     def _assess_complexity(self, mqtt_name: str) -> str:
         """
         Assess complexity of feature configuration.
@@ -372,17 +371,17 @@ class CapabilityParser:
         # Keywords indicating complexity
         advanced_keywords = ['effect', 'transition', 'calibration', 'sensitivity', 'advanced', 'scene']
         medium_keywords = ['timer', 'delay', 'threshold', 'duration', 'interval', 'timeout']
-        
+
         name_lower = mqtt_name.lower()
-        
+
         # Check for advanced features
         if any(kw in name_lower for kw in advanced_keywords):
             return "advanced"
-        
+
         # Check for medium complexity features
         if any(kw in name_lower for kw in medium_keywords):
             return "medium"
-        
+
         # Default to easy
         return "easy"
 

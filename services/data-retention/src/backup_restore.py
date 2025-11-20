@@ -1,34 +1,33 @@
 """Backup and restore capabilities for data retention service."""
 
-import logging
 import asyncio
 import json
+import logging
 import os
 import shutil
 import tarfile
-import gzip
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from pathlib import Path
 import tempfile
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class BackupInfo:
     """Backup information."""
-    
+
     backup_id: str
     backup_type: str
     created_at: datetime
     size_bytes: int
     file_path: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     success: bool = True
-    error_message: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    error_message: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert backup info to dictionary."""
         return {
             "backup_id": self.backup_id,
@@ -43,7 +42,7 @@ class BackupInfo:
 
 class BackupRestoreService:
     """Service for backup and restore operations."""
-    
+
     def __init__(self, influxdb_client=None, backup_dir: str = "/backups"):
         """
         Initialize backup restore service.
@@ -55,39 +54,39 @@ class BackupRestoreService:
         self.influxdb_client = influxdb_client
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.backup_history: List[BackupInfo] = []
+
+        self.backup_history: list[BackupInfo] = []
         self.is_running = False
-        self.backup_task: Optional[asyncio.Task] = None
-        
+        self.backup_task: asyncio.Task | None = None
+
         logger.info(f"Backup restore service initialized with backup directory: {self.backup_dir}")
-    
+
     async def start(self) -> None:
         """Start the backup service."""
         if self.is_running:
             logger.warning("Backup service is already running")
             return
-        
+
         self.is_running = True
         logger.info("Backup restore service started")
-    
+
     async def stop(self) -> None:
         """Stop the backup service."""
         if not self.is_running:
             return
-        
+
         self.is_running = False
-        
+
         if self.backup_task and not self.backup_task.done():
             self.backup_task.cancel()
             try:
                 await self.backup_task
             except asyncio.CancelledError:
                 pass
-        
+
         logger.info("Backup restore service stopped")
-    
-    async def create_backup(self, backup_type: str = "full", 
+
+    async def create_backup(self, backup_type: str = "full",
                           include_data: bool = True,
                           include_config: bool = True,
                           include_logs: bool = False) -> BackupInfo:
@@ -105,14 +104,14 @@ class BackupRestoreService:
         """
         backup_id = f"{backup_type}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         backup_file = self.backup_dir / f"{backup_id}.tar.gz"
-        
+
         try:
             logger.info(f"Creating {backup_type} backup: {backup_id}")
-            
+
             # Create temporary directory for backup contents
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-                
+
                 # Collect backup contents
                 metadata = {
                     "backup_type": backup_type,
@@ -121,31 +120,31 @@ class BackupRestoreService:
                     "include_config": include_config,
                     "include_logs": include_logs
                 }
-                
+
                 # Add data if requested
                 if include_data:
                     await self._backup_data(temp_path, metadata)
-                
+
                 # Add configuration if requested
                 if include_config:
                     await self._backup_config(temp_path, metadata)
-                
+
                 # Add logs if requested
                 if include_logs:
                     await self._backup_logs(temp_path, metadata)
-                
+
                 # Create backup metadata file
                 metadata_file = temp_path / "backup_metadata.json"
                 with open(metadata_file, 'w') as f:
                     json.dump(metadata, f, indent=2)
-                
+
                 # Create compressed archive
                 with tarfile.open(backup_file, "w:gz") as tar:
                     tar.add(temp_path, arcname=".")
-                
+
                 # Get backup size
                 backup_size = backup_file.stat().st_size
-            
+
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
@@ -155,15 +154,15 @@ class BackupRestoreService:
                 metadata=metadata,
                 success=True
             )
-            
+
             self.backup_history.append(backup_info)
-            
+
             logger.info(f"Backup created successfully: {backup_id} ({backup_size} bytes)")
             return backup_info
-            
+
         except Exception as e:
             logger.error(f"Backup creation failed: {e}")
-            
+
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
@@ -174,11 +173,11 @@ class BackupRestoreService:
                 success=False,
                 error_message=str(e)
             )
-            
+
             self.backup_history.append(backup_info)
             return backup_info
-    
-    async def _backup_data(self, backup_path: Path, metadata: Dict[str, Any]) -> None:
+
+    async def _backup_data(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup data from InfluxDB.
         
@@ -195,27 +194,27 @@ class BackupRestoreService:
                     {"timestamp": "2024-01-01T01:00:00Z", "entity_id": "sensor.humidity", "value": 65}
                 ]
             }
-            
+
             with open(data_file, 'w') as f:
                 json.dump(mock_data, f, indent=2)
-            
+
             metadata["data_records"] = len(mock_data["events"])
             return
-        
+
         try:
             # Export data from InfluxDB
             data_file = backup_path / "data_export.json"
-            
+
             # Query all data from the last year
             query = """
             from(bucket: "home-assistant-events")
                 |> range(start: -1y)
                 |> limit(n: 100000)
             """
-            
+
             result = await self.influxdb_client.query(query)
             exported_data = []
-            
+
             for table in result:
                 for record in table.records:
                     exported_data.append({
@@ -225,18 +224,18 @@ class BackupRestoreService:
                         "value": record.get_value(),
                         "tags": record.values
                     })
-            
+
             with open(data_file, 'w') as f:
                 json.dump({"events": exported_data}, f, indent=2)
-            
+
             metadata["data_records"] = len(exported_data)
             logger.info(f"Backed up {len(exported_data)} data records")
-            
+
         except Exception as e:
             logger.error(f"Data backup failed: {e}")
             metadata["data_error"] = str(e)
-    
-    async def _backup_config(self, backup_path: Path, metadata: Dict[str, Any]) -> None:
+
+    async def _backup_config(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup configuration files.
         
@@ -247,29 +246,29 @@ class BackupRestoreService:
         try:
             config_dir = backup_path / "config"
             config_dir.mkdir(exist_ok=True)
-            
+
             # Copy configuration files
             config_files = [
                 "/app/config.yaml",
                 "/app/.env",
                 "/etc/influxdb/influxdb.conf"
             ]
-            
+
             copied_files = []
             for config_file in config_files:
                 if os.path.exists(config_file):
                     dest_file = config_dir / os.path.basename(config_file)
                     shutil.copy2(config_file, dest_file)
                     copied_files.append(config_file)
-            
+
             metadata["config_files"] = copied_files
             logger.info(f"Backed up {len(copied_files)} configuration files")
-            
+
         except Exception as e:
             logger.error(f"Configuration backup failed: {e}")
             metadata["config_error"] = str(e)
-    
-    async def _backup_logs(self, backup_path: Path, metadata: Dict[str, Any]) -> None:
+
+    async def _backup_logs(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup log files.
         
@@ -280,11 +279,11 @@ class BackupRestoreService:
         try:
             logs_dir = backup_path / "logs"
             logs_dir.mkdir(exist_ok=True)
-            
+
             # Copy log files
             log_dirs = ["/var/log", "/app/logs"]
             copied_logs = []
-            
+
             for log_dir in log_dirs:
                 if os.path.exists(log_dir):
                     for root, dirs, files in os.walk(log_dir):
@@ -294,17 +293,17 @@ class BackupRestoreService:
                                 rel_path = os.path.relpath(src_file, log_dir)
                                 dest_file = logs_dir / rel_path
                                 dest_file.parent.mkdir(parents=True, exist_ok=True)
-                                
+
                                 shutil.copy2(src_file, dest_file)
                                 copied_logs.append(src_file)
-            
+
             metadata["log_files"] = copied_logs
             logger.info(f"Backed up {len(copied_logs)} log files")
-            
+
         except Exception as e:
             logger.error(f"Log backup failed: {e}")
             metadata["log_error"] = str(e)
-    
+
     async def restore_backup(self, backup_id: str, restore_data: bool = True,
                            restore_config: bool = True, restore_logs: bool = False) -> bool:
         """
@@ -325,43 +324,43 @@ class BackupRestoreService:
             if not backup_file.exists():
                 logger.error(f"Backup file not found: {backup_file}")
                 return False
-            
+
             logger.info(f"Restoring backup: {backup_id}")
-            
+
             # Extract backup
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-                
+
                 with tarfile.open(backup_file, "r:gz") as tar:
                     tar.extractall(temp_path)
-                
+
                 # Read backup metadata
                 metadata_file = temp_path / "backup_metadata.json"
                 if metadata_file.exists():
-                    with open(metadata_file, 'r') as f:
+                    with open(metadata_file) as f:
                         metadata = json.load(f)
                 else:
                     metadata = {}
-                
+
                 # Restore data if requested
                 if restore_data and metadata.get("include_data", False):
                     await self._restore_data(temp_path)
-                
+
                 # Restore configuration if requested
                 if restore_config and metadata.get("include_config", False):
                     await self._restore_config(temp_path)
-                
+
                 # Restore logs if requested
                 if restore_logs and metadata.get("include_logs", False):
                     await self._restore_logs(temp_path)
-            
+
             logger.info(f"Backup restored successfully: {backup_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Backup restore failed: {e}")
             return False
-    
+
     async def _restore_data(self, backup_path: Path) -> None:
         """
         Restore data to InfluxDB.
@@ -373,43 +372,43 @@ class BackupRestoreService:
         if not data_file.exists():
             logger.warning("No data file found in backup")
             return
-        
+
         if not self.influxdb_client:
             logger.info("Mock data restore completed")
             return
-        
+
         try:
-            with open(data_file, 'r') as f:
+            with open(data_file) as f:
                 data = json.load(f)
-            
+
             events = data.get("events", [])
-            
+
             # Import data to InfluxDB
             from influxdb_client import Point, WritePrecision
-            
+
             points = []
             for event in events:
                 point = Point("home_assistant_event") \
                     .time(event["timestamp"], WritePrecision.NS) \
                     .field(event["field"], event["value"])
-                
+
                 # Add tags
                 for tag_key, tag_value in event.get("tags", {}).items():
                     point.tag(tag_key, str(tag_value))
-                
+
                 points.append(point)
-            
+
             # Write points to InfluxDB
             await self.influxdb_client.write_api().write(
                 bucket="home-assistant-events",
                 record=points
             )
-            
+
             logger.info(f"Restored {len(events)} data records")
-            
+
         except Exception as e:
             logger.error(f"Data restore failed: {e}")
-    
+
     async def _restore_config(self, backup_path: Path) -> None:
         """
         Restore configuration files.
@@ -421,7 +420,7 @@ class BackupRestoreService:
         if not config_dir.exists():
             logger.warning("No config directory found in backup")
             return
-        
+
         try:
             # Restore configuration files
             for config_file in config_dir.iterdir():
@@ -429,10 +428,10 @@ class BackupRestoreService:
                     dest_path = f"/app/{config_file.name}"
                     shutil.copy2(config_file, dest_path)
                     logger.info(f"Restored config file: {config_file.name}")
-            
+
         except Exception as e:
             logger.error(f"Configuration restore failed: {e}")
-    
+
     async def _restore_logs(self, backup_path: Path) -> None:
         """
         Restore log files.
@@ -444,7 +443,7 @@ class BackupRestoreService:
         if not logs_dir.exists():
             logger.warning("No logs directory found in backup")
             return
-        
+
         try:
             # Restore log files
             for log_file in logs_dir.rglob("*.log"):
@@ -454,11 +453,11 @@ class BackupRestoreService:
                     dest_path_obj.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(log_file, dest_path_obj)
                     logger.info(f"Restored log file: {log_file.name}")
-            
+
         except Exception as e:
             logger.error(f"Log restore failed: {e}")
-    
-    async def schedule_backups(self, interval_hours: int = 24, 
+
+    async def schedule_backups(self, interval_hours: int = 24,
                              backup_type: str = "full") -> None:
         """
         Schedule periodic backups.
@@ -470,28 +469,28 @@ class BackupRestoreService:
         if self.backup_task and not self.backup_task.done():
             logger.warning("Backup task is already running")
             return
-        
+
         async def backup_loop():
             while self.is_running:
                 try:
                     logger.info("Starting scheduled backup")
                     backup_info = await self.create_backup(backup_type)
-                    
+
                     if backup_info.success:
                         logger.info(f"Scheduled backup completed: {backup_info.backup_id}")
                     else:
                         logger.error(f"Scheduled backup failed: {backup_info.error_message}")
-                    
+
                 except Exception as e:
                     logger.error(f"Scheduled backup failed: {e}")
-                
+
                 # Wait for next backup
                 await asyncio.sleep(interval_hours * 3600)
-        
+
         self.backup_task = asyncio.create_task(backup_loop())
         logger.info(f"Scheduled {backup_type} backups every {interval_hours} hours")
-    
-    def get_backup_history(self, limit: int = 100) -> List[BackupInfo]:
+
+    def get_backup_history(self, limit: int = 100) -> list[BackupInfo]:
         """
         Get backup history.
         
@@ -502,8 +501,8 @@ class BackupRestoreService:
             List of backup information
         """
         return self.backup_history[-limit:] if self.backup_history else []
-    
-    def get_backup_statistics(self) -> Dict[str, Any]:
+
+    def get_backup_statistics(self) -> dict[str, Any]:
         """
         Get backup statistics.
         
@@ -520,12 +519,12 @@ class BackupRestoreService:
                 "success_rate": 0,
                 "last_backup": None
             }
-        
+
         successful_backups = [backup for backup in self.backup_history if backup.success]
         failed_backups = [backup for backup in self.backup_history if not backup.success]
-        
+
         total_size = sum(backup.size_bytes for backup in successful_backups)
-        
+
         return {
             "total_backups": len(self.backup_history),
             "successful_backups": len(successful_backups),
@@ -535,7 +534,7 @@ class BackupRestoreService:
             "success_rate": len(successful_backups) / len(self.backup_history) if self.backup_history else 0,
             "last_backup": self.backup_history[-1].created_at.isoformat() if self.backup_history else None
         }
-    
+
     def cleanup_old_backups(self, days_to_keep: int = 30) -> int:
         """
         Clean up old backup files.
@@ -548,17 +547,17 @@ class BackupRestoreService:
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
         deleted_count = 0
-        
+
         try:
             for backup_file in self.backup_dir.glob("*.tar.gz"):
                 if backup_file.stat().st_mtime < cutoff_date.timestamp():
                     backup_file.unlink()
                     deleted_count += 1
                     logger.info(f"Deleted old backup: {backup_file.name}")
-            
+
             logger.info(f"Cleaned up {deleted_count} old backup files")
-            
+
         except Exception as e:
             logger.error(f"Backup cleanup failed: {e}")
-        
+
         return deleted_count

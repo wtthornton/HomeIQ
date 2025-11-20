@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-from typing import Set
 
 FORBIDDEN_NAMES = {
     "__subclasses__",
@@ -45,7 +44,7 @@ class CodeValidatorConfig:
 
     max_bytes: int
     max_ast_nodes: int
-    allowed_imports: Set[str]
+    allowed_imports: set[str]
 
 
 class CodeValidator:

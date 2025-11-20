@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import settings
 from ..miner.database import get_database
-from .routes import router
 from .admin_routes import router as admin_router  # Story AI4.4
 from .device_routes import router as device_router  # Story AI4.3
+from .routes import router
 
 # Configure logging
 logging.basicConfig(
@@ -36,33 +36,33 @@ async def lifespan(app: FastAPI):
     Creates database tables and starts weekly refresh scheduler.
     """
     logger.info("Starting Automation Miner API...")
-    
+
     # Initialize database
     db = get_database()
     await db.create_tables()
     logger.info("Database initialized")
-    
+
     # Initialize corpus on startup (Story AI4.4 enhancement)
     if settings.enable_automation_miner:
         try:
             from ..jobs.weekly_refresh import WeeklyRefreshJob
             from ..miner.repository import CorpusRepository
-            
+
             async with db.get_session() as session:
                 repo = CorpusRepository(session)
                 stats = await repo.get_stats()
                 last_crawl = await repo.get_last_crawl_timestamp()
-                
+
                 # Check if initialization needed
                 should_initialize = False
                 reason = ""
-                
+
                 if stats['total'] == 0:
                     should_initialize = True
                     reason = "empty corpus"
                     logger.info("🔍 Corpus is empty - will run initial population on startup")
                 elif last_crawl:
-                    from datetime import datetime, timedelta, timezone
+                    from datetime import datetime, timezone
                     # Ensure timezone-aware comparison
                     if last_crawl.tzinfo is None:
                         last_crawl = last_crawl.replace(tzinfo=timezone.utc)
@@ -75,21 +75,21 @@ async def lifespan(app: FastAPI):
                     should_initialize = True
                     reason = "no last_crawl timestamp"
                     logger.info("🔍 No last crawl timestamp - will initialize on startup")
-                
+
                 # Run initialization if needed
                 if should_initialize:
                     global _initialization_in_progress
                     _initialization_in_progress = True
-                    
+
                     logger.info(f"🚀 Starting corpus initialization ({reason})...")
                     logger.info("   This will run in background during API startup")
-                    
+
                     # Run refresh job (will populate or update corpus)
                     job = WeeklyRefreshJob()
-                    
+
                     # Import asyncio to run in background
                     import asyncio
-                    
+
                     async def run_init_and_track():
                         global _initialization_in_progress, _initialization_complete
                         try:
@@ -99,25 +99,26 @@ async def lifespan(app: FastAPI):
                             logger.error(f"Initialization failed: {e}", exc_info=True)
                         finally:
                             _initialization_in_progress = False
-                    
+
                     asyncio.create_task(run_init_and_track())
-                    
+
                     logger.info("✅ Corpus initialization started in background")
                 else:
                     global _initialization_complete
                     _initialization_complete = True
                     logger.info(f"✅ Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})")
-        
+
         except Exception as e:
             logger.warning(f"⚠️ Startup initialization check failed: {e}")
-    
+
     # Start weekly refresh scheduler (Story AI4.4)
     scheduler = None
     if settings.enable_automation_miner:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
             from ..jobs.weekly_refresh import setup_weekly_refresh_job
-            
+
             scheduler = AsyncIOScheduler()
             await setup_weekly_refresh_job(scheduler)
             scheduler.start()
@@ -127,16 +128,16 @@ async def lifespan(app: FastAPI):
             scheduler = None
     else:
         logger.info("ℹ️  Weekly refresh scheduler disabled (ENABLE_AUTOMATION_MINER=false)")
-    
+
     yield
-    
+
     # Cleanup
     logger.info("Shutting down Automation Miner API...")
-    
+
     if scheduler and scheduler.running:
         scheduler.shutdown(wait=False)
         logger.info("✅ Weekly refresh scheduler stopped")
-    
+
     await db.close()
 
 
@@ -181,16 +182,16 @@ async def health_check():
     """
     from ..miner.database import get_db_session
     from ..miner.repository import CorpusRepository
-    
+
     async for db in get_db_session():
         try:
             repo = CorpusRepository(db)
             stats = await repo.get_stats()
             last_crawl = await repo.get_last_crawl_timestamp()
-            
+
             # Check initialization status
             init_status = "complete" if _initialization_complete else ("in_progress" if _initialization_in_progress else "not_started")
-            
+
             return {
                 "status": "healthy",
                 "service": "automation-miner",
@@ -206,7 +207,7 @@ async def health_check():
                 },
                 "enabled": settings.enable_automation_miner
             }
-        
+
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return {

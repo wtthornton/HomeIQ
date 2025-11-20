@@ -3,10 +3,11 @@ Contract Models for AI Automation Service
 Pydantic v2 models with strict schema enforcement (extra="forbid")
 """
 
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Dict, Any, Optional, Union, Literal
-from enum import Enum
 import json
+from enum import Enum
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class AutomationMode(str, Enum):
@@ -29,8 +30,8 @@ class AutomationMetadata(BaseModel):
     schema_version: str = Field(default="1.0.0", pattern=r"^1\.0\.0$")
     provider_id: str = Field(..., description="LLM provider identifier (e.g., 'openai', 'anthropic')")
     model_id: str = Field(..., description="Model identifier (e.g., 'gpt-4o-mini', 'claude-3-sonnet')")
-    prompt_pack_id: Optional[str] = Field(None, description="Prompt pack identifier for traceability")
-    
+    prompt_pack_id: str | None = Field(None, description="Prompt pack identifier for traceability")
+
     class Config:
         extra = "forbid"
         frozen = True
@@ -39,31 +40,31 @@ class AutomationMetadata(BaseModel):
 class Trigger(BaseModel):
     """Automation trigger"""
     platform: Literal[
-        "state", "time", "time_pattern", "numeric_state", "sun", 
+        "state", "time", "time_pattern", "numeric_state", "sun",
         "event", "mqtt", "webhook", "zone", "geo_location", "device"
     ] = Field(..., description="Trigger platform")
-    entity_id: Optional[Union[str, List[str]]] = None
-    to: Optional[Union[str, List[str]]] = None
-    from_: Optional[Union[str, List[str]]] = Field(None, alias="from")
-    for_: Optional[Union[str, Dict[str, Any]]] = Field(None, alias="for")
-    at: Optional[str] = None
-    hours: Optional[Union[str, int]] = None
-    minutes: Optional[Union[str, int]] = None
-    seconds: Optional[Union[str, int]] = None
-    event_type: Optional[str] = None
-    event_data: Optional[Dict[str, Any]] = None
-    topic: Optional[str] = None
-    payload: Optional[str] = None
-    above: Optional[float] = None
-    below: Optional[float] = None
-    value_template: Optional[str] = None
-    offset: Optional[str] = None
-    event: Optional[Literal["sunrise", "sunset"]] = None
-    device_id: Optional[str] = None
-    domain: Optional[str] = None
-    type: Optional[str] = None
-    subtype: Optional[str] = None
-    
+    entity_id: str | list[str] | None = None
+    to: str | list[str] | None = None
+    from_: str | list[str] | None = Field(None, alias="from")
+    for_: str | dict[str, Any] | None = Field(None, alias="for")
+    at: str | None = None
+    hours: str | int | None = None
+    minutes: str | int | None = None
+    seconds: str | int | None = None
+    event_type: str | None = None
+    event_data: dict[str, Any] | None = None
+    topic: str | None = None
+    payload: str | None = None
+    above: float | None = None
+    below: float | None = None
+    value_template: str | None = None
+    offset: str | None = None
+    event: Literal["sunrise", "sunset"] | None = None
+    device_id: str | None = None
+    domain: str | None = None
+    type: str | None = None
+    subtype: str | None = None
+
     class Config:
         extra = "forbid"
         populate_by_name = True
@@ -72,25 +73,25 @@ class Trigger(BaseModel):
 class Condition(BaseModel):
     """Automation condition"""
     condition: Literal[
-        "state", "numeric_state", "time", "sun", "template", 
+        "state", "numeric_state", "time", "sun", "template",
         "zone", "and", "or", "not", "device"
     ] = Field(..., description="Condition type")
-    entity_id: Optional[Union[str, List[str]]] = None
-    state: Optional[Union[str, List[str]]] = None
-    above: Optional[float] = None
-    below: Optional[float] = None
-    after: Optional[str] = None
-    before: Optional[str] = None
-    after_offset: Optional[str] = None
-    before_offset: Optional[str] = None
-    value_template: Optional[str] = None
-    zone: Optional[str] = None
-    conditions: Optional[List["Condition"]] = None
-    device_id: Optional[str] = None
-    domain: Optional[str] = None
-    type: Optional[str] = None
-    subtype: Optional[str] = None
-    
+    entity_id: str | list[str] | None = None
+    state: str | list[str] | None = None
+    above: float | None = None
+    below: float | None = None
+    after: str | None = None
+    before: str | None = None
+    after_offset: str | None = None
+    before_offset: str | None = None
+    value_template: str | None = None
+    zone: str | None = None
+    conditions: list["Condition"] | None = None
+    device_id: str | None = None
+    domain: str | None = None
+    type: str | None = None
+    subtype: str | None = None
+
     class Config:
         extra = "forbid"
 
@@ -102,22 +103,22 @@ Condition.model_rebuild()
 class Action(BaseModel):
     """Automation action"""
     service: str = Field(..., pattern=r"^[a-z_]+\.[a-z_]+$", description="Service in format domain.service")
-    entity_id: Optional[Union[str, List[str]]] = None
-    target: Optional[Dict[str, Any]] = None
-    data: Optional[Dict[str, Any]] = None
-    service_data: Optional[Dict[str, Any]] = None
-    delay: Optional[Union[str, Dict[str, Any]]] = None
-    wait_template: Optional[str] = None
-    wait_for_trigger: Optional[List["Trigger"]] = Field(None, description="Wait for specified triggers before continuing")
-    timeout: Optional[Union[str, Dict[str, Any]]] = Field(None, description="Timeout for wait_for_trigger (e.g., '00:05:00' or {minutes: 5})")
-    continue_on_timeout: Optional[bool] = Field(None, description="Continue sequence if wait_for_trigger times out")
-    repeat: Optional[Dict[str, Any]] = None
-    choose: Optional[List[Any]] = None
-    if_: Optional[List[Condition]] = Field(None, alias="if")
-    parallel: Optional[List[Any]] = None
-    sequence: Optional[List[Any]] = None
-    stop: Optional[Literal["all", "first"]] = None
-    error: Optional[Literal["continue", "stop"]] = None
+    entity_id: str | list[str] | None = None
+    target: dict[str, Any] | None = None
+    data: dict[str, Any] | None = None
+    service_data: dict[str, Any] | None = None
+    delay: str | dict[str, Any] | None = None
+    wait_template: str | None = None
+    wait_for_trigger: list["Trigger"] | None = Field(None, description="Wait for specified triggers before continuing")
+    timeout: str | dict[str, Any] | None = Field(None, description="Timeout for wait_for_trigger (e.g., '00:05:00' or {minutes: 5})")
+    continue_on_timeout: bool | None = Field(None, description="Continue sequence if wait_for_trigger times out")
+    repeat: dict[str, Any] | None = None
+    choose: list[Any] | None = None
+    if_: list[Condition] | None = Field(None, alias="if")
+    parallel: list[Any] | None = None
+    sequence: list[Any] | None = None
+    stop: Literal["all", "first"] | None = None
+    error: Literal["continue", "stop"] | None = None
 
     class Config:
         extra = "forbid"
@@ -137,19 +138,19 @@ class AutomationPlan(BaseModel):
     """
     schema_version: str = Field(default="1.0.0", pattern=r"^1\.0\.0$")
     name: str = Field(..., min_length=1, max_length=200, description="Automation name/alias")
-    triggers: List[Trigger] = Field(..., min_length=1, description="List of triggers")
-    conditions: List[Condition] = Field(default_factory=list, description="Optional conditions")
-    actions: List[Action] = Field(..., min_length=1, description="List of actions")
-    description: Optional[str] = Field(None, max_length=500, description="Human-readable description")
+    triggers: list[Trigger] = Field(..., min_length=1, description="List of triggers")
+    conditions: list[Condition] = Field(default_factory=list, description="Optional conditions")
+    actions: list[Action] = Field(..., min_length=1, description="List of actions")
+    description: str | None = Field(None, max_length=500, description="Human-readable description")
     mode: AutomationMode = Field(default=AutomationMode.SINGLE, description="Automation mode")
-    max_exceeded: Optional[MaxExceeded] = None
-    
+    max_exceeded: MaxExceeded | None = None
+
     # Metadata fields (not part of HA automation, but required for traceability)
-    metadata: Optional[AutomationMetadata] = None
-    
+    metadata: AutomationMetadata | None = None
+
     class Config:
         extra = "forbid"
-    
+
     @field_validator("triggers", mode="before")
     @classmethod
     def validate_triggers(cls, v):
@@ -158,7 +159,7 @@ class AutomationPlan(BaseModel):
         if len(v) == 0:
             raise ValueError("triggers must have at least one item")
         return v
-    
+
     @field_validator("actions", mode="before")
     @classmethod
     def validate_actions(cls, v):
@@ -167,7 +168,7 @@ class AutomationPlan(BaseModel):
         if len(v) == 0:
             raise ValueError("actions must have at least one item")
         return v
-    
+
     def to_yaml(self) -> str:
         """
         Convert automation plan to Home Assistant YAML format.
@@ -176,7 +177,7 @@ class AutomationPlan(BaseModel):
             YAML string ready for Home Assistant
         """
         import yaml
-        
+
         # Build HA automation dict (exclude metadata)
         ha_automation = {
             "alias": self.name,
@@ -185,17 +186,17 @@ class AutomationPlan(BaseModel):
             "action": [a.model_dump(exclude_none=True, by_alias=True) for a in self.actions],
             "mode": self.mode.value,
         }
-        
+
         if self.conditions:
             ha_automation["condition"] = [c.model_dump(exclude_none=True) for c in self.conditions]
-        
+
         if self.max_exceeded:
             ha_automation["max_exceeded"] = self.max_exceeded.value
-        
+
         return yaml.dump(ha_automation, default_flow_style=False, sort_keys=False)
-    
+
     @classmethod
-    def from_json(cls, json_str: str, metadata: Optional[AutomationMetadata] = None) -> "AutomationPlan":
+    def from_json(cls, json_str: str, metadata: AutomationMetadata | None = None) -> "AutomationPlan":
         """
         Parse JSON string into AutomationPlan with strict validation.
         
@@ -213,10 +214,10 @@ class AutomationPlan(BaseModel):
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {e}") from e
-        
+
         # Attach metadata if provided
         if metadata:
             data["metadata"] = metadata.model_dump()
-        
+
         return cls.model_validate(data)
 

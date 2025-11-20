@@ -4,15 +4,14 @@ Provides access to energy-event correlation data and smart meter readings
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Query, HTTPException, status
-from pydantic import BaseModel
-from .flux_utils import sanitize_flux_value
-
-from influxdb_client import InfluxDBClient
-
 import os
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, HTTPException, Query, status
+from influxdb_client import InfluxDBClient
+from pydantic import BaseModel
+
+from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +61,7 @@ class EnergyStatistics(BaseModel):
     current_power_w: float
     daily_kwh: float
     peak_power_w: float
-    peak_time: Optional[datetime]
+    peak_time: datetime | None
     average_power_w: float
     total_correlations: int
 
@@ -76,7 +75,7 @@ def get_influxdb_client():
     influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
     influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
     influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
-    
+
     return InfluxDBClient(
         url=influxdb_url,
         token=influxdb_token,
@@ -84,10 +83,10 @@ def get_influxdb_client():
     )
 
 
-@router.get("/correlations", response_model=List[EnergyCorrelation])
+@router.get("/correlations", response_model=list[EnergyCorrelation])
 async def get_energy_correlations(
-    entity_id: Optional[str] = Query(None, description="Filter by entity ID"),
-    domain: Optional[str] = Query(None, description="Filter by domain (switch, light, climate, etc.)"),
+    entity_id: str | None = Query(None, description="Filter by entity ID"),
+    domain: str | None = Query(None, description="Filter by domain (switch, light, climate, etc.)"),
     hours: int = Query(24, description="Hours of history to return", ge=1, le=168),
     min_delta: float = Query(50.0, description="Minimum power delta (watts)", ge=0),
     limit: int = Query(100, description="Maximum number of results", ge=1, le=1000)
@@ -97,16 +96,16 @@ async def get_energy_correlations(
     
     Shows which events caused significant power changes
     """
-    
+
     client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-        
+
         # Build Flux query
         start_time = datetime.utcnow() - timedelta(hours=hours)
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        
+
         # Build filters
         filters = []
         if entity_id:
@@ -125,9 +124,9 @@ async def get_energy_correlations(
                     detail="Invalid domain supplied"
                 )
             filters.append(f'r["domain"] == "{domain_safe}"')
-        
+
         filter_clause = " and ".join(filters) if filters else "true"
-        
+
         flux_query = f'''
         from(bucket: "{bucket}")
           |> range(start: {start_time.isoformat()}Z)
@@ -137,9 +136,9 @@ async def get_energy_correlations(
           |> sort(columns: ["_time"], desc: true)
           |> limit(n: {limit})
         '''
-        
+
         tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         correlations = []
         for table in tables:
             for record in table.records:
@@ -154,13 +153,13 @@ async def get_energy_correlations(
                     power_delta_w=record.values.get("_value", 0),
                     power_delta_pct=record.values.get("power_delta_pct", 0)
                 ))
-        
+
         return correlations
-        
+
     except Exception as e:
         logger.error(f"Error getting energy correlations: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query correlations: {str(e)}"
         )
     finally:
@@ -174,14 +173,14 @@ async def get_energy_correlations(
 @router.get("/current", response_model=PowerReading)
 async def get_current_power():
     """Get current power consumption from smart meter"""
-    
+
     client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-        
+
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        
+
         flux_query = f'''
         from(bucket: "{bucket}")
           |> range(start: -5m)
@@ -189,30 +188,30 @@ async def get_current_power():
           |> filter(fn: (r) => r["_field"] == "total_power_w" or r["_field"] == "daily_kwh")
           |> last()
         '''
-        
+
         tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         power_w = 0.0
         daily_kwh = 0.0
         timestamp = datetime.utcnow()
-        
+
         for table in tables:
             for record in table.records:
                 field = record.get_field()
                 value = record.get_value()
                 timestamp = record.get_time()
-                
+
                 if field == "total_power_w":
                     power_w = float(value)
                 elif field == "daily_kwh":
                     daily_kwh = float(value)
-        
+
         return PowerReading(
             timestamp=timestamp,
             total_power_w=power_w,
             daily_kwh=daily_kwh
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting current power: {e}")
         raise HTTPException(
@@ -227,20 +226,20 @@ async def get_current_power():
                 logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
-@router.get("/circuits", response_model=List[CircuitPowerReading])
+@router.get("/circuits", response_model=list[CircuitPowerReading])
 async def get_circuit_power(
     hours: int = Query(1, description="Hours of history", ge=1, le=24)
 ):
     """Get circuit-level power readings"""
-    
+
     client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-        
+
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         start_time = datetime.utcnow() - timedelta(hours=hours)
-        
+
         flux_query = f'''
         from(bucket: "{bucket}")
           |> range(start: {start_time.isoformat()}Z)
@@ -249,9 +248,9 @@ async def get_circuit_power(
           |> group(columns: ["circuit_name"])
           |> last()
         '''
-        
+
         tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         circuits = []
         for table in tables:
             for record in table.records:
@@ -261,9 +260,9 @@ async def get_circuit_power(
                     power_w=float(record.get_value()),
                     percentage=record.values.get("percentage", 0.0)
                 ))
-        
+
         return circuits
-        
+
     except Exception as e:
         logger.error(f"Error getting circuit power: {e}")
         raise HTTPException(
@@ -291,7 +290,7 @@ async def get_device_energy_impact(
     - Total energy attributed to device
     - Usage patterns and cost estimates
     """
-    
+
     client = None
     try:
         client = get_influxdb_client()
@@ -302,10 +301,10 @@ async def get_device_energy_impact(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid entity_id supplied"
             )
-        
+
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         start_time = datetime.utcnow() - timedelta(days=days)
-        
+
         # Query ON transitions
         flux_on = f'''
         from(bucket: "{bucket}")
@@ -316,7 +315,7 @@ async def get_device_energy_impact(
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> mean()
         '''
-        
+
         # Query OFF transitions
         flux_off = f'''
         from(bucket: "{bucket}")
@@ -327,7 +326,7 @@ async def get_device_energy_impact(
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> mean()
         '''
-        
+
         # Count total state changes
         flux_count = f'''
         from(bucket: "{bucket}")
@@ -337,43 +336,43 @@ async def get_device_energy_impact(
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> count()
         '''
-        
+
         # Execute queries
         on_tables = query_api.query(flux_on, org=os.getenv("INFLUXDB_ORG", "homeiq"))
         off_tables = query_api.query(flux_off, org=os.getenv("INFLUXDB_ORG", "homeiq"))
         count_tables = query_api.query(flux_count, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         avg_power_on = 0.0
         avg_power_off = 0.0
         total_changes = 0
         domain = ""
-        
+
         # Parse ON power
         for table in on_tables:
             for record in table.records:
                 avg_power_on = float(record.get_value())
                 domain = record.values.get("domain", "")
-        
+
         # Parse OFF power
         for table in off_tables:
             for record in table.records:
                 avg_power_off = float(record.get_value())
-        
+
         # Parse count
         for table in count_tables:
             for record in table.records:
                 total_changes = int(record.get_value())
-        
+
         # Calculate daily usage (assuming average 8 hours on per day)
         hours_on_per_day = 8.0
         if avg_power_on > 0:
             daily_kwh = (avg_power_on * hours_on_per_day) / 1000.0
         else:
             daily_kwh = 0.0
-        
+
         # Estimate monthly cost (assuming $0.12/kWh)
         monthly_cost = daily_kwh * 30 * 0.12
-        
+
         return DeviceEnergyImpact(
             entity_id=entity_id,
             domain=domain,
@@ -383,7 +382,7 @@ async def get_device_energy_impact(
             estimated_daily_kwh=daily_kwh,
             estimated_monthly_cost=monthly_cost
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting device impact for {entity_id}: {e}")
         raise HTTPException(
@@ -403,15 +402,15 @@ async def get_energy_statistics(
     hours: int = Query(24, description="Hours for statistics", ge=1, le=168)
 ):
     """Get overall energy statistics"""
-    
+
     client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-        
+
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         start_time = datetime.utcnow() - timedelta(hours=hours)
-        
+
         # Current power
         flux_current = f'''
         from(bucket: "{bucket}")
@@ -420,7 +419,7 @@ async def get_energy_statistics(
           |> filter(fn: (r) => r["_field"] == "total_power_w" or r["_field"] == "daily_kwh")
           |> last()
         '''
-        
+
         # Peak power in period
         flux_peak = f'''
         from(bucket: "{bucket}")
@@ -429,7 +428,7 @@ async def get_energy_statistics(
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> max()
         '''
-        
+
         # Average power
         flux_avg = f'''
         from(bucket: "{bucket}")
@@ -438,7 +437,7 @@ async def get_energy_statistics(
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> mean()
         '''
-        
+
         # Count correlations
         flux_correlations = f'''
         from(bucket: "{bucket}")
@@ -447,20 +446,20 @@ async def get_energy_statistics(
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> count()
         '''
-        
+
         # Execute queries
         current_tables = query_api.query(flux_current, org=os.getenv("INFLUXDB_ORG", "homeiq"))
         peak_tables = query_api.query(flux_peak, org=os.getenv("INFLUXDB_ORG", "homeiq"))
         avg_tables = query_api.query(flux_avg, org=os.getenv("INFLUXDB_ORG", "homeiq"))
         corr_tables = query_api.query(flux_correlations, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         current_power = 0.0
         daily_kwh = 0.0
         peak_power = 0.0
         peak_time = None
         avg_power = 0.0
         total_correlations = 0
-        
+
         # Parse current
         for table in current_tables:
             for record in table.records:
@@ -469,23 +468,23 @@ async def get_energy_statistics(
                     current_power = float(record.get_value())
                 elif field == "daily_kwh":
                     daily_kwh = float(record.get_value())
-        
+
         # Parse peak
         for table in peak_tables:
             for record in table.records:
                 peak_power = float(record.get_value())
                 peak_time = record.get_time()
-        
+
         # Parse average
         for table in avg_tables:
             for record in table.records:
                 avg_power = float(record.get_value())
-        
+
         # Parse correlations count
         for table in corr_tables:
             for record in table.records:
                 total_correlations = int(record.get_value())
-        
+
         return EnergyStatistics(
             current_power_w=current_power,
             daily_kwh=daily_kwh,
@@ -494,7 +493,7 @@ async def get_energy_statistics(
             average_power_w=avg_power,
             total_correlations=total_correlations
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting energy statistics: {e}")
         raise HTTPException(
@@ -509,7 +508,7 @@ async def get_energy_statistics(
                 logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
 
-@router.get("/top-consumers", response_model=List[DeviceEnergyImpact])
+@router.get("/top-consumers", response_model=list[DeviceEnergyImpact])
 async def get_top_energy_consumers(
     days: int = Query(7, description="Days of history", ge=1, le=30),
     limit: int = Query(10, description="Number of devices to return", ge=1, le=50)
@@ -519,15 +518,15 @@ async def get_top_energy_consumers(
     
     Returns devices sorted by estimated daily energy consumption
     """
-    
+
     client = None
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-        
+
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         start_time = datetime.utcnow() - timedelta(days=days)
-        
+
         # Get average power delta by entity (ON transitions only)
         flux_query = f'''
         from(bucket: "{bucket}")
@@ -540,20 +539,20 @@ async def get_top_energy_consumers(
           |> sort(desc: true)
           |> limit(n: {limit})
         '''
-        
+
         tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         devices = []
         for table in tables:
             for record in table.records:
                 entity_id = record.values.get("entity_id", "")
                 domain = record.values.get("domain", "")
                 avg_power = float(record.get_value())
-                
+
                 # Estimate daily usage (8 hours on)
                 daily_kwh = (avg_power * 8) / 1000.0
                 monthly_cost = daily_kwh * 30 * 0.12
-                
+
                 devices.append(DeviceEnergyImpact(
                     entity_id=entity_id,
                     domain=domain,
@@ -563,9 +562,9 @@ async def get_top_energy_consumers(
                     estimated_daily_kwh=daily_kwh,
                     estimated_monthly_cost=monthly_cost
                 ))
-        
+
         return devices
-        
+
     except Exception as e:
         logger.error(f"Error getting top consumers: {e}")
         raise HTTPException(

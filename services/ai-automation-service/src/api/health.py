@@ -1,8 +1,9 @@
 """Health check endpoint"""
 
-from fastapi import APIRouter
-from datetime import datetime
 import logging
+from datetime import datetime
+
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,11 @@ async def health_check():
         "version": "2.0.0",
         "timestamp": datetime.utcnow().isoformat()
     }
-    
+
     # Add Device Intelligence stats (Epic AI-2 - Story AI2.1)
     if _capability_listener and _capability_listener.is_started():
         health["device_intelligence"] = _capability_listener.get_stats()
-    
+
     # Add v2 API status (Phase 9)
     try:
         from ...services.service_container import get_service_container
@@ -72,7 +73,7 @@ async def health_check():
             "status": "error",
             "error": str(e)
         }
-    
+
     return health
 
 
@@ -87,12 +88,13 @@ async def health_check_v2():
         Detailed v2 API service health status
     """
     try:
-        from ...services.service_container import get_service_container
-        from ...database import get_db
         from sqlalchemy import text
-        
+
+        from ...database import get_db
+        from ...services.service_container import get_service_container
+
         container = get_service_container()
-        
+
         # Check database connectivity for v2 tables
         db_status = "unknown"
         try:
@@ -102,7 +104,7 @@ async def health_check_v2():
                 break
         except Exception as e:
             db_status = f"error: {str(e)}"
-        
+
         # Check service initialization
         services_status = {
             "entity_extractor": container.entity_extractor is not None,
@@ -123,9 +125,9 @@ async def health_check_v2():
             "function_registry": container.function_registry is not None,
             "device_context_service": container.device_context_service is not None,
         }
-        
+
         all_services_healthy = all(services_status.values())
-        
+
         return {
             "status": "healthy" if all_services_healthy and db_status == "connected" else "degraded",
             "service": "ai-automation-service-v2",
@@ -170,32 +172,30 @@ async def get_event_rate():
     try:
         # Get current time for uptime calculation
         current_time = datetime.now()
-        
+
         # Story 24.1: Calculate real uptime from service start time
         try:
-            from datetime import datetime as dt
-            import os
             # Try to get service start time from environment or use a reasonable estimate
             # In a containerized environment, container uptime approximates service uptime
             uptime_seconds = 3600  # Default estimate (1 hour)
-            
+
             # Note: For precise uptime, SERVICE_START_TIME would be tracked in main.py
             # This is a reasonable approximation for event rate metrics
         except Exception as e:
             logger.warning(f"Could not calculate precise uptime: {e}")
             uptime_seconds = 3600
-        
+
         # Simulate some realistic metrics for ai-automation-service
         # In production, these would come from actual request tracking
         import random
         events_per_second = random.uniform(0.1, 1.5)  # Simulate 0.1-1.5 req/sec
         events_per_hour = events_per_second * 3600
-        
+
         # Simulate some processing statistics
         processed_events = int(events_per_second * uptime_seconds)
         failed_events = int(processed_events * 0.05)  # 5% failure rate (AI can be unreliable)
         success_rate = 95.0
-        
+
         # Build response
         response_data = {
             "service": "ai-automation-service",
@@ -232,9 +232,9 @@ async def get_event_rate():
             },
             "timestamp": current_time.isoformat()
         }
-        
+
         return response_data
-        
+
     except Exception as e:
         logger.error(f"Error getting event rate: {e}")
         return {
@@ -268,7 +268,7 @@ async def get_call_statistics():
             },
             "model_usage": _multi_model_extractor.stats if hasattr(_multi_model_extractor, 'stats') else {}
         }
-    
+
     # Fallback to model orchestrator (if configured)
     if _model_orchestrator and hasattr(_model_orchestrator, 'call_stats'):
         return {
@@ -282,7 +282,7 @@ async def get_call_statistics():
             },
             "model_usage": _model_orchestrator.stats
         }
-    
+
     return {
         "error": "No extractor initialized",
         "call_patterns": {},

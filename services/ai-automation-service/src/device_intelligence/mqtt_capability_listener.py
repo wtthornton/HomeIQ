@@ -12,10 +12,8 @@ Story: AI2.1 - MQTT Capability Listener & Universal Parser
 Epic: AI-2 - Device Intelligence System
 """
 
-import asyncio
 import json
 import logging
-from typing import List, Dict, Optional
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -47,7 +45,7 @@ class MQTTCapabilityListener:
         await listener.start()
         # Automatically discovers capabilities when bridge publishes
     """
-    
+
     def __init__(self, mqtt_client, db_session, parser):
         """
         Initialize capability listener.
@@ -67,7 +65,7 @@ class MQTTCapabilityListener:
         self._started = False
         self._subscribe_topic = "zigbee2mqtt/bridge/devices"
         self._pending_devices = []  # Queue for devices to process
-        
+
     async def start(self) -> None:
         """
         Start listening to Zigbee2MQTT bridge.
@@ -88,16 +86,16 @@ class MQTTCapabilityListener:
         if self._started:
             logger.warning("⚠️ MQTT Capability Listener already started")
             return
-        
+
         logger.info("🎧 Starting MQTT Capability Listener...")
-        
+
         try:
             # Subscribe to bridge devices topic
             # NOTE: If connection is lost and reestablished, MQTT client
             # will automatically resubscribe (paho-mqtt best practice)
             self.mqtt_client.subscribe(self._subscribe_topic)
             self.mqtt_client.on_message = self._on_message
-            
+
             self._started = True
             logger.info(
                 "✅ MQTT Capability Listener started - waiting for bridge message\n"
@@ -105,11 +103,11 @@ class MQTTCapabilityListener:
                 "   🔒 Mode: READ-ONLY (safe)\n"
                 "   ♻️  Auto-resubscribe on reconnect: enabled"
             )
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to start MQTT Capability Listener: {e}")
             raise
-    
+
     def _on_message(self, client, userdata, msg) -> None:
         """
         MQTT callback - processes bridge message.
@@ -126,29 +124,29 @@ class MQTTCapabilityListener:
             try:
                 # Parse JSON payload
                 devices = json.loads(msg.payload)
-                
+
                 if not isinstance(devices, list):
                     logger.error(
                         f"❌ Bridge message is not a list: {type(devices)}"
                     )
                     return
-                
+
                 logger.info(
                     f"📡 Received bridge message with {len(devices)} devices"
                 )
-                
+
                 # Process in async context (thread-safe)
                 # Store devices for background processing
                 self._pending_devices = devices
                 logger.info("📋 Devices queued for processing (Story 2.3 will process in batch)")
-                
+
             except json.JSONDecodeError as e:
                 logger.error(
                     f"❌ Failed to parse bridge message as JSON: {e}\n"
                     f"   Payload (first 200 chars): {msg.payload[:200]}"
                 )
                 self.errors += 1
-                
+
             except Exception as e:
                 logger.error(
                     f"❌ Unexpected error processing bridge message: {e}",
@@ -158,8 +156,8 @@ class MQTTCapabilityListener:
         else:
             # Ignore messages from other topics (shouldn't happen)
             logger.debug(f"Ignoring message from topic: {msg.topic}")
-    
-    async def _process_devices(self, devices: List[dict]) -> None:
+
+    async def _process_devices(self, devices: list[dict]) -> None:
         """
         Process all devices from Zigbee2MQTT bridge.
         
@@ -170,33 +168,33 @@ class MQTTCapabilityListener:
             devices: List of device objects from Zigbee2MQTT bridge
         """
         logger.info(f"🔄 Processing {len(devices)} devices from bridge...")
-        
+
         # Reset counters
         processed = 0
         skipped = 0
         errors = 0
         start_time = datetime.utcnow()
-        
+
         for i, device in enumerate(devices, 1):
             try:
                 # Log progress every 10 devices
                 if i % 10 == 0:
                     logger.info(f"   Progress: {i}/{len(devices)} devices...")
-                
+
                 result = await self._process_single_device(device)
-                
+
                 if result == "processed":
                     processed += 1
                 elif result == "skipped":
                     skipped += 1
-                    
+
             except KeyError as e:
                 logger.warning(
                     f"⚠️ Device missing required field: {e}\n"
                     f"   Device: {device.get('friendly_name', 'unknown')}"
                 )
                 skipped += 1
-                
+
             except Exception as e:
                 logger.error(
                     f"❌ Error processing device: {e}\n"
@@ -204,16 +202,16 @@ class MQTTCapabilityListener:
                     exc_info=True
                 )
                 errors += 1
-        
+
         # Update instance counters
         self.devices_processed = processed
         self.devices_skipped = skipped
         self.errors += errors
         self.devices_discovered = processed + skipped
-        
+
         # Calculate duration
         duration = (datetime.utcnow() - start_time).total_seconds()
-        
+
         # Log completion summary
         logger.info(
             f"✅ Capability discovery complete in {duration:.1f}s\n"
@@ -221,14 +219,14 @@ class MQTTCapabilityListener:
             f"   ⏭️  Skipped: {skipped} devices (no capabilities)\n"
             f"   ❌ Errors: {errors} devices"
         )
-        
+
         # Performance check (NFR12: <3 minutes for 100 devices)
         if len(devices) >= 100 and duration > 180:
             logger.warning(
                 f"⚠️ Performance threshold exceeded: {duration:.1f}s for "
                 f"{len(devices)} devices (expected <180s for 100 devices)"
             )
-    
+
     async def _process_single_device(self, device: dict) -> str:
         """
         Process single device from bridge message.
@@ -249,7 +247,7 @@ class MQTTCapabilityListener:
         """
         # Extract device metadata
         definition = device.get('definition')
-        
+
         if not definition or definition is None:
             # No definition = coordinator or router (not an end device)
             logger.debug(
@@ -257,13 +255,13 @@ class MQTTCapabilityListener:
                 f"{device.get('friendly_name', 'unknown')}"
             )
             return "skipped"
-        
+
         # Extract definition fields
         manufacturer = definition.get('vendor', 'Unknown')
         model = definition.get('model', 'Unknown')
         description = definition.get('description', '')
         exposes = definition.get('exposes', [])
-        
+
         if not exposes or len(exposes) == 0:
             # No exposes = no capabilities to discover
             logger.debug(
@@ -271,7 +269,7 @@ class MQTTCapabilityListener:
                 f"(coordinator/router or unsupported device)"
             )
             return "skipped"
-        
+
         # Parse capabilities using universal parser
         try:
             capabilities = self.parser.parse_exposes(exposes)
@@ -280,19 +278,19 @@ class MQTTCapabilityListener:
                 f"❌ Failed to parse exposes for {manufacturer} {model}: {e}"
             )
             raise
-        
+
         if not capabilities:
             logger.debug(
                 f"Parser returned no capabilities for {manufacturer} {model}"
             )
             return "skipped"
-        
+
         logger.info(
             f"📦 Discovered {len(capabilities)} capabilities for "
             f"{manufacturer} {model}"
         )
         logger.debug(f"   Capabilities: {list(capabilities.keys())}")
-        
+
         # Store in database (Story 2.2 will implement storage)
         await self._store_capabilities(
             device_model=model,
@@ -301,9 +299,9 @@ class MQTTCapabilityListener:
             capabilities=capabilities,
             mqtt_exposes=exposes
         )
-        
+
         return "processed"
-    
+
     async def _store_capabilities(
         self,
         device_model: str,
@@ -329,7 +327,7 @@ class MQTTCapabilityListener:
                 f"Database session not available, skipping storage for {device_model}"
             )
             return
-        
+
         try:
             # Upsert capability (insert if new, update if exists)
             async with self.db as session:
@@ -342,21 +340,21 @@ class MQTTCapabilityListener:
                     mqtt_exposes=mqtt_exposes,
                     integration_type='zigbee2mqtt'
                 )
-            
+
             logger.info(
                 f"💾 Stored capabilities for {manufacturer} {device_model}\n"
                 f"   Capabilities: {len(capabilities)} features\n"
                 f"   Database: ai_automation.db → device_capabilities"
             )
-            
+
         except Exception as e:
             logger.error(
                 f"❌ Failed to store capabilities for {device_model}: {e}",
                 exc_info=True
             )
             # Don't raise - continue processing other devices
-    
-    def get_stats(self) -> Dict[str, int]:
+
+    def get_stats(self) -> dict[str, int]:
         """
         Get discovery statistics for monitoring.
         
@@ -373,7 +371,7 @@ class MQTTCapabilityListener:
             "devices_skipped": self.devices_skipped,
             "errors": self.errors
         }
-    
+
     def is_started(self) -> bool:
         """
         Check if listener has been started.
@@ -382,7 +380,7 @@ class MQTTCapabilityListener:
             True if listener is running, False otherwise
         """
         return self._started
-    
+
     async def process_pending_devices(self) -> None:
         """
         Process any pending devices from MQTT queue.
@@ -393,9 +391,9 @@ class MQTTCapabilityListener:
         if not self._pending_devices:
             logger.debug("No pending devices to process")
             return
-        
+
         devices = self._pending_devices
         self._pending_devices = []  # Clear queue
-        
+
         await self._process_devices(devices)
 

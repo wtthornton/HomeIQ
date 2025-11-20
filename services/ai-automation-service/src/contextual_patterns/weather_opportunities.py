@@ -9,8 +9,7 @@ Story AI3.5: Weather Context Integration
 
 import logging
 import uuid
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class WeatherOpportunityDetector:
     Story AI3.5: Weather Context Integration
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     """
-    
+
     def __init__(
         self,
         influxdb_client,
@@ -49,17 +48,17 @@ class WeatherOpportunityDetector:
         self.frost_threshold = frost_threshold_f
         self.heat_threshold = heat_threshold_f
         self.min_confidence = min_confidence
-        
+
         # Cache for performance
         self._weather_cache = None
         self._climate_devices_cache = None
-        
+
         logger.info(
             f"WeatherOpportunityDetector initialized: "
             f"frost_threshold={frost_threshold_f}°F, heat_threshold={heat_threshold_f}°F"
         )
-    
-    async def detect_opportunities(self, days: int = 7) -> List[Dict]:
+
+    async def detect_opportunities(self, days: int = 7) -> list[dict]:
         """
         Detect all weather-aware automation opportunities.
         
@@ -71,42 +70,42 @@ class WeatherOpportunityDetector:
         """
         start_time = datetime.now(timezone.utc)
         logger.info("🌤️ Starting weather opportunity detection...")
-        
+
         try:
             # Step 1: Get weather data
             weather_data = await self._get_weather_data(days)
-            
+
             if not weather_data:
                 logger.warning("⚠️ No weather data found in InfluxDB, but continuing with weather opportunity detection")
                 logger.warning("   → Weather data may be stored under different measurement name")
                 # Continue with empty weather data - still try to find opportunities
                 weather_data = []
-            
+
             logger.info(f"📊 Retrieved {len(weather_data)} weather records")
-            
+
             # Step 2: Get climate devices
             climate_devices = await self._get_climate_devices()
-            
+
             if not climate_devices:
                 logger.info("ℹ️  No climate devices found, but continuing with weather opportunities")
                 # Continue with empty climate devices - still try to find opportunities
                 climate_devices = []
-            
+
             logger.info(f"🌡️  Found {len(climate_devices)} climate devices")
-            
+
             # Step 3: Detect opportunities
             opportunities = []
-            
+
             # Frost protection opportunities (even with empty data)
             frost_opps = await self._detect_frost_protection(weather_data, climate_devices)
             opportunities.extend(frost_opps)
             logger.info(f"   ❄️  Frost protection: {len(frost_opps)} opportunities")
-            
+
             # Pre-cooling opportunities (even with empty data)
             cooling_opps = await self._detect_precooling(weather_data, climate_devices)
             opportunities.extend(cooling_opps)
             logger.info(f"   🧊 Pre-cooling: {len(cooling_opps)} opportunities")
-            
+
             # Always create at least one generic weather opportunity if no specific ones found
             # This ensures weather-aware automations are suggested even with minimal data
             if not opportunities and (weather_data or climate_devices):
@@ -123,21 +122,21 @@ class WeatherOpportunityDetector:
                 }
                 opportunities.append(generic_opp)
                 logger.info("   🌤️  Created generic weather opportunity")
-            
+
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            
+
             logger.info(
                 f"✅ Weather opportunity detection complete in {duration:.1f}s\n"
                 f"   Total opportunities: {len(opportunities)}"
             )
-            
+
             return opportunities
-            
+
         except Exception as e:
             logger.error(f"❌ Weather opportunity detection failed: {e}", exc_info=True)
             return []
-    
-    async def _get_weather_data(self, days: int) -> List[Dict]:
+
+    async def _get_weather_data(self, days: int) -> list[dict]:
         """
         Get weather data from normalized Home Assistant events in InfluxDB.
         
@@ -149,7 +148,7 @@ class WeatherOpportunityDetector:
         """
         if self._weather_cache is not None:
             return self._weather_cache
-        
+
         try:
             # Query normalized HA weather events from InfluxDB
             # Weather data is stored as HA events with domain="weather" and domain="sensor" for weather sensors
@@ -171,13 +170,13 @@ class WeatherOpportunityDetector:
               |> sort(columns: ["_time"])
               |> limit(n: 500)
             '''
-            
+
             result = self.influxdb.query_api.query(query, org=self.influxdb.org)
-            
+
             # Parse weather records from normalized HA events
             weather_records = []
             logger.info(f"🌤️  Weather query returned {len(result)} tables")
-            
+
             for table in result:
                 for record in table.records:
                     weather_records.append({
@@ -188,70 +187,70 @@ class WeatherOpportunityDetector:
                         'value': record.get_value(),
                         'location': record.values.get('area_id', 'home')
                     })
-            
+
             self._weather_cache = weather_records
             logger.info(f"📊 Retrieved {len(weather_records)} normalized weather events from HA")
-            
+
             return weather_records
-            
+
         except Exception as e:
             logger.warning(f"Failed to get weather data from HA events: {e}")
             return []
-    
-    async def _get_climate_devices(self) -> List[Dict]:
+
+    async def _get_climate_devices(self) -> list[dict]:
         """Get all climate-related devices from data-api."""
         if self._climate_devices_cache is not None:
             return self._climate_devices_cache
-        
+
         try:
             # Get all devices
             all_devices = await self.data_api.fetch_devices()
-            
+
             # Get all entities
             all_entities = await self.data_api.fetch_entities()
-            
+
             # Filter for climate entities
             climate_entities = [
                 e for e in all_entities
                 if e['entity_id'].startswith('climate.')
             ]
-            
+
             self._climate_devices_cache = climate_entities
             logger.debug(f"Found {len(climate_entities)} climate devices")
-            
+
             return climate_entities
-            
+
         except Exception as e:
             logger.warning(f"Failed to get climate devices: {e}")
             return []
-    
+
     async def _detect_frost_protection(
         self,
-        weather_data: List[Dict],
-        climate_devices: List[Dict]
-    ) -> List[Dict]:
+        weather_data: list[dict],
+        climate_devices: list[dict]
+    ) -> list[dict]:
         """
         Detect frost protection opportunities.
         
         Triggered when forecast shows temps below freezing.
         """
         opportunities = []
-        
+
         # Get recent low temperatures
         low_temps = [
             r for r in weather_data
             if r['field'] == 'forecast_low' or (r['field'] == 'temperature' and r['value'] < 40)
         ]
-        
+
         if not low_temps:
             return []
-        
+
         # Check if any temps below frost threshold
         min_temp = min(r['value'] for r in low_temps)
-        
+
         if min_temp < self.frost_threshold:
             logger.info(f"❄️  Frost risk detected: {min_temp:.1f}°F (threshold: {self.frost_threshold}°F)")
-            
+
             # Create opportunity for each climate device
             for device in climate_devices:
                 opportunities.append({
@@ -274,36 +273,36 @@ class WeatherOpportunityDetector:
                         'rationale': f"Forecast shows {min_temp:.1f}°F - enable frost protection to prevent frozen pipes"
                     }
                 })
-        
+
         return opportunities
-    
+
     async def _detect_precooling(
         self,
-        weather_data: List[Dict],
-        climate_devices: List[Dict]
-    ) -> List[Dict]:
+        weather_data: list[dict],
+        climate_devices: list[dict]
+    ) -> list[dict]:
         """
         Detect pre-cooling opportunities.
         
         Triggered when forecast shows hot afternoon temps.
         """
         opportunities = []
-        
+
         # Get high temperatures
         high_temps = [
             r for r in weather_data
             if r['field'] == 'forecast_high'
         ]
-        
+
         if not high_temps:
             return []
-        
+
         # Check for hot days
         max_temp = max(r['value'] for r in high_temps)
-        
+
         if max_temp > self.heat_threshold:
             logger.info(f"🔥 Hot day detected: {max_temp:.1f}°F (threshold: {self.heat_threshold}°F)")
-            
+
             # Create opportunity for each climate device
             for device in climate_devices:
                 opportunities.append({
@@ -326,9 +325,9 @@ class WeatherOpportunityDetector:
                         'rationale': f"Forecast shows {max_temp:.1f}°F - pre-cool early to reduce energy costs"
                     }
                 })
-        
+
         return opportunities
-    
+
     def clear_cache(self):
         """Clear cached data."""
         self._weather_cache = None

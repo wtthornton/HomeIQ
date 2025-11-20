@@ -3,11 +3,11 @@ Tests for Condition Evaluator (Home Assistant Pattern Improvement #3 - 2025)
 """
 
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, time as dt_time
-from src.condition_evaluator import ConditionEvaluator, ConditionType
+
+import pytest
 from src.clients.ha_client import HomeAssistantClient
+from src.condition_evaluator import ConditionEvaluator
 from src.template_engine import TemplateEngine
 
 
@@ -54,7 +54,7 @@ def condition_evaluator(mock_ha_client):
 
 class TestStateCondition:
     """Test state condition evaluation"""
-    
+
     @pytest.mark.asyncio
     async def test_state_condition_true(self, condition_evaluator):
         """Test state condition that evaluates to True"""
@@ -65,7 +65,7 @@ class TestStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True
-    
+
     @pytest.mark.asyncio
     async def test_state_condition_false(self, condition_evaluator):
         """Test state condition that evaluates to False"""
@@ -76,7 +76,7 @@ class TestStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is False
-    
+
     @pytest.mark.asyncio
     async def test_state_condition_list(self, condition_evaluator):
         """Test state condition with list of acceptable states"""
@@ -87,7 +87,7 @@ class TestStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # Office is 'on', which is in the list
-    
+
     @pytest.mark.asyncio
     async def test_state_condition_missing_entity(self, condition_evaluator):
         """Test state condition with non-existent entity"""
@@ -102,7 +102,7 @@ class TestStateCondition:
 
 class TestNumericStateCondition:
     """Test numeric state condition evaluation"""
-    
+
     @pytest.mark.asyncio
     async def test_numeric_state_above(self, condition_evaluator):
         """Test numeric state condition with 'above' threshold"""
@@ -113,7 +113,7 @@ class TestNumericStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # 22.5 > 20.0
-    
+
     @pytest.mark.asyncio
     async def test_numeric_state_below(self, condition_evaluator):
         """Test numeric state condition with 'below' threshold"""
@@ -124,7 +124,7 @@ class TestNumericStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # 22.5 < 25.0
-    
+
     @pytest.mark.asyncio
     async def test_numeric_state_range(self, condition_evaluator):
         """Test numeric state condition with both above and below"""
@@ -136,7 +136,7 @@ class TestNumericStateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # 22.5 is between 20.0 and 25.0
-    
+
     @pytest.mark.asyncio
     async def test_numeric_state_out_of_range(self, condition_evaluator):
         """Test numeric state condition outside range"""
@@ -151,7 +151,7 @@ class TestNumericStateCondition:
 
 class TestAndCondition:
     """Test AND condition logic"""
-    
+
     @pytest.mark.asyncio
     async def test_and_condition_all_true(self, condition_evaluator):
         """Test AND condition where all sub-conditions are True"""
@@ -172,7 +172,7 @@ class TestAndCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True
-    
+
     @pytest.mark.asyncio
     async def test_and_condition_one_false(self, condition_evaluator):
         """Test AND condition where one sub-condition is False"""
@@ -193,7 +193,7 @@ class TestAndCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is False  # Kitchen light is off
-    
+
     @pytest.mark.asyncio
     async def test_and_condition_empty(self, condition_evaluator):
         """Test AND condition with no sub-conditions (should be True)"""
@@ -207,7 +207,7 @@ class TestAndCondition:
 
 class TestOrCondition:
     """Test OR condition logic"""
-    
+
     @pytest.mark.asyncio
     async def test_or_condition_one_true(self, condition_evaluator):
         """Test OR condition where one sub-condition is True"""
@@ -228,7 +228,7 @@ class TestOrCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # Office light is on
-    
+
     @pytest.mark.asyncio
     async def test_or_condition_all_false(self, condition_evaluator):
         """Test OR condition where all sub-conditions are False"""
@@ -249,7 +249,7 @@ class TestOrCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is False
-    
+
     @pytest.mark.asyncio
     async def test_or_condition_empty(self, condition_evaluator):
         """Test OR condition with no sub-conditions (should be False)"""
@@ -263,7 +263,7 @@ class TestOrCondition:
 
 class TestNotCondition:
     """Test NOT condition logic"""
-    
+
     @pytest.mark.asyncio
     async def test_not_condition_true(self, condition_evaluator):
         """Test NOT condition that evaluates to True"""
@@ -279,7 +279,7 @@ class TestNotCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # Kitchen is off, so NOT(on) is True
-    
+
     @pytest.mark.asyncio
     async def test_not_condition_false(self, condition_evaluator):
         """Test NOT condition that evaluates to False"""
@@ -299,7 +299,7 @@ class TestNotCondition:
 
 class TestNestedConditions:
     """Test nested condition logic"""
-    
+
     @pytest.mark.asyncio
     async def test_nested_and_or(self, condition_evaluator):
         """Test nested AND/OR conditions"""
@@ -330,7 +330,7 @@ class TestNestedConditions:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # Office is on AND (kitchen is off OR temp > 20)
-    
+
     @pytest.mark.asyncio
     async def test_nested_not_and(self, condition_evaluator):
         """Test nested NOT and AND"""
@@ -360,7 +360,7 @@ class TestNestedConditions:
 
 class TestListConditions:
     """Test list of conditions (defaults to AND)"""
-    
+
     @pytest.mark.asyncio
     async def test_list_conditions_all_true(self, condition_evaluator):
         """Test list of conditions where all are True"""
@@ -378,7 +378,7 @@ class TestListConditions:
         ]
         result = await condition_evaluator.evaluate(conditions)
         assert result is True
-    
+
     @pytest.mark.asyncio
     async def test_list_conditions_one_false(self, condition_evaluator):
         """Test list of conditions where one is False"""
@@ -400,7 +400,7 @@ class TestListConditions:
 
 class TestTimeCondition:
     """Test time-based conditions"""
-    
+
     @pytest.mark.asyncio
     async def test_time_condition_after(self, condition_evaluator):
         """Test time condition with 'after' parameter"""
@@ -411,7 +411,7 @@ class TestTimeCondition:
         result = await condition_evaluator.evaluate(condition)
         # Result depends on current time, but should not raise error
         assert isinstance(result, bool)
-    
+
     @pytest.mark.asyncio
     async def test_time_condition_before(self, condition_evaluator):
         """Test time condition with 'before' parameter"""
@@ -421,7 +421,7 @@ class TestTimeCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert isinstance(result, bool)
-    
+
     @pytest.mark.asyncio
     async def test_time_condition_weekday(self, condition_evaluator):
         """Test time condition with weekday"""
@@ -435,7 +435,7 @@ class TestTimeCondition:
 
 class TestTemplateCondition:
     """Test template-based conditions"""
-    
+
     @pytest.mark.asyncio
     async def test_template_condition(self, condition_evaluator):
         """Test template condition evaluation"""
@@ -445,7 +445,7 @@ class TestTemplateCondition:
         }
         result = await condition_evaluator.evaluate(condition)
         assert result is True  # 22.5 > 20
-    
+
     @pytest.mark.asyncio
     async def test_template_condition_false(self, condition_evaluator):
         """Test template condition that evaluates to False"""

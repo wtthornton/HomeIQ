@@ -3,12 +3,13 @@ NER Model Service - Containerized Entity Extraction
 Provides NER-based entity extraction as a microservice
 """
 
+import logging
+import time
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any
-import logging
 from transformers import pipeline
-import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,10 +30,10 @@ class EntityExtractionRequest(BaseModel):
     confidence_threshold: float = 0.8
 
 class EntityExtractionResponse(BaseModel):
-    entities: List[Dict[str, Any]]
+    entities: list[dict[str, Any]]
     processing_time: float
     model_used: str
-    confidence_scores: List[float]
+    confidence_scores: list[float]
 
 @app.on_event("startup")
 async def startup_event():
@@ -68,27 +69,27 @@ async def extract_entities(request: EntityExtractionRequest):
     """
     if ner_pipeline is None:
         raise HTTPException(status_code=500, detail="NER model not loaded")
-    
+
     start_time = time.time()
-    
+
     try:
         # Extract entities using NER
         raw_entities = ner_pipeline(request.query)
-        
+
         # Filter by confidence threshold
         filtered_entities = [
-            entity for entity in raw_entities 
+            entity for entity in raw_entities
             if entity.get('score', 0) >= request.confidence_threshold
         ]
-        
+
         # Convert to our format
         entities = []
         confidence_scores = []
-        
+
         for entity in filtered_entities:
             # Map NER labels to our entity types
             entity_type = "device" if entity['entity'] in ['B-DEVICE', 'I-DEVICE'] else "area"
-            
+
             entities.append({
                 'name': entity['word'],
                 'type': entity_type,
@@ -99,18 +100,18 @@ async def extract_entities(request: EntityExtractionRequest):
                 'end': entity['end']
             })
             confidence_scores.append(entity['score'])
-        
+
         processing_time = time.time() - start_time
-        
+
         logger.info(f"Extracted {len(entities)} entities in {processing_time:.3f}s")
-        
+
         return EntityExtractionResponse(
             entities=entities,
             processing_time=processing_time,
             model_used="dslim/bert-base-NER",
             confidence_scores=confidence_scores
         )
-        
+
     except Exception as e:
         logger.error(f"Entity extraction failed: {e}")
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")

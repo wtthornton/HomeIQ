@@ -5,7 +5,8 @@ Week 2-3: Full implementation
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,11 @@ class ContextualFeatureExtractor:
     - Temperature
     - Occupancy state
     """
-    
+
     def __init__(self, ha_client=None):
         self.ha_client = ha_client
-    
-    async def extract_for_timestamp(self, timestamp) -> Dict[str, Any]:
+
+    async def extract_for_timestamp(self, timestamp) -> dict[str, Any]:
         """
         Get contextual features for a specific timestamp
         
@@ -49,10 +50,10 @@ class SessionDetector:
     Session = group of events within time window (30 min default)
     Used for sequence pattern detection
     """
-    
+
     def __init__(self, session_gap_minutes: int = 30):
         self.session_gap_seconds = session_gap_minutes * 60
-    
+
     def detect_sessions(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Add session_id to events based on time gaps
@@ -64,24 +65,24 @@ class SessionDetector:
             DataFrame with session_id column
         """
         df = df.sort_values('timestamp').copy()
-        
+
         # Calculate time gaps
         df['time_gap'] = df['timestamp'].diff().dt.total_seconds()
-        
+
         # New session when gap > threshold
         df['is_new_session'] = (df['time_gap'] > self.session_gap_seconds) | df['time_gap'].isna()
-        
+
         # Assign session IDs
         df['session_id'] = df['is_new_session'].cumsum().astype(str)
         df['session_id'] = 'session_' + df['session_id']
-        
+
         # Event index within session
         df['event_index_in_session'] = df.groupby('session_id').cumcount()
-        
+
         # Session metadata
         df['session_device_count'] = df.groupby('session_id')['device_id'].transform('nunique')
         df['time_from_prev_event'] = df['time_gap'].fillna(0)
-        
+
         return df
 
 
@@ -89,7 +90,7 @@ class DurationCalculator:
     """
     Calculate state durations from event sequences
     """
-    
+
     @staticmethod
     def calculate_durations(df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -102,11 +103,11 @@ class DurationCalculator:
             DataFrame with state_duration column
         """
         df = df.sort_values(['device_id', 'timestamp']).copy()
-        
+
         # Time since last event for this device
         df['state_duration'] = df.groupby('device_id')['timestamp'].diff().dt.total_seconds()
         df['state_duration'] = df['state_duration'].fillna(0)
-        
+
         return df
 
 

@@ -7,11 +7,12 @@ Replaces global variables with proper dependency injection pattern.
 Created: Phase 1 - Architecture & Database Design
 """
 
-from typing import Optional, Dict, Any
 import logging
-from ..config import settings
-from ..clients.ha_client import HomeAssistantClient
+from typing import Any, Optional
+
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
+from ..clients.ha_client import HomeAssistantClient
+from ..config import settings
 from ..llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
@@ -24,61 +25,61 @@ class ServiceContainer:
     Provides lazy-loaded singleton instances of all services.
     Thread-safe singleton pattern.
     """
-    
+
     _instance: Optional['ServiceContainer'] = None
     _initialized: bool = False
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         if self._initialized:
             return
-        
+
         # Lazy-loaded services (initialized on first access)
-        self._ha_client: Optional[HomeAssistantClient] = None
-        self._openai_client: Optional[OpenAIClient] = None
-        self._device_intelligence: Optional[DeviceIntelligenceClient] = None
-        
+        self._ha_client: HomeAssistantClient | None = None
+        self._openai_client: OpenAIClient | None = None
+        self._device_intelligence: DeviceIntelligenceClient | None = None
+
         # Entity services (will be initialized when entity module is created)
-        self._entity_extractor: Optional[Any] = None
-        self._entity_validator: Optional[Any] = None
-        self._entity_enricher: Optional[Any] = None
-        self._entity_resolver: Optional[Any] = None
-        
+        self._entity_extractor: Any | None = None
+        self._entity_validator: Any | None = None
+        self._entity_enricher: Any | None = None
+        self._entity_resolver: Any | None = None
+
         # Automation services (will be initialized when automation module is created)
-        self._yaml_generator: Optional[Any] = None
-        self._yaml_validator: Optional[Any] = None
-        self._yaml_corrector: Optional[Any] = None
-        self._test_executor: Optional[Any] = None
-        self._deployer: Optional[Any] = None
-        self._action_executor: Optional[Any] = None
-        
+        self._yaml_generator: Any | None = None
+        self._yaml_validator: Any | None = None
+        self._yaml_corrector: Any | None = None
+        self._test_executor: Any | None = None
+        self._deployer: Any | None = None
+        self._action_executor: Any | None = None
+
         # Conversation services (will be initialized when conversation module is created)
-        self._context_manager: Optional[Any] = None
-        self._intent_matcher: Optional[Any] = None
-        self._response_builder: Optional[Any] = None
-        self._history_manager: Optional[Any] = None
-        
+        self._context_manager: Any | None = None
+        self._intent_matcher: Any | None = None
+        self._response_builder: Any | None = None
+        self._history_manager: Any | None = None
+
         # Confidence and error handling
-        self._confidence_calculator: Optional[Any] = None
-        self._error_recovery: Optional[Any] = None
-        
+        self._confidence_calculator: Any | None = None
+        self._error_recovery: Any | None = None
+
         # Function calling
-        self._function_registry: Optional[Any] = None
-        
+        self._function_registry: Any | None = None
+
         # Device context
-        self._device_context_service: Optional[Any] = None
-        
+        self._device_context_service: Any | None = None
+
         # In-memory stores (could move to Redis later)
-        self._conversation_contexts: Dict[str, Any] = {}
-        
+        self._conversation_contexts: dict[str, Any] = {}
+
         self._initialized = True
         logger.info("✅ ServiceContainer initialized")
-    
+
     @property
     def ha_client(self) -> HomeAssistantClient:
         """Get or create Home Assistant client"""
@@ -94,7 +95,7 @@ class ServiceContainer:
             )
             logger.info("✅ HomeAssistantClient initialized")
         return self._ha_client
-    
+
     @property
     def openai_client(self) -> OpenAIClient:
         """Get or create OpenAI client"""
@@ -107,9 +108,9 @@ class ServiceContainer:
             )
             logger.info("✅ OpenAIClient initialized")
         return self._openai_client
-    
+
     @property
-    def device_intelligence(self) -> Optional[DeviceIntelligenceClient]:
+    def device_intelligence(self) -> DeviceIntelligenceClient | None:
         """Get or create Device Intelligence client"""
         if self._device_intelligence is None:
             if settings.device_intelligence_enabled:
@@ -122,7 +123,7 @@ class ServiceContainer:
                     logger.warning(f"⚠️ Failed to initialize DeviceIntelligenceClient: {e}")
                     return None
         return self._device_intelligence
-    
+
     # Entity services properties
     @property
     def entity_extractor(self):
@@ -137,26 +138,26 @@ class ServiceContainer:
             )
             logger.info("✅ EntityExtractor initialized")
         return self._entity_extractor
-    
+
     @property
     def entity_validator(self):
         """Get or create entity validator"""
         if self._entity_validator is None:
-            from .entity.validator import EntityValidator
             from ..clients.data_api_client import DataAPIClient
+            from .entity.validator import EntityValidator
             self._entity_validator = EntityValidator(
                 ha_client=self.ha_client,
                 data_api_client=DataAPIClient()
             )
             logger.info("✅ EntityValidator initialized")
         return self._entity_validator
-    
+
     @property
     def entity_enricher(self):
         """Get or create entity enricher"""
         if self._entity_enricher is None:
-            from .entity.enricher import EntityEnricher
             from ..clients.data_api_client import DataAPIClient
+            from .entity.enricher import EntityEnricher
             self._entity_enricher = EntityEnricher(
                 ha_client=self.ha_client,
                 device_intelligence_client=self.device_intelligence,
@@ -164,14 +165,14 @@ class ServiceContainer:
             )
             logger.info("✅ EntityEnricher initialized")
         return self._entity_enricher
-    
+
     @property
     def entity_resolver(self):
         """Get or create entity resolver"""
         if self._entity_resolver is None:
-            from .entity.resolver import EntityResolver
             from ..clients.data_api_client import DataAPIClient
-            
+            from .entity.resolver import EntityResolver
+
             # Try to get RAG client if available (optional)
             rag_client = None
             try:
@@ -181,7 +182,7 @@ class ServiceContainer:
                 pass
             except Exception:
                 pass
-            
+
             self._entity_resolver = EntityResolver(
                 ha_client=self.ha_client,
                 data_api_client=DataAPIClient(),
@@ -189,7 +190,7 @@ class ServiceContainer:
             )
             logger.info("✅ EntityResolver initialized")
         return self._entity_resolver
-    
+
     # Automation services properties
     @property
     def yaml_generator(self):
@@ -202,7 +203,7 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationYAMLGenerator initialized")
         return self._yaml_generator
-    
+
     @property
     def yaml_validator(self):
         """Get or create YAML validator"""
@@ -213,13 +214,13 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationYAMLValidator initialized")
         return self._yaml_validator
-    
+
     @property
     def yaml_corrector(self):
         """Get or create YAML corrector"""
         if self._yaml_corrector is None:
+
             from .automation.yaml_corrector import AutomationYAMLCorrector
-            from openai import AsyncOpenAI
             # Get AsyncOpenAI client from OpenAIClient wrapper
             async_openai = self.openai_client.client if hasattr(self.openai_client, 'client') else None
             if async_openai is None:
@@ -231,7 +232,7 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationYAMLCorrector initialized")
         return self._yaml_corrector
-    
+
     @property
     def test_executor(self):
         """Get or create test executor"""
@@ -245,7 +246,7 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationTestExecutor initialized")
         return self._test_executor
-    
+
     @property
     def deployer(self):
         """Get or create deployer"""
@@ -256,18 +257,18 @@ class ServiceContainer:
             )
             logger.info("✅ AutomationDeployer initialized")
         return self._deployer
-    
+
     @property
     def action_executor(self):
         """Get or create action executor"""
         if self._action_executor is None:
-            from .automation.action_executor import ActionExecutor
-            from ..template_engine import TemplateEngine
             from ..config import settings
-            
+            from ..template_engine import TemplateEngine
+            from .automation.action_executor import ActionExecutor
+
             # Create template engine for action executor
             template_engine = TemplateEngine(ha_client=self.ha_client)
-            
+
             # Initialize action executor
             self._action_executor = ActionExecutor(
                 ha_client=self.ha_client,
@@ -278,7 +279,7 @@ class ServiceContainer:
             )
             logger.info("✅ ActionExecutor initialized")
         return self._action_executor
-    
+
     # Conversation services properties
     @property
     def context_manager(self):
@@ -288,7 +289,7 @@ class ServiceContainer:
             self._context_manager = ConversationContextManager()
             logger.info("✅ ConversationContextManager initialized")
         return self._context_manager
-    
+
     @property
     def intent_matcher(self):
         """Get or create intent matcher"""
@@ -297,7 +298,7 @@ class ServiceContainer:
             self._intent_matcher = IntentMatcher()
             logger.info("✅ IntentMatcher initialized")
         return self._intent_matcher
-    
+
     @property
     def response_builder(self):
         """Get or create response builder"""
@@ -306,7 +307,7 @@ class ServiceContainer:
             self._response_builder = ResponseBuilder()
             logger.info("✅ ResponseBuilder initialized")
         return self._response_builder
-    
+
     @property
     def history_manager(self):
         """Get or create history manager"""
@@ -315,7 +316,7 @@ class ServiceContainer:
             self._history_manager = HistoryManager()
             logger.info("✅ HistoryManager initialized")
         return self._history_manager
-    
+
     # Confidence and error handling
     @property
     def confidence_calculator(self):
@@ -325,7 +326,7 @@ class ServiceContainer:
             self._confidence_calculator = EnhancedConfidenceCalculator()
             logger.info("✅ EnhancedConfidenceCalculator initialized")
         return self._confidence_calculator
-    
+
     @property
     def error_recovery(self):
         """Get or create error recovery service"""
@@ -334,7 +335,7 @@ class ServiceContainer:
             self._error_recovery = ErrorRecoveryService()
             logger.info("✅ ErrorRecoveryService initialized")
         return self._error_recovery
-    
+
     # Function calling
     @property
     def function_registry(self):
@@ -344,7 +345,7 @@ class ServiceContainer:
             self._function_registry = FunctionRegistry(ha_client=self.ha_client)
             logger.info("✅ FunctionRegistry initialized")
         return self._function_registry
-    
+
     # Device context
     @property
     def device_context_service(self):
@@ -354,23 +355,23 @@ class ServiceContainer:
             self._device_context_service = DeviceContextService(ha_client=self.ha_client)
             logger.info("✅ DeviceContextService initialized")
         return self._device_context_service
-    
+
     # Conversation context management
-    def get_conversation_context(self, conversation_id: str) -> Optional[Any]:
+    def get_conversation_context(self, conversation_id: str) -> Any | None:
         """Get conversation context from in-memory store"""
         return self._conversation_contexts.get(conversation_id)
-    
+
     def store_conversation_context(self, conversation_id: str, context: Any):
         """Store conversation context in memory"""
         self._conversation_contexts[conversation_id] = context
         logger.debug(f"Stored context for conversation: {conversation_id}")
-    
+
     def clear_conversation_context(self, conversation_id: str):
         """Clear conversation context"""
         if conversation_id in self._conversation_contexts:
             del self._conversation_contexts[conversation_id]
             logger.debug(f"Cleared context for conversation: {conversation_id}")
-    
+
     def reset(self):
         """Reset all services (useful for testing)"""
         self._ha_client = None

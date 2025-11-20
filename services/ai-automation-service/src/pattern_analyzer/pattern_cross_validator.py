@@ -7,17 +7,16 @@ Identifies contradictions, redundancies, and reinforcements.
 Quality Improvement: Priority 2.1
 """
 
-from typing import Dict, List, Tuple
-from collections import defaultdict
 import logging
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
 class PatternCrossValidator:
     """Cross-validate patterns for consistency and quality"""
-    
-    async def cross_validate(self, patterns: List[Dict]) -> Dict:
+
+    async def cross_validate(self, patterns: list[dict]) -> dict:
         """
         Cross-validate patterns to find:
         1. Contradictions (pattern A says X, pattern B says not X)
@@ -36,34 +35,34 @@ class PatternCrossValidator:
             'reinforcements': [],
             'quality_score': 0.0
         }
-        
+
         if not patterns:
             return validation_results
-        
+
         # Group patterns by device
         by_device = defaultdict(list)
         for pattern in patterns:
             device_id = pattern.get('device_id') or pattern.get('device1')
             if device_id:
                 by_device[device_id].append(pattern)
-        
+
         # Check each device's patterns
         for device_id, device_patterns in by_device.items():
             # Find time-based patterns
-            time_patterns = [p for p in device_patterns 
+            time_patterns = [p for p in device_patterns
                            if p['pattern_type'] == 'time_of_day']
-            
+
             # Find co-occurrence patterns
-            co_patterns = [p for p in device_patterns 
+            co_patterns = [p for p in device_patterns
                          if p['pattern_type'] == 'co_occurrence']
-            
+
             # Check for contradictions
-            # Example: Time pattern says "on at 7 AM" but co-occurrence shows 
+            # Example: Time pattern says "on at 7 AM" but co-occurrence shows
             #          it's always triggered by motion sensor
             if time_patterns and co_patterns:
                 for time_p in time_patterns:
                     for co_p in co_patterns:
-                        # If co-occurrence has very high confidence, 
+                        # If co-occurrence has very high confidence,
                         # time pattern might be spurious
                         if co_p['confidence'] > 0.9 and time_p['confidence'] < 0.75:
                             validation_results['contradictions'].append({
@@ -82,9 +81,9 @@ class PatternCrossValidator:
                                 },
                                 'reason': 'Strong co-occurrence suggests time pattern is spurious'
                             })
-            
+
             # Check for reinforcements
-            # Example: Time pattern "on at 7 AM" AND co-occurrence 
+            # Example: Time pattern "on at 7 AM" AND co-occurrence
             #          "motion + light at 7 AM" reinforce each other
             if len(time_patterns) > 1:
                 # Multiple time patterns should cluster
@@ -94,11 +93,11 @@ class PatternCrossValidator:
                     minute = tp.get('metadata', {}).get('minute') or tp.get('minute')
                     if hour is not None and minute is not None:
                         times.append((hour, minute))
-                
+
                 # Check if times are clustered (within 30 minutes)
                 for i, time1 in enumerate(times):
                     for time2 in times[i+1:]:
-                        diff_minutes = abs((time1[0] * 60 + time1[1]) - 
+                        diff_minutes = abs((time1[0] * 60 + time1[1]) -
                                          (time2[0] * 60 + time2[1]))
                         if diff_minutes <= 30:
                             validation_results['reinforcements'].append({
@@ -117,7 +116,7 @@ class PatternCrossValidator:
                                 },
                                 'reason': 'Consistent time patterns reinforce each other'
                             })
-            
+
             # Check for redundancies (same pattern type, similar parameters)
             if len(co_patterns) > 1:
                 # Group by device pairs
@@ -128,7 +127,7 @@ class PatternCrossValidator:
                     if device1 and device2:
                         pair = tuple(sorted([device1, device2]))
                         pair_patterns[pair].append(co_p)
-                
+
                 # Find redundant pairs (same devices, similar confidence)
                 for pair, pair_list in pair_patterns.items():
                     if len(pair_list) > 1:
@@ -151,18 +150,18 @@ class PatternCrossValidator:
                                         },
                                         'reason': 'Very similar patterns (likely duplicates)'
                                     })
-        
+
         # Calculate overall quality score
         total_patterns = len(patterns)
         contradictions = len(validation_results['contradictions'])
         reinforcements = len(validation_results['reinforcements'])
         redundancies = len(validation_results['redundancies'])
-        
+
         # Quality score: more reinforcements = better, contradictions = worse
         # Base score of 0.5, add for reinforcements, subtract for contradictions
         quality_score = 0.5 + (reinforcements * 0.1) - (contradictions * 0.2) - (redundancies * 0.05)
         quality_score = max(0.0, min(1.0, quality_score))  # Clamp to [0, 1]
-        
+
         validation_results['quality_score'] = quality_score
         validation_results['summary'] = {
             'total_patterns': total_patterns,
@@ -171,6 +170,6 @@ class PatternCrossValidator:
             'reinforcements': reinforcements,
             'quality_score': quality_score
         }
-        
+
         return validation_results
 

@@ -4,17 +4,17 @@ Device Intelligence Service - WebSocket API
 WebSocket endpoints for real-time device monitoring.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from typing import Any
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
-from ..core.websocket_manager import websocket_manager
 from ..core.device_state_tracker import device_state_tracker
 from ..core.performance_collector import performance_collector
+from ..core.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +25,14 @@ router = APIRouter(prefix="/ws", tags=["WebSocket"])
 async def websocket_endpoint(websocket: WebSocket):
     """Main WebSocket endpoint for real-time device monitoring."""
     client_id = f"client_{datetime.now().timestamp()}"
-    
+
     try:
         await websocket_manager.connect(websocket, client_id)
-        
+
         while True:
             # Receive message from client
             data = await websocket.receive_text()
-            
+
             try:
                 message = json.loads(data)
                 await websocket_manager.handle_client_message(websocket, message)
@@ -49,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"Internal error: {str(e)}",
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 })
-                
+
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
         logger.info(f"WebSocket client disconnected: {client_id}")
@@ -225,14 +225,14 @@ async def get_websocket_stats():
 
 
 @router.post("/broadcast/test")
-async def broadcast_test_message(message: Dict[str, Any]):
+async def broadcast_test_message(message: dict[str, Any]):
     """Broadcast test message to all connected clients."""
     await websocket_manager.broadcast_to_all({
         "type": "test_message",
         "data": message,
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
-    
+
     return {
         "status": "success",
         "message": "Test message broadcasted",
@@ -241,7 +241,7 @@ async def broadcast_test_message(message: Dict[str, Any]):
 
 
 @router.post("/device/{device_id}/simulate")
-async def simulate_device_update(device_id: str, update_data: Dict[str, Any] = None):
+async def simulate_device_update(device_id: str, update_data: dict[str, Any] = None):
     """Simulate device update for testing."""
     if update_data is None:
         update_data = {
@@ -254,13 +254,13 @@ async def simulate_device_update(device_id: str, update_data: Dict[str, Any] = N
             "temperature": 35,
             "uptime": 86400
         }
-    
+
     # Update device state
     await device_state_tracker.update_device_state(device_id, update_data)
-    
+
     # Collect performance metrics
     await performance_collector.collect_device_metrics(device_id, update_data)
-    
+
     return {
         "status": "success",
         "message": f"Simulated update for device {device_id}",

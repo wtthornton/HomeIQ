@@ -7,12 +7,11 @@ Context7 Best Practices Applied:
 - Rollback capabilities
 - Progress tracking
 """
-import aiohttp
-import asyncio
 import uuid
-from typing import Dict, List, Optional, Any
 from datetime import datetime
-from enum import Enum
+from typing import Any
+
+import aiohttp
 from pydantic import BaseModel
 
 from .config import get_settings
@@ -37,8 +36,8 @@ class SetupWizardResult(BaseModel):
     message: str
     steps_completed: int
     total_steps: int
-    configuration: Dict[str, Any]
-    errors: List[str] = []
+    configuration: dict[str, Any]
+    errors: list[str] = []
 
 
 class SetupWizardFramework:
@@ -51,17 +50,17 @@ class SetupWizardFramework:
     - Rollback on failure
     - Configuration persistence
     """
-    
+
     def __init__(self):
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
-        self.active_sessions: Dict[str, Dict] = {}
-    
+        self.active_sessions: dict[str, dict] = {}
+
     async def start_wizard(
         self,
         integration_type: str,
-        steps: List[SetupStep],
-        initial_config: Dict = None
+        steps: list[SetupStep],
+        initial_config: dict = None
     ) -> str:
         """
         Start a new setup wizard session
@@ -75,7 +74,7 @@ class SetupWizardFramework:
             Session ID for tracking progress
         """
         session_id = str(uuid.uuid4())
-        
+
         self.active_sessions[session_id] = {
             "session_id": session_id,
             "integration_type": integration_type,
@@ -87,15 +86,15 @@ class SetupWizardFramework:
             "completed_steps": [],
             "errors": []
         }
-        
+
         return session_id
-    
+
     async def execute_step(
         self,
         session_id: str,
         step_number: int,
-        step_data: Dict = None
-    ) -> Dict:
+        step_data: dict = None
+    ) -> dict:
         """
         Execute a single setup step
         
@@ -110,58 +109,58 @@ class SetupWizardFramework:
         session = self.active_sessions.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
-        
+
         steps = session["steps"]
         if step_number >= len(steps):
             raise ValueError(f"Step {step_number} out of range")
-        
+
         step = steps[step_number]
-        
+
         try:
             # Execute step (to be implemented by specific wizard)
             result = await self._execute_step_logic(session, step, step_data)
-            
+
             # Mark step as completed
             session["completed_steps"].append(step_number)
             session["current_step"] = step_number + 1
-            
+
             # Update configuration
             if step_data:
                 session["configuration"].update(step_data)
-            
+
             return {
                 "success": True,
                 "step": step.dict(),
                 "result": result,
                 "next_step": step_number + 1 if step_number + 1 < len(steps) else None
             }
-        
+
         except Exception as e:
             session["errors"].append({
                 "step": step_number,
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             })
-            
+
             return {
                 "success": False,
                 "step": step.dict(),
                 "error": str(e)
             }
-    
+
     async def _execute_step_logic(
         self,
-        session: Dict,
+        session: dict,
         step: SetupStep,
-        step_data: Dict
-    ) -> Dict:
+        step_data: dict
+    ) -> dict:
         """
         Execute step-specific logic
         
         To be overridden by specific wizard implementations
         """
         return {"message": "Step executed successfully"}
-    
+
     async def rollback_wizard(self, session_id: str):
         """
         Rollback wizard changes
@@ -172,28 +171,28 @@ class SetupWizardFramework:
         session = self.active_sessions.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
-        
+
         # Rollback completed steps in reverse order
         completed_steps = session["completed_steps"]
-        
+
         for step_number in reversed(completed_steps):
             try:
                 await self._rollback_step(session, step_number)
             except Exception as e:
                 print(f"❌ Error rolling back step {step_number}: {e}")
-        
+
         session["status"] = SetupWizardStatus.CANCELLED
         session["completed_at"] = datetime.now()
-    
-    async def _rollback_step(self, session: Dict, step_number: int):
+
+    async def _rollback_step(self, session: dict, step_number: int):
         """
         Rollback a specific step
         
         To be overridden by specific wizard implementations
         """
         pass
-    
-    def get_session_status(self, session_id: str) -> Optional[Dict]:
+
+    def get_session_status(self, session_id: str) -> dict | None:
         """Get current session status"""
         return self.active_sessions.get(session_id)
 
@@ -209,7 +208,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
     4. Enable device discovery
     5. Validate setup
     """
-    
+
     async def start_zigbee2mqtt_setup(self) -> str:
         """Start Zigbee2MQTT setup wizard"""
         steps = [
@@ -249,17 +248,17 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                 rollback_possible=False
             )
         ]
-        
+
         return await self.start_wizard("zigbee2mqtt", steps)
-    
+
     async def _execute_step_logic(
         self,
-        session: Dict,
+        session: dict,
         step: SetupStep,
-        step_data: Dict
-    ) -> Dict:
+        step_data: dict
+    ) -> dict:
         """Execute Zigbee2MQTT-specific step logic"""
-        
+
         if step.step_number == 1:
             return await self._check_prerequisites()
         elif step.step_number == 2:
@@ -270,10 +269,10 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
             return await self._enable_discovery()
         elif step.step_number == 5:
             return await self._validate_setup()
-        
+
         return {"message": "Step not implemented"}
-    
-    async def _check_prerequisites(self) -> Dict:
+
+    async def _check_prerequisites(self) -> dict:
         """Check if MQTT and Zigbee2MQTT addon are installed"""
         try:
             async with aiohttp.ClientSession() as session:
@@ -281,7 +280,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Check MQTT integration
                 async with session.get(
                     f"{self.ha_url}/api/config/config_entries/entry",
@@ -291,14 +290,14 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                     if response.status == 200:
                         entries = await response.json()
                         mqtt_entry = next((e for e in entries if e.get('domain') == 'mqtt'), None)
-                        
+
                         if not mqtt_entry:
                             return {
                                 "success": False,
                                 "message": "MQTT integration not found",
                                 "recommendation": "Install MQTT integration first"
                             }
-                        
+
                         return {
                             "success": True,
                             "message": "Prerequisites verified",
@@ -309,8 +308,8 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                 "success": False,
                 "message": f"Error checking prerequisites: {e}"
             }
-    
-    async def _configure_coordinator(self, config_data: Dict) -> Dict:
+
+    async def _configure_coordinator(self, config_data: dict) -> dict:
         """Configure Zigbee coordinator settings"""
         # Placeholder for coordinator configuration logic
         return {
@@ -318,16 +317,16 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
             "message": "Coordinator configuration ready",
             "config": config_data
         }
-    
-    async def _test_connection(self) -> Dict:
+
+    async def _test_connection(self) -> dict:
         """Test Zigbee coordinator connection"""
         # Placeholder for connection testing
         return {
             "success": True,
             "message": "Connection test passed"
         }
-    
-    async def _enable_discovery(self) -> Dict:
+
+    async def _enable_discovery(self) -> dict:
         """Enable MQTT discovery"""
         try:
             async with aiohttp.ClientSession() as session:
@@ -335,7 +334,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Trigger MQTT discovery
                 async with session.post(
                     f"{self.ha_url}/api/services/mqtt/discover",
@@ -357,8 +356,8 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                 "success": False,
                 "message": f"Error enabling discovery: {e}"
             }
-    
-    async def _validate_setup(self) -> Dict:
+
+    async def _validate_setup(self) -> dict:
         """Final validation of Zigbee2MQTT setup"""
         # Placeholder for validation logic
         return {
@@ -378,7 +377,7 @@ class MQTTSetupWizard(SetupWizardFramework):
     4. Enable discovery
     5. Validate integration
     """
-    
+
     async def start_mqtt_setup(self) -> str:
         """Start MQTT setup wizard"""
         steps = [
@@ -418,6 +417,6 @@ class MQTTSetupWizard(SetupWizardFramework):
                 rollback_possible=False
             )
         ]
-        
+
         return await self.start_wizard("mqtt", steps)
 

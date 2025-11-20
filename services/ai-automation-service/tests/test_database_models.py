@@ -5,21 +5,19 @@ Tests DeviceCapability and DeviceFeatureUsage models, CRUD operations,
 and database migrations.
 """
 
+
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from datetime import datetime
-
-from src.database.models import Base, DeviceCapability, DeviceFeatureUsage
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.database.crud import (
-    upsert_device_capability,
-    get_device_capability,
     get_all_capabilities,
-    initialize_feature_usage,
+    get_capability_stats,
+    get_device_capability,
     get_device_feature_usage,
-    get_capability_stats
+    initialize_feature_usage,
+    upsert_device_capability,
 )
-
+from src.database.models import Base
 
 # ============================================================================
 # Test Database Fixture
@@ -32,13 +30,13 @@ async def db_engine():
         "sqlite+aiosqlite:///:memory:",
         echo=False
     )
-    
+
     # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     # Cleanup
     await engine.dispose()
 
@@ -51,7 +49,7 @@ async def db_session(db_engine):
         class_=AsyncSession,
         expire_on_commit=False
     )
-    
+
     async with async_session() as session:
         yield session
 
@@ -62,7 +60,7 @@ async def db_session(db_engine):
 
 class TestDeviceCapabilityModel:
     """Test DeviceCapability model and CRUD operations"""
-    
+
     @pytest.mark.asyncio
     async def test_create_device_capability(self, db_session):
         """Test creating device capability record"""
@@ -77,14 +75,14 @@ class TestDeviceCapabilityModel:
             },
             mqtt_exposes=[{"type": "light"}]
         )
-        
+
         assert capability.device_model == "VZM31-SN"
         assert capability.manufacturer == "Inovelli"
         assert capability.integration_type == "zigbee2mqtt"
         assert len(capability.capabilities) == 2
         assert "light_control" in capability.capabilities
         assert "smart_bulb_mode" in capability.capabilities
-    
+
     @pytest.mark.asyncio
     async def test_upsert_updates_existing_capability(self, db_session):
         """Test upsert updates existing record instead of creating duplicate"""
@@ -97,7 +95,7 @@ class TestDeviceCapabilityModel:
             capabilities={"light_control": {}},
             mqtt_exposes=[]
         )
-        
+
         # Second upsert with same model (should update)
         cap2 = await upsert_device_capability(
             db=db_session,
@@ -107,18 +105,18 @@ class TestDeviceCapabilityModel:
             capabilities={"light_control": {}, "smart_bulb_mode": {}},  # Added capability
             mqtt_exposes=[{"type": "light"}]
         )
-        
+
         # Should be same record (same primary key)
         assert cap1.device_model == cap2.device_model
-        
+
         # Should have updated values
         assert cap2.description == "Version 2 Updated"
         assert len(cap2.capabilities) == 2
-        
+
         # Verify only one record exists
         all_caps = await get_all_capabilities(db_session)
         assert len(all_caps) == 1
-    
+
     @pytest.mark.asyncio
     async def test_get_device_capability_found(self, db_session):
         """Test retrieving existing capability"""
@@ -131,22 +129,22 @@ class TestDeviceCapabilityModel:
             capabilities={"contact": {}, "vibration": {}},
             mqtt_exposes=[]
         )
-        
+
         # Retrieve it
         capability = await get_device_capability(db_session, "MCCGQ11LM")
-        
+
         assert capability is not None
         assert capability.device_model == "MCCGQ11LM"
         assert capability.manufacturer == "Aqara"
         assert len(capability.capabilities) == 2
-    
+
     @pytest.mark.asyncio
     async def test_get_device_capability_not_found(self, db_session):
         """Test retrieving non-existent capability returns None"""
         capability = await get_device_capability(db_session, "NONEXISTENT")
-        
+
         assert capability is None
-    
+
     @pytest.mark.asyncio
     async def test_get_all_capabilities_no_filter(self, db_session):
         """Test retrieving all capabilities"""
@@ -167,11 +165,11 @@ class TestDeviceCapabilityModel:
             capabilities={"contact": {}},
             mqtt_exposes=[]
         )
-        
+
         capabilities = await get_all_capabilities(db_session)
-        
+
         assert len(capabilities) == 2
-    
+
     @pytest.mark.asyncio
     async def test_get_all_capabilities_filter_by_manufacturer(self, db_session):
         """Test filtering capabilities by manufacturer"""
@@ -200,12 +198,12 @@ class TestDeviceCapabilityModel:
             capabilities={"light": {}},
             mqtt_exposes=[]
         )
-        
+
         # Filter by Inovelli
         inovelli_caps = await get_all_capabilities(db_session, manufacturer="Inovelli")
         assert len(inovelli_caps) == 1
         assert inovelli_caps[0].manufacturer == "Inovelli"
-        
+
         # Filter by Aqara
         aqara_caps = await get_all_capabilities(db_session, manufacturer="Aqara")
         assert len(aqara_caps) == 1
@@ -218,30 +216,30 @@ class TestDeviceCapabilityModel:
 
 class TestDeviceFeatureUsageModel:
     """Test DeviceFeatureUsage model and CRUD operations"""
-    
+
     @pytest.mark.asyncio
     async def test_initialize_feature_usage(self, db_session):
         """Test initializing feature usage tracking for a device"""
         features = ["led_notifications", "smart_bulb_mode", "auto_off_timer"]
-        
+
         usage_records = await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen_switch",
             features=features
         )
-        
+
         assert len(usage_records) == 3
-        
+
         # All should be unconfigured initially
         assert all(u.configured == False for u in usage_records)
-        
+
         # All should have same device_id
         assert all(u.device_id == "light.kitchen_switch" for u in usage_records)
-        
+
         # Feature names should match
         feature_names = {u.feature_name for u in usage_records}
         assert feature_names == set(features)
-    
+
     @pytest.mark.asyncio
     async def test_get_device_feature_usage(self, db_session):
         """Test retrieving feature usage for a device"""
@@ -252,13 +250,13 @@ class TestDeviceFeatureUsageModel:
             device_id="light.kitchen_switch",
             features=features
         )
-        
+
         # Retrieve usage
         usage = await get_device_feature_usage(db_session, "light.kitchen_switch")
-        
+
         assert len(usage) == 2
         assert all(u.device_id == "light.kitchen_switch" for u in usage)
-    
+
     @pytest.mark.asyncio
     async def test_feature_usage_composite_primary_key(self, db_session):
         """Test composite primary key prevents duplicates"""
@@ -268,14 +266,14 @@ class TestDeviceFeatureUsageModel:
             device_id="light.kitchen",
             features=["led_notifications"]
         )
-        
+
         # Initialize again (should merge, not duplicate)
         await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen",
             features=["led_notifications"]
         )
-        
+
         # Should still only have 1 record
         usage = await get_device_feature_usage(db_session, "light.kitchen")
         assert len(usage) == 1
@@ -287,7 +285,7 @@ class TestDeviceFeatureUsageModel:
 
 class TestDeviceIntelligenceDatabaseIntegration:
     """Test integration between DeviceCapability and DeviceFeatureUsage"""
-    
+
     @pytest.mark.asyncio
     async def test_full_capability_storage_workflow(self, db_session):
         """
@@ -310,16 +308,16 @@ class TestDeviceIntelligenceDatabaseIntegration:
             },
             mqtt_exposes=[{"type": "light"}, {"type": "enum", "name": "smartBulbMode"}]
         )
-        
+
         assert len(capability.capabilities) == 4
-        
+
         # Step 2: Query capability (what Feature Analyzer will do in Story 2.3)
         retrieved = await get_device_capability(db_session, "VZM31-SN")
-        
+
         assert retrieved is not None
         assert retrieved.device_model == "VZM31-SN"
         assert len(retrieved.capabilities) == 4
-    
+
     @pytest.mark.asyncio
     async def test_capability_stats(self, db_session):
         """Test get_capability_stats returns correct statistics"""
@@ -348,17 +346,17 @@ class TestDeviceIntelligenceDatabaseIntegration:
             capabilities={"contact": {}},
             mqtt_exposes=[]
         )
-        
+
         # Initialize some feature usage
         await initialize_feature_usage(
             db=db_session,
             device_id="switch1",
             features=["light", "timer"]
         )
-        
+
         # Get stats
         stats = await get_capability_stats(db_session)
-        
+
         assert stats['total_models'] == 3
         assert stats['by_manufacturer']['Inovelli'] == 2
         assert stats['by_manufacturer']['Aqara'] == 1
@@ -372,14 +370,14 @@ class TestDeviceIntelligenceDatabaseIntegration:
 
 class TestDeviceIntelligenceDatabasePerformance:
     """Test database performance (NFR13: <100ms per device)"""
-    
+
     @pytest.mark.asyncio
     async def test_upsert_performance(self, db_session):
         """Test upsert operation completes quickly"""
         import time
-        
+
         start = time.time()
-        
+
         await upsert_device_capability(
             db=db_session,
             device_model="VZM31-SN",
@@ -388,19 +386,19 @@ class TestDeviceIntelligenceDatabasePerformance:
             capabilities={"light": {}, "mode": {}, "timer": {}},
             mqtt_exposes=[{"type": "light"}]
         )
-        
+
         duration = time.time() - start
-        
+
         # Should complete in <100ms (NFR13)
         assert duration < 0.1  # 100ms
-    
+
     @pytest.mark.asyncio
     async def test_bulk_capability_storage(self, db_session):
         """Test storing 100 device models performs well"""
         import time
-        
+
         start = time.time()
-        
+
         # Store 100 device capabilities
         for i in range(100):
             await upsert_device_capability(
@@ -411,17 +409,17 @@ class TestDeviceIntelligenceDatabasePerformance:
                 capabilities={"light": {}},
                 mqtt_exposes=[]
             )
-        
+
         duration = time.time() - start
-        
+
         # Should complete in reasonable time
         # 100 devices * 100ms = 10s max
         assert duration < 10
-        
+
         # Verify all stored
         all_caps = await get_all_capabilities(db_session)
         assert len(all_caps) == 100
-    
+
     @pytest.mark.asyncio
     async def test_index_performance(self, db_session):
         """Test manufacturer index improves query performance"""
@@ -444,15 +442,15 @@ class TestDeviceIntelligenceDatabasePerformance:
                 capabilities={"contact": {}},
                 mqtt_exposes=[]
             )
-        
+
         import time
         start = time.time()
-        
+
         # Query by manufacturer (should use index)
         inovelli_caps = await get_all_capabilities(db_session, manufacturer="Inovelli")
-        
+
         duration = time.time() - start
-        
+
         # Should be fast with index
         assert duration < 0.1  # 100ms
         assert len(inovelli_caps) == 50
@@ -464,7 +462,7 @@ class TestDeviceIntelligenceDatabasePerformance:
 
 class TestMultiManufacturerSupport:
     """Test database handles multiple manufacturers correctly"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("manufacturer,model,capabilities", [
         ("Inovelli", "VZM31-SN", {"light": {}, "mode": {}}),
@@ -483,11 +481,11 @@ class TestMultiManufacturerSupport:
             capabilities=capabilities,
             mqtt_exposes=[]
         )
-        
+
         assert capability.device_model == model
         assert capability.manufacturer == manufacturer
         assert len(capability.capabilities) == len(capabilities)
-    
+
     @pytest.mark.asyncio
     async def test_query_by_manufacturer(self, db_session):
         """Test querying capabilities by manufacturer"""
@@ -500,7 +498,7 @@ class TestMultiManufacturerSupport:
             ("Aqara", "WSDCGQ11LM"),
             ("IKEA", "LED1624G9"),
         ]
-        
+
         for manuf, model in manufacturers_data:
             await upsert_device_capability(
                 db=db_session,
@@ -510,12 +508,12 @@ class TestMultiManufacturerSupport:
                 capabilities={"test": {}},
                 mqtt_exposes=[]
             )
-        
+
         # Query by manufacturer
         inovelli = await get_all_capabilities(db_session, manufacturer="Inovelli")
         aqara = await get_all_capabilities(db_session, manufacturer="Aqara")
         ikea = await get_all_capabilities(db_session, manufacturer="IKEA")
-        
+
         assert len(inovelli) == 2
         assert len(aqara) == 3
         assert len(ikea) == 1
@@ -527,7 +525,7 @@ class TestMultiManufacturerSupport:
 
 class TestJSONCapabilitiesColumn:
     """Test JSON column functionality for capabilities"""
-    
+
     @pytest.mark.asyncio
     async def test_json_capabilities_structure(self, db_session):
         """Test complex JSON capabilities are stored correctly"""
@@ -554,7 +552,7 @@ class TestJSONCapabilitiesColumn:
                 "complexity": "medium"
             }
         }
-        
+
         capability = await upsert_device_capability(
             db=db_session,
             device_model="VZM31-SN",
@@ -563,13 +561,13 @@ class TestJSONCapabilitiesColumn:
             capabilities=complex_capabilities,
             mqtt_exposes=[]
         )
-        
+
         # Verify JSON structure preserved
         assert capability.capabilities["led_notifications"]["type"] == "composite"
         assert len(capability.capabilities["led_notifications"]["features"]) == 3
         assert capability.capabilities["smart_bulb_mode"]["values"] == ["Disabled", "Enabled"]
         assert capability.capabilities["auto_off_timer"]["max"] == 32767
-    
+
     @pytest.mark.asyncio
     async def test_mqtt_exposes_stored_as_json(self, db_session):
         """Test raw MQTT exposes are stored correctly"""
@@ -577,7 +575,7 @@ class TestJSONCapabilitiesColumn:
             {"type": "light", "features": [{"name": "state"}, {"name": "brightness"}]},
             {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]}
         ]
-        
+
         capability = await upsert_device_capability(
             db=db_session,
             device_model="VZM31-SN",
@@ -586,7 +584,7 @@ class TestJSONCapabilitiesColumn:
             capabilities={"light": {}},
             mqtt_exposes=mqtt_exposes
         )
-        
+
         # Verify raw exposes preserved
         assert len(capability.mqtt_exposes) == 2
         assert capability.mqtt_exposes[0]["type"] == "light"

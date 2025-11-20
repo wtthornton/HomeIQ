@@ -7,12 +7,12 @@ Handles composition strategies for multiple pattern matches:
 - Hybrid: Pattern + LLM enhancement
 """
 
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Any
 
-from .pattern_matcher import PatternMatch
 from .common_patterns import generate_automation_id
+from .pattern_matcher import PatternMatch
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ComposedAutomation:
     """Result of composing one or more patterns into automation(s)"""
-    automations: List[Dict[str, Any]]  # List of YAML automations
+    automations: list[dict[str, Any]]  # List of YAML automations
     strategy: str  # merge, separate, hybrid, pure_pattern
-    patterns_used: List[str]  # Pattern IDs used
+    patterns_used: list[str]  # Pattern IDs used
     confidence: float
 
 
@@ -39,7 +39,7 @@ class PatternComposer:
 
     async def compose(
         self,
-        matches: List[PatternMatch],
+        matches: list[PatternMatch],
         user_request: str
     ) -> ComposedAutomation:
         """
@@ -87,7 +87,7 @@ class PatternComposer:
             confidence=match.confidence
         )
 
-    async def _merge_strategy(self, matches: List[PatternMatch]) -> ComposedAutomation:
+    async def _merge_strategy(self, matches: list[PatternMatch]) -> ComposedAutomation:
         """Merge multiple patterns with same trigger into one automation"""
         logger.info(f"Merging {len(matches)} patterns into single automation")
 
@@ -117,7 +117,7 @@ class PatternComposer:
             confidence=avg_confidence
         )
 
-    async def _separate_strategy(self, matches: List[PatternMatch]) -> ComposedAutomation:
+    async def _separate_strategy(self, matches: list[PatternMatch]) -> ComposedAutomation:
         """Create separate automations for each pattern"""
         logger.info(f"Creating {len(matches)} separate automations")
 
@@ -143,7 +143,7 @@ class PatternComposer:
             confidence=avg_confidence
         )
 
-    def _group_by_trigger(self, matches: List[PatternMatch]) -> Dict[str, List[PatternMatch]]:
+    def _group_by_trigger(self, matches: list[PatternMatch]) -> dict[str, list[PatternMatch]]:
         """
         Group pattern matches by trigger type.
 
@@ -237,7 +237,7 @@ class PatternComposer:
         else:
             return pattern_name
 
-    def _generate_derived_variables(self, match: PatternMatch) -> Dict[str, str]:
+    def _generate_derived_variables(self, match: PatternMatch) -> dict[str, str]:
         """
         Generate derived variables from extracted variables.
 

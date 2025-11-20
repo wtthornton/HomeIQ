@@ -9,10 +9,9 @@ queries.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 
-def sanitize_flux_value(value: Optional[str]) -> str:
+def sanitize_flux_value(value: str | None) -> str:
     """
     Sanitize values for Flux queries to prevent injection attacks.
 

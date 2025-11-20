@@ -16,10 +16,10 @@ Key Principles:
 - Target ~200 tokens per description
 """
 
-from openai import AsyncOpenAI
-from typing import Dict, Optional
 import logging
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from openai import AsyncOpenAI
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class DescriptionGenerator:
         generator = DescriptionGenerator(openai_client)
         description = await generator.generate_description(pattern, device_context)
     """
-    
+
     def __init__(self, openai_client: AsyncOpenAI, model: str = "gpt-4o-mini"):
         """
         Initialize description generator.
@@ -78,7 +78,7 @@ class DescriptionGenerator:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         logger.info(f"DescriptionGenerator initialized with model={model}")
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -87,8 +87,8 @@ class DescriptionGenerator:
     )
     async def generate_description(
         self,
-        pattern: Dict,
-        device_context: Optional[Dict] = None
+        pattern: dict,
+        device_context: dict | None = None
     ) -> str:
         """
         Generate human-readable description from pattern.
@@ -106,9 +106,9 @@ class DescriptionGenerator:
         try:
             # Build prompt based on pattern type
             prompt = self._build_prompt(pattern, device_context)
-            
+
             logger.info(f"📝 Generating description for {pattern.get('pattern_type')} pattern: {pattern.get('device_id', 'N/A')}")
-            
+
             # Call OpenAI API
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -125,35 +125,35 @@ class DescriptionGenerator:
                 temperature=0.7,  # Higher for natural, creative language
                 max_completion_tokens=200    # Short descriptions only (use max_completion_tokens for newer models)
             )
-            
+
             # Track token usage
             usage = response.usage
             self.total_input_tokens += usage.prompt_tokens
             self.total_output_tokens += usage.completion_tokens
             self.total_tokens += usage.total_tokens
-            
+
             logger.info(
                 f"✅ Description generated: {usage.total_tokens} tokens "
                 f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
             )
-            
+
             # Extract description
             description = response.choices[0].message.content.strip()
-            
+
             # Validate: ensure no YAML was generated
             if any(yaml_marker in description.lower() for yaml_marker in ['alias:', 'trigger:', 'action:', 'condition:']):
-                logger.warning(f"⚠️ OpenAI returned YAML despite instructions! Cleaning...")
+                logger.warning("⚠️ OpenAI returned YAML despite instructions! Cleaning...")
                 # Extract only the descriptive text before any YAML
                 description = description.split('alias:')[0].split('trigger:')[0].strip()
-            
+
             logger.info(f"✅ Final description: {description[:80]}...")
             return description
-            
+
         except Exception as e:
             logger.error(f"❌ OpenAI API error for pattern {pattern.get('pattern_type')}: {e}")
             raise
-    
-    def _build_prompt(self, pattern: Dict, device_context: Optional[Dict] = None) -> str:
+
+    def _build_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """
         Build prompt for description generation.
         
@@ -165,7 +165,7 @@ class DescriptionGenerator:
             Formatted prompt for OpenAI
         """
         pattern_type = pattern.get('pattern_type', 'unknown')
-        
+
         if pattern_type == 'time_of_day':
             return self._build_time_of_day_prompt(pattern, device_context)
         elif pattern_type == 'co_occurrence':
@@ -175,30 +175,30 @@ class DescriptionGenerator:
         else:
             logger.warning(f"Unknown pattern type: {pattern_type}, using generic prompt")
             return self._build_generic_prompt(pattern, device_context)
-    
-    def _build_time_of_day_prompt(self, pattern: Dict, device_context: Optional[Dict] = None) -> str:
+
+    def _build_time_of_day_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for time-of-day pattern"""
         device_id = pattern.get('device_id', 'unknown')
         hour = pattern.get('hour', pattern.get('metadata', {}).get('hour', 0))
         minute = pattern.get('minute', pattern.get('metadata', {}).get('minute', 0))
         occurrences = pattern.get('occurrences', 0)
         confidence = pattern.get('confidence', 0.0)
-        
+
         # Extract friendly name from device_context
         device_name = device_id
         area = ''
         domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
-        
+
         if device_context:
             device_name = device_context.get('name', device_context.get('friendly_name', device_id))
             area = device_context.get('area', device_context.get('area_id', ''))
             domain = device_context.get('domain', domain)
-        
+
         # Build device description
         device_desc = f"{device_name}"
         if area:
             device_desc += f" in {area}"
-        
+
         return f"""Create a 1-2 sentence description for this automation pattern:
 
 PATTERN DETECTED:
@@ -219,25 +219,25 @@ Format: "When [condition], [action with device name]"
 Example: "At 7:00 AM every morning, turn on the {device_name} to wake up gradually"
 
 Your description (1-2 sentences, NO YAML):"""
-    
-    def _build_co_occurrence_prompt(self, pattern: Dict, device_context: Optional[Dict] = None) -> str:
+
+    def _build_co_occurrence_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for co-occurrence pattern"""
         device1 = pattern.get('device1', pattern.get('device_id', 'unknown'))
         device2 = pattern.get('device2', pattern.get('metadata', {}).get('device2', 'unknown'))
         occurrences = pattern.get('occurrences', 0)
         confidence = pattern.get('confidence', 0.0)
         avg_delta = pattern.get('metadata', {}).get('avg_time_delta_seconds', 30)
-        
+
         # Extract friendly names
         device1_name = device1
         device2_name = device2
-        
+
         if device_context:
             if 'device1' in device_context:
                 device1_name = device_context['device1'].get('name', device1)
             if 'device2' in device_context:
                 device2_name = device_context['device2'].get('name', device2)
-        
+
         return f"""Create a 1-2 sentence description for this automation pattern:
 
 PATTERN DETECTED:
@@ -259,16 +259,16 @@ Format: "When [first device] is activated, automatically [action with second dev
 Example: "When you turn on the {device1_name}, automatically turn on the {device2_name} shortly after"
 
 Your description (1-2 sentences, NO YAML):"""
-    
-    def _build_anomaly_prompt(self, pattern: Dict, device_context: Optional[Dict] = None) -> str:
+
+    def _build_anomaly_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for anomaly pattern"""
         device_id = pattern.get('device_id', 'unknown')
         anomaly_score = pattern.get('metadata', {}).get('anomaly_score', 0)
-        
+
         device_name = device_id
         if device_context:
             device_name = device_context.get('name', device_context.get('friendly_name', device_id))
-        
+
         return f"""Create a 1-2 sentence description for this automation pattern:
 
 PATTERN DETECTED:
@@ -285,16 +285,16 @@ Format: "Send notification when [device] shows unusual activity"
 Example: "Get notified when the {device_name} is activated at unexpected times"
 
 Your description (1-2 sentences, NO YAML):"""
-    
-    def _build_generic_prompt(self, pattern: Dict, device_context: Optional[Dict] = None) -> str:
+
+    def _build_generic_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build generic prompt for unknown pattern types"""
         device_id = pattern.get('device_id', 'unknown')
         pattern_type = pattern.get('pattern_type', 'detected usage')
-        
+
         device_name = device_id
         if device_context:
             device_name = device_context.get('name', device_context.get('friendly_name', device_id))
-        
+
         return f"""Create a 1-2 sentence description for this automation pattern:
 
 PATTERN DETECTED:
@@ -307,8 +307,8 @@ Use the device name "{device_name}" (NOT the entity ID).
 Keep it natural and conversational.
 
 Your description (1-2 sentences, NO YAML):"""
-    
-    def get_usage_stats(self) -> Dict:
+
+    def get_usage_stats(self) -> dict:
         """
         Get token usage statistics.
         
@@ -317,13 +317,13 @@ Your description (1-2 sentences, NO YAML):"""
         """
         # Use CostTracker for consistent cost calculation
         from .cost_tracker import CostTracker
-        
+
         total_cost = CostTracker.calculate_cost(
             self.total_input_tokens,
             self.total_output_tokens,
             model=self.model
         )
-        
+
         return {
             'total_tokens': self.total_tokens,
             'input_tokens': self.total_input_tokens,
@@ -332,7 +332,7 @@ Your description (1-2 sentences, NO YAML):"""
             'total_cost_usd': round(total_cost, 6),
             'model': self.model
         }
-    
+
     def reset_usage_stats(self):
         """Reset usage statistics"""
         self.total_tokens = 0

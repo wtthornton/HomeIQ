@@ -4,24 +4,24 @@ Data models for Home Assistant device and entity discovery
 Simple dataclasses for storing device, entity, and config entry information.
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Optional, Dict, Any
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 
 @dataclass
 class Device:
     """Device model representing a Home Assistant device"""
-    
+
     device_id: str
     name: str
     manufacturer: str
     model: str
-    sw_version: Optional[str] = None
-    area_id: Optional[str] = None
+    sw_version: str | None = None
+    area_id: str | None = None
     entity_count: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    
+
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.device_id:
@@ -29,8 +29,8 @@ class Device:
         if not self.name:
             raise ValueError("name is required")
         return True
-    
-    def to_influx_point(self) -> Dict[str, Any]:
+
+    def to_influx_point(self) -> dict[str, Any]:
         """
         Convert device to InfluxDB point format
         
@@ -52,9 +52,9 @@ class Device:
             },
             "time": self.timestamp
         }
-    
+
     @classmethod
-    def from_ha_device(cls, ha_device: Dict[str, Any]) -> 'Device':
+    def from_ha_device(cls, ha_device: dict[str, Any]) -> 'Device':
         """
         Create Device from Home Assistant device registry entry
         
@@ -78,23 +78,23 @@ class Device:
 @dataclass
 class Entity:
     """Entity model representing a Home Assistant entity"""
-    
+
     entity_id: str
-    device_id: Optional[str] = None
+    device_id: str | None = None
     domain: str = "unknown"
     platform: str = "unknown"
-    unique_id: Optional[str] = None
-    area_id: Optional[str] = None
+    unique_id: str | None = None
+    area_id: str | None = None
     disabled: bool = False
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    
+
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.entity_id:
             raise ValueError("entity_id is required")
         return True
-    
-    def to_influx_point(self) -> Dict[str, Any]:
+
+    def to_influx_point(self) -> dict[str, Any]:
         """
         Convert entity to InfluxDB point format
         
@@ -116,9 +116,9 @@ class Entity:
             },
             "time": self.timestamp
         }
-    
+
     @classmethod
-    def from_ha_entity(cls, ha_entity: Dict[str, Any]) -> 'Entity':
+    def from_ha_entity(cls, ha_entity: dict[str, Any]) -> 'Entity':
         """
         Create Entity from Home Assistant entity registry entry
         
@@ -130,7 +130,7 @@ class Entity:
         """
         entity_id = ha_entity.get("entity_id", "")
         domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
-        
+
         return cls(
             entity_id=entity_id,
             device_id=ha_entity.get("device_id"),
@@ -145,14 +145,14 @@ class Entity:
 @dataclass
 class ConfigEntry:
     """Config entry model representing a Home Assistant integration"""
-    
+
     entry_id: str
     domain: str
     title: str
     state: str = "unknown"
     version: int = 1
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    
+
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.entry_id:
@@ -160,8 +160,8 @@ class ConfigEntry:
         if not self.domain:
             raise ValueError("domain is required")
         return True
-    
-    def to_influx_point(self) -> Dict[str, Any]:
+
+    def to_influx_point(self) -> dict[str, Any]:
         """
         Convert config entry to InfluxDB point format
         
@@ -181,9 +181,9 @@ class ConfigEntry:
             },
             "time": self.timestamp
         }
-    
+
     @classmethod
-    def from_ha_config_entry(cls, ha_entry: Dict[str, Any]) -> 'ConfigEntry':
+    def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> 'ConfigEntry':
         """
         Create ConfigEntry from Home Assistant config entry
         

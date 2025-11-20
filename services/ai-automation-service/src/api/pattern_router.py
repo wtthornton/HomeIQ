@@ -4,25 +4,25 @@ Pattern Detection Router
 Endpoints for detecting and managing automation patterns.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta, timezone
 import logging
+import math
 import time
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
-from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from ..config import settings
+from ..database import delete_old_patterns, get_db, get_pattern_stats, get_patterns, store_patterns
+from ..database.models import DiscoveredSynergy, Pattern, SynergyOpportunity
+from ..integration.pattern_history_validator import PatternHistoryValidator
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..pattern_analyzer.pattern_cross_validator import PatternCrossValidator
-from ..pattern_analyzer.confidence_calibrator import ConfidenceCalibrator
-from ..database import get_db, store_patterns, get_patterns, get_pattern_stats, delete_old_patterns
-from ..database.models import Pattern, SynergyOpportunity, DiscoveredSynergy
-from ..integration.pattern_history_validator import PatternHistoryValidator
-from ..config import settings
+from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from .dependencies.auth import require_admin_user
-from sqlalchemy import select, func
-import math
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ async def detect_time_of_day_patterns(
     limit: int = Query(default=10000, ge=100, le=50000, description="Maximum events to fetch"),
     db: AsyncSession = Depends(get_db),
     auth=Depends(require_admin_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detect time-of-day patterns from historical data.
     
@@ -52,21 +52,21 @@ async def detect_time_of_day_patterns(
     4. Returns pattern summary and performance metrics
     """
     start_time = time.time()
-    
+
     try:
         logger.info(f"Starting time-of-day pattern detection: days={days}, min_occurrences={min_occurrences}, min_confidence={min_confidence}")
-        
+
         # Step 1: Fetch historical events
         logger.info(f"Fetching events from Data API (last {days} days)")
         end_dt = datetime.now(timezone.utc)
         start_dt = end_dt - timedelta(days=days)
-        
+
         events_df = await data_api_client.fetch_events(
             start_time=start_dt,
             end_time=end_dt,
             limit=limit
         )
-        
+
         if events_df.empty:
             return {
                 "success": False,
@@ -77,13 +77,13 @@ async def detect_time_of_day_patterns(
                     "events_analyzed": 0
                 }
             }
-        
+
         # Ensure required columns
         if 'entity_id' in events_df.columns and 'device_id' not in events_df.columns:
             events_df['device_id'] = events_df['entity_id']
-        
+
         logger.info(f"✅ Fetched {len(events_df)} events from {events_df['device_id'].nunique()} devices")
-        
+
         # Step 2: Detect patterns
         logger.info("Running time-of-day pattern detection")
         detector = TimeOfDayPatternDetector(
@@ -92,25 +92,25 @@ async def detect_time_of_day_patterns(
             domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
             domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
         )
-        
+
         patterns = detector.detect_patterns(events_df)
         logger.info(f"✅ Detected {len(patterns)} patterns")
-        
+
         # Step 3: Store patterns in database
         patterns_stored = 0
         if patterns:
             logger.info(f"Storing {len(patterns)} patterns in database")
             patterns_stored = await store_patterns(db, patterns)
             logger.info(f"✅ Stored {patterns_stored} patterns")
-        
+
         # Step 4: Get summary
         pattern_summary = detector.get_pattern_summary(patterns)
-        
+
         # Calculate performance metrics
         duration = time.time() - start_time
-        
+
         logger.info(f"✅ Pattern detection completed in {duration:.2f}s")
-        
+
         return {
             "success": True,
             "message": f"Detected and stored {patterns_stored} time-of-day patterns",
@@ -131,7 +131,7 @@ async def detect_time_of_day_patterns(
                 }
             }
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Pattern detection failed: {e}", exc_info=True)
         raise HTTPException(
@@ -150,7 +150,7 @@ async def detect_co_occurrence_patterns(
     optimize: bool = Query(default=True, description="Use optimized version for large datasets"),
     db: AsyncSession = Depends(get_db),
     auth=Depends(require_admin_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detect co-occurrence patterns from historical data.
     
@@ -161,24 +161,24 @@ async def detect_co_occurrence_patterns(
     4. Returns pattern summary and performance metrics
     """
     start_time = time.time()
-    
+
     try:
         logger.info(
             f"Starting co-occurrence pattern detection: days={days}, window={window_minutes}min, "
             f"min_support={min_support}, min_confidence={min_confidence}"
         )
-        
+
         # Step 1: Fetch historical events
         logger.info(f"Fetching events from Data API (last {days} days)")
         end_dt = datetime.now(timezone.utc)
         start_dt = end_dt - timedelta(days=days)
-        
+
         events_df = await data_api_client.fetch_events(
             start_time=start_dt,
             end_time=end_dt,
             limit=limit
         )
-        
+
         if events_df.empty:
             return {
                 "success": False,
@@ -189,13 +189,13 @@ async def detect_co_occurrence_patterns(
                     "events_analyzed": 0
                 }
             }
-        
+
         # Ensure required columns
         if 'entity_id' in events_df.columns and 'device_id' not in events_df.columns:
             events_df['device_id'] = events_df['entity_id']
-        
+
         logger.info(f"✅ Fetched {len(events_df)} events from {events_df['device_id'].nunique()} devices")
-        
+
         # Step 2: Detect co-occurrence patterns
         logger.info("Running co-occurrence pattern detection")
         detector = CoOccurrencePatternDetector(
@@ -205,30 +205,30 @@ async def detect_co_occurrence_patterns(
             domain_support_overrides=dict(settings.co_occurrence_support_overrides),
             domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
         )
-        
+
         if optimize and len(events_df) > 10000:
             logger.info("Using optimized detection for large dataset")
             patterns = detector.detect_patterns_optimized(events_df)
         else:
             patterns = detector.detect_patterns(events_df)
-        
+
         logger.info(f"✅ Detected {len(patterns)} co-occurrence patterns")
-        
+
         # Step 3: Store patterns in database
         patterns_stored = 0
         if patterns:
             logger.info(f"Storing {len(patterns)} patterns in database")
             patterns_stored = await store_patterns(db, patterns)
             logger.info(f"✅ Stored {patterns_stored} patterns")
-        
+
         # Step 4: Get summary
         pattern_summary = detector.get_pattern_summary(patterns)
-        
+
         # Calculate performance metrics
         duration = time.time() - start_time
-        
+
         logger.info(f"✅ Co-occurrence detection completed in {duration:.2f}s")
-        
+
         return {
             "success": True,
             "message": f"Detected and stored {patterns_stored} co-occurrence patterns",
@@ -254,7 +254,7 @@ async def detect_co_occurrence_patterns(
                 }
             }
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Co-occurrence detection failed: {e}", exc_info=True)
         raise HTTPException(
@@ -265,12 +265,12 @@ async def detect_co_occurrence_patterns(
 
 @router.get("/list")
 async def list_patterns(
-    pattern_type: Optional[str] = Query(default=None, description="Filter by pattern type"),
-    device_id: Optional[str] = Query(default=None, description="Filter by device ID"),
-    min_confidence: Optional[float] = Query(default=None, ge=0.0, le=1.0, description="Minimum confidence"),
+    pattern_type: str | None = Query(default=None, description="Filter by pattern type"),
+    device_id: str | None = Query(default=None, description="Filter by device ID"),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0, description="Minimum confidence"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum patterns to return"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List detected patterns with optional filters.
     """
@@ -282,7 +282,7 @@ async def list_patterns(
             min_confidence=min_confidence,
             limit=limit
         )
-        
+
         # Convert to dictionaries
         patterns_list = [
             {
@@ -302,7 +302,7 @@ async def list_patterns(
             }
             for p in patterns
         ]
-        
+
         return {
             "success": True,
             "data": {
@@ -311,7 +311,7 @@ async def list_patterns(
             },
             "message": f"Retrieved {len(patterns_list)} patterns"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to list patterns: {e}", exc_info=True)
         raise HTTPException(
@@ -321,19 +321,19 @@ async def list_patterns(
 
 
 @router.get("/stats")
-async def get_stats(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+async def get_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Get pattern statistics.
     """
     try:
         stats = await get_pattern_stats(db)
-        
+
         return {
             "success": True,
             "data": stats,
             "message": "Pattern statistics retrieved successfully"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get pattern stats: {e}", exc_info=True)
         raise HTTPException(
@@ -347,7 +347,7 @@ async def get_pattern_history(
     pattern_id: int,
     days: int = Query(default=90, ge=1, le=365, description="Number of days to look back"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get pattern history for a specific pattern.
     
@@ -356,7 +356,7 @@ async def get_pattern_history(
     try:
         validator = PatternHistoryValidator(db)
         history = await validator.get_pattern_history(pattern_id, days)
-        
+
         history_list = [
             {
                 "id": h.id,
@@ -366,7 +366,7 @@ async def get_pattern_history(
             }
             for h in history
         ]
-        
+
         return {
             "success": True,
             "data": {
@@ -376,7 +376,7 @@ async def get_pattern_history(
                 "days": days
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get pattern history: {e}", exc_info=True)
         raise HTTPException(
@@ -390,7 +390,7 @@ async def get_pattern_trend(
     pattern_id: int,
     days: int = Query(default=90, ge=1, le=365, description="Number of days to analyze"),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get trend analysis for a specific pattern.
     
@@ -399,7 +399,7 @@ async def get_pattern_trend(
     try:
         validator = PatternHistoryValidator(db)
         trend = await validator.analyze_trend(pattern_id, days)
-        
+
         return {
             "success": True,
             "data": {
@@ -408,7 +408,7 @@ async def get_pattern_trend(
                 "days": days
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get pattern trend: {e}", exc_info=True)
         raise HTTPException(
@@ -422,13 +422,13 @@ async def cleanup_old_patterns(
     days_old: int = Query(default=30, ge=7, le=365, description="Delete patterns older than this many days"),
     db: AsyncSession = Depends(get_db),
     auth=Depends(require_admin_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Delete old patterns to manage database size.
     """
     try:
         deleted_count = await delete_old_patterns(db, days_old=days_old)
-        
+
         return {
             "success": True,
             "data": {
@@ -437,7 +437,7 @@ async def cleanup_old_patterns(
             },
             "message": f"Deleted {deleted_count} patterns older than {days_old} days"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to cleanup patterns: {e}", exc_info=True)
         raise HTTPException(
@@ -451,7 +451,7 @@ async def incremental_pattern_update(
     hours: int = Query(default=1, ge=1, le=24, description="Hours of new events to process"),
     db: AsyncSession = Depends(get_db),
     auth=Depends(require_admin_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Perform incremental pattern update using only recent events.
     
@@ -466,20 +466,20 @@ async def incremental_pattern_update(
         Summary of incremental update results
     """
     start_time = time.time()
-    
+
     try:
         logger.info(f"Starting incremental pattern update: hours={hours}")
-        
+
         # Fetch recent events
         end_dt = datetime.now(timezone.utc)
         start_dt = end_dt - timedelta(hours=hours)
-        
+
         events_df = await data_api_client.fetch_events(
             start_time=start_dt,
             end_time=end_dt,
             limit=50000
         )
-        
+
         if events_df.empty:
             return {
                 "success": True,
@@ -490,19 +490,19 @@ async def incremental_pattern_update(
                     "duration_seconds": round(time.time() - start_time, 2)
                 }
             }
-        
+
         logger.info(f"✅ Fetched {len(events_df)} recent events")
-        
+
         # Use incremental update (requires detectors to support it)
         # Note: This is a simplified version - full implementation would
         # maintain detector state between calls
         patterns_updated = 0
-        
+
         # For now, return info about incremental capability
         # Full implementation would use detector.incremental_update()
-        
+
         duration = time.time() - start_time
-        
+
         return {
             "success": True,
             "message": f"Incremental update complete: {len(events_df)} events processed",
@@ -521,7 +521,7 @@ async def incremental_pattern_update(
                 "note": "Incremental updates are enabled. Detectors now support incremental learning."
             }
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Incremental update failed: {e}", exc_info=True)
         raise HTTPException(
@@ -533,7 +533,7 @@ async def incremental_pattern_update(
 @router.get("/quality-metrics")
 async def get_quality_metrics(
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get quality metrics for patterns and synergies.
     
@@ -551,7 +551,7 @@ async def get_quality_metrics(
         # Get all patterns
         patterns_result = await db.execute(select(Pattern))
         all_patterns = patterns_result.scalars().all()
-        
+
         # Convert to dicts for analysis
         patterns_list = [
             {
@@ -565,13 +565,13 @@ async def get_quality_metrics(
             }
             for p in all_patterns
         ]
-        
+
         # Calculate pattern diversity (Shannon entropy)
         pattern_type_counts = {}
         for pattern in patterns_list:
             ptype = pattern['pattern_type']
             pattern_type_counts[ptype] = pattern_type_counts.get(ptype, 0) + 1
-        
+
         total_patterns = len(patterns_list)
         entropy = 0.0  # Initialize entropy
         if total_patterns > 0:
@@ -584,16 +584,16 @@ async def get_quality_metrics(
             diversity_score = entropy / max_entropy if max_entropy > 0 else 0.0
         else:
             diversity_score = 0.0
-        
+
         # Calculate noise ratio (patterns with low confidence or non-actionable)
         # This is an approximation - actual noise filtering happens during detection
         low_confidence_count = sum(1 for p in patterns_list if p['confidence'] < 0.5)
         noise_ratio = low_confidence_count / total_patterns if total_patterns > 0 else 0.0
-        
+
         # Calculate confidence calibration stats
         calibrated_count = sum(1 for p in patterns_list if p.get('calibrated', False))
         calibration_rate = calibrated_count / total_patterns if total_patterns > 0 else 0.0
-        
+
         # Get pattern acceptance rates (from suggestions)
         from ..database.models import Suggestion
         suggestions_result = await db.execute(
@@ -601,17 +601,17 @@ async def get_quality_metrics(
             .join(Pattern, Suggestion.pattern_id == Pattern.id)
         )
         suggestions_with_patterns = suggestions_result.all()
-        
+
         acceptance_by_type = {}
         for suggestion, pattern in suggestions_with_patterns:
             ptype = pattern.pattern_type
             if ptype not in acceptance_by_type:
                 acceptance_by_type[ptype] = {'total': 0, 'accepted': 0}
-            
+
             acceptance_by_type[ptype]['total'] += 1
             if suggestion.status in ('deployed', 'yaml_generated', 'approved'):
                 acceptance_by_type[ptype]['accepted'] += 1
-        
+
         # Calculate acceptance rates
         acceptance_rates = {}
         for ptype, stats in acceptance_by_type.items():
@@ -620,13 +620,13 @@ async def get_quality_metrics(
                     'acceptance_rate': stats['accepted'] / stats['total'],
                     'sample_count': stats['total']
                 }
-        
+
         # Run cross-validation to get quality score
         quality_score = 0.0
         contradictions = 0
         redundancies = 0
         reinforcements = 0
-        
+
         if patterns_list:
             try:
                 validator = PatternCrossValidator()
@@ -637,19 +637,19 @@ async def get_quality_metrics(
                 reinforcements = len(validation_results.get('reinforcements', []))
             except Exception as e:
                 logger.warning(f"Cross-validation failed: {e}")
-        
+
         # Get synergy validation stats
         synergies_result = await db.execute(select(SynergyOpportunity))
         all_synergies = synergies_result.scalars().all()
-        
+
         validated_synergies = sum(1 for s in all_synergies if s.validated_by_patterns)
         validation_rate = validated_synergies / len(all_synergies) if all_synergies else 0.0
-        
+
         # Get ML-discovered synergies count
         ml_synergies_result = await db.execute(select(DiscoveredSynergy))
         ml_synergies = ml_synergies_result.scalars().all()
         ml_validated = sum(1 for s in ml_synergies if s.validation_passed is True)
-        
+
         return {
             "success": True,
             "data": {
@@ -693,7 +693,7 @@ async def get_quality_metrics(
             },
             "message": "Quality metrics retrieved successfully"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get quality metrics: {e}", exc_info=True)
         raise HTTPException(

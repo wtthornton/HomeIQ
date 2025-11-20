@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import delete, select
-
 from src.clients.ha_client import HAArea, HADevice, HAEntity
 from src.core.database import get_db_session
 from src.models.database import DeviceHygieneIssue

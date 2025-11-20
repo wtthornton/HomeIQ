@@ -5,9 +5,8 @@ Pre-built, hand-crafted automation templates for common scenarios.
 Provides instant, zero-cost, high-quality automations.
 """
 
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
 import hashlib
+from dataclasses import dataclass
 
 
 @dataclass
@@ -16,8 +15,8 @@ class PatternVariable:
     name: str
     type: str  # entity type (light, binary_sensor, etc.)
     domain: str  # HA domain
-    device_class: Optional[str] = None  # For binary_sensor (motion, door, etc.)
-    default: Optional[str] = None
+    device_class: str | None = None  # For binary_sensor (motion, door, etc.)
+    default: str | None = None
     description: str = ""
     required: bool = True
 
@@ -29,14 +28,14 @@ class PatternDefinition:
     name: str
     description: str
     category: str
-    keywords: List[str]
-    variables: List[PatternVariable]
+    keywords: list[str]
+    variables: list[PatternVariable]
     template: str
     priority: int = 50  # Higher = preferred when multiple matches
 
 
 # Pattern Library - Hand-crafted, validated automation templates
-PATTERNS: Dict[str, PatternDefinition] = {
+PATTERNS: dict[str, PatternDefinition] = {
 
     "motion_light_auto_off": PatternDefinition(
         id="motion_light_auto_off",
@@ -547,17 +546,17 @@ actions:
 }
 
 
-def get_pattern(pattern_id: str) -> Optional[PatternDefinition]:
+def get_pattern(pattern_id: str) -> PatternDefinition | None:
     """Get pattern by ID"""
     return PATTERNS.get(pattern_id)
 
 
-def get_all_patterns() -> Dict[str, PatternDefinition]:
+def get_all_patterns() -> dict[str, PatternDefinition]:
     """Get all available patterns"""
     return PATTERNS
 
 
-def get_patterns_by_category(category: str) -> Dict[str, PatternDefinition]:
+def get_patterns_by_category(category: str) -> dict[str, PatternDefinition]:
     """Get patterns filtered by category"""
     return {
         pid: pattern
@@ -566,7 +565,7 @@ def get_patterns_by_category(category: str) -> Dict[str, PatternDefinition]:
     }
 
 
-def generate_automation_id(pattern_id: str, variables: Dict[str, str]) -> str:
+def generate_automation_id(pattern_id: str, variables: dict[str, str]) -> str:
     """Generate unique automation ID based on pattern and variables"""
     # Create deterministic ID from pattern + variables
     key = f"{pattern_id}_{'-'.join(sorted(variables.values()))}"

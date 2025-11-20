@@ -6,21 +6,19 @@ and pandas optimizations. This is the foundation for all advanced pattern detect
 """
 
 import logging
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Any, Tuple
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-import uuid
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 # Scikit-learn imports
-from sklearn.cluster import DBSCAN, KMeans, SpectralClustering, MiniBatchKMeans
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.ensemble import IsolationForest
-from sklearn.svm import OneClassSVM
-from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import silhouette_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import StandardScaler
 
 # Import Phase 1 improvements
 from .confidence_calibrator import PatternConfidenceCalibrator
@@ -39,7 +37,7 @@ class MLPatternDetector(ABC):
     - Performance monitoring and validation
     - Standardized pattern output format
     """
-    
+
     def __init__(
         self,
         min_confidence: float = 0.7,
@@ -66,21 +64,21 @@ class MLPatternDetector(ABC):
         self.enable_ml = enable_ml
         self.enable_incremental = enable_incremental
         self.window_days = window_days
-        
+
         # ML models (lazy initialization)
         self._clustering_model = None
         self._anomaly_model = None
         self._scaler = StandardScaler()
-        
+
         # Incremental learning state
-        self._last_update_time: Optional[datetime] = None
-        self._incremental_models: Dict[str, Any] = {}
-        self._pattern_cache: List[Dict] = []
-        
+        self._last_update_time: datetime | None = None
+        self._incremental_models: dict[str, Any] = {}
+        self._pattern_cache: list[dict] = []
+
         # Phase 1 improvements: Confidence calibration and utility scoring
-        self.calibrator: Optional[PatternConfidenceCalibrator] = None
-        self.utility_scorer: Optional[PatternUtilityScorer] = None
-        
+        self.calibrator: PatternConfidenceCalibrator | None = None
+        self.utility_scorer: PatternUtilityScorer | None = None
+
         # Performance tracking
         self.detection_stats = {
             'total_patterns': 0,
@@ -90,7 +88,7 @@ class MLPatternDetector(ABC):
             'incremental_updates': 0,
             'full_analyses': 0
         }
-        
+
         # Initialize Phase 1 improvements
         if enable_incremental:
             try:
@@ -100,11 +98,11 @@ class MLPatternDetector(ABC):
                 logger.info("Confidence calibrator and utility scorer initialized")
             except Exception as e:
                 logger.warning(f"Failed to initialize Phase 1 improvements: {e}")
-        
+
         logger.info(f"MLPatternDetector initialized: confidence={min_confidence}, occurrences={min_occurrences}, incremental={enable_incremental}")
-    
+
     @abstractmethod
-    def detect_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
+    def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect patterns in events DataFrame.
         
@@ -115,8 +113,8 @@ class MLPatternDetector(ABC):
             List of pattern dictionaries
         """
         pass
-    
-    def _validate_pattern(self, pattern: Dict) -> bool:
+
+    def _validate_pattern(self, pattern: dict) -> bool:
         """
         Validate pattern meets minimum requirements.
         
@@ -131,8 +129,8 @@ class MLPatternDetector(ABC):
             pattern.get('occurrences', 0) >= self.min_occurrences and
             pattern.get('pattern_type') is not None
         )
-    
-    def _calculate_confidence(self, pattern_data: Dict, use_calibration: bool = True) -> float:
+
+    def _calculate_confidence(self, pattern_data: dict, use_calibration: bool = True) -> float:
         """
         Calculate pattern confidence score with optional calibration.
         
@@ -146,19 +144,19 @@ class MLPatternDetector(ABC):
         # Base confidence from occurrences
         occurrences = pattern_data.get('occurrences', 0)
         base_confidence = min(occurrences / 20.0, 1.0)  # Max confidence at 20 occurrences
-        
+
         # ML confidence boost if available
         ml_confidence = pattern_data.get('ml_confidence', 0.0)
         if ml_confidence > 0:
             base_confidence = (base_confidence + ml_confidence) / 2
-        
+
         # Time consistency boost
         time_consistency = pattern_data.get('time_consistency', 0.0)
         if time_consistency > 0:
             base_confidence = (base_confidence + time_consistency) / 2
-        
+
         raw_confidence = min(base_confidence, 1.0)
-        
+
         # Apply calibration if available and enabled
         if use_calibration and self.calibrator and self.calibrator.is_fitted:
             try:
@@ -167,10 +165,10 @@ class MLPatternDetector(ABC):
                 return calibrated
             except Exception as e:
                 logger.warning(f"Calibration failed, using raw confidence: {e}")
-        
+
         return raw_confidence
-    
-    def _cluster_patterns(self, patterns: List[Dict], features: np.ndarray) -> List[Dict]:
+
+    def _cluster_patterns(self, patterns: list[dict], features: np.ndarray) -> list[dict]:
         """
         Cluster similar patterns using ML algorithms.
         
@@ -183,14 +181,14 @@ class MLPatternDetector(ABC):
         """
         if not self.enable_ml or len(patterns) < 3:
             return patterns
-        
+
         try:
             # Scale features
             features_scaled = self._scaler.fit_transform(features)
-            
+
             # Determine optimal number of clusters
             n_clusters = self._find_optimal_clusters(features_scaled)
-            
+
             if n_clusters > 1:
                 # Use MiniBatchKMeans for efficiency
                 clustering_model = MiniBatchKMeans(
@@ -199,7 +197,7 @@ class MLPatternDetector(ABC):
                     batch_size=100
                 )
                 cluster_labels = clustering_model.fit_predict(features_scaled)
-                
+
                 # Add cluster information to patterns
                 for i, pattern in enumerate(patterns):
                     pattern['cluster_id'] = int(cluster_labels[i])
@@ -207,14 +205,14 @@ class MLPatternDetector(ABC):
                     pattern['ml_confidence'] = self._calculate_cluster_confidence(
                         features_scaled[i], clustering_model
                     )
-                
+
                 logger.info(f"Clustered {len(patterns)} patterns into {n_clusters} clusters")
-            
+
         except Exception as e:
             logger.warning(f"Clustering failed: {e}, using original patterns")
-        
+
         return patterns
-    
+
     def _find_optimal_clusters(self, features: np.ndarray) -> int:
         """
         Find optimal number of clusters using silhouette score.
@@ -227,28 +225,28 @@ class MLPatternDetector(ABC):
         """
         if len(features) < 4:
             return 1
-        
+
         max_clusters = min(len(features) // 2, 10)
         if max_clusters < 2:
             return 1
-        
+
         best_score = -1
         best_k = 1
-        
+
         for k in range(2, max_clusters + 1):
             try:
                 kmeans = MiniBatchKMeans(n_clusters=k, random_state=42, batch_size=100)
                 cluster_labels = kmeans.fit_predict(features)
                 score = silhouette_score(features, cluster_labels)
-                
+
                 if score > best_score:
                     best_score = score
                     best_k = k
             except Exception:
                 continue
-        
+
         return best_k if best_score > 0.3 else 1
-    
+
     def _calculate_cluster_confidence(self, feature_vector: np.ndarray, model) -> float:
         """
         Calculate confidence based on distance to cluster center.
@@ -264,15 +262,15 @@ class MLPatternDetector(ABC):
             # Calculate distance to cluster center
             center = model.cluster_centers_[model.predict([feature_vector])[0]]
             distance = np.linalg.norm(feature_vector - center)
-            
+
             # Convert distance to confidence (closer = higher confidence)
             max_distance = np.max([np.linalg.norm(center - c) for c in model.cluster_centers_])
             confidence = 1.0 - (distance / max_distance) if max_distance > 0 else 1.0
-            
+
             return max(0.0, min(1.0, confidence))
         except Exception:
             return 0.5
-    
+
     def _detect_anomalies(self, features: np.ndarray) -> np.ndarray:
         """
         Detect anomalies in feature data.
@@ -285,7 +283,7 @@ class MLPatternDetector(ABC):
         """
         if not self.enable_ml or len(features) < 10:
             return np.ones(len(features))
-        
+
         try:
             # Use LocalOutlierFactor for anomaly detection
             anomaly_model = LocalOutlierFactor(
@@ -297,7 +295,7 @@ class MLPatternDetector(ABC):
         except Exception as e:
             logger.warning(f"Anomaly detection failed: {e}")
             return np.ones(len(features))
-    
+
     def _extract_time_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Extract time-based features from events.
@@ -309,29 +307,29 @@ class MLPatternDetector(ABC):
             DataFrame with time features
         """
         features_df = events_df.copy()
-        
+
         # Extract time components
         features_df['hour'] = features_df['time'].dt.hour
         features_df['dayofweek'] = features_df['time'].dt.dayofweek
         features_df['dayofyear'] = features_df['time'].dt.dayofyear
         features_df['month'] = features_df['time'].dt.month
         features_df['is_weekend'] = features_df['dayofweek'].isin([5, 6]).astype(int)
-        
+
         # Time since last event
         features_df['time_since_last'] = features_df['time'].diff().dt.total_seconds()
-        
+
         return features_df
-    
+
     def _create_pattern_dict(
         self,
         pattern_type: str,
         pattern_id: str,
         confidence: float,
         occurrences: int,
-        devices: List[str],
-        metadata: Dict[str, Any],
+        devices: list[str],
+        metadata: dict[str, Any],
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create standardized pattern dictionary with utility scoring.
         
@@ -357,11 +355,11 @@ class MLPatternDetector(ABC):
             'created_at': datetime.utcnow().isoformat(),
             **kwargs
         }
-        
+
         # Add device_id if not present (for compatibility)
         if 'device_id' not in pattern and devices:
             pattern['device_id'] = devices[0] if isinstance(devices, list) else devices
-        
+
         # Add ML-specific fields if available
         if 'cluster_id' in kwargs:
             pattern['cluster_id'] = kwargs['cluster_id']
@@ -369,7 +367,7 @@ class MLPatternDetector(ABC):
             pattern['ml_confidence'] = kwargs['ml_confidence']
         if 'anomaly_score' in kwargs:
             pattern['anomaly_score'] = kwargs['anomaly_score']
-        
+
         # Add utility scores using utility scorer
         if self.utility_scorer:
             try:
@@ -380,13 +378,13 @@ class MLPatternDetector(ABC):
                 pattern['utility_score'] = utility_scores['total_utility']
             except Exception as e:
                 logger.warning(f"Failed to calculate utility scores: {e}")
-        
+
         return pattern
-    
+
     def _generate_pattern_id(self, pattern_type: str) -> str:
         """Generate unique pattern ID."""
         return f"{pattern_type}_{uuid.uuid4().hex[:8]}"
-    
+
     def _normalize_column_names(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize column names to standard format.
@@ -398,7 +396,7 @@ class MLPatternDetector(ABC):
             DataFrame with normalized column names
         """
         df = events_df.copy()
-        
+
         # Normalize timestamp column
         if 'timestamp' in df.columns and 'time' not in df.columns:
             df['time'] = df['timestamp']
@@ -406,17 +404,17 @@ class MLPatternDetector(ABC):
             df['time'] = df['_time']
         elif 'last_changed' in df.columns and 'time' not in df.columns:
             df['time'] = df['last_changed']
-        
+
         # Normalize entity/device column
         if 'device_id' in df.columns and 'entity_id' not in df.columns:
             df['entity_id'] = df['device_id']
-        
+
         # Ensure state column exists (default to 'unknown' if missing)
         if 'state' not in df.columns:
             df['state'] = 'unknown'
-        
+
         return df
-    
+
     def _optimize_dataframe(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Optimize DataFrame for ML processing.
@@ -429,22 +427,22 @@ class MLPatternDetector(ABC):
         """
         # First normalize column names
         events_df = self._normalize_column_names(events_df)
-        
+
         # Convert categorical columns to category dtype for memory efficiency
         categorical_columns = ['entity_id', 'state', 'area']
         for col in categorical_columns:
             if col in events_df.columns:
                 events_df[col] = events_df[col].astype('category')
-        
+
         # Ensure time column is datetime
         if 'time' in events_df.columns:
             events_df['time'] = pd.to_datetime(events_df['time'])
-        
+
         # Sort by time for efficient processing
         events_df = events_df.sort_values('time').reset_index(drop=True)
-        
+
         return events_df
-    
+
     def _validate_events_dataframe(self, events_df: pd.DataFrame) -> bool:
         """
         Validate events DataFrame has required columns.
@@ -457,27 +455,27 @@ class MLPatternDetector(ABC):
         """
         # First normalize column names
         df = self._normalize_column_names(events_df)
-        
+
         # Check for time column (required)
         if 'time' not in df.columns:
             logger.error("Missing required 'time' column (checked: timestamp, _time, last_changed)")
             return False
-        
+
         # Check for entity/device column (required)
         if 'entity_id' not in df.columns and 'device_id' not in df.columns:
             logger.error("Missing required 'entity_id' or 'device_id' column")
             return False
-        
+
         if df.empty:
             logger.warning("Empty events DataFrame")
             return False
-        
+
         return True
-    
-    def get_detection_stats(self) -> Dict[str, Any]:
+
+    def get_detection_stats(self) -> dict[str, Any]:
         """Get pattern detection statistics."""
         return self.detection_stats.copy()
-    
+
     def reset_stats(self):
         """Reset detection statistics."""
         self.detection_stats = {
@@ -488,8 +486,8 @@ class MLPatternDetector(ABC):
             'incremental_updates': 0,
             'full_analyses': 0
         }
-    
-    def incremental_update(self, events_df: pd.DataFrame, last_update_time: Optional[datetime] = None) -> List[Dict]:
+
+    def incremental_update(self, events_df: pd.DataFrame, last_update_time: datetime | None = None) -> list[dict]:
         """
         Perform incremental pattern update using only new events since last update.
         
@@ -503,9 +501,9 @@ class MLPatternDetector(ABC):
         if not self.enable_incremental:
             # Fall back to full analysis
             return self.detect_patterns(events_df)
-        
+
         update_time = last_update_time or self._last_update_time
-        
+
         if update_time is None or events_df.empty:
             # First run or no data: perform full analysis
             logger.info("Performing initial full analysis (no previous state)")
@@ -514,7 +512,7 @@ class MLPatternDetector(ABC):
             self._last_update_time = datetime.utcnow()
             self._pattern_cache = patterns
             return patterns
-        
+
         # Extract only new events since last update
         # Handle different possible column names for timestamp
         time_col = None
@@ -522,42 +520,42 @@ class MLPatternDetector(ABC):
             if col in events_df.columns:
                 time_col = col
                 break
-        
+
         if time_col is None:
             logger.warning("No timestamp column found in events DataFrame, performing full analysis")
             patterns = self.detect_patterns(events_df)
             self._last_update_time = datetime.utcnow()
             self._pattern_cache = patterns
             return patterns
-        
+
         events_df[time_col] = pd.to_datetime(events_df[time_col])
         new_events = events_df[events_df[time_col] > update_time].copy()
-        
+
         if new_events.empty:
             logger.info("No new events since last update, returning cached patterns")
             return self._pattern_cache
-        
+
         logger.info(f"Incremental update: {len(new_events)} new events since {update_time}")
         self.detection_stats['incremental_updates'] += 1
-        
+
         # Merge new events with recent history (last window_days)
         cutoff_time = datetime.utcnow() - timedelta(days=self.window_days)
         recent_events = events_df[events_df[time_col] > cutoff_time].copy()
-        
+
         # Perform incremental pattern detection
         patterns = self._incremental_detect_patterns(recent_events, new_events)
-        
+
         # Update state
         self._last_update_time = datetime.utcnow()
         self._pattern_cache = patterns
-        
+
         return patterns
-    
+
     def _incremental_detect_patterns(
-        self, 
-        all_events_df: pd.DataFrame, 
+        self,
+        all_events_df: pd.DataFrame,
         new_events_df: pd.DataFrame
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Incremental pattern detection using partial_fit capabilities.
         
@@ -572,26 +570,26 @@ class MLPatternDetector(ABC):
         # 1. Keep existing patterns from cache
         # 2. Detect new patterns from new events only
         # 3. Merge and deduplicate
-        
+
         existing_patterns = self._pattern_cache.copy()
-        
+
         # Detect patterns from new events (this will be faster than full analysis)
         new_patterns = self.detect_patterns(new_events_df)
-        
+
         # Merge patterns: update occurrences for existing, add new ones
         merged_patterns = self._merge_patterns(existing_patterns, new_patterns)
-        
+
         # Filter by confidence and occurrences
         filtered_patterns = [
-            p for p in merged_patterns 
+            p for p in merged_patterns
             if self._validate_pattern(p)
         ]
-        
+
         # Limit to max_patterns, sorted by confidence
         filtered_patterns.sort(key=lambda x: x.get('confidence', 0), reverse=True)
         return filtered_patterns[:self.max_patterns]
-    
-    def _merge_patterns(self, existing: List[Dict], new: List[Dict]) -> List[Dict]:
+
+    def _merge_patterns(self, existing: list[dict], new: list[dict]) -> list[dict]:
         """
         Merge existing and new patterns, updating occurrences and confidence.
         
@@ -604,15 +602,15 @@ class MLPatternDetector(ABC):
         """
         # Create lookup by pattern_id or device_id + pattern_type
         pattern_map = {}
-        
+
         for pattern in existing:
             key = self._get_pattern_key(pattern)
             pattern_map[key] = pattern.copy()
-        
+
         # Merge new patterns
         for pattern in new:
             key = self._get_pattern_key(pattern)
-            
+
             if key in pattern_map:
                 # Update existing pattern
                 existing_pattern = pattern_map[key]
@@ -625,33 +623,33 @@ class MLPatternDetector(ABC):
             else:
                 # New pattern
                 pattern_map[key] = pattern.copy()
-        
+
         return list(pattern_map.values())
-    
-    def _get_pattern_key(self, pattern: Dict) -> str:
+
+    def _get_pattern_key(self, pattern: dict) -> str:
         """Generate unique key for pattern matching."""
         pattern_type = pattern.get('pattern_type', 'unknown')
         device_id = pattern.get('device_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
-        
+
         # For co-occurrence patterns, include both devices
         if pattern_type == 'co_occurrence' and 'devices' in pattern and len(pattern['devices']) >= 2:
             devices = sorted(pattern['devices'][:2])
             return f"{pattern_type}:{devices[0]}+{devices[1]}"
-        
+
         # Include metadata for sequence patterns
         if pattern_type == 'sequence' and 'metadata' in pattern:
             sequence = pattern['metadata'].get('sequence', [])
             if sequence:
                 return f"{pattern_type}:{device_id}:{','.join(sequence[:3])}"
-        
+
         return f"{pattern_type}:{device_id}"
-    
+
     def _incremental_cluster_patterns(
-        self, 
-        patterns: List[Dict], 
+        self,
+        patterns: list[dict],
         features: np.ndarray,
         update_only: bool = False
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Incremental clustering using partial_fit if update_only=True.
         
@@ -665,16 +663,16 @@ class MLPatternDetector(ABC):
         """
         if not self.enable_ml or len(patterns) < 3:
             return patterns
-        
+
         try:
             features_scaled = self._scaler.fit_transform(features) if not update_only else self._scaler.transform(features)
-            
+
             # Use MiniBatchKMeans for incremental learning
             n_clusters = self._find_optimal_clusters(features_scaled)
-            
+
             if n_clusters > 1:
                 model_key = 'clustering_model'
-                
+
                 if update_only and model_key in self._incremental_models:
                     # Incremental update using partial_fit
                     model = self._incremental_models[model_key]
@@ -692,9 +690,9 @@ class MLPatternDetector(ABC):
                     )
                     model.fit(features_scaled)
                     self._incremental_models[model_key] = model
-                
+
                 cluster_labels = model.predict(features_scaled)
-                
+
                 # Add cluster information
                 for i, pattern in enumerate(patterns):
                     pattern['cluster_id'] = int(cluster_labels[i])
@@ -702,10 +700,10 @@ class MLPatternDetector(ABC):
                     pattern['ml_confidence'] = self._calculate_cluster_confidence(
                         features_scaled[i], model
                     )
-                
+
                 logger.info(f"Incremental clustering: {len(patterns)} patterns in {n_clusters} clusters")
-            
+
         except Exception as e:
             logger.warning(f"Incremental clustering failed: {e}, using original patterns")
-        
+
         return patterns

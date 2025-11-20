@@ -25,7 +25,7 @@ if not os.getenv("AUTOMATION_MINER_TESTS"):
 async def client():
     """Async HTTP client for Automation Miner API"""
     from src.api.main import app
-    
+
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
 
@@ -39,7 +39,7 @@ async def test_db():
     Creates tables before test, drops after test completes.
     """
     from src.miner.database import get_database
-    
+
     db = get_database()
     await db.create_tables()
     yield db
@@ -51,7 +51,7 @@ async def test_db():
 async def test_repository(test_db):
     """Test repository with database session"""
     from src.miner.repository import CorpusRepository
-    
+
     async for session in test_db.get_session():
         repo = CorpusRepository(session)
         yield repo
@@ -63,7 +63,7 @@ async def test_repository(test_db):
 def sample_automation_metadata():
     """Sample automation metadata for testing"""
     from src.miner.models import AutomationMetadata
-    
+
     return AutomationMetadata(
         title="Test Automation",
         description="Test automation for unit tests",

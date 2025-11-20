@@ -5,16 +5,16 @@ Epic 13 Story 13.4: Integration into data-api service
 """
 
 import logging
-import sys
 import os
-from typing import Dict, Any, List, Optional
+import sys
 from datetime import datetime
 
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
+
 from shared.influxdb_query_client import InfluxDBQueryClient
 
 logger = logging.getLogger(__name__)
@@ -26,30 +26,30 @@ class GameResponse(BaseModel):
     game_id: str
     league: str  # NFL or NHL
     season: int
-    week: Optional[str] = None  # For NFL
+    week: str | None = None  # For NFL
     home_team: str
     away_team: str
-    home_score: Optional[int] = None
-    away_score: Optional[int] = None
+    home_score: int | None = None
+    away_score: int | None = None
     status: str  # scheduled, live, finished
-    quarter_period: Optional[str] = None  # Quarter (NFL) or Period (NHL)
-    time_remaining: Optional[str] = None
+    quarter_period: str | None = None  # Quarter (NFL) or Period (NHL)
+    time_remaining: str | None = None
     timestamp: str
 
 
 class GameListResponse(BaseModel):
     """Game list response"""
-    games: List[GameResponse]
+    games: list[GameResponse]
     count: int
-    team: Optional[str] = None
-    season: Optional[int] = None
+    team: str | None = None
+    season: int | None = None
 
 
 class TeamScheduleResponse(BaseModel):
     """Team schedule response"""
     team: str
     season: int
-    games: List[GameResponse]
+    games: list[GameResponse]
     total_games: int
     wins: int
     losses: int
@@ -71,7 +71,7 @@ class ScoreTimelineResponse(BaseModel):
     game_id: str
     home_team: str
     away_team: str
-    timeline: List[ScoreTimelinePoint]
+    timeline: list[ScoreTimelinePoint]
     final_score: str
 
 
@@ -84,8 +84,8 @@ influxdb_client = InfluxDBQueryClient()
 
 @router.get("/sports/games/live")
 async def get_live_games(
-    team_ids: Optional[str] = Query(None, description="Comma-separated team IDs"),
-    league: Optional[str] = Query(None, description="NFL or NHL")
+    team_ids: str | None = Query(None, description="Comma-separated team IDs"),
+    league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Get currently live games
@@ -111,9 +111,9 @@ async def get_live_games(
 
 @router.get("/sports/games/upcoming")
 async def get_upcoming_games(
-    team_ids: Optional[str] = Query(None, description="Comma-separated team IDs"),
+    team_ids: str | None = Query(None, description="Comma-separated team IDs"),
     hours: int = Query(default=24, description="Hours ahead to look for games"),
-    league: Optional[str] = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Get upcoming games
@@ -139,7 +139,7 @@ async def get_upcoming_games(
 
 @router.get("/sports/teams")
 async def get_teams(
-    league: Optional[str] = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Get available teams
@@ -166,7 +166,7 @@ async def get_teams(
             {"id": "PIT", "name": "Pittsburgh Steelers", "league": "NFL"},
             {"id": "TEN", "name": "Tennessee Titans", "league": "NFL"},
         ]
-        
+
         nhl_teams = [
             {"id": "BOS", "name": "Boston Bruins", "league": "NHL"},
             {"id": "BUF", "name": "Buffalo Sabres", "league": "NHL"},
@@ -177,7 +177,7 @@ async def get_teams(
             {"id": "TB", "name": "Tampa Bay Lightning", "league": "NHL"},
             {"id": "TOR", "name": "Toronto Maple Leafs", "league": "NHL"},
         ]
-        
+
         if league == "NFL":
             return {"teams": nfl_teams, "count": len(nfl_teams)}
         elif league == "NHL":
@@ -192,9 +192,9 @@ async def get_teams(
 @router.get("/sports/games/history", response_model=GameListResponse)
 async def get_game_history(
     team: str = Query(..., description="Team name or abbreviation"),
-    season: Optional[int] = Query(None, description="Season year (default: current)"),
-    league: Optional[str] = Query(None, description="NFL or NHL"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status"),
+    season: int | None = Query(None, description="Season year (default: current)"),
+    league: str | None = Query(None, description="NFL or NHL"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of games")
 ):
     """
@@ -216,16 +216,16 @@ async def get_game_history(
         # Build query
         current_year = datetime.now().year
         season = season or current_year
-        
+
         # Determine measurement based on league
         measurements = []
         if league:
             measurements.append(f"{league.lower()}_scores")
         else:
             measurements.extend(["nfl_scores", "nhl_scores"])
-        
+
         all_games = []
-        
+
         for measurement in measurements:
             query = f'''
                 from(bucket: "sports_data")
@@ -233,16 +233,16 @@ async def get_game_history(
                     |> filter(fn: (r) => r._measurement == "{measurement}")
                     |> filter(fn: (r) => r.home_team == "{team}" or r.away_team == "{team}")
             '''
-            
+
             if status_filter:
                 query += f'|> filter(fn: (r) => r.status == "{status_filter}")'
-            
+
             query += '|> sort(columns: ["_time"], desc: true)'
             query += f'|> limit(n: {limit})'
-            
+
             try:
                 results = await influxdb_client._execute_query(query)
-                
+
                 for record in results:
                     game = GameResponse(
                         game_id=record.get("game_id", ""),
@@ -259,17 +259,17 @@ async def get_game_history(
                         timestamp=record.get("_time", datetime.now().isoformat())
                     )
                     all_games.append(game)
-            
+
             except Exception as e:
                 logger.warning(f"Error querying {measurement}: {e}")
-        
+
         return GameListResponse(
             games=all_games,
             count=len(all_games),
             team=team,
             season=season
         )
-    
+
     except Exception as e:
         logger.error(f"Error getting game history: {e}")
         raise HTTPException(
@@ -281,7 +281,7 @@ async def get_game_history(
 @router.get("/sports/games/timeline/{game_id}", response_model=ScoreTimelineResponse)
 async def get_game_timeline(
     game_id: str,
-    league: Optional[str] = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Get score progression timeline for a specific game
@@ -301,7 +301,7 @@ async def get_game_timeline(
             measurements.append(f"{league.lower()}_scores")
         else:
             measurements.extend(["nfl_scores", "nhl_scores"])
-        
+
         for measurement in measurements:
             query = f'''
                 from(bucket: "sports_data")
@@ -310,13 +310,13 @@ async def get_game_timeline(
                     |> filter(fn: (r) => r.game_id == "{game_id}")
                     |> sort(columns: ["_time"])
             '''
-            
+
             try:
                 results = await influxdb_client._execute_query(query)
-                
+
                 if not results:
                     continue
-                
+
                 # Build timeline
                 timeline = []
                 for record in results:
@@ -328,11 +328,11 @@ async def get_game_timeline(
                         time_remaining=record.get("time_remaining", "")
                     )
                     timeline.append(point)
-                
+
                 if timeline:
                     first_record = results[0]
                     final_record = results[-1]
-                    
+
                     return ScoreTimelineResponse(
                         game_id=game_id,
                         home_team=first_record.get("home_team", ""),
@@ -340,16 +340,16 @@ async def get_game_timeline(
                         timeline=timeline,
                         final_score=f"{final_record.get('home_score', 0)}-{final_record.get('away_score', 0)}"
                     )
-            
+
             except Exception as e:
                 logger.warning(f"Error querying {measurement} for game {game_id}: {e}")
-        
+
         # Game not found in any measurement
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game {game_id} not found"
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -363,8 +363,8 @@ async def get_game_timeline(
 @router.get("/sports/schedule/{team}", response_model=TeamScheduleResponse)
 async def get_team_schedule(
     team: str,
-    season: Optional[int] = Query(None, description="Season year (default: current)"),
-    league: Optional[str] = Query(None, description="NFL or NHL")
+    season: int | None = Query(None, description="Season year (default: current)"),
+    league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Retrieve complete season schedule for a team with calculated win/loss record.
@@ -422,16 +422,16 @@ async def get_team_schedule(
     try:
         current_year = datetime.now().year
         season = season or current_year
-        
+
         # Get all games for team
         response = await get_game_history(team=team, season=season, league=league, limit=200)
         games = response.games
-        
+
         # Calculate record
         wins = 0
         losses = 0
         ties = 0
-        
+
         for game in games:
             if game.status == "finished" and game.home_score is not None and game.away_score is not None:
                 if game.home_team == team:
@@ -448,10 +448,10 @@ async def get_team_schedule(
                         losses += 1
                     else:
                         ties += 1
-        
+
         total_games_played = wins + losses + ties
         win_percentage = (wins / total_games_played) if total_games_played > 0 else 0.0
-        
+
         return TeamScheduleResponse(
             team=team,
             season=season,
@@ -462,7 +462,7 @@ async def get_team_schedule(
             ties=ties,
             win_percentage=round(win_percentage, 3)
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:

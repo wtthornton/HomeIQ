@@ -2,12 +2,13 @@
 Ranking Router - POST /rank endpoint
 """
 
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 import logging
+from typing import Any
 
-from ..ranking.score import rank_automations, RankScore
+from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel
+
+from ..ranking.score import rank_automations
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +17,16 @@ router = APIRouter(prefix="/api/v1/rank", tags=["ranking"])
 
 class RankRequest(BaseModel):
     """Request to rank automation plans"""
-    automations: List[Dict[str, Any]]  # List of automation plans
-    capabilities: Dict[str, Any]  # Available capabilities
+    automations: list[dict[str, Any]]  # List of automation plans
+    capabilities: dict[str, Any]  # Available capabilities
     top_k: int = 10  # Number of top results to return
-    reliability_history: Optional[Dict[str, float]] = None  # Reliability scores by entity_id
-    user_preferences: Optional[Dict[str, float]] = None  # User preferences by device_type
+    reliability_history: dict[str, float] | None = None  # Reliability scores by entity_id
+    user_preferences: dict[str, float] | None = None  # User preferences by device_type
 
 
 class RankResponse(BaseModel):
     """Response from ranking"""
-    ranked: List[Dict[str, Any]]  # Ranked automations with scores
+    ranked: list[dict[str, Any]]  # Ranked automations with scores
     total_count: int
     excluded_count: int
 
@@ -49,7 +50,7 @@ async def rank_automation_plans(request: RankRequest = Body(...)):
             reliability_history=request.reliability_history,
             user_preferences=request.user_preferences
         )
-        
+
         # Convert to response format
         ranked_dicts = []
         for ranked_automation in ranked:
@@ -68,14 +69,14 @@ async def rank_automation_plans(request: RankRequest = Body(...)):
                     "exclusion_reason": ranked_automation.score.exclusion_reason
                 }
             })
-        
+
         return RankResponse(
             ranked=ranked_dicts,
             total_count=len(request.automations),
             excluded_count=len(request.automations) - len(ranked)
         )
-        
+
     except Exception as e:
         logger.error(f"Ranking error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Ranking failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ranking failed: {str(e)}") from e
 

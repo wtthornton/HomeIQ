@@ -8,38 +8,38 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, Optional, Any, List
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ConversationContext:
     """Represents conversation context for a single conversation"""
-    
+
     def __init__(self, conversation_id: str, user_id: str, initial_query: str):
         self.conversation_id = conversation_id
         self.user_id = user_id
         self.initial_query = initial_query
-        self.turns: List[Dict[str, Any]] = []
-        self.entities: List[Dict[str, Any]] = []
-        self.validated_entities: Dict[str, str] = {}
-        self.ambiguities: List[Dict[str, Any]] = []
-        self.clarification_answers: List[Dict[str, Any]] = []
+        self.turns: list[dict[str, Any]] = []
+        self.entities: list[dict[str, Any]] = []
+        self.validated_entities: dict[str, str] = {}
+        self.ambiguities: list[dict[str, Any]] = []
+        self.clarification_answers: list[dict[str, Any]] = []
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
-    
-    def add_turn(self, turn: Dict[str, Any]):
+
+    def add_turn(self, turn: dict[str, Any]):
         """Add a conversation turn"""
         self.turns.append(turn)
         self.updated_at = datetime.utcnow()
-    
-    def update_entities(self, entities: List[Dict[str, Any]]):
+
+    def update_entities(self, entities: list[dict[str, Any]]):
         """Update entities in context"""
         self.entities = entities
         self.updated_at = datetime.utcnow()
-    
-    def update_validated_entities(self, validated: Dict[str, str]):
+
+    def update_validated_entities(self, validated: dict[str, str]):
         """Update validated entity mappings"""
         self.validated_entities.update(validated)
         self.updated_at = datetime.utcnow()
@@ -56,16 +56,16 @@ class ConversationContextManager:
     - Clarification answers
     - Accumulated context
     """
-    
+
     def __init__(self):
         """Initialize context manager"""
-        self._contexts: Dict[str, ConversationContext] = {}
+        self._contexts: dict[str, ConversationContext] = {}
         logger.info("ConversationContextManager initialized")
-    
-    def get_context(self, conversation_id: str) -> Optional[ConversationContext]:
+
+    def get_context(self, conversation_id: str) -> ConversationContext | None:
         """Get conversation context"""
         return self._contexts.get(conversation_id)
-    
+
     def create_context(
         self,
         conversation_id: str,
@@ -81,33 +81,33 @@ class ConversationContextManager:
         self._contexts[conversation_id] = context
         logger.info(f"Created context for conversation: {conversation_id}")
         return context
-    
+
     def update_from_turn(
         self,
         conversation_id: str,
-        turn: Dict[str, Any]
+        turn: dict[str, Any]
     ):
         """Update context from conversation turn"""
         context = self.get_context(conversation_id)
         if context:
             context.add_turn(turn)
-            
+
             # Update entities if present
             if 'extracted_entities' in turn:
                 context.update_entities(turn['extracted_entities'])
-            
+
             # Update validated entities if present
             if 'validated_entities' in turn:
                 context.update_validated_entities(turn['validated_entities'])
         else:
             logger.warning(f"Context not found for conversation: {conversation_id}")
-    
-    def get_accumulated_context(self, conversation_id: str) -> Dict[str, Any]:
+
+    def get_accumulated_context(self, conversation_id: str) -> dict[str, Any]:
         """Get accumulated context for conversation"""
         context = self.get_context(conversation_id)
         if not context:
             return {}
-        
+
         return {
             "conversation_id": context.conversation_id,
             "user_id": context.user_id,
@@ -120,7 +120,7 @@ class ConversationContextManager:
             "created_at": context.created_at.isoformat(),
             "updated_at": context.updated_at.isoformat()
         }
-    
+
     def clear_context(self, conversation_id: str):
         """Clear conversation context"""
         if conversation_id in self._contexts:

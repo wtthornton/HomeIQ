@@ -4,15 +4,16 @@ Question Generator - Generates structured clarification questions using OpenAI
 
 import json
 import logging
-from typing import List, Dict, Any, Optional
-from .models import Ambiguity, ClarificationQuestion, QuestionType, AmbiguitySeverity, AmbiguityType
+from typing import Any
+
+from .models import Ambiguity, AmbiguitySeverity, AmbiguityType, ClarificationQuestion, QuestionType
 
 logger = logging.getLogger(__name__)
 
 
 class QuestionGenerator:
     """Generates structured clarification questions"""
-    
+
     def __init__(self, openai_client):
         """
         Initialize question generator.
@@ -21,15 +22,15 @@ class QuestionGenerator:
             openai_client: OpenAI client instance
         """
         self.openai_client = openai_client
-    
+
     async def generate_questions(
         self,
-        ambiguities: List[Ambiguity],
+        ambiguities: list[Ambiguity],
         query: str,
-        context: Dict[str, Any],
-        previous_qa: Optional[List[Dict[str, Any]]] = None,  # NEW: Previous Q&A pairs
-        asked_questions: Optional[List['ClarificationQuestion']] = None  # NEW: Previously asked questions
-    ) -> List[ClarificationQuestion]:
+        context: dict[str, Any],
+        previous_qa: list[dict[str, Any]] | None = None,  # NEW: Previous Q&A pairs
+        asked_questions: list['ClarificationQuestion'] | None = None  # NEW: Previously asked questions
+    ) -> list[ClarificationQuestion]:
         """
         Generate questions based on detected ambiguities.
         
@@ -45,22 +46,22 @@ class QuestionGenerator:
         """
         if not ambiguities:
             return []
-        
+
         # Prioritize ambiguities (critical first)
         prioritized_ambiguities = sorted(
             ambiguities,
             key=lambda a: (a.severity == AmbiguitySeverity.CRITICAL, a.severity == AmbiguitySeverity.IMPORTANT),
             reverse=True
         )
-        
+
         # Limit to top 3 ambiguities to avoid overwhelming user
         top_ambiguities = prioritized_ambiguities[:3]
-        
+
         # Build prompt for OpenAI
         prompt = self._build_question_generation_prompt(
             top_ambiguities, query, context, previous_qa, asked_questions
         )
-        
+
         try:
             # Call OpenAI
             response = await self.openai_client.client.chat.completions.create(
@@ -79,31 +80,31 @@ class QuestionGenerator:
                 max_completion_tokens=400,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}
             )
-            
+
             content = response.choices[0].message.content
             questions_data = json.loads(content)
-            
+
             # Parse questions
             questions = self._parse_questions(questions_data, top_ambiguities)
-            
+
             logger.info(f"✅ Generated {len(questions)} clarification questions")
             return questions
-            
+
         except Exception as e:
             logger.error(f"Failed to generate questions: {e}", exc_info=True)
             # Fallback: Generate simple questions from ambiguities
             return self._generate_fallback_questions(top_ambiguities)
-    
+
     def _build_question_generation_prompt(
         self,
-        ambiguities: List[Ambiguity],
+        ambiguities: list[Ambiguity],
         query: str,
-        context: Dict[str, Any],
-        previous_qa: Optional[List[Dict[str, Any]]] = None,
-        asked_questions: Optional[List['ClarificationQuestion']] = None
+        context: dict[str, Any],
+        previous_qa: list[dict[str, Any]] | None = None,
+        asked_questions: list['ClarificationQuestion'] | None = None
     ) -> str:
         """Build prompt for OpenAI question generation"""
-        
+
         # Format ambiguities
         ambiguities_text = []
         for amb in ambiguities:
@@ -119,7 +120,7 @@ class QuestionGenerator:
                 if 'suggestion' in amb.context:
                     amb_text += f"\n  Suggestion: {amb.context['suggestion']}"
             ambiguities_text.append(amb_text)
-        
+
         # NEW: Add previous Q&A context to prompt
         previous_qa_section = ""
         if previous_qa:
@@ -130,7 +131,7 @@ class QuestionGenerator:
                 if qa.get('selected_entities'):
                     previous_qa_section += f"   Selected entities: {', '.join(qa['selected_entities'])}\n"
             previous_qa_section += "\n⚠️ IMPORTANT: Do NOT ask questions that are similar to the ones above. Build on the user's answers to ask NEW questions about remaining ambiguities.\n"
-        
+
         # NEW: List already-asked questions to avoid duplicates
         asked_questions_section = ""
         if asked_questions:
@@ -138,7 +139,7 @@ class QuestionGenerator:
             for i, q in enumerate(asked_questions, 1):
                 asked_questions_section += f"{i}. {q.question_text}\n"
             asked_questions_section += "\n⚠️ CRITICAL: Generate questions that are DIFFERENT from the ones above. Focus on remaining ambiguities that haven't been addressed yet.\n"
-        
+
         # Format available devices summary
         devices_summary = "Available devices:\n"
         if 'devices' in context:
@@ -155,7 +156,7 @@ class QuestionGenerator:
                 for entity in entities[:5]:
                     name = entity.get('friendly_name', entity.get('entity_id', 'unknown'))
                     devices_summary += f"  - {name}\n"
-        
+
         prompt = f"""You are a Home Assistant automation assistant helping users clarify their automation requests.
 
 **User Query:**
@@ -204,24 +205,24 @@ Generate 1-3 NEW clarification questions that will help clarify the REMAINING am
 }}
 
 Generate questions now (respond ONLY with JSON, no other text):"""
-        
+
         return prompt
-    
+
     def _parse_questions(
         self,
-        questions_data: Dict[str, Any],
-        ambiguities: List[Ambiguity]
-    ) -> List[ClarificationQuestion]:
+        questions_data: dict[str, Any],
+        ambiguities: list[Ambiguity]
+    ) -> list[ClarificationQuestion]:
         """Parse questions from OpenAI response"""
         questions = []
-        
+
         if 'questions' not in questions_data:
             logger.warning("No 'questions' field in OpenAI response")
             return []
-        
+
         # Create ambiguity lookup by type
         ambiguity_by_type = {amb.type: amb for amb in ambiguities}
-        
+
         for i, q_data in enumerate(questions_data['questions']):
             try:
                 # Map question type string to enum
@@ -234,7 +235,7 @@ Generate questions now (respond ONLY with JSON, no other text):"""
                     question_type = QuestionType.BOOLEAN
                 else:
                     question_type = QuestionType.TEXT
-                
+
                 # Find related ambiguity
                 ambiguity_id = None
                 category = q_data.get('category', 'unknown')
@@ -242,7 +243,7 @@ Generate questions now (respond ONLY with JSON, no other text):"""
                     if amb.type.value == category:
                         ambiguity_id = amb.id
                         break
-                
+
                 question = ClarificationQuestion(
                     id=q_data.get('id', f'q{i+1}'),
                     category=category,
@@ -258,16 +259,16 @@ Generate questions now (respond ONLY with JSON, no other text):"""
             except Exception as e:
                 logger.error(f"Failed to parse question {i}: {e}")
                 continue
-        
+
         return questions
-    
+
     def _generate_fallback_questions(
         self,
-        ambiguities: List[Ambiguity]
-    ) -> List[ClarificationQuestion]:
+        ambiguities: list[Ambiguity]
+    ) -> list[ClarificationQuestion]:
         """Generate simple fallback questions when OpenAI fails"""
         questions = []
-        
+
         for i, amb in enumerate(ambiguities[:3]):  # Max 3
             if amb.type == AmbiguityType.DEVICE:
                 question_text = f"Which device did you mean? {amb.description}"
@@ -286,7 +287,7 @@ Generate questions now (respond ONLY with JSON, no other text):"""
                 question_text = f"Could you clarify: {amb.description}"
                 question_type = QuestionType.TEXT
                 options = None
-            
+
             question = ClarificationQuestion(
                 id=f'q{i+1}',
                 category=amb.type.value,
@@ -298,6 +299,6 @@ Generate questions now (respond ONLY with JSON, no other text):"""
                 ambiguity_id=amb.id
             )
             questions.append(question)
-        
+
         return questions
 

@@ -1,13 +1,13 @@
 """Contract definitions for AI Automation Service"""
 
 from .models import (
-    AutomationPlan,
-    AutomationMetadata,
-    Trigger,
-    Condition,
     Action,
+    AutomationMetadata,
     AutomationMode,
-    MaxExceeded
+    AutomationPlan,
+    Condition,
+    MaxExceeded,
+    Trigger,
 )
 
 __all__ = [

@@ -6,9 +6,9 @@ Supports 2025 Home Assistant YAML format.
 """
 
 import logging
+from typing import Any
+
 import yaml
-from typing import Dict, Any, List, Union, Optional
-from datetime import timedelta
 
 from .action_exceptions import ActionParseError
 
@@ -24,9 +24,9 @@ class ActionParser:
     - Nested structures: sequence:, parallel:, repeat:, choose:
     - Delay parsing: delay: '00:00:02' or delay: {seconds: 2}
     """
-    
+
     @staticmethod
-    def parse_actions_from_yaml(yaml_str: str) -> List[Dict[str, Any]]:
+    def parse_actions_from_yaml(yaml_str: str) -> list[dict[str, Any]]:
         """
         Parse actions from YAML string.
         
@@ -43,15 +43,15 @@ class ActionParser:
             automation_dict = yaml.safe_load(yaml_str)
             if not isinstance(automation_dict, dict):
                 raise ActionParseError("YAML must be a dictionary")
-            
+
             return ActionParser.parse_actions_from_dict(automation_dict)
         except yaml.YAMLError as e:
             raise ActionParseError(f"YAML parsing error: {e}")
         except Exception as e:
             raise ActionParseError(f"Error parsing actions: {e}")
-    
+
     @staticmethod
-    def parse_actions_from_dict(automation_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def parse_actions_from_dict(automation_dict: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Parse actions from automation dictionary.
         
@@ -65,7 +65,7 @@ class ActionParser:
         if not actions:
             logger.warning("No 'actions' key found in automation")
             return []
-        
+
         parsed_actions = []
         for action_item in actions:
             try:
@@ -75,11 +75,11 @@ class ActionParser:
             except Exception as e:
                 logger.warning(f"Failed to parse action item: {e}")
                 continue
-        
+
         return parsed_actions
-    
+
     @staticmethod
-    def _extract_action(action_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _extract_action(action_item: dict[str, Any]) -> dict[str, Any] | None:
         """
         Extract action from action item.
         
@@ -102,22 +102,22 @@ class ActionParser:
             delay_value = action_item['delay']
             delay_seconds = ActionParser._parse_delay_value(delay_value)
             return {'delay': delay_seconds, 'type': 'delay'}
-        
+
         # Handle service call (2025 format: action: domain.service)
         if 'action' in action_item:
             action_str = action_item['action']
             if not isinstance(action_str, str) or '.' not in action_str:
                 raise ActionParseError(f"Invalid action format: {action_str}")
-            
+
             domain, service = action_str.split('.', 1)
-            
+
             parsed_action = {
                 'type': 'service_call',
                 'domain': domain,
                 'service': service,
                 'action': action_str
             }
-            
+
             # Extract target (2025 format: target.entity_id)
             if 'target' in action_item:
                 target = action_item['target']
@@ -126,13 +126,13 @@ class ActionParser:
                 else:
                     # Legacy format: entity_id directly
                     parsed_action['target'] = {'entity_id': target}
-            
+
             # Extract service data
             if 'data' in action_item:
                 parsed_action['data'] = action_item['data']
-            
+
             return parsed_action
-        
+
         # Handle sequence
         if 'sequence' in action_item:
             sequence_actions = []
@@ -141,7 +141,7 @@ class ActionParser:
                 if parsed:
                     sequence_actions.append(parsed)
             return {'type': 'sequence', 'actions': sequence_actions}
-        
+
         # Handle parallel
         if 'parallel' in action_item:
             parallel_actions = []
@@ -150,7 +150,7 @@ class ActionParser:
                 if parsed:
                     parallel_actions.append(parsed)
             return {'type': 'parallel', 'actions': parallel_actions}
-        
+
         # Handle repeat
         if 'repeat' in action_item:
             repeat_config = action_item['repeat']
@@ -164,7 +164,7 @@ class ActionParser:
                 'count': repeat_config.get('count', 1),
                 'actions': repeat_actions
             }
-        
+
         # Handle choose
         if 'choose' in action_item:
             choose_actions = []
@@ -179,13 +179,13 @@ class ActionParser:
                     'sequence': choice_actions
                 })
             return {'type': 'choose', 'choices': choose_actions}
-        
+
         # Unknown action type
         logger.warning(f"Unknown action type in item: {list(action_item.keys())}")
         return None
-    
+
     @staticmethod
-    def _parse_delay_value(delay: Union[str, Dict, int, float]) -> float:
+    def _parse_delay_value(delay: str | dict | int | float) -> float:
         """
         Parse delay value to seconds.
         
@@ -202,7 +202,7 @@ class ActionParser:
         """
         if isinstance(delay, (int, float)):
             return float(delay)
-        
+
         if isinstance(delay, dict):
             total_seconds = 0.0
             if 'seconds' in delay:
@@ -212,7 +212,7 @@ class ActionParser:
             if 'hours' in delay:
                 total_seconds += float(delay['hours']) * 3600
             return total_seconds
-        
+
         if isinstance(delay, str):
             # Parse time string: 'HH:MM:SS' or 'MM:SS' or 'SS'
             parts = delay.split(':')
@@ -227,6 +227,6 @@ class ActionParser:
             else:
                 # SS
                 return float(delay)
-        
+
         raise ActionParseError(f"Invalid delay format: {delay}")
 

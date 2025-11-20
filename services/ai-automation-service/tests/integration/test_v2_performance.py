@@ -7,11 +7,11 @@ Tests:
 - Memory usage (basic)
 """
 
-import pytest
-import time
-import httpx
-from typing import Dict, Any
 import statistics
+import time
+
+import httpx
+import pytest
 
 
 @pytest.mark.integration
@@ -28,7 +28,7 @@ class TestV2Performance:
             yield client
 
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         """Authentication headers"""
         api_key = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
         return {
@@ -59,7 +59,7 @@ class TestV2Performance:
         avg_latency = statistics.mean(latencies)
         p95_latency = statistics.quantiles(latencies, n=20)[18]  # 95th percentile
 
-        print(f"\nStart Conversation Latency:")
+        print("\nStart Conversation Latency:")
         print(f"  Average: {avg_latency:.2f}ms")
         print(f"  P95: {p95_latency:.2f}ms")
         print(f"  Min: {min(latencies):.2f}ms")
@@ -100,7 +100,7 @@ class TestV2Performance:
         avg_latency = statistics.mean(latencies)
         p95_latency = statistics.quantiles(latencies, n=20)[18] if len(latencies) > 1 else latencies[0]
 
-        print(f"\nSend Message Latency:")
+        print("\nSend Message Latency:")
         print(f"  Average: {avg_latency:.2f}ms")
         print(f"  P95: {p95_latency:.2f}ms")
         print(f"  Min: {min(latencies):.2f}ms")
@@ -133,7 +133,7 @@ class TestV2Performance:
         total_time = (end_time - start_time) * 1000  # Convert to ms
         success_count = sum(1 for code in results if code == 201)
 
-        print(f"\nConcurrent Requests (10):")
+        print("\nConcurrent Requests (10):")
         print(f"  Total time: {total_time:.2f}ms")
         print(f"  Successful: {success_count}/10")
         print(f"  Average per request: {total_time / 10:.2f}ms")
@@ -177,7 +177,7 @@ class TestV2Performance:
 
         avg_latency = statistics.mean(latencies)
 
-        print(f"\nGet Conversation Latency:")
+        print("\nGet Conversation Latency:")
         print(f"  Average: {avg_latency:.2f}ms")
         print(f"  Min: {min(latencies):.2f}ms")
         print(f"  Max: {max(latencies):.2f}ms")
