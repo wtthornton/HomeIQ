@@ -3890,7 +3890,7 @@ async def generate_suggestions_from_query(
                     relevance_scores = await _score_entities_by_relevance(
                         enriched_entities=[{'entity_id': eid} for eid in resolved_entity_ids],
                         enriched_data=enriched_data,
-                        query=enriched_query,
+                        query=query,  # Use function parameter (enriched_query is not in this scope)
                         clarification_context=clarification_context,
                         mentioned_locations=mentioned_locations,
                         mentioned_domains=mentioned_domains
@@ -4342,8 +4342,66 @@ async def generate_suggestions_from_query(
                         except Exception as e:
                             logger.debug(f"Could not extract location from query: {e}, using None (context-aware matching will use clarification context)")
                     
+                    # 2025 ENHANCEMENT: Expand location names to entity friendly names before mapping
+                    # This handles cases where OpenAI returns location names (e.g., "office") instead of device names
+                    # Follows existing pattern for entity ID expansion (lines 4473-4522)
+                    expanded_devices_involved = []
+                    location_names_expanded = []
+                    
+                    for device_name in devices_involved:
+                        # Normalize location name for comparison (handle spaces, underscores)
+                        device_name_normalized = device_name.lower().strip().replace(' ', '_')
+                        query_location_normalized = query_location.lower().strip().replace(' ', '_') if query_location else None
+                        
+                        # Check if device_name is a location name that matches query_location
+                        # This follows the same pattern as entity ID detection (line 4475)
+                        is_location_name = (
+                            query_location_normalized and
+                            (device_name_normalized == query_location_normalized or
+                             device_name_normalized in query_location_normalized or
+                             query_location_normalized in device_name_normalized)
+                        )
+                        
+                        if is_location_name and resolved_entity_ids and enriched_data:
+                            # Expand location to entities (similar to entity ID expansion at lines 4490-4522)
+                            logger.info(f"📍 Expanding location '{device_name}' to {len(resolved_entity_ids)} entities from resolved_entity_ids")
+                            location_entities_added = 0
+                            
+                            # Map entity IDs to friendly names from enriched_data (existing pattern)
+                            for entity_id in resolved_entity_ids:
+                                enriched = enriched_data.get(entity_id, {})
+                                if enriched:
+                                    # Use same priority order as lines 4377-4383
+                                    friendly_name = (
+                                        enriched.get('device_name') or
+                                        enriched.get('friendly_name') or
+                                        enriched.get('name_by_user') or
+                                        enriched.get('name') or
+                                        enriched.get('original_name') or
+                                        entity_id.split('.')[-1].replace('_', ' ').title()  # Fallback
+                                    )
+                                    if friendly_name and friendly_name not in expanded_devices_involved:
+                                        expanded_devices_involved.append(friendly_name)
+                                        location_entities_added += 1
+                            
+                            if location_entities_added > 0:
+                                location_names_expanded.append(device_name)
+                                logger.info(f"✅ Expanded location '{device_name}' to {location_entities_added} entity friendly names")
+                            else:
+                                # Fallback: keep original if expansion failed
+                                logger.warning(f"⚠️ Failed to expand location '{device_name}', keeping original")
+                                expanded_devices_involved.append(device_name)
+                        else:
+                            # Not a location name, use as-is (existing behavior)
+                            expanded_devices_involved.append(device_name)
+                    
+                    # Use expanded list for mapping (replace devices_involved with expanded_devices_involved)
+                    if location_names_expanded:
+                        logger.info(f"📍 Location expansion: {len(location_names_expanded)} locations expanded, {len(devices_involved)} → {len(expanded_devices_involved)} devices")
+                        devices_involved = expanded_devices_involved
+                    
                     validated_entities = await map_devices_to_entities(
-                        devices_involved,
+                        devices_involved,  # Now contains friendly names instead of location names
                         enriched_data,
                         ha_client=ha_client_for_mapping,
                         fuzzy_match=True,
