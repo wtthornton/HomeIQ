@@ -15,6 +15,7 @@ import {
   type SettingsPayload,
 } from '../api/settings';
 import { TeamTrackerSettings } from '../components/TeamTrackerSettings';
+import { ModelComparisonMetricsComponent } from '../components/ModelComparisonMetrics';
 
 export const Settings: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -301,6 +302,243 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Parallel Model Testing Section */}
+        <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+          <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            🤖 Parallel Model Testing
+          </h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Enable Parallel Testing
+                </label>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Run multiple models in parallel to compare quality and cost
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.enableParallelModelTesting || false}
+                onChange={(e) => setSettings({ ...settings, enableParallelModelTesting: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
+            
+            {settings.enableParallelModelTesting && (
+              <div className="mt-4 space-y-3 pl-4 border-l-2 border-blue-500">
+                <div>
+                  <label className={`text-sm font-medium block mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Suggestion Models
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={settings.parallelTestingModels?.suggestion?.[0] || 'gpt-4o'}
+                      onChange={(e) => {
+                        const model1 = e.target.value;
+                        const model2 = settings.parallelTestingModels?.suggestion?.[1] || 'gpt-4o-mini';
+                        setSettings({
+                          ...settings,
+                          parallelTestingModels: {
+                            suggestion: [model1, model2],
+                            yaml: settings.parallelTestingModels?.yaml || ["gpt-4o", "gpt-4o-mini"]
+                          }
+                        });
+                      }}
+                      className={`px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    >
+                      <optgroup label="Latest Models (2025)">
+                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
+                        <option value="gpt-5">GPT-5</option>
+                        <option value="gpt-4.1">GPT-4.1</option>
+                      </optgroup>
+                      <optgroup label="GPT-4o Series">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o-mini</option>
+                      </optgroup>
+                      <optgroup label="GPT-4 Series">
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                      </optgroup>
+                      <optgroup label="Reasoning Models (o-series)">
+                        <option value="o1">o1</option>
+                        <option value="o1-mini">o1-mini</option>
+                        <option value="o1-preview">o1-preview</option>
+                        <option value="o3">o3</option>
+                        <option value="o3-mini">o3-mini</option>
+                        <option value="o4-mini">o4-mini</option>
+                      </optgroup>
+                      <optgroup label="Legacy Models">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </optgroup>
+                    </select>
+                    <select
+                      value={settings.parallelTestingModels?.suggestion?.[1] || 'gpt-4o-mini'}
+                      onChange={(e) => {
+                        const model1 = settings.parallelTestingModels?.suggestion?.[0] || 'gpt-4o';
+                        const model2 = e.target.value;
+                        setSettings({
+                          ...settings,
+                          parallelTestingModels: {
+                            suggestion: [model1, model2],
+                            yaml: settings.parallelTestingModels?.yaml || ["gpt-4o", "gpt-4o-mini"]
+                          }
+                        });
+                      }}
+                      className={`px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    >
+                      <optgroup label="Latest Models (2025)">
+                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
+                        <option value="gpt-5">GPT-5</option>
+                        <option value="gpt-4.1">GPT-4.1</option>
+                      </optgroup>
+                      <optgroup label="GPT-4o Series">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o-mini</option>
+                      </optgroup>
+                      <optgroup label="GPT-4 Series">
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                      </optgroup>
+                      <optgroup label="Reasoning Models (o-series)">
+                        <option value="o1">o1</option>
+                        <option value="o1-mini">o1-mini</option>
+                        <option value="o1-preview">o1-preview</option>
+                        <option value="o3">o3</option>
+                        <option value="o3-mini">o3-mini</option>
+                        <option value="o4-mini">o4-mini</option>
+                      </optgroup>
+                      <optgroup label="Legacy Models">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Compare Model 1 vs Model 2 for suggestion generation
+                  </p>
+                </div>
+                <div>
+                  <label className={`text-sm font-medium block mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    YAML Generation Models
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={settings.parallelTestingModels?.yaml?.[0] || 'gpt-4o'}
+                      onChange={(e) => {
+                        const model1 = e.target.value;
+                        const model2 = settings.parallelTestingModels?.yaml?.[1] || 'gpt-4o-mini';
+                        setSettings({
+                          ...settings,
+                          parallelTestingModels: {
+                            suggestion: settings.parallelTestingModels?.suggestion || ["gpt-4o", "gpt-4o-mini"],
+                            yaml: [model1, model2]
+                          }
+                        });
+                      }}
+                      className={`px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    >
+                      <optgroup label="Latest Models (2025)">
+                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
+                        <option value="gpt-5">GPT-5</option>
+                        <option value="gpt-4.1">GPT-4.1</option>
+                      </optgroup>
+                      <optgroup label="GPT-4o Series">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o-mini</option>
+                      </optgroup>
+                      <optgroup label="GPT-4 Series">
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                      </optgroup>
+                      <optgroup label="Reasoning Models (o-series)">
+                        <option value="o1">o1</option>
+                        <option value="o1-mini">o1-mini</option>
+                        <option value="o1-preview">o1-preview</option>
+                        <option value="o3">o3</option>
+                        <option value="o3-mini">o3-mini</option>
+                        <option value="o4-mini">o4-mini</option>
+                      </optgroup>
+                      <optgroup label="Legacy Models">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </optgroup>
+                    </select>
+                    <select
+                      value={settings.parallelTestingModels?.yaml?.[1] || 'gpt-4o-mini'}
+                      onChange={(e) => {
+                        const model1 = settings.parallelTestingModels?.yaml?.[0] || 'gpt-4o';
+                        const model2 = e.target.value;
+                        setSettings({
+                          ...settings,
+                          parallelTestingModels: {
+                            suggestion: settings.parallelTestingModels?.suggestion || ["gpt-4o", "gpt-4o-mini"],
+                            yaml: [model1, model2]
+                          }
+                        });
+                      }}
+                      className={`px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    >
+                      <optgroup label="Latest Models (2025)">
+                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
+                        <option value="gpt-5">GPT-5</option>
+                        <option value="gpt-4.1">GPT-4.1</option>
+                      </optgroup>
+                      <optgroup label="GPT-4o Series">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o-mini</option>
+                      </optgroup>
+                      <optgroup label="GPT-4 Series">
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                      </optgroup>
+                      <optgroup label="Reasoning Models (o-series)">
+                        <option value="o1">o1</option>
+                        <option value="o1-mini">o1-mini</option>
+                        <option value="o1-preview">o1-preview</option>
+                        <option value="o3">o3</option>
+                        <option value="o3-mini">o3-mini</option>
+                        <option value="o4-mini">o4-mini</option>
+                      </optgroup>
+                      <optgroup label="Legacy Models">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Compare Model 1 vs Model 2 for YAML generation
+                  </p>
+                </div>
+                <div className={`text-xs p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30 border-yellow-700 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-700'} border`}>
+                  ⚠️ Parallel testing doubles API costs during testing period
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Model Comparison Metrics Section */}
+        {settings.enableParallelModelTesting && (
+          <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <ModelComparisonMetricsComponent darkMode={darkMode} />
+          </div>
+        )}
 
         {/* Notification Preferences Section */}
         <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>

@@ -46,6 +46,12 @@ def get_system_settings_defaults() -> dict:
         "guardrail_enabled": getattr(app_settings, "guardrail_enabled", True),
         "guardrail_model_name": getattr(app_settings, "guardrail_model_name", "unitary/toxic-bert"),
         "guardrail_threshold": getattr(app_settings, "guardrail_threshold", 0.6),
+        "risk_tolerance": getattr(app_settings, "default_risk_tolerance", "medium"),
+        "enable_parallel_model_testing": False,
+        "parallel_testing_models": {
+            "suggestion": ["gpt-5.1"],
+            "yaml": ["gpt-5.1"]
+        },
     }
 
 
@@ -101,6 +107,12 @@ class SystemSettings(Base):
     guardrail_enabled = Column(Boolean, nullable=False, default=lambda: getattr(app_settings, "guardrail_enabled", True))
     guardrail_model_name = Column(String, nullable=False, default=lambda: getattr(app_settings, "guardrail_model_name", "unitary/toxic-bert"))
     guardrail_threshold = Column(Float, nullable=False, default=lambda: getattr(app_settings, "guardrail_threshold", 0.6))
+    risk_tolerance = Column(String, nullable=False, default=lambda: getattr(app_settings, "default_risk_tolerance", "medium"))  # 'high', 'medium', 'low'
+    enable_parallel_model_testing = Column(Boolean, nullable=False, default=False)
+    parallel_testing_models = Column(JSON, nullable=True, default=lambda: {
+        "suggestion": ["gpt-5.1"],
+        "yaml": ["gpt-5.1"]
+    })
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -614,6 +626,83 @@ class ClarificationSessionDB(Base):
         return f"<ClarificationSessionDB(session_id={self.session_id}, original_query_id={self.original_query_id}, status={self.status}, rounds={self.rounds_completed})>"
 
 
+class ClarificationConfidenceFeedback(Base):
+    """
+    Stores feedback for clarification confidence calibration.
+    
+    Tracks raw confidence scores and actual outcomes (proceeded, suggestion approved)
+    to train calibration models that map raw scores to calibrated probabilities.
+    
+    Created: January 2025
+    Story: Confidence Algorithm Improvements (Phase 1.1)
+    """
+    __tablename__ = 'clarification_confidence_feedback'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
+    
+    # Confidence data
+    raw_confidence = Column(Float, nullable=False)  # Raw confidence before calibration
+    
+    # Outcome data
+    proceeded = Column(Boolean, nullable=False)  # Did user proceed after clarification?
+    suggestion_approved = Column(Boolean, nullable=True)  # Was suggestion approved? (None if unknown)
+    
+    # Context for calibration
+    ambiguity_count = Column(Integer, nullable=False, default=0)
+    critical_ambiguity_count = Column(Integer, nullable=False, default=0)
+    rounds = Column(Integer, nullable=False, default=0)
+    answer_count = Column(Integer, nullable=False, default=0)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_clarification_feedback_session', 'session_id', 'created_at'),
+        Index('idx_clarification_feedback_confidence', 'raw_confidence'),
+    )
+    
+    def __repr__(self):
+        return f"<ClarificationConfidenceFeedback(id={self.id}, session_id={self.session_id}, raw_confidence={self.raw_confidence:.2f}, proceeded={self.proceeded})>"
+
+
+class ClarificationOutcome(Base):
+    """
+    Tracks clarification session outcomes for learning and improvement.
+    
+    Stores final confidence, whether user proceeded, suggestion approval status,
+    and number of rounds to build predictive models for expected success rates.
+    
+    Created: January 2025
+    Story: Confidence Algorithm Improvements (Phase 2.1)
+    """
+    __tablename__ = 'clarification_outcomes'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
+    
+    # Outcome data
+    final_confidence = Column(Float, nullable=False)  # Final confidence when proceeding
+    proceeded = Column(Boolean, nullable=False)  # Did user proceed?
+    suggestion_approved = Column(Boolean, nullable=True)  # Was suggestion approved? (None if unknown)
+    rounds = Column(Integer, nullable=False, default=0)  # Number of clarification rounds
+    
+    # Optional linkage to suggestion
+    suggestion_id = Column(Integer, ForeignKey('suggestions.id'), nullable=True, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_clarification_outcome_session', 'session_id'),
+        Index('idx_clarification_outcome_confidence', 'final_confidence'),
+        Index('idx_clarification_outcome_suggestion', 'suggestion_id'),
+    )
+    
+    def __repr__(self):
+        return f"<ClarificationOutcome(id={self.id}, session_id={self.session_id}, final_confidence={self.final_confidence:.2f}, proceeded={self.proceeded}, approved={self.suggestion_approved})>"
+
+
 class EntityAlias(Base):
     """User-defined aliases for entities (nicknames/personalized names)"""
     __tablename__ = "entity_aliases"
@@ -749,6 +838,63 @@ class ReverseEngineeringMetrics(Base):
             f"<ReverseEngineeringMetrics(id={self.id}, query_id={self.query_id}, "
             f"similarity={self.final_similarity:.2%}, iterations={self.iterations_completed}, "
             f"cost={self.estimated_cost_usd!r})>"
+        )
+
+
+class ModelComparisonMetrics(Base):
+    """
+    Metrics for tracking parallel model comparison results.
+    
+    Tracks performance, cost, and quality metrics when running multiple
+    OpenAI models in parallel for the same task (suggestions or YAML generation).
+    
+    Created: January 2025
+    """
+    __tablename__ = 'model_comparison_metrics'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_type = Column(String, nullable=False, index=True)  # 'suggestion' or 'yaml'
+    query_id = Column(String, nullable=True, index=True)
+    suggestion_id = Column(String, nullable=True, index=True)
+    
+    # Model 1 (Primary - typically GPT-4o)
+    model1_name = Column(String, nullable=False)
+    model1_tokens_input = Column(Integer, nullable=False)
+    model1_tokens_output = Column(Integer, nullable=False)
+    model1_cost_usd = Column(Float, nullable=False)
+    model1_latency_ms = Column(Integer, nullable=False)
+    model1_result = Column(JSON, nullable=True)  # Store actual result for comparison
+    model1_error = Column(String, nullable=True)
+    
+    # Model 2 (Comparison - typically GPT-4o-mini)
+    model2_name = Column(String, nullable=False)
+    model2_tokens_input = Column(Integer, nullable=False)
+    model2_tokens_output = Column(Integer, nullable=False)
+    model2_cost_usd = Column(Float, nullable=False)
+    model2_latency_ms = Column(Integer, nullable=False)
+    model2_result = Column(JSON, nullable=True)
+    model2_error = Column(String, nullable=True)
+    
+    # Quality Metrics (populated after user interaction)
+    model1_approved = Column(Boolean, nullable=True)
+    model2_approved = Column(Boolean, nullable=True)
+    model1_yaml_valid = Column(Boolean, nullable=True)  # For YAML tasks
+    model2_yaml_valid = Column(Boolean, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    __table_args__ = (
+        Index('idx_model_comp_task_type', 'task_type'),
+        Index('idx_model_comp_created_at', 'created_at'),
+        Index('idx_model_comp_query_id', 'query_id'),
+        Index('idx_model_comp_suggestion_id', 'suggestion_id'),
+    )
+    
+    def __repr__(self) -> str:
+        return (
+            f"<ModelComparisonMetrics(id={self.id}, task_type={self.task_type}, "
+            f"model1={self.model1_name}, model2={self.model2_name}, "
+            f"cost_diff=${abs(self.model1_cost_usd - self.model2_cost_usd):.4f})>"
         )
 
 

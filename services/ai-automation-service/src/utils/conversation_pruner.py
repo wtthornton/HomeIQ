@@ -15,7 +15,7 @@ def prune_conversation_history(
     history: List[Dict[str, Any]],
     max_turns: int = 3,
     max_tokens: int = 1_000,
-    model: str = "gpt-5.1"
+    model: str = "gpt-4o"
 ) -> List[Dict[str, Any]]:
     """
     Prune conversation history to keep only recent turns.
@@ -87,7 +87,7 @@ def _history_to_text(history: List[Dict[str, Any]]) -> str:
 
 def summarize_old_context(
     old_turns: List[Dict[str, Any]],
-    model: str = "gpt-5.1"
+    model: str = "gpt-4o"
 ) -> str:
     """
     Summarize older conversation context (future enhancement).

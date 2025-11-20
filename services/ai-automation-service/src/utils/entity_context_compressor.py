@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def compress_entity_context(
     entities: Dict[str, Dict[str, Any]],
     max_tokens: int = 10_000,
-    model: str = "gpt-5.1"
+    model: str = "gpt-4o"
 ) -> Dict[str, Dict[str, Any]]:
     """
     Compress entity context by filtering attributes and summarizing capabilities.

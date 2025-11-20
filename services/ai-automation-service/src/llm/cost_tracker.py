@@ -13,24 +13,26 @@ logger = logging.getLogger(__name__)
 class CostTracker:
     """Track OpenAI API costs"""
     
-    # GPT-5 Model Pricing (as of November 2025) - VERIFIED
-    # Source: https://openai.com/api/pricing/
-    # GPT-5.1: Best quality for creative tasks
-    GPT5_1_INPUT_COST_PER_1M = 1.25  # $1.25 per 1M input tokens
-    GPT5_1_OUTPUT_COST_PER_1M = 10.00  # $10.00 per 1M output tokens
+    # GPT-5.1 Model Pricing (as of November 2025) - VERIFIED
+    # Source: OpenAI API Pricing (November 2025)
+    # GPT-5.1: Best quality with 50% cost savings vs GPT-4o
+    GPT5_1_INPUT_COST_PER_1M = 1.25  # $1.25 per 1M input tokens (50% cheaper than GPT-4o)
+    GPT5_1_OUTPUT_COST_PER_1M = 10.00  # $10.00 per 1M output tokens (same as GPT-4o)
     GPT5_1_CACHED_INPUT_COST_PER_1M = 0.125  # $0.125 per 1M cached input tokens (90% discount)
     
-    # GPT-5 Mini: 80% cost savings, good for standard tasks
-    GPT5_MINI_INPUT_COST_PER_1M = 0.25  # $0.25 per 1M input tokens
-    GPT5_MINI_OUTPUT_COST_PER_1M = 2.00  # $2.00 per 1M output tokens
-    GPT5_MINI_CACHED_INPUT_COST_PER_1M = 0.025  # $0.025 per 1M cached input tokens (90% discount)
+    # GPT-4o Model Pricing (Legacy - as of 2024) - VERIFIED
+    # Source: https://openai.com/api/pricing/
+    # GPT-4o: Best quality for creative tasks
+    GPT4O_INPUT_COST_PER_1M = 2.50  # $2.50 per 1M input tokens
+    GPT4O_OUTPUT_COST_PER_1M = 10.00  # $10.00 per 1M output tokens
+    GPT4O_CACHED_INPUT_COST_PER_1M = 0.25  # $0.25 per 1M cached input tokens (90% discount)
     
-    # GPT-5 Nano: 96% cost savings, good for simple tasks
-    GPT5_NANO_INPUT_COST_PER_1M = 0.05  # $0.05 per 1M input tokens
-    GPT5_NANO_OUTPUT_COST_PER_1M = 0.40  # $0.40 per 1M output tokens
-    GPT5_NANO_CACHED_INPUT_COST_PER_1M = 0.005  # $0.005 per 1M cached input tokens (90% discount)
+    # GPT-4o-mini: Cost savings, good for standard tasks (Legacy)
+    GPT4O_MINI_INPUT_COST_PER_1M = 0.15  # $0.15 per 1M input tokens
+    GPT4O_MINI_OUTPUT_COST_PER_1M = 0.60  # $0.60 per 1M output tokens
+    GPT4O_MINI_CACHED_INPUT_COST_PER_1M = 0.015  # $0.015 per 1M cached input tokens (90% discount)
     
-    # Legacy pricing (for backward compatibility)
+    # Default pricing (GPT-5.1 - current recommended)
     INPUT_COST_PER_1M = GPT5_1_INPUT_COST_PER_1M
     OUTPUT_COST_PER_1M = GPT5_1_OUTPUT_COST_PER_1M
     
@@ -40,32 +42,35 @@ class CostTracker:
         Get pricing for a specific model.
         
         Args:
-            model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+            model: Model name (gpt-5.1, gpt-4o, gpt-4o-mini)
         
         Returns:
             Dictionary with input_cost, output_cost, cached_input_cost per 1M tokens
         """
         model_lower = model.lower()
-        if "gpt-5.1" in model_lower or model_lower == "gpt-5.1":
+        if "gpt-5" in model_lower or "gpt5" in model_lower:
+            # GPT-5.1 (current recommended - 50% cheaper than GPT-4o)
             return {
                 'input': CostTracker.GPT5_1_INPUT_COST_PER_1M,
                 'output': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
                 'cached_input': CostTracker.GPT5_1_CACHED_INPUT_COST_PER_1M
             }
-        elif "mini" in model_lower:
+        elif "gpt-4o" in model_lower and "mini" not in model_lower:
+            # GPT-4o (legacy full model)
             return {
-                'input': CostTracker.GPT5_MINI_INPUT_COST_PER_1M,
-                'output': CostTracker.GPT5_MINI_OUTPUT_COST_PER_1M,
-                'cached_input': CostTracker.GPT5_MINI_CACHED_INPUT_COST_PER_1M
+                'input': CostTracker.GPT4O_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT4O_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT4O_CACHED_INPUT_COST_PER_1M
             }
-        elif "nano" in model_lower:
+        elif "mini" in model_lower:
+            # GPT-4o-mini (legacy)
             return {
-                'input': CostTracker.GPT5_NANO_INPUT_COST_PER_1M,
-                'output': CostTracker.GPT5_NANO_OUTPUT_COST_PER_1M,
-                'cached_input': CostTracker.GPT5_NANO_CACHED_INPUT_COST_PER_1M
+                'input': CostTracker.GPT4O_MINI_INPUT_COST_PER_1M,
+                'output': CostTracker.GPT4O_MINI_OUTPUT_COST_PER_1M,
+                'cached_input': CostTracker.GPT4O_MINI_CACHED_INPUT_COST_PER_1M
             }
         else:
-            # Default to GPT-5.1
+            # Default to GPT-5.1 (current recommended)
             return {
                 'input': CostTracker.GPT5_1_INPUT_COST_PER_1M,
                 'output': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
@@ -80,7 +85,7 @@ class CostTracker:
         Args:
             input_tokens: Number of input (prompt) tokens
             output_tokens: Number of output (completion) tokens
-            model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+            model: Model name (gpt-5.1, gpt-4o, gpt-4o-mini) - defaults to gpt-5.1
             cached_input: Whether input tokens are cached (90% discount)
         
         Returns:

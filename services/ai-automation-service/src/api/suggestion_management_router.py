@@ -10,8 +10,9 @@ from typing import Optional
 from datetime import datetime, timezone
 import logging
 
-from ..database.crud import get_suggestions, store_suggestion
+from ..database.crud import get_suggestions, store_suggestion, get_clarification_outcomes
 from ..database.models import get_db_session, Suggestion
+from ..database.models import ClarificationOutcome
 from sqlalchemy import select, update, delete
 from ..config import settings
 from ..safety_validator import get_safety_validator
@@ -75,6 +76,23 @@ async def approve_suggestion(suggestion_id: int):
             await db.commit()
             await db.refresh(suggestion)
             
+            # Update clarification outcome if linked (Phase 2.1)
+            try:
+                # Find outcome by suggestion_id
+                outcome_result = await db.execute(
+                    select(ClarificationOutcome).where(
+                        ClarificationOutcome.suggestion_id == suggestion_id
+                    )
+                )
+                outcome = outcome_result.scalar_one_or_none()
+                if outcome:
+                    outcome.suggestion_approved = True
+                    await db.commit()
+                    logger.debug(f"Updated clarification outcome for suggestion {suggestion_id}: approved")
+            except Exception as e:
+                logger.debug(f"Failed to update clarification outcome: {e}")
+                # Non-blocking: continue even if outcome update fails
+            
             logger.info(f"✅ Approved suggestion {suggestion_id}: {suggestion.title}")
             
             return {
@@ -135,6 +153,23 @@ async def reject_suggestion(suggestion_id: int, feedback: Optional[FeedbackReque
                     'action': 'rejected',
                     'feedback_text': feedback.feedback_text
                 })
+            
+            # Update clarification outcome if linked (Phase 2.1)
+            try:
+                # Find outcome by suggestion_id
+                outcome_result = await db.execute(
+                    select(ClarificationOutcome).where(
+                        ClarificationOutcome.suggestion_id == suggestion_id
+                    )
+                )
+                outcome = outcome_result.scalar_one_or_none()
+                if outcome:
+                    outcome.suggestion_approved = False
+                    await db.commit()
+                    logger.debug(f"Updated clarification outcome for suggestion {suggestion_id}: rejected")
+            except Exception as e:
+                logger.debug(f"Failed to update clarification outcome: {e}")
+                # Non-blocking: continue even if outcome update fails
             
             logger.info(f"❌ Rejected suggestion {suggestion_id}: {suggestion.title}")
             

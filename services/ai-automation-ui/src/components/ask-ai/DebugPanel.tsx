@@ -280,59 +280,55 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
       });
     }
 
-    // Step 8: HA API Call
-    if (approveResponse) {
-      const hasYaml = !!automation_yaml;
-      steps.push({
-        id: 'ha-api-call',
-        name: 'Home Assistant API Call',
-        status: hasYaml && approveResponse.automation_id ? 'completed' : 
-                approveResponse.error_details ? 'error' : 'pending',
-        details: {
-          endpoint: '/api/config/automation/config',
-          method: 'POST',
-          yaml: automation_yaml
-        },
-        request: {
-          method: 'POST',
-          endpoint: '/api/config/automation/config',
-          body: automation_yaml
-        },
-        response: approveResponse,
-        error: approveResponse.error_details?.message
-      });
-    } else {
-      steps.push({
-        id: 'ha-api-call',
-        name: 'Home Assistant API Call',
-        status: 'pending',
-        details: { message: 'Click "Approve & Create" to call Home Assistant API' }
-      });
-    }
+    // Step 8: HA API Call (always show, even if no response yet)
+    const hasError = approveResponse && (
+      approveResponse.error_details || 
+      approveResponse.status === 'error' || 
+      approveResponse.status === 'blocked'
+    );
+    const hasSuccess = approveResponse && approveResponse.automation_id;
+    
+    steps.push({
+      id: 'ha-api-call',
+      name: 'Home Assistant API Call',
+      status: hasSuccess ? 'completed' : 
+              hasError ? 'error' : 
+              approveResponse ? 'in-progress' : 'pending',
+      details: approveResponse ? {
+        endpoint: '/api/config/automation/config',
+        method: 'POST',
+        yaml: automation_yaml || approveResponse.automation_yaml,
+        error: approveResponse.error_details?.message || 
+               (hasError ? approveResponse.message : undefined)
+      } : { message: 'Click "Approve & Create" to call Home Assistant API' },
+      request: approveResponse ? {
+        method: 'POST',
+        endpoint: '/api/config/automation/config',
+        body: automation_yaml || approveResponse.automation_yaml
+      } : undefined,
+      response: approveResponse,
+      error: hasError ? (approveResponse.error_details?.message || approveResponse.message) : undefined
+    });
 
-    // Step 9: HA Response
-    if (approveResponse) {
-      steps.push({
-        id: 'ha-response',
-        name: 'Home Assistant Response',
-        status: approveResponse.automation_id ? 'completed' : 
-                approveResponse.error_details ? 'error' : 'pending',
-        details: {
-          automation_id: approveResponse.automation_id,
-          status: approveResponse.status,
-          message: approveResponse.message,
-          warnings: approveResponse.warnings
-        },
-        response: approveResponse
-      });
-    } else {
-      steps.push({
-        id: 'ha-response',
-        name: 'Home Assistant Response',
-        status: 'pending',
-        details: { message: 'Waiting for Home Assistant API call' }
-      });
-    }
+    // Step 9: HA Response (always show, even if no response yet)
+    steps.push({
+      id: 'ha-response',
+      name: 'Home Assistant Response',
+      status: hasSuccess ? 'completed' : 
+              hasError ? 'error' : 
+              approveResponse ? 'in-progress' : 'pending',
+      details: approveResponse ? {
+        automation_id: approveResponse.automation_id,
+        status: approveResponse.status,
+        message: approveResponse.message,
+        warnings: approveResponse.warnings,
+        error: approveResponse.error_details?.message || 
+               (hasError ? approveResponse.message : undefined),
+        error_details: approveResponse.error_details
+      } : { message: 'Waiting for Home Assistant API call' },
+      response: approveResponse,
+      error: hasError ? (approveResponse.error_details?.message || approveResponse.message) : undefined
+    });
 
     return steps;
   };

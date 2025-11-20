@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def enforce_token_budget(
     prompt_dict: Dict[str, str],
     budget: Dict[str, int],
-    model: str = "gpt-5.1"
+    model: str = "gpt-4o"
 ) -> Dict[str, str]:
     """
     Enforce token budget limits on prompt components.
@@ -131,7 +131,7 @@ def _extract_entity_context(user_prompt: str) -> Optional[str]:
 def check_token_budget(
     messages: List[Dict],
     budget: Dict[str, int],
-    model: str = "gpt-5.1"
+    model: str = "gpt-4o"
 ) -> Dict[str, any]:
     """
     Check if messages fit within token budget and return status.

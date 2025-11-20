@@ -22,7 +22,7 @@ module.exports = {
       jsx: true,
     },
   },
-  plugins: ['react-refresh', '@typescript-eslint'],
+  plugins: ['react-refresh', '@typescript-eslint', 'complexity'],
   rules: {
     'react-refresh/only-export-components': [
       'warn',

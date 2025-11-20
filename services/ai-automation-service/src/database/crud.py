@@ -67,6 +67,8 @@ _SYSTEM_SETTINGS_FIELDS = {
     'guardrail_enabled',
     'guardrail_model_name',
     'guardrail_threshold',
+    'enable_parallel_model_testing',
+    'parallel_testing_models',
 }
 
 
@@ -84,6 +86,15 @@ async def get_system_settings(db: AsyncSession) -> SystemSettings:
         await db.commit()
         await db.refresh(system_settings)
         logger.info("Created default system settings record")
+    else:
+        # Ensure parallel_testing_models has default if None (for existing records after migration)
+        if system_settings.parallel_testing_models is None:
+            system_settings.parallel_testing_models = {
+                "suggestion": ["gpt-5.1"],
+                "yaml": ["gpt-5.1"]
+            }
+            await db.commit()
+            await db.refresh(system_settings)
 
     return system_settings
 
@@ -100,8 +111,16 @@ async def update_system_settings(db: AsyncSession, updates: Dict[str, Any]) -> S
 
         if field == 'enabled_categories' and isinstance(value, dict):
             # Merge with defaults to avoid missing keys
-            merged_categories = {**_get_attr_safe(settings_record, 'enabled_categories', {}), **value}
-            setattr(settings_record, field, merged_categories)
+            from .models import _default_enabled_categories
+            defaults = _default_enabled_categories()
+            value = {**defaults, **value}
+        elif field == 'parallel_testing_models' and isinstance(value, dict):
+            # Ensure both suggestion and yaml keys exist
+            if 'suggestion' not in value:
+                value['suggestion'] = ["gpt-5.1"]
+            if 'yaml' not in value:
+                value['yaml'] = ["gpt-5.1"]
+            setattr(settings_record, field, value)
         elif value is not None:
             setattr(settings_record, field, value)
 
@@ -745,6 +764,187 @@ async def store_feedback(db: AsyncSession, feedback_data: Dict) -> UserFeedback:
         await db.rollback()
         logger.error(f"Failed to store feedback: {e}", exc_info=True)
         raise
+
+
+# ============================================================================
+# Clarification Confidence Calibration CRUD Operations
+# ============================================================================
+
+async def store_clarification_confidence_feedback(
+    db: AsyncSession,
+    session_id: str,
+    raw_confidence: float,
+    proceeded: bool,
+    suggestion_approved: Optional[bool] = None,
+    ambiguity_count: int = 0,
+    critical_ambiguity_count: int = 0,
+    rounds: int = 0,
+    answer_count: int = 0
+) -> 'ClarificationConfidenceFeedback':
+    """
+    Store feedback for clarification confidence calibration.
+    
+    Args:
+        db: Database session
+        session_id: Clarification session ID
+        raw_confidence: Raw confidence score before calibration
+        proceeded: Whether user proceeded after clarification
+        suggestion_approved: Whether suggestion was approved (None if unknown)
+        ambiguity_count: Total number of ambiguities
+        critical_ambiguity_count: Number of critical ambiguities
+        rounds: Number of clarification rounds
+        answer_count: Number of answers provided
+    
+    Returns:
+        Stored ClarificationConfidenceFeedback object
+    """
+    from ..database.models import ClarificationConfidenceFeedback
+    
+    try:
+        feedback = ClarificationConfidenceFeedback(
+            session_id=session_id,
+            raw_confidence=raw_confidence,
+            proceeded=proceeded,
+            suggestion_approved=suggestion_approved,
+            ambiguity_count=ambiguity_count,
+            critical_ambiguity_count=critical_ambiguity_count,
+            rounds=rounds,
+            answer_count=answer_count,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        db.add(feedback)
+        await db.commit()
+        await db.refresh(feedback)
+        
+        logger.debug(
+            f"Stored clarification confidence feedback: session_id={session_id}, "
+            f"raw_confidence={raw_confidence:.2f}, proceeded={proceeded}"
+        )
+        return feedback
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to store clarification confidence feedback: {e}", exc_info=True)
+        raise
+
+
+async def get_clarification_confidence_feedback(
+    db: AsyncSession,
+    session_id: Optional[str] = None,
+    limit: int = 1000
+) -> List['ClarificationConfidenceFeedback']:
+    """
+    Get clarification confidence feedback for calibration training.
+    
+    Args:
+        db: Database session
+        session_id: Optional session ID to filter by
+        limit: Maximum number of records to return
+    
+    Returns:
+        List of ClarificationConfidenceFeedback objects
+    """
+    from ..database.models import ClarificationConfidenceFeedback
+    
+    try:
+        query = select(ClarificationConfidenceFeedback)
+        if session_id:
+            query = query.where(ClarificationConfidenceFeedback.session_id == session_id)
+        query = query.order_by(ClarificationConfidenceFeedback.created_at.desc()).limit(limit)
+        
+        result = await db.execute(query)
+        return list(result.scalars().all())
+        
+    except Exception as e:
+        logger.error(f"Failed to get clarification confidence feedback: {e}", exc_info=True)
+        return []
+
+
+async def store_clarification_outcome(
+    db: AsyncSession,
+    session_id: str,
+    final_confidence: float,
+    proceeded: bool,
+    suggestion_approved: Optional[bool] = None,
+    rounds: int = 0,
+    suggestion_id: Optional[int] = None
+) -> 'ClarificationOutcome':
+    """
+    Store clarification session outcome for learning.
+    
+    Args:
+        db: Database session
+        session_id: Clarification session ID
+        final_confidence: Final confidence when proceeding
+        proceeded: Whether user proceeded
+        suggestion_approved: Whether suggestion was approved (None if unknown)
+        rounds: Number of clarification rounds
+        suggestion_id: Optional suggestion ID if linked
+    
+    Returns:
+        Stored ClarificationOutcome object
+    """
+    from ..database.models import ClarificationOutcome
+    
+    try:
+        outcome = ClarificationOutcome(
+            session_id=session_id,
+            final_confidence=final_confidence,
+            proceeded=proceeded,
+            suggestion_approved=suggestion_approved,
+            rounds=rounds,
+            suggestion_id=suggestion_id,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        db.add(outcome)
+        await db.commit()
+        await db.refresh(outcome)
+        
+        logger.debug(
+            f"Stored clarification outcome: session_id={session_id}, "
+            f"final_confidence={final_confidence:.2f}, proceeded={proceeded}, "
+            f"approved={suggestion_approved}"
+        )
+        return outcome
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to store clarification outcome: {e}", exc_info=True)
+        raise
+
+
+async def get_clarification_outcomes(
+    db: AsyncSession,
+    session_id: Optional[str] = None,
+    limit: int = 1000
+) -> List['ClarificationOutcome']:
+    """
+    Get clarification outcomes for analysis.
+    
+    Args:
+        db: Database session
+        session_id: Optional session ID to filter by
+        limit: Maximum number of records to return
+    
+    Returns:
+        List of ClarificationOutcome objects
+    """
+    from ..database.models import ClarificationOutcome
+    
+    try:
+        query = select(ClarificationOutcome)
+        if session_id:
+            query = query.where(ClarificationOutcome.session_id == session_id)
+        query = query.order_by(ClarificationOutcome.created_at.desc()).limit(limit)
+        
+        result = await db.execute(query)
+        return list(result.scalars().all())
+        
+    except Exception as e:
+        logger.error(f"Failed to get clarification outcomes: {e}", exc_info=True)
+        return []
 
 
 # ============================================================================

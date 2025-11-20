@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
@@ -36,6 +37,15 @@ class EnabledCategoriesModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ParallelTestingModelsModel(BaseModel):
+    """Nested representation of parallel testing model configuration."""
+    
+    suggestion: list[str] = Field(default=["gpt-5.1"])
+    yaml: list[str] = Field(default=["gpt-5.1"])
+    
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class SystemSettingsSchema(BaseModel):
     """DTO for system settings payloads."""
 
@@ -53,6 +63,11 @@ class SystemSettingsSchema(BaseModel):
     guardrail_enabled: bool = Field(..., alias="guardrailEnabled")
     guardrail_model_name: str = Field(..., alias="guardrailModelName")
     guardrail_threshold: float = Field(..., alias="guardrailThreshold")
+    enable_parallel_model_testing: bool = Field(default=False, alias="enableParallelModelTesting")
+    parallel_testing_models: Optional[ParallelTestingModelsModel] = Field(
+        default_factory=lambda: ParallelTestingModelsModel(),
+        alias="parallelTestingModels"
+    )
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
@@ -64,9 +79,18 @@ def _validate_payload(payload: SystemSettingsSchema) -> dict:
 
     model_dir_path = Path(payload.soft_prompt_model_dir).expanduser()
     if payload.soft_prompt_enabled:
-        if not model_dir_path.exists() or not model_dir_path.is_dir():
+        # Create directory if it doesn't exist (user is enabling the feature)
+        if not model_dir_path.exists():
+            try:
+                model_dir_path.mkdir(parents=True, exist_ok=True)
+                logger.info("Created soft prompt model directory: %s", model_dir_path)
+            except Exception as exc:
+                errors.append(
+                    f"Failed to create soft prompt model directory '{model_dir_path}': {exc}"
+                )
+        elif not model_dir_path.is_dir():
             errors.append(
-                f"Soft prompt model directory '{model_dir_path}' does not exist or is not a directory."
+                f"Soft prompt model directory path '{model_dir_path}' exists but is not a directory."
             )
 
     if not 0 <= payload.soft_prompt_confidence_threshold <= 1:
@@ -156,6 +180,15 @@ async def update_settings(payload: SystemSettingsSchema, db: AsyncSession = Depe
         current_record = await db_get_system_settings(db)
         update_payload = _validate_payload(payload)
         update_payload["enabled_categories"] = payload.enabled_categories.model_dump(by_alias=False)
+        # Handle parallel_testing_models - always include it
+        if payload.parallel_testing_models:
+            update_payload["parallel_testing_models"] = payload.parallel_testing_models.model_dump(by_alias=False)
+        else:
+            # Use default if not provided
+            update_payload["parallel_testing_models"] = {
+                "suggestion": ["gpt-5.1"],
+                "yaml": ["gpt-5.1"]
+            }
 
         updated_record = await db_update_system_settings(db, update_payload)
         _apply_runtime_settings(updated_record, current_record)

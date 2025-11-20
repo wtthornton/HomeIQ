@@ -18,6 +18,11 @@ export interface SettingsPayload {
   guardrailEnabled: boolean;
   guardrailModelName: string;
   guardrailThreshold: number;
+  enableParallelModelTesting?: boolean;
+  parallelTestingModels?: {
+    suggestion: string[];
+    yaml: string[];
+  };
 }
 
 export const defaultSettings: SettingsPayload = {
@@ -40,6 +45,11 @@ export const defaultSettings: SettingsPayload = {
   guardrailEnabled: true,
   guardrailModelName: 'unitary/toxic-bert',
   guardrailThreshold: 0.6,
+  enableParallelModelTesting: false,
+  parallelTestingModels: {
+    suggestion: ['gpt-5.1'],
+    yaml: ['gpt-5.1'],
+  },
 };
 
 const API_BASE = '/api/v1';
@@ -118,3 +128,100 @@ export async function updateSettings(payload: SettingsPayload): Promise<Settings
   return handleResponse(response);
 }
 
+export interface ModelComparisonMetrics {
+  total_comparisons: number;
+  task_type: string;
+  days: number;
+  summary: {
+    cost_difference_usd: number;
+    cost_savings_percentage: number;
+    latency_difference_ms: number;
+    model1_total_cost: number;
+    model2_total_cost: number;
+    model1_avg_latency_ms: number;
+    model2_avg_latency_ms: number;
+  };
+  model_stats: {
+    model1: {
+      name: string;
+      total_cost_usd: number;
+      avg_cost_per_comparison: number;
+      avg_latency_ms: number;
+      approval_rate: number | null;
+      yaml_validation_rate: number | null;
+    };
+    model2: {
+      name: string;
+      total_cost_usd: number;
+      avg_cost_per_comparison: number;
+      avg_latency_ms: number;
+      approval_rate: number | null;
+      yaml_validation_rate: number | null;
+    };
+  };
+}
+
+export interface ModelComparisonSummary {
+  total_comparisons: number;
+  recommendations: {
+    suggestion: {
+      recommendation: string;
+      reason: string;
+      total_comparisons: number;
+      cost_savings_percentage: number;
+      quality_difference_percentage: number;
+    };
+    yaml: {
+      recommendation: string;
+      reason: string;
+      total_comparisons: number;
+      cost_savings_percentage: number;
+      quality_difference_percentage: number;
+    };
+  };
+}
+
+export async function getModelComparisonMetrics(
+  taskType?: string,
+  days: number = 7
+): Promise<ModelComparisonMetrics> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const params = new URLSearchParams();
+  if (taskType) params.append('task_type', taskType);
+  params.append('days', days.toString());
+
+  const response = await fetch(`${API_BASE}/ask-ai/model-comparison/metrics?${params}`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getModelComparisonSummary(): Promise<ModelComparisonSummary> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${API_BASE}/ask-ai/model-comparison/summary`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}

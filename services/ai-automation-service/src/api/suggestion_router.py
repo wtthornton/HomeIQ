@@ -149,20 +149,15 @@ async def get_usage_stats() -> Dict[str, Any]:
     from ..llm.cost_tracker import CostTracker
     
     model_breakdown = {
-        'gpt-5.1': {
-            'input_cost_per_1m': CostTracker.GPT5_1_INPUT_COST_PER_1M,
-            'output_cost_per_1m': CostTracker.GPT5_1_OUTPUT_COST_PER_1M,
-            'cached_input_cost_per_1m': CostTracker.GPT5_1_CACHED_INPUT_COST_PER_1M
+        'gpt-4o': {
+            'input_cost_per_1m': CostTracker.GPT4O_INPUT_COST_PER_1M,
+            'output_cost_per_1m': CostTracker.GPT4O_OUTPUT_COST_PER_1M,
+            'cached_input_cost_per_1m': CostTracker.GPT4O_CACHED_INPUT_COST_PER_1M
         },
-        'gpt-5-mini': {
-            'input_cost_per_1m': CostTracker.GPT5_MINI_INPUT_COST_PER_1M,
-            'output_cost_per_1m': CostTracker.GPT5_MINI_OUTPUT_COST_PER_1M,
-            'cached_input_cost_per_1m': CostTracker.GPT5_MINI_CACHED_INPUT_COST_PER_1M
-        },
-        'gpt-5-nano': {
-            'input_cost_per_1m': CostTracker.GPT5_NANO_INPUT_COST_PER_1M,
-            'output_cost_per_1m': CostTracker.GPT5_NANO_OUTPUT_COST_PER_1M,
-            'cached_input_cost_per_1m': CostTracker.GPT5_NANO_CACHED_INPUT_COST_PER_1M
+        'gpt-4o-mini': {
+            'input_cost_per_1m': CostTracker.GPT4O_MINI_INPUT_COST_PER_1M,
+            'output_cost_per_1m': CostTracker.GPT4O_MINI_OUTPUT_COST_PER_1M,
+            'cached_input_cost_per_1m': CostTracker.GPT4O_MINI_CACHED_INPUT_COST_PER_1M
         }
     }
     

@@ -54,6 +54,8 @@ from ..services.clarification import (
     ClarificationQuestion,
     ClarificationAnswer
 )
+from ..services.clarification.confidence_calibrator import ClarificationConfidenceCalibrator
+from ..services.clarification.outcome_tracker import ClarificationOutcomeTracker
 from ..services.clarification.models import AmbiguityType, AmbiguitySeverity, Ambiguity
 from ..services.rag import RAGClient
 from ..services.service_container import ServiceContainer
@@ -72,6 +74,104 @@ console_handler.setFormatter(console_formatter)
 if console_handler not in logger.handlers:
     logger.addHandler(console_handler)
 logger.info("🔧 Ask AI Router logger initialized")
+
+# Constants for clarification retry logic
+CLARIFICATION_RETRY_MAX_ATTEMPTS = 2
+CLARIFICATION_RETRY_DELAY_SECONDS = 2
+CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS = 60.0
+
+
+async def _update_model_comparison_metrics_on_approval(
+    db: AsyncSession,
+    suggestion_id: str,
+    query_id: Optional[str],
+    model_used: str,
+    task_type: str = 'suggestion'
+):
+    """
+    Update model comparison metrics when a suggestion is approved.
+    
+    Args:
+        db: Database session
+        suggestion_id: Suggestion ID
+        query_id: Query ID (optional)
+        model_used: Model name that generated the suggestion
+        task_type: 'suggestion' or 'yaml'
+    """
+    try:
+        from ..database.models import ModelComparisonMetrics
+        from sqlalchemy import select, update
+        
+        # Find metrics record for this suggestion/query
+        query_filter = select(ModelComparisonMetrics).where(
+            ModelComparisonMetrics.task_type == task_type
+        )
+        
+        if query_id:
+            query_filter = query_filter.where(ModelComparisonMetrics.query_id == query_id)
+        if suggestion_id:
+            query_filter = query_filter.where(ModelComparisonMetrics.suggestion_id == suggestion_id)
+        
+        # Order by most recent
+        query_filter = query_filter.order_by(ModelComparisonMetrics.created_at.desc()).limit(1)
+        
+        result = await db.execute(query_filter)
+        metrics = result.scalar_one_or_none()
+        
+        if metrics:
+            # Determine which model was used and update approval
+            if metrics.model1_name == model_used:
+                metrics.model1_approved = True
+            elif metrics.model2_name == model_used:
+                metrics.model2_approved = True
+            
+            await db.commit()
+            logger.info(f"Updated model comparison metrics: {task_type} - {model_used} approved")
+    except Exception as e:
+        logger.warning(f"Failed to update model comparison metrics on approval: {e}")
+        await db.rollback()
+
+
+async def _update_model_comparison_metrics_on_yaml_validation(
+    db: AsyncSession,
+    suggestion_id: str,
+    model_used: str,
+    yaml_valid: bool
+):
+    """
+    Update model comparison metrics when YAML is validated.
+    
+    Args:
+        db: Database session
+        suggestion_id: Suggestion ID
+        model_used: Model name that generated the YAML
+        yaml_valid: Whether YAML validation passed
+    """
+    try:
+        from ..database.models import ModelComparisonMetrics
+        from sqlalchemy import select
+        
+        # Find metrics record for this suggestion (YAML task)
+        query = select(ModelComparisonMetrics).where(
+            ModelComparisonMetrics.task_type == 'yaml',
+            ModelComparisonMetrics.suggestion_id == suggestion_id
+        ).order_by(ModelComparisonMetrics.created_at.desc()).limit(1)
+        
+        result = await db.execute(query)
+        metrics = result.scalar_one_or_none()
+        
+        if metrics:
+            # Determine which model was used and update validation
+            if metrics.model1_name == model_used:
+                metrics.model1_yaml_valid = yaml_valid
+            elif metrics.model2_name == model_used:
+                metrics.model2_yaml_valid = yaml_valid
+            
+            await db.commit()
+            logger.info(f"Updated model comparison metrics: yaml - {model_used} validation={yaml_valid}")
+    except Exception as e:
+        logger.warning(f"Failed to update model comparison metrics on YAML validation: {e}")
+        await db.rollback()
 
 # Global device intelligence client and extractors
 
@@ -194,17 +294,16 @@ def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> 
     """
     Get the appropriate temperature value for a given model.
     
-    Some models (gpt-5-mini, gpt-5-nano) only support temperature=1.0.
-    For other models, use the desired temperature.
+    For GPT-4o models, use the desired temperature.
     
     Args:
-        model: The model name (e.g., 'gpt-5-mini', 'gpt-5.1')
+        model: The model name (e.g., 'gpt-4o-mini', 'gpt-4o')
         desired_temperature: The desired temperature value (default: 0.1)
     
     Returns:
-        The temperature value to use (1.0 for fixed-temperature models, desired_temperature otherwise)
+        The temperature value to use (desired_temperature for all GPT-4o models)
     """
-    models_with_fixed_temperature = ['gpt-5-mini', 'gpt-5-nano']
+    models_with_fixed_temperature = []  # No fixed-temperature models for GPT-4o
     if model in models_with_fixed_temperature:
         logger.debug(f"Using temperature=1.0 for {model} (model only supports default temperature)")
         return 1.0
@@ -246,7 +345,7 @@ def set_device_intelligence_client(client: DeviceIntelligenceClient):
             openai_api_key=settings.openai_api_key,
             device_intelligence_client=client,
             ner_model=settings.ner_model,
-            openai_model=settings.openai_model
+            openai_model=getattr(settings, 'entity_extraction_model', settings.openai_model)
         )
         # Initialize model orchestrator for containerized approach
         _model_orchestrator = ModelOrchestrator(
@@ -724,9 +823,22 @@ async def get_clarification_services(db: AsyncSession = None):
                 logger.info("✅ RAG client initialized for ConfidenceCalculator (historical learning enabled)")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize RAG client for confidence calculator: {e}")
+        # Initialize calibrator if calibration is enabled
+        calibrator = None
+        if getattr(settings, "clarification_calibration_enabled", True):
+            try:
+                calibrator = ClarificationConfidenceCalibrator()
+                # Try to load existing model
+                calibrator.load()
+                logger.info("✅ Clarification confidence calibrator initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to initialize calibrator: {e}")
+        
         _confidence_calculator = ConfidenceCalculator(
             default_threshold=0.85,
-            rag_client=rag_client_for_confidence
+            rag_client=rag_client_for_confidence,
+            calibrator=calibrator,
+            calibration_enabled=getattr(settings, "clarification_calibration_enabled", True)
         )
     
     return _clarification_detector, _question_generator, _answer_validator, _confidence_calculator
@@ -2167,45 +2279,153 @@ Generate ONLY the YAML content:
 """
 
     try:
-        # Use configured model for YAML generation (GPT-5 Mini for 80% cost savings)
-        yaml_model = getattr(settings, 'yaml_generation_model', 'gpt-5-mini')
+        # Check if parallel testing enabled
+        from ..database.crud import get_system_settings
+        system_settings = await get_system_settings(db_session) if db_session else None
+        enable_parallel = system_settings and getattr(system_settings, 'enable_parallel_model_testing', False) if system_settings else False
         
-        # Create temporary client with YAML model if different from default
-        if yaml_model != openai_client.model:
-            yaml_client = OpenAIClient(
-                api_key=openai_client.api_key,
-                model=yaml_model,
-                enable_token_counting=getattr(settings, 'enable_token_counting', True)
+        if enable_parallel:
+            # Parallel model testing mode
+            from ..services.parallel_model_tester import ParallelModelTester
+            tester = ParallelModelTester(openai_client.api_key)
+            
+            # Get models from settings
+            parallel_models = getattr(system_settings, 'parallel_testing_models', {}) if system_settings else {}
+            models = parallel_models.get('yaml', ['gpt-5.1'])
+            
+            # Get suggestion_id if available
+            suggestion_id = suggestion.get('suggestion_id') if suggestion else None
+            
+            # Build prompt_dict for parallel tester
+            prompt_dict = {
+                "system_prompt": (
+                    "You are a Home Assistant 2025 YAML automation expert. " 
+                    "Your output is production-ready YAML that passes Home Assistant validation. " 
+                    "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
+                    "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
+                    "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
+                ),
+                "user_prompt": prompt
+            }
+            
+            # Determine temperature based on model capabilities
+            yaml_temperature = _get_temperature_for_model(models[0], desired_temperature=0.1)
+            
+            result = await tester.generate_yaml_parallel(
+                suggestion=suggestion,
+                prompt_dict=prompt_dict,
+                models=models,
+                db_session=db_session,
+                suggestion_id=suggestion_id,
+                temperature=yaml_temperature,
+                max_tokens=2000
             )
+            
+            yaml_content = result['primary_result']  # Use first model's result
+            comparison_metrics = result['comparison']  # Store for metrics
+            
+            logger.info(f"Parallel YAML testing: {models[0]} vs {models[1]} - using {models[0]} result")
+            
+            # Store model info in suggestion for later metrics update
+            if suggestion and comparison_metrics and comparison_metrics.get('model_results'):
+                primary_result = comparison_metrics['model_results'][0]
+                if 'debug' not in suggestion:
+                    suggestion['debug'] = {}
+                suggestion['debug']['yaml_model_used'] = primary_result.get('model', models[0])
+                suggestion['debug']['yaml_parallel_testing'] = True
+            
+            # Extract YAML from result - handle AutomationSuggestion object or dict/string
+            if hasattr(yaml_content, 'automation_yaml'):
+                # It's an AutomationSuggestion Pydantic model - extract the YAML string
+                yaml_content = yaml_content.automation_yaml
+            elif isinstance(yaml_content, dict):
+                # If result is a dict, try to extract YAML
+                yaml_content = yaml_content.get('automation_yaml', yaml_content.get('yaml', yaml_content.get('content', str(yaml_content))))
+            elif not isinstance(yaml_content, str):
+                # Convert to string if it's something else
+                yaml_content = str(yaml_content)
+            
+            # Remove markdown code blocks if present
+            yaml_content = yaml_content.strip()
+            if yaml_content.startswith('```yaml'):
+                yaml_content = yaml_content[7:]  # Remove ```yaml
+            elif yaml_content.startswith('```'):
+                yaml_content = yaml_content[3:]  # Remove ```
+            
+            if yaml_content.endswith('```'):
+                yaml_content = yaml_content[:-3]  # Remove closing ```
+            
+            yaml_content = yaml_content.strip()
+            
+            logger.info(f"📥 [YAML_RAW] OpenAI returned {len(yaml_content)} chars (parallel mode)")
+            
+            # Continue with validation (same as single model path)
+            # Validate YAML syntax
+            try:
+                yaml_lib.safe_load(yaml_content)
+                logger.info(f"✅ Generated valid YAML syntax")
+            except yaml_lib.YAMLError as e:
+                logger.error(f"❌ Generated invalid YAML syntax: {e}")
+                raise ValueError(f"Generated YAML syntax is invalid: {e}")
+            
+            # Validate YAML structure and fix service names
+            from ..services.yaml_structure_validator import YAMLStructureValidator
+            validator = YAMLStructureValidator()
+            
+            logger.info(f"🔍 [VALIDATOR] Before validation: {len(yaml_content)} chars")
+            validation = validator.validate(yaml_content)
+            logger.info(f"🔍 [VALIDATOR] Validation complete: is_valid={validation.is_valid}, has_fixed={bool(validation.fixed_yaml)}")
+            if validation.fixed_yaml:
+                yaml_content = validation.fixed_yaml
+                logger.info(f"✅ [VALIDATOR] YAML fixed: {len(yaml_content)} chars")
+            
+            return yaml_content
         else:
-            yaml_client = openai_client
-        
-        # Determine temperature based on model capabilities
-        # Some models (gpt-5-mini, gpt-5-nano) only support temperature=1.0
-        yaml_temperature = _get_temperature_for_model(yaml_model, desired_temperature=0.1)
-        
-        # Call OpenAI to generate YAML using configured model
-        response = await yaml_client.client.chat.completions.create(
-            model=yaml_client.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a Home Assistant 2025 YAML automation expert. " 
-                        "Your output is production-ready YAML that passes Home Assistant validation. " 
-                        "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
-                        "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
-                        "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=yaml_temperature,
-            max_completion_tokens=2000  # Increased to prevent truncation of complex automations (use max_completion_tokens for newer models)
-        )
+            # Single model mode (existing behavior)
+            yaml_model = getattr(settings, 'yaml_generation_model', 'gpt-5.1')
+            
+            # Create temporary client with YAML model if different from default
+            if yaml_model != openai_client.model:
+                yaml_client = OpenAIClient(
+                    api_key=openai_client.api_key,
+                    model=yaml_model,
+                    enable_token_counting=getattr(settings, 'enable_token_counting', True)
+                )
+            else:
+                yaml_client = openai_client
+            
+            # Determine temperature based on model capabilities
+            yaml_temperature = _get_temperature_for_model(yaml_model, desired_temperature=0.1)
+            
+            # Store model info in suggestion for later metrics update (single model mode)
+            if suggestion:
+                if 'debug' not in suggestion:
+                    suggestion['debug'] = {}
+                suggestion['debug']['yaml_model_used'] = yaml_model
+                suggestion['debug']['yaml_parallel_testing'] = False
+            
+            # Call OpenAI to generate YAML using configured model
+            response = await yaml_client.client.chat.completions.create(
+                model=yaml_client.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a Home Assistant 2025 YAML automation expert. " 
+                            "Your output is production-ready YAML that passes Home Assistant validation. " 
+                            "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. " 
+                            "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). " 
+                            "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=yaml_temperature,
+                max_completion_tokens=2000  # Increased to prevent truncation of complex automations (use max_completion_tokens for newer models)
+            )
         
         # Phase 5: Track endpoint-level stats for YAML generation
         if hasattr(response, 'usage') and response.usage:
@@ -3060,7 +3280,8 @@ async def generate_suggestions_from_query(
     entities: List[Dict[str, Any]], 
     user_id: str,
     db_session: Optional[AsyncSession] = None,
-    clarification_context: Optional[Dict[str, Any]] = None  # NEW: Clarification Q&A
+    clarification_context: Optional[Dict[str, Any]] = None,  # NEW: Clarification Q&A
+    query_id: Optional[str] = None  # NEW: Query ID for metrics tracking
 ) -> List[Dict[str, Any]]:
     """Generate automation suggestions based on query and entities"""
     if not openai_client:
@@ -3713,7 +3934,6 @@ async def generate_suggestions_from_query(
         # Generate suggestions with unified prompt
         logger.info(f"Generating suggestions for query: {query}")
         logger.info(f"OpenAI client available: {openai_client is not None}")
-        logger.info(f"OpenAI model: {openai_client.model if openai_client else 'None'}")
         
         # Capture OpenAI prompts for debug panel
         openai_debug_data = {
@@ -3725,38 +3945,83 @@ async def generate_suggestions_from_query(
         }
         
         try:
-            # Use configured model for suggestion generation (GPT-5.1 for creativity)
-            suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+            # Check if parallel testing enabled
+            from ..database.crud import get_system_settings
+            system_settings = await get_system_settings(db_session) if db_session else None
+            enable_parallel = system_settings and getattr(system_settings, 'enable_parallel_model_testing', False) if system_settings else False
             
-            # Create temporary client with suggestion model if different
-            if suggestion_model != openai_client.model:
-                suggestion_client = OpenAIClient(
-                    api_key=openai_client.api_key,
-                    model=suggestion_model,
-                    enable_token_counting=getattr(settings, 'enable_token_counting', True)
+            if enable_parallel:
+                # Parallel model testing mode
+                from ..services.parallel_model_tester import ParallelModelTester
+                tester = ParallelModelTester(openai_client.api_key)
+                
+                # Get models from settings
+                parallel_models = getattr(system_settings, 'parallel_testing_models', {}) if system_settings else {}
+                models = parallel_models.get('suggestion', ['gpt-5.1'])
+                
+                logger.info(f"OpenAI model (parallel testing): {models[0]} vs {models[1]} - using {models[0]}")
+                
+                result = await tester.generate_suggestions_parallel(
+                    prompt_dict=prompt_dict,
+                    models=models,
+                    endpoint="ask_ai_suggestions",
+                    db_session=db_session,
+                    query_id=query_id,  # Use query_id from function parameter
+                    temperature=settings.creative_temperature,
+                    max_tokens=1200
                 )
+                
+                suggestions_data = result['primary_result']  # Use first model's result
+                comparison_metrics = result['comparison']  # Store for metrics
+                
+                # Update debug data with primary model usage
+                if comparison_metrics and comparison_metrics.get('model_results'):
+                    primary_result = comparison_metrics['model_results'][0]
+                    openai_debug_data['token_usage'] = {
+                        'prompt_tokens': primary_result.get('tokens_input', 0),
+                        'completion_tokens': primary_result.get('tokens_output', 0),
+                        'total_tokens': primary_result.get('tokens_input', 0) + primary_result.get('tokens_output', 0),
+                        'cost_usd': primary_result.get('cost_usd', 0.0),
+                        'model': primary_result.get('model', models[0]),
+                        'endpoint': 'ask_ai_suggestions'
+                    }
+                    openai_debug_data['model_used'] = primary_result.get('model', models[0])
+                    openai_debug_data['parallel_testing'] = True
+                    openai_debug_data['comparison_metrics'] = comparison_metrics
+                
+                logger.info(f"Parallel testing: {models[0]} vs {models[1]} - using {models[0]} result")
             else:
-                suggestion_client = openai_client
-            
-            suggestions_data = await suggestion_client.generate_with_unified_prompt(
-                endpoint="ask_ai_suggestions",  # Phase 5: Track endpoint
-                prompt_dict=prompt_dict,
-                temperature=settings.creative_temperature,
-                max_tokens=1200,
-                output_format="json"
-            )
-            
-            # Update debug data with actual model used
-            if suggestion_client.last_usage:
-                openai_debug_data['token_usage'] = suggestion_client.last_usage
-                openai_debug_data['model_used'] = suggestion_model
+                # Single model mode (existing behavior)
+                suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
+                
+                logger.info(f"OpenAI model (single mode): {suggestion_model}")
+                
+                # Create temporary client with suggestion model if different
+                if suggestion_model != openai_client.model:
+                    suggestion_client = OpenAIClient(
+                        api_key=openai_client.api_key,
+                        model=suggestion_model,
+                        enable_token_counting=getattr(settings, 'enable_token_counting', True)
+                    )
+                else:
+                    suggestion_client = openai_client
+                
+                suggestions_data = await suggestion_client.generate_with_unified_prompt(
+                    endpoint="ask_ai_suggestions",  # Phase 5: Track endpoint
+                    prompt_dict=prompt_dict,
+                    temperature=settings.creative_temperature,
+                    max_tokens=1200,
+                    output_format="json"
+                )
+                
+                # Update debug data with actual model used
+                if suggestion_client.last_usage:
+                    openai_debug_data['token_usage'] = suggestion_client.last_usage
+                    openai_debug_data['model_used'] = suggestion_model
+                    openai_debug_data['parallel_testing'] = False
             
             # Store OpenAI response (parsed JSON)
             openai_debug_data['openai_response'] = suggestions_data
-            
-            # Capture token usage from last API call
-            if openai_client.last_usage:
-                openai_debug_data['token_usage'] = openai_client.last_usage
             
             logger.info(f"OpenAI response received: {suggestions_data}")
             
@@ -4008,7 +4273,18 @@ async def generate_suggestions_from_query(
                                 logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
                                 devices_involved = updated_devices_involved
                         else:
-                            logger.warning(f"⚠️ devices_involved contains no entity IDs and mapping failed: {devices_involved}")
+                            logger.error(f"❌ CRITICAL: devices_involved contains no entity IDs and mapping failed: {devices_involved}")
+                            # validated_entities is still empty at this point - this is a critical error
+                            # We cannot proceed without validated_entities, so we'll skip this suggestion
+                            logger.error(f"❌ Skipping suggestion {i+1} - no validated entities found")
+                            continue  # Skip this suggestion entirely
+                
+                # CRITICAL CHECK: Ensure validated_entities is not empty before saving
+                if not validated_entities or len(validated_entities) == 0:
+                    logger.error(f"❌ CRITICAL: validated_entities is empty for suggestion {i+1} - cannot save suggestion without entity mapping")
+                    logger.error(f"❌ devices_involved: {devices_involved}")
+                    logger.error(f"❌ Skipping suggestion {i+1} - no validated entities")
+                    continue  # Skip this suggestion entirely
                 
                 # Ensure devices are consolidated before user display (even if enrichment skipped)
                 if devices_involved and validated_entities:
@@ -4047,13 +4323,23 @@ async def generate_suggestions_from_query(
                     f"(count: {len(devices_involved)}, unique: {len(set(d.lower() for d in devices_involved))})"
                 )
                 
+                # CRITICAL: Ensure validated_entities is not empty before saving
+                # This should never happen if the code above is working correctly
+                if not validated_entities or len(validated_entities) == 0:
+                    logger.error(f"❌ CRITICAL: Cannot save suggestion {i+1} - validated_entities is empty")
+                    logger.error(f"❌ devices_involved: {devices_involved}")
+                    logger.error(f"❌ This indicates a bug in entity mapping - skipping this suggestion")
+                    continue  # Skip this suggestion entirely - don't save it
+                
+                logger.info(f"✅ Suggestion {i+1} has {len(validated_entities)} validated entities - safe to save")
+                
                 base_suggestion = {
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
                     'trigger_summary': suggestion['trigger_summary'],
                     'action_summary': suggestion['action_summary'],
                     'devices_involved': devices_involved,  # Consolidated (deduplicated) - FINAL
-                    'validated_entities': validated_entities,  # Save mapping for fast test execution
+                    'validated_entities': validated_entities,  # Save mapping for fast test execution - MUST NOT BE EMPTY
                     'enriched_entity_context': entity_context_json,  # Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
                     'confidence': suggestion['confidence'],
@@ -4394,8 +4680,33 @@ async def process_natural_language_query(
                     rag_client=rag_client_for_confidence
                 )
                 
+                # Calculate adaptive threshold (Phase 1.2)
+                user_preferences = None
+                if getattr(settings, "adaptive_threshold_enabled", True):
+                    try:
+                        from ..database.crud import get_system_settings
+                        system_settings = await get_system_settings(db)
+                        if system_settings:
+                            user_preferences = {
+                                'risk_tolerance': getattr(system_settings, 'risk_tolerance', 'medium')
+                            }
+                    except Exception as e:
+                        logger.debug(f"Failed to get user preferences: {e}")
+                        # Use default from config
+                        user_preferences = {
+                            'risk_tolerance': getattr(settings, "default_risk_tolerance", "medium")
+                        }
+                
+                # Calculate adaptive threshold
+                adaptive_threshold = confidence_calculator.calculate_adaptive_threshold(
+                    query=request.query,
+                    extracted_entities=entities,
+                    ambiguities=ambiguities,
+                    user_preferences=user_preferences
+                ) if getattr(settings, "adaptive_threshold_enabled", True) else 0.85
+                
                 # Check if clarification is needed
-                if confidence_calculator.should_ask_clarification(confidence, ambiguities):
+                if confidence_calculator.should_ask_clarification(confidence, ambiguities, threshold=adaptive_threshold):
                     # Generate questions
                     if question_generator:
                         questions = await question_generator.generate_questions(
@@ -4414,6 +4725,7 @@ async def process_natural_language_query(
                             original_query=request.query,
                             questions=questions,
                             current_confidence=confidence,
+                            confidence_threshold=adaptive_threshold,  # Use adaptive threshold
                             ambiguities=ambiguities,
                             query_id=query_id
                         )
@@ -4465,6 +4777,7 @@ async def process_natural_language_query(
                             ] if ambiguities else []
                             
                             db_session = ClarificationSessionDB(
+                                confidence_threshold=adaptive_threshold,  # Use adaptive threshold
                                 session_id=clarification_session_id,
                                 original_query_id=query_id,
                                 original_query=request.query,
@@ -4506,7 +4819,9 @@ async def process_natural_language_query(
                 request.query, 
                 entities, 
                 request.user_id,
-                db_session=db
+                db_session=db,
+                clarification_context=None,
+                query_id=query_id  # Pass query_id for metrics tracking
             )
             
             # Recalculate confidence with suggestions
@@ -5102,9 +5417,28 @@ async def provide_clarification(
             )
             validated_answers.append(validated_answer)
         
-        # Add answers to session
-        session.answers.extend(validated_answers)
+        # Add answers to session - but deduplicate first to prevent duplicate Q&A pairs
+        # If user resubmits, only keep the most recent answer for each question
+        # Optimized: Use index map for O(1) lookups instead of O(n²) nested loop
+        answer_index = {a.question_id: i for i, a in enumerate(session.answers)}
+        new_answers_to_add = []
+        
+        for validated_answer in validated_answers:
+            if validated_answer.question_id in answer_index:
+                # Update existing answer - O(1) lookup
+                session.answers[answer_index[validated_answer.question_id]] = validated_answer
+                logger.info(f"🔄 Updated answer for question {validated_answer.question_id}")
+            else:
+                # New question answer
+                new_answers_to_add.append(validated_answer)
+                logger.info(f"➕ Added new answer for question {validated_answer.question_id}")
+        
+        # Add new answers
+        session.answers.extend(new_answers_to_add)
         session.rounds_completed += 1
+        
+        logger.info(f"📊 Session now has {len(session.answers)} unique answers across {session.rounds_completed} rounds")
+        logger.info(f"📋 Current session answers breakdown: {[f'{a.question_id}: {a.answer_text[:50]}...' for a in session.answers]}")
         
         # NEW: Track previous confidence before recalculating
         previous_confidence = session.current_confidence
@@ -5220,6 +5554,62 @@ async def provide_clarification(
         # Check if we should proceed or ask more questions
         if (session.current_confidence >= session.confidence_threshold or 
             session.rounds_completed >= session.max_rounds):
+            # Track outcome: user proceeded (Phase 2.1)
+            try:
+                outcome_tracker = ClarificationOutcomeTracker()
+                await outcome_tracker.track_outcome(
+                    db=db,
+                    session_id=session.session_id,
+                    final_confidence=session.current_confidence,
+                    proceeded=True,
+                    suggestion_approved=None,  # Will be updated when suggestion is approved/rejected
+                    rounds=session.rounds_completed
+                )
+                
+                # Track calibration feedback (Phase 1.1)
+                if confidence_calculator.calibrator:
+                    try:
+                        from ..database.crud import store_clarification_confidence_feedback
+                        
+                        # Count ambiguities for calibration
+                        critical_count = sum(
+                            1 for amb in session.ambiguities
+                            if amb.severity == AmbiguitySeverity.CRITICAL
+                        )
+                        
+                        # Get raw confidence before calibration (we need to recalculate or store it)
+                        # For now, use current confidence as approximation
+                        raw_confidence = session.current_confidence
+                        
+                        await store_clarification_confidence_feedback(
+                            db=db,
+                            session_id=session.session_id,
+                            raw_confidence=raw_confidence,
+                            proceeded=True,
+                            suggestion_approved=None,  # Will be updated later
+                            ambiguity_count=len(session.ambiguities),
+                            critical_ambiguity_count=critical_count,
+                            rounds=session.rounds_completed,
+                            answer_count=len(all_answers)
+                        )
+                        
+                        # Add feedback to calibrator
+                        confidence_calculator.calibrator.add_feedback(
+                            raw_confidence=raw_confidence,
+                            actually_proceeded=True,
+                            suggestion_approved=None,
+                            ambiguity_count=len(session.ambiguities),
+                            critical_ambiguity_count=critical_count,
+                            rounds=session.rounds_completed,
+                            answer_count=len(all_answers)
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to track calibration feedback: {e}")
+                        # Non-blocking: continue even if tracking fails
+            except Exception as e:
+                logger.warning(f"Failed to track clarification outcome: {e}")
+                # Non-blocking: continue even if tracking fails
+            
             # Generate suggestions
             session.status = "complete"
             
@@ -5309,30 +5699,109 @@ async def provide_clarification(
                 logger.warning(f"⚠️ Continuing with un-enriched entities due to re-enrichment failure")
             
             # Generate suggestions WITH enriched query and clarification context
-            logger.info(f"🔧 Step 4: Generating suggestions from enriched query (timeout: 60s)")
-            try:
-                suggestions = await asyncio.wait_for(
-                    generate_suggestions_from_query(
-                        enriched_query,  # NEW: Use enriched query instead of original
-                        entities,  # NEW: Re-extracted and re-enriched entities
-                        "anonymous",  # TODO: Get from session
-                        db_session=db,
-                        clarification_context=clarification_context  # Pass structured clarification
-                    ),
-                    timeout=60.0
-                )
-                logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions")
-            except asyncio.TimeoutError:
-                logger.error(f"❌ Suggestion generation timed out after 60 seconds")
-                raise HTTPException(
-                    status_code=504,
-                    detail="Suggestion generation timed out. Please try again."
-                )
-            except Exception as e:
-                logger.error(f"❌ Failed to generate suggestions: {e}", exc_info=True)
+            logger.info(f"🔧 Step 4: Generating suggestions from enriched query (timeout: {CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS}s)")
+            
+            # Retry logic for OpenAI failures
+            max_retries = CLARIFICATION_RETRY_MAX_ATTEMPTS
+            retry_delay = CLARIFICATION_RETRY_DELAY_SECONDS
+            suggestions = None
+            
+            for attempt in range(max_retries):
+                try:
+                    suggestions = await asyncio.wait_for(
+                        generate_suggestions_from_query(
+                            enriched_query,  # NEW: Use enriched query instead of original
+                            entities,  # NEW: Re-extracted and re-enriched entities
+                            "anonymous",  # TODO: Get from session
+                            db_session=db,
+                            clarification_context=clarification_context,  # Pass structured clarification
+                            query_id=getattr(session, 'query_id', None)  # Pass query_id for metrics tracking
+                        ),
+                        timeout=CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS
+                    )
+                    logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions")
+                    break  # Success, exit retry loop
+                    
+                except asyncio.TimeoutError:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"⚠️ Attempt {attempt + 1}/{max_retries} timed out, retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    else:
+                        logger.error(f"❌ All {max_retries} attempts timed out")
+                        raise HTTPException(
+                            status_code=504,
+                            detail={
+                                "error": "timeout",
+                                "message": "AI suggestion generation is taking longer than expected. This may be due to a complex request. Please try simplifying your query or try again later.",
+                                "retry_after": 60
+                            }
+                        )
+                        
+                except ValueError as e:
+                    error_str = str(e)
+                    # Catch all variations of empty content/response errors
+                    if ("Empty content from OpenAI" in error_str or 
+                        "Empty response from OpenAI" in error_str):
+                        logger.error(f"❌ OpenAI returned empty content on attempt {attempt + 1}/{max_retries} (likely rate limit or token overflow): {error_str}")
+                        if attempt < max_retries - 1:
+                            logger.warning(f"⚠️ Retrying in {retry_delay}s...")
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        else:
+                            raise HTTPException(
+                                status_code=503,
+                                detail={
+                                    "error": "api_error",
+                                    "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
+                                    "retry_after": 30
+                                }
+                            )
+                    else:
+                        # Other ValueError - don't retry
+                        logger.error(f"❌ ValueError during suggestion generation: {e}", exc_info=True)
+                        # Sanitize error message in production
+                        if os.getenv("ENVIRONMENT") == "production":
+                            error_message = "An internal error occurred during suggestion generation. Please try again."
+                        else:
+                            error_message = f"Failed to generate suggestions: {str(e)}"
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "internal_error",
+                                "message": error_message
+                            }
+                        )
+                        
+                except Exception as e:
+                    logger.error(f"❌ Unexpected error on attempt {attempt + 1}/{max_retries}: {e}", exc_info=True)
+                    if attempt < max_retries - 1:
+                        logger.warning(f"⚠️ Retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    else:
+                        # Sanitize error message in production
+                        if os.getenv("ENVIRONMENT") == "production":
+                            error_message = f"Failed to generate suggestions after {max_retries} attempts. Please try again."
+                        else:
+                            error_message = f"Failed to generate suggestions after {max_retries} attempts: {str(e)}"
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "internal_error",
+                                "message": error_message
+                            }
+                        )
+            
+            # Validate suggestions were generated
+            if suggestions is None:
+                logger.error(f"❌ Suggestions is None after generation loop")
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Failed to generate suggestions: {str(e)}"
+                    detail={
+                        "error": "internal_error",
+                        "message": "Failed to generate suggestions (no data returned)"
+                    }
                 )
             
             # Add conversation history to suggestions
@@ -5444,6 +5913,12 @@ async def provide_clarification(
             )
             logger.info(f"📝 Generated enriched prompt for user display")
             
+            # Debug: Log all Q&A pairs being returned
+            qa_count = len(clarification_context['questions_and_answers'])
+            logger.info(f"🔍 Returning {qa_count} Q&A pairs in response:")
+            for i, qa in enumerate(clarification_context['questions_and_answers'], 1):
+                logger.info(f"  Q&A {i}/{qa_count}: Q: {qa['question'][:100]}... | A: {qa['answer'][:100]}...")
+            
             return ClarificationResponse(
                 session_id=request.session_id,
                 confidence=session.current_confidence,
@@ -5494,24 +5969,11 @@ async def provide_clarification(
             # This ensures we find new ambiguities that may have emerged from the answers
             clarification_detector, question_generator, _, _ = await get_clarification_services(db)
             
-            # Re-extract entities from enriched query
-            logger.info(f"🔧 Re-extracting entities for re-detection (timeout: 30s)")
-            try:
-                entities = await asyncio.wait_for(
-                    extract_entities_with_ha(enriched_query),
-                    timeout=30.0
-                )
-                logger.info(f"🔍 Re-extracted {len(entities)} entities for re-detection")
-            except asyncio.TimeoutError:
-                logger.error(f"❌ Entity extraction timed out during re-detection")
-                # Don't fail - continue with empty entities
-                entities = []
-                logger.warning(f"⚠️ Continuing with empty entities due to timeout")
-            except Exception as e:
-                logger.error(f"❌ Failed to extract entities during re-detection: {e}", exc_info=True)
-                # Don't fail - continue with empty entities
-                entities = []
-                logger.warning(f"⚠️ Continuing with empty entities due to extraction failure")
+            # PERFORMANCE FIX: Skip entity re-extraction during clarification
+            # Entity extraction takes 30+ seconds and times out frequently
+            # We already have entities from the initial query - no need to re-extract
+            logger.info(f"⚡ Skipping entity re-extraction during clarification (performance optimization)")
+            entities = []  # Use empty entities for re-detection - ambiguity detection works without them
             
             # Get automation context for re-detection
             automation_context = {}
@@ -5622,6 +6084,11 @@ async def provide_clarification(
             
             logger.info(f"📋 Remaining ambiguities: {len(remaining_ambiguities)} (answered: {len(answered_ambiguity_ids)}, total: {len(all_ambiguities)})")
             
+            # CLARIFICATION LOOP PREVENTION: If we've done multiple rounds without reaching threshold, proceed anyway
+            if session.rounds_completed >= session.max_rounds:
+                logger.warning(f"⚠️ Max clarification rounds ({session.max_rounds}) reached - proceeding with suggestion generation")
+                remaining_ambiguities = []  # Force proceed
+            
             # If no remaining ambiguities, generate suggestions even if confidence is below threshold
             # All ambiguities have been resolved, so we should proceed
             if len(remaining_ambiguities) == 0:
@@ -5663,17 +6130,17 @@ async def provide_clarification(
                     )
                 
                 # Re-extract entities from enriched query
-                logger.info(f"🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 30s)")
+                logger.info(f"🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 5s - reduced for performance)")
                 try:
                     entities = await asyncio.wait_for(
                         extract_entities_with_ha(enriched_query),
-                        timeout=30.0
+                        timeout=5.0  # Reduced from 30s for better UX
                     )
                     logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                     if not entities:
                         logger.warning(f"⚠️ No entities extracted from enriched query - continuing with empty list")
                 except asyncio.TimeoutError:
-                    logger.error(f"❌ Entity extraction timed out after 30 seconds (all-ambiguities-resolved path)")
+                    logger.error(f"❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
                         detail="Entity extraction timed out. Please try again."
@@ -5717,7 +6184,8 @@ async def provide_clarification(
                             entities,
                             "anonymous",  # TODO: Get from session
                             db_session=db,
-                            clarification_context=clarification_context
+                            clarification_context=clarification_context,
+                            query_id=getattr(session, 'query_id', None)  # Pass query_id for metrics tracking
                         ),
                         timeout=60.0
                     )
@@ -5728,11 +6196,37 @@ async def provide_clarification(
                         status_code=504,
                         detail="Suggestion generation timed out. Please try again."
                     )
+                except ValueError as e:
+                    error_str = str(e)
+                    # Catch all variations of empty content/response errors
+                    if ("Empty content from OpenAI" in error_str or 
+                        "Empty response from OpenAI" in error_str):
+                        logger.error(f"❌ OpenAI returned empty content (all-ambiguities-resolved path): {error_str}")
+                        raise HTTPException(
+                            status_code=503,
+                            detail={
+                                "error": "api_error",
+                                "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
+                                "retry_after": 30
+                            }
+                        )
+                    else:
+                        logger.error(f"❌ ValueError during suggestion generation (all-ambiguities-resolved path): {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "internal_error",
+                                "message": f"Failed to generate suggestions: {str(e)}"
+                            }
+                        )
                 except Exception as e:
                     logger.error(f"❌ Failed to generate suggestions (all-ambiguities-resolved path): {e}", exc_info=True)
                     raise HTTPException(
                         status_code=500,
-                        detail=f"Failed to generate suggestions: {str(e)}"
+                        detail={
+                            "error": "internal_error",
+                            "message": f"Failed to generate suggestions: {str(e)}"
+                        }
                     )
                 
                 # Add conversation history to suggestions
@@ -5777,6 +6271,7 @@ async def provide_clarification(
                     
                     # OPTION 1: Auto-store enriched query in RAG knowledge base for future learning
                     # This enables the system to learn from successful clarification sessions
+                    rag_client = None
                     try:
                         rag_client = await _get_rag_client(db)
                         if rag_client:
@@ -5803,6 +6298,13 @@ async def provide_clarification(
                     except Exception as e:
                         # Non-critical: continue even if RAG storage fails
                         logger.warning(f"⚠️ Failed to store enriched query in RAG knowledge base: {e}")
+                    finally:
+                        # Ensure RAG client HTTP connection is properly closed
+                        if rag_client:
+                            try:
+                                await rag_client.close()
+                            except Exception as e:
+                                logger.debug(f"⚠️ Error closing RAG client: {e}")
                         
                 except Exception as e:
                     logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
@@ -5910,9 +6412,24 @@ async def provide_clarification(
         raise
     except Exception as e:
         logger.error(f"❌ Failed to process clarification: {e}", exc_info=True)
+        # Check if it's an empty content error that wasn't caught earlier
+        error_str = str(e)
+        if ("Empty content from OpenAI" in error_str or 
+            "Empty response from OpenAI" in error_str):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "api_error",
+                    "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
+                    "retry_after": 30
+                }
+            )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to process clarification: {str(e)}"
+            detail={
+                "error": "internal_error",
+                "message": f"Failed to process clarification: {str(e)}"
+            }
         )
 
 
@@ -7164,13 +7681,19 @@ async def approve_suggestion_from_query(
         
         logger.info(f"✅ [APPROVAL] Found suggestion: {suggestion.get('title', 'Untitled')[:50]}")
         
-        # Fail fast if validated_entities is missing - should already be set during suggestion creation
+        # Get validated_entities from suggestion (MUST be set during suggestion creation)
         validated_entities = suggestion.get('validated_entities')
         if not validated_entities or not isinstance(validated_entities, dict) or len(validated_entities) == 0:
-            logger.error(f"❌ Suggestion {suggestion_id} missing validated_entities - should be set during creation")
+            # This should NEVER happen if suggestion creation is working correctly
+            # Log critical error and fail fast - this indicates a bug in suggestion creation
+            logger.error(f"❌ CRITICAL BUG: Suggestion {suggestion_id} missing validated_entities")
+            logger.error(f"❌ This should never happen - validated_entities must be set during suggestion creation")
+            logger.error(f"❌ Suggestion data: {suggestion.keys()}")
+            logger.error(f"❌ devices_involved: {suggestion.get('devices_involved', [])}")
+            
             raise HTTPException(
-                status_code=400,
-                detail=f"Suggestion {suggestion_id} is missing validated entities. This should be set during suggestion creation. Please regenerate the suggestion."
+                status_code=500,
+                detail=f"Internal error: Suggestion {suggestion_id} is missing validated entities. This indicates a bug in suggestion creation. Please regenerate the suggestion."
             )
         
         logger.info(f"✅ Using validated_entities from suggestion: {len(validated_entities)} entities")
@@ -7214,8 +7737,25 @@ async def approve_suggestion_from_query(
         logger.info(f"📋 [YAML_GEN] Validated entities: {final_suggestion.get('validated_entities')}")
         logger.info(f"📝 [YAML_GEN] Suggestion title: {final_suggestion.get('title', 'Untitled')}")
         
+        # Track which model generated the suggestion for metrics update
+        suggestion_model_used = None
+        if suggestion.get('debug') and suggestion['debug'].get('model_used'):
+            suggestion_model_used = suggestion['debug']['model_used']
+        elif suggestion.get('debug') and suggestion['debug'].get('token_usage'):
+            suggestion_model_used = suggestion['debug']['token_usage'].get('model')
+        
         try:
             automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, [], db_session=db, ha_client=ha_client)
+            
+            # Update metrics: Mark suggestion as approved
+            if suggestion_model_used:
+                await _update_model_comparison_metrics_on_approval(
+                    db=db,
+                    suggestion_id=suggestion_id,
+                    query_id=query_id,
+                    model_used=suggestion_model_used,
+                    task_type='suggestion'
+                )
             
             logger.info(f"✅ [YAML_GEN] YAML generated successfully ({len(automation_yaml)} chars)")
             logger.info(f"📄 [YAML_GEN] First 200 chars: {automation_yaml[:200]}")
@@ -7444,6 +7984,22 @@ async def approve_suggestion_from_query(
                             }
                     else:
                         logger.info(f"✅ Final validation passed: All {len(unique_entity_ids)} unique entity IDs exist in HA")
+                        
+                        # Update metrics: Mark YAML as valid
+                        # Get model used from YAML generation (stored in suggestion debug data)
+                        yaml_model_used = None
+                        if final_suggestion.get('debug') and final_suggestion['debug'].get('yaml_model_used'):
+                            yaml_model_used = final_suggestion['debug']['yaml_model_used']
+                        elif final_suggestion.get('debug') and final_suggestion['debug'].get('token_usage'):
+                            yaml_model_used = final_suggestion['debug']['token_usage'].get('model')
+                        
+                        if yaml_model_used:
+                            await _update_model_comparison_metrics_on_yaml_validation(
+                                db=db,
+                                suggestion_id=suggestion_id,
+                                model_used=yaml_model_used,
+                                yaml_valid=True
+                            )
             except Exception as e:
                 logger.error(f"❌ Entity validation error: {e}", exc_info=True)
                 return {
@@ -7681,6 +8237,182 @@ async def list_aliases(
         return aliases_by_entity
     except Exception as e:
         logger.error(f"Error listing aliases: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/model-comparison/metrics")
+async def get_model_comparison_metrics(
+    task_type: Optional[str] = Query(None, description="Filter by task type: 'suggestion' or 'yaml'"),
+    days: int = Query(7, ge=1, le=30, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get model comparison metrics for parallel testing.
+    
+    Returns aggregated metrics comparing model performance, cost, and quality.
+    """
+    try:
+        from ..database.models import ModelComparisonMetrics
+        from sqlalchemy import select, func, and_
+        from datetime import datetime, timedelta
+        
+        # Build query
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        query = select(ModelComparisonMetrics).where(
+            ModelComparisonMetrics.created_at >= cutoff_date
+        )
+        
+        if task_type:
+            query = query.where(ModelComparisonMetrics.task_type == task_type)
+        
+        result = await db.execute(query)
+        metrics = result.scalars().all()
+        
+        if not metrics:
+            return {
+                "total_comparisons": 0,
+                "task_type": task_type or "all",
+                "days": days,
+                "summary": {},
+                "model_stats": {}
+            }
+        
+        # Aggregate statistics
+        total_comparisons = len(metrics)
+        model1_total_cost = sum(m.model1_cost_usd for m in metrics)
+        model2_total_cost = sum(m.model2_cost_usd for m in metrics)
+        model1_avg_latency = sum(m.model1_latency_ms for m in metrics) / total_comparisons
+        model2_avg_latency = sum(m.model2_latency_ms for m in metrics) / total_comparisons
+        
+        # Quality metrics (only for metrics with approval/validation data)
+        model1_approved = sum(1 for m in metrics if m.model1_approved is True)
+        model2_approved = sum(1 for m in metrics if m.model2_approved is True)
+        model1_yaml_valid = sum(1 for m in metrics if m.model1_yaml_valid is True)
+        model2_yaml_valid = sum(1 for m in metrics if m.model2_yaml_valid is True)
+        
+        approved_total = sum(1 for m in metrics if m.model1_approved is not None or m.model2_approved is not None)
+        yaml_valid_total = sum(1 for m in metrics if m.model1_yaml_valid is not None or m.model2_yaml_valid is not None)
+        
+        return {
+            "total_comparisons": total_comparisons,
+            "task_type": task_type or "all",
+            "days": days,
+            "summary": {
+                "cost_difference_usd": abs(model1_total_cost - model2_total_cost),
+                "cost_savings_percentage": ((model2_total_cost - model1_total_cost) / model1_total_cost * 100) if model1_total_cost > 0 else 0,
+                "latency_difference_ms": abs(model1_avg_latency - model2_avg_latency),
+                "model1_total_cost": round(model1_total_cost, 4),
+                "model2_total_cost": round(model2_total_cost, 4),
+                "model1_avg_latency_ms": round(model1_avg_latency, 2),
+                "model2_avg_latency_ms": round(model2_avg_latency, 2)
+            },
+            "model_stats": {
+                "model1": {
+                    "name": metrics[0].model1_name if metrics else "unknown",
+                    "total_cost_usd": round(model1_total_cost, 4),
+                    "avg_cost_per_comparison": round(model1_total_cost / total_comparisons, 4),
+                    "avg_latency_ms": round(model1_avg_latency, 2),
+                    "approval_rate": round(model1_approved / approved_total * 100, 2) if approved_total > 0 else None,
+                    "yaml_validation_rate": round(model1_yaml_valid / yaml_valid_total * 100, 2) if yaml_valid_total > 0 else None
+                },
+                "model2": {
+                    "name": metrics[0].model2_name if metrics else "unknown",
+                    "total_cost_usd": round(model2_total_cost, 4),
+                    "avg_cost_per_comparison": round(model2_total_cost / total_comparisons, 4),
+                    "avg_latency_ms": round(model2_avg_latency, 2),
+                    "approval_rate": round(model2_approved / approved_total * 100, 2) if approved_total > 0 else None,
+                    "yaml_validation_rate": round(model2_yaml_valid / yaml_valid_total * 100, 2) if yaml_valid_total > 0 else None
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching model comparison metrics: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/model-comparison/summary")
+async def get_model_comparison_summary(
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get summary of model comparison results with recommendations.
+    
+    Returns high-level summary and recommendations for which model performs better.
+    """
+    try:
+        from ..database.models import ModelComparisonMetrics
+        from sqlalchemy import select, func
+        from datetime import datetime, timedelta
+        
+        # Get metrics from last 7 days
+        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        result = await db.execute(
+            select(ModelComparisonMetrics).where(
+                ModelComparisonMetrics.created_at >= cutoff_date
+            )
+        )
+        metrics = result.scalars().all()
+        
+        if not metrics:
+            return {
+                "total_comparisons": 0,
+                "recommendations": {
+                    "suggestion": "Insufficient data",
+                    "yaml": "Insufficient data"
+                }
+            }
+        
+        # Group by task type
+        suggestion_metrics = [m for m in metrics if m.task_type == 'suggestion']
+        yaml_metrics = [m for m in metrics if m.task_type == 'yaml']
+        
+        def analyze_task_type(task_metrics, task_name):
+            if not task_metrics:
+                return {"recommendation": "Insufficient data", "reason": "No comparisons yet"}
+            
+            model1_cost = sum(m.model1_cost_usd for m in task_metrics)
+            model2_cost = sum(m.model2_cost_usd for m in task_metrics)
+            model1_avg_latency = sum(m.model1_latency_ms for m in task_metrics) / len(task_metrics)
+            model2_avg_latency = sum(m.model2_latency_ms for m in task_metrics) / len(task_metrics)
+            
+            model1_approved = sum(1 for m in task_metrics if m.model1_approved is True)
+            model2_approved = sum(1 for m in task_metrics if m.model2_approved is True)
+            approved_total = sum(1 for m in task_metrics if m.model1_approved is not None)
+            
+            model1_name = task_metrics[0].model1_name
+            model2_name = task_metrics[0].model2_name
+            
+            # Determine recommendation
+            cost_savings = ((model2_cost - model1_cost) / model1_cost * 100) if model1_cost > 0 else 0
+            quality_diff = ((model2_approved - model1_approved) / approved_total * 100) if approved_total > 0 else 0
+            
+            if cost_savings > 50 and quality_diff < 5:
+                recommendation = model2_name
+                reason = f"{model2_name} is {abs(cost_savings):.1f}% cheaper with similar quality"
+            elif quality_diff > 10:
+                recommendation = model1_name
+                reason = f"{model1_name} has {abs(quality_diff):.1f}% higher approval rate"
+            else:
+                recommendation = model1_name
+                reason = f"{model1_name} provides better quality-cost balance"
+            
+            return {
+                "recommendation": recommendation,
+                "reason": reason,
+                "total_comparisons": len(task_metrics),
+                "cost_savings_percentage": round(cost_savings, 2),
+                "quality_difference_percentage": round(quality_diff, 2)
+            }
+        
+        return {
+            "total_comparisons": len(metrics),
+            "recommendations": {
+                "suggestion": analyze_task_type(suggestion_metrics, "suggestion"),
+                "yaml": analyze_task_type(yaml_metrics, "yaml")
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching model comparison summary: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/device-intelligence-service/requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Production stage
@@ -24,11 +24,14 @@ RUN apt-get update && apt-get install -y \
 # Copy installed packages from builder stage
 COPY --from=builder /root/.local /root/.local
 
+# Copy shared utilities
+COPY shared/ /app/shared
+
 # Copy application source
-COPY src/ /app/src/
+COPY services/device-intelligence-service/src/ /app/src/
 
 # Copy models directory (ML models for predictive analytics)
-COPY models/ /app/models/
+COPY services/device-intelligence-service/models/ /app/models/
 
 # Set working directory
 WORKDIR /app

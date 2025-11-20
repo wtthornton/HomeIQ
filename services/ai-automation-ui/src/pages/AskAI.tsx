@@ -796,14 +796,29 @@ export const AskAI: React.FC = () => {
           throw error;
         }
       } else if (action === 'approve') {
+        console.log('🚀 [APPROVE] Approve action started', { suggestionId, action });
+        
         const messageWithQuery = messages.find(msg => 
           msg.suggestions?.some(s => s.suggestion_id === suggestionId)
         );
         const queryId = messageWithQuery?.id || 'unknown';
         
+        console.log('🔍 [APPROVE] Found message with query', { 
+          queryId, 
+          hasMessage: !!messageWithQuery,
+          messageId: messageWithQuery?.id,
+          suggestionsCount: messageWithQuery?.suggestions?.length 
+        });
+        
+        if (!messageWithQuery || queryId === 'unknown') {
+          console.error('❌ [APPROVE] Cannot find query ID for suggestion', { suggestionId, messages });
+          toast.error('❌ Cannot find query for this suggestion. Please try refreshing the page.');
+          return;
+        }
+        
         // Show engaging reverse engineering loader IMMEDIATELY
         setReverseEngineeringStatus({ visible: true, action: 'approve' });
-        console.log('🎨 Loader set to visible for approve action');
+        console.log('🎨 [APPROVE] Loader set to visible for approve action');
         
         // Minimum display time to ensure user sees it (2 seconds)
         const loaderStartTime = Date.now();
@@ -841,6 +856,13 @@ export const AskAI: React.FC = () => {
           })() : undefined;
           const selectedEntityIds = getSelectedEntityIds(suggestionId, deviceInfo);
           
+          console.log('📡 [APPROVE] Calling API', { 
+            queryId, 
+            suggestionId, 
+            selectedEntityIdsCount: selectedEntityIds.length,
+            hasCustomMappings: !!(customMappings && Object.keys(customMappings).length > 0)
+          });
+          
           const response = await api.approveAskAISuggestion(
             queryId, 
             suggestionId, 
@@ -848,8 +870,10 @@ export const AskAI: React.FC = () => {
             customMappings && Object.keys(customMappings).length > 0 ? customMappings : undefined
           );
           
+          console.log('✅ [APPROVE] API call completed successfully');
+          
           // Debug logging to understand response structure
-          console.log('🔍 APPROVE RESPONSE:', {
+          console.log('🔍 [APPROVE] API Response:', {
             status: response?.status,
             safe: response?.safe,
             automation_id: response?.automation_id,
@@ -936,10 +960,51 @@ export const AskAI: React.FC = () => {
             return;
           }
           
-          // PRIORITY 2: Success - automation was created
+          // PRIORITY 2: Check for yaml_generated but deployment failed
+          if (response && response.status === 'yaml_generated' && !response.automation_id) {
+            console.warn('⚠️ [APPROVE] YAML generated but deployment failed', {
+              status: response.status,
+              automation_id: response.automation_id,
+              error_details: response.error_details,
+              message: response.message
+            });
+            
+            const errorMsg = response.message || response.error_details?.message || 'YAML was generated but deployment to Home Assistant failed';
+            toast.error(`❌ ${errorMsg}`, { duration: 10000 });
+            
+            // Show warnings if any
+            if (response.warnings && Array.isArray(response.warnings) && response.warnings.length > 0) {
+              response.warnings.forEach((warning: string) => {
+                toast(warning, { icon: '⚠️', duration: 6000 });
+              });
+            }
+            
+            // Store response for DebugPanel
+            setMessages(prev => prev.map(msg => ({
+              ...msg,
+              suggestions: msg.suggestions?.map(s => 
+                s.suggestion_id === suggestionId 
+                  ? { ...s, automation_yaml: response.automation_yaml || s.automation_yaml, approve_response: response }
+                  : s
+              ) || []
+            })));
+            
+            setReverseEngineeringStatus({ visible: false });
+            return;
+          }
+          
+          // PRIORITY 3: Success - automation was created
           // Must check BOTH status === 'approved' AND automation_id exists
+          console.log('🔍 [APPROVE] Checking response status', {
+            hasResponse: !!response,
+            status: response?.status,
+            automation_id: response?.automation_id,
+            ready_to_deploy: response?.ready_to_deploy,
+            message: response?.message
+          });
+          
           if (response && response.status === 'approved' && response.automation_id) {
-            console.log('🔍 Response is APPROVED - showing success');
+            console.log('✅ [APPROVE] Response is APPROVED - showing success');
             
             // Trigger particle celebration
             // Check for reduced motion preference
@@ -1039,9 +1104,34 @@ export const AskAI: React.FC = () => {
             // The card will now show the deployed badge and green border
           } else {
             // PRIORITY 3: Unexpected response - show error with details
-            console.error('🔍 Unexpected approve response:', response);
-            const errorMsg = response?.message || 'Unexpected response from server';
-            toast.error(`❌ Failed to create automation: ${errorMsg}`);
+            console.error('❌ [APPROVE] Unexpected approve response:', response);
+            console.error('❌ [APPROVE] Response details:', {
+              status: response?.status,
+              automation_id: response?.automation_id,
+              ready_to_deploy: response?.ready_to_deploy,
+              message: response?.message,
+              error_details: response?.error_details,
+              warnings: response?.warnings
+            });
+            
+            const errorMsg = response?.message || response?.error_details?.message || 'Unexpected response from server';
+            const errorType = response?.error_details?.type || 'unknown';
+            
+            // Show detailed error message
+            if (errorType === 'deployment_error') {
+              toast.error(`❌ Failed to deploy automation to Home Assistant: ${errorMsg}`, { duration: 10000 });
+            } else if (errorType === 'connection_error') {
+              toast.error(`❌ Cannot connect to Home Assistant: ${errorMsg}`, { duration: 10000 });
+            } else {
+              toast.error(`❌ Failed to create automation: ${errorMsg}`, { duration: 8000 });
+            }
+            
+            // Show warnings if any
+            if (response && Array.isArray(response.warnings) && response.warnings.length > 0) {
+              response.warnings.forEach((warning: string) => {
+                toast(warning, { icon: '⚠️', duration: 6000 });
+              });
+            }
             
             // Show warnings if any
             if (response && Array.isArray(response.warnings) && response.warnings.length > 0) {
@@ -1051,10 +1141,33 @@ export const AskAI: React.FC = () => {
             }
           }
         } catch (error: any) {
-          console.error('❌ Approve action failed:', error);
+          console.error('❌ [APPROVE] Approve action failed:', error);
+          console.error('❌ [APPROVE] Error details:', {
+            message: error?.message,
+            response: error?.response?.data,
+            status: error?.response?.status,
+            queryId,
+            suggestionId
+          });
+          
           setReverseEngineeringStatus({ visible: false });
-          const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
-          toast.error(`❌ Failed to approve automation: ${errorMessage}`);
+          
+          // Parse error details for user-friendly message
+          const errorDetail = error?.response?.data?.detail;
+          let errorMessage = 'Unknown error occurred';
+          
+          if (typeof errorDetail === 'string') {
+            errorMessage = errorDetail;
+          } else if (errorDetail?.message) {
+            errorMessage = errorDetail.message;
+          } else if (error?.message) {
+            errorMessage = error.message;
+          } else if (error?.toString()) {
+            errorMessage = error.toString();
+          }
+          
+          // Show detailed error to user
+          toast.error(`❌ Failed to create automation: ${errorMessage}`, { duration: 8000 });
           
           // Re-throw to be caught by outer try-catch
           throw error;
@@ -2113,10 +2226,30 @@ export const AskAI: React.FC = () => {
                 will_show_improvement: response.previous_confidence !== undefined && 
                                       response.previous_confidence > 0 && 
                                       response.confidence_delta !== undefined && 
-                                      response.confidence_delta > 0
+                                      response.confidence_delta > 0,
+                has_questions_and_answers: !!response.questions_and_answers,
+                questions_and_answers_count: response.questions_and_answers?.length || 0,
+                questions_and_answers: response.questions_and_answers
               });
               
               if (response.clarification_complete && response.suggestions) {
+                console.log('✅ [CLARIFICATION] Clarification complete, suggestions received', {
+                  session_id: response.session_id,
+                  suggestions_count: response.suggestions?.length,
+                  suggestions: response.suggestions?.map((s: any) => ({
+                    suggestion_id: s.suggestion_id,
+                    title: s.title,
+                    has_validated_entities: !!s.validated_entities
+                  }))
+                });
+                
+                // Verify suggestions have required fields for approval
+                const invalidSuggestions = response.suggestions?.filter((s: any) => !s.suggestion_id);
+                if (invalidSuggestions && invalidSuggestions.length > 0) {
+                  console.error('❌ [CLARIFICATION] Some suggestions are missing suggestion_id', invalidSuggestions);
+                  toast.error('⚠️ Some suggestions are missing required fields. Please try again.');
+                }
+                
                 // Add enriched prompt message if available
                 if (response.enriched_prompt) {
                   const enrichedPromptMessage: ChatMessage = {
@@ -2206,7 +2339,36 @@ export const AskAI: React.FC = () => {
               }
             } catch (error: any) {
               console.error('❌ Clarification error:', error);
-              toast.error(`Failed to submit clarification: ${error.message || 'Unknown error'}`);
+              
+              // Parse error details from API response
+              const errorDetail = error.response?.data?.detail;
+              const errorMessage = errorDetail?.message || 
+                                  (typeof errorDetail === 'string' ? errorDetail : null) ||
+                                  error.message || 
+                                  'Failed to submit clarification';
+              
+              const errorType = errorDetail?.error || 'unknown';
+              const retryAfter = errorDetail?.retry_after;
+              
+              // Show appropriate error message based on error type
+              if (errorType === 'timeout') {
+                toast.error(
+                  `⏱️ ${errorMessage}\n\nThe request is taking longer than expected. Please try again.`,
+                  { duration: 8000 }
+                );
+                // Keep dialog open for retry on timeout
+              } else if (errorType === 'api_error') {
+                toast.error(
+                  `🔌 ${errorMessage}${retryAfter ? `\n\nPlease wait ${retryAfter} seconds before retrying.` : ''}`,
+                  { duration: 6000 }
+                );
+                // Keep dialog open for retry on API errors
+              } else {
+                // For other errors, show message and close dialog
+                toast.error(`❌ ${errorMessage}`);
+                // Close dialog on non-retryable errors to prevent resubmission
+                setClarificationDialog(null);
+              }
             }
           }}
           onCancel={() => {

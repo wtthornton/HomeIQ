@@ -48,7 +48,30 @@ fi
 # PYTHON LINTING
 # ============================================
 
-echo -e "${GREEN}[2/6] Running Python Linting (Pylint)...${NC}\n"
+echo -e "${GREEN}[2/7] Running Python Linting (Ruff - Fast)...${NC}\n"
+
+# Ruff (fast, modern linter)
+if command -v ruff &> /dev/null; then
+    echo "Running Ruff linting..."
+    ruff check services/ --output-format=json > reports/quality/ruff-report.json 2>/dev/null || true
+    ruff check services/ > reports/quality/ruff-report.txt 2>&1 || true
+    
+    # Count issues
+    RUFF_ERRORS=$(grep -c '"code":' reports/quality/ruff-report.json 2>/dev/null || echo "0")
+    if [ "$RUFF_ERRORS" -gt 0 ]; then
+        echo -e "${YELLOW}  Found $RUFF_ERRORS linting issues${NC}"
+    else
+        echo -e "${GREEN}  ✓ No linting issues found${NC}"
+    fi
+    
+    echo "Ruff report saved to reports/quality/ruff-report.txt"
+    echo -e "${GREEN}✓ Ruff linting complete${NC}\n"
+else
+    echo -e "${YELLOW}⚠ Ruff not installed. Run: pip install ruff${NC}\n"
+fi
+
+# Pylint (backup/legacy, slower)
+echo -e "${GREEN}[2b/7] Running Python Linting (Pylint - Legacy)...${NC}\n"
 
 if command -v pylint &> /dev/null; then
     # Run pylint on key services (limit output)
@@ -57,16 +80,40 @@ if command -v pylint &> /dev/null; then
     
     # Show summary
     echo "Pylint scores saved to reports/quality/pylint-*.txt"
-    echo -e "${GREEN}✓ Linting complete${NC}\n"
+    echo -e "${GREEN}✓ Pylint linting complete${NC}\n"
 else
-    echo -e "${YELLOW}⚠ Pylint not installed. Run: pip install -r requirements-quality.txt${NC}\n"
+    echo -e "${YELLOW}⚠ Pylint not installed (optional). Run: pip install -r requirements-quality.txt${NC}\n"
+fi
+
+# ============================================
+# PYTHON TYPE CHECKING
+# ============================================
+
+echo -e "${GREEN}[2c/7] Running Python Type Checking (mypy)...${NC}\n"
+
+if command -v mypy &> /dev/null; then
+    echo "Running mypy type checking..."
+    mypy services/ --show-error-codes > reports/quality/mypy-report.txt 2>&1 || true
+    
+    # Count type errors
+    MYPY_ERRORS=$(grep -c "error:" reports/quality/mypy-report.txt 2>/dev/null || echo "0")
+    if [ "$MYPY_ERRORS" -gt 0 ]; then
+        echo -e "${YELLOW}  Found $MYPY_ERRORS type errors${NC}"
+    else
+        echo -e "${GREEN}  ✓ No type errors found${NC}"
+    fi
+    
+    echo "mypy report saved to reports/quality/mypy-report.txt"
+    echo -e "${GREEN}✓ Type checking complete${NC}\n"
+else
+    echo -e "${YELLOW}⚠ mypy not installed (optional). Run: pip install mypy${NC}\n"
 fi
 
 # ============================================
 # TYPESCRIPT ANALYSIS
 # ============================================
 
-echo -e "${GREEN}[3/6] Analyzing TypeScript Code...${NC}\n"
+echo -e "${GREEN}[3/7] Analyzing TypeScript Code...${NC}\n"
 
 cd services/health-dashboard
 
@@ -87,7 +134,7 @@ echo -e "${GREEN}✓ TypeScript analysis complete${NC}\n"
 # CODE DUPLICATION DETECTION
 # ============================================
 
-echo -e "${GREEN}[4/6] Detecting Code Duplication...${NC}\n"
+echo -e "${GREEN}[4/7] Detecting Code Duplication...${NC}\n"
 
 if command -v jscpd &> /dev/null; then
     echo "Analyzing Python services..."
@@ -108,7 +155,7 @@ fi
 # DEPENDENCY ANALYSIS
 # ============================================
 
-echo -e "${GREEN}[5/6] Analyzing Dependencies...${NC}\n"
+echo -e "${GREEN}[5/7] Analyzing Dependencies...${NC}\n"
 
 # Python dependencies
 if command -v pipdeptree &> /dev/null; then
@@ -130,7 +177,7 @@ echo ""
 # GENERATE SUMMARY REPORT
 # ============================================
 
-echo -e "${GREEN}[6/6] Generating Summary Report...${NC}\n"
+echo -e "${GREEN}[6/7] Generating Summary Report...${NC}\n"
 
 cat > reports/quality/SUMMARY.md << 'EOF'
 # Code Quality Analysis Summary
@@ -214,7 +261,9 @@ Reports in `../duplication/` directory.
 ## Tools Used
 
 - **radon**: Complexity and maintainability
-- **pylint**: Python linting
+- **ruff**: Fast Python linting (10-100x faster than pylint)
+- **mypy**: Python type checking
+- **pylint**: Python linting (legacy/backup)
 - **ESLint**: TypeScript linting
 - **jscpd**: Duplication detection
 - **TypeScript**: Type checking

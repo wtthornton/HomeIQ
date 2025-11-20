@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Multi-Model Entity Extraction
     entity_extraction_method: str = "multi_model"  # multi_model, enhanced, pattern
     ner_model: str = "dslim/bert-base-NER"  # Hugging Face NER model
-    openai_model: str = "gpt-5.1"  # OpenAI model for complex queries (GPT-5.1 - latest and best)
+    openai_model: str = "gpt-5.1"  # OpenAI model for complex queries (GPT-5.1 - 50% cost savings vs GPT-4o)
     ner_confidence_threshold: float = 0.8  # Minimum confidence for NER results
     enable_entity_caching: bool = True  # Enable LRU cache for NER
     max_cache_size: int = 1000  # Maximum cache size
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     
     # Natural Language Generation (AI1.21)
     nl_generation_enabled: bool = True
-    nl_model: str = "gpt-5.1"  # OpenAI model for NL generation (GPT-5.1 - latest and best)
+    nl_model: str = "gpt-5.1"  # OpenAI model for NL generation (GPT-5.1 - 50% cost savings vs GPT-4o)
     nl_max_tokens: int = 1500
     nl_temperature: float = 0.3  # Lower = more consistent
     
@@ -122,14 +122,13 @@ class Settings(BaseSettings):
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
     
-    # Model Selection Configuration (Optimized for Cost/Quality Balance)
-    # GPT-5.1: Best for creative tasks requiring high quality ($1.25/$10 per 1M tokens)
-    # GPT-5 Mini: Best for standard tasks with 80% cost savings ($0.25/$2 per 1M tokens)
-    # GPT-5 Nano: Best for simple tasks with 96% cost savings ($0.05/$0.40 per 1M tokens)
-    suggestion_generation_model: str = "gpt-5.1"  # Creative suggestions need highest quality
-    yaml_generation_model: str = "gpt-5-mini"  # YAML is templated, Mini is sufficient (80% savings)
-    classification_model: str = "gpt-5-nano"  # Classification is simple, Nano is sufficient (96% savings)
-    entity_extraction_model: str = "gpt-5-mini"  # Entity extraction benefits from Mini's balance
+    # Model Selection Configuration (Optimized for Cost/Quality Balance - 2025)
+    # GPT-5.1: Best quality with 50% cost savings vs GPT-4o
+    # Using GPT-5.1 for all tasks (not mini) as per user request for consistent quality
+    suggestion_generation_model: str = "gpt-5.1"  # Best quality suggestions with 50% cost savings
+    yaml_generation_model: str = "gpt-5.1"  # Best quality YAML generation (50% cheaper than GPT-4o)
+    classification_model: str = "gpt-5.1"  # Best quality classification
+    entity_extraction_model: str = "gpt-5.1"  # Best quality entity extraction
     
     # Token Budget Configuration (Phase 2)
     max_entity_context_tokens: int = 10_000  # Limit entity context size to reduce input tokens
@@ -147,6 +146,22 @@ class Settings(BaseSettings):
     soft_prompt_enabled: bool = True
     soft_prompt_model_dir: str = "data/ask_ai_soft_prompt"
     soft_prompt_confidence_threshold: float = 0.85
+
+    # Clarification Confidence Settings
+    clarification_calibration_enabled: bool = True
+    """Enable calibration for clarification confidence scores."""
+    
+    clarification_calibration_min_samples: int = 10
+    """Minimum number of samples required for calibration training."""
+    
+    clarification_calibration_retrain_interval_days: int = 7
+    """Interval in days for periodic calibration model retraining."""
+    
+    adaptive_threshold_enabled: bool = True
+    """Enable adaptive confidence thresholds based on query complexity."""
+    
+    default_risk_tolerance: str = "medium"
+    """Default user risk tolerance for adaptive thresholds: 'high', 'medium', or 'low'."""
 
     # Guardrails
     guardrail_enabled: bool = True

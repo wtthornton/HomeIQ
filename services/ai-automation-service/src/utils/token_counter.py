@@ -1,7 +1,7 @@
 """
 Token Counting Utility for OpenAI Models
 
-Provides accurate token counting using tiktoken for GPT-5 models.
+Provides accurate token counting using tiktoken for GPT-4o models.
 """
 
 import tiktoken
@@ -16,21 +16,21 @@ def get_encoding(model: str) -> tiktoken.Encoding:
     Get tiktoken encoding for a given model.
     
     Args:
-        model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+        model: Model name (gpt-4o, gpt-4o-mini)
     
     Returns:
         tiktoken.Encoding instance
     """
     model_lower = model.lower()
     
-    # GPT-5 models use cl100k_base encoding
+    # GPT-4o models use cl100k_base encoding
     # Map model names to encoding
-    if "gpt-5" in model_lower:
+    if "gpt-4" in model_lower or "gpt-3" in model_lower:
         try:
             # Try to get encoding for the specific model
             return tiktoken.encoding_for_model(model)
         except KeyError:
-            # Fallback to cl100k_base (used by GPT-4 and GPT-5)
+            # Fallback to cl100k_base (used by GPT-4 and GPT-3.5)
             logger.warning(f"Model {model} not found in tiktoken, using cl100k_base encoding")
             return tiktoken.get_encoding("cl100k_base")
     else:
@@ -38,13 +38,13 @@ def get_encoding(model: str) -> tiktoken.Encoding:
         return tiktoken.get_encoding("cl100k_base")
 
 
-def count_tokens(text: str, model: str = "gpt-5.1") -> int:
+def count_tokens(text: str, model: str = "gpt-4o") -> int:
     """
     Count tokens for a given text and model.
     
     Args:
         text: Text to count tokens for
-        model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+        model: Model name (gpt-4o, gpt-4o-mini)
     
     Returns:
         Number of tokens
@@ -56,13 +56,13 @@ def count_tokens(text: str, model: str = "gpt-5.1") -> int:
     return len(encoding.encode(text))
 
 
-def count_message_tokens(messages: List[Dict], model: str = "gpt-5.1") -> int:
+def count_message_tokens(messages: List[Dict], model: str = "gpt-4o") -> int:
     """
     Count tokens in OpenAI message format.
     
     Args:
         messages: List of message dicts with 'role' and 'content' keys
-        model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+        model: Model name (gpt-4o, gpt-4o-mini)
     
     Returns:
         Total number of tokens
@@ -84,13 +84,13 @@ def count_message_tokens(messages: List[Dict], model: str = "gpt-5.1") -> int:
     return num_tokens
 
 
-def get_token_breakdown(messages: List[Dict], model: str = "gpt-5.1") -> Dict:
+def get_token_breakdown(messages: List[Dict], model: str = "gpt-4o") -> Dict:
     """
     Break down token usage by component.
     
     Args:
         messages: List of message dicts with 'role' and 'content' keys
-        model: Model name (gpt-5.1, gpt-5-mini, gpt-5-nano)
+        model: Model name (gpt-4o, gpt-4o-mini)
     
     Returns:
         Dictionary with token breakdown by component

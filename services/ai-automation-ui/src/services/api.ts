@@ -3,7 +3,7 @@
  * Connects to ai-automation-service on port 8018
  */
 
-import type { Suggestion, Pattern, ScheduleInfo, AnalysisStatus, UsageStats, SynergyOpportunity } from '../types';
+import type { Suggestion, Pattern, ScheduleInfo, AnalysisStatus, UsageStats, SynergyOpportunity, ClarificationResponse, ClarificationAnswer } from '../types';
 
 // Use relative path - nginx will proxy to ai-automation-service
 // In production (Docker), nginx proxies /api to http://ai-automation-service:8018/api
@@ -13,9 +13,23 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
 
 export class APIError extends Error {
-  constructor(public status: number, message: string) {
+  public response?: {
+    data?: {
+      detail?: string | { error?: string; message?: string; retry_after?: number };
+    };
+  };
+  
+  constructor(public status: number, message: string, errorBody?: any) {
     super(message);
     this.name = 'APIError';
+    // Preserve error body structure for frontend error handling
+    if (errorBody) {
+      this.response = {
+        data: {
+          detail: errorBody.detail || errorBody
+        }
+      };
+    }
   }
 }
 
@@ -65,19 +79,25 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
     if (!response.ok) {
       // Try to parse error response body for better error messages
       let errorMessage = response.statusText;
+      let errorBody: any = null;
       try {
-        const errorBody = await response.json();
+        errorBody = await response.json();
         if (errorBody.detail) {
-          errorMessage = typeof errorBody.detail === 'string' 
-            ? errorBody.detail 
-            : JSON.stringify(errorBody.detail);
+          // Extract message from detail if it's an object
+          if (typeof errorBody.detail === 'object' && errorBody.detail.message) {
+            errorMessage = errorBody.detail.message;
+          } else if (typeof errorBody.detail === 'string') {
+            errorMessage = errorBody.detail;
+          } else {
+            errorMessage = JSON.stringify(errorBody.detail);
+          }
         } else if (errorBody.message) {
           errorMessage = errorBody.message;
         }
       } catch {
         // If JSON parsing fails, use statusText
       }
-      throw new APIError(response.status, errorMessage);
+      throw new APIError(response.status, errorMessage, errorBody);
     }
 
     return await response.json();
@@ -446,35 +466,35 @@ export const api = {
   },
 
   // Ask AI - Natural Language Query Interface
-  async clarifyAnswers(sessionId: string, answers: Array<{
-    question_id: string;
-    answer_text: string;
-    selected_entities?: string[];
-  }>): Promise<{
-    session_id: string;
-    confidence: number;
-    confidence_threshold: number;
-    clarification_complete: boolean;
-    message: string;
-    suggestions?: any[];
-    questions?: any[];
-    previous_confidence?: number;
-    confidence_delta?: number;
-    confidence_summary?: string;
-    enriched_prompt?: string;
-    questions_and_answers?: Array<{
-      question: string;
-      answer: string;
-      selected_entities?: string[];
-    }>;
-  }> {
-    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
-      method: 'POST',
-      body: JSON.stringify({
-        session_id: sessionId,
-        answers
-      }),
-    });
+  async clarifyAnswers(sessionId: string, answers: ClarificationAnswer[]): Promise<ClarificationResponse> {
+    // Create abort controller for timeout
+    // Frontend timeout: 180s (3 minutes) to allow for complex processing:
+    // - Entity extraction: 30s
+    // - Entity re-enrichment: 45s
+    // - Suggestion generation: 60s
+    // - RAG operations: variable
+    // Total can exceed 2 minutes for complex queries
+    const FRONTEND_TIMEOUT_MS = 180000; // 3 minutes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FRONTEND_TIMEOUT_MS);
+    
+    try {
+      return await fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: sessionId,
+          answers
+        }),
+        signal: controller.signal
+      });
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out after 3 minutes. The AI is processing a very complex request. Please try again with a simpler query or wait a moment.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   },
 
   async askAIQuery(query: string, options?: {
