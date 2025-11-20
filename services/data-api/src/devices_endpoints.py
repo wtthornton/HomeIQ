@@ -354,7 +354,7 @@ async def get_device_reliability(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device reliability metrics: {str(e)}"
-        )
+        ) from e
     finally:
         if client:
             try:
@@ -448,7 +448,7 @@ async def list_entities(
         )
     except Exception as e:
         logger.error(f"Error listing entities from SQLite: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve entities: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve entities: {str(e)}") from e
 
 
 @router.get("/api/entities/{entity_id}", response_model=EntityResponse)
@@ -490,7 +490,7 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error getting entity {entity_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve entity: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve entity: {str(e)}") from e
 
 
 # Relationship Query Endpoints
@@ -523,7 +523,7 @@ async def get_entities_by_device(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get entities by device: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/entities/{entity_id}/siblings")
@@ -556,7 +556,7 @@ async def get_sibling_entities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get sibling entities: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/entities/{entity_id}/device")
@@ -605,7 +605,7 @@ async def get_device_for_entity(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device for entity: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/entities/by-area/{area_id}")
@@ -636,7 +636,7 @@ async def get_entities_in_area(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get entities in area: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/entities/by-config-entry/{config_entry_id}")
@@ -667,7 +667,7 @@ async def get_entities_by_config_entry(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get entities by config entry: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/devices/{device_id}/hierarchy")
@@ -696,7 +696,7 @@ async def get_device_hierarchy(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device hierarchy: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/integrations/{platform}/performance")
@@ -898,7 +898,7 @@ async def get_integration_analytics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve integration analytics: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/integrations", response_model=IntegrationsListResponse)
@@ -954,7 +954,7 @@ async def list_integrations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve integrations: {str(e)}"
-        )
+        ) from e
 
 
 # Helper functions
@@ -1090,7 +1090,7 @@ async def bulk_upsert_devices(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk upsert devices: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/internal/entities/bulk_upsert")
@@ -1176,7 +1176,7 @@ async def bulk_upsert_entities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk upsert entities: {str(e)}"
-        )
+        ) from e
 
 
 @router.delete("/internal/devices/clear")
@@ -1214,4 +1214,4 @@ async def clear_all_devices(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clear devices and entities: {str(e)}"
-        )
+        ) from e
