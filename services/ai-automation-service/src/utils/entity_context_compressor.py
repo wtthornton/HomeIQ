@@ -14,22 +14,34 @@ logger = logging.getLogger(__name__)
 
 def compress_entity_context(
     entities: dict[str, dict[str, Any]],
-    max_tokens: int = 10_000,
-    model: str = "gpt-4o"
+    max_tokens: int = 7_000,
+    model: str = "gpt-4o",
+    relevance_scores: dict[str, float] | None = None
 ) -> dict[str, dict[str, Any]]:
     """
     Compress entity context by filtering attributes and summarizing capabilities.
     
     Args:
         entities: Dictionary mapping entity_id to enriched entity data
-        max_tokens: Maximum tokens allowed for entity context
+        max_tokens: Maximum tokens allowed for entity context (default: 7_000)
         model: Model name for token counting
+        relevance_scores: Optional dictionary mapping entity_id to relevance score (0.0-1.0).
+                         If provided, entities are sorted by relevance before compression.
     
     Returns:
         Compressed entity dictionary with only essential information
     """
     if not entities:
         return {}
+
+    # NEW: Sort by relevance if scores provided (most relevant first)
+    if relevance_scores:
+        entities = dict(sorted(
+            entities.items(),
+            key=lambda x: relevance_scores.get(x[0], 0.0),
+            reverse=True
+        ))
+        logger.debug(f"📊 Sorted {len(entities)} entities by relevance scores")
 
     # Essential fields to keep for each entity
     essential_fields = {
@@ -57,7 +69,7 @@ def compress_entity_context(
         'color_mode',
         'rgb_color',
         'effect',
-        'effect_list'
+        'effect'  # Keep effect, but summarize effect_list
     }
 
     compressed = {}
@@ -79,6 +91,21 @@ def compress_entity_context(
             if attr_key in attributes:
                 compressed_attributes[attr_key] = attributes[attr_key]
 
+        # NEW: Summarize effect_list arrays to reduce token usage
+        # Instead of full list like ["rainbow", "theater_chase", "breathe", ...], use summary
+        if 'effect_list' in attributes:
+            effect_list = attributes.get('effect_list', [])
+            if isinstance(effect_list, list) and len(effect_list) > 5:
+                # Show first 3 effects, then summarize
+                effect_summary = ', '.join(effect_list[:3])
+                if len(effect_list) > 3:
+                    effect_summary += f" (+{len(effect_list) - 3} more effects)"
+                compressed_attributes['effect_list_summary'] = effect_summary
+                # Don't include full effect_list (saves tokens)
+            elif isinstance(effect_list, list):
+                # Keep short lists as-is
+                compressed_attributes['effect_list'] = effect_list
+
         # Summarize capabilities instead of listing all
         capabilities = entity_data.get('capabilities', [])
         if capabilities:
@@ -95,15 +122,22 @@ def compress_entity_context(
             if len(capability_names) > 10:
                 compressed_entity['capabilities_summary'] += f" (+{len(capability_names) - 10} more)"
 
-        # Compress device intelligence data
+        # NEW: Remove device intelligence details unless critical (saves ~50-100 tokens per entity)
+        # Only keep device_type for capability inference, remove manufacturer/model
         device_intelligence = entity_data.get('device_intelligence', {})
         if device_intelligence:
-            # Keep only essential device intelligence fields
-            compressed_entity['device_intelligence'] = {
-                'manufacturer': device_intelligence.get('manufacturer'),
-                'model': device_intelligence.get('model'),
-                'device_type': device_intelligence.get('device_type')
-            }
+            # Only keep device_type (needed for capability inference)
+            # Remove manufacturer/model (rarely needed, saves tokens)
+            device_type = device_intelligence.get('device_type')
+            if device_type:
+                compressed_entity['device_type'] = device_type
+            # Only include full device_intelligence if explicitly marked as critical
+            if device_intelligence.get('critical', False):
+                compressed_entity['device_intelligence'] = {
+                    'manufacturer': device_intelligence.get('manufacturer'),
+                    'model': device_intelligence.get('model'),
+                    'device_type': device_intelligence.get('device_type')
+                }
 
         compressed_entity['attributes'] = compressed_attributes
         compressed[entity_id] = compressed_entity

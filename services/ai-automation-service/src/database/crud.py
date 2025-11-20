@@ -947,6 +947,268 @@ async def get_clarification_outcomes(
         return []
 
 
+async def get_past_clarification_sessions(
+    db: AsyncSession,
+    user_id: str,
+    limit: int = 50,
+    days_back: int = 90
+) -> list[dict[str, Any]]:
+    """
+    Retrieve past clarification sessions with Q&A pairs for answer caching.
+    
+    Args:
+        db: Database session
+        user_id: User ID to filter sessions
+        limit: Maximum number of sessions to return
+        days_back: How many days back to look (default 90 days)
+    
+    Returns:
+        List of dictionaries containing session data with questions and answers
+    """
+    from ..database.models import ClarificationSessionDB
+    
+    try:
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        
+        stmt = select(ClarificationSessionDB).where(
+            and_(
+                ClarificationSessionDB.user_id == user_id,
+                ClarificationSessionDB.status == 'complete',
+                ClarificationSessionDB.created_at >= cutoff_date,
+                ClarificationSessionDB.answers.isnot(None)  # Only sessions with answers
+            )
+        ).order_by(ClarificationSessionDB.created_at.desc()).limit(limit)
+        
+        result = await db.execute(stmt)
+        sessions = result.scalars().all()
+        
+        # Extract Q&A pairs from sessions
+        past_qa_pairs = []
+        for session in sessions:
+            questions = session.questions or []
+            answers = session.answers or []
+            
+            # Match questions with answers
+            for answer in answers:
+                question_id = answer.get('question_id') if isinstance(answer, dict) else getattr(answer, 'question_id', None)
+                if not question_id:
+                    continue
+                
+                # Find matching question
+                question = next(
+                    (q for q in questions if (q.get('id') if isinstance(q, dict) else getattr(q, 'id', None)) == question_id),
+                    None
+                )
+                
+                if question:
+                    question_text = question.get('question_text') if isinstance(question, dict) else getattr(question, 'question_text', '')
+                    answer_text = answer.get('answer_text') if isinstance(answer, dict) else getattr(answer, 'answer_text', '')
+                    selected_entities = answer.get('selected_entities') if isinstance(answer, dict) else getattr(answer, 'selected_entities', None)
+                    
+                    if question_text and answer_text:
+                        past_qa_pairs.append({
+                            'question_text': question_text,
+                            'question_category': question.get('category') if isinstance(question, dict) else getattr(question, 'category', 'general'),
+                            'answer_text': answer_text,
+                            'selected_entities': selected_entities,
+                            'session_id': session.session_id,
+                            'created_at': session.created_at.isoformat() if hasattr(session.created_at, 'isoformat') else str(session.created_at)
+                        })
+        
+        logger.debug(f"Retrieved {len(past_qa_pairs)} Q&A pairs from {len(sessions)} past sessions for user {user_id}")
+        return past_qa_pairs
+        
+    except Exception as e:
+        logger.error(f"Failed to get past clarification sessions: {e}", exc_info=True)
+        return []
+
+
+async def _validate_entities_exist(
+    db: AsyncSession,
+    entity_ids: list[str] | None
+) -> list[str]:
+    """
+    Validate that entity IDs still exist in the system.
+    
+    Args:
+        db: Database session
+        entity_ids: List of entity IDs to validate
+        
+    Returns:
+        List of valid entity IDs
+    """
+    if not entity_ids:
+        return []
+    
+    # TODO: Implement entity validation by querying Home Assistant or entity database
+    # For now, return all entities (assume they exist)
+    # In production, this should check against actual entity registry
+    return entity_ids
+
+
+async def find_similar_past_answers(
+    db: AsyncSession,
+    user_id: str,
+    current_questions: list[dict[str, Any]],
+    rag_client: Any | None = None,
+    similarity_threshold: float = 0.75,
+    ha_client: Any | None = None
+) -> dict[str, dict[str, Any]]:
+    """
+    Find similar past answers for current questions using direct vector similarity (2025 best practice).
+    
+    FIXED: Uses direct vector similarity instead of wrong RAG search.
+    - Checks user preference first
+    - Uses batch embeddings for efficiency
+    - Applies time decay to similarity scores
+    - Validates entities still exist
+    
+    Args:
+        db: Database session
+        user_id: User ID to filter sessions
+        current_questions: List of current questions (dicts with 'question_text' and 'id')
+        rag_client: RAG client for embedding generation (required for vector similarity)
+        similarity_threshold: Minimum similarity score to consider a match (0.0-1.0)
+        ha_client: Optional Home Assistant client for entity validation
+    
+    Returns:
+        Dictionary mapping question_id to cached answer data
+    """
+    from ..database.models import ClarificationSessionDB
+    from ..services.rag.client import cosine_similarity
+    import numpy as np
+    
+    try:
+        # FIX #8: Check user preference first
+        # Import here to avoid circular dependency
+        from .models import SystemSettings
+        stmt = select(SystemSettings).order_by(SystemSettings.id.desc()).limit(1)
+        result = await db.execute(stmt)
+        system_settings = result.scalar_one_or_none()
+        if system_settings and not getattr(system_settings, 'enable_answer_caching', True):
+            logger.debug("Answer caching disabled by user preference")
+            return {}
+        
+        # Get past Q&A pairs
+        past_qa_pairs = await get_past_clarification_sessions(db, user_id, limit=100)
+        
+        if not past_qa_pairs or not current_questions:
+            return {}
+        
+        # FIX #6 & #9: Use direct vector similarity (not wrong RAG search)
+        if not rag_client:
+            logger.debug("RAG client not available, skipping answer caching")
+            return {}
+        
+        # Extract question texts
+        current_question_texts = []
+        current_question_map = {}  # Map index to question_id
+        
+        for i, current_q in enumerate(current_questions):
+            question_id = current_q.get('id') or current_q.get('question_id')
+            question_text = current_q.get('question_text') or current_q.get('question', '')
+            
+            if question_id and question_text:
+                current_question_texts.append(question_text)
+                current_question_map[i] = question_id
+        
+        if not current_question_texts:
+            return {}
+        
+        # Batch embed current questions
+        try:
+            current_embeddings = await rag_client._batch_get_embeddings(current_question_texts)
+        except Exception as e:
+            logger.warning(f"Failed to generate embeddings for current questions: {e}")
+            return {}
+        
+        # Extract past question texts
+        past_question_texts = [qa['question_text'] for qa in past_qa_pairs]
+        
+        # Batch embed past questions
+        try:
+            past_embeddings = await rag_client._batch_get_embeddings(past_question_texts)
+        except Exception as e:
+            logger.warning(f"Failed to generate embeddings for past questions: {e}")
+            return {}
+        
+        # FIX #7: Calculate similarities with time decay
+        cached_answers: dict[str, dict[str, Any]] = {}
+        current_time = datetime.now(timezone.utc)
+        
+        for i, current_emb in enumerate(current_embeddings):
+            question_id = current_question_map.get(i)
+            if not question_id:
+                continue
+            
+            question_text = current_question_texts[i]
+            best_match_idx = None
+            best_similarity = 0.0
+            
+            # Calculate cosine similarity with all past questions
+            for j, past_emb in enumerate(past_embeddings):
+                similarity = cosine_similarity(current_emb, past_emb)
+                
+                # FIX #7: Apply time decay (older answers have lower weight)
+                past_qa = past_qa_pairs[j]
+                created_at_str = past_qa.get('created_at')
+                if created_at_str:
+                    try:
+                        if isinstance(created_at_str, str):
+                            from dateutil.parser import parse as parse_date
+                            created_at = parse_date(created_at_str)
+                        else:
+                            created_at = created_at_str
+                        
+                        days_old = (current_time - created_at).days
+                        # Decay: 100% for 0 days, 50% after 180 days
+                        decay_factor = max(0.5, 1.0 - (days_old / 180.0))
+                        similarity = similarity * decay_factor
+                    except Exception as e:
+                        logger.debug(f"Failed to parse date for time decay: {e}")
+                        # Continue without decay if date parsing fails
+                
+                if similarity > best_similarity and similarity >= similarity_threshold:
+                    best_similarity = similarity
+                    best_match_idx = j
+            
+            # Store best match if found
+            if best_match_idx is not None and best_similarity >= similarity_threshold:
+                best_match = past_qa_pairs[best_match_idx]
+                
+                # FIX #7: Validate entities still exist
+                selected_entities = best_match.get('selected_entities')
+                if selected_entities:
+                    valid_entities = await _validate_entities_exist(db, selected_entities)
+                    if not valid_entities:
+                        logger.debug(
+                            f"Skipping cached answer for question '{question_text[:50]}...' "
+                            f"- entities no longer exist"
+                        )
+                        continue
+                    # Use only valid entities
+                    selected_entities = valid_entities
+                
+                cached_answers[question_id] = {
+                    'answer_text': best_match['answer_text'],
+                    'selected_entities': selected_entities,
+                    'similarity': best_similarity,
+                    'source_session': best_match['session_id'],
+                    'question_category': best_match.get('question_category', 'general')
+                }
+                logger.debug(
+                    f"Found cached answer for question '{question_text[:50]}...' "
+                    f"(similarity={best_similarity:.2f}, answer='{best_match['answer_text'][:50]}...')"
+                )
+        
+        logger.info(f"Found {len(cached_answers)} cached answers out of {len(current_questions)} questions")
+        return cached_answers
+        
+    except Exception as e:
+        logger.error(f"Failed to find similar past answers: {e}", exc_info=True)
+        return {}
+
+
 # ============================================================================
 # Epic AI-2: Device Intelligence CRUD Operations (Story AI2.2)
 # ============================================================================

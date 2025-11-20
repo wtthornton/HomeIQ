@@ -66,6 +66,7 @@ def get_system_settings_defaults() -> dict:
             "suggestion": ["gpt-5.1"],
             "yaml": ["gpt-5.1"]
         },
+        "enable_answer_caching": True,  # NEW: Enable answer caching by default
     }
 
 
@@ -127,6 +128,7 @@ class SystemSettings(Base):
         "suggestion": ["gpt-5.1"],
         "yaml": ["gpt-5.1"]
     })
+    enable_answer_caching = Column(Boolean, nullable=False, default=True)  # NEW: Enable/disable answer caching
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

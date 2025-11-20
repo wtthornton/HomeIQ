@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     entity_extraction_model: str = "gpt-5.1"  # Best quality entity extraction
 
     # Token Budget Configuration (Phase 2)
-    max_entity_context_tokens: int = 10_000  # Limit entity context size to reduce input tokens
+    max_entity_context_tokens: int = 7_000  # Limit entity context size to reduce input tokens (reduced from 10_000 for optimization)
     max_enrichment_context_tokens: int = 2_000  # Limit enrichment data (weather, carbon, etc.)
     max_conversation_history_tokens: int = 1_000  # Limit conversation history size
     enable_token_counting: bool = True  # Enable token counting before API calls

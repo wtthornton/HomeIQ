@@ -2346,32 +2346,50 @@ export const AskAI: React.FC = () => {
             } catch (error: any) {
               console.error('❌ Clarification error:', error);
               
+              // Check for network timeout (504) or abort error
+              const isTimeout = error.response?.status === 504 || 
+                               error.name === 'AbortError' ||
+                               error.message?.includes('timeout') ||
+                               error.message?.includes('timed out');
+              
               // Parse error details from API response
               const errorDetail = error.response?.data?.detail;
-              const errorMessage = errorDetail?.message || 
-                                  (typeof errorDetail === 'string' ? errorDetail : null) ||
-                                  error.message || 
-                                  'Failed to submit clarification';
+              let errorMessage: string;
+              let errorType: string;
+              let retryAfter: number | undefined;
               
-              const errorType = errorDetail?.error || 'unknown';
-              const retryAfter = errorDetail?.retry_after;
+              if (errorDetail) {
+                // Handle both string and object error details
+                if (typeof errorDetail === 'string') {
+                  errorMessage = errorDetail;
+                  errorType = isTimeout ? 'timeout' : 'unknown';
+                } else {
+                  errorMessage = errorDetail.message || 'Failed to submit clarification';
+                  errorType = errorDetail.error || (isTimeout ? 'timeout' : 'unknown');
+                  retryAfter = errorDetail.retry_after;
+                }
+              } else {
+                // Fallback to error message
+                errorMessage = error.message || 'Failed to submit clarification';
+                errorType = isTimeout ? 'timeout' : 'unknown';
+              }
               
               // Show appropriate error message based on error type
-              if (errorType === 'timeout') {
+              if (errorType === 'timeout' || isTimeout) {
                 toast.error(
-                  `⏱️ ${errorMessage}\n\nThe request is taking longer than expected. Please try again.`,
-                  { duration: 8000 }
+                  `⏱️ ${errorMessage}\n\nThe request is taking longer than expected. This may be due to a complex query or high system load. Please try again with a simpler request or wait a moment.`,
+                  { duration: 10000 }
                 );
                 // Keep dialog open for retry on timeout
               } else if (errorType === 'api_error') {
                 toast.error(
                   `🔌 ${errorMessage}${retryAfter ? `\n\nPlease wait ${retryAfter} seconds before retrying.` : ''}`,
-                  { duration: 6000 }
+                  { duration: 8000 }
                 );
                 // Keep dialog open for retry on API errors
               } else {
                 // For other errors, show message and close dialog
-                toast.error(`❌ ${errorMessage}`);
+                toast.error(`❌ ${errorMessage}`, { duration: 6000 });
                 // Close dialog on non-retryable errors to prevent resubmission
                 setClarificationDialog(null);
               }
