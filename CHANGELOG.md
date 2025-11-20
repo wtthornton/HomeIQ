@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (c796c8d) - wtthornton
+- **Implement confidence algorithm improvements (Phase 1 & 2)** (d0cd84d) - wtthornton
+- **Add AI Model Comparison feature with side-by-side metrics and recommendations** (9bf590c) - wtthornton
+- **Implement quality-focused improvements for pattern and synergy detection** (39129fa) - wtthornton
+- **Implement shared base classes and observability infrastructure** (5a80b2d) - wtthornton
+- **Add approval success indicators with particle celebration and deployed badge** (463237a) - wtthornton
+- **Implement Action Execution Engine and major system improvements** (f6fd9a7) - wtthornton
+- **Complete HA Conversation v2 API implementation** (e462b6c) - wtthornton
+- **Implement persistent clarification session storage (AI1.26)** (83967c9) - wtthornton
+- **Fix clarification flow and standardize HA token configuration** (6bf1312) - wtthornton
+- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (45cb1c1) - wtthornton
+- **Add cache expiration and staleness detection across services** (9b1fda6) - wtthornton
+
+### Changed
+
+- **Update AskAI UI components** (349230a) - wtthornton
+
+### Fixed
+
+- **Fix critical log issues and update documentation (November 2025)** (b62e615) - wtthornton
+- **Fix game timeline display: add missing API method and period breakdown** (d0ed6cf) - wtthornton
+- **Fix weather-dev service: network connectivity and health check port** (d6f0b5f) - wtthornton
+- **Fix healthcheck port and import path in ai-automation-service** (f8b6dbc) - wtthornton
+- **Fix quality metrics endpoint and adjust analysis lookback period** (170d50b) - wtthornton
+- **Fix event details loading stuck issue** (4a085d6) - wtthornton
+- **Ensure unique automation IDs to prevent duplicate updates** (6ec6471) - wtthornton
+- **Fix entities endpoint database schema issue and update documentation** (10d8837) - wtthornton
+- **Fix dashboard API routing, RAG status calculation, and error handling** (31541fd) - wtthornton
+- **Fix Weather API InfluxDB connection and WebSocket ingestion issues** (c2f4c86) - wtthornton
+- **Fix websocket ingestion, dashboard, and AI automation improvements** (f1c20b4) - wtthornton
+- **Fix device discovery trigger endpoint websocket access bug** (917a1f8) - wtthornton
+
+
+### Added
+
 - **Implement confidence algorithm improvements (Phase 1 & 2)** (d0cd84d) - wtthornton
 - **Add AI Model Comparison feature with side-by-side metrics and recommendations** (9bf590c) - wtthornton
 - **Implement quality-focused improvements for pattern and synergy detection** (39129fa) - wtthornton
