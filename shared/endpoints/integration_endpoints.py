@@ -71,7 +71,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.get("/integrations/{service}/config", tags=["Integrations"])
     def get_integration_config(service: str):
@@ -86,17 +86,17 @@ def create_integration_router(config_manager: Any) -> APIRouter:
                 "settings": safe_config,
                 "template": template
             }
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Configuration not found for service: {service}"
-            )
+            ) from e
         except Exception as e:
             logger.error(f"Error reading config for {service}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.put("/integrations/{service}/config", tags=["Integrations"])
     def update_integration_config(service: str, update: ConfigUpdateRequest):
@@ -128,16 +128,16 @@ def create_integration_router(config_manager: Any) -> APIRouter:
                 "warnings": validation["warnings"]
             }
         
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Configuration not found for service: {service}"
-            )
+            ) from e
         except PermissionError as exc:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(exc),
-            )
+            ) from exc
         except HTTPException:
             raise
         except Exception as e:
@@ -145,7 +145,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.post("/integrations/{service}/validate", tags=["Integrations"])
     def validate_integration_config(service: str, config: ConfigUpdateRequest):
@@ -158,7 +158,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     # Service Control Endpoints
 
@@ -180,7 +180,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.get("/services/{service}/status", tags=["Services"])
     def get_service_status(service: str):
@@ -193,7 +193,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.post("/services/{service}/restart", tags=["Services"])
     def restart_service(service: str):
@@ -215,7 +215,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.post("/services/{service}/stop", tags=["Services"])
     def stop_service(service: str):
@@ -237,7 +237,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.post("/services/{service}/start", tags=["Services"])
     def start_service(service: str):
@@ -259,7 +259,7 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     @router.post("/services/restart-all", tags=["Services"])
     def restart_all_services():
@@ -281,6 +281,6 @@ def create_integration_router(config_manager: Any) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
-            )
+            ) from e
 
     return router
