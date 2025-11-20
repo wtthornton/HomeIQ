@@ -10,22 +10,21 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from .alerting_service import AlertingService, AlertRule, AlertSeverity
 from .auth import AuthManager
 from .logging_service import LoggingService
 from .metrics_service import MetricsService
-from .alerting_service import AlertingService, AlertRule, AlertSeverity
-
 
 logging_service = LoggingService()
 metrics_service = MetricsService()
 alerting_service = AlertingService()
 
 
-def _success(data: Dict[str, Any], message: str = "OK") -> Dict[str, Any]:
+def _success(data: dict[str, Any], message: str = "OK") -> dict[str, Any]:
     return {"success": True, "message": message, "data": data}
 
 
@@ -41,10 +40,10 @@ class MonitoringEndpoints:
         @router.get("/logs")
         async def get_logs(
             limit: int = Query(default=100, ge=1, le=1000),
-            level: Optional[str] = None,
-            service: Optional[str] = None,
-            component: Optional[str] = None,
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            level: str | None = None,
+            service: str | None = None,
+            component: str | None = None,
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             logs = logging_service.get_recent_logs(
                 limit=limit,
@@ -56,14 +55,14 @@ class MonitoringEndpoints:
 
         @router.get("/logs/statistics")
         async def get_log_statistics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             stats = logging_service.get_log_statistics()
             return _success(stats, "Log statistics retrieved successfully")
 
         @router.post("/logs/compress")
         async def compress_logs(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             compressed = logging_service.compress_old_logs()
             return _success(
@@ -74,7 +73,7 @@ class MonitoringEndpoints:
         @router.delete("/logs/cleanup")
         async def cleanup_old_logs(
             days_to_keep: int = Query(default=30, ge=1, le=365),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             deleted = logging_service.cleanup_old_compressed_logs(days_to_keep)
             return _success(
@@ -84,21 +83,21 @@ class MonitoringEndpoints:
 
         @router.get("/metrics")
         async def get_metrics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             metrics = metrics_service.get_metrics()
             return _success({"metrics": metrics}, "Metrics retrieved successfully")
 
         @router.get("/metrics/current")
         async def get_current_metrics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             current_metrics = metrics_service.get_current_metrics()
             return _success(current_metrics, "Current metrics retrieved successfully")
 
         @router.get("/metrics/summary")
         async def get_metrics_summary(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             summary = metrics_service.get_metrics_summary()
             return _success(summary, "Metrics summary retrieved successfully")
@@ -106,21 +105,21 @@ class MonitoringEndpoints:
         @router.get("/alerts")
         async def get_alerts(
             limit: int = Query(default=50, ge=1, le=500),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             alerts = alerting_service.get_alert_manager().get_alert_history(limit=limit)
             return _success({"alerts": [alert.to_dict() for alert in alerts]}, "Alerts retrieved successfully")
 
         @router.get("/alerts/active")
         async def get_active_alerts(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             alerts = alerting_service.get_active_alerts()
             return _success({"alerts": [alert.to_dict() for alert in alerts]}, "Active alerts retrieved successfully")
 
         @router.get("/alerts/statistics")
         async def get_alert_statistics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             stats = alerting_service.get_alert_manager().get_alert_statistics()
             return _success(stats, "Alert statistics retrieved successfully")
@@ -128,7 +127,7 @@ class MonitoringEndpoints:
         @router.post("/alerts/{alert_id}/acknowledge")
         async def acknowledge_alert(
             alert_id: str,
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             success = alerting_service.get_alert_manager().acknowledge_alert(alert_id, current_user.get("user_id"))
             if not success:
@@ -138,7 +137,7 @@ class MonitoringEndpoints:
         @router.post("/alerts/{alert_id}/resolve")
         async def resolve_alert(
             alert_id: str,
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             success = alerting_service.get_alert_manager().resolve_alert(alert_id, current_user.get("user_id"))
             if not success:
@@ -147,7 +146,7 @@ class MonitoringEndpoints:
 
         @router.get("/dashboard/overview")
         async def get_dashboard_overview(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             overview = {
                 "current_metrics": metrics_service.get_current_metrics(),
@@ -166,7 +165,7 @@ class MonitoringEndpoints:
 
         @router.get("/dashboard/health")
         async def get_dashboard_health(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             active_alerts = alerting_service.get_active_alerts()
             critical_alerts = [alert for alert in active_alerts if alert.severity == AlertSeverity.CRITICAL]
@@ -184,7 +183,7 @@ class MonitoringEndpoints:
 
         @router.get("/config/alert-rules")
         async def get_alert_rules(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             rules = alerting_service.get_alert_manager().get_all_rules()
             if rules is None:
@@ -193,8 +192,8 @@ class MonitoringEndpoints:
 
         @router.post("/config/alert-rules")
         async def create_alert_rule(
-            payload: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            payload: dict[str, Any],
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             rule = AlertRule(
                 name=payload["name"],
@@ -213,8 +212,8 @@ class MonitoringEndpoints:
         @router.put("/config/alert-rules/{rule_name}")
         async def update_alert_rule(
             rule_name: str,
-            payload: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            payload: dict[str, Any],
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             updated_rule = AlertRule(
                 name=rule_name,
@@ -233,15 +232,15 @@ class MonitoringEndpoints:
         @router.delete("/config/alert-rules/{rule_name}")
         async def delete_alert_rule(
             rule_name: str,
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             alerting_service.get_alert_manager().remove_rule(rule_name)
             return _success({}, f"Alert rule '{rule_name}' deleted successfully")
 
         @router.post("/config/notification-channels")
         async def create_notification_channel(
-            payload: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            payload: dict[str, Any],
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             alerting_service.add_notification_channel(payload["name"], payload["type"], payload.get("config", {}))
             return _success({}, f"Notification channel '{payload['name']}' created successfully")
@@ -250,7 +249,7 @@ class MonitoringEndpoints:
         async def export_logs(
             format: str = Query(default="json", pattern="^(json|csv)$"),
             limit: int = Query(default=100, ge=1, le=1000),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             logs = logging_service.get_recent_logs(limit=limit)
             if format == "csv":
@@ -265,7 +264,7 @@ class MonitoringEndpoints:
         @router.get("/export/metrics")
         async def export_metrics(
             format: str = Query(default="json", pattern="^(json)$"),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             metrics = metrics_service.get_metrics()
             return _success({"format": format, "metrics": metrics}, "Metrics exported")
@@ -274,7 +273,7 @@ class MonitoringEndpoints:
         async def export_alerts(
             format: str = Query(default="json", pattern="^(json)$"),
             limit: int = Query(default=100, ge=1, le=1000),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user),
+            current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
             alerts = alerting_service.get_alert_manager().get_alert_history(limit=limit)
             return _success({"format": format, "alerts": [alert.to_dict() for alert in alerts]}, "Alerts exported")

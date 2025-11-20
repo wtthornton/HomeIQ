@@ -3,10 +3,10 @@ MCP tool endpoints for Data API.
 These endpoints are called by code executed in the ai-code-executor sandbox.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class QueryDeviceHistoryRequest(BaseModel):
     entity_id: str
     start_time: str
     end_time: str
-    fields: Optional[List[str]] = None
+    fields: list[str] | None = None
 
 
 @router.post("/query_device_history")
@@ -111,8 +111,8 @@ async def get_devices():
 
 @router.post("/search_events")
 async def search_events(
-    entity_id: Optional[str] = None,
-    event_type: Optional[str] = None,
+    entity_id: str | None = None,
+    event_type: str | None = None,
     start_time: str = "-24h",
     end_time: str = "now",
     limit: int = 100

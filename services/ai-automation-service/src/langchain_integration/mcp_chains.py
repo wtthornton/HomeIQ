@@ -3,16 +3,17 @@ LangChain LCEL chains for MCP code execution pattern.
 Replaces direct OpenAI calls with LangChain chains for better orchestration.
 """
 
-from langchain_openai import ChatOpenAI
+import json
+import logging
+import re
+from typing import Any
+
+import httpx
+from langchain.callbacks import get_openai_callback
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema import StrOutputParser
 from langchain.schema.runnable import RunnableLambda
-from langchain.callbacks import get_openai_callback
-import httpx
-import logging
-from typing import Dict, Any
-import json
-import re
+from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ Generate the Home Assistant automation YAML:""")
         # No code block, return as-is
         return text.strip()
 
-    async def _execute_code(self, code: str) -> Dict[str, Any]:
+    async def _execute_code(self, code: str) -> dict[str, Any]:
         """Execute code in sandbox"""
         logger.info(f"Executing code ({len(code)} chars)")
 
@@ -154,8 +155,8 @@ Generate the Home Assistant automation YAML:""")
     async def generate_automation(
         self,
         description: str,
-        context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate automation using LangChain + MCP code execution.
 

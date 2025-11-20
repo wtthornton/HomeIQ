@@ -4,8 +4,8 @@ Simple RAG Statistics Query - Direct SQLite Access
 
 import sqlite3
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Fix Windows encoding
 if sys.platform == 'win32':
@@ -87,23 +87,23 @@ print("="*70)
 
 print(f"\n📊 Total Entries: {total}")
 
-print(f"\n📚 Entries by Type:")
+print("\n📚 Entries by Type:")
 for row in type_counts:
     percentage = (row['count'] / total) * 100
     print(f"   - {row['knowledge_type']:20s}: {row['count']:4d} ({percentage:5.1f}%)")
 
-print(f"\n📈 Success Score:")
+print("\n📈 Success Score:")
 print(f"   - Average: {avg_score:.3f}")
 
 if most_recent:
-    print(f"\n🕐 Most Recent Update:")
+    print("\n🕐 Most Recent Update:")
     print(f"   - Date: {most_recent['updated_at']}")
     print(f"   - Type: {most_recent['knowledge_type']}")
     print(f"   - Text: {most_recent['text'][:80]}...")
     print(f"   - Success Score: {most_recent['success_score']:.3f}")
 
 if oldest:
-    print(f"\n📅 Oldest Entry:")
+    print("\n📅 Oldest Entry:")
     print(f"   - Date: {oldest['created_at']}")
     print(f"   - Type: {oldest['knowledge_type']}")
     print(f"   - Text: {oldest['text'][:80]}...")
@@ -115,12 +115,12 @@ if oldest and most_recent:
         oldest_date = datetime.fromisoformat(oldest['created_at'].replace('Z', '+00:00'))
         recent_date = datetime.fromisoformat(most_recent['updated_at'].replace('Z', '+00:00'))
         age_days = (recent_date - oldest_date).days
-        print(f"\n⏱️  Knowledge Base Age:")
+        print("\n⏱️  Knowledge Base Age:")
         print(f"   - {age_days} days between oldest and most recent")
     except:
         pass
 
-print(f"\n📝 Recent Entries (Last 5):")
+print("\n📝 Recent Entries (Last 5):")
 for i, entry in enumerate(recent_entries, 1):
     print(f"   {i}. [{entry['knowledge_type']}] {entry['updated_at']}")
     print(f"      {entry['text_preview']}...")

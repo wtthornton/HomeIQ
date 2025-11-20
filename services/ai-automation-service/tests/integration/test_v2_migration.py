@@ -7,13 +7,10 @@ Tests:
 - Data integrity after migration
 """
 
-import pytest
-import asyncio
 import json
-import os
-import sqlite3
 from pathlib import Path
-from typing import Dict, Any, List
+
+import pytest
 
 
 @pytest.mark.integration
@@ -107,11 +104,11 @@ class TestV2DataIntegrity:
         """Test that v2 models can be imported"""
         try:
             from src.database.models_v2 import (
+                AutomationSuggestionV2,
+                ConfidenceFactor,
                 Conversation,
                 ConversationTurn,
-                ConfidenceFactor,
                 FunctionCall,
-                AutomationSuggestionV2,
             )
             assert True
         except ImportError as e:

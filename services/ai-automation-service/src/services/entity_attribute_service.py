@@ -7,8 +7,8 @@ with complete attribute information for OpenAI context and entity resolution.
 
 import logging
 import time
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,34 +16,34 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EnrichedEntity:
     """Enriched entity structure with attributes and metadata."""
-    
+
     # Core identification
     entity_id: str
     domain: str
-    
+
     # Core attributes (4 universal)
-    friendly_name: Optional[str] = None
-    icon: Optional[str] = None
-    device_class: Optional[str] = None
-    unit_of_measurement: Optional[str] = None
-    
+    friendly_name: str | None = None
+    icon: str | None = None
+    device_class: str | None = None
+    unit_of_measurement: str | None = None
+
     # State
     state: str = "unknown"
-    last_changed: Optional[str] = None
-    last_updated: Optional[str] = None
-    
+    last_changed: str | None = None
+    last_updated: str | None = None
+
     # All attributes (raw passthrough)
-    attributes: Dict[str, Any] = None
-    
+    attributes: dict[str, Any] = None
+
     # Derived metadata
     is_group: bool = False  # True if is_hue_group or other group indicators
     integration: str = "unknown"  # hue, mqtt, zigbee, etc.
-    supported_features: Optional[int] = None
-    
+    supported_features: int | None = None
+
     # Device association
-    device_id: Optional[str] = None
-    area_id: Optional[str] = None
-    
+    device_id: str | None = None
+    area_id: str | None = None
+
     def __post_init__(self):
         """Initialize attributes dict if None."""
         if self.attributes is None:
@@ -52,7 +52,7 @@ class EnrichedEntity:
 
 class EntityAttributeService:
     """Service for enriching entities with attributes from Home Assistant."""
-    
+
     def __init__(self, ha_client):
         """
         Initialize the service.
@@ -61,12 +61,12 @@ class EntityAttributeService:
             ha_client: HomeAssistantClient instance for fetching entity state
         """
         self.ha_client = ha_client
-        self._entity_registry_cache: Optional[Dict[str, Dict[str, Any]]] = None
+        self._entity_registry_cache: dict[str, dict[str, Any]] | None = None
         self._registry_cache_loaded = False
-        self._registry_cache_timestamp: Optional[float] = None
+        self._registry_cache_timestamp: float | None = None
         self._cache_ttl_seconds = 300  # 5 minutes cache TTL
-    
-    async def _get_entity_registry(self, force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+
+    async def _get_entity_registry(self, force_refresh: bool = False) -> dict[str, dict[str, Any]]:
         """
         Get entity registry with caching and TTL-based refresh.
         
@@ -83,7 +83,7 @@ class EntityAttributeService:
             if cache_age > self._cache_ttl_seconds:
                 logger.info(f"🔄 Entity Registry cache expired ({cache_age:.0f}s old), refreshing...")
                 needs_refresh = True
-        
+
         if needs_refresh:
             try:
                 logger.info("🔍 Loading Entity Registry cache...")
@@ -99,9 +99,9 @@ class EntityAttributeService:
                 self._entity_registry_cache = {}
                 self._registry_cache_loaded = True  # Mark as loaded to avoid repeated failures
                 self._registry_cache_timestamp = time.time()
-        
+
         return self._entity_registry_cache or {}
-    
+
     async def refresh_entity_registry_cache(self):
         """
         Force refresh the Entity Registry cache.
@@ -112,8 +112,8 @@ class EntityAttributeService:
         self._registry_cache_loaded = False
         self._registry_cache_timestamp = None
         await self._get_entity_registry(force_refresh=True)
-    
-    def _get_friendly_name_from_registry(self, entity_id: str, registry: Dict[str, Dict[str, Any]]) -> Optional[str]:
+
+    def _get_friendly_name_from_registry(self, entity_id: str, registry: dict[str, dict[str, Any]]) -> str | None:
         """
         Get friendly name from Entity Registry (source of truth for HA UI names).
         
@@ -133,26 +133,26 @@ class EntityAttributeService:
         entity_data = registry.get(entity_id)
         if not entity_data:
             return None
-        
+
         # Priority 1: Use 'name_by_user' field (user-customized name - highest priority)
         # This ensures users see their custom names from Home Assistant when available
         name_by_user = entity_data.get('name_by_user')
         if name_by_user:
             return name_by_user
-        
+
         # Priority 2: Use 'name' field (what shows in HA UI)
         name = entity_data.get('name')
         if name:
             return name
-        
+
         # Priority 3: Use 'original_name' if name is None
         original_name = entity_data.get('original_name')
         if original_name:
             return original_name
-        
+
         return None
-    
-    async def enrich_entity_with_attributes(self, entity_id: str) -> Optional[Dict[str, Any]]:
+
+    async def enrich_entity_with_attributes(self, entity_id: str) -> dict[str, Any] | None:
         """
         Fetch entity state with attributes from HA and create enriched JSON.
         
@@ -168,44 +168,44 @@ class EntityAttributeService:
         try:
             # Fetch entity state from Home Assistant
             state_data = await self.ha_client.get_entity_state(entity_id)
-            
+
             if not state_data:
                 logger.warning(f"Entity {entity_id} not found in Home Assistant")
                 return None
-            
+
             # Extract core attributes
             attributes = state_data.get('attributes', {})
-            
+
             # Get Entity Registry for accurate friendly names
             registry = await self._get_entity_registry()
-            
+
             # Get friendly name with priority: Entity Registry > State API > derived
             friendly_name = self._get_friendly_name_from_registry(entity_id, registry)
             source = "Entity Registry"
-            
+
             if not friendly_name:
                 # Fallback to State API friendly_name
                 friendly_name = attributes.get('friendly_name')
                 source = "State API"
-            
+
             if not friendly_name:
                 # Last resort: derive from entity_id
                 friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
                 source = "derived"
-            
+
             if source == "derived":
                 logger.debug(f"⚠️ Entity {entity_id}: Using derived friendly_name '{friendly_name}' (not in Entity Registry or State API)")
-            
+
             # Get additional data from registry if available
             entity_registry_data = registry.get(entity_id, {})
             device_id = entity_registry_data.get('device_id') or attributes.get('device_id')
             area_id = entity_registry_data.get('area_id') or attributes.get('area_id')
-            
+
             # Extract name fields from Entity Registry for direct access
             name_by_user = entity_registry_data.get('name_by_user')
             name = entity_registry_data.get('name')
             original_name = entity_registry_data.get('original_name')
-            
+
             # Build enriched entity
             enriched = {
                 'entity_id': entity_id,
@@ -227,20 +227,20 @@ class EntityAttributeService:
                 'device_id': device_id,
                 'area_id': area_id
             }
-            
+
             logger.debug(f"Enriched entity {entity_id}: friendly_name='{friendly_name}', "
                         f"is_group={enriched['is_group']}, integration={enriched['integration']}")
-            
+
             return enriched
-            
+
         except Exception as e:
             logger.error(f"Error enriching entity {entity_id}: {e}")
             return None
-    
+
     async def enrich_multiple_entities(
-        self, 
-        entity_ids: List[str]
-    ) -> Dict[str, Dict[str, Any]]:
+        self,
+        entity_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
         """
         Batch enrich multiple entities IN PARALLEL for performance.
         
@@ -251,10 +251,10 @@ class EntityAttributeService:
             Dictionary mapping entity_id to enriched entity data
         """
         enriched = {}
-        
+
         # Enrich entities in parallel (major performance improvement)
         import asyncio
-        
+
         async def enrich_one(entity_id: str) -> tuple:
             """Enrich a single entity"""
             try:
@@ -263,12 +263,12 @@ class EntityAttributeService:
             except Exception as e:
                 logger.debug(f"Error enriching {entity_id}: {e}")
                 return (entity_id, None)
-        
+
         # Execute all enrichment tasks in parallel
         if entity_ids:
             tasks = [enrich_one(entity_id) for entity_id in entity_ids]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for result in results:
                 if isinstance(result, Exception):
                     logger.debug(f"Entity enrichment error: {result}")
@@ -276,12 +276,12 @@ class EntityAttributeService:
                 entity_id, enriched_data = result
                 if enriched_data:
                     enriched[entity_id] = enriched_data
-        
+
         logger.info(f"Enriched {len(enriched)} out of {len(entity_ids)} entities (parallel)")
-        
+
         return enriched
-    
-    def _determine_is_group(self, entity_id: str, attributes: Dict[str, Any]) -> bool:
+
+    def _determine_is_group(self, entity_id: str, attributes: dict[str, Any]) -> bool:
         """
         Determine if entity is a group entity.
         
@@ -295,13 +295,13 @@ class EntityAttributeService:
         # Check Hue-specific attribute
         if attributes.get('is_hue_group') is True:
             return True
-        
+
         # Check for other group indicators
         # Could add more group detection logic here for other integrations
-        
+
         return False
-    
-    def _get_integration_from_attributes(self, attributes: Dict[str, Any]) -> str:
+
+    def _get_integration_from_attributes(self, attributes: dict[str, Any]) -> str:
         """
         Extract integration/platform name from attributes.
         
@@ -314,7 +314,7 @@ class EntityAttributeService:
         # Try to detect from known attribute patterns
         if attributes.get('is_hue_group') is not None:
             return 'hue'
-        
+
         # Check for device_id patterns to detect other integrations
         device_id = attributes.get('device_id')
         if device_id:
@@ -323,11 +323,11 @@ class EntityAttributeService:
                 return 'zigbee'
             elif 'mqtt' in str(device_id).lower():
                 return 'mqtt'
-        
+
         # Default to 'unknown' if we can't determine
         return 'unknown'
-    
-    def _determine_entity_type(self, entity_id: str, attributes: Dict[str, Any]) -> str:
+
+    def _determine_entity_type(self, entity_id: str, attributes: dict[str, Any]) -> str:
         """
         Classify entity type (group, individual, scene, etc.).
         
@@ -341,15 +341,15 @@ class EntityAttributeService:
         # Check for group indicators
         if attributes.get('is_hue_group') is True:
             return 'group'
-        
+
         # Check for scene entities
         if entity_id.startswith('scene.'):
             return 'scene'
-        
+
         # Default to individual
         return 'individual'
-    
-    def _extract_core_attributes(self, attributes: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _extract_core_attributes(self, attributes: dict[str, Any]) -> dict[str, Any]:
         """
         Extract the 4 core universal attributes.
         

@@ -8,13 +8,10 @@ Usage:
     python scripts/get_suggestion_prompt.py --latest  # Get latest suggestion
 """
 
-import sys
-import os
 import json
 import sqlite3
+import sys
 from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, Any, List
 
 # Database path - try multiple locations
 script_dir = Path(__file__).parent
@@ -32,7 +29,7 @@ for path in possible_db_paths:
         break
 
 if not db_path:
-    print(f"Error: Database not found. Checked:")
+    print("Error: Database not found. Checked:")
     for path in possible_db_paths:
         print(f"  - {path}")
     sys.exit(1)
@@ -42,7 +39,7 @@ if '--verbose' in sys.argv:
     print(f"Using database: {db_path}")
 
 
-def get_query_by_id(query_id: str) -> Optional[Dict]:
+def get_query_by_id(query_id: str) -> dict | None:
     """Get query by ID."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -58,7 +55,7 @@ def get_query_by_id(query_id: str) -> Optional[Dict]:
     return None
 
 
-def search_queries_by_text(search_text: str, limit: int = 10) -> List[Dict]:
+def search_queries_by_text(search_text: str, limit: int = 10) -> list[dict]:
     """Search queries by text in original_query."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -72,7 +69,7 @@ def search_queries_by_text(search_text: str, limit: int = 10) -> List[Dict]:
     return [dict(row) for row in rows]
 
 
-def get_latest_query() -> Optional[Dict]:
+def get_latest_query() -> dict | None:
     """Get the most recent query."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -87,36 +84,36 @@ def get_latest_query() -> Optional[Dict]:
     return None
 
 
-def find_suggestion_by_id(suggestions: List[Dict], suggestion_id: str) -> Optional[Dict]:
+def find_suggestion_by_id(suggestions: list[dict], suggestion_id: str) -> dict | None:
     """Find suggestion by ID (supports both full ID and partial match)."""
     if not suggestions:
         return None
-    
+
     # Try exact match first
     for suggestion in suggestions:
         if suggestion.get('suggestion_id') == suggestion_id:
             return suggestion
-    
+
     # Try partial match (e.g., "71481" matches "ask-ai-71481...")
     suggestion_id_lower = suggestion_id.lower()
     for suggestion in suggestions:
         sid = suggestion.get('suggestion_id', '').lower()
         if suggestion_id_lower in sid or sid in suggestion_id_lower:
             return suggestion
-    
+
     return None
 
 
-def format_prompt_display(query: Dict, suggestion: Dict) -> str:
+def format_prompt_display(query: dict, suggestion: dict) -> str:
     """Format the prompt for display."""
     debug = suggestion.get('debug', {})
-    
+
     output = []
     output.append("=" * 80)
     output.append("OPENAI PROMPT FOR AUTOMATION SUGGESTION")
     output.append("=" * 80)
     output.append("")
-    
+
     # Query Information
     output.append("QUERY INFORMATION:")
     output.append(f"  Query ID: {query.get('query_id', 'N/A')}")
@@ -124,7 +121,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
     output.append(f"  Created: {query.get('created_at', 'N/A')}")
     output.append(f"  Confidence: {query.get('confidence', 'N/A')}")
     output.append("")
-    
+
     # Suggestion Information
     output.append("SUGGESTION INFORMATION:")
     output.append(f"  Suggestion ID: {suggestion.get('suggestion_id', 'N/A')}")
@@ -135,7 +132,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
     output.append(f"  Validated Entities: {json.dumps(suggestion.get('validated_entities', {}), indent=2)}")
     output.append(f"  Confidence: {suggestion.get('confidence', 'N/A')}")
     output.append("")
-    
+
     # System Prompt
     output.append("=" * 80)
     output.append("SYSTEM PROMPT")
@@ -143,7 +140,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
     system_prompt = debug.get('system_prompt', 'N/A')
     output.append(system_prompt)
     output.append("")
-    
+
     # User Prompt (Full)
     output.append("=" * 80)
     output.append("USER PROMPT (FULL - SENT TO OPENAI)")
@@ -151,7 +148,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
     user_prompt = debug.get('user_prompt', 'N/A')
     output.append(user_prompt)
     output.append("")
-    
+
     # Filtered User Prompt (if different)
     filtered_prompt = debug.get('filtered_user_prompt')
     if filtered_prompt and filtered_prompt != user_prompt:
@@ -160,7 +157,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         output.append("=" * 80)
         output.append(filtered_prompt)
         output.append("")
-    
+
     # Clarification Context
     clarification_context = debug.get('clarification_context')
     if clarification_context:
@@ -169,7 +166,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         output.append("=" * 80)
         output.append(json.dumps(clarification_context, indent=2))
         output.append("")
-    
+
     # OpenAI Response
     openai_response = debug.get('openai_response')
     if openai_response:
@@ -187,7 +184,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         else:
             output.append(json.dumps(openai_response, indent=2))
         output.append("")
-    
+
     # Token Usage
     token_usage = debug.get('token_usage')
     if token_usage:
@@ -196,7 +193,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         output.append("=" * 80)
         output.append(json.dumps(token_usage, indent=2))
         output.append("")
-    
+
     # Device Selection Debug
     device_debug = debug.get('device_selection')
     if device_debug:
@@ -205,7 +202,7 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         output.append("=" * 80)
         output.append(json.dumps(device_debug, indent=2))
         output.append("")
-    
+
     # Entity Context Stats
     entity_context_stats = debug.get('entity_context_stats')
     if entity_context_stats:
@@ -214,11 +211,11 @@ def format_prompt_display(query: Dict, suggestion: Dict) -> str:
         output.append("=" * 80)
         output.append(json.dumps(entity_context_stats, indent=2))
         output.append("")
-    
+
     output.append("=" * 80)
     output.append("END OF PROMPT")
     output.append("=" * 80)
-    
+
     return "\n".join(output)
 
 
@@ -227,10 +224,10 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    
+
     query = None
     suggestion_id = None
-    
+
     # Parse arguments
     if sys.argv[1] == "--latest":
         query = get_latest_query()
@@ -261,11 +258,11 @@ def main():
         query = get_query_by_id(query_id)
         if len(sys.argv) > 2:
             suggestion_id = sys.argv[2]
-    
+
     if not query:
-        print(f"Query not found")
+        print("Query not found")
         sys.exit(1)
-    
+
     # Parse suggestions JSON
     suggestions_json = query.get('suggestions')
     if suggestions_json:
@@ -275,11 +272,11 @@ def main():
             suggestions = suggestions_json
     else:
         suggestions = []
-    
+
     if not suggestions:
         print(f"Query {query.get('query_id')} has no suggestions")
         sys.exit(1)
-    
+
     # Find suggestion
     if suggestion_id:
         suggestion = find_suggestion_by_id(suggestions, suggestion_id)
@@ -293,11 +290,11 @@ def main():
         print(f"No suggestion_id provided, using first suggestion: {suggestion.get('suggestion_id')}")
         if len(suggestions) > 1:
             print(f"Available suggestions: {[s.get('suggestion_id') for s in suggestions]}")
-    
+
     # Display prompt
     output = format_prompt_display(query, suggestion)
     print(output)
-    
+
     # Optionally save to file
     if '--save' in sys.argv:
         filename = f"prompt_{query.get('query_id')}_{suggestion.get('suggestion_id', 'unknown')}.txt"

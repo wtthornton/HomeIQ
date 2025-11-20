@@ -6,7 +6,7 @@ Enhanced confidence calculator with multi-factor scoring.
 Created: Phase 2 - Core Service Refactoring
 """
 
-from .calculator import EnhancedConfidenceCalculator, ConfidenceScore
+from .calculator import ConfidenceScore, EnhancedConfidenceCalculator
 
 __all__ = [
     'EnhancedConfidenceCalculator',

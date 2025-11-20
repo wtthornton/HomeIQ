@@ -5,9 +5,8 @@ Revises: 20251114_add_discovered_synergies
 Create Date: 2025-11-19 17:40:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20251119_quality_improvements'
@@ -22,10 +21,10 @@ def upgrade():
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     columns = [col['name'] for col in inspector.get_columns('patterns')]
-    
+
     if 'raw_confidence' not in columns:
         op.add_column('patterns', sa.Column('raw_confidence', sa.Float(), nullable=True))
-    
+
     if 'calibrated' not in columns:
         op.add_column('patterns', sa.Column('calibrated', sa.Boolean(), nullable=False, server_default='0'))
 

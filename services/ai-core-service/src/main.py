@@ -17,7 +17,7 @@ import secrets
 import time
 from collections import deque
 from contextlib import asynccontextmanager
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,11 +31,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global instances populated during startup
-service_manager: Optional[ServiceManager] = None
-api_key_value: Optional[str] = None
+service_manager: ServiceManager | None = None
+api_key_value: str | None = None
 
 
-def _parse_allowed_origins() -> List[str]:
+def _parse_allowed_origins() -> list[str]:
     """Parse comma-delimited allowed origins from environment."""
     raw_origins = os.getenv("AI_CORE_ALLOWED_ORIGINS")
     if raw_origins:
@@ -56,7 +56,7 @@ class RateLimiter:
     def __init__(self, limit: int, window_seconds: int):
         self.limit = max(limit, 1)
         self.window = max(window_seconds, 1)
-        self._requests: Dict[str, Deque[float]] = {}
+        self._requests: dict[str, deque[float]] = {}
         self._lock = asyncio.Lock()
 
     async def check(self, identifier: str) -> None:
@@ -79,7 +79,7 @@ rate_limiter = RateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def verify_api_key(provided_key: Optional[str] = Security(api_key_header)) -> str:
+async def verify_api_key(provided_key: str | None = Security(api_key_header)) -> str:
     """Validate API key from request headers."""
     global api_key_value
 
@@ -162,31 +162,31 @@ app.add_middleware(
 
 # Pydantic models
 class AnalysisRequest(BaseModel):
-    data: List[Dict[str, Any]] = Field(..., description="Data to analyze")
+    data: list[dict[str, Any]] = Field(..., description="Data to analyze")
     analysis_type: str = Field(..., description="Type of analysis to perform")
-    options: Dict[str, Any] = Field(default_factory=dict, description="Analysis options")
+    options: dict[str, Any] = Field(default_factory=dict, description="Analysis options")
 
 class AnalysisResponse(BaseModel):
-    results: Dict[str, Any] = Field(..., description="Analysis results")
-    services_used: List[str] = Field(..., description="Services used in analysis")
+    results: dict[str, Any] = Field(..., description="Analysis results")
+    services_used: list[str] = Field(..., description="Services used in analysis")
     processing_time: float = Field(..., description="Total processing time in seconds")
 
 class PatternDetectionRequest(BaseModel):
-    patterns: List[Dict[str, Any]] = Field(..., description="Patterns to detect")
+    patterns: list[dict[str, Any]] = Field(..., description="Patterns to detect")
     detection_type: str = Field("full", description="Type of pattern detection")
 
 class PatternDetectionResponse(BaseModel):
-    detected_patterns: List[Dict[str, Any]] = Field(..., description="Detected patterns")
-    services_used: List[str] = Field(..., description="Services used")
+    detected_patterns: list[dict[str, Any]] = Field(..., description="Detected patterns")
+    services_used: list[str] = Field(..., description="Services used")
     processing_time: float = Field(..., description="Processing time in seconds")
 
 class SuggestionRequest(BaseModel):
-    context: Dict[str, Any] = Field(..., description="Context for suggestions")
+    context: dict[str, Any] = Field(..., description="Context for suggestions")
     suggestion_type: str = Field(..., description="Type of suggestions to generate")
 
 class SuggestionResponse(BaseModel):
-    suggestions: List[Dict[str, Any]] = Field(..., description="Generated suggestions")
-    services_used: List[str] = Field(..., description="Services used")
+    suggestions: list[dict[str, Any]] = Field(..., description="Generated suggestions")
+    services_used: list[str] = Field(..., description="Services used")
     processing_time: float = Field(..., description="Processing time in seconds")
 
 # API Endpoints
@@ -195,9 +195,9 @@ async def health_check():
     """Health check endpoint"""
     if not service_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
-    
+
     service_status = await service_manager.get_service_status()
-    
+
     return {
         "status": "healthy",
         "service": "ai-core-service",
@@ -209,7 +209,7 @@ async def get_service_status(_: None = Depends(enforce_rate_limit)):
     """Get detailed service status"""
     if not service_manager:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     return await service_manager.get_service_status()
 
 @app.post("/analyze", response_model=AnalysisResponse)
@@ -220,24 +220,24 @@ async def analyze_data(
     """Perform comprehensive data analysis"""
     if not service_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
-    
+
     try:
         start_time = time.time()
-        
+
         results, services_used = await service_manager.analyze_data(
             data=request.data,
             analysis_type=request.analysis_type,
             options=request.options
         )
-        
+
         processing_time = time.time() - start_time
-        
+
         return AnalysisResponse(
             results=results,
             services_used=services_used,
             processing_time=processing_time
         )
-    
+
     except Exception:
         logger.exception("Error in data analysis")
         raise HTTPException(status_code=500, detail="Analysis failed")
@@ -250,23 +250,23 @@ async def detect_patterns(
     """Detect patterns in data"""
     if not service_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
-    
+
     try:
         start_time = time.time()
-        
+
         patterns, services_used = await service_manager.detect_patterns(
             patterns=request.patterns,
             detection_type=request.detection_type
         )
-        
+
         processing_time = time.time() - start_time
-        
+
         return PatternDetectionResponse(
             detected_patterns=patterns,
             services_used=services_used,
             processing_time=processing_time
         )
-    
+
     except Exception:
         logger.exception("Error in pattern detection")
         raise HTTPException(status_code=500, detail="Pattern detection failed")
@@ -279,23 +279,23 @@ async def generate_suggestions(
     """Generate AI suggestions"""
     if not service_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
-    
+
     try:
         start_time = time.time()
-        
+
         suggestions, services_used = await service_manager.generate_suggestions(
             context=request.context,
             suggestion_type=request.suggestion_type
         )
-        
+
         processing_time = time.time() - start_time
-        
+
         return SuggestionResponse(
             suggestions=suggestions,
             services_used=services_used,
             processing_time=processing_time
         )
-    
+
     except Exception:
         logger.exception("Error generating suggestions")
         raise HTTPException(status_code=500, detail="Suggestion generation failed")

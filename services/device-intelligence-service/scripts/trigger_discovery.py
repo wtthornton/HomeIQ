@@ -1,6 +1,8 @@
 """Script to trigger discovery via API."""
 import asyncio
+
 import httpx
+
 
 async def trigger_discovery():
     async with httpx.AsyncClient(timeout=120.0) as client:

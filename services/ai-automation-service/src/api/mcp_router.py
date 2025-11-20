@@ -3,13 +3,13 @@ MCP tool endpoints for AI Automation Service.
 These endpoints are called by code executed in the ai-code-executor sandbox.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta, timezone
 import logging
 import re
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,10 @@ router = APIRouter(prefix="/mcp/tools", tags=["mcp"])
 
 # Import pattern detection dependencies
 from ..clients.data_api_client import DataAPIClient
-from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
-from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
-from ..database import get_db
 from ..config import settings
+from ..database import get_db
+from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 
 # Initialize clients
 data_api_client = DataAPIClient(base_url=settings.data_api_url)
@@ -67,7 +67,7 @@ class DetectPatternsRequest(BaseModel):
     """Request for pattern detection"""
     start_time: str
     end_time: str
-    pattern_types: Optional[List[str]] = ["time-based", "co-occurrence"]
+    pattern_types: list[str] | None = ["time-based", "co-occurrence"]
 
 
 @router.post("/detect_patterns")
@@ -122,7 +122,7 @@ async def detect_patterns(
             return {
                 "success": True,
                 "patterns": [],
-                "message": f"No events found for the specified time range",
+                "message": "No events found for the specified time range",
                 "events_analyzed": 0
             }
 

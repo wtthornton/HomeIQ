@@ -3,10 +3,11 @@ Unit tests for smart meter service
 Tests configuration, data fetching, phantom load detection, and InfluxDB storage
 """
 
-import pytest
 import os
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestConfiguration:

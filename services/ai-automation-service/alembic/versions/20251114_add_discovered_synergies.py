@@ -7,9 +7,8 @@ Create Date: 2025-11-14
 Epic: Dynamic Synergy Discovery (#3)
 Improvement: Expand from 16 hardcoded patterns to 50-100+ discovered patterns
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20251114_discovered_synergies'

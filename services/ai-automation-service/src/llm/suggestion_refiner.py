@@ -16,13 +16,13 @@ Key Principles:
 - Temperature 0.5 for balanced consistency
 """
 
-from openai import AsyncOpenAI
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-import logging
 import json
+import logging
+from dataclasses import dataclass
 from datetime import datetime
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from openai import AsyncOpenAI
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +35,19 @@ logger = logging.getLogger(__name__)
 class ValidationResult:
     """Result of feasibility validation"""
     ok: bool
-    messages: List[str]
-    warnings: List[str]
-    alternatives: List[str]
+    messages: list[str]
+    warnings: list[str]
+    alternatives: list[str]
 
 
 @dataclass
 class RefinementResult:
     """Result of description refinement"""
     updated_description: str
-    changes_made: List[str]
+    changes_made: list[str]
     validation: ValidationResult
-    clarification_needed: Optional[str] = None
-    history_entry: Optional[Dict] = None
+    clarification_needed: str | None = None
+    history_entry: dict | None = None
 
 
 # ============================================================================
@@ -122,7 +122,7 @@ class SuggestionRefiner:
             device_capabilities={...}
         )
     """
-    
+
     def __init__(self, openai_client: AsyncOpenAI, model: str = "gpt-4o-mini"):
         """
         Initialize suggestion refiner.
@@ -137,7 +137,7 @@ class SuggestionRefiner:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         logger.info(f"SuggestionRefiner initialized with model={model}")
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -148,8 +148,8 @@ class SuggestionRefiner:
         self,
         current_description: str,
         user_input: str,
-        device_capabilities: Dict,
-        conversation_history: Optional[List[Dict]] = None
+        device_capabilities: dict,
+        conversation_history: list[dict] | None = None
     ) -> RefinementResult:
         """
         Refine automation description with user's natural language input.
@@ -174,9 +174,9 @@ class SuggestionRefiner:
                 device_capabilities,
                 conversation_history or []
             )
-            
+
             logger.info(f"✏️  Refining description: '{user_input}'")
-            
+
             # Call OpenAI API
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -194,22 +194,22 @@ class SuggestionRefiner:
                 max_completion_tokens=400,   # Longer for validation messages (use max_completion_tokens for newer models)
                 response_format={"type": "json_object"}  # Force JSON
             )
-            
+
             # Track token usage
             usage = response.usage
             self.total_input_tokens += usage.prompt_tokens
             self.total_output_tokens += usage.completion_tokens
             self.total_tokens += usage.total_tokens
-            
+
             logger.info(
                 f"✅ Refinement processed: {usage.total_tokens} tokens "
                 f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
             )
-            
+
             # Parse JSON response
             content = response.choices[0].message.content.strip()
             result_data = json.loads(content)
-            
+
             # Build validation result
             validation = ValidationResult(
                 ok=result_data['validation']['ok'],
@@ -217,7 +217,7 @@ class SuggestionRefiner:
                 warnings=result_data['validation'].get('warnings', []),
                 alternatives=result_data['validation'].get('alternatives', [])
             )
-            
+
             # Build history entry for this refinement
             history_entry = {
                 "timestamp": datetime.utcnow().isoformat(),
@@ -230,7 +230,7 @@ class SuggestionRefiner:
                 },
                 "changes_made": result_data['changes_made']
             }
-            
+
             result = RefinementResult(
                 updated_description=result_data['updated_description'],
                 changes_made=result_data['changes_made'],
@@ -238,23 +238,23 @@ class SuggestionRefiner:
                 clarification_needed=result_data.get('clarification_needed'),
                 history_entry=history_entry
             )
-            
+
             logger.info(f"✅ Refinement complete: {len(result.changes_made)} changes")
             return result
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"❌ Failed to parse OpenAI JSON response: {e}")
             raise ValueError(f"OpenAI returned invalid JSON: {e}")
         except Exception as e:
             logger.error(f"❌ OpenAI API error during refinement: {e}")
             raise
-    
+
     def _build_refinement_prompt(
         self,
         current_description: str,
         user_input: str,
-        device_capabilities: Dict,
-        conversation_history: List[Dict]
+        device_capabilities: dict,
+        conversation_history: list[dict]
     ) -> str:
         """
         Build refinement prompt with full context.
@@ -270,7 +270,7 @@ class SuggestionRefiner:
         """
         # Format device capabilities for prompt
         capabilities_summary = self._format_capabilities_for_prompt(device_capabilities)
-        
+
         # Format conversation history if exists
         history_summary = ""
         if conversation_history:
@@ -278,7 +278,7 @@ class SuggestionRefiner:
             for i, entry in enumerate(conversation_history[-3:], 1):  # Last 3 edits
                 history_summary += f"{i}. User said: \"{entry['user_input']}\"\n"
                 history_summary += f"   Result: {entry['updated_description'][:60]}...\n"
-        
+
         prompt = f"""The user wants to modify this automation:
 
 CURRENT DESCRIPTION:
@@ -305,10 +305,10 @@ IMPORTANT:
 - Check capabilities carefully before adding features
 
 OUTPUT (JSON only, no markdown):"""
-        
+
         return prompt
-    
-    def _format_capabilities_for_prompt(self, device_capabilities: Dict) -> str:
+
+    def _format_capabilities_for_prompt(self, device_capabilities: dict) -> str:
         """
         Format device capabilities for the prompt.
         
@@ -320,38 +320,38 @@ OUTPUT (JSON only, no markdown):"""
         """
         if not device_capabilities:
             return "No capability information available"
-        
+
         # Extract key info
         entity_id = device_capabilities.get('entity_id', 'unknown')
         friendly_name = device_capabilities.get('friendly_name', entity_id)
         domain = device_capabilities.get('domain', 'unknown')
         features = device_capabilities.get('supported_features', {})
         friendly_caps = device_capabilities.get('friendly_capabilities', [])
-        
+
         # Build summary
         summary = f"Device: {friendly_name} ({entity_id})\n"
         summary += f"Type: {domain}\n"
-        summary += f"Supported Features:\n"
-        
+        summary += "Supported Features:\n"
+
         if friendly_caps:
             for cap in friendly_caps:
                 summary += f"  ✓ {cap}\n"
         else:
             summary += "  • Basic on/off control\n"
-        
-        # Add specific capabilities  
+
+        # Add specific capabilities
         if features:
-            summary += f"\nAvailable capabilities:\n"
+            summary += "\nAvailable capabilities:\n"
             for feature, is_available in features.items():
                 if is_available:
                     summary += f"  ✓ {feature}\n"
-        
+
         return summary
-    
+
     async def validate_feasibility(
         self,
         requested_change: str,
-        device_capabilities: Dict
+        device_capabilities: dict
     ) -> ValidationResult:
         """
         Validate if requested change is feasible given device capabilities.
@@ -370,15 +370,15 @@ OUTPUT (JSON only, no markdown):"""
         features = device_capabilities.get('supported_features', {})
         domain = device_capabilities.get('domain', 'unknown')
         device_name = device_capabilities.get('friendly_name', 'device')
-        
+
         messages = []
         warnings = []
         alternatives = []
         ok = True
-        
+
         # Check for common requests
         request_lower = requested_change.lower()
-        
+
         # Color-related requests
         if any(color in request_lower for color in ['blue', 'red', 'green', 'purple', 'color', 'rgb']):
             if not features.get('rgb_color'):
@@ -390,7 +390,7 @@ OUTPUT (JSON only, no markdown):"""
                     alternatives.append("Try: 'Set brightness to 75%' or 'Turn on brighter'")
             else:
                 messages.append(f"✓ {device_name} supports RGB color")
-        
+
         # Brightness requests
         if any(word in request_lower for word in ['bright', 'dim', 'brightness', '%', 'percent']):
             if not features.get('brightness'):
@@ -399,7 +399,7 @@ OUTPUT (JSON only, no markdown):"""
                 alternatives.append("Try: 'Turn on earlier' or 'Add a delay'")
             else:
                 messages.append(f"✓ {device_name} supports brightness control")
-        
+
         # Temperature requests (climate devices)
         if domain == 'climate':
             if any(word in request_lower for word in ['temperature', 'degrees', '°', 'warmer', 'cooler']):
@@ -408,11 +408,11 @@ OUTPUT (JSON only, no markdown):"""
                 else:
                     ok = False
                     warnings.append(f"⚠️ {device_name} does not support temperature control")
-        
+
         # Time/schedule requests (always feasible)
         if any(word in request_lower for word in ['weekday', 'weekend', 'monday', 'only on', 'except', 'between']):
             messages.append("✓ Time/schedule conditions can be added")
-        
+
         # Transition/fade requests
         if any(word in request_lower for word in ['fade', 'transition', 'slowly', 'gradually']):
             if not features.get('transition'):
@@ -420,20 +420,20 @@ OUTPUT (JSON only, no markdown):"""
                 alternatives.append("Note: Transition may appear instant on some devices")
             else:
                 messages.append(f"✓ {device_name} supports smooth transitions")
-        
+
         return ValidationResult(
             ok=ok,
             messages=messages,
             warnings=warnings,
             alternatives=alternatives
         )
-    
+
     def _build_refinement_prompt(
         self,
         current_description: str,
         user_input: str,
-        device_capabilities: Dict,
-        conversation_history: List[Dict]
+        device_capabilities: dict,
+        conversation_history: list[dict]
     ) -> str:
         """
         Build refinement prompt with full context.
@@ -449,7 +449,7 @@ OUTPUT (JSON only, no markdown):"""
         """
         # Format device capabilities for prompt
         capabilities_summary = self._format_capabilities_for_prompt(device_capabilities)
-        
+
         # Format conversation history if exists
         history_summary = ""
         if conversation_history:
@@ -457,7 +457,7 @@ OUTPUT (JSON only, no markdown):"""
             for i, entry in enumerate(conversation_history[-3:], 1):  # Last 3 edits
                 history_summary += f"{i}. User said: \"{entry['user_input']}\"\n"
                 history_summary += f"   Result: {entry['updated_description'][:60]}...\n"
-        
+
         prompt = f"""The user wants to modify this automation:
 
 CURRENT DESCRIPTION:
@@ -484,10 +484,10 @@ IMPORTANT:
 - Check capabilities carefully before adding features
 
 OUTPUT (JSON only, no markdown):"""
-        
+
         return prompt
-    
-    def _format_capabilities_for_prompt(self, device_capabilities: Dict) -> str:
+
+    def _format_capabilities_for_prompt(self, device_capabilities: dict) -> str:
         """
         Format device capabilities for the prompt.
         
@@ -499,35 +499,35 @@ OUTPUT (JSON only, no markdown):"""
         """
         if not device_capabilities:
             return "No capability information available"
-        
+
         # Extract key info
         entity_id = device_capabilities.get('entity_id', 'unknown')
         friendly_name = device_capabilities.get('friendly_name', entity_id)
         domain = device_capabilities.get('domain', 'unknown')
         features = device_capabilities.get('supported_features', {})
         friendly_caps = device_capabilities.get('friendly_capabilities', [])
-        
+
         # Build summary
         summary = f"Device: {friendly_name} ({entity_id})\n"
         summary += f"Type: {domain}\n"
-        summary += f"Supported Features:\n"
-        
+        summary += "Supported Features:\n"
+
         if friendly_caps:
             for cap in friendly_caps:
                 summary += f"  ✓ {cap}\n"
         else:
             summary += "  • Basic on/off control\n"
-        
+
         # Add specific capabilities
         if features:
-            summary += f"\nAvailable capabilities:\n"
+            summary += "\nAvailable capabilities:\n"
             for feature, is_available in features.items():
                 if is_available:
                     summary += f"  ✓ {feature}\n"
-        
+
         return summary
-    
-    def get_usage_stats(self) -> Dict:
+
+    def get_usage_stats(self) -> dict:
         """
         Get token usage statistics.
         
@@ -536,13 +536,13 @@ OUTPUT (JSON only, no markdown):"""
         """
         # Use CostTracker for consistent cost calculation
         from .cost_tracker import CostTracker
-        
+
         total_cost = CostTracker.calculate_cost(
             self.total_input_tokens,
             self.total_output_tokens,
             model=self.model
         )
-        
+
         return {
             'total_tokens': self.total_tokens,
             'input_tokens': self.total_input_tokens,
@@ -551,7 +551,7 @@ OUTPUT (JSON only, no markdown):"""
             'total_cost_usd': round(total_cost, 6),
             'model': self.model
         }
-    
+
     def reset_usage_stats(self):
         """Reset usage statistics"""
         self.total_tokens = 0

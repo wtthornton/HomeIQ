@@ -6,7 +6,7 @@ Health check and service status endpoints.
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -25,8 +25,8 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     uptime: str
-    memory_usage: Dict[str, Any]
-    dependencies: Dict[str, str]
+    memory_usage: dict[str, Any]
+    dependencies: dict[str, str]
 
 
 class ServiceStatus(BaseModel):
@@ -37,7 +37,7 @@ class ServiceStatus(BaseModel):
     port: int
     host: str
     environment: str
-    dependencies: Dict[str, str]
+    dependencies: dict[str, str]
 
 
 @router.get("/", response_model=HealthResponse)
@@ -48,17 +48,18 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
     Returns:
         HealthResponse: Service health status and basic metrics
     """
-    import psutil
     import time
-    
+
+    import psutil
+
     # Get memory usage
     process = psutil.Process()
     memory_info = process.memory_info()
-    
+
     # Calculate uptime (simplified - in production you'd track start time)
     uptime_seconds = int(time.time() - process.create_time())
     uptime_str = f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m {uptime_seconds % 60}s"
-    
+
     # Check dependencies (simplified - in production you'd actually test connections)
     dependencies = {
         "sqlite": "connected",  # TODO: Actually test database connection
@@ -66,7 +67,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
         "home_assistant": "connected",  # TODO: Actually test HA connection
         "mqtt": "connected"      # TODO: Actually test MQTT connection
     }
-    
+
     return HealthResponse(
         status="healthy",
         timestamp=datetime.now(timezone.utc),
@@ -91,17 +92,17 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         ServiceStatus: Detailed service information and configuration
     """
     import os
-    
+
     environment = os.getenv("ENVIRONMENT", "development")
-    
+
     # Check dependencies (simplified)
     dependencies = {
         "database": "operational",
-        "cache": "operational", 
+        "cache": "operational",
         "home_assistant": "operational",
         "mqtt_broker": "operational"
     }
-    
+
     return ServiceStatus(
         service="Device Intelligence Service",
         status="operational",
@@ -114,7 +115,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
 
 
 @router.get("/ready")
-async def readiness_check() -> Dict[str, Any]:
+async def readiness_check() -> dict[str, Any]:
     """
     Kubernetes-style readiness check.
     
@@ -123,10 +124,10 @@ async def readiness_check() -> Dict[str, Any]:
     """
     # TODO: Implement actual readiness checks
     # - Database connection
-    # - Redis connection  
+    # - Redis connection
     # - Home Assistant connection
     # - MQTT broker connection
-    
+
     return {
         "status": "ready",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -139,7 +140,7 @@ async def readiness_check() -> Dict[str, Any]:
 
 
 @router.get("/live")
-async def liveness_check() -> Dict[str, Any]:
+async def liveness_check() -> dict[str, Any]:
     """
     Kubernetes-style liveness check.
     

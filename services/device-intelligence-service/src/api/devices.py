@@ -4,7 +4,8 @@ Device Intelligence Service - Device Endpoints (Placeholder)
 Placeholder device endpoints for future implementation.
 """
 
-from typing import List, Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -19,13 +20,13 @@ class Device(BaseModel):
     model: str
     area_id: str
     integration: str
-    capabilities: List[str]
+    capabilities: list[str]
     health_score: int
 
 
 class DeviceListResponse(BaseModel):
     """Device list response model."""
-    devices: List[Device]
+    devices: list[Device]
     total: int
     page: int
     per_page: int
@@ -52,7 +53,7 @@ async def get_devices(
     """
     # TODO: Implement actual device retrieval from database
     # This is a placeholder implementation
-    
+
     placeholder_devices = [
         Device(
             id="placeholder-device-1",
@@ -65,7 +66,7 @@ async def get_devices(
             health_score=95
         ),
         Device(
-            id="placeholder-device-2", 
+            id="placeholder-device-2",
             name="Placeholder Device 2",
             manufacturer="Placeholder Corp",
             model="PLACEHOLDER-002",
@@ -75,19 +76,19 @@ async def get_devices(
             health_score=88
         )
     ]
-    
+
     # Apply filters (placeholder logic)
     filtered_devices = placeholder_devices
     if area_id:
         filtered_devices = [d for d in filtered_devices if d.area_id == area_id]
     if integration:
         filtered_devices = [d for d in filtered_devices if d.integration == integration]
-    
+
     # Apply pagination
     start = skip
     end = skip + limit
     paginated_devices = filtered_devices[start:end]
-    
+
     return DeviceListResponse(
         devices=paginated_devices,
         total=len(filtered_devices),
@@ -112,7 +113,7 @@ async def get_device(device_id: str) -> Device:
     """
     # TODO: Implement actual device retrieval from database
     # This is a placeholder implementation
-    
+
     if device_id == "placeholder-device-1":
         return Device(
             id="placeholder-device-1",
@@ -124,12 +125,12 @@ async def get_device(device_id: str) -> Device:
             capabilities=["on_off", "brightness"],
             health_score=95
         )
-    
+
     raise HTTPException(status_code=404, detail="Device not found")
 
 
 @router.get("/{device_id}/capabilities")
-async def get_device_capabilities(device_id: str) -> Dict[str, Any]:
+async def get_device_capabilities(device_id: str) -> dict[str, Any]:
     """
     Get device capabilities (placeholder implementation).
     
@@ -144,7 +145,7 @@ async def get_device_capabilities(device_id: str) -> Dict[str, Any]:
     """
     # TODO: Implement actual capability retrieval
     # This is a placeholder implementation
-    
+
     if device_id == "placeholder-device-1":
         return {
             "device_id": device_id,
@@ -165,12 +166,12 @@ async def get_device_capabilities(device_id: str) -> Dict[str, Any]:
                 }
             ]
         }
-    
+
     raise HTTPException(status_code=404, detail="Device not found")
 
 
 @router.get("/{device_id}/health")
-async def get_device_health(device_id: str) -> Dict[str, Any]:
+async def get_device_health(device_id: str) -> dict[str, Any]:
     """
     Get device health metrics (placeholder implementation).
     
@@ -185,7 +186,7 @@ async def get_device_health(device_id: str) -> Dict[str, Any]:
     """
     # TODO: Implement actual health metrics calculation
     # This is a placeholder implementation
-    
+
     if device_id == "placeholder-device-1":
         return {
             "device_id": device_id,
@@ -201,5 +202,5 @@ async def get_device_health(device_id: str) -> Dict[str, Any]:
             "recommendations": [],
             "last_updated": "2025-01-24T08:00:00Z"
         }
-    
+
     raise HTTPException(status_code=404, detail="Device not found")

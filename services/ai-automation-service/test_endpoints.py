@@ -2,9 +2,9 @@
 """Test various HA API endpoints to find conversation agents."""
 import os
 import sys
-import json
-import requests
 from pathlib import Path
+
+import requests
 
 # Fix Windows console encoding
 if sys.platform == "win32":

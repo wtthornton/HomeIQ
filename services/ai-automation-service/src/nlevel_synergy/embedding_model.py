@@ -9,11 +9,11 @@ Size: ~20MB (INT8) vs ~80MB (FP32)
 Speed: ~50ms per batch (32 devices)
 """
 
-from typing import List, Dict
-import torch
-import numpy as np
 import logging
 from pathlib import Path
+
+import numpy as np
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +32,12 @@ class DeviceEmbeddingModel:
         >>> print(embeddings.shape)
         (1, 384)
     """
-    
+
     MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
     MODEL_VERSION = "all-MiniLM-L6-v2-int8"
     EMBEDDING_DIM = 384
     MAX_SEQ_LENGTH = 512
-    
+
     def __init__(
         self,
         model_path: str = "./models/nlevel-synergy/embedding-int8",
@@ -55,7 +55,7 @@ class DeviceEmbeddingModel:
         self.model = None
         self.tokenizer = None
         self._model_loaded = False
-    
+
     def load_model(self):
         """
         Load OpenVINO-optimized model.
@@ -72,45 +72,45 @@ class DeviceEmbeddingModel:
         if self._model_loaded:
             logger.debug("Model already loaded, skipping")
             return
-        
+
         try:
             logger.info(f"Loading OpenVINO embedding model from {self.model_path}...")
-            
+
             # Check if model exists
             if not self.model_path.exists():
                 raise FileNotFoundError(
                     f"Model not found at {self.model_path}. "
                     f"Run: bash scripts/quantize-nlevel-models.sh"
                 )
-            
+
             # Load OpenVINO model
             from optimum.intel.openvino import OVModelForFeatureExtraction
             from transformers import AutoTokenizer
-            
+
             self.model = OVModelForFeatureExtraction.from_pretrained(
                 str(self.model_path),
                 device=self.device
             )
-            
+
             # Load tokenizer (from original model)
             self.tokenizer = AutoTokenizer.from_pretrained(self.MODEL_NAME)
-            
+
             self._model_loaded = True
-            
+
             logger.info(
                 f"✅ Model loaded successfully\n"
                 f"   Device: {self.device}\n"
                 f"   Embedding dim: {self.EMBEDDING_DIM}\n"
                 f"   Max seq length: {self.MAX_SEQ_LENGTH}"
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to load OpenVINO model: {e}")
             raise RuntimeError(f"Model loading failed: {e}")
-    
+
     def encode(
         self,
-        texts: List[str],
+        texts: list[str],
         batch_size: int = 32,
         normalize: bool = True,
         show_progress: bool = False,
@@ -141,18 +141,18 @@ class DeviceEmbeddingModel:
         """
         if not self._model_loaded:
             raise RuntimeError("Model not loaded. Call load_model() first.")
-        
+
         if not texts:
             return np.array([])
-        
+
         logger.debug(f"Encoding {len(texts)} texts in batches of {batch_size}")
-        
+
         all_embeddings = []
-        
+
         # Batch processing
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i+batch_size]
-            
+
             # Tokenize batch
             inputs = self.tokenizer(
                 batch,
@@ -161,35 +161,35 @@ class DeviceEmbeddingModel:
                 max_length=self.MAX_SEQ_LENGTH,
                 return_tensors='pt'
             )
-            
+
             # Generate embeddings
             with torch.no_grad():
                 outputs = self.model(**inputs)
-                
+
                 # Mean pooling (Context7 best practice for sentence embeddings)
                 embeddings = self._mean_pooling(
                     outputs.last_hidden_state,
                     inputs['attention_mask']
                 )
-            
+
             all_embeddings.append(embeddings)
-        
+
         # Concatenate batches
         embeddings = torch.cat(all_embeddings, dim=0)
-        
+
         # Normalize for dot-product scoring (Context7 best practice)
         if normalize:
             from sentence_transformers import util
             embeddings = util.normalize_embeddings(embeddings)
-        
+
         # Convert to numpy if requested
         if convert_to_numpy:
             embeddings = embeddings.cpu().numpy()
-        
+
         logger.debug(f"Generated embeddings shape: {embeddings.shape}")
-        
+
         return embeddings
-    
+
     def _mean_pooling(
         self,
         token_embeddings: torch.Tensor,
@@ -211,8 +211,8 @@ class DeviceEmbeddingModel:
         sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
         sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
         return sum_embeddings / sum_mask
-    
-    def get_model_info(self) -> Dict:
+
+    def get_model_info(self) -> dict:
         """
         Get model metadata.
         
@@ -227,7 +227,7 @@ class DeviceEmbeddingModel:
             'device': self.device,
             'loaded': self._model_loaded
         }
-    
+
     def unload_model(self):
         """
         Unload model to free memory.

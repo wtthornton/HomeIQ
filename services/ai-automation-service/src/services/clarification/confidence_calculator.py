@@ -9,31 +9,30 @@ Confidence Calculator - Enhanced confidence calculation with clarification suppo
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Literal, Union
+from typing import Any, Literal
+
 import numpy as np
-from .models import Ambiguity, ClarificationAnswer, AmbiguitySeverity
+
 from .confidence_calibrator import ClarificationConfidenceCalibrator
+from .models import Ambiguity, AmbiguitySeverity, ClarificationAnswer
 from .rl_calibrator import RLConfidenceCalibrator
-from .uncertainty_quantification import (
-    ConfidenceWithUncertainty,
-    UncertaintyQuantifier
-)
+from .uncertainty_quantification import ConfidenceWithUncertainty, UncertaintyQuantifier
 
 logger = logging.getLogger(__name__)
 
 
 class ConfidenceCalculator:
     """Enhanced confidence calculation with clarification support and RAG-based historical learning"""
-    
+
     def __init__(
         self,
         default_threshold: float = 0.85,
-        rag_client: Optional[Any] = None,
-        calibrator: Optional[ClarificationConfidenceCalibrator] = None,
+        rag_client: Any | None = None,
+        calibrator: ClarificationConfidenceCalibrator | None = None,
         calibration_enabled: bool = True,
-        rl_calibrator: Optional[RLConfidenceCalibrator] = None,
+        rl_calibrator: RLConfidenceCalibrator | None = None,
         rl_calibration_enabled: bool = False,  # Phase 3: Optional RL calibration
-        uncertainty_quantifier: Optional[UncertaintyQuantifier] = None,
+        uncertainty_quantifier: UncertaintyQuantifier | None = None,
         uncertainty_enabled: bool = False  # Phase 3: Optional uncertainty quantification
     ):
         """
@@ -57,17 +56,17 @@ class ConfidenceCalculator:
         self.rl_calibration_enabled = rl_calibration_enabled
         self.uncertainty_quantifier = uncertainty_quantifier or UncertaintyQuantifier()
         self.uncertainty_enabled = uncertainty_enabled
-    
+
     async def calculate_confidence(
         self,
         query: str,
-        extracted_entities: List[Dict[str, Any]],
-        ambiguities: List[Ambiguity],
-        clarification_answers: Optional[List[ClarificationAnswer]] = None,
+        extracted_entities: list[dict[str, Any]],
+        ambiguities: list[Ambiguity],
+        clarification_answers: list[ClarificationAnswer] | None = None,
         base_confidence: float = 0.75,
-        rag_client: Optional[Any] = None,
+        rag_client: Any | None = None,
         return_uncertainty: bool = False
-    ) -> Union[float, ConfidenceWithUncertainty]:
+    ) -> float | ConfidenceWithUncertainty:
         """
         Calculate confidence score.
         
@@ -94,7 +93,7 @@ class ConfidenceCalculator:
         """
         # Use provided rag_client or instance rag_client
         active_rag_client = rag_client or self.rag_client
-        
+
         # OPTION 3: Factor historical success in initial confidence
         # Check RAG for similar successful queries and boost base_confidence if found
         historical_boost = 0.0
@@ -107,17 +106,17 @@ class ConfidenceCalculator:
                     top_k=1,
                     min_similarity=0.75  # Moderate threshold for historical matching
                 )
-                
+
                 if similar_queries and similar_queries[0]['similarity'] > 0.75:
                     similarity = similar_queries[0]['similarity']
                     success_score = similar_queries[0].get('success_score', 0.5)
-                    
+
                     # Boost base_confidence based on similarity and historical success
                     # Formula: similarity * success_score * max_boost
                     # Higher similarity (closer to 1.0) and higher success_score = bigger boost
                     max_boost = 0.20  # Maximum boost of 20%
                     historical_boost = min(max_boost, similarity * success_score * max_boost)
-                    
+
                     logger.debug(
                         f"📚 Historical success boost: similarity={similarity:.2f}, "
                         f"success_score={success_score:.2f}, boost=+{historical_boost:.2f}"
@@ -125,10 +124,10 @@ class ConfidenceCalculator:
             except Exception as e:
                 # Non-critical: continue even if RAG check fails
                 logger.debug(f"⚠️ RAG historical check failed: {e}")
-        
+
         # Start with base_confidence + historical boost
         confidence = base_confidence + historical_boost
-        
+
         # Reduce for ambiguities using hybrid approach (Phase 1.3: Reduced aggressiveness)
         # First ambiguity: multiplicative, additional ambiguities: additive
         if ambiguities:
@@ -140,7 +139,7 @@ class ConfidenceCalculator:
                 confidence *= 0.85
             elif first_ambiguity.severity == AmbiguitySeverity.OPTIONAL:
                 confidence *= 0.95
-            
+
             # Apply additional ambiguities additively (less aggressive)
             if len(ambiguities) > 1:
                 additive_penalty = 0.0
@@ -151,12 +150,12 @@ class ConfidenceCalculator:
                         additive_penalty += 0.15  # -15% per additional important
                     elif ambiguity.severity == AmbiguitySeverity.OPTIONAL:
                         additive_penalty += 0.05  # -5% per additional optional
-                
+
                 # Cap maximum total penalty at 60% reduction
                 additive_penalty = min(0.60, additive_penalty)
                 penalty_multiplier = 1.0 - additive_penalty
                 confidence *= penalty_multiplier
-        
+
         # Increase for complete clarifications
         if clarification_answers:
             # Count critical ambiguities
@@ -164,68 +163,68 @@ class ConfidenceCalculator:
                 amb for amb in ambiguities
                 if amb.severity == AmbiguitySeverity.CRITICAL
             ]
-            
+
             # Count important ambiguities
             important_ambiguities = [
                 amb for amb in ambiguities
                 if amb.severity == AmbiguitySeverity.IMPORTANT
             ]
-            
+
             # Count answered critical questions (with validation)
             answered_critical = sum(
                 1 for answer in clarification_answers
                 if answer.validated and answer.confidence > 0.7
             )
-            
+
             # Count answered important questions
             answered_important = sum(
                 1 for answer in clarification_answers
                 if answer.validated and answer.confidence > 0.6
             )
-            
+
             total_critical = len(critical_ambiguities)
             total_important = len(important_ambiguities)
             total_answered = len([a for a in clarification_answers if a.validated])
-            
+
             # Calculate completion rate for critical ambiguities
             if total_critical > 0:
                 completion_rate = answered_critical / total_critical
                 # Boost confidence based on completion rate (more weight for critical)
                 confidence += (1.0 - confidence) * completion_rate * 0.4
-            
+
             # Calculate completion rate for important ambiguities
             if total_important > 0:
                 completion_rate_important = answered_important / total_important
                 # Boost confidence based on important completion (less weight)
                 confidence += (1.0 - confidence) * completion_rate_important * 0.2
-            
+
             # Boost for having any valid answers
             if total_answered > 0:
                 confidence += (1.0 - confidence) * min(0.2, total_answered * 0.05)
-            
+
             # Average answer confidence boost
             validated_answers = [a for a in clarification_answers if a.validated]
             if validated_answers:
                 avg_answer_confidence = sum(
                     a.confidence for a in validated_answers
                 ) / len(validated_answers)
-                
+
                 # Strong boost for high-quality answers
                 if avg_answer_confidence > 0.8:
                     confidence += (1.0 - confidence) * 0.15
                 elif avg_answer_confidence > 0.6:
                     confidence += (1.0 - confidence) * 0.1
-        
+
         # Adjust based on query clarity
         word_count = len(query.split())
         if word_count < 5:
             confidence *= 0.85
         elif word_count < 8:
             confidence *= 0.95
-        
+
         # Ensure within bounds
         raw_confidence = min(1.0, max(0.0, confidence))
-        
+
         # Apply calibration if enabled and calibrator is available (Phase 1.1)
         if self.calibration_enabled and self.calibrator:
             try:
@@ -236,7 +235,7 @@ class ConfidenceCalculator:
                 )
                 answer_count = len(clarification_answers or [])
                 rounds = 0  # Will be provided by caller if available
-                
+
                 calibrated_confidence = self.calibrator.calibrate(
                     raw_confidence=raw_confidence,
                     ambiguity_count=len(ambiguities),
@@ -244,7 +243,7 @@ class ConfidenceCalculator:
                     rounds=rounds,
                     answer_count=answer_count
                 )
-                
+
                 logger.debug(
                     f"📊 Confidence calibrated: {raw_confidence:.2f} → {calibrated_confidence:.2f} "
                     f"(base: {base_confidence:.2f}, ambiguities: {len(ambiguities)}, "
@@ -256,7 +255,7 @@ class ConfidenceCalculator:
                 final_confidence = raw_confidence
         else:
             final_confidence = raw_confidence
-        
+
         # Phase 3: Apply RL calibration if enabled (optional enhancement)
         if self.rl_calibration_enabled and self.rl_calibrator:
             try:
@@ -266,7 +265,7 @@ class ConfidenceCalculator:
                 )
                 answer_count = len(clarification_answers or [])
                 rounds = 0  # Will be provided by caller if available
-                
+
                 rl_calibrated = self.rl_calibrator.calibrate(
                     raw_confidence=final_confidence,
                     ambiguity_count=len(ambiguities),
@@ -274,27 +273,27 @@ class ConfidenceCalculator:
                     rounds=rounds,
                     answer_count=answer_count
                 )
-                
+
                 logger.debug(
                     f"🤖 RL calibration: {final_confidence:.2f} → {rl_calibrated:.2f}"
                 )
                 final_confidence = rl_calibrated
             except Exception as e:
                 logger.warning(f"RL calibration failed, using previous confidence: {e}")
-        
+
         # Phase 3: Calculate uncertainty if enabled (optional enhancement)
         if self.uncertainty_enabled and return_uncertainty:
             try:
                 # Get historical confidence data for uncertainty estimation
                 # For now, use empty array (could be enhanced to fetch from database)
                 historical_data = np.array([])  # TODO: Fetch from database if available
-                
+
                 uncertainty = self.uncertainty_quantifier.calculate_uncertainty(
                     raw_confidence=final_confidence,
                     historical_data=historical_data,
                     confidence_level=0.90
                 )
-                
+
                 logger.debug(
                     f"📊 Uncertainty: {self.uncertainty_quantifier.get_uncertainty_summary(uncertainty)}"
                 )
@@ -303,18 +302,18 @@ class ConfidenceCalculator:
                 logger.warning(f"Uncertainty calculation failed: {e}")
                 # Fall back to point estimate
                 return final_confidence
-        
+
         logger.debug(
             f"📊 Confidence calculated: {final_confidence:.2f} (base: {base_confidence:.2f}, "
             f"ambiguities: {len(ambiguities)}, answers: {len(clarification_answers or [])})"
         )
         return final_confidence
-    
+
     def should_ask_clarification(
         self,
         confidence: float,
-        ambiguities: List[Ambiguity],
-        threshold: Optional[float] = None
+        ambiguities: list[Ambiguity],
+        threshold: float | None = None
     ) -> bool:
         """
         Determine if clarification should be requested.
@@ -329,24 +328,24 @@ class ConfidenceCalculator:
         """
         if threshold is None:
             threshold = self.default_threshold
-        
+
         # Always ask if there are critical ambiguities
         has_critical = any(
             amb.severity == AmbiguitySeverity.CRITICAL
             for amb in ambiguities
         )
-        
+
         if has_critical:
             return True
-        
+
         # Ask if confidence is below threshold
         return confidence < threshold
-    
+
     def calculate_query_complexity(
         self,
         query: str,
-        extracted_entities: List[Dict[str, Any]],
-        ambiguities: List[Ambiguity]
+        extracted_entities: list[dict[str, Any]],
+        ambiguities: list[Ambiguity]
     ) -> Literal["simple", "medium", "complex"]:
         """
         Calculate query complexity level.
@@ -364,24 +363,24 @@ class ConfidenceCalculator:
         entity_count = len(extracted_entities)
         ambiguity_count = len(ambiguities)
         word_count = len(query.split())
-        
+
         # Simple: < 3 entities, no conditions, few words
         if entity_count < 3 and ambiguity_count == 0 and word_count < 10:
             return 'simple'
-        
+
         # Complex: 5+ entities, multiple ambiguities, long query
         if entity_count >= 5 or ambiguity_count >= 3 or word_count >= 20:
             return 'complex'
-        
+
         # Medium: everything else
         return 'medium'
-    
+
     def calculate_adaptive_threshold(
         self,
         query: str,
-        extracted_entities: List[Dict[str, Any]],
-        ambiguities: List[Ambiguity],
-        user_preferences: Optional[Dict[str, str]] = None
+        extracted_entities: list[dict[str, Any]],
+        ambiguities: list[Ambiguity],
+        user_preferences: dict[str, str] | None = None
     ) -> float:
         """
         Calculate adaptive confidence threshold based on context.
@@ -400,21 +399,21 @@ class ConfidenceCalculator:
         """
         base_threshold: float = 0.85
         threshold: float = base_threshold
-        
+
         # Adjust based on query complexity
         complexity = self.calculate_query_complexity(query, extracted_entities, ambiguities)
         if complexity == 'simple':
             threshold -= 0.10  # Lower threshold for simple queries
         elif complexity == 'complex':
             threshold += 0.05  # Higher threshold for complex queries
-        
+
         # Adjust based on ambiguity count
         ambiguity_count = len(ambiguities)
         if ambiguity_count == 0:
             threshold -= 0.05  # Lower threshold if no ambiguities
         elif ambiguity_count >= 3:
             threshold += 0.05  # Higher threshold if many ambiguities
-        
+
         # Adjust based on user preferences (2025: type-safe with Literal if using Pydantic)
         if user_preferences:
             risk_tolerance: str = user_preferences.get('risk_tolerance', 'medium')
@@ -422,15 +421,15 @@ class ConfidenceCalculator:
                 threshold -= 0.10
             elif risk_tolerance == 'low':  # User wants more certainty
                 threshold += 0.10
-        
+
         # Clamp to safe range [0.65, 0.95]
         threshold = min(0.95, max(0.65, threshold))
-        
+
         logger.debug(
             f"Adaptive threshold calculated: {threshold:.2f} "
             f"(base: {base_threshold:.2f}, complexity: {complexity}, "
             f"ambiguities: {ambiguity_count})"
         )
-        
+
         return threshold
 

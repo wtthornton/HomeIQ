@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -31,24 +31,24 @@ class PDLExecutionError(RuntimeError):
 class PDLInterpreter:
     """Load and execute lightweight PDL scripts."""
 
-    def __init__(self, script: Dict[str, Any], logger: logging.Logger):
+    def __init__(self, script: dict[str, Any], logger: logging.Logger):
         self._script = script
         self._logger = logger
 
     @classmethod
-    def from_file(cls, path: Path, logger: logging.Logger) -> "PDLInterpreter":
+    def from_file(cls, path: Path, logger: logging.Logger) -> PDLInterpreter:
         if not path.exists():
             raise FileNotFoundError(f"PDL script not found: {path}")
         with path.open("r", encoding="utf-8") as handle:
             script = yaml.safe_load(handle) or {}
         return cls(script, logger)
 
-    async def run(self, context: Dict[str, Any]) -> List[StepResult]:
+    async def run(self, context: dict[str, Any]) -> list[StepResult]:
         steps = self._script.get("steps", [])
         name = self._script.get("name", "unnamed")
         self._logger.info("📜 Executing PDL script '%s' (%d steps)", name, len(steps))
 
-        results: List[StepResult] = []
+        results: list[StepResult] = []
         for step in steps:
             step_id = step.get("id", "unknown-step")
             step_type = step.get("type", "info")
@@ -84,7 +84,7 @@ class PDLInterpreter:
 
         return results
 
-    def _evaluate_condition(self, condition: Any, context: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    def _evaluate_condition(self, condition: Any, context: dict[str, Any]) -> tuple[bool, str | None]:
         """Evaluate guard condition using a restricted set of operators."""
         if condition is None:
             return False, "Guard missing condition."
@@ -112,7 +112,7 @@ class PDLInterpreter:
 
         return False, "Unsupported condition structure."
 
-    def _resolve(self, value: Any, context: Dict[str, Any]) -> Any:
+    def _resolve(self, value: Any, context: dict[str, Any]) -> Any:
         if isinstance(value, str) and value in context:
             return context[value]
         return value

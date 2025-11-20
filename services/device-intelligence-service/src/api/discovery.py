@@ -6,20 +6,20 @@ API endpoints for device discovery management and status.
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..config import Settings
-from ..core.discovery_service import DiscoveryService, DiscoveryStatus, UnifiedDevice
+from ..core.discovery_service import DiscoveryService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/discovery", tags=["Discovery"])
 
 # Global discovery service instance
-_discovery_service: Optional[DiscoveryService] = None
+_discovery_service: DiscoveryService | None = None
 
 
 class DiscoveryStatusResponse(BaseModel):
@@ -27,22 +27,22 @@ class DiscoveryStatusResponse(BaseModel):
     service_running: bool
     ha_connected: bool
     mqtt_connected: bool
-    last_discovery: Optional[str]
+    last_discovery: str | None
     devices_count: int
     areas_count: int
-    errors: List[str]
+    errors: list[str]
 
 
 class DiscoverySourcesResponse(BaseModel):
     """Available discovery sources response."""
-    sources: List[Dict[str, Any]]
+    sources: list[dict[str, Any]]
 
 
 class DeviceSummaryResponse(BaseModel):
     """Device discovery summary response."""
     total_devices: int
-    devices_by_integration: Dict[str, int]
-    devices_by_area: Dict[str, int]
+    devices_by_integration: dict[str, int]
+    devices_by_area: dict[str, int]
     devices_with_capabilities: int
     last_updated: str
 
@@ -53,13 +53,13 @@ class DeviceResponse(BaseModel):
     name: str
     manufacturer: str
     model: str
-    area_id: Optional[str]
-    area_name: Optional[str]
+    area_id: str | None
+    area_name: str | None
     integration: str
-    capabilities: List[Dict[str, Any]]
-    entities: List[Dict[str, Any]]
-    health_score: Optional[int]
-    last_seen: Optional[str]
+    capabilities: list[dict[str, Any]]
+    entities: list[dict[str, Any]]
+    health_score: int | None
+    last_seen: str | None
     created_at: str
     updated_at: str
 
@@ -67,22 +67,22 @@ class DeviceResponse(BaseModel):
 async def get_discovery_service() -> DiscoveryService:
     """Get the global discovery service instance."""
     global _discovery_service
-    
+
     if _discovery_service is None:
         settings = Settings()
         _discovery_service = DiscoveryService(settings)
-        
+
         # Start the service
         if not await _discovery_service.start():
             raise HTTPException(status_code=500, detail="Failed to start discovery service")
-    
+
     return _discovery_service
 
 
 async def shutdown_discovery_service():
     """Stop the global discovery service if it is running."""
     global _discovery_service
-    
+
     if _discovery_service:
         try:
             await _discovery_service.stop()
@@ -102,7 +102,7 @@ async def get_discovery_status(
     """
     try:
         status = discovery_service.get_status()
-        
+
         return DiscoveryStatusResponse(
             service_running=status.service_running,
             ha_connected=status.ha_connected,
@@ -112,7 +112,7 @@ async def get_discovery_status(
             areas_count=status.areas_count,
             errors=status.errors
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting discovery status: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting discovery status: {str(e)}")
@@ -130,7 +130,7 @@ async def get_discovery_sources(
     """
     try:
         status = discovery_service.get_status()
-        
+
         sources = [
             {
                 "name": "Home Assistant",
@@ -145,9 +145,9 @@ async def get_discovery_sources(
                 "description": "Device capabilities and network topology via MQTT bridge"
             }
         ]
-        
+
         return DiscoverySourcesResponse(sources=sources)
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting discovery sources: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting discovery sources: {str(e)}")
@@ -156,7 +156,7 @@ async def get_discovery_sources(
 @router.post("/refresh")
 async def refresh_discovery(
     discovery_service: DiscoveryService = Depends(get_discovery_service)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Force a complete discovery refresh.
     
@@ -165,9 +165,9 @@ async def refresh_discovery(
     """
     try:
         logger.info("🔄 Manual discovery refresh requested")
-        
+
         success = await discovery_service.force_refresh()
-        
+
         if success:
             status = discovery_service.get_status()
             return {
@@ -182,7 +182,7 @@ async def refresh_discovery(
                 "message": "Discovery refresh failed",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-            
+
     except Exception as e:
         logger.error(f"❌ Error during discovery refresh: {e}")
         raise HTTPException(status_code=500, detail=f"Error during discovery refresh: {str(e)}")
@@ -201,22 +201,22 @@ async def get_devices_summary(
     try:
         devices = discovery_service.get_devices()
         areas = discovery_service.get_areas()
-        
+
         # Count devices by integration
         devices_by_integration = {}
         for device in devices:
             integration = device.integration if isinstance(device.integration, str) and device.integration.strip() else "Unknown"
             devices_by_integration[integration] = devices_by_integration.get(integration, 0) + 1
-        
+
         # Count devices by area
         devices_by_area = {}
         for device in devices:
             area_name = device.area_name or "Unknown"
             devices_by_area[area_name] = devices_by_area.get(area_name, 0) + 1
-        
+
         # Count devices with capabilities
         devices_with_capabilities = len([d for d in devices if d.capabilities])
-        
+
         return DeviceSummaryResponse(
             total_devices=len(devices),
             devices_by_integration=devices_by_integration,
@@ -224,7 +224,7 @@ async def get_devices_summary(
             devices_with_capabilities=devices_with_capabilities,
             last_updated=datetime.now(timezone.utc).isoformat()
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting devices summary: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting devices summary: {str(e)}")
@@ -249,10 +249,10 @@ async def get_device(
     """
     try:
         device = discovery_service.get_device(device_id)
-        
+
         if not device:
             raise HTTPException(status_code=404, detail="Device not found")
-        
+
         return DeviceResponse(
             id=device.id,
             name=device.name,
@@ -268,7 +268,7 @@ async def get_device(
             created_at=device.created_at.isoformat(),
             updated_at=device.updated_at.isoformat()
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -276,13 +276,13 @@ async def get_device(
         raise HTTPException(status_code=500, detail=f"Error getting device: {str(e)}")
 
 
-@router.get("/devices", response_model=List[DeviceResponse])
+@router.get("/devices", response_model=list[DeviceResponse])
 async def get_all_devices(
-    area_id: Optional[str] = None,
-    integration: Optional[str] = None,
+    area_id: str | None = None,
+    integration: str | None = None,
     limit: int = 100,
     discovery_service: DiscoveryService = Depends(get_discovery_service)
-) -> List[DeviceResponse]:
+) -> list[DeviceResponse]:
     """
     Get all discovered devices with optional filtering.
     
@@ -296,17 +296,17 @@ async def get_all_devices(
     """
     try:
         devices = discovery_service.get_devices()
-        
+
         # Apply filters
         if area_id:
             devices = [d for d in devices if d.area_id == area_id]
-        
+
         if integration:
             devices = [d for d in devices if d.integration == integration]
-        
+
         # Apply limit
         devices = devices[:limit]
-        
+
         # Convert to response format
         device_responses = []
         for device in devices:
@@ -325,9 +325,9 @@ async def get_all_devices(
                 created_at=device.created_at.isoformat(),
                 updated_at=device.updated_at.isoformat()
             ))
-        
+
         return device_responses
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting devices: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting devices: {str(e)}")
@@ -336,7 +336,7 @@ async def get_all_devices(
 @router.get("/areas")
 async def get_areas(
     discovery_service: DiscoveryService = Depends(get_discovery_service)
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all discovered areas.
     
@@ -345,7 +345,7 @@ async def get_areas(
     """
     try:
         areas = discovery_service.get_areas()
-        
+
         return [
             {
                 "area_id": area.area_id,
@@ -357,7 +357,7 @@ async def get_areas(
             }
             for area in areas
         ]
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting areas: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting areas: {str(e)}")
@@ -366,7 +366,7 @@ async def get_areas(
 @router.get("/groups")
 async def get_zigbee_groups(
     discovery_service: DiscoveryService = Depends(get_discovery_service)
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all discovered Zigbee groups.
     
@@ -375,7 +375,7 @@ async def get_zigbee_groups(
     """
     try:
         groups = discovery_service.get_zigbee_groups()
-        
+
         return [
             {
                 "id": group.id,
@@ -385,7 +385,7 @@ async def get_zigbee_groups(
             }
             for group in groups
         ]
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting Zigbee groups: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting Zigbee groups: {str(e)}")

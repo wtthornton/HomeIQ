@@ -9,10 +9,9 @@ Uses shared state machine base class from shared/state_machine.py
 """
 
 import logging
-import sys
 import os
+import sys
 from enum import Enum
-from typing import Dict, List
 from pathlib import Path
 
 # Add shared directory to path for imports (same pattern as main.py)
@@ -44,7 +43,7 @@ if shared_path and str(shared_path) not in sys.path:
 # Import shared state machine base class
 # Avoid circular import by importing from shared.state_machine explicitly
 try:
-    from shared.state_machine import StateMachine, InvalidStateTransition
+    from shared.state_machine import InvalidStateTransition, StateMachine
 except ImportError:
     # Fallback for different import path
     import importlib.util
@@ -82,7 +81,7 @@ class ConnectionStateMachine(StateMachine):
     - RECONNECTING → CONNECTING, FAILED
     - FAILED → RECONNECTING
     """
-    
+
     VALID_TRANSITIONS = {
         ConnectionState.DISCONNECTED: [ConnectionState.CONNECTING],
         ConnectionState.CONNECTING: [ConnectionState.AUTHENTICATING, ConnectionState.FAILED],
@@ -91,7 +90,7 @@ class ConnectionStateMachine(StateMachine):
         ConnectionState.RECONNECTING: [ConnectionState.CONNECTING, ConnectionState.FAILED],
         ConnectionState.FAILED: [ConnectionState.RECONNECTING]
     }
-    
+
     def __init__(self):
         super().__init__(ConnectionState.DISCONNECTED, self.VALID_TRANSITIONS)
 
@@ -118,7 +117,7 @@ class ProcessingStateMachine(StateMachine):
     - STOPPING → STOPPED
     - ERROR → STOPPED, STARTING
     """
-    
+
     VALID_TRANSITIONS = {
         ProcessingState.STOPPED: [ProcessingState.STARTING],
         ProcessingState.STARTING: [ProcessingState.RUNNING, ProcessingState.ERROR],
@@ -127,7 +126,7 @@ class ProcessingStateMachine(StateMachine):
         ProcessingState.STOPPING: [ProcessingState.STOPPED],
         ProcessingState.ERROR: [ProcessingState.STOPPED, ProcessingState.STARTING]
     }
-    
+
     def __init__(self):
         super().__init__(ProcessingState.STOPPED, self.VALID_TRANSITIONS)
 

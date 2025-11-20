@@ -6,53 +6,53 @@ Matches pattern from home-assistant-pattern-improvements.md
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from .entity import Entity
     from .device import Device
+    from .entity import Entity
 
 
 @dataclass
 class EntityRegistryEntry:
     """Comprehensive entity registry entry with relationship tracking"""
-    
+
     entity_id: str
     unique_id: str
-    name: Optional[str] = None
-    device_id: Optional[str] = None  # Links to device
-    area_id: Optional[str] = None    # Links to area
-    config_entry_id: Optional[str] = None  # Source tracking
-    
+    name: str | None = None
+    device_id: str | None = None  # Links to device
+    area_id: str | None = None    # Links to area
+    config_entry_id: str | None = None  # Source tracking
+
     # Metadata
     platform: str = "unknown"
     domain: str = "unknown"
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
-    sw_version: Optional[str] = None
-    via_device: Optional[str] = None  # Parent device (from device relationship)
-    
+    manufacturer: str | None = None
+    model: str | None = None
+    sw_version: str | None = None
+    via_device: str | None = None  # Parent device (from device relationship)
+
     # Relationships
-    related_entities: List[str] = field(default_factory=list)  # Siblings from same device
-    capabilities: Dict[str, Any] = field(default_factory=dict)
-    
+    related_entities: list[str] = field(default_factory=list)  # Siblings from same device
+    capabilities: dict[str, Any] = field(default_factory=dict)
+
     # Additional entity metadata
-    friendly_name: Optional[str] = None
-    name_by_user: Optional[str] = None
-    original_name: Optional[str] = None
+    friendly_name: str | None = None
+    name_by_user: str | None = None
+    original_name: str | None = None
     disabled: bool = False
-    supported_features: Optional[int] = None
-    available_services: Optional[List[str]] = None
-    icon: Optional[str] = None
-    device_class: Optional[str] = None
-    unit_of_measurement: Optional[str] = None
-    
+    supported_features: int | None = None
+    available_services: list[str] | None = None
+    icon: str | None = None
+    device_class: str | None = None
+    unit_of_measurement: str | None = None
+
     @classmethod
     def from_entity_and_device(
         cls,
         entity: "Entity",
         device: Optional["Device"] = None,
-        related_entities: Optional[List[str]] = None
+        related_entities: list[str] | None = None
     ) -> "EntityRegistryEntry":
         """
         Create EntityRegistryEntry from Entity and Device models
@@ -90,8 +90,8 @@ class EntityRegistryEntry:
             device_class=entity.device_class,
             unit_of_measurement=entity.unit_of_measurement
         )
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
             'entity_id': self.entity_id,

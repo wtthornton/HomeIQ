@@ -9,9 +9,10 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
-from aiohttp import web
+from typing import Any
+
 import aiohttp
+from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
@@ -33,7 +34,7 @@ candidate_paths.extend([
     Path.cwd() / "shared",
 ])
 
-shared_path: Optional[Path] = None
+shared_path: Path | None = None
 for p in candidate_paths:
     if p.exists():
         shared_path = p.resolve()
@@ -44,23 +45,27 @@ if shared_path and str(shared_path) not in sys.path:
 elif not shared_path:
     logging.warning("[websocket-ingestion] Warning: could not locate 'shared' directory in expected locations")
 
-from shared.logging_config import (
-    setup_logging, get_logger, log_with_context, log_performance, 
-    log_error_with_context, performance_monitor, generate_correlation_id,
-    set_correlation_id, get_correlation_id
-)
 from shared.correlation_middleware import create_correlation_middleware
 from shared.enhanced_ha_connection_manager import ha_connection_manager
+from shared.logging_config import (
+    generate_correlation_id,
+    get_correlation_id,
+    log_error_with_context,
+    log_with_context,
+    performance_monitor,
+    set_correlation_id,
+    setup_logging,
+)
 
-from .health_check import HealthCheckHandler
-from .connection_manager import ConnectionManager
 from .async_event_processor import AsyncEventProcessor
-from .event_queue import EventQueue
 from .batch_processor import BatchProcessor
-from .memory_manager import MemoryManager
+from .connection_manager import ConnectionManager
+from .event_queue import EventQueue
+from .health_check import HealthCheckHandler
+from .historical_event_counter import HistoricalEventCounter
 from .http_client import SimpleHTTPClient
 from .influxdb_wrapper import InfluxDBConnectionManager
-from .historical_event_counter import HistoricalEventCounter
+from .memory_manager import MemoryManager
 
 # Load environment variables
 load_dotenv()
@@ -71,46 +76,46 @@ logger = setup_logging('websocket-ingestion')
 
 class WebSocketIngestionService:
     """Main service class for WebSocket ingestion"""
-    
+
     def __init__(self):
         self.start_time = datetime.now()
-        self.connection_manager: Optional[ConnectionManager] = None
+        self.connection_manager: ConnectionManager | None = None
         self.health_handler = HealthCheckHandler()
         # Pass self reference to health handler for weather statistics
         self.health_handler.websocket_service = self
-        
+
         # High-volume processing components
-        self.async_event_processor: Optional[AsyncEventProcessor] = None
-        self.event_queue: Optional[EventQueue] = None
-        self.batch_processor: Optional[BatchProcessor] = None
-        self.memory_manager: Optional[MemoryManager] = None
+        self.async_event_processor: AsyncEventProcessor | None = None
+        self.event_queue: EventQueue | None = None
+        self.batch_processor: BatchProcessor | None = None
+        self.memory_manager: MemoryManager | None = None
 
         # HTTP client for enrichment service
-        self.http_client: Optional[SimpleHTTPClient] = None
-        
+        self.http_client: SimpleHTTPClient | None = None
+
         # InfluxDB connection for device/entity registry storage
-        self.influxdb_manager: Optional[InfluxDBConnectionManager] = None
-        
+        self.influxdb_manager: InfluxDBConnectionManager | None = None
+
         # Get configuration from environment
         # Support both new (HA_HTTP_URL/HA_WS_URL/HA_TOKEN) and old (HOME_ASSISTANT_URL/HOME_ASSISTANT_TOKEN) variable names
         self.home_assistant_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
         # Prioritize HA_WS_URL, then fall back to HA_URL (for backward compatibility with .env.websocket)
         self.home_assistant_ws_url = os.getenv('HA_WS_URL') or os.getenv('HA_URL')
         self.home_assistant_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
-        
+
         # Nabu Casa fallback configuration
         self.nabu_casa_url = os.getenv('NABU_CASA_URL')
         self.nabu_casa_token = os.getenv('NABU_CASA_TOKEN')
-        
+
         self.home_assistant_enabled = os.getenv('ENABLE_HOME_ASSISTANT', 'true').lower() == 'true'
-        
+
         # High-volume processing configuration
         self.max_workers = int(os.getenv('MAX_WORKERS', '10'))
         self.processing_rate_limit = int(os.getenv('PROCESSING_RATE_LIMIT', '1000'))
         self.batch_size = int(os.getenv('BATCH_SIZE', '100'))
         self.batch_timeout = float(os.getenv('BATCH_TIMEOUT', '5.0'))
         self.max_memory_mb = int(os.getenv('MAX_MEMORY_MB', '1024'))
-        
+
         # InfluxDB configuration for device/entity registry storage
         self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
@@ -118,27 +123,27 @@ class WebSocketIngestionService:
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
         self.influxdb_max_pending_points = int(os.getenv('INFLUXDB_MAX_PENDING_POINTS', '20000'))
         self.influxdb_overflow_strategy = os.getenv('INFLUXDB_OVERFLOW_STRATEGY', 'drop_oldest').lower()
-        
+
         # Historical event counter for persistent totals
         self.historical_counter = None
-        
+
         # Note: HA connection validation is now handled by ha_connection_manager
         # The service will check for available connections during startup
         # Note: Weather enrichment is handled by standalone weather-api service (Epic 31)
-    
+
     @performance_monitor("service_startup")
     async def start(self):
         """Start the service"""
         corr_id = generate_correlation_id()
         set_correlation_id(corr_id)
-        
+
         log_with_context(
             logger, "INFO", "Starting WebSocket Ingestion Service",
             operation="service_startup",
             correlation_id=corr_id,
             service="websocket-ingestion"
         )
-        
+
         try:
             # Initialize high-volume processing components
             self.memory_manager = MemoryManager(max_memory_mb=self.max_memory_mb)
@@ -151,28 +156,28 @@ class WebSocketIngestionService:
                 max_workers=self.max_workers,
                 processing_rate_limit=self.processing_rate_limit
             )
-            
+
             # Start high-volume processing components
             await self.memory_manager.start()
             await self.batch_processor.start()
             await self.async_event_processor.start()
-            
+
             log_with_context(
                 logger, "INFO", "High-volume processing components started",
                 operation="component_startup",
                 correlation_id=corr_id,
                 components=["memory_manager", "event_queue", "batch_processor", "async_event_processor"]
             )
-            
+
             # Register InfluxDB write handler (will be registered after InfluxDB batch writer is initialized)
             # This will be done later in the start() method after InfluxDB components are ready
-            
+
             # Note: Weather enrichment is now handled by the standalone weather-api service (Epic 31)
             # This service only handles WebSocket ingestion and direct InfluxDB writes
-            
+
             # Set up batch processor handler
             self.batch_processor.add_batch_handler(self._process_batch)
-            
+
             # Initialize InfluxDB manager for device/entity registry storage
             self.influxdb_manager = InfluxDBConnectionManager(
                 url=self.influxdb_url,
@@ -186,7 +191,7 @@ class WebSocketIngestionService:
                 operation="influxdb_connection",
                 correlation_id=corr_id
             )
-            
+
             # Initialize historical event counter for persistent totals
             self.historical_counter = HistoricalEventCounter(self.influxdb_manager)
             historical_totals = await self.historical_counter.initialize_historical_totals()
@@ -196,7 +201,7 @@ class WebSocketIngestionService:
                 correlation_id=corr_id,
                 total_events=historical_totals.get('total_events_received', 0)
             )
-            
+
             # Initialize InfluxDB batch writer for event storage
             from .influxdb_batch_writer import InfluxDBBatchWriter
             self.influxdb_batch_writer = InfluxDBBatchWriter(
@@ -212,7 +217,7 @@ class WebSocketIngestionService:
                 operation="influxdb_batch_writer_startup",
                 correlation_id=corr_id
             )
-            
+
             # Register InfluxDB write handler with async event processor
             self.async_event_processor.add_event_handler(self._write_event_to_influxdb)
             log_with_context(
@@ -220,23 +225,23 @@ class WebSocketIngestionService:
                 operation="handler_registration",
                 correlation_id=corr_id
             )
-            
+
             # Initialize connection manager (only if Home Assistant is enabled)
             if self.home_assistant_enabled:
                 # Use the enhanced HA connection manager with circuit breaker protection
                 connection_config = await ha_connection_manager.get_connection_with_circuit_breaker()
-                
+
                 if not connection_config:
                     raise ValueError("No Home Assistant connections available. Configure HA_HTTP_URL/HA_WS_URL + HA_TOKEN or NABU_CASA_URL + NABU_CASA_TOKEN")
-                
+
                 logger.info(f"Using HA connection: {connection_config.name} ({connection_config.url})", extra={'correlation_id': corr_id})
-                
+
                 self.connection_manager = ConnectionManager(
                     connection_config.url,
                     connection_config.token,
                     influxdb_manager=self.influxdb_manager
                 )
-                
+
                 # Set up event handlers - don't override connection manager's callbacks
                 # The connection manager handles subscription, we'll add discovery in a separate callback
                 self.connection_manager.on_connect = self._on_connect  # FIX: Wire up discovery trigger
@@ -244,20 +249,20 @@ class WebSocketIngestionService:
                 self.connection_manager.on_message = self._on_message
                 self.connection_manager.on_error = self._on_error
                 self.connection_manager.on_event = self._on_event
-                
+
                 # Start connection manager
                 await self.connection_manager.start()
-                
+
                 # Wait a moment for connection attempt
                 await asyncio.sleep(2)
-                
+
                 # Check if connection is actually established
                 connected = await self._check_connection_status()
-                
+
                 if not connected:
                     logger.error("Failed to establish Home Assistant connection", extra={'correlation_id': corr_id})
                     raise ConnectionError("Could not connect to Home Assistant")
-                
+
                 log_with_context(
                     logger, "INFO", "Home Assistant connection manager started",
                     operation="ha_connection_startup",
@@ -272,18 +277,18 @@ class WebSocketIngestionService:
                     correlation_id=corr_id,
                     mode="standalone"
                 )
-            
+
             # Update health handler with connection manager and historical counter
             self.health_handler.set_connection_manager(self.connection_manager)
             self.health_handler.set_historical_counter(self.historical_counter)
-            
+
             log_with_context(
                 logger, "INFO", "WebSocket Ingestion Service started successfully",
                 operation="service_startup_complete",
                 correlation_id=corr_id,
                 status="success"
             )
-            
+
         except Exception as e:
             log_error_with_context(
                 logger, "Failed to start WebSocket Ingestion Service", e,
@@ -292,11 +297,11 @@ class WebSocketIngestionService:
                 error_type="startup_failure"
             )
             raise
-    
+
     async def stop(self):
         """Stop the service"""
         logger.info("Stopping WebSocket Ingestion Service...")
-        
+
         # Stop high-volume processing components
         if self.async_event_processor:
             await self.async_event_processor.stop()
@@ -304,32 +309,32 @@ class WebSocketIngestionService:
             await self.batch_processor.stop()
         if self.memory_manager:
             await self.memory_manager.stop()
-        
+
         # Stop InfluxDB batch writer
         if hasattr(self, 'influxdb_batch_writer') and self.influxdb_batch_writer:
             await self.influxdb_batch_writer.stop()
         # Stop InfluxDB manager
         if self.influxdb_manager:
             await self.influxdb_manager.stop()
-        
+
         # HTTP client cleanup is handled by context manager in main()
-        
+
         if self.connection_manager:
             await self.connection_manager.stop()
-        
+
         logger.info("WebSocket Ingestion Service stopped")
-    
+
     async def _check_connection_status(self) -> bool:
         """Check if WebSocket connection is actually established"""
         if not self.connection_manager or not self.connection_manager.client:
             return False
-        
+
         # Check if websocket exists and is connected
         if hasattr(self.connection_manager.client, 'websocket') and self.connection_manager.client.websocket:
             return not self.connection_manager.client.websocket.closed
-        
+
         return False
-    
+
     async def _on_connect(self):
         """Handle successful connection and trigger discovery"""
         corr_id = get_correlation_id() or generate_correlation_id()
@@ -340,7 +345,7 @@ class WebSocketIngestionService:
             status="connected",
             url=self.home_assistant_url
         )
-        
+
         # Call the connection manager's subscription logic
         if self.connection_manager:
             try:
@@ -362,7 +367,7 @@ class WebSocketIngestionService:
                     correlation_id=corr_id,
                     error=str(e)
                 )
-        
+
         # Trigger device and entity discovery
         # Entity discovery uses HTTP API (no WebSocket needed)
         # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
@@ -375,7 +380,7 @@ class WebSocketIngestionService:
             try:
                 # Ensure WebSocket is available for device discovery
                 websocket = None
-                if (self.connection_manager.client and 
+                if (self.connection_manager.client and
                     hasattr(self.connection_manager.client, 'websocket') and
                     self.connection_manager.client.is_connected and
                     self.connection_manager.client.is_authenticated):
@@ -391,7 +396,7 @@ class WebSocketIngestionService:
                         operation="discovery_websocket_check",
                         correlation_id=corr_id
                     )
-                
+
                 # Discovery: entities use HTTP API, devices use WebSocket if available
                 await self.connection_manager.discovery_service.discover_all(websocket=websocket, store=True)
             except Exception as e:
@@ -400,7 +405,7 @@ class WebSocketIngestionService:
                     operation="discovery_error",
                     correlation_id=corr_id
                 )
-    
+
     async def _on_disconnect(self):
         """Handle disconnection"""
         corr_id = get_correlation_id() or generate_correlation_id()
@@ -411,7 +416,7 @@ class WebSocketIngestionService:
             status="disconnected",
             url=self.home_assistant_url
         )
-    
+
     async def _on_message(self, message):
         """Handle incoming message"""
         corr_id = get_correlation_id() or generate_correlation_id()
@@ -423,15 +428,15 @@ class WebSocketIngestionService:
             message_size=len(str(message)) if message else 0
         )
         # Message handling is now done in connection_manager
-    
+
     @performance_monitor("event_processing")
     async def _on_event(self, processed_event):
         """Handle processed event"""
         corr_id = get_correlation_id() or generate_correlation_id()
-        
+
         event_type = processed_event.get('event_type', 'unknown')
         entity_id = processed_event.get('entity_id', 'N/A')
-        
+
         log_with_context(
             logger, "DEBUG", "Processing Home Assistant event",
             operation="event_processing",
@@ -440,7 +445,7 @@ class WebSocketIngestionService:
             entity_id=entity_id,
             domain=processed_event.get('domain', 'unknown')
         )
-        
+
         try:
             # Add to batch processor for high-volume processing
             if self.batch_processor:
@@ -452,7 +457,7 @@ class WebSocketIngestionService:
                     event_type=event_type,
                     entity_id=entity_id
                 )
-                
+
         except Exception as e:
             log_error_with_context(
                 logger, "Error processing Home Assistant event", e,
@@ -461,8 +466,8 @@ class WebSocketIngestionService:
                 event_type=event_type,
                 entity_id=entity_id
             )
-    
-    async def _write_event_to_influxdb(self, event_data: Dict[str, Any]):
+
+    async def _write_event_to_influxdb(self, event_data: dict[str, Any]):
         """Write event to InfluxDB"""
         try:
             if self.influxdb_batch_writer:
@@ -472,26 +477,26 @@ class WebSocketIngestionService:
                     logger.warning(f"Failed to write event to InfluxDB: {event_data.get('event_type')}")
         except Exception as e:
             logger.error(f"Error writing event to InfluxDB: {e}")
-    
+
     @performance_monitor("batch_processing")
     async def _process_batch(self, batch):
         """Process a batch of events"""
         corr_id = get_correlation_id() or generate_correlation_id()
         batch_size = len(batch)
-        
+
         log_with_context(
             logger, "DEBUG", "Processing batch of events",
             operation="batch_processing",
             correlation_id=corr_id,
             batch_size=batch_size
         )
-        
+
         try:
             # Add batch to async event processor
             if self.async_event_processor:
                 for event in batch:
                     await self.async_event_processor.process_event(event)
-                
+
                 log_with_context(
                     logger, "DEBUG", "Batch processed by async event processor",
                     operation="async_processing",
@@ -505,7 +510,7 @@ class WebSocketIngestionService:
                 correlation_id=corr_id,
                 batch_size=batch_size
             )
-                
+
         except Exception as e:
             log_error_with_context(
                 logger, "Error processing batch", e,
@@ -513,7 +518,7 @@ class WebSocketIngestionService:
                 correlation_id=corr_id,
                 batch_size=batch_size
             )
-    
+
     async def _on_error(self, error):
         """Handle error"""
         corr_id = get_correlation_id() or generate_correlation_id()
@@ -523,7 +528,7 @@ class WebSocketIngestionService:
             correlation_id=corr_id,
             error_type="service_error"
         )
-    
+
     async def get_event_rate(self, request):
         """Get standardized event rate metrics"""
         try:
@@ -531,7 +536,7 @@ class WebSocketIngestionService:
             processing_stats = {}
             if self.async_event_processor:
                 processing_stats = self.async_event_processor.get_processing_statistics()
-            
+
             # Get connection statistics
             connection_stats = {}
             if self.connection_manager and hasattr(self.connection_manager, 'event_subscription'):
@@ -545,16 +550,16 @@ class WebSocketIngestionService:
                         "events_by_type": sub_status.get("events_by_type", {}),
                         "last_event_time": sub_status.get("last_event_time")
                     }
-            
+
             # Calculate event rate per second
             events_per_second = processing_stats.get("processing_rate_per_second", 0)
-            
+
             # Calculate events per hour
             events_per_hour = events_per_second * 3600
-            
+
             # Get uptime
             uptime_seconds = (datetime.now() - self.start_time).total_seconds()
-            
+
             # Build response
             response_data = {
                 "service": "websocket-ingestion",
@@ -566,9 +571,9 @@ class WebSocketIngestionService:
                 "connection_stats": connection_stats,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             return web.json_response(response_data, status=200)
-            
+
         except Exception as e:
             logger.error(f"Error getting event rate: {e}")
             return web.json_response(
@@ -588,10 +593,10 @@ async def websocket_handler(request):
     # Generate correlation ID for this WebSocket connection
     corr_id = generate_correlation_id()
     set_correlation_id(corr_id)
-    
+
     ws = web.WebSocketResponse()
     await ws.prepare(request)
-    
+
     log_with_context(
         logger, "INFO", "WebSocket client connected",
         operation="websocket_connection",
@@ -599,7 +604,7 @@ async def websocket_handler(request):
         client_ip=request.remote,
         user_agent=request.headers.get('User-Agent', 'unknown')
     )
-    
+
     try:
         # Send initial connection message
         await ws.send_json({
@@ -608,7 +613,7 @@ async def websocket_handler(request):
             "message": "Connected to HA Ingestor WebSocket",
             "correlation_id": corr_id
         })
-        
+
         # Keep connection alive and handle messages
         async for msg in ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
@@ -621,11 +626,11 @@ async def websocket_handler(request):
                         message_type=data.get("type", "unknown"),
                         message_size=len(msg.data)
                     )
-                    
+
                     # Handle different message types
                     if data.get("type") == "ping":
                         await ws.send_json({
-                            "type": "pong", 
+                            "type": "pong",
                             "timestamp": datetime.now().isoformat(),
                             "correlation_id": corr_id
                         })
@@ -651,7 +656,7 @@ async def websocket_handler(request):
                             "original": data,
                             "correlation_id": corr_id
                         })
-                        
+
                 except json.JSONDecodeError as e:
                     log_error_with_context(
                         logger, "Invalid JSON in WebSocket message", e,
@@ -671,7 +676,7 @@ async def websocket_handler(request):
                     correlation_id=corr_id
                 )
                 break
-                
+
     except Exception as e:
         log_error_with_context(
             logger, "WebSocket handler error", e,
@@ -684,7 +689,7 @@ async def websocket_handler(request):
             operation="websocket_disconnection",
             correlation_id=corr_id
         )
-    
+
     return ws
 
 
@@ -693,16 +698,16 @@ async def create_app():
     # Create web application with proper middleware factory
     correlation_middleware = create_correlation_middleware()
     app = web.Application(middlewares=[correlation_middleware])
-    
+
     # Create service instance
     service = WebSocketIngestionService()
-    
+
     # Add health check endpoint
     app.router.add_get('/health', service.health_handler.handle)
-    
+
     # Add standardized event rate endpoint
     app.router.add_get('/api/v1/event-rate', service.get_event_rate)
-    
+
     # Add discovery trigger endpoint
     async def trigger_discovery_handler(request):
         """Endpoint to manually trigger device/entity discovery"""
@@ -713,7 +718,7 @@ async def create_app():
                     "success": False,
                     "error": "Connection manager or discovery service not available"
                 }, status=503)
-            
+
             logger.info("Manual discovery trigger requested")
             # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
             # Entity discovery uses HTTP API (no WebSocket needed)
@@ -723,7 +728,7 @@ async def create_app():
                 logger.info("Using WebSocket connection for device discovery")
             else:
                 logger.warning("⚠️  WebSocket not available - device discovery will be skipped (entities will still be discovered)")
-            
+
             try:
                 logger.info("Calling discover_all()...")
                 discovery_result = await service.connection_manager.discovery_service.discover_all(
@@ -731,7 +736,7 @@ async def create_app():
                     store=True
                 )
                 logger.info(f"Discovery completed: {len(discovery_result.get('devices', []))} devices, {len(discovery_result.get('entities', []))} entities")
-                
+
                 return web.json_response({
                     "success": True,
                     "devices_discovered": len(discovery_result.get("devices", [])),
@@ -749,15 +754,15 @@ async def create_app():
                 "success": False,
                 "error": str(e)
             }, status=500)
-    
+
     app.router.add_post('/api/v1/discovery/trigger', trigger_discovery_handler)
-    
+
     # Add WebSocket endpoint
     app.router.add_get('/ws', websocket_handler)
-    
+
     # Store service instance in app
     app['service'] = service
-    
+
     return app
 
 
@@ -772,16 +777,16 @@ async def main():
     # Start web server
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     port = int(os.getenv('WEBSOCKET_INGESTION_PORT', '8000'))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    
+
     logger.info(f"WebSocket Ingestion Service started on port {port}")
-    
+
     # Start the service
     await service.start()
-    
+
     # Keep the service running
     try:
         await asyncio.Future()  # Run forever

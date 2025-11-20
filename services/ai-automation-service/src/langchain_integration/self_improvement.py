@@ -12,16 +12,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from statistics import mean
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
+)
 from sqlalchemy import select
 
 from ..database.models import AskAIQuery
 
 
-async def _collect_metrics(db_session_factory) -> Dict[str, Any]:
-    metrics: Dict[str, Any] = {
+async def _collect_metrics(db_session_factory) -> dict[str, Any]:
+    metrics: dict[str, Any] = {
         "total_queries": 0,
         "total_suggestions": 0,
         "accepted_suggestions": 0,
@@ -35,13 +39,13 @@ async def _collect_metrics(db_session_factory) -> Dict[str, Any]:
             result = await session.execute(
                 select(AskAIQuery).order_by(AskAIQuery.created_at.desc()).limit(20)
             )
-            queries: List[AskAIQuery] = result.scalars().all()
+            queries: list[AskAIQuery] = result.scalars().all()
     except Exception:
         # Database may not be initialised in development environments.
         return metrics
 
     metrics["total_queries"] = len(queries)
-    confidence_values: List[float] = []
+    confidence_values: list[float] = []
 
     for query in queries:
         suggestions = query.suggestions or []
@@ -66,8 +70,8 @@ async def _collect_metrics(db_session_factory) -> Dict[str, Any]:
     return metrics
 
 
-def _derive_recommendations(metrics: Dict[str, Any]) -> List[str]:
-    recs: List[str] = []
+def _derive_recommendations(metrics: dict[str, Any]) -> list[str]:
+    recs: list[str] = []
     total = metrics.get("total_suggestions", 0) or 1  # Avoid division by zero
     accepted = metrics.get("accepted_suggestions", 0)
     needs_review = metrics.get("needs_review", 0)
@@ -92,7 +96,7 @@ def _derive_recommendations(metrics: Dict[str, Any]) -> List[str]:
     return recs
 
 
-def _build_plan_text(metrics: Dict[str, Any], recommendations: List[str]) -> str:
+def _build_plan_text(metrics: dict[str, Any], recommendations: list[str]) -> str:
     chat_prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessagePromptTemplate.from_template(
@@ -122,7 +126,7 @@ Next Steps:
     return "\n\n".join(message.content for message in formatted.to_messages())
 
 
-async def generate_prompt_tuning_report(db_session_factory) -> Dict[str, Any]:
+async def generate_prompt_tuning_report(db_session_factory) -> dict[str, Any]:
     """
     Build the weekly self-improvement report without mutating system state.
     """
@@ -137,7 +141,7 @@ async def generate_prompt_tuning_report(db_session_factory) -> Dict[str, Any]:
     }
 
 
-def write_report_to_markdown(report: Dict[str, Any], output_path: Path) -> None:
+def write_report_to_markdown(report: dict[str, Any], output_path: Path) -> None:
     """
     Persist report to markdown so humans can review and approve changes.
     """

@@ -3,8 +3,8 @@ Tests for Device and Entity models
 Story 22.2
 """
 
+
 import pytest
-from datetime import datetime
 from sqlalchemy import select
 from src.database import AsyncSessionLocal, init_db
 from src.models import Device, Entity
@@ -14,7 +14,7 @@ from src.models import Device, Entity
 async def test_device_creation():
     """Test creating a device"""
     await init_db()
-    
+
     async with AsyncSessionLocal() as session:
         device = Device(
             device_id="test_device_1",
@@ -25,13 +25,13 @@ async def test_device_creation():
         )
         session.add(device)
         await session.commit()
-        
+
         # Verify
         result = await session.execute(select(Device).where(Device.device_id == "test_device_1"))
         saved_device = result.scalar_one()
         assert saved_device.name == "Test Device"
         assert saved_device.manufacturer == "Test Co"
-        
+
         # Cleanup
         await session.delete(saved_device)
         await session.commit()
@@ -41,7 +41,7 @@ async def test_device_creation():
 async def test_entity_with_foreign_key():
     """Test entity with foreign key to device"""
     await init_db()
-    
+
     async with AsyncSessionLocal() as session:
         # Create device first
         device = Device(
@@ -50,7 +50,7 @@ async def test_entity_with_foreign_key():
         )
         session.add(device)
         await session.commit()
-        
+
         # Create entity
         entity = Entity(
             entity_id="light.test",
@@ -60,7 +60,7 @@ async def test_entity_with_foreign_key():
         )
         session.add(entity)
         await session.commit()
-        
+
         # Verify relationship
         result = await session.execute(
             select(Entity).where(Entity.entity_id == "light.test")
@@ -68,7 +68,7 @@ async def test_entity_with_foreign_key():
         saved_entity = result.scalar_one()
         assert saved_entity.device_id == "test_device_2"
         assert saved_entity.domain == "light"
-        
+
         # Cleanup
         await session.delete(saved_entity)
         await session.delete(device)
@@ -79,20 +79,20 @@ async def test_entity_with_foreign_key():
 async def test_device_cascade_delete():
     """Test that deleting device cascades to entities"""
     await init_db()
-    
+
     async with AsyncSessionLocal() as session:
         # Create device with entity
         device = Device(device_id="test_device_3", name="Test Device 3")
         entity = Entity(entity_id="sensor.test", device_id="test_device_3", domain="sensor")
-        
+
         session.add(device)
         session.add(entity)
         await session.commit()
-        
+
         # Delete device
         await session.delete(device)
         await session.commit()
-        
+
         # Verify entity deleted too
         result = await session.execute(select(Entity).where(Entity.entity_id == "sensor.test"))
         entity_check = result.scalar_one_or_none()
@@ -103,20 +103,20 @@ async def test_device_cascade_delete():
 async def test_device_query_by_area():
     """Test filtering devices by area"""
     await init_db()
-    
+
     async with AsyncSessionLocal() as session:
         # Create test devices
         device1 = Device(device_id="d1", name="Device 1", area_id="kitchen")
         device2 = Device(device_id="d2", name="Device 2", area_id="bedroom")
         session.add_all([device1, device2])
         await session.commit()
-        
+
         # Query by area
         result = await session.execute(select(Device).where(Device.area_id == "kitchen"))
         devices = result.scalars().all()
         assert len(devices) == 1
         assert devices[0].device_id == "d1"
-        
+
         # Cleanup
         await session.delete(device1)
         await session.delete(device2)

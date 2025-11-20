@@ -3,6 +3,13 @@
 
 $ErrorActionPreference = "Continue"
 
+# Initialize variables
+$ruffIssues = 0
+$remaining = 0
+$mypyErrors = 0
+$eslintWarnings = 0
+$highComplexity = 0
+
 Write-Host "========================================" -ForegroundColor Blue
 Write-Host "First Code Quality Run" -ForegroundColor Blue
 Write-Host "========================================`n" -ForegroundColor Blue
@@ -126,51 +133,52 @@ if (Get-Command radon -ErrorAction SilentlyContinue) {
 
 Write-Host "[Step 6/6] Generating Summary...`n" -ForegroundColor Green
 
-$summary = @"
-# First Code Quality Run Summary
+$dateStr = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$summaryLines = @(
+    "# First Code Quality Run Summary",
+    "",
+    "**Date:** $dateStr",
+    "",
+    "## Results Overview",
+    "",
+    "### Ruff Linting",
+    "- Initial issues: $ruffIssues",
+    "- Remaining after auto-fix: $remaining",
+    "",
+    "### mypy Type Checking",
+    "- Total errors: $mypyErrors",
+    "",
+    "### ESLint",
+    "- Warnings: $eslintWarnings",
+    "",
+    "### Complexity",
+    "- High complexity functions: $highComplexity",
+    "",
+    "## Reports Generated",
+    "",
+    "- Ruff: ``reports/quality/first-run-ruff.txt``",
+    "- After auto-fix: ``reports/quality/after-auto-fix.txt``",
+    "- mypy: ``reports/quality/first-run-mypy.txt``",
+    "- ESLint: ``reports/quality/first-run-eslint.txt``",
+    "- Complexity: ``reports/quality/first-run-complexity.txt``",
+    "",
+    "## Next Steps",
+    "",
+    "1. Review the reports above",
+    "2. Create an action plan (see ``docs/CODE_QUALITY_FIRST_RUN_PLAN.md``)",
+    "3. Start with Priority 1: Quick wins (auto-fixes)",
+    "4. Gradually work through type errors and complexity issues",
+    "",
+    "## Priority Actions",
+    "",
+    "1. [ ] Review Ruff auto-fixes",
+    "2. [ ] Identify top 10 mypy errors to fix",
+    "3. [ ] List top 5 most complex functions",
+    "4. [ ] Create service-specific action plans",
+    "5. [ ] Set up weekly quality reviews"
+)
 
-**Date:** $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-
-## Results Overview
-
-### Ruff Linting
-- Initial issues: $ruffIssues
-- Remaining after auto-fix: $remaining
-
-### mypy Type Checking
-- Total errors: $mypyErrors
-
-### ESLint
-- Warnings: $eslintWarnings
-
-### Complexity
-- High complexity functions: $highComplexity
-
-## Reports Generated
-
-- Ruff: `reports/quality/first-run-ruff.txt`
-- After auto-fix: `reports/quality/after-auto-fix.txt`
-- mypy: `reports/quality/first-run-mypy.txt`
-- ESLint: `reports/quality/first-run-eslint.txt`
-- Complexity: `reports/quality/first-run-complexity.txt`
-
-## Next Steps
-
-1. Review the reports above
-2. Create an action plan (see `docs/CODE_QUALITY_FIRST_RUN_PLAN.md`)
-3. Start with Priority 1: Quick wins (auto-fixes)
-4. Gradually work through type errors and complexity issues
-
-## Priority Actions
-
-1. [ ] Review Ruff auto-fixes
-2. [ ] Identify top 10 mypy errors to fix
-3. [ ] List top 5 most complex functions
-4. [ ] Create service-specific action plans
-5. [ ] Set up weekly quality reviews
-"@
-
-$summary | Out-File -FilePath "reports/quality/FIRST_RUN_SUMMARY.md" -Encoding UTF8
+$summaryLines -join "`n" | Out-File -FilePath "reports/quality/FIRST_RUN_SUMMARY.md" -Encoding UTF8
 
 Write-Host "✓ Summary generated: reports/quality/FIRST_RUN_SUMMARY.md`n" -ForegroundColor Green
 

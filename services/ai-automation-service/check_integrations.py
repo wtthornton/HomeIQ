@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Check HA integrations for conversation/assist."""
+import json
 import os
 import sys
-import json
-import requests
 from pathlib import Path
+
+import requests
 
 # Fix Windows console encoding
 if sys.platform == "win32":

@@ -5,12 +5,10 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
-
 from src.clients.ha_client import HomeAssistantClient
-
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures"
 
@@ -28,7 +26,7 @@ async def test_get_device_registry_parses_devices(monkeypatch):
     client = HomeAssistantClient("http://homeassistant.local:8123", None, "test-token")
     client.connected = True
 
-    async def fake_send(message: Dict[str, Any]) -> Dict[str, Any]:
+    async def fake_send(message: dict[str, Any]) -> dict[str, Any]:
         assert message["type"] == "config/device_registry/list"
         return {"result": payload}
 
@@ -61,7 +59,7 @@ async def test_get_entity_registry_parses_entities(monkeypatch):
     client = HomeAssistantClient("http://homeassistant.local:8123", None, "test-token")
     client.connected = True
 
-    async def fake_send(message: Dict[str, Any]) -> Dict[str, Any]:
+    async def fake_send(message: dict[str, Any]) -> dict[str, Any]:
         assert message["type"] == "config/entity_registry/list"
         return {"result": payload}
 

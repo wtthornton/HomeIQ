@@ -3,16 +3,16 @@ API Request/Response Schemas
 
 Pydantic models for API validation and documentation.
 """
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class SearchFilters(BaseModel):
     """Search filter parameters"""
-    device: Optional[str] = None
-    integration: Optional[str] = None
-    use_case: Optional[str] = None
+    device: str | None = None
+    integration: str | None = None
+    use_case: str | None = None
     min_quality: float = Field(default=0.7, ge=0.0, le=1.0)
     limit: int = Field(default=50, ge=1, le=500)
 
@@ -24,11 +24,11 @@ class AutomationResponse(BaseModel):
     source_id: str
     title: str
     description: str
-    devices: List[str]
-    integrations: List[str]
-    triggers: List[Dict[str, Any]]
-    conditions: List[Dict[str, Any]]
-    actions: List[Dict[str, Any]]
+    devices: list[str]
+    integrations: list[str]
+    triggers: list[dict[str, Any]]
+    conditions: list[dict[str, Any]]
+    actions: list[dict[str, Any]]
     use_case: str
     complexity: str
     quality_score: float
@@ -36,8 +36,8 @@ class AutomationResponse(BaseModel):
     created_at: str
     updated_at: str
     last_crawled: str
-    metadata: Optional[Dict[str, Any]] = None
-    
+    metadata: dict[str, Any] | None = None
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -65,10 +65,10 @@ class AutomationResponse(BaseModel):
 
 class SearchResponse(BaseModel):
     """Search results response"""
-    automations: List[Dict[str, Any]]
+    automations: list[dict[str, Any]]
     count: int
-    filters: Dict[str, Any]
-    
+    filters: dict[str, Any]
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -97,12 +97,12 @@ class StatsResponse(BaseModel):
     avg_quality: float
     device_count: int
     integration_count: int
-    devices: List[str]
-    integrations: List[str]
-    by_use_case: Dict[str, int]
-    by_complexity: Dict[str, int]
-    last_crawl_time: Optional[str] = None
-    
+    devices: list[str]
+    integrations: list[str]
+    by_use_case: dict[str, int]
+    by_complexity: dict[str, int]
+    last_crawl_time: str | None = None
+
     class Config:
         json_schema_extra = {
             "example": {

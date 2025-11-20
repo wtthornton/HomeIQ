@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .main import WeatherService
@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 
 class HealthCheckHandler:
     """Handles health check requests with component status"""
-    
+
     def __init__(self, service_name: str, version: str):
         """Initialize health check handler"""
         self.service_name = service_name
         self.version = version
         self.start_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-        self.last_check_time: Optional[datetime] = None
-    
-    async def handle(self, service: Optional["WeatherService"]) -> Dict[str, Any]:
+        self.last_check_time: datetime | None = None
+
+    async def handle(self, service: WeatherService | None) -> dict[str, Any]:
         """
         Handle health check request
         
@@ -36,7 +36,7 @@ class HealthCheckHandler:
             now = datetime.utcnow().replace(tzinfo=timezone.utc)
             self.last_check_time = now
             uptime = now - self.start_time
-            
+
             health_data = {
                 "status": self._resolve_status(service),
                 "service": self.service_name,
@@ -47,9 +47,9 @@ class HealthCheckHandler:
                 "components": self._component_status(service),
                 "metrics": self._metrics(service, now)
             }
-            
+
             return health_data
-            
+
         except Exception as e:
             logger.exception("Health check failed")
             return {
@@ -59,27 +59,27 @@ class HealthCheckHandler:
                 "error": str(e),
                 "timestamp": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
             }
-    
+
     def get_uptime_seconds(self) -> int:
         """Get service uptime in seconds"""
         uptime = datetime.utcnow().replace(tzinfo=timezone.utc) - self.start_time
         return int(uptime.total_seconds())
-    
-    def _resolve_status(self, service: Optional["WeatherService"]) -> str:
+
+    def _resolve_status(self, service: WeatherService | None) -> str:
         if not service:
             return "initializing"
         if service.background_task and service.background_task.done():
             return "degraded"
         # Check if InfluxDB writes are failing persistently
-        if (hasattr(service, 'influx_write_failure_count') and 
+        if (hasattr(service, 'influx_write_failure_count') and
             service.influx_write_failure_count > 0 and
             hasattr(service, 'influx_write_success_count') and
             service.influx_write_success_count == 0):
             # All writes failing, no successes
             return "degraded"
         return "healthy"
-    
-    def _component_status(self, service: Optional["WeatherService"]) -> Dict[str, str]:
+
+    def _component_status(self, service: WeatherService | None) -> dict[str, str]:
         if not service:
             return {
                 "api": "initializing",
@@ -88,10 +88,10 @@ class HealthCheckHandler:
                 "influxdb": "initializing",
                 "background_task": "not_started"
             }
-        
+
         session_state = "healthy" if service.session and not service.session.closed else "not_initialized"
         cache_state = "healthy" if service.cached_weather else "empty"
-        
+
         # InfluxDB status: check client exists AND recent writes are succeeding
         if not service.influxdb_client:
             influx_state = "not_initialized"
@@ -100,7 +100,6 @@ class HealthCheckHandler:
             influx_state = "degraded"  # Client exists but writes are failing
         elif service.last_influx_write:
             # Check if last write was recent (within last 30 minutes)
-            from datetime import timedelta
             now = datetime.utcnow().replace(tzinfo=timezone.utc)
             write_age = (now - service.last_influx_write).total_seconds()
             if write_age > 1800:  # 30 minutes
@@ -118,10 +117,10 @@ class HealthCheckHandler:
             task_state = "stopped"
         else:
             task_state = "running"
-        
+
         if service.last_background_error:
             task_state = "error"
-        
+
         return {
             "api": "healthy",
             "weather_client": session_state,
@@ -129,15 +128,15 @@ class HealthCheckHandler:
             "influxdb": influx_state,
             "background_task": task_state
         }
-    
-    def _metrics(self, service: Optional["WeatherService"], now: datetime) -> Dict[str, Any]:
+
+    def _metrics(self, service: WeatherService | None, now: datetime) -> dict[str, Any]:
         if not service:
             return {}
-        
+
         cache_age = None
         if service.cache_time:
             cache_age = (now - service.cache_time).total_seconds()
-        
+
         return {
             "cache_hits": service.cache_hits,
             "cache_misses": service.cache_misses,

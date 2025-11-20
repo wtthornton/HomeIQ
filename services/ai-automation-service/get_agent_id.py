@@ -29,17 +29,17 @@ try:
         "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers, timeout=10)
-    
+
     if response.status_code == 200:
         agents = response.json()
         # Find HomeIQ
         homeiq = next((a for a in agents if a.get("name") == "HomeIQ"), None)
-        
+
         if homeiq:
-            print(f"✅ HomeIQ Agent Found via API:")
+            print("✅ HomeIQ Agent Found via API:")
             print(f"   Name: {homeiq['name']}")
             print(f"   ID: {homeiq['id']}")
-            print(f"\n💡 Set in .env as:")
+            print("\n💡 Set in .env as:")
             print(f"   HA_CONVERSATION_AGENT_ID={homeiq['id']}")
         else:
             print("ℹ️  HomeIQ agent not found in API response. Available agents:")
@@ -63,7 +63,7 @@ try:
         print(f"⚠️  API returned status {response.status_code}")
         print(f"   Response: {response.text[:200]}")
         print("\n📋 Try manual method (see instructions above)")
-        
+
 except requests.exceptions.RequestException as e:
     print(f"❌ Error connecting to Home Assistant: {e}", file=sys.stderr)
     print("\n📋 Manual Method to Get HomeIQ Agent ID:")

@@ -10,10 +10,10 @@ Consolidates all entity-related functionality:
 Created: Phase 2 - Core Service Refactoring
 """
 
-from .extractor import EntityExtractor
-from .validator import EntityValidator
 from .enricher import EntityEnricher
+from .extractor import EntityExtractor
 from .resolver import EntityResolver
+from .validator import EntityValidator
 
 __all__ = [
     'EntityExtractor',

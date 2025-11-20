@@ -8,10 +8,12 @@ Created: Phase 2 - Core Service Refactoring
 """
 
 import logging
-from typing import Dict, Optional, Any
+from typing import Any
+
 from openai import AsyncOpenAI
-from ...services.yaml_self_correction import YAMLSelfCorrectionService, SelfCorrectionResponse
+
 from ...clients.ha_client import HomeAssistantClient
+from ...services.yaml_self_correction import SelfCorrectionResponse, YAMLSelfCorrectionService
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +25,12 @@ class AutomationYAMLCorrector:
     Uses reverse engineering and similarity comparison to iteratively
     improve YAML until it matches the intended prompt.
     """
-    
+
     def __init__(
         self,
         openai_client: AsyncOpenAI,
-        ha_client: Optional[HomeAssistantClient] = None,
-        device_intelligence_client: Optional[Any] = None
+        ha_client: HomeAssistantClient | None = None,
+        device_intelligence_client: Any | None = None
     ):
         """
         Initialize YAML corrector.
@@ -43,15 +45,15 @@ class AutomationYAMLCorrector:
             ha_client=ha_client,
             device_intelligence_client=device_intelligence_client
         )
-        
+
         logger.info("AutomationYAMLCorrector initialized")
-    
+
     async def correct(
         self,
         user_prompt: str,
         generated_yaml: str,
-        context: Optional[Dict] = None,
-        comprehensive_enriched_data: Optional[Dict[str, Dict[str, Any]]] = None
+        context: dict | None = None,
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None
     ) -> SelfCorrectionResponse:
         """
         Correct YAML using self-correction service.
@@ -72,10 +74,10 @@ class AutomationYAMLCorrector:
                 context=context,
                 comprehensive_enriched_data=comprehensive_enriched_data
             )
-            
+
             logger.info(f"✅ YAML correction completed: {result.iterations_completed} iterations, similarity: {result.final_similarity:.2%}")
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ YAML correction failed: {e}", exc_info=True)
             raise

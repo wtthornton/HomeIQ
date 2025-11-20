@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import pytest
-from fastapi import HTTPException
-
 # Ensure path setup before imports
 import sys
 from pathlib import Path
+
+import pytest
+from fastapi import HTTPException
+
 test_dir = Path(__file__).resolve().parent
 service_dir = test_dir.parent
 # Add service_dir to path so we can import from src package
@@ -27,7 +28,6 @@ from src.main import (
     health_check,
     rerank_candidates,
 )
-
 from utils import TestOpenVINOManager, cosine_similarity, deterministic_embedding
 
 

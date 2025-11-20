@@ -3,11 +3,11 @@ Enhanced sandbox with MCP tool support.
 """
 
 import asyncio
-from typing import Dict, Any
 import logging
+from typing import Any
 
-from .sandbox import PythonSandbox, SandboxConfig, ExecutionResult
 from ..mcp.homeiq_tools import HomeIQMCPTools
+from .sandbox import ExecutionResult, PythonSandbox, SandboxConfig
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class MCPSandbox(PythonSandbox):
         super().__init__(config)
         self.workspace_dir = workspace_dir
         self._initialized = False
-        self._tool_context: Dict[str, Any] = {}
+        self._tool_context: dict[str, Any] = {}
         self._execution_guard = asyncio.Semaphore(max_concurrent_executions)
         self._tool_registry = HomeIQMCPTools(enable_network_tools=enable_network_tools)
 
@@ -44,13 +44,13 @@ class MCPSandbox(PythonSandbox):
     async def execute_with_mcp(
         self,
         code: str,
-        context: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
     ) -> ExecutionResult:
         """Execute code with optional MCP context within concurrency guard."""
         if not self._initialized:
             await self.initialize()
 
-        merged_context: Dict[str, Any] = {}
+        merged_context: dict[str, Any] = {}
         if self._tool_context:
             merged_context.update(self._tool_context)
         if context:

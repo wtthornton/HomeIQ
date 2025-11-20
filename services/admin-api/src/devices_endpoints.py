@@ -3,14 +3,13 @@ Devices and Entities Endpoints for Admin API
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from .influxdb_client import AdminAPIInfluxDBClient
 from .device_intelligence_client import get_device_intelligence_client
+from .influxdb_client import AdminAPIInfluxDBClient
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +21,8 @@ class DeviceResponse(BaseModel):
     name: str = Field(description="Device name")
     manufacturer: str = Field(description="Device manufacturer")
     model: str = Field(description="Device model")
-    sw_version: Optional[str] = Field(default=None, description="Software/firmware version")
-    area_id: Optional[str] = Field(default=None, description="Area/room ID")
+    sw_version: str | None = Field(default=None, description="Software/firmware version")
+    area_id: str | None = Field(default=None, description="Area/room ID")
     entity_count: int = Field(default=0, description="Number of entities")
     timestamp: str = Field(description="Last update timestamp")
 
@@ -31,11 +30,11 @@ class DeviceResponse(BaseModel):
 class EntityResponse(BaseModel):
     """Entity response model"""
     entity_id: str = Field(description="Unique entity identifier")
-    device_id: Optional[str] = Field(default=None, description="Associated device ID")
+    device_id: str | None = Field(default=None, description="Associated device ID")
     domain: str = Field(description="Entity domain (light, sensor, etc)")
     platform: str = Field(description="Integration platform")
-    unique_id: Optional[str] = Field(default=None, description="Unique ID within platform")
-    area_id: Optional[str] = Field(default=None, description="Area/room ID")
+    unique_id: str | None = Field(default=None, description="Unique ID within platform")
+    area_id: str | None = Field(default=None, description="Area/room ID")
     disabled: bool = Field(default=False, description="Whether entity is disabled")
     timestamp: str = Field(description="Last update timestamp")
 
@@ -52,21 +51,21 @@ class IntegrationResponse(BaseModel):
 
 class DevicesListResponse(BaseModel):
     """Devices list response"""
-    devices: List[DeviceResponse]
+    devices: list[DeviceResponse]
     count: int
     limit: int
 
 
 class EntitiesListResponse(BaseModel):
     """Entities list response"""
-    entities: List[EntityResponse]
+    entities: list[EntityResponse]
     count: int
     limit: int
 
 
 class IntegrationsListResponse(BaseModel):
     """Integrations list response"""
-    integrations: List[IntegrationResponse]
+    integrations: list[IntegrationResponse]
     count: int
 
 
@@ -81,9 +80,9 @@ influxdb_client = AdminAPIInfluxDBClient()
 @router.get("/api/devices", response_model=DevicesListResponse)
 async def list_devices(
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices to return"),
-    manufacturer: Optional[str] = Query(default=None, description="Filter by manufacturer"),
-    model: Optional[str] = Query(default=None, description="Filter by model"),
-    area_id: Optional[str] = Query(default=None, description="Filter by area/room")
+    manufacturer: str | None = Query(default=None, description="Filter by manufacturer"),
+    model: str | None = Query(default=None, description="Filter by model"),
+    area_id: str | None = Query(default=None, description="Filter by area/room")
 ):
     """
     List all discovered devices from Device Intelligence Service
@@ -204,9 +203,9 @@ async def get_device(device_id: str):
 @router.get("/api/entities", response_model=EntitiesListResponse)
 async def list_entities(
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities to return"),
-    domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
-    platform: Optional[str] = Query(default=None, description="Filter by platform"),
-    device_id: Optional[str] = Query(default=None, description="Filter by device ID")
+    domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
+    platform: str | None = Query(default=None, description="Filter by platform"),
+    device_id: str | None = Query(default=None, description="Filter by device ID")
 ):
     """
     List all discovered entities from Home Assistant
@@ -222,11 +221,11 @@ async def list_entities(
             filters["platform"] = platform
         if device_id:
             filters["device_id"] = device_id
-        
+
         # Query entities from InfluxDB
         query = _build_entities_query(filters, limit)
         results = await influxdb_client.query(query)
-        
+
         # Convert results to response models
         entities = []
         for record in results:
@@ -241,13 +240,13 @@ async def list_entities(
                 timestamp=record.get("time", datetime.now().isoformat())
             )
             entities.append(entity)
-        
+
         return EntitiesListResponse(
             entities=entities,
             count=len(entities),
             limit=limit
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing entities: {e}")
         raise HTTPException(
@@ -276,15 +275,15 @@ async def get_entity(entity_id: str):
                 |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
                 |> last()
         '''
-        
+
         results = await influxdb_client.query(query)
-        
+
         if not results:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Entity {entity_id} not found"
             )
-        
+
         record = results[0]
         entity = EntityResponse(
             entity_id=record.get("entity_id", entity_id),
@@ -296,9 +295,9 @@ async def get_entity(entity_id: str):
             disabled=bool(record.get("disabled", False)),
             timestamp=record.get("time", datetime.now().isoformat())
         )
-        
+
         return entity
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -327,9 +326,9 @@ async def list_integrations(
                 |> last()
                 |> limit(n: {limit})
         '''
-        
+
         results = await influxdb_client.query(query)
-        
+
         # Convert results to response models
         integrations = []
         for record in results:
@@ -342,12 +341,12 @@ async def list_integrations(
                 timestamp=record.get("time", datetime.now().isoformat())
             )
             integrations.append(integration)
-        
+
         return IntegrationsListResponse(
             integrations=integrations,
             count=len(integrations)
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing integrations: {e}")
         raise HTTPException(
@@ -357,14 +356,14 @@ async def list_integrations(
 
 
 # Helper functions
-def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
+def _build_devices_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for devices with filters"""
-    query = f'''
+    query = '''
         from(bucket: "devices")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "devices")
     '''
-    
+
     # Add filters
     if filters.get("manufacturer"):
         query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{filters["manufacturer"]}")'
@@ -374,20 +373,20 @@ def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
         query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
     if filters.get("device_id"):
         query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
-    
+
     query += f'\n    |> last()\n    |> limit(n: {limit})'
-    
+
     return query
 
 
-def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
+def _build_entities_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for entities with filters"""
-    query = f'''
+    query = '''
         from(bucket: "entities")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "entities")
     '''
-    
+
     # Add filters
     if filters.get("domain"):
         query += f'\n    |> filter(fn: (r) => r["domain"] == "{filters["domain"]}")'
@@ -395,8 +394,8 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
         query += f'\n    |> filter(fn: (r) => r["platform"] == "{filters["platform"]}")'
     if filters.get("device_id"):
         query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
-    
+
     query += f'\n    |> last()\n    |> limit(n: {limit})'
-    
+
     return query
 

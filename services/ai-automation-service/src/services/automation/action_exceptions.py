@@ -5,8 +5,8 @@ Custom exceptions for action execution engine.
 Uses shared exception hierarchy from shared/exceptions.py
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add shared directory to path for imports
@@ -35,7 +35,7 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
-from exceptions import ServiceError, ValidationError, NetworkError
+from exceptions import NetworkError, ServiceError, ValidationError
 
 
 class ActionExecutionError(ServiceError):
@@ -45,7 +45,7 @@ class ActionExecutionError(ServiceError):
 
 class ServiceCallError(NetworkError):
     """HTTP service call failures"""
-    
+
     def __init__(self, message: str, status_code: int = None, response_data: dict = None, context: dict = None):
         super().__init__(message, context=context)
         self.status_code = status_code
@@ -65,7 +65,7 @@ class ActionParseError(ValidationError):
 
 class RetryExhaustedError(ServiceError):
     """All retries failed"""
-    
+
     def __init__(self, message: str, attempts: int = None, last_error: Exception = None, context: dict = None):
         ctx = context or {}
         if attempts is not None:

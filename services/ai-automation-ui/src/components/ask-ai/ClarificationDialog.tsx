@@ -173,7 +173,23 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
 
       await onAnswer(answerPayload);
     } catch (error: any) {
-      toast.error(`Failed to submit answers: ${error.message || 'Unknown error'}`);
+      // Extract error message from various error formats
+      let errorMessage = 'Unknown error';
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (detail?.message) {
+          errorMessage = detail.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      toast.error(`Failed to submit answers: ${errorMessage}`);
+      // Re-throw error so parent can handle it if needed
+      throw error;
     } finally {
       setIsSubmitting(false);
     }

@@ -2,9 +2,9 @@
 Unit tests for BatchProcessor - Critical performance component
 """
 
-import pytest
 import asyncio
-from datetime import datetime
+
+import pytest
 from batch_processor import BatchProcessor
 
 

@@ -1,24 +1,21 @@
-import asyncio
 import json
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
-
 from utils import (
     EMBEDDING_DIMENSION,
     TestOpenVINOManager,
     cosine_similarity,
 )
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(scope="module")
 def embedding_data():
-    with open(FIXTURES / "embedding_test_data.json", "r", encoding="utf-8") as handle:
+    with open(FIXTURES / "embedding_test_data.json", encoding="utf-8") as handle:
         return json.load(handle)
 
 

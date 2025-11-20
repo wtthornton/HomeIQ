@@ -6,15 +6,16 @@ No complex repository pattern - just simple database operations.
 """
 
 import logging
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from datetime import datetime, timezone
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.cache import DeviceCache
 from ..core.database import get_db_session
 from ..services.device_service import DeviceService
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -23,10 +24,10 @@ router = APIRouter()
 class DeviceResponse(BaseModel):
     device_id: str
     name: str
-    manufacturer: Optional[str]
-    model: Optional[str]
-    sw_version: Optional[str]
-    area_id: Optional[str]
+    manufacturer: str | None
+    model: str | None
+    sw_version: str | None
+    area_id: str | None
     entity_count: int
     timestamp: str
 
@@ -34,7 +35,7 @@ class DeviceCapabilityResponse(BaseModel):
     device_id: str
     capability_name: str
     capability_type: str
-    properties: Dict[str, Any]
+    properties: dict[str, Any]
     exposed: bool
     configured: bool
     source: str
@@ -44,20 +45,20 @@ class DeviceHealthResponse(BaseModel):
     device_id: str
     metric_name: str
     metric_value: float
-    metric_unit: Optional[str]
-    metadata_json: Optional[Dict[str, Any]]
+    metric_unit: str | None
+    metadata_json: dict[str, Any] | None
     timestamp: datetime
 
 class DeviceStatsResponse(BaseModel):
     total_devices: int
-    devices_by_integration: Dict[str, int]
-    devices_by_area: Dict[str, int]
+    devices_by_integration: dict[str, int]
+    devices_by_area: dict[str, int]
     average_health_score: float
     total_capabilities: int
 
 class DevicesListResponse(BaseModel):
     """Devices list response - compatible with data-api format"""
-    devices: List[DeviceResponse]
+    devices: list[DeviceResponse]
     count: int
     limit: int
 
@@ -92,7 +93,7 @@ async def get_devices(
             )
             for device in devices
         ]
-        
+
         return DevicesListResponse(
             devices=device_responses,
             count=len(device_responses),
@@ -102,7 +103,7 @@ async def get_devices(
         logger.error(f"Error retrieving devices: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/devices/{device_id}/capabilities", response_model=List[DeviceCapabilityResponse], summary="Get device capabilities")
+@router.get("/devices/{device_id}/capabilities", response_model=list[DeviceCapabilityResponse], summary="Get device capabilities")
 async def get_device_capabilities(
     device_id: str,
     device_service: DeviceService = Depends(get_device_service)
@@ -127,7 +128,7 @@ async def get_device_capabilities(
         logger.error(f"Error retrieving capabilities for device {device_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/devices/{device_id}/health", response_model=List[DeviceHealthResponse], summary="Get device health metrics")
+@router.get("/devices/{device_id}/health", response_model=list[DeviceHealthResponse], summary="Get device health metrics")
 async def get_device_health(
     device_id: str,
     limit: int = 100,
@@ -161,7 +162,7 @@ async def get_device(
         device = await device_service.get_device_by_id(device_id)
         if not device:
             raise HTTPException(status_code=404, detail="Device not found")
-        
+
         return DeviceResponse(
             device_id=device.id,
             name=device.name,
@@ -178,7 +179,7 @@ async def get_device(
         logger.error(f"Error retrieving device {device_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/devices/area/{area_id}", response_model=List[DeviceResponse], summary="Get devices by area")
+@router.get("/devices/area/{area_id}", response_model=list[DeviceResponse], summary="Get devices by area")
 async def get_devices_by_area(
     area_id: str,
     device_service: DeviceService = Depends(get_device_service)
@@ -203,7 +204,7 @@ async def get_devices_by_area(
         logger.error(f"Error retrieving devices for area {area_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/devices/integration/{integration}", response_model=List[DeviceResponse], summary="Get devices by integration")
+@router.get("/devices/integration/{integration}", response_model=list[DeviceResponse], summary="Get devices by integration")
 async def get_devices_by_integration(
     integration: str,
     device_service: DeviceService = Depends(get_device_service)

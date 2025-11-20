@@ -5,13 +5,27 @@ Epic AI-1: Pattern detection and automation suggestions
 Epic AI-2: Device intelligence and capability tracking
 """
 
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON, Boolean, Index, UniqueConstraint, event, select
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from datetime import datetime
-from typing import Optional
 import logging
 import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    event,
+    select,
+)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.declarative import declarative_base
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +76,7 @@ class Pattern(Base):
     Phase 1: Enhanced with history tracking fields for trend analysis.
     """
     __tablename__ = 'patterns'
-    
+
     id = Column(Integer, primary_key=True)
     pattern_type = Column(String, nullable=False)  # 'time_of_day', 'co_occurrence', 'anomaly'
     device_id = Column(String, nullable=False)
@@ -71,18 +85,18 @@ class Pattern(Base):
     occurrences = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Phase 1: History tracking fields
     first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
     confidence_history_count = Column(Integer, default=1, nullable=False)
     trend_direction = Column(String(20), nullable=True)  # 'increasing', 'stable', 'decreasing' (cached)
     trend_strength = Column(Float, default=0.0, nullable=False)  # Cached trend strength (0.0-1.0)
-    
+
     # Quality improvement: Confidence calibration fields
     raw_confidence = Column(Float, nullable=True)  # Original confidence before calibration
     calibrated = Column(Boolean, default=False, nullable=False)  # Whether confidence has been calibrated
-    
+
     def __repr__(self):
         return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence}, trend={self.trend_direction})>"
 
@@ -137,36 +151,36 @@ class Suggestion(Base):
     4. Deploy to HA -> status='deployed'
     """
     __tablename__ = 'suggestions'
-    
+
     id = Column(Integer, primary_key=True)
     pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
-    
+
     # ===== NEW: Description-First Fields (Story AI1.23) =====
     description_only = Column(Text, nullable=False)  # Human-readable description
     conversation_history = Column(JSON, default=[])  # Array of edit history
     device_capabilities = Column(JSON, default={})   # Cached device features
     refinement_count = Column(Integer, default=0)    # Number of user edits
-    
+
     # ===== YAML Generation (only after approval) =====
     automation_yaml = Column(Text, nullable=True)    # NULL until approved (changed from NOT NULL)
     yaml_generated_at = Column(DateTime, nullable=True)  # NEW: When YAML was created
-    
+
     # ===== Status Tracking (updated for conversational flow) =====
     status = Column(String, default='draft')  # draft, refining, yaml_generated, deployed, rejected
-    
+
     # ===== Legacy Fields (kept for compatibility) =====
     title = Column(String, nullable=False)
     category = Column(String, nullable=True)  # energy, comfort, security, convenience
     priority = Column(String, nullable=True)  # high, medium, low
     confidence = Column(Float, nullable=False)
-    
+
     # ===== Timestamps =====
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     approved_at = Column(DateTime, nullable=True)  # NEW: When user approved
     deployed_at = Column(DateTime, nullable=True)
     ha_automation_id = Column(String, nullable=True)
-    
+
     # ===== Expert Mode Fields (NEW - Commit ca86050) =====
     mode = Column(String(20), nullable=True, server_default='auto_draft',
                   comment='Suggestion mode: auto_draft or expert')
@@ -176,11 +190,11 @@ class Suggestion(Base):
                              comment='Number of manual YAML edits made in expert mode')
     yaml_generation_method = Column(String(50), nullable=True,
                                     comment='Method: auto_draft, expert_manual, expert_manual_edited, etc.')
-    
+
     def __repr__(self):
         return f"<Suggestion(id={self.id}, title={self.title}, status={self.status}, refinements={self.refinement_count})>"
-    
-    def can_refine(self, max_refinements: int = 10) -> tuple[bool, Optional[str]]:
+
+    def can_refine(self, max_refinements: int = 10) -> tuple[bool, str | None]:
         """
         Check if suggestion can be refined further.
         
@@ -198,13 +212,13 @@ class Suggestion(Base):
 class UserFeedback(Base):
     """User feedback on suggestions"""
     __tablename__ = 'user_feedback'
-    
+
     id = Column(Integer, primary_key=True)
     suggestion_id = Column(Integer, ForeignKey('suggestions.id'))
     action = Column(String, nullable=False)  # 'approved', 'rejected', 'modified'
     feedback_text = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f"<UserFeedback(id={self.id}, suggestion_id={self.suggestion_id}, action={self.action})>"
 
@@ -217,13 +231,13 @@ class AutomationVersion(Base):
     Story AI1.20: Simple Rollback
     """
     __tablename__ = 'automation_versions'
-    
+
     id = Column(Integer, primary_key=True)
     automation_id = Column(String(100), nullable=False, index=True)
     yaml_content = Column(Text, nullable=False)
     deployed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     safety_score = Column(Integer, nullable=False)
-    
+
     def __repr__(self):
         return f"<AutomationVersion(id={self.id}, automation_id={self.automation_id}, deployed_at={self.deployed_at})>"
 
@@ -250,23 +264,23 @@ class DeviceCapability(Base):
         VZM31-SN -> {led_notifications, smart_bulb_mode, auto_off_timer, ...}
     """
     __tablename__ = 'device_capabilities'
-    
+
     # Primary Key
     device_model = Column(String, primary_key=True)  # e.g., "VZM31-SN"
-    
+
     # Device Identification
     manufacturer = Column(String, nullable=False)  # e.g., "Inovelli"
     integration_type = Column(String, nullable=False, default='zigbee2mqtt')
     description = Column(String, nullable=True)
-    
+
     # Capability Data (JSON columns)
     capabilities = Column(JSON, nullable=False)  # Parsed, structured format
     mqtt_exposes = Column(JSON, nullable=True)   # Raw Zigbee2MQTT exposes (backup)
-    
+
     # Metadata
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     source = Column(String, default='zigbee2mqtt_bridge')
-    
+
     def __repr__(self):
         return f"<DeviceCapability(model='{self.device_model}', manufacturer='{self.manufacturer}', features={len(self.capabilities) if self.capabilities else 0})>"
 
@@ -291,16 +305,16 @@ class DeviceFeatureUsage(Base):
         ("kitchen_switch", "smart_bulb_mode", configured=True)
     """
     __tablename__ = 'device_feature_usage'
-    
+
     # Composite Primary Key
     device_id = Column(String, primary_key=True)       # FK to devices.device_id (cross-DB)
     feature_name = Column(String, primary_key=True)    # e.g., "led_notifications"
-    
+
     # Usage Tracking
     configured = Column(Boolean, default=False, nullable=False)
     discovered_date = Column(DateTime, default=datetime.utcnow)
     last_checked = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f"<DeviceFeatureUsage(device='{self.device_id}', feature='{self.feature_name}', configured={self.configured})>"
 
@@ -316,13 +330,13 @@ class PatternHistory(Base):
     Phase 1: Stores historical data for trend analysis and pattern validation.
     """
     __tablename__ = 'pattern_history'
-    
+
     id = Column(Integer, primary_key=True)
     pattern_id = Column(Integer, ForeignKey('patterns.id', ondelete='CASCADE'), nullable=False)
     confidence = Column(Float, nullable=False)
     occurrences = Column(Integer, nullable=False)
     recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     def __repr__(self):
         return f"<PatternHistory(id={self.id}, pattern_id={self.pattern_id}, confidence={self.confidence}, recorded_at={self.recorded_at})>"
 
@@ -339,7 +353,7 @@ class SynergyOpportunity(Base):
     Phase 2: Enhanced with pattern validation support
     """
     __tablename__ = 'synergy_opportunities'
-    
+
     id = Column(Integer, primary_key=True)
     synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
     synergy_type = Column(String(50), nullable=False, index=True)  # 'device_pair', 'weather_context', etc.
@@ -350,19 +364,19 @@ class SynergyOpportunity(Base):
     confidence = Column(Float, nullable=False)
     area = Column(String(100))  # Area/room where devices are located
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Phase 2: Pattern validation fields
     pattern_support_score = Column(Float, default=0.0, nullable=False)
     validated_by_patterns = Column(Boolean, default=False, nullable=False)
     supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
-    
+
     # Epic AI-4: N-level synergy fields
     synergy_depth = Column(Integer, default=2, nullable=False, server_default='2')  # Number of devices in chain (2 = pair, 3+ = multi-hop)
     chain_devices = Column(Text, nullable=True)  # JSON array of entity_ids in automation chain
     embedding_similarity = Column(Float, nullable=True)  # Semantic similarity score from embeddings
     rerank_score = Column(Float, nullable=True)  # Cross-encoder re-ranking score
     final_score = Column(Float, nullable=True)  # Combined score (0.5*embedding + 0.5*rerank)
-    
+
     def __repr__(self):
         validated = "✓" if self.validated_by_patterns else "✗"
         depth = getattr(self, 'synergy_depth', 2)
@@ -379,23 +393,23 @@ class DiscoveredSynergy(Base):
     Quality Improvement: Priority 1.4
     """
     __tablename__ = 'discovered_synergies'
-    
+
     id = Column(Integer, primary_key=True)
     synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
     trigger_entity = Column(String, nullable=False, index=True)
     action_entity = Column(String, nullable=False, index=True)
     source = Column(String, nullable=False, default='mined')  # 'mined' for ML-discovered
-    
+
     # Association rule metrics
     support = Column(Float, nullable=False)  # P(X ∪ Y)
     confidence = Column(Float, nullable=False)  # P(Y|X)
     lift = Column(Float, nullable=False)  # P(Y|X) / P(Y)
-    
+
     # Temporal analysis
     frequency = Column(Integer, nullable=False)  # Number of occurrences
     consistency = Column(Float, nullable=False)  # Consistency score (0.0-1.0)
     time_window_seconds = Column(Integer, nullable=False)  # Time window for co-occurrence
-    
+
     # Discovery metadata
     discovered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     validation_count = Column(Integer, default=0, nullable=False)
@@ -403,10 +417,10 @@ class DiscoveredSynergy(Base):
     status = Column(String, nullable=False, default='discovered')  # 'discovered', 'validated', 'rejected'
     rejection_reason = Column(Text, nullable=True)  # Reason if rejected
     last_validated = Column(DateTime, nullable=True)  # Last validation timestamp
-    
+
     # Metadata (JSON) - renamed from 'metadata' to avoid SQLAlchemy reserved name conflict
     synergy_metadata = Column(JSON, nullable=True)  # Additional metadata (analysis_period, total_transactions, etc.)
-    
+
     def __repr__(self):
         status_icon = "✓" if self.validation_passed else "✗" if self.validation_passed is False else "?"
         return f"<DiscoveredSynergy(id={self.id}, {self.trigger_entity} → {self.action_entity}, lift={self.lift:.2f}, status={status_icon})>"
@@ -440,7 +454,7 @@ async_session = None
 async def init_db():
     """Initialize database - create tables if they don't exist"""
     global engine, async_session
-    
+
     # Create async engine
     engine = create_async_engine(
         'sqlite+aiosqlite:///data/ai_automation.db',
@@ -450,7 +464,7 @@ async def init_db():
             "timeout": 30.0
         }
     )
-    
+
     # Configure SQLite pragmas for optimal performance
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_conn, connection_record):
@@ -469,48 +483,54 @@ async def init_db():
         try:
             # Enable WAL mode for concurrent access
             cursor.execute("PRAGMA journal_mode=WAL")
-            
+
             # Synchronous mode: NORMAL is faster and still safe
             cursor.execute("PRAGMA synchronous=NORMAL")
-            
+
             # Cache size (negative = KB, positive = pages)
             cursor.execute("PRAGMA cache_size=-64000")  # 64MB
-            
+
             # Use memory for temp tables
             cursor.execute("PRAGMA temp_store=MEMORY")
-            
+
             # Enable foreign key constraints
             cursor.execute("PRAGMA foreign_keys=ON")
-            
+
             # Busy timeout (milliseconds)
             cursor.execute("PRAGMA busy_timeout=30000")  # 30s
-            
+
             logger.debug("SQLite pragmas configured successfully")
         except Exception as e:
             logger.error(f"Failed to set SQLite pragmas: {e}")
             raise
         finally:
             cursor.close()
-    
+
     # Create session factory
     async_session = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False
     )
-    
+
     # Create tables (including v2 models)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
         # Import v2 models to ensure they're registered
         try:
-            from .models_v2 import Conversation, ConversationTurn, ConfidenceFactor, FunctionCall, AutomationSuggestionV2
+            from .models_v2 import (
+                AutomationSuggestionV2,
+                ConfidenceFactor,
+                Conversation,
+                ConversationTurn,
+                FunctionCall,
+            )
             # v2 models use the same Base, so they're already included in create_all
             logger.info("✅ v2 conversation models registered")
         except ImportError:
             logger.warning("⚠️ v2 models not available - v2 features may not work")
-    
+
     # Seed default system settings if missing
     async with async_session() as session:
         result = await session.execute(select(SystemSettings).limit(1))
@@ -556,7 +576,7 @@ class AnalysisRunStatus(Base):
 class AskAIQuery(Base):
     """Ask AI natural language queries and their generated suggestions"""
     __tablename__ = 'ask_ai_queries'
-    
+
     query_id = Column(String, primary_key=True, default=lambda: f"query-{uuid.uuid4().hex[:8]}")
     original_query = Column(Text, nullable=False)
     user_id = Column(String, nullable=False, default="anonymous")
@@ -566,7 +586,7 @@ class AskAIQuery(Base):
     confidence = Column(Float, nullable=True)  # Overall confidence score
     processing_time_ms = Column(Integer, nullable=True)  # Time taken to process
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f"<AskAIQuery(query_id={self.query_id}, query='{self.original_query[:50]}...', suggestions={len(self.suggestions or [])})>"
 
@@ -583,45 +603,45 @@ class ClarificationSessionDB(Base):
     Story: AI1.26 - Clarification Flow Improvements
     """
     __tablename__ = 'clarification_sessions'
-    
+
     # Primary identifier
     session_id = Column(String, primary_key=True, default=lambda: f"clarify-{uuid.uuid4().hex[:8]}")
-    
+
     # Query linkage
     original_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=False, index=True)
     original_query = Column(Text, nullable=False)
-    
+
     # User context
     user_id = Column(String, nullable=False, default="anonymous", index=True)
-    
+
     # Clarification state
     questions = Column(JSON, nullable=False, default=list)  # Array of ClarificationQuestion dicts
     answers = Column(JSON, nullable=False, default=list)  # Array of ClarificationAnswer dicts
     ambiguities = Column(JSON, nullable=True)  # Array of detected Ambiguity dicts
-    
+
     # Session tracking
     status = Column(String, nullable=False, default='in_progress', index=True)  # 'in_progress', 'complete', 'abandoned'
     rounds_completed = Column(Integer, nullable=False, default=0)
     max_rounds = Column(Integer, nullable=False, default=3)
-    
+
     # Confidence tracking
     current_confidence = Column(Float, nullable=False, default=0.0)
     confidence_threshold = Column(Float, nullable=False, default=0.85)
-    
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
-    
+
     # Optional linkage to generated query after clarification
     clarification_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=True, index=True)
-    
+
     __table_args__ = (
         Index('idx_clarification_user', 'user_id', 'created_at'),
         Index('idx_clarification_status', 'status', 'created_at'),
         Index('idx_clarification_original_query', 'original_query_id'),
     )
-    
+
     def __repr__(self):
         return f"<ClarificationSessionDB(session_id={self.session_id}, original_query_id={self.original_query_id}, status={self.status}, rounds={self.rounds_completed})>"
 
@@ -637,31 +657,31 @@ class ClarificationConfidenceFeedback(Base):
     Story: Confidence Algorithm Improvements (Phase 1.1)
     """
     __tablename__ = 'clarification_confidence_feedback'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
-    
+
     # Confidence data
     raw_confidence = Column(Float, nullable=False)  # Raw confidence before calibration
-    
+
     # Outcome data
     proceeded = Column(Boolean, nullable=False)  # Did user proceed after clarification?
     suggestion_approved = Column(Boolean, nullable=True)  # Was suggestion approved? (None if unknown)
-    
+
     # Context for calibration
     ambiguity_count = Column(Integer, nullable=False, default=0)
     critical_ambiguity_count = Column(Integer, nullable=False, default=0)
     rounds = Column(Integer, nullable=False, default=0)
     answer_count = Column(Integer, nullable=False, default=0)
-    
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     __table_args__ = (
         Index('idx_clarification_feedback_session', 'session_id', 'created_at'),
         Index('idx_clarification_feedback_confidence', 'raw_confidence'),
     )
-    
+
     def __repr__(self):
         return f"<ClarificationConfidenceFeedback(id={self.id}, session_id={self.session_id}, raw_confidence={self.raw_confidence:.2f}, proceeded={self.proceeded})>"
 
@@ -677,28 +697,28 @@ class ClarificationOutcome(Base):
     Story: Confidence Algorithm Improvements (Phase 2.1)
     """
     __tablename__ = 'clarification_outcomes'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
-    
+
     # Outcome data
     final_confidence = Column(Float, nullable=False)  # Final confidence when proceeding
     proceeded = Column(Boolean, nullable=False)  # Did user proceed?
     suggestion_approved = Column(Boolean, nullable=True)  # Was suggestion approved? (None if unknown)
     rounds = Column(Integer, nullable=False, default=0)  # Number of clarification rounds
-    
+
     # Optional linkage to suggestion
     suggestion_id = Column(Integer, ForeignKey('suggestions.id'), nullable=True, index=True)
-    
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     __table_args__ = (
         Index('idx_clarification_outcome_session', 'session_id'),
         Index('idx_clarification_outcome_confidence', 'final_confidence'),
         Index('idx_clarification_outcome_suggestion', 'suggestion_id'),
     )
-    
+
     def __repr__(self):
         return f"<ClarificationOutcome(id={self.id}, session_id={self.session_id}, final_confidence={self.final_confidence:.2f}, proceeded={self.proceeded}, approved={self.suggestion_approved})>"
 
@@ -706,21 +726,21 @@ class ClarificationOutcome(Base):
 class EntityAlias(Base):
     """User-defined aliases for entities (nicknames/personalized names)"""
     __tablename__ = "entity_aliases"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     entity_id = Column(String, nullable=False, index=True)
     alias = Column(String, nullable=False)
     user_id = Column(String, nullable=False, index=True, default="anonymous")  # For multi-user support
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Unique constraint: one alias per entity per user (user can have multiple aliases for same entity)
     # Index for fast alias lookup
     __table_args__ = (
         UniqueConstraint('alias', 'user_id', name='uq_alias_user'),
         Index('idx_alias_lookup', 'alias', 'user_id'),  # Fast lookup
     )
-    
+
     def __repr__(self):
         return f"<EntityAlias(id={self.id}, entity_id='{self.entity_id}', alias='{self.alias}', user_id='{self.user_id}')>"
 
@@ -738,7 +758,7 @@ class SemanticKnowledge(Base):
     - Automation mining
     """
     __tablename__ = 'semantic_knowledge'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(Text, nullable=False)  # Original text (query, pattern, blueprint, etc.)
     embedding = Column(JSON, nullable=False)  # 384-dim embedding array (stored as JSON)
@@ -747,13 +767,13 @@ class SemanticKnowledge(Base):
     success_score = Column(Float, default=0.5, nullable=False)  # 0.0-1.0 (learned from user feedback)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
+
     __table_args__ = (
         Index('idx_knowledge_type', 'knowledge_type'),  # Fast filtering by type
         Index('idx_success_score', 'success_score'),  # For ranking by success
         Index('idx_created_at', 'created_at'),  # For time-based queries
     )
-    
+
     def __repr__(self):
         return f"<SemanticKnowledge(id={self.id}, type='{self.knowledge_type}', text='{self.text[:50]}...', success={self.success_score})>"
 
@@ -783,34 +803,34 @@ class ReverseEngineeringMetrics(Base):
     Created: November 2025
     """
     __tablename__ = 'reverse_engineering_metrics'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Foreign Keys
     suggestion_id = Column(String, nullable=False, index=True)  # Links to AskAI suggestion
     query_id = Column(String, nullable=False, index=True)  # Links to AskAI query
-    
+
     # Timestamp
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    
+
     # ===== Similarity Metrics =====
     initial_similarity = Column(Float, nullable=True)  # Similarity before RE (iteration 0)
     final_similarity = Column(Float, nullable=False)  # Similarity after RE
     similarity_improvement = Column(Float, nullable=True)  # final - initial
     improvement_percentage = Column(Float, nullable=True)  # (final/initial - 1) * 100
-    
+
     # ===== Performance Metrics =====
     iterations_completed = Column(Integer, nullable=False)  # Number of iterations
     max_iterations = Column(Integer, nullable=False, default=5)
     convergence_achieved = Column(Boolean, nullable=False, default=False)
     total_processing_time_ms = Column(Integer, nullable=True)  # Total time
     time_per_iteration_ms = Column(Float, nullable=True)  # Average time per iteration
-    
+
     # ===== Cost Metrics =====
     total_tokens_used = Column(Integer, nullable=False, default=0)
     estimated_cost_usd = Column(Float, nullable=True)  # ~$0.05 per 1M input tokens
     tokens_per_iteration = Column(Float, nullable=True)
-    
+
     # ===== Automation Success =====
     automation_created = Column(Boolean, nullable=True)  # Was automation created in HA?
     automation_id = Column(String, nullable=True)  # HA automation ID if created
@@ -818,7 +838,7 @@ class ReverseEngineeringMetrics(Base):
     errors_fixed_count = Column(Integer, nullable=True, default=0)  # Errors fixed by RE
     automation_approved = Column(Boolean, nullable=True)  # Did user approve/test?
     automation_in_use = Column(Boolean, nullable=True)  # Is automation active in HA?
-    
+
     # ===== YAML Comparison =====
     original_yaml = Column(Text, nullable=True)  # YAML before reverse engineering
     corrected_yaml = Column(Text, nullable=True)  # YAML after reverse engineering
@@ -851,12 +871,12 @@ class ModelComparisonMetrics(Base):
     Created: January 2025
     """
     __tablename__ = 'model_comparison_metrics'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_type = Column(String, nullable=False, index=True)  # 'suggestion' or 'yaml'
     query_id = Column(String, nullable=True, index=True)
     suggestion_id = Column(String, nullable=True, index=True)
-    
+
     # Model 1 (Primary - typically GPT-4o)
     model1_name = Column(String, nullable=False)
     model1_tokens_input = Column(Integer, nullable=False)
@@ -865,7 +885,7 @@ class ModelComparisonMetrics(Base):
     model1_latency_ms = Column(Integer, nullable=False)
     model1_result = Column(JSON, nullable=True)  # Store actual result for comparison
     model1_error = Column(String, nullable=True)
-    
+
     # Model 2 (Comparison - typically GPT-4o-mini)
     model2_name = Column(String, nullable=False)
     model2_tokens_input = Column(Integer, nullable=False)
@@ -874,22 +894,22 @@ class ModelComparisonMetrics(Base):
     model2_latency_ms = Column(Integer, nullable=False)
     model2_result = Column(JSON, nullable=True)
     model2_error = Column(String, nullable=True)
-    
+
     # Quality Metrics (populated after user interaction)
     model1_approved = Column(Boolean, nullable=True)
     model2_approved = Column(Boolean, nullable=True)
     model1_yaml_valid = Column(Boolean, nullable=True)  # For YAML tasks
     model2_yaml_valid = Column(Boolean, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    
+
     __table_args__ = (
         Index('idx_model_comp_task_type', 'task_type'),
         Index('idx_model_comp_created_at', 'created_at'),
         Index('idx_model_comp_query_id', 'query_id'),
         Index('idx_model_comp_suggestion_id', 'suggestion_id'),
     )
-    
+
     def __repr__(self) -> str:
         return (
             f"<ModelComparisonMetrics(id={self.id}, task_type={self.task_type}, "
@@ -918,10 +938,10 @@ class TrainingRun(Base):
 
     def __repr__(self) -> str:
         return f"<TrainingRun(id={self.id}, status={self.status}, started_at={self.started_at})>"
-    
+
     # ===== Iteration History (JSON) =====
     iteration_history_json = Column(JSON, nullable=True)  # Full iteration history
-    
+
     __table_args__ = (
         Index('idx_training_runs_status', 'status'),
         Index('idx_training_runs_started_at', 'started_at'),

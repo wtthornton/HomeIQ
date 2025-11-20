@@ -6,17 +6,17 @@ Generates Home Assistant automations from user's natural language requests.
 Uses OpenAI to convert text like "Turn on kitchen light at 7 AM" into valid YAML.
 """
 
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-import logging
-import yaml
 import json
+import logging
 import re
+from dataclasses import dataclass
+
+import yaml
 
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 from .llm.openai_client import OpenAIClient
-from .safety_validator import SafetyValidator, SafetyResult
+from .safety_validator import SafetyResult, SafetyValidator
 from .utils.area_detection import extract_area_from_request, format_area_display
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class NLAutomationRequest:
     """User's natural language automation request"""
     request_text: str
     user_id: str = "default"
-    context: Optional[Dict] = None
+    context: dict | None = None
 
 
 @dataclass
@@ -38,9 +38,9 @@ class GeneratedAutomation:
     description: str
     confidence: float  # 0-1
     explanation: str
-    safety_result: Optional[SafetyResult] = None
-    clarification_needed: Optional[str] = None
-    warnings: Optional[List[str]] = None
+    safety_result: SafetyResult | None = None
+    clarification_needed: str | None = None
+    warnings: list[str] | None = None
 
 
 class NLAutomationGenerator:
@@ -54,13 +54,13 @@ class NLAutomationGenerator:
     4. Validate syntax and safety
     5. Return automation with explanation
     """
-    
+
     def __init__(
         self,
         data_api_client: DataAPIClient,
         openai_client: OpenAIClient,
         safety_validator: SafetyValidator,
-        device_intelligence_client: Optional[DeviceIntelligenceClient] = None
+        device_intelligence_client: DeviceIntelligenceClient | None = None
     ):
         """
         Initialize NL automation generator.
@@ -75,7 +75,7 @@ class NLAutomationGenerator:
         self.openai_client = openai_client
         self.safety_validator = safety_validator
         self.device_intelligence_client = device_intelligence_client or DeviceIntelligenceClient()
-    
+
     async def generate(
         self,
         request: NLAutomationRequest
@@ -90,18 +90,18 @@ class NLAutomationGenerator:
             GeneratedAutomation with YAML and explanation
         """
         logger.info(f"🤖 Generating automation from NL: '{request.request_text}'")
-        
+
         # Extract area/location from request if specified (using shared utility)
         area_filter = extract_area_from_request(request.request_text)
         if area_filter:
             logger.info(f"📍 Detected area filter: '{area_filter}'")
-        
+
         # 1. Fetch available devices and entities for context (filtered by area if specified)
         automation_context = await self._build_automation_context(area_filter=area_filter)
-        
+
         # 2. Build prompt for OpenAI (with area filter if specified)
         prompt = self._build_prompt(request, automation_context, area_filter=area_filter)
-        
+
         # 3. Call OpenAI to generate automation (with retry)
         try:
             openai_response = await self._call_openai(prompt)
@@ -116,7 +116,7 @@ class NLAutomationGenerator:
                 explanation="",
                 clarification_needed="Could you rephrase your request more specifically? For example, include specific device names and times."
             )
-        
+
         # 4. Validate YAML syntax
         try:
             yaml.safe_load(automation_data['yaml'])
@@ -124,17 +124,17 @@ class NLAutomationGenerator:
             logger.error(f"Generated invalid YAML: {e}")
             # Retry once with error feedback
             return await self._retry_generation(request, automation_context, str(e), area_filter=area_filter)
-        
+
         # 5. Validate safety
         safety_result = await self.safety_validator.validate(automation_data['yaml'])
-        
+
         # 6. Calculate confidence based on request clarity and safety
         confidence = self._calculate_confidence(
             request,
             automation_data,
             safety_result
         )
-        
+
         # 7. Extract warnings from safety validation
         warnings = []
         if safety_result.issues:
@@ -143,12 +143,12 @@ class NLAutomationGenerator:
                 for issue in safety_result.issues
                 if issue.severity in ['warning', 'critical']
             ]
-        
+
         logger.info(
             f"✅ Generated automation '{automation_data['title']}' "
             f"(confidence: {confidence:.0%}, safety: {safety_result.safety_score})"
         )
-        
+
         return GeneratedAutomation(
             automation_yaml=automation_data['yaml'],
             title=automation_data['title'],
@@ -159,8 +159,8 @@ class NLAutomationGenerator:
             clarification_needed=automation_data.get('clarification'),
             warnings=warnings if warnings else None
         )
-    
-    async def _build_automation_context(self, area_filter: Optional[str] = None) -> Dict:
+
+    async def _build_automation_context(self, area_filter: str | None = None) -> dict:
         """
         Fetch available devices and entities from data-api.
         Provides rich context to OpenAI about available hardware.
@@ -176,10 +176,10 @@ class NLAutomationGenerator:
                 # Multiple areas - fetch separately and combine
                 areas = area_filter.split(',')
                 logger.info(f"Fetching entities for multiple areas: {areas}")
-                
+
                 all_devices = []
                 all_entities = []
-                
+
                 for area in areas:
                     area_devices = await self.data_api_client.fetch_devices(
                         limit=100,
@@ -189,17 +189,17 @@ class NLAutomationGenerator:
                         limit=200,
                         area_id=area.strip()
                     )
-                    
+
                     if not area_devices.empty:
                         all_devices.append(area_devices)
                     if not area_entities.empty:
                         all_entities.append(area_entities)
-                
+
                 # Combine results
                 import pandas as pd
                 devices = pd.concat(all_devices, ignore_index=True) if all_devices else pd.DataFrame()
                 entities = pd.concat(all_entities, ignore_index=True) if all_entities else pd.DataFrame()
-                
+
                 # Remove duplicates based on device_id/entity_id
                 if not devices.empty and 'device_id' in devices.columns:
                     devices = devices.drop_duplicates(subset=['device_id'], keep='first')
@@ -259,12 +259,12 @@ class NLAutomationGenerator:
         except Exception as e:
             logger.error(f"Failed to fetch automation context: {e}")
             return {'devices': [], 'entities_by_domain': {}, 'domains': [], 'team_tracker_teams': []}
-    
+
     def _build_prompt(
         self,
         request: NLAutomationRequest,
-        automation_context: Dict,
-        area_filter: Optional[str] = None
+        automation_context: dict,
+        area_filter: str | None = None
     ) -> str:
         """
         Build comprehensive prompt for OpenAI.
@@ -279,14 +279,14 @@ class NLAutomationGenerator:
         # Summarize available devices for prompt
         device_summary = self._summarize_devices(automation_context)
         sanitized_request = self._sanitize_request(request.request_text)
-        
+
         # Add area filter notice if applicable
         area_notice = ""
         if area_filter:
             # Format area display using shared utility
             area_display = format_area_display(area_filter)
             areas = area_filter.split(',')
-            
+
             if len(areas) == 1:
                 area_notice = f"""
 
@@ -301,7 +301,7 @@ The available devices list below has already been filtered to show only {area_di
 The user has specified devices in these areas: {area_display}. You MUST use ONLY devices that are located in these areas.
 The available devices list below has already been filtered to show only devices from these areas. DO NOT use devices from other areas.
 """
-        
+
         prompt = f"""You are a Home Assistant automation expert. Generate a valid Home Assistant automation from the user's natural language request.
 {area_notice}
 **Available Devices:**
@@ -490,12 +490,12 @@ actions:
 - Still try to generate a reasonable automation
 
 Generate the automation now (respond ONLY with JSON, no other text):"""
-        
+
         return prompt
 
     # Note: _extract_area_from_request() has been moved to utils.area_detection
     # and is now imported at the module level for reuse across the codebase
-    
+
     def _sanitize_request(self, raw_text: str) -> str:
         """Remove potentially malicious prompt-injection content."""
 
@@ -519,8 +519,8 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
             sanitized = sanitized[:max_len] + "…"
 
         return sanitized
-    
-    def _summarize_devices(self, automation_context: Dict) -> str:
+
+    def _summarize_devices(self, automation_context: dict) -> str:
         """Create human-readable summary of available devices"""
         summary_lines = []
 
@@ -565,7 +565,7 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
             )
 
         return "\n".join(summary_lines) if summary_lines else "No devices found (using default HA entities)"
-    
+
     async def _call_openai(self, prompt: str, temperature: float = 0.3) -> str:
         """
         Call OpenAI API with retry logic.
@@ -594,23 +594,23 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
                 max_completion_tokens=1500,  # Use max_completion_tokens for newer models
                 response_format={"type": "json_object"}  # Force JSON output
             )
-            
+
             # Track token usage
             if hasattr(response, 'usage'):
                 self.openai_client.total_input_tokens += response.usage.prompt_tokens
                 self.openai_client.total_output_tokens += response.usage.completion_tokens
                 self.openai_client.total_tokens_used += response.usage.total_tokens
-            
+
             content = response.choices[0].message.content
             logger.debug(f"OpenAI response received ({len(content)} chars)")
-            
+
             return content
-            
+
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             raise
-    
-    def _parse_openai_response(self, response: str) -> Dict:
+
+    def _parse_openai_response(self, response: str) -> dict:
         """
         Parse JSON response from OpenAI.
         
@@ -623,7 +623,7 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
         try:
             # Clean response (remove markdown if present)
             cleaned = response.strip()
-            
+
             # Remove markdown code blocks if present
             if '```json' in cleaned:
                 start = cleaned.find('```json') + 7
@@ -633,29 +633,29 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
                 start = cleaned.find('```') + 3
                 end = cleaned.find('```', start)
                 cleaned = cleaned[start:end].strip()
-            
+
             # Parse JSON
             data = json.loads(cleaned)
-            
+
             # Validate required fields
             required_fields = ['yaml', 'title', 'description', 'explanation']
             for field in required_fields:
                 if field not in data:
                     raise ValueError(f"Missing required field: {field}")
-            
+
             return data
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             logger.debug(f"Response: {response[:200]}")
             raise ValueError(f"OpenAI returned invalid JSON: {e}")
-    
+
     async def _retry_generation(
         self,
         request: NLAutomationRequest,
-        automation_context: Dict,
+        automation_context: dict,
         error_message: str,
-        area_filter: Optional[str] = None
+        area_filter: str | None = None
     ) -> GeneratedAutomation:
         """
         Retry generation with error feedback.
@@ -669,14 +669,14 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
             area_filter: Optional area filter
         """
         logger.info(f"Retrying generation with error feedback: {error_message}")
-        
+
         # Add area notice if applicable
         area_notice = ""
         if area_filter:
             # Format area display using shared utility
             area_display = format_area_display(area_filter)
             area_notice = f"\nIMPORTANT: Use ONLY devices from the {area_display} area.\n"
-        
+
         retry_prompt = f"""The previous generation attempt failed with this error:
 ERROR: {error_message}
 
@@ -692,19 +692,19 @@ Available devices:
 {self._summarize_devices(automation_context)}
 
 Generate a valid automation now (JSON only):"""
-        
+
         try:
             response = await self._call_openai(retry_prompt, temperature=0.2)  # Lower temp for retry
             automation_data = self._parse_openai_response(response)
-            
+
             # Validate YAML again
             yaml.safe_load(automation_data['yaml'])
-            
+
             # Validate safety
             safety_result = await self.safety_validator.validate(automation_data['yaml'])
-            
+
             logger.info("✅ Retry successful, valid YAML generated")
-            
+
             return GeneratedAutomation(
                 automation_yaml=automation_data['yaml'],
                 title=automation_data['title'],
@@ -723,11 +723,11 @@ Generate a valid automation now (JSON only):"""
                 explanation="",
                 clarification_needed="Please try rephrasing your request. Be specific about:\n- Which device(s) you want to control\n- When it should trigger\n- What action it should take"
             )
-    
+
     def _calculate_confidence(
         self,
         request: NLAutomationRequest,
-        automation_data: Dict,
+        automation_data: dict,
         safety_result: SafetyResult
     ) -> float:
         """
@@ -741,27 +741,27 @@ Generate a valid automation now (JSON only):"""
         """
         # Start with OpenAI's confidence (or default 0.75)
         confidence = automation_data.get('confidence', 0.75)
-        
+
         # Reduce if clarification needed
         if automation_data.get('clarification'):
             confidence *= 0.75
-        
+
         # Adjust based on safety score
         if safety_result:
             # Map safety score (0-100) to confidence multiplier (0.5-1.0)
             safety_multiplier = 0.5 + (safety_result.safety_score / 200.0)
             confidence *= safety_multiplier
-        
+
         # Reduce if request is very short (likely ambiguous)
         word_count = len(request.request_text.split())
         if word_count < 5:
             confidence *= 0.85
         elif word_count < 8:
             confidence *= 0.95
-        
+
         # Ensure within bounds
         return min(1.0, max(0.0, confidence))
-    
+
     async def regenerate_with_clarification(
         self,
         original_request: str,
@@ -782,9 +782,9 @@ Generate a valid automation now (JSON only):"""
             request_text=f"{original_request}\n\nAdditional details: {clarification}",
             user_id="default"
         )
-        
+
         logger.info(f"Regenerating with clarification: {clarification}")
-        
+
         # Generate with enhanced request
         return await self.generate(enhanced_request)
 

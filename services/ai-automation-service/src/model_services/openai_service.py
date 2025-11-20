@@ -3,16 +3,16 @@ OpenAI Client Service - Containerized OpenAI Integration
 Provides OpenAI-based entity extraction as a microservice
 """
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import logging
-import asyncio
-import re
 import json
-from openai import AsyncOpenAI
-import time
+import logging
 import os
+import re
+import time
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from openai import AsyncOpenAI
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +35,7 @@ class OpenAIExtractionRequest(BaseModel):
     max_tokens: int = 300
 
 class OpenAIExtractionResponse(BaseModel):
-    entities: List[Dict[str, Any]]
+    entities: list[dict[str, Any]]
     processing_time: float
     model_used: str
     tokens_used: int
@@ -50,7 +50,7 @@ async def startup_event():
         if not api_key:
             logger.warning("No OpenAI API key provided, service will be disabled")
             return
-        
+
         openai_client = AsyncOpenAI(api_key=api_key)
         logger.info("OpenAI client initialized successfully")
     except Exception as e:
@@ -78,9 +78,9 @@ async def extract_entities(request: OpenAIExtractionRequest):
     """
     if openai_client is None:
         raise HTTPException(status_code=503, detail="OpenAI client not initialized")
-    
+
     start_time = time.time()
-    
+
     try:
         prompt = f"""
         Extract entities from this Home Assistant automation query: "{request.query}"
@@ -99,7 +99,7 @@ async def extract_entities(request: OpenAIExtractionRequest):
         - Actions (turn on, flash, monitor, etc.)
         - Time references (morning, evening, sunset, etc.)
         """
-        
+
         response = await openai_client.chat.completions.create(
             model=request.model,
             messages=[
@@ -109,19 +109,19 @@ async def extract_entities(request: OpenAIExtractionRequest):
             temperature=request.temperature,
             max_completion_tokens=request.max_tokens  # Use max_completion_tokens for newer models
         )
-        
+
         # Parse response
         content = response.choices[0].message.content
         entities = _parse_openai_response(content)
-        
+
         processing_time = time.time() - start_time
-        
+
         # Calculate cost (GPT-4o-mini pricing)
         tokens_used = response.usage.total_tokens
         cost_usd = tokens_used * 0.0004 / 1000  # $0.0004 per 1K tokens
-        
+
         logger.info(f"Extracted {len(entities)} entities in {processing_time:.3f}s, cost: ${cost_usd:.6f}")
-        
+
         return OpenAIExtractionResponse(
             entities=entities,
             processing_time=processing_time,
@@ -129,19 +129,19 @@ async def extract_entities(request: OpenAIExtractionRequest):
             tokens_used=tokens_used,
             cost_usd=cost_usd
         )
-        
+
     except Exception as e:
         logger.error(f"OpenAI extraction failed: {e}")
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
-def _parse_openai_response(content: str) -> List[Dict[str, Any]]:
+def _parse_openai_response(content: str) -> list[dict[str, Any]]:
     """Parse OpenAI JSON response into entity format"""
     try:
         # Extract JSON from response
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         if json_match:
             data = json.loads(json_match.group())
-            
+
             entities = []
             # Convert OpenAI format to our entity format
             for area in data.get('areas', []):
@@ -152,7 +152,7 @@ def _parse_openai_response(content: str) -> List[Dict[str, Any]]:
                     'confidence': 0.9,
                     'extraction_method': 'openai'
                 })
-            
+
             for device in data.get('devices', []):
                 entities.append({
                     'name': device,
@@ -161,11 +161,11 @@ def _parse_openai_response(content: str) -> List[Dict[str, Any]]:
                     'confidence': 0.9,
                     'extraction_method': 'openai'
                 })
-            
+
             return entities
     except Exception as e:
         logger.error(f"Failed to parse OpenAI response: {e}")
-    
+
     return []
 
 @app.get("/model-info")

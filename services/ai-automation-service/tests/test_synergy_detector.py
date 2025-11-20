@@ -5,13 +5,11 @@ Story AI3.1: Device Synergy Detector Foundation
 Epic AI-3: Cross-Device Synergy & Contextual Opportunities
 """
 
-import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
-from src.synergy_detection.synergy_detector import DeviceSynergyDetector, COMPATIBLE_RELATIONSHIPS
-
+import pytest
+from src.synergy_detection.synergy_detector import COMPATIBLE_RELATIONSHIPS, DeviceSynergyDetector
 
 # ============================================================================
 # Fixtures
@@ -21,7 +19,7 @@ from src.synergy_detection.synergy_detector import DeviceSynergyDetector, COMPAT
 def mock_data_api_client():
     """Mock Data API client"""
     client = AsyncMock()
-    
+
     # Mock devices
     client.fetch_devices = AsyncMock(return_value=[
         {
@@ -43,7 +41,7 @@ def mock_data_api_client():
             'model': 'SmartThermostat'
         }
     ])
-    
+
     # Mock entities
     client.fetch_entities = AsyncMock(return_value=[
         {
@@ -73,7 +71,7 @@ def mock_data_api_client():
             'device_class': 'temperature'
         }
     ])
-    
+
     return client
 
 
@@ -95,9 +93,9 @@ async def test_detect_synergies_basic(mock_data_api_client, mock_ha_client):
         ha_client=mock_ha_client,
         min_confidence=0.7
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should detect at least motion sensor + light in bedroom
     assert len(synergies) > 0
     assert any(s['relationship'] == 'motion_to_light' for s in synergies)
@@ -110,13 +108,13 @@ async def test_same_area_motion_light_detection(mock_data_api_client, mock_ha_cl
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Find bedroom synergy
     bedroom_synergies = [s for s in synergies if s['area'] == 'bedroom']
     assert len(bedroom_synergies) > 0
-    
+
     motion_light = [s for s in bedroom_synergies if s['relationship'] == 'motion_to_light'][0]
     assert motion_light['trigger_entity'] == 'binary_sensor.bedroom_motion'
     assert motion_light['action_entity'] == 'light.bedroom_ceiling'
@@ -132,12 +130,12 @@ async def test_temp_climate_detection(mock_data_api_client, mock_ha_client):
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Find living room temp → climate synergy
     living_room_synergies = [s for s in synergies if s['area'] == 'living_room']
-    
+
     if living_room_synergies:
         temp_climate = [s for s in living_room_synergies if s['relationship'] == 'temp_to_climate']
         if temp_climate:
@@ -153,9 +151,9 @@ async def test_confidence_threshold_filtering(mock_data_api_client, mock_ha_clie
         ha_client=mock_ha_client,
         min_confidence=0.95  # Very high threshold
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # All returned synergies should meet threshold
     for synergy in synergies:
         assert synergy['confidence'] >= 0.95
@@ -168,9 +166,9 @@ async def test_impact_score_calculation(mock_data_api_client, mock_ha_client):
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # All synergies should have valid impact scores
     for synergy in synergies:
         assert 0.0 <= synergy['impact_score'] <= 1.0
@@ -184,11 +182,11 @@ async def test_synergy_structure(mock_data_api_client, mock_ha_client):
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     assert len(synergies) > 0
-    
+
     # Check required fields
     synergy = synergies[0]
     assert 'synergy_id' in synergy
@@ -200,7 +198,7 @@ async def test_synergy_structure(mock_data_api_client, mock_ha_client):
     assert 'complexity' in synergy
     assert 'confidence' in synergy
     assert 'rationale' in synergy
-    
+
     # Check field types
     assert isinstance(synergy['synergy_id'], str)
     assert synergy['synergy_type'] == 'device_pair'
@@ -219,14 +217,14 @@ async def test_no_devices_graceful_handling():
     mock_client = AsyncMock()
     mock_client.fetch_devices = AsyncMock(return_value=[])
     mock_client.fetch_entities = AsyncMock(return_value=[])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should return empty list, not error
     assert synergies == []
 
@@ -237,14 +235,14 @@ async def test_data_api_failure_handling():
     mock_client = AsyncMock()
     mock_client.fetch_devices = AsyncMock(side_effect=Exception("API unavailable"))
     mock_client.fetch_entities = AsyncMock(return_value=[])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should return empty list and log error, not crash
     assert synergies == []
 
@@ -255,14 +253,14 @@ async def test_entity_fetch_failure_handling():
     mock_client = AsyncMock()
     mock_client.fetch_devices = AsyncMock(return_value=[{'device_id': 'test'}])
     mock_client.fetch_entities = AsyncMock(side_effect=Exception("Entity fetch failed"))
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should return empty list and log error, not crash
     assert synergies == []
 
@@ -278,13 +276,13 @@ async def test_device_caching(mock_data_api_client, mock_ha_client):
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     # First call
     synergies1 = await detector.detect_synergies()
-    
+
     # Second call (should use cache)
     synergies2 = await detector.detect_synergies()
-    
+
     # Should only call API once due to caching
     assert mock_data_api_client.fetch_devices.call_count == 1
     assert mock_data_api_client.fetch_entities.call_count == 1
@@ -297,14 +295,14 @@ async def test_cache_clear(mock_data_api_client, mock_ha_client):
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     # First call (populates cache)
     await detector.detect_synergies()
     assert mock_data_api_client.fetch_devices.call_count == 1
-    
+
     # Clear cache
     detector.clear_cache()
-    
+
     # Second call (should fetch again)
     await detector.detect_synergies()
     assert mock_data_api_client.fetch_devices.call_count == 2
@@ -321,7 +319,7 @@ def test_compatible_relationships_defined():
     assert 'door_to_lock' in COMPATIBLE_RELATIONSHIPS
     assert 'temp_to_climate' in COMPATIBLE_RELATIONSHIPS
     assert 'occupancy_to_light' in COMPATIBLE_RELATIONSHIPS
-    
+
     # Check required fields
     for rel_type, config in COMPATIBLE_RELATIONSHIPS.items():
         assert 'trigger_domain' in config
@@ -353,12 +351,12 @@ async def test_performance_large_device_count(mock_ha_client):
     """Test performance with large number of devices"""
     # Create mock with many devices (100 devices, 300 entities)
     mock_client = AsyncMock()
-    
+
     mock_devices = [
         {'device_id': f'device_{i}', 'name': f'Device {i}'}
         for i in range(100)
     ]
-    
+
     mock_entities = []
     for i in range(100):
         # Add 3 entities per device in various areas
@@ -385,26 +383,26 @@ async def test_performance_large_device_count(mock_ha_client):
                 'device_class': 'temperature'
             }
         ])
-    
+
     mock_client.fetch_devices = AsyncMock(return_value=mock_devices)
     mock_client.fetch_entities = AsyncMock(return_value=mock_entities)
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=mock_ha_client
     )
-    
+
     # Measure performance
     start_time = datetime.now(timezone.utc)
     synergies = await detector.detect_synergies()
     duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-    
+
     # Should complete in < 1 minute (AC: 6)
     assert duration < 60
-    
+
     # Should find synergies
     assert len(synergies) > 0
-    
+
     print(f"✅ Performance test: {len(synergies)} synergies detected in {duration:.2f}s")
 
 
@@ -417,21 +415,19 @@ async def test_synergy_storage_integration(mock_data_api_client, mock_ha_client)
     """Test integration with database storage (requires running database)"""
     # This test would require actual database connection
     # For unit tests, we'll mock the storage layer
-    
-    from src.database.crud import store_synergy_opportunities
-    from src.database.models import get_db_session
-    
+
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Verify structure is compatible with storage
     assert len(synergies) > 0
     synergy = synergies[0]
-    
+
     # Check required fields for storage
     assert 'synergy_id' in synergy
     assert 'synergy_type' in synergy
@@ -449,13 +445,13 @@ async def test_synergy_storage_integration(mock_data_api_client, mock_ha_client)
 async def test_no_compatible_pairs():
     """Test when no compatible pairs exist"""
     mock_client = AsyncMock()
-    
+
     # Only incompatible devices
     mock_client.fetch_devices = AsyncMock(return_value=[
         {'device_id': 'device_1', 'name': 'Switch 1'},
         {'device_id': 'device_2', 'name': 'Switch 2'}
     ])
-    
+
     mock_client.fetch_entities = AsyncMock(return_value=[
         {
             'entity_id': 'switch.device_1',
@@ -470,14 +466,14 @@ async def test_no_compatible_pairs():
             'area_id': 'kitchen'
         }
     ])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should return empty list (switches can't trigger each other in our relationships)
     assert synergies == []
 
@@ -486,12 +482,12 @@ async def test_no_compatible_pairs():
 async def test_devices_different_areas():
     """Test that different area devices aren't paired (when same_area_required=True)"""
     mock_client = AsyncMock()
-    
+
     mock_client.fetch_devices = AsyncMock(return_value=[
         {'device_id': 'device_1', 'name': 'Bedroom Motion'},
         {'device_id': 'device_2', 'name': 'Kitchen Light'}
     ])
-    
+
     mock_client.fetch_entities = AsyncMock(return_value=[
         {
             'entity_id': 'binary_sensor.bedroom_motion',
@@ -507,15 +503,15 @@ async def test_devices_different_areas():
             'area_id': 'kitchen'
         }
     ])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None,
         same_area_required=True
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should not pair devices from different areas
     assert synergies == []
 
@@ -524,13 +520,13 @@ async def test_devices_different_areas():
 async def test_ranking_order():
     """Test that synergies are ranked by impact score"""
     mock_client = AsyncMock()
-    
+
     # Create entities that will generate multiple synergies with different scores
     mock_client.fetch_devices = AsyncMock(return_value=[
         {'device_id': f'device_{i}', 'name': f'Device {i}'}
         for i in range(10)
     ])
-    
+
     mock_client.fetch_entities = AsyncMock(return_value=[
         # Door sensor + lock (high benefit 1.0)
         {
@@ -561,14 +557,14 @@ async def test_ranking_order():
             'area_id': 'bedroom'
         }
     ])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Should be ranked by impact (door_to_lock should be first due to higher benefit)
     if len(synergies) >= 2:
         # Verify descending order
@@ -585,14 +581,14 @@ async def test_logging_output(mock_data_api_client, mock_ha_client, caplog):
     """Test that proper logging occurs"""
     import logging
     caplog.set_level(logging.INFO)
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_data_api_client,
         ha_client=mock_ha_client
     )
-    
+
     await detector.detect_synergies()
-    
+
     # Check for expected log messages
     assert "Starting synergy detection" in caplog.text
     assert "Synergy detection complete" in caplog.text
@@ -608,14 +604,14 @@ async def test_4_level_chain_detection():
     """Test that 4-level chains are detected correctly"""
     # Create mock with devices that can form a 4-level chain
     mock_client = AsyncMock()
-    
+
     mock_client.fetch_devices = AsyncMock(return_value=[
         {'device_id': 'device_1', 'name': 'Motion Sensor'},
         {'device_id': 'device_2', 'name': 'Light'},
         {'device_id': 'device_3', 'name': 'Climate'},
         {'device_id': 'device_4', 'name': 'Media Player'}
     ])
-    
+
     mock_client.fetch_entities = AsyncMock(return_value=[
         {
             'entity_id': 'binary_sensor.motion',
@@ -643,26 +639,26 @@ async def test_4_level_chain_detection():
             'area_id': 'bedroom'
         }
     ])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None,
         min_confidence=0.5  # Lower threshold to allow more chains
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Check that we have synergies
     assert len(synergies) > 0
-    
+
     # Check for 4-level chains
     four_level_chains = [
-        s for s in synergies 
-        if s.get('synergy_type') == 'device_chain' 
+        s for s in synergies
+        if s.get('synergy_type') == 'device_chain'
         and s.get('synergy_depth') == 4
         and len(s.get('devices', [])) == 4
     ]
-    
+
     # Should have at least some 4-level chains if conditions are right
     # (May not always have them depending on relationship compatibility)
     if four_level_chains:
@@ -678,7 +674,7 @@ async def test_4_level_chain_detection():
 async def test_4_level_chain_structure():
     """Test that 4-level chains have correct structure"""
     mock_client = AsyncMock()
-    
+
     # Minimal setup - just need entities
     mock_client.fetch_devices = AsyncMock(return_value=[])
     mock_client.fetch_entities = AsyncMock(return_value=[
@@ -708,15 +704,15 @@ async def test_4_level_chain_structure():
             'area_id': None
         }
     ])
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None,
         min_confidence=0.5
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Check all chains have required fields
     chains = [s for s in synergies if s.get('synergy_type') == 'device_chain']
     for chain in chains:
@@ -728,12 +724,12 @@ async def test_4_level_chain_structure():
         assert 'impact_score' in chain
         assert 'confidence' in chain
         assert 'complexity' in chain
-        
+
         # Verify depth matches device count
         depth = chain['synergy_depth']
         device_count = len(chain['devices'])
         assert depth == device_count, f"Depth {depth} doesn't match device count {device_count}"
-        
+
         # Verify chain_devices matches devices
         assert chain['chain_devices'] == chain['devices']
 
@@ -742,7 +738,7 @@ async def test_4_level_chain_structure():
 async def test_4_level_chain_limits():
     """Test that 4-level chain detection respects limits"""
     mock_client = AsyncMock()
-    
+
     # Create many entities to potentially generate many chains
     entities = []
     for i in range(20):
@@ -773,25 +769,25 @@ async def test_4_level_chain_limits():
                 'area_id': 'bedroom'
             }
         ])
-    
+
     mock_client.fetch_devices = AsyncMock(return_value=[])
     mock_client.fetch_entities = AsyncMock(return_value=entities)
-    
+
     detector = DeviceSynergyDetector(
         data_api_client=mock_client,
         ha_client=None,
         min_confidence=0.5
     )
-    
+
     synergies = await detector.detect_synergies()
-    
+
     # Check that 4-level chains are limited (MAX_CHAINS = 50)
     four_level_chains = [
-        s for s in synergies 
-        if s.get('synergy_type') == 'device_chain' 
+        s for s in synergies
+        if s.get('synergy_type') == 'device_chain'
         and s.get('synergy_depth') == 4
     ]
-    
+
     # Should not exceed limit (50 for 4-level chains)
     assert len(four_level_chains) <= 50, f"Found {len(four_level_chains)} 4-level chains, should be <= 50"
 

@@ -10,31 +10,26 @@ This service provides access to feature data including:
 - Home Assistant automation endpoints
 """
 
-import asyncio
-import logging
 import os
 import secrets
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Depends, status
+import uvicorn
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-import uvicorn
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from shared.logging_config import (
-    setup_logging, log_with_context, log_error_with_context,
-    performance_monitor, generate_correlation_id
-)
-from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.auth import AuthManager
+from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.influxdb_query_client import InfluxDBQueryClient
+from shared.logging_config import setup_logging
 
 # Import shared error handler
 try:
@@ -45,48 +40,50 @@ except ImportError:
 
 # Import observability modules
 try:
-    from shared.observability import (
-        setup_tracing,
-        instrument_fastapi,
-        CorrelationMiddleware as ObservabilityCorrelationMiddleware
-    )
+    from shared.observability import CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    from shared.observability import instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
 # Story 22.1: SQLite database
-from .database import init_db, check_db_health
-from .cache import cache
-from shared.rate_limiter import RateLimiter, rate_limit_middleware
 import pathlib
 
-# Import endpoint routers (Stories 13.2-13.4)
-from .events_endpoints import EventsEndpoints
-from .devices_endpoints import router as devices_router
-from .alert_endpoints import AlertEndpoints
-from .metrics_endpoints import create_metrics_router
+# Load environment variables
+from dotenv import load_dotenv
+
 from shared.endpoints import create_integration_router
-from .config_manager import config_manager
+
 # WebSocket endpoints removed - using HTTP polling only
 from shared.monitoring import alerting_service, metrics_service
+from shared.rate_limiter import RateLimiter, rate_limit_middleware
 
-# Story 13.4: Sports & HA Automation (Epic 12 Integration)
-from .sports_endpoints import router as sports_router
-from .ha_automation_endpoints import router as ha_automation_router, start_webhook_detector, stop_webhook_detector
+from .alert_endpoints import AlertEndpoints
 
 # Story 21.4: Analytics Endpoints
 from .analytics_endpoints import router as analytics_router
 
-# Energy Correlation Endpoints (Phase 4)
-from .energy_endpoints import router as energy_router
-from .hygiene_endpoints import router as hygiene_router
-
 # MCP Code Execution Tools
 from .api.mcp_router import router as mcp_router
+from .cache import cache
+from .config_manager import config_manager
+from .database import check_db_health, init_db
+from .devices_endpoints import router as devices_router
 
-# Load environment variables
-from dotenv import load_dotenv
+# Energy Correlation Endpoints (Phase 4)
+from .energy_endpoints import router as energy_router
+
+# Import endpoint routers (Stories 13.2-13.4)
+from .events_endpoints import EventsEndpoints
+from .ha_automation_endpoints import router as ha_automation_router
+from .ha_automation_endpoints import start_webhook_detector, stop_webhook_detector
+from .hygiene_endpoints import router as hygiene_router
+from .metrics_endpoints import create_metrics_router
+
+# Story 13.4: Sports & HA Automation (Epic 12 Integration)
+from .sports_endpoints import router as sports_router
+
 load_dotenv()
 
 # Configure logging
@@ -99,8 +96,8 @@ SERVICE_START_TIME = datetime.utcnow()
 class APIResponse(BaseModel):
     """Standard API response model"""
     success: bool = Field(description="Whether the request was successful")
-    data: Optional[Any] = Field(default=None, description="Response data")
-    message: Optional[str] = Field(default=None, description="Response message")
+    data: Any | None = Field(default=None, description="Response data")
+    message: str | None = Field(default=None, description="Response message")
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -108,13 +105,13 @@ class ErrorResponse(BaseModel):
     """Error response model"""
     success: bool = Field(default=False)
     error: str = Field(description="Error message")
-    error_code: Optional[str] = Field(default=None)
+    error_code: str | None = Field(default=None)
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
 class DataAPIService:
     """Main Data API service"""
-    
+
     def __init__(self):
         """Initialize Data API service"""
         # Configuration - Configurable via environment variables
@@ -125,7 +122,7 @@ class DataAPIService:
         self.api_title = 'Data API - Feature Data Hub'
         self.api_version = '1.0.0'
         self.api_description = 'Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)'
-        
+
         # Security - authentication always enforced
         self.api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
         self.allow_anonymous = os.getenv('DATA_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
@@ -141,10 +138,10 @@ class DataAPIService:
                 "Data API started in anonymous mode for local testing only. "
                 "Set DATA_API_API_KEY to enforce authentication."
             )
-        
+
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
-        
+
         # Initialize components
         self.auth_manager = AuthManager(
             api_key=self.api_key,
@@ -159,24 +156,24 @@ class DataAPIService:
         # Error tracking for metrics
         self.total_requests = 0
         self.failed_requests = 0
-        
+
         logger.info("Data API Service initialized (anonymous=%s)", self.allow_anonymous)
-    
+
     async def startup(self):
         """Start the Data API service"""
         logger.info("Starting Data API service...")
-        
+
         # Start monitoring services (Story 13.3)
         await alerting_service.start()
         await metrics_service.start()
-        
+
         # Connect to InfluxDB FIRST (before webhook detector)
         try:
             logger.info("Connecting to InfluxDB...")
             connected = await self.influxdb_client.connect()
             if connected:
                 logger.info("InfluxDB connection established successfully")
-                
+
                 # Start webhook event detector AFTER InfluxDB connection (Story 13.4)
                 # This ensures InfluxDB client is ready before detector queries it
                 start_webhook_detector()
@@ -186,27 +183,27 @@ class DataAPIService:
         except Exception as e:
             logger.error(f"Error connecting to InfluxDB: {e}")
             logger.warning("Service will start without InfluxDB connection")
-        
+
         self.is_running = True
         logger.info(f"Data API service started on {self.api_host}:{self.api_port}")
-    
+
     async def shutdown(self):
         """Stop the Data API service"""
         logger.info("Shutting down Data API service...")
-        
+
         # Stop webhook detector (Story 13.4)
         stop_webhook_detector()
-        
+
         # Stop monitoring services (Story 13.3)
         await alerting_service.stop()
         await metrics_service.stop()
-        
+
         # Close InfluxDB connection
         try:
             await self.influxdb_client.close()
         except Exception as e:
             logger.error(f"Error closing InfluxDB connection: {e}")
-        
+
         self.is_running = False
         logger.info("Data API service stopped")
 
@@ -222,7 +219,7 @@ async def lifespan(app: FastAPI):
     # Startup
     # Ensure data directory exists
     pathlib.Path("./data").mkdir(exist_ok=True)
-    
+
     # Initialize SQLite database
     try:
         await init_db()
@@ -230,7 +227,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"SQLite initialization failed: {e}")
         # Don't crash - service can run without SQLite initially
-    
+
     await data_api_service.startup()
     yield
     # Shutdown
@@ -254,11 +251,11 @@ if OBSERVABILITY_AVAILABLE:
     otlp_endpoint = os.getenv('OTLP_ENDPOINT')
     if setup_tracing("data-api", otlp_endpoint):
         logger.info("✅ OpenTelemetry tracing configured")
-    
+
     # Instrument FastAPI app
     if instrument_fastapi(app, "data-api"):
         logger.info("✅ FastAPI app instrumented for tracing")
-    
+
     # Add correlation ID middleware (should be early in middleware stack)
     app.add_middleware(ObservabilityCorrelationMiddleware)
     logger.info("✅ Correlation ID middleware added")

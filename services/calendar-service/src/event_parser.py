@@ -3,16 +3,16 @@ Parse and enrich Home Assistant calendar events
 """
 
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import re
+from datetime import datetime, timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class CalendarEventParser:
     """Parse and enrich calendar events from Home Assistant"""
-    
+
     # Patterns for detecting work-from-home indicators
     WFH_PATTERNS = [
         r'\bWFH\b',
@@ -21,7 +21,7 @@ class CalendarEventParser:
         r'\bRemote Work\b',
         r'\bWorking From Home\b',
     ]
-    
+
     # Patterns for detecting home location indicators
     HOME_PATTERNS = [
         r'\bHome\b',
@@ -29,7 +29,7 @@ class CalendarEventParser:
         r'\bResidence\b',
         r'\bApartment\b',
     ]
-    
+
     # Patterns for detecting away/out indicators
     AWAY_PATTERNS = [
         r'\bOffice\b',
@@ -40,9 +40,9 @@ class CalendarEventParser:
         r'\bOut of Town\b',
         r'\bBusiness\b',
     ]
-    
+
     @staticmethod
-    def parse_datetime(dt_value: Any) -> Optional[datetime]:
+    def parse_datetime(dt_value: Any) -> datetime | None:
         """
         Parse datetime from various formats
         
@@ -54,20 +54,20 @@ class CalendarEventParser:
         """
         if dt_value is None:
             return None
-        
+
         # Already a datetime
         if isinstance(dt_value, datetime):
             # Ensure timezone-aware
             if dt_value.tzinfo is None:
                 dt_value = dt_value.replace(tzinfo=timezone.utc)
             return dt_value
-        
+
         # String format
         if isinstance(dt_value, str):
             try:
                 # Remove 'Z' suffix if present
                 dt_str = dt_value.rstrip('Z')
-                
+
                 # Try parsing with timezone
                 if '+' in dt_str or dt_str.count('-') > 2:
                     return datetime.fromisoformat(dt_str)
@@ -80,13 +80,13 @@ class CalendarEventParser:
             except ValueError as e:
                 logger.error(f"Failed to parse datetime string '{dt_value}': {e}")
                 return None
-        
+
         # Dict format (HA calendar format)
         if isinstance(dt_value, dict):
             # Timed event (has time component)
             if 'dateTime' in dt_value:
                 return CalendarEventParser.parse_datetime(dt_value['dateTime'])
-            
+
             # All-day event (date only)
             elif 'date' in dt_value:
                 try:
@@ -99,12 +99,12 @@ class CalendarEventParser:
                 except ValueError as e:
                     logger.error(f"Failed to parse date '{dt_value['date']}': {e}")
                     return None
-        
+
         logger.warning(f"Unexpected datetime format: {type(dt_value)} - {dt_value}")
         return None
-    
+
     @staticmethod
-    def parse_ha_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_ha_event(event: dict[str, Any]) -> dict[str, Any]:
         """
         Parse Home Assistant calendar event to standardized format
         
@@ -134,17 +134,17 @@ class CalendarEventParser:
         summary = event.get('summary', 'Untitled Event')
         location = event.get('location', '')
         description = event.get('description', '')
-        
+
         # Parse start and end times
         start_dt = CalendarEventParser.parse_datetime(event.get('start'))
         end_dt = CalendarEventParser.parse_datetime(event.get('end'))
-        
+
         # Determine if all-day event
         # All-day events have 'date' key instead of 'dateTime'
         is_all_day = False
         if isinstance(event.get('start'), dict):
             is_all_day = 'date' in event['start'] and 'dateTime' not in event['start']
-        
+
         parsed_event = {
             'summary': summary,
             'location': location,
@@ -154,13 +154,13 @@ class CalendarEventParser:
             'is_all_day': is_all_day,
             'raw_event': event
         }
-        
+
         logger.debug(f"Parsed event: {summary} ({start_dt} - {end_dt})")
-        
+
         return parsed_event
-    
+
     @staticmethod
-    def _matches_patterns(text: str, patterns: List[str]) -> bool:
+    def _matches_patterns(text: str, patterns: list[str]) -> bool:
         """
         Check if text matches any of the regex patterns
         
@@ -173,15 +173,15 @@ class CalendarEventParser:
         """
         if not text:
             return False
-        
+
         for pattern in patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 return True
-        
+
         return False
-    
+
     @staticmethod
-    def detect_occupancy_indicators(event: Dict[str, Any]) -> Dict[str, bool]:
+    def detect_occupancy_indicators(event: dict[str, Any]) -> dict[str, bool]:
         """
         Detect home/WFH/away indicators in event
         
@@ -200,43 +200,43 @@ class CalendarEventParser:
         summary = event.get('summary', '')
         location = event.get('location', '')
         description = event.get('description', '')
-        
+
         # Combine all text for pattern matching
         all_text = f"{summary} {location} {description}"
-        
+
         # Check patterns
         is_wfh = CalendarEventParser._matches_patterns(all_text, CalendarEventParser.WFH_PATTERNS)
         is_home = CalendarEventParser._matches_patterns(all_text, CalendarEventParser.HOME_PATTERNS)
         is_away = CalendarEventParser._matches_patterns(all_text, CalendarEventParser.AWAY_PATTERNS)
-        
+
         # Calculate confidence
         # Higher confidence if explicit indicators found
         confidence = 0.5  # Default medium confidence
-        
+
         if is_wfh or is_home:
             confidence = 0.85  # High confidence for home indicators
         elif is_away:
             confidence = 0.75  # Good confidence for away indicators
-        
+
         # Boost confidence if multiple indicators
         indicator_count = sum([is_wfh, is_home, is_away])
         if indicator_count > 1:
             confidence = min(confidence + 0.1, 0.95)
-        
+
         indicators = {
             'is_wfh': is_wfh,
             'is_home': is_home or is_wfh,  # WFH implies home
             'is_away': is_away and not is_wfh and not is_home,  # Away only if not home
             'confidence': confidence
         }
-        
+
         if is_wfh or is_home or is_away:
             logger.debug(f"Event '{summary}' indicators: {indicators}")
-        
+
         return indicators
-    
+
     @staticmethod
-    def parse_and_enrich_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_and_enrich_event(event: dict[str, Any]) -> dict[str, Any]:
         """
         Parse and enrich event with occupancy indicators in one call
         
@@ -248,15 +248,15 @@ class CalendarEventParser:
         """
         # Parse event
         parsed = CalendarEventParser.parse_ha_event(event)
-        
+
         # Add occupancy indicators
         indicators = CalendarEventParser.detect_occupancy_indicators(parsed)
         parsed.update(indicators)
-        
+
         return parsed
-    
+
     @staticmethod
-    def parse_multiple_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def parse_multiple_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Parse and enrich multiple events
         
@@ -267,7 +267,7 @@ class CalendarEventParser:
             List of parsed and enriched events
         """
         parsed_events = []
-        
+
         for event in events:
             try:
                 parsed = CalendarEventParser.parse_and_enrich_event(event)
@@ -275,17 +275,17 @@ class CalendarEventParser:
             except Exception as e:
                 logger.error(f"Failed to parse event {event.get('summary', 'unknown')}: {e}")
                 continue
-        
+
         logger.info(f"Parsed {len(parsed_events)} out of {len(events)} events")
-        
+
         return parsed_events
-    
+
     @staticmethod
     def filter_events_by_time(
-        events: List[Dict[str, Any]],
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
+        events: list[dict[str, Any]],
+        start_time: datetime | None = None,
+        end_time: datetime | None = None
+    ) -> list[dict[str, Any]]:
         """
         Filter events by time range
         
@@ -298,19 +298,19 @@ class CalendarEventParser:
             Filtered list of events
         """
         filtered = events
-        
+
         if start_time:
             filtered = [e for e in filtered if e.get('start') and e['start'] >= start_time]
-        
+
         if end_time:
             filtered = [e for e in filtered if e.get('start') and e['start'] < end_time]
-        
+
         logger.debug(f"Filtered {len(events)} events to {len(filtered)} within time range")
-        
+
         return filtered
-    
+
     @staticmethod
-    def get_current_events(events: List[Dict[str, Any]], now: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    def get_current_events(events: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
         """
         Get events that are currently active
         
@@ -323,23 +323,23 @@ class CalendarEventParser:
         """
         if now is None:
             now = datetime.now(timezone.utc)
-        
+
         current = [
             event for event in events
             if event.get('start') and event.get('end')
             and event['start'] <= now < event['end']
         ]
-        
+
         logger.debug(f"Found {len(current)} current events out of {len(events)}")
-        
+
         return current
-    
+
     @staticmethod
     def get_upcoming_events(
-        events: List[Dict[str, Any]],
-        now: Optional[datetime] = None,
-        limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        events: list[dict[str, Any]],
+        now: datetime | None = None,
+        limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get upcoming events (sorted by start time)
         
@@ -353,21 +353,21 @@ class CalendarEventParser:
         """
         if now is None:
             now = datetime.now(timezone.utc)
-        
+
         # Filter to future events
         upcoming = [
             event for event in events
             if event.get('start') and event['start'] > now
         ]
-        
+
         # Sort by start time
         upcoming.sort(key=lambda e: e['start'])
-        
+
         # Limit if specified
         if limit:
             upcoming = upcoming[:limit]
-        
+
         logger.debug(f"Found {len(upcoming)} upcoming events out of {len(events)}")
-        
+
         return upcoming
 

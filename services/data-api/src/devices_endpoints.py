@@ -6,28 +6,30 @@ Story 22.2: Updated to use SQLite storage
 
 import logging
 import sys
-import os
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent / '../../shared'))
 
-from fastapi import APIRouter, HTTPException, status, Query, Depends
-from starlette.requests import Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from starlette.requests import Request
+
 from shared.influxdb_query_client import InfluxDBQueryClient
-from .flux_utils import sanitize_flux_value
+
+from .cache import cache
 
 # Story 22.2: SQLite models and database
 from .database import get_db
-from .models import Device, Entity, Service
-from .models.entity_registry_entry import EntityRegistryEntry
+from .flux_utils import sanitize_flux_value
+from .models import Device, Entity
 from .services.entity_registry import EntityRegistry
-from .cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +43,11 @@ class DeviceResponse(BaseModel):
     name: str = Field(description="Device name")
     manufacturer: str = Field(description="Device manufacturer")
     model: str = Field(description="Device model")
-    integration: Optional[str] = Field(default=None, description="Integration/platform name")
-    sw_version: Optional[str] = Field(default=None, description="Software/firmware version")
-    area_id: Optional[str] = Field(default=None, description="Area/room ID")
-    config_entry_id: Optional[str] = Field(default=None, description="Config entry ID (source tracking)")
-    via_device: Optional[str] = Field(default=None, description="Parent device ID (via_device relationship)")
+    integration: str | None = Field(default=None, description="Integration/platform name")
+    sw_version: str | None = Field(default=None, description="Software/firmware version")
+    area_id: str | None = Field(default=None, description="Area/room ID")
+    config_entry_id: str | None = Field(default=None, description="Config entry ID (source tracking)")
+    via_device: str | None = Field(default=None, description="Parent device ID (via_device relationship)")
     entity_count: int = Field(default=0, description="Number of entities")
     timestamp: str = Field(description="Last update timestamp")
 
@@ -53,13 +55,13 @@ class DeviceResponse(BaseModel):
 class EntityResponse(BaseModel):
     """Entity response model"""
     entity_id: str = Field(description="Unique entity identifier")
-    device_id: Optional[str] = Field(default=None, description="Associated device ID")
+    device_id: str | None = Field(default=None, description="Associated device ID")
     domain: str = Field(description="Entity domain (light, sensor, etc)")
     platform: str = Field(description="Integration platform")
-    unique_id: Optional[str] = Field(default=None, description="Unique ID within platform")
-    area_id: Optional[str] = Field(default=None, description="Area/room ID")
+    unique_id: str | None = Field(default=None, description="Unique ID within platform")
+    area_id: str | None = Field(default=None, description="Area/room ID")
     disabled: bool = Field(default=False, description="Whether entity is disabled")
-    config_entry_id: Optional[str] = Field(default=None, description="Config entry ID (source tracking)")
+    config_entry_id: str | None = Field(default=None, description="Config entry ID (source tracking)")
     timestamp: str = Field(description="Last update timestamp")
 
 
@@ -75,21 +77,21 @@ class IntegrationResponse(BaseModel):
 
 class DevicesListResponse(BaseModel):
     """Devices list response"""
-    devices: List[DeviceResponse]
+    devices: list[DeviceResponse]
     count: int
     limit: int
 
 
 class EntitiesListResponse(BaseModel):
     """Entities list response"""
-    entities: List[EntityResponse]
+    entities: list[EntityResponse]
     count: int
     limit: int
 
 
 class IntegrationsListResponse(BaseModel):
     """Integrations list response"""
-    integrations: List[IntegrationResponse]
+    integrations: list[IntegrationResponse]
     count: int
 
 
@@ -104,10 +106,10 @@ influxdb_client = InfluxDBQueryClient()
 @router.get("/api/devices", response_model=DevicesListResponse)
 async def list_devices(
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices to return"),
-    manufacturer: Optional[str] = Query(default=None, description="Filter by manufacturer"),
-    model: Optional[str] = Query(default=None, description="Filter by model"),
-    area_id: Optional[str] = Query(default=None, description="Filter by area/room"),
-    platform: Optional[str] = Query(default=None, description="Filter by integration platform"),
+    manufacturer: str | None = Query(default=None, description="Filter by manufacturer"),
+    model: str | None = Query(default=None, description="Filter by model"),
+    area_id: str | None = Query(default=None, description="Filter by area/room"),
+    platform: str | None = Query(default=None, description="Filter by integration platform"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -138,7 +140,7 @@ async def list_devices(
             query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
                 .outerjoin(Entity, Device.device_id == Entity.device_id)\
                 .group_by(Device.device_id)
-        
+
         # Apply additional filters (simple WHERE clauses)
         if manufacturer:
             query = query.where(Device.manufacturer == manufacturer)
@@ -146,14 +148,14 @@ async def list_devices(
             query = query.where(Device.model == model)
         if area_id:
             query = query.where(Device.area_id == area_id)
-        
+
         # Apply limit
         query = query.limit(limit)
-        
+
         # Execute
         result = await db.execute(query)
         rows = result.all()
-        
+
         # Convert to response
         device_responses = [
             DeviceResponse(
@@ -171,7 +173,7 @@ async def list_devices(
             )
             for device, entity_count in rows
         ]
-        
+
         result = DevicesListResponse(
             devices=device_responses,
             count=len(device_responses),
@@ -188,7 +190,7 @@ async def list_devices(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve devices: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/devices/{device_id}", response_model=DeviceResponse)
@@ -212,17 +214,17 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
             .group_by(Device.device_id)
-        
+
         result = await db.execute(query)
         row = result.first()
-        
+
         if not row:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Unpack row tuple (simplified - only columns that exist)
-        (device_id_col, name, manufacturer, model, sw_version, area_id, 
+        (device_id_col, name, manufacturer, model, sw_version, area_id,
          integration, config_entry_id, via_device, last_seen, entity_count) = row
-        
+
         return DeviceResponse(
             device_id=device_id_col,
             name=name,
@@ -240,11 +242,11 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {str(e)}"        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {str(e)}") from e
 
 
 # Epic 23.5: Device Reliability Endpoint
-@router.get("/api/devices/reliability", response_model=Dict[str, Any])
+@router.get("/api/devices/reliability", response_model=dict[str, Any])
 async def get_device_reliability(
     period: str = Query(default="7d", description="Time period for analysis (1d, 7d, 30d)"),
     group_by: str = Query(default="manufacturer", description="Group by manufacturer or model")
@@ -262,17 +264,17 @@ async def get_device_reliability(
     client = None
     try:
         from influxdb_client import InfluxDBClient
-        
+
         # Get InfluxDB configuration
         influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
         influxdb_token = os.getenv("INFLUXDB_TOKEN")
         influxdb_org = os.getenv("INFLUXDB_ORG", "homeassistant")
         influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        
+
         # Create client
         client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
         query_api = client.query_api()
-        
+
         # Build query based on group_by parameter (sanitized)
         field_name = sanitize_flux_value("manufacturer" if group_by == "manufacturer" else "model")
         period_sanitized = sanitize_flux_value(period)
@@ -291,30 +293,30 @@ async def get_device_reliability(
           |> count()
           |> sort(desc: true)
         '''
-        
+
         result = query_api.query(query)
-        
+
         # Parse results
         reliability_data = []
         total_events = 0
-        
+
         for table in result:
             for record in table.records:
                 group_value = record.values.get("_value", "Unknown")
                 count = record.get_value()
                 total_events += count
-                
+
                 reliability_data.append({
                     field_name: group_value,
                     "event_count": count,
                     "percentage": 0  # Will calculate after total is known
                 })
-        
+
         # Calculate percentages
         for item in reliability_data:
             if total_events > 0:
                 item["percentage"] = round((item["event_count"] / total_events) * 100, 2)
-        
+
         # Get total event count for coverage calculation
         # Total events count - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events, not field instances
@@ -325,16 +327,16 @@ async def get_device_reliability(
           |> filter(fn: (r) => r._field == "context_id")
           |> count()
         '''
-        
+
         total_result = query_api.query(total_query)
         all_events_count = 0
         for table in total_result:
             for record in table.records:
                 all_events_count += record.get_value()
-        
+
         # Calculate coverage
         coverage = round((total_events / all_events_count) * 100, 2) if all_events_count > 0 else 0
-        
+
         return {
             "period": period,
             "group_by": group_by,
@@ -344,7 +346,7 @@ async def get_device_reliability(
             "reliability_data": reliability_data[:20],  # Top 20
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting device reliability: {e}")
         import traceback
@@ -365,9 +367,9 @@ async def get_device_reliability(
 async def list_entities(
     request: Request,
     limit: int = Query(default=100, ge=1, le=10000, description="Maximum number of entities to return"),
-    domain: Optional[str] = Query(default=None, description="Filter by domain (light, sensor, etc)"),
-    platform: Optional[str] = Query(default=None, description="Filter by platform"),
-    device_id: Optional[str] = Query(default=None, description="Filter by device ID"),
+    domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
+    platform: str | None = Query(default=None, description="Filter by platform"),
+    device_id: str | None = Query(default=None, description="Filter by device ID"),
     db: AsyncSession = Depends(get_db)
 ):
     """List entities (SQLite) - Story 22.2"""
@@ -376,7 +378,7 @@ async def list_entities(
         raw_query = dict(request.query_params)
         logger.info(f"🔍 [list_entities] Raw query params: {raw_query}")
         logger.info(f"🔍 [list_entities] Parsed params: limit={limit}, domain={domain}, platform={platform}, device_id={device_id}")
-        
+
         # Override with raw query params if FastAPI didn't parse them
         if 'device_id' in raw_query and not device_id:
             device_id = raw_query.get('device_id')
@@ -387,10 +389,10 @@ async def list_entities(
                 logger.warning(f"⚠️ [list_entities] Using limit from raw query: {limit}")
             except (ValueError, TypeError):
                 pass
-        
+
         # Build query
         query = select(Entity)
-        
+
         # Apply filters
         if domain:
             query = query.where(Entity.domain == domain)
@@ -403,14 +405,14 @@ async def list_entities(
             # SQLite's default comparison is case-sensitive, so we normalize both sides
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
             logger.info(f"🔍 [list_entities] Applied device_id filter (case-insensitive): {device_id}")
-        
+
         # Apply limit
         query = query.limit(limit)
-        
+
         # Execute
         result = await db.execute(query)
         entities_data = result.scalars().all()
-        
+
         # Convert to response
         entity_responses = [
             EntityResponse(
@@ -438,7 +440,7 @@ async def list_entities(
             )
             for entity in entities_data
         ]
-        
+
         return EntitiesListResponse(
             entities=entity_responses,
             count=len(entity_responses),
@@ -456,10 +458,10 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
         # Simple SELECT
         result = await db.execute(select(Entity).where(Entity.entity_id == entity_id))
         entity = result.scalar_one_or_none()
-        
+
         if not entity:
             raise HTTPException(status_code=404, detail=f"Entity {entity_id} not found")
-        
+
         return EntityResponse(
             entity_id=entity.entity_id,
             device_id=entity.device_id,
@@ -574,13 +576,13 @@ async def get_device_for_entity(
     try:
         registry = EntityRegistry(db)
         device = await registry.get_device_for_entity(entity_id)
-        
+
         if not device:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Device not found for entity {entity_id}"
             )
-        
+
         return {
             "success": True,
             "entity_id": entity_id,
@@ -709,17 +711,17 @@ async def get_integration_performance(
     """
     try:
         from influxdb_client import InfluxDBClient
-        
+
         # Get InfluxDB configuration
         influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
         influxdb_token = os.getenv("INFLUXDB_TOKEN")
         influxdb_org = os.getenv("INFLUXDB_ORG", "homeassistant")
         influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        
+
         # Create client
         client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
         query_api = client.query_api()
-        
+
         # Calculate events per minute
         # Event rate query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events, not field instances
@@ -734,22 +736,22 @@ async def get_integration_performance(
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
         '''
-        
+
         event_result = query_api.query(event_rate_query)
         total_events = 0
         for table in event_result:
             for record in table.records:
                 total_events += record.get_value()
-        
+
         # Calculate time period in minutes
         period_minutes = {
             "1h": 60,
             "24h": 1440,
             "7d": 10080
         }.get(period, 60)
-        
+
         events_per_minute = round(total_events / period_minutes, 2) if period_minutes > 0 else 0
-        
+
         # Estimate error rate (events with error field)
         # Error count query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events with errors
@@ -762,15 +764,15 @@ async def get_integration_performance(
           |> filter(fn: (r) => exists r["error"])
           |> count()
         '''
-        
+
         error_result = query_api.query(error_query)
         total_errors = 0
         for table in error_result:
             for record in table.records:
                 total_errors += record.get_value()
-        
+
         error_rate = round((total_errors / total_events) * 100, 2) if total_events > 0 else 0
-        
+
         # Calculate average response time (if available)
         # Response time query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Filter by response_time field specifically
@@ -782,13 +784,13 @@ async def get_integration_performance(
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> mean()
         '''
-        
+
         response_result = query_api.query(response_time_query)
         avg_response_time = 0
         for table in response_result:
             for record in table.records:
                 avg_response_time = round(record.get_value(), 2)
-        
+
         # Device discovery status (simplified - check if we have recent device updates)
         discovery_query = f'''
         from(bucket: "{influxdb_bucket}")
@@ -797,15 +799,15 @@ async def get_integration_performance(
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
         '''
-        
+
         discovery_result = query_api.query(discovery_query)
         recent_discoveries = 0
         for table in discovery_result:
             for record in table.records:
                 recent_discoveries += record.get_value()
-        
+
         discovery_status = "active" if recent_discoveries > 0 else "paused"
-        
+
         return {
             "platform": platform,
             "period": period,
@@ -817,7 +819,7 @@ async def get_integration_performance(
             "total_errors": total_errors,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting performance metrics for {platform}: {e}")
         # Return default metrics on error
@@ -857,17 +859,17 @@ async def get_integration_analytics(
             .select_from(Device)\
             .join(Entity, Device.device_id == Entity.device_id)\
             .where(Entity.platform == platform)
-        
+
         device_result = await db.execute(device_query)
         device_count = device_result.scalar() or 0
-        
+
         # Get entity count for this platform
         entity_query = select(func.count(Entity.entity_id))\
             .where(Entity.platform == platform)
-        
+
         entity_result = await db.execute(entity_query)
         entity_count = entity_result.scalar() or 0
-        
+
         # Get entity breakdown by domain
         domain_query = select(
             Entity.domain,
@@ -876,13 +878,13 @@ async def get_integration_analytics(
             .where(Entity.platform == platform)\
             .group_by(Entity.domain)\
             .order_by(func.count(Entity.entity_id).desc())
-        
+
         domain_result = await db.execute(domain_query)
         domain_breakdown = [
             {"domain": row.domain, "count": row.count}
             for row in domain_result
         ]
-        
+
         return {
             "platform": platform,
             "device_count": device_count,
@@ -890,7 +892,7 @@ async def get_integration_analytics(
             "entity_breakdown": domain_breakdown,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting integration analytics for {platform}: {e}")
         raise HTTPException(
@@ -913,7 +915,7 @@ async def list_integrations(
         # Ensure client is connected
         if not influxdb_client.is_connected:
             await influxdb_client.connect()
-        
+
         query = f'''
             from(bucket: "home_assistant_events")
                 |> range(start: -90d)
@@ -921,9 +923,9 @@ async def list_integrations(
                 |> last()
                 |> limit(n: {limit})
         '''
-        
+
         results = await influxdb_client._execute_query(query)
-        
+
         # Convert results to response models
         integrations = []
         for record in results:
@@ -931,7 +933,7 @@ async def list_integrations(
             timestamp = record.get("_time", datetime.now())
             if not isinstance(timestamp, str):
                 timestamp = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
-            
+
             integration = IntegrationResponse(
                 entry_id=record.get("entry_id", ""),
                 domain=record.get("domain", "unknown"),
@@ -941,12 +943,12 @@ async def list_integrations(
                 timestamp=timestamp
             )
             integrations.append(integration)
-        
+
         return IntegrationsListResponse(
             integrations=integrations,
             count=len(integrations)
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing integrations: {e}")
         raise HTTPException(
@@ -956,14 +958,14 @@ async def list_integrations(
 
 
 # Helper functions
-def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
+def _build_devices_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for devices with filters"""
-    query = f'''
+    query = '''
         from(bucket: "home_assistant_events")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "devices")
     '''
-    
+
     # Add filters
     if filters.get("manufacturer"):
         manufacturer = sanitize_flux_value(filters["manufacturer"])
@@ -977,20 +979,20 @@ def _build_devices_query(filters: Dict[str, str], limit: int) -> str:
         area_id = sanitize_flux_value(filters["area_id"])
         if area_id:
             query += f'\n    |> filter(fn: (r) => r["area_id"] == "{area_id}")'
-    
+
     query += f'\n    |> last()\n    |> limit(n: {limit})'
-    
+
     return query
 
 
-def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
+def _build_entities_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for entities with filters"""
-    query = f'''
+    query = '''
         from(bucket: "home_assistant_events")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "entities")
     '''
-    
+
     # Add filters
     if filters.get("domain"):
         domain = sanitize_flux_value(filters["domain"])
@@ -1004,9 +1006,9 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
         device_id = sanitize_flux_value(filters["device_id"])
         if device_id:
             query += f'\n    |> filter(fn: (r) => r["device_id"] == "{device_id}")'
-    
+
     query += f'\n    |> last()\n    |> limit(n: {limit})'
-    
+
     return query
 
 
@@ -1014,7 +1016,7 @@ def _build_entities_query(filters: Dict[str, str], limit: int) -> str:
 # Note: No authentication needed for home use - services run on internal Docker network
 @router.post("/internal/devices/bulk_upsert")
 async def bulk_upsert_devices(
-    devices: List[Dict[str, Any]],
+    devices: list[dict[str, Any]],
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1024,20 +1026,20 @@ async def bulk_upsert_devices(
     """
     try:
         upserted_count = 0
-        
+
         for device_data in devices:
             # Extract device_id (HA uses 'id', we use 'device_id')
             device_id = device_data.get('id') or device_data.get('device_id')
             if not device_id:
                 logger.warning(f"Skipping device without ID: {device_data.get('name', 'unknown')}")
                 continue
-            
+
             # Check if device exists first
             result = await db.execute(
                 select(Device).where(Device.device_id == device_id)
             )
             existing_device = result.scalar_one_or_none()
-            
+
             # Prepare device data
             device_values = {
                 'device_id': device_id,
@@ -1056,7 +1058,7 @@ async def bulk_upsert_devices(
                 'via_device': device_data.get('via_device_id'),  # HA uses 'via_device_id'
                 'last_seen': datetime.now()
             }
-            
+
             if existing_device:
                 # Update existing device
                 for key, value in device_values.items():
@@ -1067,19 +1069,19 @@ async def bulk_upsert_devices(
                 device_values['created_at'] = datetime.now()
                 new_device = Device(**device_values)
                 db.add(new_device)
-            
+
             upserted_count += 1
-        
+
         await db.commit()
-        
+
         logger.info(f"Bulk upserted {upserted_count} devices from HA discovery")
-        
+
         return {
             "success": True,
             "upserted": upserted_count,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Error bulk upserting devices: {e}")
@@ -1093,7 +1095,7 @@ async def bulk_upsert_devices(
 
 @router.post("/internal/entities/bulk_upsert")
 async def bulk_upsert_entities(
-    entities: List[Dict[str, Any]],
+    entities: list[dict[str, Any]],
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1103,33 +1105,33 @@ async def bulk_upsert_entities(
     """
     try:
         upserted_count = 0
-        
+
         for entity_data in entities:
             entity_id = entity_data.get('entity_id')
             if not entity_id:
                 logger.warning("Skipping entity without entity_id")
                 continue
-            
+
             # Extract domain from entity_id (e.g., "light.kitchen" -> "light")
             domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
-            
+
             # Extract name fields from entity registry data
             name = entity_data.get('name')  # Primary name (what shows in HA UI)
             name_by_user = entity_data.get('name_by_user')  # User-customized name
             original_name = entity_data.get('original_name')  # Original name
-            
+
             # Compute friendly_name (priority: name_by_user > name > original_name > entity_id)
             friendly_name = name_by_user or name or original_name
             if not friendly_name:
                 # Fallback: derive from entity_id
                 friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
-            
+
             # Capabilities will be enriched separately from State API
             # For now, set to None - will be populated by entity_capability_enrichment service
             supported_features = None
             capabilities = None
             available_services = None
-            
+
             # Create entity instance
             entity = Entity(
                 entity_id=entity_id,
@@ -1153,21 +1155,21 @@ async def bulk_upsert_entities(
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )
-            
+
             # Merge (upsert)
             await db.merge(entity)
             upserted_count += 1
-        
+
         await db.commit()
-        
+
         logger.info(f"Bulk upserted {upserted_count} entities from HA discovery")
-        
+
         return {
             "success": True,
             "upserted": upserted_count,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Error bulk upserting entities: {e}")
@@ -1186,26 +1188,26 @@ async def clear_all_devices(
     """
     try:
         from sqlalchemy import delete
-        
+
         # Delete all entities first (due to foreign key constraint)
         entities_deleted = await db.execute(delete(Entity))
         entities_count = entities_deleted.rowcount
-        
+
         # Delete all devices
         devices_deleted = await db.execute(delete(Device))
         devices_count = devices_deleted.rowcount
-        
+
         await db.commit()
-        
+
         logger.info(f"Cleared {devices_count} devices and {entities_count} entities from database")
-        
+
         return {
             "success": True,
             "devices_deleted": devices_count,
             "entities_deleted": entities_count,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Error clearing devices and entities: {e}")

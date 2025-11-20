@@ -10,23 +10,20 @@ Context7 Best Practices Applied:
 - Structured logging with correlation IDs
 - Proper HTTP status codes and error messages
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import Dict, List, Optional
 import logging
 from datetime import datetime
 
-from .zigbee_bridge_manager import (
-    ZigbeeBridgeManager, 
-    BridgeHealthStatus, 
-    RecoveryAttempt,
-    BridgeState,
-    RecoveryAction
-)
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
 from .schemas import (
     BridgeHealthResponse,
     RecoveryAttemptResponse,
     RecoveryRequest,
-    RecoveryResponse
+    RecoveryResponse,
+)
+from .zigbee_bridge_manager import (
+    BridgeState,
+    ZigbeeBridgeManager,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,7 +44,7 @@ async def get_bridge_status():
     """
     try:
         health_status = await bridge_manager.get_bridge_health_status()
-        
+
         return BridgeHealthResponse(
             bridge_state=health_status.bridge_state.value,
             is_connected=health_status.is_connected,
@@ -69,7 +66,7 @@ async def get_bridge_status():
                 ) for attempt in health_status.recovery_attempts
             ]
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get bridge status: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}")
@@ -84,13 +81,13 @@ async def attempt_bridge_recovery(request: RecoveryRequest):
     """
     try:
         success, message = await bridge_manager.attempt_bridge_recovery(force=request.force)
-        
+
         return RecoveryResponse(
             success=success,
             message=message,
             timestamp=datetime.now()
         )
-        
+
     except Exception as e:
         logger.error(f"Bridge recovery failed: {e}")
         raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}")
@@ -113,7 +110,7 @@ async def get_bridge_logs():
             ],
             "timestamp": datetime.now()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get bridge logs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get bridge logs: {str(e)}")
@@ -129,16 +126,16 @@ async def start_bridge_monitoring(background_tasks: BackgroundTasks):
     try:
         if bridge_manager.monitoring_active:
             return {"message": "Bridge monitoring already active", "status": "active"}
-        
+
         # Start monitoring in background
         background_tasks.add_task(bridge_manager.start_monitoring)
-        
+
         return {
             "message": "Bridge monitoring started",
             "status": "started",
             "monitoring_interval": bridge_manager.monitoring_interval
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to start bridge monitoring: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start monitoring: {str(e)}")
@@ -151,12 +148,12 @@ async def stop_bridge_monitoring():
     """
     try:
         await bridge_manager.stop_monitoring()
-        
+
         return {
             "message": "Bridge monitoring stopped",
             "status": "stopped"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to stop bridge monitoring: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop monitoring: {str(e)}")
@@ -171,7 +168,7 @@ async def get_recovery_history():
     """
     try:
         history = bridge_manager.get_recovery_history()
-        
+
         return {
             "recovery_attempts": [
                 {
@@ -186,7 +183,7 @@ async def get_recovery_history():
             "successful_attempts": sum(1 for attempt in history if attempt.success),
             "failed_attempts": sum(1 for attempt in history if not attempt.success)
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get recovery history: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get recovery history: {str(e)}")
@@ -201,12 +198,12 @@ async def clear_recovery_history():
     """
     try:
         bridge_manager.clear_recovery_history()
-        
+
         return {
             "message": "Recovery history cleared",
             "timestamp": datetime.now()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to clear recovery history: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to clear recovery history: {str(e)}")
@@ -222,7 +219,7 @@ async def get_bridge_metrics():
     try:
         health_status = await bridge_manager.get_bridge_health_status()
         metrics = health_status.metrics
-        
+
         return {
             "response_time_ms": metrics.response_time_ms,
             "device_count": metrics.device_count,
@@ -234,7 +231,7 @@ async def get_bridge_metrics():
             "bridge_state": health_status.bridge_state.value,
             "last_check": health_status.last_check
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get bridge metrics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get bridge metrics: {str(e)}")
@@ -249,7 +246,7 @@ async def restart_bridge():
     """
     try:
         success, message = await bridge_manager.attempt_bridge_recovery(force=True)
-        
+
         if success:
             return {
                 "message": "Bridge restart initiated successfully",
@@ -262,7 +259,7 @@ async def restart_bridge():
                 "success": False,
                 "timestamp": datetime.now()
             }
-        
+
     except Exception as e:
         logger.error(f"Bridge restart failed: {e}")
         raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}")
@@ -277,7 +274,7 @@ async def get_bridge_health():
     """
     try:
         health_status = await bridge_manager.get_bridge_health_status()
-        
+
         return {
             "healthy": health_status.bridge_state == BridgeState.ONLINE,
             "state": health_status.bridge_state.value,
@@ -285,7 +282,7 @@ async def get_bridge_health():
             "device_count": health_status.metrics.device_count,
             "last_check": health_status.last_check
         }
-        
+
     except Exception as e:
         logger.error(f"Bridge health check failed: {e}")
         return {

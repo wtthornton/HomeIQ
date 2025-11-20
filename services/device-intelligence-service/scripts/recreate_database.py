@@ -30,21 +30,21 @@ async def main():
     logger.info("DATABASE TABLE RECREATION SCRIPT")
     logger.info("WARNING: This will DELETE ALL existing data!")
     logger.info("=" * 80)
-    
+
     # Load settings
     settings = Settings()
-    
+
     # Initialize database connection
     logger.info("🔌 Connecting to database...")
     await initialize_database(settings)
     logger.info("✅ Database connected")
-    
+
     # Recreate tables
     logger.info("")
     logger.info("🔄 Recreating database tables...")
     logger.info("⚠️  This will drop all existing tables and recreate them with the new schema")
     logger.info("")
-    
+
     try:
         await recreate_tables()
         logger.info("")
@@ -65,14 +65,14 @@ async def main():
         logger.info("")
         logger.info("Next step: Run the discovery service to populate devices with the new fields.")
         logger.info("")
-        
+
     except Exception as e:
-        logger.error(f"")
-        logger.error(f"=" * 80)
-        logger.error(f"❌ FAILED TO RECREATE DATABASE TABLES")
-        logger.error(f"=" * 80)
+        logger.error("")
+        logger.error("=" * 80)
+        logger.error("❌ FAILED TO RECREATE DATABASE TABLES")
+        logger.error("=" * 80)
         logger.error(f"Error: {e}")
-        logger.error(f"")
+        logger.error("")
         sys.exit(1)
 
 

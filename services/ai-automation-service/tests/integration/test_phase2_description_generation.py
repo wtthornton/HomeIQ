@@ -15,20 +15,20 @@ These tests require:
 - Database initialized
 """
 
+import os
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, MagicMock, patch
-import os
 
 pytest.importorskip(
     "transformers",
     reason="transformers dependency not available in this environment"
 )
 
-from src.main import app
-from src.llm.description_generator import DescriptionGenerator
 from src.clients.data_api_client import DataAPIClient
-
+from src.llm.description_generator import DescriptionGenerator
+from src.main import app
 
 # ============================================================================
 # Integration Tests (Real OpenAI calls - use with caution!)
@@ -48,11 +48,11 @@ async def test_real_openai_description_generation():
     Only run when you want to verify the actual integration works.
     """
     from openai import AsyncOpenAI
-    
+
     # Initialize real OpenAI client
     client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     generator = DescriptionGenerator(client, model="gpt-4o-mini")
-    
+
     # Test pattern
     pattern = {
         'pattern_type': 'time_of_day',
@@ -62,29 +62,29 @@ async def test_real_openai_description_generation():
         'occurrences': 28,
         'confidence': 0.92
     }
-    
+
     device_context = {
         'name': 'Kitchen Light',
         'area': 'Kitchen',
         'domain': 'light'
     }
-    
+
     # Generate description (REAL OpenAI call!)
     description = await generator.generate_description(pattern, device_context)
-    
+
     # Assertions
     assert description is not None
     assert len(description) > 0
     assert "kitchen" in description.lower() or "7" in description or "morning" in description.lower()
     assert "alias:" not in description  # No YAML!
     assert "trigger:" not in description
-    
+
     # Check token usage was tracked
     stats = generator.get_usage_stats()
     assert stats['total_tokens'] > 0
     assert stats['estimated_cost_usd'] > 0
-    
-    print(f"\n✅ Real OpenAI test passed!")
+
+    print("\n✅ Real OpenAI test passed!")
     print(f"   Description: {description}")
     print(f"   Tokens: {stats['total_tokens']}")
     print(f"   Cost: ${stats['estimated_cost_usd']:.6f}")
@@ -97,13 +97,13 @@ async def test_real_openai_description_generation():
 @pytest.mark.asyncio
 async def test_generate_endpoint_with_mocked_openai():
     """Test /generate endpoint with mocked OpenAI"""
-    
+
     with patch('src.api.conversational_router.description_generator') as mock_gen:
         # Mock OpenAI response
         mock_gen.generate_description = AsyncMock(
             return_value="At 7:00 AM every morning, turn on the Kitchen Light to help you wake up"
         )
-        
+
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/suggestions/generate",
@@ -117,10 +117,10 @@ async def test_generate_endpoint_with_mocked_openai():
                     }
                 }
             )
-            
+
             assert response.status_code == 201
             data = response.json()
-            
+
             assert data['description'] == "At 7:00 AM every morning, turn on the Kitchen Light to help you wake up"
             assert data['status'] == 'draft'
             assert 'devices_involved' in data
@@ -129,7 +129,7 @@ async def test_generate_endpoint_with_mocked_openai():
 @pytest.mark.asyncio
 async def test_capabilities_endpoint_with_mocked_data_api():
     """Test /devices/{id}/capabilities endpoint with mocked data-api"""
-    
+
     with patch('src.api.conversational_router.data_api_client') as mock_client:
         # Mock capabilities response
         mock_client.fetch_device_capabilities = AsyncMock(
@@ -150,15 +150,15 @@ async def test_capabilities_endpoint_with_mocked_data_api():
                 ]
             }
         )
-        
+
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.get(
                 "/api/v1/suggestions/devices/light.living_room/capabilities"
             )
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             assert data['entity_id'] == 'light.living_room'
             assert data['friendly_name'] == 'Living Room Light'
             assert 'brightness' in data['supported_features']
@@ -181,15 +181,15 @@ async def test_complete_phase2_flow():
     4. Suggestion is created in database
     5. Response includes description and capabilities
     """
-    
+
     with patch('src.api.conversational_router.description_generator') as mock_gen, \
          patch('src.api.conversational_router.data_api_client') as mock_data_api:
-        
+
         # Mock OpenAI description
         mock_gen.generate_description = AsyncMock(
             return_value="When motion is detected in the Living Room after 6PM, turn on the Living Room Light"
         )
-        
+
         # Mock capabilities
         mock_data_api.fetch_device_capabilities = AsyncMock(
             return_value={
@@ -201,7 +201,7 @@ async def test_complete_phase2_flow():
                 "friendly_capabilities": ["Adjust brightness", "Change color"]
             }
         )
-        
+
         async with AsyncClient(app=app, base_url="http://test") as client:
             # Step 1: Generate description
             response = await client.post(
@@ -213,17 +213,17 @@ async def test_complete_phase2_flow():
                     "metadata": {"avg_time_decimal": 18.0}
                 }
             )
-            
+
             assert response.status_code == 201
             suggestion_data = response.json()
-            
+
             # Verify description
             assert "Living Room" in suggestion_data['description']
             assert "alias:" not in suggestion_data['description']  # No YAML!
-            
+
             # Verify status
             assert suggestion_data['status'] == 'draft'
-            
+
             # Verify capabilities are included
             assert len(suggestion_data['devices_involved']) > 0
             device = suggestion_data['devices_involved'][0]
@@ -235,13 +235,13 @@ async def test_complete_phase2_flow():
 @pytest.mark.asyncio
 async def test_phase2_error_handling():
     """Test error handling when OpenAI or data-api fails"""
-    
+
     with patch('src.api.conversational_router.description_generator') as mock_gen:
         # Mock OpenAI failure
         mock_gen.generate_description = AsyncMock(
             side_effect=Exception("OpenAI API timeout")
         )
-        
+
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/suggestions/generate",
@@ -252,7 +252,7 @@ async def test_phase2_error_handling():
                     "metadata": {}
                 }
             )
-            
+
             # Should return 500 error
             assert response.status_code == 500
             assert "Failed to generate description" in response.json()['detail']
@@ -266,10 +266,10 @@ async def test_phase2_error_handling():
 async def test_description_generation_performance():
     """Test that description generation completes within reasonable time"""
     import time
-    
+
     with patch('src.api.conversational_router.description_generator') as mock_gen, \
          patch('src.api.conversational_router.data_api_client') as mock_data_api:
-        
+
         # Mock fast responses
         mock_gen.generate_description = AsyncMock(return_value="Test description")
         mock_data_api.fetch_device_capabilities = AsyncMock(return_value={
@@ -279,10 +279,10 @@ async def test_description_generation_performance():
             "supported_features": {},
             "friendly_capabilities": []
         })
-        
+
         async with AsyncClient(app=app, base_url="http://test") as client:
             start = time.time()
-            
+
             response = await client.post(
                 "/api/v1/suggestions/generate",
                 json={
@@ -292,9 +292,9 @@ async def test_description_generation_performance():
                     "metadata": {}
                 }
             )
-            
+
             elapsed = time.time() - start
-            
+
             assert response.status_code == 201
             assert elapsed < 5.0  # Should complete within 5 seconds
 
@@ -306,7 +306,7 @@ async def test_description_generation_performance():
 @pytest.mark.asyncio
 async def test_light_capability_parsing():
     """Test that light capabilities are parsed correctly"""
-    
+
     mock_entity_data = {
         "entity_id": "light.bedroom",
         "friendly_name": "Bedroom Light",
@@ -318,16 +318,16 @@ async def test_light_capability_parsing():
             "supported_color_modes": ["rgb", "color_temp"]
         }
     }
-    
+
     client = DataAPIClient(base_url="http://test")
     capabilities = client._parse_capabilities("light.bedroom", mock_entity_data)
-    
+
     # Assert all light features detected
     assert capabilities['supported_features']['brightness'] == True
     assert capabilities['supported_features']['rgb_color'] == True
     assert capabilities['supported_features']['color_temp'] == True
     assert capabilities['supported_features']['transition'] == True
-    
+
     # Assert friendly capabilities
     assert len(capabilities['friendly_capabilities']) >= 3
     assert any('brightness' in cap.lower() for cap in capabilities['friendly_capabilities'])
@@ -337,7 +337,7 @@ async def test_light_capability_parsing():
 @pytest.mark.asyncio
 async def test_climate_capability_parsing():
     """Test that climate/thermostat capabilities are parsed correctly"""
-    
+
     mock_entity_data = {
         "entity_id": "climate.living_room",
         "friendly_name": "Living Room Thermostat",
@@ -351,16 +351,16 @@ async def test_climate_capability_parsing():
             "preset_modes": ["home", "away", "sleep"]
         }
     }
-    
+
     client = DataAPIClient(base_url="http://test")
     capabilities = client._parse_capabilities("climate.living_room", mock_entity_data)
-    
+
     # Assert climate features detected
     assert capabilities['supported_features']['temperature'] == True
     assert capabilities['supported_features']['hvac_mode'] == True
     assert capabilities['supported_features']['fan_mode'] == True
     assert capabilities['supported_features']['preset'] == True
-    
+
     # Assert temperature range in description
     assert any('60°-90°' in cap for cap in capabilities['friendly_capabilities'])
 

@@ -9,22 +9,16 @@ Flow:
 3. Support hybrid mode: pattern + LLM enhancement for customizations
 """
 
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Any
 
-from .nl_automation_generator import (
-    NLAutomationGenerator,
-    NLAutomationRequest,
-    GeneratedAutomation
-)
+from .nl_automation_generator import NLAutomationGenerator, NLAutomationRequest
 from .patterns import (
-    PatternMatcher,
     PatternComposer,
-    PatternMatch,
-    ComposedAutomation,
+    PatternMatcher,
+    get_pattern_composer,
     get_pattern_matcher,
-    get_pattern_composer
 )
 
 logger = logging.getLogger(__name__)
@@ -33,9 +27,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EnhancedGenerationResult:
     """Result from enhanced automation generation"""
-    automations: List[Dict[str, Any]]  # List of generated automations
+    automations: list[dict[str, Any]]  # List of generated automations
     method: str  # 'pattern', 'llm', 'hybrid'
-    patterns_used: Optional[List[str]] = None
+    patterns_used: list[str] | None = None
     confidence: float = 0.0
     generation_time_ms: int = 0
 
@@ -53,8 +47,8 @@ class EnhancedAutomationGenerator:
     def __init__(
         self,
         nl_generator: NLAutomationGenerator,
-        pattern_matcher: Optional[PatternMatcher] = None,
-        pattern_composer: Optional[PatternComposer] = None,
+        pattern_matcher: PatternMatcher | None = None,
+        pattern_composer: PatternComposer | None = None,
         pattern_threshold: float = 0.5  # Minimum confidence for pattern use
     ):
         """
@@ -74,7 +68,7 @@ class EnhancedAutomationGenerator:
     async def generate(
         self,
         request: NLAutomationRequest,
-        available_entities: List[Dict[str, Any]]
+        available_entities: list[dict[str, Any]]
     ) -> EnhancedGenerationResult:
         """
         Generate automation using best available method.
@@ -148,9 +142,9 @@ class EnhancedAutomationGenerator:
     async def get_pattern_suggestions(
         self,
         request: str,
-        available_entities: List[Dict[str, Any]],
+        available_entities: list[dict[str, Any]],
         limit: int = 3
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get suggested patterns for a request without generating YAML.
 

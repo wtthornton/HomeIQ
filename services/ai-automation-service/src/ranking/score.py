@@ -2,9 +2,9 @@
 Heuristic Ranking - Transparent, explainable ranking without ML
 """
 
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,24 +18,24 @@ class RankScore:
     predicted_latency_sec: float
     energy_cost_bucket: int  # 0=low, 1=medium, 2=high
     user_recent_preference: float
-    feature_breakdown: Dict[str, float]  # Individual feature contributions
+    feature_breakdown: dict[str, float]  # Individual feature contributions
     excluded: bool = False
-    exclusion_reason: Optional[str] = None
+    exclusion_reason: str | None = None
 
 
 @dataclass
 class RankedAutomation:
     """Automation with ranking score"""
-    automation: Dict[str, Any]
+    automation: dict[str, Any]
     score: RankScore
     rank: int
 
 
 def compute_rank_score(
-    automation: Dict[str, Any],
-    capabilities: Dict[str, Any],
-    reliability_history: Optional[Dict[str, float]] = None,
-    user_preferences: Optional[Dict[str, float]] = None
+    automation: dict[str, Any],
+    capabilities: dict[str, Any],
+    reliability_history: dict[str, float] | None = None,
+    user_preferences: dict[str, float] | None = None
 ) -> RankScore:
     """
     Compute heuristic ranking score for an automation plan.
@@ -63,17 +63,17 @@ def compute_rank_score(
         reliability_history = {}
     if user_preferences is None:
         user_preferences = {}
-    
+
     # Extract entities from automation
     entities = _extract_entities(automation)
-    
+
     # Feature 1: Capability match ratio
     capability_match_ratio = _compute_capability_match(automation, capabilities, entities)
-    
+
     # Hard filter: Exclude if missing mandatory capabilities
     mandatory_capabilities = _get_mandatory_capabilities(automation)
     missing_mandatory = [cap for cap in mandatory_capabilities if cap not in capabilities]
-    
+
     if missing_mandatory:
         return RankScore(
             total_score=0.0,
@@ -86,19 +86,19 @@ def compute_rank_score(
             excluded=True,
             exclusion_reason=f"Missing mandatory capabilities: {', '.join(missing_mandatory)}"
         )
-    
+
     # Feature 2: Reliability score
     reliability_score = _compute_reliability_score(entities, reliability_history)
-    
+
     # Feature 3: Predicted latency
     predicted_latency_sec = _compute_predicted_latency(automation, entities)
-    
+
     # Feature 4: Energy cost bucket
     energy_cost_bucket = _compute_energy_cost_bucket(automation, entities)
-    
+
     # Feature 5: User recent preference
     user_recent_preference = _compute_user_preference(automation, entities, user_preferences)
-    
+
     # Compute weighted score
     feature_breakdown = {
         "capability_match": 2.0 * capability_match_ratio,
@@ -107,9 +107,9 @@ def compute_rank_score(
         "energy_cost": -0.5 * energy_cost_bucket,
         "user_preference": 0.2 * user_recent_preference
     }
-    
+
     total_score = sum(feature_breakdown.values())
-    
+
     return RankScore(
         total_score=total_score,
         capability_match_ratio=capability_match_ratio,
@@ -123,12 +123,12 @@ def compute_rank_score(
 
 
 def rank_automations(
-    automations: List[Dict[str, Any]],
-    capabilities: Dict[str, Any],
+    automations: list[dict[str, Any]],
+    capabilities: dict[str, Any],
     top_k: int = 10,
-    reliability_history: Optional[Dict[str, float]] = None,
-    user_preferences: Optional[Dict[str, float]] = None
-) -> List[RankedAutomation]:
+    reliability_history: dict[str, float] | None = None,
+    user_preferences: dict[str, float] | None = None
+) -> list[RankedAutomation]:
     """
     Rank automations and return top-K.
     
@@ -156,26 +156,26 @@ def rank_automations(
             score=score,
             rank=0  # Will be set after sorting
         ))
-    
+
     # Filter out excluded
     included = [s for s in scored if not s.score.excluded]
     excluded = [s for s in scored if s.score.excluded]
-    
+
     # Sort by score (highest first)
     included.sort(key=lambda x: x.score.total_score, reverse=True)
-    
+
     # Set ranks
     for i, ranked in enumerate(included):
         ranked.rank = i + 1
-    
+
     # Return top-K
     return included[:top_k]
 
 
-def _extract_entities(automation: Dict[str, Any]) -> List[str]:
+def _extract_entities(automation: dict[str, Any]) -> list[str]:
     """Extract entity IDs from automation"""
     entities = set()
-    
+
     # From triggers
     triggers = automation.get("triggers", automation.get("trigger", []))
     if not isinstance(triggers, list):
@@ -187,7 +187,7 @@ def _extract_entities(automation: Dict[str, Any]) -> List[str]:
                 entities.update(entity_id)
             else:
                 entities.add(entity_id)
-    
+
     # From actions
     actions = automation.get("actions", automation.get("action", []))
     if not isinstance(actions, list):
@@ -206,35 +206,35 @@ def _extract_entities(automation: Dict[str, Any]) -> List[str]:
                 entities.update(target_entity_id)
             else:
                 entities.add(target_entity_id)
-    
+
     return list(entities)
 
 
 def _compute_capability_match(
-    automation: Dict[str, Any],
-    capabilities: Dict[str, Any],
-    entities: List[str]
+    automation: dict[str, Any],
+    capabilities: dict[str, Any],
+    entities: list[str]
 ) -> float:
     """Compute capability match ratio (0.0-1.0)"""
     if not entities:
         return 0.0
-    
+
     required_capabilities = _get_required_capabilities(automation)
     if not required_capabilities:
         return 1.0
-    
+
     matched = sum(1 for cap in required_capabilities if cap in capabilities)
     return matched / len(required_capabilities) if required_capabilities else 1.0
 
 
-def _get_mandatory_capabilities(automation: Dict[str, Any]) -> List[str]:
+def _get_mandatory_capabilities(automation: dict[str, Any]) -> list[str]:
     """Get mandatory capabilities required by automation"""
     # Extract from actions
     required = []
     actions = automation.get("actions", automation.get("action", []))
     if not isinstance(actions, list):
         actions = [actions]
-    
+
     for action in actions:
         service = action.get("service", "")
         # Extract domain.service capabilities
@@ -242,30 +242,30 @@ def _get_mandatory_capabilities(automation: Dict[str, Any]) -> List[str]:
             domain = service.split('.')[0]
             required.append(f"{domain}.turn_on")  # Basic capability
             required.append(f"{domain}.turn_off")  # Basic capability
-    
+
     return required
 
 
-def _get_required_capabilities(automation: Dict[str, Any]) -> List[str]:
+def _get_required_capabilities(automation: dict[str, Any]) -> list[str]:
     """Get all required capabilities (not just mandatory)"""
     return _get_mandatory_capabilities(automation)
 
 
 def _compute_reliability_score(
-    entities: List[str],
-    reliability_history: Dict[str, float]
+    entities: list[str],
+    reliability_history: dict[str, float]
 ) -> float:
     """Compute reliability score (0.0-1.0)"""
     if not entities:
         return 0.5  # Default
-    
+
     scores = [reliability_history.get(e, 0.5) for e in entities]
     return sum(scores) / len(scores) if scores else 0.5
 
 
 def _compute_predicted_latency(
-    automation: Dict[str, Any],
-    entities: List[str]
+    automation: dict[str, Any],
+    entities: list[str]
 ) -> float:
     """Compute predicted latency in seconds"""
     # Simple heuristic: base latency + per-entity overhead
@@ -275,21 +275,21 @@ def _compute_predicted_latency(
 
 
 def _compute_energy_cost_bucket(
-    automation: Dict[str, Any],
-    entities: List[str]
+    automation: dict[str, Any],
+    entities: list[str]
 ) -> int:
     """Compute energy cost bucket (0=low, 1=medium, 2=high)"""
     # Check for high-power services
     actions = automation.get("actions", automation.get("action", []))
     if not isinstance(actions, list):
         actions = [actions]
-    
+
     high_power_services = ["climate.set_temperature", "switch.turn_on", "fan.turn_on"]
     has_high_power = any(
         action.get("service") in high_power_services
         for action in actions
     )
-    
+
     if has_high_power:
         return 2  # High
     elif len(entities) > 3:
@@ -299,17 +299,17 @@ def _compute_energy_cost_bucket(
 
 
 def _compute_user_preference(
-    automation: Dict[str, Any],
-    entities: List[str],
-    user_preferences: Dict[str, float]
+    automation: dict[str, Any],
+    entities: list[str],
+    user_preferences: dict[str, float]
 ) -> float:
     """Compute user preference score (0.0-1.0)"""
     if not entities or not user_preferences:
         return 0.0
-    
+
     # Extract device types
     device_types = [e.split('.')[0] for e in entities if '.' in e]
-    
+
     # Get preference scores
     scores = [user_preferences.get(dt, 0.0) for dt in device_types]
     return sum(scores) / len(scores) if scores else 0.0

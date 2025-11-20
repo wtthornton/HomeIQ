@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class GuardrailResult:
     score: float
     flagged: bool
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "label": self.label,
             "score": self.score,
@@ -51,7 +51,7 @@ class HuggingFaceGuardrail:
     def is_ready(self) -> bool:
         return self._pipeline is not None
 
-    def evaluate_batch(self, texts: Iterable[str]) -> List[GuardrailResult]:
+    def evaluate_batch(self, texts: Iterable[str]) -> list[GuardrailResult]:
         if not self.is_ready:
             return []
 
@@ -59,8 +59,8 @@ class HuggingFaceGuardrail:
         if not source_texts:
             return []
 
-        cleaned_texts: List[str] = []
-        mapping: List[int] = []
+        cleaned_texts: list[str] = []
+        mapping: list[int] = []
         for idx, text in enumerate(source_texts):
             if text and text.strip():
                 cleaned_texts.append(text.strip())
@@ -75,7 +75,7 @@ class HuggingFaceGuardrail:
             logger.debug("Guardrail evaluation failed: %s", exc)
             return [GuardrailResult(text="", label="NOT_EVALUATED", score=0.0, flagged=False) for _ in source_texts]
 
-        results: List[GuardrailResult] = [
+        results: list[GuardrailResult] = [
             GuardrailResult(text="", label="NOT_EVALUATED", score=0.0, flagged=False)
             for _ in source_texts
         ]
@@ -89,11 +89,11 @@ class HuggingFaceGuardrail:
         return results
 
 
-_guardrail_singleton: Optional[HuggingFaceGuardrail] = None
+_guardrail_singleton: HuggingFaceGuardrail | None = None
 _guardrail_initialized = False
 
 
-def get_guardrail_checker(model_name: str, threshold: float) -> Optional[HuggingFaceGuardrail]:
+def get_guardrail_checker(model_name: str, threshold: float) -> HuggingFaceGuardrail | None:
     global _guardrail_initialized, _guardrail_singleton
 
     if _guardrail_initialized:

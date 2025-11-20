@@ -3,30 +3,24 @@ Admin REST API Service
 """
 
 import asyncio
-import logging
 import os
 import secrets
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
+import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-import uvicorn
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from shared.logging_config import (
-    setup_logging, get_logger, log_with_context, log_performance, 
-    log_error_with_context, performance_monitor, generate_correlation_id,
-    set_correlation_id, get_correlation_id
-)
 from shared.correlation_middleware import FastAPICorrelationMiddleware
+from shared.logging_config import setup_logging
 
 # Import shared error handler
 try:
@@ -37,35 +31,40 @@ except ImportError:
 
 # Import observability modules
 try:
-    from shared.observability import (
-        setup_tracing,
-        instrument_fastapi,
-        CorrelationMiddleware as ObservabilityCorrelationMiddleware
-    )
+    from shared.observability import CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    from shared.observability import instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .health_endpoints import HealthEndpoints
-from shared.monitoring import StatsEndpoints, MonitoringEndpoints
-from .config_endpoints import ConfigEndpoints
-from .events_endpoints import EventsEndpoints
-from .docker_endpoints import DockerEndpoints
-# WebSocket endpoints removed - using HTTP polling only
-from shared.endpoints import create_integration_router
-from .config_manager import config_manager
-from .mqtt_config_endpoints import router as mqtt_config_router
-from .devices_endpoints import router as devices_router
-from .metrics_endpoints import create_metrics_router
-from .alert_endpoints import create_alert_router
-from .ha_proxy_endpoints import router as ha_proxy_router
-from shared.auth import AuthManager  # Moved to shared
-from shared.monitoring import alerting_service, logging_service, metrics_service
-from shared.rate_limiter import RateLimiter, rate_limit_middleware
-
 # Load environment variables
 from dotenv import load_dotenv
+
+from shared.auth import AuthManager  # Moved to shared
+
+# WebSocket endpoints removed - using HTTP polling only
+from shared.endpoints import create_integration_router
+from shared.monitoring import (
+    MonitoringEndpoints,
+    StatsEndpoints,
+    alerting_service,
+    logging_service,
+    metrics_service,
+)
+from shared.rate_limiter import RateLimiter, rate_limit_middleware
+
+from .alert_endpoints import create_alert_router
+from .config_endpoints import ConfigEndpoints
+from .config_manager import config_manager
+from .devices_endpoints import router as devices_router
+from .docker_endpoints import DockerEndpoints
+from .events_endpoints import EventsEndpoints
+from .ha_proxy_endpoints import router as ha_proxy_router
+from .health_endpoints import HealthEndpoints
+from .metrics_endpoints import create_metrics_router
+from .mqtt_config_endpoints import router as mqtt_config_router
+
 load_dotenv()
 
 # Configure enhanced logging
@@ -75,24 +74,24 @@ logger = setup_logging("admin-api")
 class APIResponse(BaseModel):
     """Standard API response model"""
     success: bool = Field(description="Whether the request was successful")
-    data: Optional[Any] = Field(default=None, description="Response data")
-    message: Optional[str] = Field(default=None, description="Response message")
+    data: Any | None = Field(default=None, description="Response data")
+    message: str | None = Field(default=None, description="Response message")
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Response timestamp")
-    request_id: Optional[str] = Field(default=None, description="Request ID for tracking")
+    request_id: str | None = Field(default=None, description="Request ID for tracking")
 
 
 class ErrorResponse(BaseModel):
     """Error response model"""
     success: bool = Field(default=False, description="Always false for errors")
     error: str = Field(description="Error message")
-    error_code: Optional[str] = Field(default=None, description="Error code")
+    error_code: str | None = Field(default=None, description="Error code")
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Error timestamp")
-    request_id: Optional[str] = Field(default=None, description="Request ID for tracking")
+    request_id: str | None = Field(default=None, description="Request ID for tracking")
 
 
 class AdminAPIService:
     """Main Admin API service"""
-    
+
     def __init__(self):
         """Initialize Admin API service"""
         # Configuration
@@ -101,7 +100,7 @@ class AdminAPIService:
         self.api_title = os.getenv('API_TITLE', 'Home Assistant Ingestor Admin API')
         self.api_version = os.getenv('API_VERSION', '1.0.0')
         self.api_description = os.getenv('API_DESCRIPTION', 'Admin API for Home Assistant Ingestor')
-        
+
         # Security
         self.api_key = os.getenv('ADMIN_API_API_KEY') or os.getenv('API_KEY')
         self.allow_anonymous = os.getenv('ADMIN_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
@@ -121,12 +120,12 @@ class AdminAPIService:
                 "Admin API started in anonymous mode for local testing only. "
                 "Set ADMIN_API_API_KEY to enforce authentication."
             )
-        
+
         # CORS settings
         self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
         self.cors_methods = os.getenv('CORS_METHODS', 'GET,POST,PUT,DELETE').split(',')
         self.cors_headers = os.getenv('CORS_HEADERS', '*').split(',')
-        
+
         # Initialize components
         self.start_time = datetime.now()  # Add start time for uptime calculation
         self.auth_manager = AuthManager(
@@ -142,23 +141,23 @@ class AdminAPIService:
         # Create integration router with service-specific config_manager
         self.integration_router = create_integration_router(config_manager)
         # WebSocket endpoints removed - using HTTP polling only
-        
+
         # FastAPI app
-        self.app: Optional[FastAPI] = None
-        self.server_task: Optional[asyncio.Task] = None
+        self.app: FastAPI | None = None
+        self.server_task: asyncio.Task | None = None
         self.is_running = False
-    
+
     async def start(self):
         """Start the Admin API service"""
         if self.is_running:
             logger.warning("Admin API service is already running")
             return
-        
+
         # Start monitoring services
         await logging_service.start()
         await metrics_service.start()
         await alerting_service.start()
-        
+
         # Initialize InfluxDB connection for stats endpoints
         try:
             logger.info("Initializing InfluxDB connection for statistics...")
@@ -167,16 +166,16 @@ class AdminAPIService:
         except Exception as e:
             logger.warning(f"Failed to initialize InfluxDB: {e}")
             logger.warning("Statistics will fall back to direct service calls")
-        
+
         # Add middleware
         self._add_middleware()
-        
+
         # Add routes
         self._add_routes()
-        
+
         # Add exception handlers
         self._add_exception_handlers()
-        
+
         # Start server
         config = uvicorn.Config(
             app=self.app,
@@ -185,40 +184,40 @@ class AdminAPIService:
             log_level=os.getenv('LOG_LEVEL', 'info').lower()
         )
         server = uvicorn.Server(config)
-        
+
         self.server_task = asyncio.create_task(server.serve())
         self.is_running = True
-        
+
         logger.info(f"Admin API service started on {self.api_host}:{self.api_port}")
-    
+
     async def stop(self):
         """Stop the Admin API service"""
         if not self.is_running:
             return
-        
+
         self.is_running = False
-        
+
         if self.server_task:
             self.server_task.cancel()
             try:
                 await self.server_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Close InfluxDB connection
         try:
             logger.info("Closing InfluxDB connection...")
             await self.stats_endpoints.close()
         except Exception as e:
             logger.error(f"Error closing InfluxDB connection: {e}")
-        
+
         # Stop monitoring services
         await alerting_service.stop()
         await metrics_service.stop()
         await logging_service.stop()
-        
+
         logger.info("Admin API service stopped")
-    
+
     def _add_middleware(self):
         """Add middleware to FastAPI app"""
         # Observability setup (tracing and correlation ID)
@@ -227,18 +226,18 @@ class AdminAPIService:
             otlp_endpoint = os.getenv('OTLP_ENDPOINT')
             if setup_tracing("admin-api", otlp_endpoint):
                 logger.info("✅ OpenTelemetry tracing configured")
-            
+
             # Instrument FastAPI app
             if instrument_fastapi(self.app, "admin-api"):
                 logger.info("✅ FastAPI app instrumented for tracing")
-            
+
             # Add correlation ID middleware (should be early in middleware stack)
             self.app.add_middleware(ObservabilityCorrelationMiddleware)
             logger.info("✅ Correlation ID middleware added")
         else:
             # Fallback to existing correlation middleware
             self.app.add_middleware(FastAPICorrelationMiddleware)
-        
+
         # CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -247,7 +246,7 @@ class AdminAPIService:
             allow_methods=self.cors_methods,
             allow_headers=self.cors_headers
         )
-        
+
         # Rate limiting middleware
         @self.app.middleware("http")
         async def apply_rate_limit(request, call_next):
@@ -257,10 +256,10 @@ class AdminAPIService:
         @self.app.middleware("http")
         async def log_requests(request, call_next):
             start_time = datetime.now()
-            
+
             # Process request
             response = await call_next(request)
-            
+
             # Log request
             process_time = (datetime.now() - start_time).total_seconds()
             logger.info(
@@ -268,9 +267,9 @@ class AdminAPIService:
                 f"Status: {response.status_code} - "
                 f"Time: {process_time:.3f}s"
             )
-            
+
             return response
-    
+
     def _add_routes(self):
         """Add routes to FastAPI app"""
         # Simple health endpoint that always works
@@ -282,14 +281,14 @@ class AdminAPIService:
                 "timestamp": datetime.now().isoformat(),
                 "service": "admin-api"
             }
-        
+
         # Enhanced health endpoint with dependency information
         @self.app.get("/api/v1/health")
         async def enhanced_health():
             """Enhanced health endpoint with dependency information"""
             try:
                 uptime_seconds = (datetime.now() - self.start_time).total_seconds()
-                
+
                 # Create basic dependency health data (updated for Epic 31)
                 dependencies = [
                     {
@@ -315,7 +314,7 @@ class AdminAPIService:
                     }
                 ]
                 rate_limiter_stats = self.rate_limiter.get_stats()
-                
+
                 return {
                     "status": "healthy",
                     "service": "admin-api",
@@ -344,7 +343,7 @@ class AdminAPIService:
                     "timestamp": datetime.now().isoformat(),
                     "error": str(e)
                 }
-        
+
         # Simple metrics endpoint that always works
         @self.app.get("/api/metrics/realtime")
         async def simple_metrics():
@@ -356,7 +355,7 @@ class AdminAPIService:
                 "active_sources": [],
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         secure_dependency = [Depends(self.auth_manager.get_current_user)]
 
         # Health endpoints
@@ -365,7 +364,7 @@ class AdminAPIService:
             prefix="/api/v1",
             tags=["Health"]
         )
-        
+
         # Statistics endpoints
         self.app.include_router(
             self.stats_endpoints.router,
@@ -373,7 +372,7 @@ class AdminAPIService:
             tags=["Statistics"],
             dependencies=secure_dependency
         )
-        
+
         # Configuration endpoints
         self.app.include_router(
             self.config_endpoints.router,
@@ -389,14 +388,14 @@ class AdminAPIService:
             tags=["Integrations"],
             dependencies=secure_dependency
         )
-        
+
         # Docker management endpoints
         self.app.include_router(
             self.docker_endpoints.router,
             tags=["Docker Management"],
             dependencies=secure_dependency
         )
-        
+
         # Events endpoints
         self.app.include_router(
             self.events_endpoints.router,
@@ -404,7 +403,7 @@ class AdminAPIService:
             tags=["Events"],
             dependencies=secure_dependency
         )
-        
+
         # Monitoring endpoints
         self.app.include_router(
             self.monitoring_endpoints.router,
@@ -412,9 +411,9 @@ class AdminAPIService:
             tags=["Monitoring"],
             dependencies=secure_dependency
         )
-        
+
         # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
-        
+
         # Integration Management endpoints
         self.app.include_router(
             self.integration_router,
@@ -422,7 +421,7 @@ class AdminAPIService:
             tags=["Integration Management"],
             dependencies=secure_dependency
         )
-        
+
         # Devices & Entities endpoints
         self.app.include_router(
             devices_router,
@@ -436,7 +435,7 @@ class AdminAPIService:
             tags=["Home Assistant Proxy"],
             dependencies=secure_dependency
         )
-        
+
         # Metrics endpoints (Epic 17.3)
         self.app.include_router(
             create_metrics_router(),
@@ -444,7 +443,7 @@ class AdminAPIService:
             tags=["Metrics"],
             dependencies=secure_dependency
         )
-        
+
         # Alert endpoints (Epic 17.4)
         self.app.include_router(
             create_alert_router(),
@@ -452,7 +451,7 @@ class AdminAPIService:
             tags=["Alerts"],
             dependencies=secure_dependency
         )
-        
+
         # Root health endpoint (for Docker health checks)
         @self.app.get("/health")
         async def root_health():
@@ -464,7 +463,7 @@ class AdminAPIService:
                 "service": "admin-api",
                 "uptime_seconds": uptime
             }
-        
+
         # Root endpoint
         @self.app.get("/", response_model=APIResponse)
         async def root():
@@ -479,7 +478,7 @@ class AdminAPIService:
                 },
                 message="Admin API is running"
             )
-        
+
         # API info endpoint
         @self.app.get("/api/info", response_model=APIResponse)
         async def api_info():
@@ -508,7 +507,7 @@ class AdminAPIService:
                 },
                 message="API information retrieved successfully"
             )
-    
+
     def _add_exception_handlers(self):
         """Add exception handlers to FastAPI app"""
         # Register shared error handlers if available
@@ -528,7 +527,7 @@ class AdminAPIService:
                         request_id=getattr(request.state, 'request_id', None)
                     ).model_dump()
                 )
-            
+
             @self.app.exception_handler(Exception)
             async def general_exception_handler(request, exc: Exception):
                 """Handle general exceptions"""
@@ -541,7 +540,7 @@ class AdminAPIService:
                         request_id=getattr(request.state, 'request_id', None)
                     ).model_dump()
                 )
-    
+
     def get_app(self) -> FastAPI:
         """Get FastAPI app instance"""
         return self.app

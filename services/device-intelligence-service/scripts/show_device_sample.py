@@ -1,13 +1,15 @@
 """Script to show a sample of devices from the database with raw data."""
 import asyncio
+
 from sqlalchemy import text
-from src.core.database import get_db_session, initialize_database
 from src.config import Settings
+from src.core.database import get_db_session, initialize_database
+
 
 async def show_device_sample():
     settings = Settings()
     await initialize_database(settings)
-    
+
     async for session in get_db_session():
         # Get ALL device fields
         result = await session.execute(text('''
@@ -17,15 +19,15 @@ async def show_device_sample():
             FROM devices 
             LIMIT 10
         '''))
-        
+
         devices = result.fetchall()
-        
+
         if not devices:
             print("No devices found")
             return
-        
+
         print(f"Sample of {len(devices)} devices from database:\n")
-        
+
         for idx, device in enumerate(devices, 1):
             print(f"\n{'='*80}")
             print(f"DEVICE {idx}:")

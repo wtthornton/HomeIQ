@@ -9,7 +9,6 @@ Epic: AI-2 - Device Intelligence System
 """
 
 import logging
-from typing import List, Dict, Optional
 from datetime import datetime
 
 from ..database.crud import get_capability_freshness
@@ -33,7 +32,7 @@ class FeatureAnalyzer:
         analysis = await analyzer.analyze_all_devices()
         print(f"Overall utilization: {analysis['overall_utilization']}%")
     """
-    
+
     def __init__(self, device_intelligence_client, db_session, influxdb_client=None, capability_lookup_func=None):
         """
         Initialize feature analyzer.
@@ -48,8 +47,8 @@ class FeatureAnalyzer:
         self.db = db_session
         self.influxdb = influxdb_client
         self._capability_lookup = capability_lookup_func
-    
-    async def analyze_all_devices(self) -> Dict:
+
+    async def analyze_all_devices(self) -> dict:
         """
         Analyze all devices in Home Assistant.
         
@@ -103,11 +102,11 @@ class FeatureAnalyzer:
         """
         logger.info("🔍 Starting device utilization analysis...")
         start_time = datetime.utcnow()
-        
+
         # Get all devices from Device Intelligence Service
         devices = await self._get_devices_from_device_intelligence()
         logger.info(f"📊 Found {len(devices)} devices from Device Intelligence Service")
-        
+
         if not devices:
             logger.warning("⚠️ No devices found from Device Intelligence Service")
             return {
@@ -119,7 +118,7 @@ class FeatureAnalyzer:
                 "by_manufacturer": {},
                 "opportunities": []
             }
-        
+
         # Guard: ensure capability data is fresh before continuing
         capability_freshness = await self._check_capability_freshness()
         if capability_freshness["total_models"] == 0:
@@ -154,17 +153,17 @@ class FeatureAnalyzer:
         by_manufacturer = {}
         all_opportunities = []
         analyzed_count = 0
-        
+
         for device in devices:
             try:
                 # Pass device data to avoid redundant API call
                 analysis = await self.analyze_device(device['device_id'], device_data=device)
-                
+
                 if analysis:
                     analyzed_count += 1
                     total_configured += analysis['configured_count']
                     total_available += analysis['total_features']
-                    
+
                     # Track by manufacturer
                     manufacturer = analysis.get('manufacturer', 'Unknown')
                     if manufacturer not in by_manufacturer:
@@ -174,18 +173,18 @@ class FeatureAnalyzer:
                             'configured': 0,
                             'available': 0
                         }
-                    
+
                     by_manufacturer[manufacturer]['devices'] += 1
                     by_manufacturer[manufacturer]['configured'] += analysis['configured_count']
                     by_manufacturer[manufacturer]['available'] += analysis['total_features']
-                    
+
                     # Collect opportunities
                     all_opportunities.extend(analysis.get('opportunities', []))
-                    
+
             except Exception as e:
                 logger.warning(f"⚠️ Failed to analyze device {device.get('device_id')}: {e}")
                 continue
-        
+
         # Calculate manufacturer utilizations
         for manuf, stats in by_manufacturer.items():
             if stats['available'] > 0:
@@ -193,7 +192,7 @@ class FeatureAnalyzer:
                     (stats['configured'] / stats['available']) * 100,
                     1
                 )
-        
+
         # Calculate overall utilization
         overall_utilization = 0.0
         if total_available > 0:
@@ -201,12 +200,12 @@ class FeatureAnalyzer:
                 (total_configured / total_available) * 100,
                 1
             )
-        
+
         # Rank opportunities by impact and complexity
         ranked_opportunities = self._rank_opportunities(all_opportunities)
-        
+
         duration = (datetime.utcnow() - start_time).total_seconds()
-        
+
         logger.info(
             f"✅ Analysis complete in {duration:.1f}s\n"
             f"   Overall utilization: {overall_utilization}%\n"
@@ -214,7 +213,7 @@ class FeatureAnalyzer:
             f"   Total features: {total_configured}/{total_available}\n"
             f"   Opportunities found: {len(ranked_opportunities)}"
         )
-        
+
         return {
             "overall_utilization": overall_utilization,
             "avg_utilization": overall_utilization,
@@ -227,7 +226,7 @@ class FeatureAnalyzer:
             "analysis_duration_seconds": round(duration, 2)
         }
 
-    async def _check_capability_freshness(self) -> Dict:
+    async def _check_capability_freshness(self) -> dict:
         """Return capability freshness stats using the shared CRUD helper."""
         async with self.db() as session:
             return await get_capability_freshness(session)
@@ -236,8 +235,8 @@ class FeatureAnalyzer:
         self,
         devices_found: int,
         reason: str,
-        stale_info: Dict
-    ) -> Dict:
+        stale_info: dict
+    ) -> dict:
         """Construct a structured response when analysis is skipped."""
         return {
             "overall_utilization": 0.0,
@@ -252,8 +251,8 @@ class FeatureAnalyzer:
             "skip_reason": reason,
             "stale_capabilities": stale_info
         }
-    
-    async def analyze_device(self, device_id: str, device_data: Optional[Dict] = None) -> Optional[Dict]:
+
+    async def analyze_device(self, device_id: str, device_data: dict | None = None) -> dict | None:
         """
         Analyze single device for unused features.
         
@@ -283,33 +282,33 @@ class FeatureAnalyzer:
         if not device:
             logger.debug(f"Device {device_id} not found")
             return None
-        
+
         model = device.get('model')
         if not model:
             logger.debug(f"Device {device_id} has no model identifier")
             return None
-        
+
         # Get capabilities for this device model
         capabilities = await self._get_capabilities_by_model(model)
         if not capabilities:
             logger.debug(f"No capabilities found for model {model}")
             return None
-        
+
         # Determine configured features (simplified for Story 2.3)
         configured_features = await self._get_configured_features(device_id, device)
-        
+
         # Compare configured vs. available
         available_features = set(capabilities.capabilities.keys())
         configured_set = set(configured_features)
         unused_features = available_features - configured_set
-        
+
         utilization = 0.0
         if len(available_features) > 0:
             utilization = round(
                 (len(configured_set) / len(available_features)) * 100,
                 1
             )
-        
+
         # Create opportunities for unused features
         opportunities = []
         for feature_name in unused_features:
@@ -324,7 +323,7 @@ class FeatureAnalyzer:
                 "complexity": feature_data.get('complexity', 'easy'),
                 "impact": self._assess_impact(feature_name, feature_data)
             })
-        
+
         return {
             "device_id": device_id,
             "manufacturer": capabilities.manufacturer,
@@ -336,8 +335,8 @@ class FeatureAnalyzer:
             "configured_features": list(configured_set),
             "opportunities": opportunities
         }
-    
-    async def _get_devices_from_device_intelligence(self) -> List[Dict]:
+
+    async def _get_devices_from_device_intelligence(self) -> list[dict]:
         """
         Query all devices from Device Intelligence Service.
         
@@ -364,8 +363,8 @@ class FeatureAnalyzer:
         except Exception as e:
             logger.error(f"❌ Failed to get devices from Device Intelligence Service: {e}")
             return []
-    
-    async def _get_device_metadata(self, device_id: str) -> Optional[Dict]:
+
+    async def _get_device_metadata(self, device_id: str) -> dict | None:
         """
         Get device metadata from Device Intelligence Service.
         
@@ -383,7 +382,7 @@ class FeatureAnalyzer:
         except Exception as e:
             logger.debug(f"Device {device_id} not found in Device Intelligence Service: {e}")
             return None
-    
+
     async def _get_capabilities_by_model(self, model: str):
         """
         Get capabilities from database for device model.
@@ -401,22 +400,22 @@ class FeatureAnalyzer:
             except Exception as e:
                 logger.debug(f"No capabilities found for model {model}: {e}")
                 return None
-        
+
         # Production: Use database session
         from ..database.crud import get_device_capability
-        
+
         try:
             async with self.db() as session:
                 return await get_device_capability(session, model)
         except Exception as e:
             logger.debug(f"No capabilities found for model {model}: {e}")
             return None
-    
+
     async def _get_configured_features(
         self,
         device_id: str,
-        device: Dict
-    ) -> List[str]:
+        device: dict
+    ) -> list[str]:
         """
         Determine which features are configured for a device.
         
@@ -443,7 +442,7 @@ class FeatureAnalyzer:
         """
         configured = []
         entity_id = device.get('entity_id', device_id)
-        
+
         # Detect basic features by entity type
         if entity_id.startswith('light.'):
             configured.append('light_control')
@@ -457,18 +456,18 @@ class FeatureAnalyzer:
                 configured.append('contact')
             if 'motion' in entity_id.lower():
                 configured.append('occupancy')
-        
+
         logger.debug(f"Device {device_id}: {len(configured)} configured features detected (simplified)")
-        
+
         # Story 2.4 will add:
         # - Query HA for entity attributes
         # - Check if 'smartBulbMode' attribute exists → smart_bulb_mode configured
         # - Check if 'led_effect' attribute exists → led_notifications configured
         # - etc.
-        
+
         return configured
-    
-    def _assess_impact(self, feature_name: str, feature_data: Dict) -> str:
+
+    def _assess_impact(self, feature_name: str, feature_data: dict) -> str:
         """
         Assess impact of enabling a feature.
         
@@ -487,28 +486,28 @@ class FeatureAnalyzer:
             - Low: minor tweaks, cosmetic settings
         """
         high_impact_keywords = [
-            'led', 'notification', 'alert', 'automation', 
+            'led', 'notification', 'alert', 'automation',
             'energy', 'power', 'status', 'indicator'
         ]
         medium_impact_keywords = [
             'timer', 'mode', 'preset', 'schedule', 'delay',
             'duration', 'threshold', 'sensitivity'
         ]
-        
+
         name_lower = feature_name.lower()
-        
+
         # Check for high impact features
         if any(kw in name_lower for kw in high_impact_keywords):
             return "high"
-        
+
         # Check for medium impact features
         if any(kw in name_lower for kw in medium_impact_keywords):
             return "medium"
-        
+
         # Default to low impact
         return "low"
-    
-    def _rank_opportunities(self, opportunities: List[Dict]) -> List[Dict]:
+
+    def _rank_opportunities(self, opportunities: list[dict]) -> list[dict]:
         """
         Rank opportunities by impact and complexity.
         
@@ -537,19 +536,19 @@ class FeatureAnalyzer:
         def priority_score(opp):
             impact_scores = {"high": 3, "medium": 2, "low": 1}
             complexity_scores = {"easy": 3, "medium": 2, "advanced": 1}
-            
+
             impact = impact_scores.get(opp.get('impact', 'low'), 1)
             complexity = complexity_scores.get(opp.get('complexity', 'medium'), 2)
-            
+
             return impact * complexity  # Max = 9 (high impact + easy)
-        
+
         # Sort by priority score (highest first)
         ranked = sorted(opportunities, key=priority_score, reverse=True)
-        
+
         logger.debug(
             f"Ranked {len(ranked)} opportunities "
             f"(top priority: {priority_score(ranked[0]) if ranked else 0})"
         )
-        
+
         return ranked
 

@@ -8,7 +8,6 @@ Story AI3.4: Synergy-Based Suggestion Generation
 """
 
 import logging
-from typing import List, Dict, Optional
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ class SynergySuggestionGenerator:
     Story AI3.4: Synergy-Based Suggestion Generation
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     """
-    
+
     def __init__(self, llm_client):
         """
         Initialize synergy suggestion generator.
@@ -34,12 +33,12 @@ class SynergySuggestionGenerator:
         """
         self.llm = llm_client
         logger.info("SynergySuggestionGenerator initialized")
-    
+
     async def generate_suggestions(
         self,
-        synergies: List[Dict],
+        synergies: list[dict],
         max_suggestions: int = 10
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Generate suggestions from synergy opportunities.
         
@@ -52,15 +51,15 @@ class SynergySuggestionGenerator:
         """
         logger.info(f"🔗 Generating synergy-based suggestions (max: {max_suggestions})...")
         start_time = datetime.now(timezone.utc)
-        
+
         if not synergies:
             logger.info("ℹ️  No synergies available for suggestion generation")
             return []
-        
+
         # Synergies are already prioritized (by priority score or impact_score from database query)
         # Simply take first max_suggestions (already sorted)
         top_synergies = synergies[:max_suggestions]
-        
+
         # Log priority scores if available for debugging
         if top_synergies and 'pattern_support_score' in top_synergies[0]:
             priority_info = []
@@ -71,37 +70,37 @@ class SynergySuggestionGenerator:
                 validated = s.get('validated_by_patterns', False)
                 priority_info.append(f"impact={impact:.2f}, conf={conf:.2f}, pattern={pattern:.2f}, validated={validated}")
             logger.debug(f"Top synergies priority details: {', '.join(priority_info)}")
-        
+
         logger.info(f"Processing top {len(top_synergies)} synergies (already prioritized)")
-        
+
         suggestions = []
-        
+
         for i, synergy in enumerate(top_synergies, 1):
             try:
                 logger.debug(f"Generating suggestion {i}/{len(top_synergies)}: {synergy['relationship']}")
-                
+
                 suggestion = await self._generate_llm_suggestion(synergy)
-                
+
                 if suggestion:
                     suggestions.append(suggestion)
                     logger.info(f"✅ [{i}/{len(top_synergies)}] Generated: {suggestion['title'][:50]}...")
-                
+
             except Exception as e:
                 logger.error(f"❌ Failed to generate suggestion for synergy {synergy.get('synergy_id')}: {e}")
                 continue
-        
+
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        
+
         logger.info(
             f"✅ Synergy suggestion generation complete in {duration:.1f}s\n"
             f"   Generated: {len(suggestions)} suggestions\n"
             f"   LLM calls: {len(suggestions)}\n"
             f"   Success rate: {len(suggestions)/len(top_synergies)*100:.0f}%"
         )
-        
+
         return suggestions
-    
-    async def _generate_llm_suggestion(self, synergy: Dict) -> Optional[Dict]:
+
+    async def _generate_llm_suggestion(self, synergy: dict) -> dict | None:
         """
         Generate single suggestion using LLM.
         
@@ -113,7 +112,7 @@ class SynergySuggestionGenerator:
         """
         # Build prompt based on synergy type
         prompt = self._build_prompt(synergy)
-        
+
         try:
             # Use existing OpenAI client (Epic AI-1)
             response = await self.llm.client.chat.completions.create(
@@ -136,29 +135,29 @@ class SynergySuggestionGenerator:
                 temperature=0.7,  # Balanced creativity
                 max_completion_tokens=600  # Sufficient for automation YAML (use max_completion_tokens for newer models)
             )
-            
+
             # Track token usage
             usage = response.usage
             self.llm.total_input_tokens += usage.prompt_tokens
             self.llm.total_output_tokens += usage.completion_tokens
             self.llm.total_tokens_used += usage.total_tokens
-            
+
             logger.debug(
                 f"OpenAI API call: {usage.total_tokens} tokens "
                 f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
             )
-            
+
             # Parse response
             content = response.choices[0].message.content
             suggestion = self._parse_response(content, synergy)
-            
+
             return suggestion
-            
+
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
-    
-    def _build_prompt(self, synergy: Dict) -> str:
+
+    def _build_prompt(self, synergy: dict) -> str:
         """
         Build prompt from synergy opportunity.
         
@@ -169,7 +168,7 @@ class SynergySuggestionGenerator:
             Prompt string for OpenAI
         """
         synergy_type = synergy.get('synergy_type', 'device_pair')
-        
+
         if synergy_type == 'device_pair':
             return self._build_device_pair_prompt(synergy)
         elif synergy_type == 'weather_context':
@@ -180,18 +179,18 @@ class SynergySuggestionGenerator:
             return self._build_event_context_prompt(synergy)
         else:
             raise ValueError(f"Unknown synergy type: {synergy_type}")
-    
-    def _build_device_pair_prompt(self, synergy: Dict) -> str:
+
+    def _build_device_pair_prompt(self, synergy: dict) -> str:
         """Build prompt for device pair synergy"""
         metadata = synergy.get('opportunity_metadata', synergy)
-        
+
         trigger_name = metadata.get('trigger_name', synergy.get('trigger_entity', 'Trigger Device'))
         action_name = metadata.get('action_name', synergy.get('action_entity', 'Action Device'))
         trigger_entity = synergy.get('trigger_entity', metadata.get('trigger_entity', ''))
         action_entity = synergy.get('action_entity', metadata.get('action_entity', ''))
         area = synergy.get('area', 'unknown')
         relationship = synergy.get('relationship', metadata.get('relationship', 'automation'))
-        
+
         # Determine relationship type for instructions
         if 'motion' in relationship:
             automation_type = "motion-activated lighting"
@@ -213,7 +212,7 @@ class SynergySuggestionGenerator:
             trigger_desc = "trigger activates"
             action_desc = "control the action device"
             auto_off = ""
-        
+
         return f"""Create a Home Assistant automation for this device synergy opportunity:
 
 DETECTED OPPORTUNITY:
@@ -256,21 +255,21 @@ RATIONALE: [Explain benefit using friendly names: "{trigger_name}" and "{action_
 CATEGORY: [energy|comfort|security|convenience]
 PRIORITY: [high|medium|low]
 """
-    
-    def _build_weather_context_prompt(self, synergy: Dict) -> str:
+
+    def _build_weather_context_prompt(self, synergy: dict) -> str:
         """
         Build prompt for weather context synergy.
         
         Story AI3.5: Weather Context Integration
         """
         metadata = synergy.get('opportunity_metadata', {})
-        
+
         device_name = metadata.get('action_name', synergy.get('action_entity', 'Climate Device'))
         weather_condition = metadata.get('weather_condition', 'Weather condition detected')
         suggested_action = metadata.get('suggested_action', 'Adjust climate control')
         rationale = metadata.get('rationale', 'Weather-based automation')
         relationship = synergy.get('relationship', 'weather_automation')
-        
+
         return f"""Create a Home Assistant automation for this weather-aware opportunity:
 
 DETECTED OPPORTUNITY:
@@ -316,16 +315,16 @@ RATIONALE: [Explain weather-aware benefit for "{device_name}"]
 CATEGORY: [energy|comfort]
 PRIORITY: [high|medium|low]
 """
-    
-    def _build_energy_context_prompt(self, synergy: Dict) -> str:
+
+    def _build_energy_context_prompt(self, synergy: dict) -> str:
         """Build prompt for energy context synergy (Story AI3.6)"""
         return "Energy context prompt - to be implemented in Story AI3.6"
-    
-    def _build_event_context_prompt(self, synergy: Dict) -> str:
+
+    def _build_event_context_prompt(self, synergy: dict) -> str:
         """Build prompt for event context synergy (Story AI3.7)"""
         return "Event context prompt - to be implemented in Story AI3.7"
-    
-    def _parse_response(self, content: str, synergy: Dict) -> Dict:
+
+    def _parse_response(self, content: str, synergy: dict) -> dict:
         """
         Parse OpenAI response into suggestion structure.
         
@@ -337,36 +336,36 @@ PRIORITY: [high|medium|low]
             Parsed suggestion dictionary
         """
         import re
-        
+
         try:
             # Extract YAML block
             yaml_match = re.search(r'```yaml\n(.*?)\n```', content, re.DOTALL)
             automation_yaml = yaml_match.group(1) if yaml_match else ""
-            
+
             # Extract RATIONALE
             rationale_match = re.search(r'RATIONALE:\s*(.+?)(?:\n|$)', content)
             rationale = rationale_match.group(1).strip() if rationale_match else synergy.get('rationale', '')
-            
+
             # Extract CATEGORY
             category_match = re.search(r'CATEGORY:\s*(\w+)', content)
             category = category_match.group(1).lower() if category_match else 'convenience'
-            
+
             # Extract PRIORITY
             priority_match = re.search(r'PRIORITY:\s*(\w+)', content)
             priority = priority_match.group(1).lower() if priority_match else 'medium'
-            
+
             # Extract title from YAML alias
             title_match = re.search(r'alias:\s*["\'](.+?)["\']', automation_yaml)
             if not title_match:
                 title_match = re.search(r'alias:\s*(.+?)(?:\n|$)', automation_yaml)
             title = title_match.group(1).strip() if title_match else f"Synergy: {synergy.get('relationship', 'Automation')}"
-            
+
             # Extract description from YAML
             desc_match = re.search(r'description:\s*["\'](.+?)["\']', automation_yaml)
             if not desc_match:
                 desc_match = re.search(r'description:\s*(.+?)(?:\n|$)', automation_yaml)
             description = desc_match.group(1).strip() if desc_match else rationale
-            
+
             # Build suggestion
             suggestion = {
                 'type': f"synergy_{synergy.get('synergy_type', 'device_pair')}",
@@ -385,9 +384,9 @@ PRIORITY: [high|medium|low]
                 'validated_by_patterns': synergy.get('validated_by_patterns', False),
                 'pattern_support_score': synergy.get('pattern_support_score', 0.0)
             }
-            
+
             return suggestion
-            
+
         except Exception as e:
             logger.error(f"Failed to parse OpenAI response: {e}")
             raise

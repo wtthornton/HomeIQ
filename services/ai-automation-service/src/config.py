@@ -1,42 +1,42 @@
 """Configuration management for AI Automation Service"""
 
-from pydantic_settings import BaseSettings
+
 from pydantic import ConfigDict
-from typing import Optional, List, Dict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment"""
-    
+
     # Data API
     data_api_url: str = "http://data-api:8006"
-    
+
     # Device Intelligence Service (Story DI-2.1)
     device_intelligence_url: str = "http://homeiq-device-intelligence:8019"
     device_intelligence_enabled: bool = True
-    
+
     # InfluxDB (for direct event queries)
     influxdb_url: str = "http://influxdb:8086"
     influxdb_token: str = "homeiq-token"
     influxdb_org: str = "homeiq"
     influxdb_bucket: str = "home_assistant_events"
-    
+
     # Home Assistant (Story AI4.1: Enhanced configuration)
     ha_url: str
     ha_token: str
     ha_max_retries: int = 3  # Maximum retry attempts for HA API calls
     ha_retry_delay: float = 1.0  # Initial retry delay in seconds
     ha_timeout: int = 10  # Request timeout in seconds
-    
+
     # MQTT
     mqtt_broker: str
     mqtt_port: int = 1883
-    mqtt_username: Optional[str] = None
-    mqtt_password: Optional[str] = None
-    
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
+
     # OpenAI
     openai_api_key: str
-    
+
     # Multi-Model Entity Extraction
     entity_extraction_method: str = "multi_model"  # multi_model, enhanced, pattern
     ner_model: str = "dslim/bert-base-NER"  # Hugging Face NER model
@@ -44,84 +44,84 @@ class Settings(BaseSettings):
     ner_confidence_threshold: float = 0.8  # Minimum confidence for NER results
     enable_entity_caching: bool = True  # Enable LRU cache for NER
     max_cache_size: int = 1000  # Maximum cache size
-    
+
     # Scheduling
     analysis_schedule: str = "0 3 * * *"  # 3 AM daily (cron format)
-    
+
     # Pattern detection thresholds (single-home tuning)
     time_of_day_min_occurrences: int = 10
     time_of_day_base_confidence: float = 0.7
-    time_of_day_occurrence_overrides: Dict[str, int] = {
+    time_of_day_occurrence_overrides: dict[str, int] = {
         "light": 8,
         "switch": 8,
         "media_player": 6,
         "lock": 4
     }
-    time_of_day_confidence_overrides: Dict[str, float] = {
+    time_of_day_confidence_overrides: dict[str, float] = {
         "light": 0.6,
         "switch": 0.6,
         "media_player": 0.6,
         "lock": 0.85,
         "climate": 0.75
     }
-    
+
     co_occurrence_min_support: int = 10
     co_occurrence_base_confidence: float = 0.7
-    co_occurrence_support_overrides: Dict[str, int] = {
+    co_occurrence_support_overrides: dict[str, int] = {
         "light": 6,
         "switch": 6,
         "media_player": 4,
         "lock": 4
     }
-    co_occurrence_confidence_overrides: Dict[str, float] = {
+    co_occurrence_confidence_overrides: dict[str, float] = {
         "light": 0.6,
         "switch": 0.6,
         "media_player": 0.6,
         "lock": 0.85,
         "climate": 0.75
     }
-    
+
     manual_refresh_cooldown_hours: int = 24
-    
+
     # Database
     database_path: str = "/app/data/ai_automation.db"
     database_url: str = "sqlite+aiosqlite:///data/ai_automation.db"
-    
+
     # Logging
     log_level: str = "INFO"
-    
+
     # Authentication / Authorization
     enable_authentication: bool = True
     ai_automation_api_key: str = "change-me"
-    ai_automation_admin_api_key: Optional[str] = None
-    
+    ai_automation_admin_api_key: str | None = None
+
     # Rate limiting (disabled for internal single-home use)
     rate_limit_enabled: bool = False  # Disable rate limiting for internal projects
     rate_limit_requests_per_minute: int = 120
     rate_limit_requests_per_hour: int = 2400
     rate_limit_internal_requests_per_minute: int = 600
-    
+
     # Safety Validation (AI1.19)
     safety_level: str = "moderate"  # strict, moderate, or permissive
     safety_allow_override: bool = True  # Allow force_deploy override
     safety_min_score: int = 60  # Minimum safety score for moderate level
-    
+
     # Natural Language Generation (AI1.21)
     nl_generation_enabled: bool = True
     nl_model: str = "gpt-5.1"  # OpenAI model for NL generation (GPT-5.1 - 50% cost savings vs GPT-4o)
     nl_max_tokens: int = 1500
     nl_temperature: float = 0.3  # Lower = more consistent
-    
+
     # Unified Prompt System
     enable_device_intelligence_prompts: bool = True
     device_intelligence_timeout: int = 5
-    
+
     # Prompt Configuration
     default_temperature: float = 0.7
     creative_temperature: float = 1.0  # For Ask AI - Maximum creativity for crazy ideas
     description_max_tokens: int = 300
     yaml_max_tokens: int = 600
-    
+
     # Model Selection Configuration (Optimized for Cost/Quality Balance - 2025)
     # GPT-5.1: Best quality with 50% cost savings vs GPT-4o
     # Using GPT-5.1 for all tasks (not mini) as per user request for consistent quality
@@ -129,14 +129,14 @@ class Settings(BaseSettings):
     yaml_generation_model: str = "gpt-5.1"  # Best quality YAML generation (50% cheaper than GPT-4o)
     classification_model: str = "gpt-5.1"  # Best quality classification
     entity_extraction_model: str = "gpt-5.1"  # Best quality entity extraction
-    
+
     # Token Budget Configuration (Phase 2)
     max_entity_context_tokens: int = 10_000  # Limit entity context size to reduce input tokens
     max_enrichment_context_tokens: int = 2_000  # Limit enrichment data (weather, carbon, etc.)
     max_conversation_history_tokens: int = 1_000  # Limit conversation history size
     enable_token_counting: bool = True  # Enable token counting before API calls
     warn_on_token_threshold: int = 20_000  # Log warning when approaching this token count
-    
+
     # Caching Configuration (Phase 4)
     entity_cache_ttl_seconds: int = 300  # 5-minute TTL for enriched entity data cache
     enable_prompt_caching: bool = True  # Enable OpenAI native prompt caching (90% discount)
@@ -150,16 +150,16 @@ class Settings(BaseSettings):
     # Clarification Confidence Settings
     clarification_calibration_enabled: bool = True
     """Enable calibration for clarification confidence scores."""
-    
+
     clarification_calibration_min_samples: int = 10
     """Minimum number of samples required for calibration training."""
-    
+
     clarification_calibration_retrain_interval_days: int = 7
     """Interval in days for periodic calibration model retraining."""
-    
+
     adaptive_threshold_enabled: bool = True
     """Enable adaptive confidence thresholds based on query complexity."""
-    
+
     default_risk_tolerance: str = "medium"
     """Default user risk tolerance for adaptive thresholds: 'high', 'medium', or 'low'."""
 
@@ -167,10 +167,10 @@ class Settings(BaseSettings):
     guardrail_enabled: bool = True
     guardrail_model_name: str = "unitary/toxic-bert"
     guardrail_threshold: float = 0.6
-    
+
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls
-    
+
     # Synergy Selection Configuration
     synergy_max_suggestions: int = 7
     """Maximum number of synergy suggestions to generate in daily batch (default: 7)
@@ -179,7 +179,7 @@ class Settings(BaseSettings):
     Rationale: With 82.6% pattern-validated synergies, we can safely increase
     the limit to improve suggestion diversity while maintaining quality.
     """
-    
+
     synergy_min_priority: float = 0.6
     """Minimum priority score threshold for synergy selection (default: 0.6)
     
@@ -191,7 +191,7 @@ class Settings(BaseSettings):
     - 10% validation bonus
     - Complexity adjustment
     """
-    
+
     synergy_use_priority_scoring: bool = True
     """Enable priority-based synergy selection (default: True)
     
@@ -245,13 +245,13 @@ class Settings(BaseSettings):
     # Action Executor Configuration
     action_executor_workers: int = 2
     """Number of worker tasks for action execution (default: 2)"""
-    
+
     action_executor_max_retries: int = 3
     """Maximum retry attempts for action execution (default: 3)"""
-    
+
     action_executor_retry_delay: float = 1.0
     """Initial retry delay in seconds for action execution (default: 1.0)"""
-    
+
     use_action_executor: bool = True
     """Use ActionExecutor for test execution instead of create/delete automations (default: True)"""
 
@@ -287,7 +287,7 @@ class Settings(BaseSettings):
     - homeassistant.restart (system restart)
     """
 
-    expert_mode_blocked_services: List[str] = [
+    expert_mode_blocked_services: list[str] = [
         "shell_command",
         "python_script",
         "script.turn_on",
@@ -297,7 +297,7 @@ class Settings(BaseSettings):
     ]
     """Services blocked in expert mode unless allow_dangerous_operations=true"""
 
-    expert_mode_require_approval_services: List[str] = [
+    expert_mode_require_approval_services: list[str] = [
         "notify",
         "camera",
         "lock",
@@ -321,7 +321,7 @@ class Settings(BaseSettings):
 
     # Admin / training safeguards
     training_script_path: str = "scripts/train_soft_prompt.py"
-    training_script_sha256: Optional[str] = None
+    training_script_sha256: str | None = None
 
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",

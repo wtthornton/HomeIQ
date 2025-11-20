@@ -17,17 +17,16 @@ Indexes Added:
 - idx_feature_usage_device
 - idx_feature_usage_configured
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '20251016_095206'
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -51,7 +50,7 @@ def upgrade() -> None:
         sa.Column('source', sa.String(), nullable=False, server_default='zigbee2mqtt_bridge'),
         sa.PrimaryKeyConstraint('device_model', name='pk_device_capabilities')
     )
-    
+
     # Create indexes for device_capabilities
     op.create_index(
         'idx_capabilities_manufacturer',
@@ -65,7 +64,7 @@ def upgrade() -> None:
         ['integration_type'],
         unique=False
     )
-    
+
     # ========================================================================
     # Create device_feature_usage table
     # ========================================================================
@@ -78,7 +77,7 @@ def upgrade() -> None:
         sa.Column('last_checked', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('device_id', 'feature_name', name='pk_device_feature_usage')
     )
-    
+
     # Create indexes for device_feature_usage
     op.create_index(
         'idx_feature_usage_device',
@@ -107,7 +106,7 @@ def downgrade() -> None:
     op.drop_index('idx_feature_usage_device', table_name='device_feature_usage')
     op.drop_index('idx_capabilities_integration', table_name='device_capabilities')
     op.drop_index('idx_capabilities_manufacturer', table_name='device_capabilities')
-    
+
     # Drop tables
     op.drop_table('device_feature_usage')
     op.drop_table('device_capabilities')

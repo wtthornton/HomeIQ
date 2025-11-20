@@ -7,15 +7,15 @@ API endpoints for database management and schema updates.
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.database import recreate_tables, get_db_session
 from ..config import Settings
+from ..core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class DatabaseStatsResponse(BaseModel):
     database_size_mb: float
     table_count: int
     total_records: int
-    tables: Dict[str, int]
+    tables: dict[str, int]
 
 
 @router.post("/recreate-tables", response_model=RecreateTablesResponse)
@@ -70,18 +70,18 @@ async def recreate_database_tables() -> RecreateTablesResponse:
     """
     try:
         logger.info("🔄 Recreating database tables")
-        
+
         # Import here to avoid circular dependencies
         from ..core.database import recreate_tables
-        
+
         await recreate_tables()
-        
+
         logger.info("✅ Database tables recreated successfully")
         return RecreateTablesResponse(
             success=True,
             message="Database tables recreated successfully with latest schema"
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to recreate database tables: {e}")
         raise HTTPException(
@@ -101,24 +101,24 @@ async def get_database_status() -> DatabaseStatusResponse:
     try:
         # Import here to avoid circular dependencies
         from ..core.database import _engine
-        
+
         if _engine is None:
             return DatabaseStatusResponse(
                 status="not_initialized",
                 message="Database not initialized"
             )
-        
+
         # Try to execute a simple query to verify connection
         from sqlalchemy import text
         async with _engine.begin() as conn:
             result = await conn.execute(text("SELECT 1"))
             result.scalar()
-        
+
         return DatabaseStatusResponse(
             status="connected",
             message="Database connection is active"
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Database status check failed: {e}")
         return DatabaseStatusResponse(
@@ -143,33 +143,33 @@ async def cleanup_database(
     """
     try:
         logger.info(f"🧹 Starting database cleanup (keeping {days_to_keep} days)")
-        
+
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         records_deleted = 0
-        
+
         # Clean up old predictions
         result = await session.execute(
             text("DELETE FROM predictions WHERE predicted_at < :cutoff"),
             {"cutoff": cutoff_date}
         )
         records_deleted += result.rowcount
-        
+
         # Clean up old recommendations
         result = await session.execute(
             text("DELETE FROM recommendations WHERE created_at < :cutoff AND status = 'rejected'"),
             {"cutoff": cutoff_date}
         )
         records_deleted += result.rowcount
-        
+
         await session.commit()
-        
+
         logger.info(f"✅ Database cleanup completed: {records_deleted} records deleted")
         return DatabaseCleanupResponse(
             success=True,
-            message=f"Database cleanup completed successfully",
+            message="Database cleanup completed successfully",
             records_deleted=records_deleted
         )
-        
+
     except Exception as e:
         await session.rollback()
         logger.error(f"❌ Database cleanup failed: {e}")
@@ -191,21 +191,21 @@ async def optimize_database(
     """
     try:
         logger.info("🔧 Starting database optimization")
-        
+
         # Run VACUUM to reclaim space
         await session.execute(text("VACUUM"))
-        
+
         # Run ANALYZE to update statistics
         await session.execute(text("ANALYZE"))
-        
+
         await session.commit()
-        
+
         logger.info("✅ Database optimization completed")
         return DatabaseOptimizeResponse(
             success=True,
             message="Database optimized successfully (VACUUM and ANALYZE completed)"
         )
-        
+
     except Exception as e:
         await session.rollback()
         logger.error(f"❌ Database optimization failed: {e}")
@@ -237,16 +237,16 @@ async def get_database_stats(
                 db_size_mb = 0.0
         else:
             db_size_mb = 0.0
-        
+
         # Get table names and record counts
         result = await session.execute(
             text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         )
         tables = [row[0] for row in result.fetchall()]
-        
+
         table_counts = {}
         total_records = 0
-        
+
         for table in tables:
             try:
                 result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))
@@ -256,14 +256,14 @@ async def get_database_stats(
             except Exception as e:
                 logger.warning(f"Could not get count for table {table}: {e}")
                 table_counts[table] = 0
-        
+
         return DatabaseStatsResponse(
             database_size_mb=round(db_size_mb, 2),
             table_count=len(tables),
             total_records=total_records,
             tables=table_counts
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to get database stats: {e}")
         raise HTTPException(
@@ -273,7 +273,7 @@ async def get_database_stats(
 
 
 @router.get("/")
-async def database_management_info() -> Dict[str, Any]:
+async def database_management_info() -> dict[str, Any]:
     """Get database management API information."""
     return {
         "message": "Database Management API",

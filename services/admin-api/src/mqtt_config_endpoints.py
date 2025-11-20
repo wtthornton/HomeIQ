@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -45,12 +45,12 @@ class MqttConfig(BaseModel):
     """Configuration payload for MQTT/Zigbee integrations."""
 
     broker_url: str = Field(alias="MQTT_BROKER", description="Full MQTT broker URL including scheme and port")
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None,
         alias="MQTT_USERNAME",
         description="MQTT username (optional when anonymous access is enabled)",
     )
-    password: Optional[str] = Field(
+    password: str | None = Field(
         default=None,
         alias="MQTT_PASSWORD",
         description="MQTT password (optional when anonymous access is enabled)",
@@ -96,7 +96,7 @@ def _config_path() -> Path:
 MqttConfig.model_rebuild()
 
 
-def _load_config_from_disk(path: Path) -> Dict[str, Any]:
+def _load_config_from_disk(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
 
@@ -114,7 +114,7 @@ def _load_config_from_disk(path: Path) -> Dict[str, Any]:
     return {}
 
 
-def _load_effective_config() -> Dict[str, Any]:
+def _load_effective_config() -> dict[str, Any]:
     """Merge stored overrides with environment defaults."""
     env_defaults = {
         "MQTT_BROKER": os.getenv("MQTT_BROKER", "mqtt://192.168.1.86:1883"),
@@ -128,7 +128,7 @@ def _load_effective_config() -> Dict[str, Any]:
     return env_defaults
 
 
-def _persist_config(payload: Dict[str, Any]) -> None:
+def _persist_config(payload: dict[str, Any]) -> None:
     path = _config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as config_file:
@@ -142,8 +142,8 @@ async def get_mqtt_config() -> MqttConfig:
     return MqttConfig.model_validate(data, from_attributes=False)
 
 
-@router.put("/mqtt", response_model=Dict[str, Any])
-async def update_mqtt_config(config: MqttConfig) -> Dict[str, Any]:
+@router.put("/mqtt", response_model=dict[str, Any])
+async def update_mqtt_config(config: MqttConfig) -> dict[str, Any]:
     """Persist new MQTT/Zigbee configuration values."""
     payload = config.model_dump(by_alias=True)
 

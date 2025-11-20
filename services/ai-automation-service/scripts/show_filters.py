@@ -5,12 +5,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.pattern_detection.pattern_filters import (
-    EXCLUDED_DOMAINS, 
-    EXCLUDED_PREFIXES, 
-    ACTIONABLE_DOMAINS, 
-    MIN_OCCURRENCES,
+    ACTIONABLE_DOMAINS,
+    EXCLUDED_DOMAINS,
+    EXCLUDED_PREFIXES,
     MIN_CONFIDENCE,
-    is_actionable_device
+    MIN_OCCURRENCES,
+    is_actionable_device,
 )
 
 print("=" * 60)
@@ -29,7 +29,7 @@ print("\n=== ACTIONABLE DOMAINS (always allowed) ===")
 for domain in ACTIONABLE_DOMAINS:
     print(f"  ✅ {domain}")
 
-print(f"\n=== MINIMUM REQUIREMENTS ===")
+print("\n=== MINIMUM REQUIREMENTS ===")
 print(f"  Minimum occurrences: {MIN_OCCURRENCES}")
 print(f"  Minimum confidence: {MIN_CONFIDENCE}")
 

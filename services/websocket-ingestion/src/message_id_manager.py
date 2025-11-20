@@ -21,26 +21,26 @@ class MessageIDManager:
     the same counter.
     """
     _instance: Optional['MessageIDManager'] = None
-    _lock: Optional[asyncio.Lock] = None
-    
+    _lock: asyncio.Lock | None = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         """Initialize the message ID manager (only once)"""
         if self._initialized:
             return
-        
+
         # Start at 1 to avoid conflicts with Home Assistant internal IDs
         # Use a higher starting point to avoid conflicts with other services
         self._counter = 1
         self._lock = asyncio.Lock()
         self._initialized = True
         logger.info("MessageIDManager initialized with counter starting at 1")
-    
+
     async def get_next_id(self) -> int:
         """
         Get the next message ID (thread-safe).
@@ -53,7 +53,7 @@ class MessageIDManager:
             message_id = self._counter
             logger.debug(f"Generated message ID: {message_id}")
             return message_id
-    
+
     def get_next_id_sync(self) -> int:
         """
         Get the next message ID synchronously (for non-async contexts).
@@ -67,7 +67,7 @@ class MessageIDManager:
         # Create lock if it doesn't exist (for sync contexts)
         if self._lock is None:
             self._lock = asyncio.Lock()
-        
+
         # Use asyncio.run if we're in a sync context
         try:
             loop = asyncio.get_event_loop()
@@ -82,7 +82,7 @@ class MessageIDManager:
         except RuntimeError:
             # No event loop, create one
             return asyncio.run(self.get_next_id())
-    
+
     def reset(self, start_value: int = 1):
         """
         Reset the counter (use with caution).
@@ -92,7 +92,7 @@ class MessageIDManager:
         """
         self._counter = start_value
         logger.warning(f"MessageIDManager counter reset to {start_value}")
-    
+
     def get_current_id(self) -> int:
         """
         Get the current counter value (without incrementing).
@@ -104,7 +104,7 @@ class MessageIDManager:
 
 
 # Global singleton instance
-_message_id_manager: Optional[MessageIDManager] = None
+_message_id_manager: MessageIDManager | None = None
 
 
 def get_message_id_manager() -> MessageIDManager:

@@ -3,15 +3,16 @@ Health Check Handler for Carbon Intensity Service
 """
 
 import logging
-from aiohttp import web
 from datetime import datetime
+
+from aiohttp import web
 
 logger = logging.getLogger(__name__)
 
 
 class HealthCheckHandler:
     """Health check endpoint handler"""
-    
+
     def __init__(self):
         self.start_time = datetime.now()
         self.last_successful_fetch = None
@@ -20,16 +21,16 @@ class HealthCheckHandler:
         self.failed_fetches = 0
         self.token_refresh_count = 0
         self.credentials_missing = False  # Track if credentials are not configured
-    
+
     async def handle(self, request):
         """Handle health check request"""
-        
+
         uptime = (datetime.now() - self.start_time).total_seconds()
-        
+
         # Determine health status
         healthy = True
         status_detail = "operational"
-        
+
         if self.credentials_missing:
             # Service is running but credentials not configured
             healthy = True  # Still healthy, just not configured
@@ -42,7 +43,7 @@ class HealthCheckHandler:
         elif self.total_fetches == 0:
             # No fetches attempted yet (startup)
             status_detail = "starting"
-        
+
         status = {
             "status": "healthy" if healthy else "degraded",
             "status_detail": status_detail,  # NEW: Detailed status
@@ -57,6 +58,6 @@ class HealthCheckHandler:
             "credentials_configured": not self.credentials_missing,  # NEW: Flag for frontend
             "timestamp": datetime.now().isoformat()
         }
-        
+
         return web.json_response(status, status=200 if healthy else 503)
 

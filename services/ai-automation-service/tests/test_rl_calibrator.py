@@ -4,13 +4,12 @@ Unit tests for RL Confidence Calibrator (Phase 3)
 Tests reinforcement learning-based confidence calibration.
 """
 
-import pytest
+
 import numpy as np
-from datetime import datetime, timezone
+import pytest
 from src.services.clarification.rl_calibrator import (
-    RLConfidenceCalibrator,
     RLCalibrationConfig,
-    RLFeedback
+    RLConfidenceCalibrator,
 )
 
 
@@ -48,7 +47,7 @@ def test_calculate_reward_positive_outcome(rl_calibrator):
     # High confidence, positive outcome = high reward
     reward_high = rl_calibrator.calculate_reward(0.9, True)
     assert reward_high > -0.2  # log(0.9) ≈ -0.105
-    
+
     # Low confidence, positive outcome = low reward (penalty)
     reward_low = rl_calibrator.calculate_reward(0.1, True)
     assert reward_low < -2.0  # log(0.1) ≈ -2.3
@@ -59,7 +58,7 @@ def test_calculate_reward_negative_outcome(rl_calibrator):
     # High confidence, negative outcome = very low reward (penalty)
     reward_high = rl_calibrator.calculate_reward(0.9, False)
     assert reward_high < -2.0  # log(0.1) ≈ -2.3
-    
+
     # Low confidence, negative outcome = high reward
     reward_low = rl_calibrator.calculate_reward(0.1, False)
     assert reward_low > -0.2  # log(0.9) ≈ -0.105
@@ -74,7 +73,7 @@ def test_extract_features(rl_calibrator):
         rounds=2,
         answer_count=3
     )
-    
+
     assert len(features) == 6
     assert features[0] == pytest.approx(1.0)  # bias term
     assert features[1] == pytest.approx(0.8)  # raw_confidence
@@ -93,7 +92,7 @@ def test_predict_adjustment_not_trained(rl_calibrator):
 def test_add_feedback(rl_calibrator):
     """Test adding feedback samples."""
     rl_calibrator.add_feedback(0.8, True, 1, 0, 1, 1, auto_train=False)
-    
+
     assert len(rl_calibrator.feedback_history) == 1
     assert rl_calibrator.total_samples == 1
     assert rl_calibrator.feedback_history[0].predicted_confidence == 0.8
@@ -105,7 +104,7 @@ def test_train_insufficient_samples(rl_calibrator):
     # Add fewer samples than required
     for i in range(5):
         rl_calibrator.add_feedback(0.7 + i * 0.05, i % 2 == 0, 1, 0, 1, 1, auto_train=False)
-    
+
     result = rl_calibrator.train()
     assert result is False
     assert not rl_calibrator.is_trained
@@ -116,7 +115,7 @@ def test_train_sufficient_samples(rl_calibrator, sample_feedback):
     # Add enough samples
     for conf, outcome, amb, crit_amb, rounds, answers in sample_feedback * 3:
         rl_calibrator.add_feedback(conf, outcome, amb, crit_amb, rounds, answers, auto_train=False)
-    
+
     result = rl_calibrator.train()
     assert result is True
     assert rl_calibrator.is_trained
@@ -135,10 +134,10 @@ def test_calibrate_trained(rl_calibrator, sample_feedback):
     for conf, outcome, amb, crit_amb, rounds, answers in sample_feedback * 3:
         rl_calibrator.add_feedback(conf, outcome, amb, crit_amb, rounds, answers, auto_train=False)
     rl_calibrator.train()
-    
+
     # Now calibrate
     calibrated = rl_calibrator.calibrate(0.8, 1, 0, 1, 1)
-    
+
     # Should be in reasonable range [0.0, 1.0]
     assert 0.0 <= calibrated <= 1.0
     # Should be different from raw (unless weights are exactly 1.0)
@@ -151,11 +150,11 @@ def test_calibrate_clamping(rl_calibrator, sample_feedback):
     for conf, outcome, amb, crit_amb, rounds, answers in sample_feedback * 3:
         rl_calibrator.add_feedback(conf, outcome, amb, crit_amb, rounds, answers, auto_train=False)
     rl_calibrator.train()
-    
+
     # Test extreme values
     calibrated_high = rl_calibrator.calibrate(1.0, 0, 0, 0, 0)
     calibrated_low = rl_calibrator.calibrate(0.0, 0, 0, 0, 0)
-    
+
     assert 0.0 <= calibrated_high <= 1.0
     assert 0.0 <= calibrated_low <= 1.0
 
@@ -163,7 +162,7 @@ def test_calibrate_clamping(rl_calibrator, sample_feedback):
 def test_get_stats(rl_calibrator):
     """Test statistics retrieval."""
     stats = rl_calibrator.get_stats()
-    
+
     assert 'is_trained' in stats
     assert 'training_samples' in stats
     assert 'total_samples' in stats
@@ -176,9 +175,9 @@ def test_get_stats_with_feedback(rl_calibrator):
     """Test statistics with feedback samples."""
     rl_calibrator.add_feedback(0.8, True, 1, 0, 1, 1, auto_train=False)
     rl_calibrator.add_feedback(0.5, False, 2, 1, 2, 2, auto_train=False)
-    
+
     stats = rl_calibrator.get_stats()
-    
+
     assert stats['total_samples'] == 2
     assert 'avg_reward' in stats
     assert stats['adjustment_weights'] is None  # Not trained yet
@@ -189,7 +188,7 @@ def test_auto_train_trigger(rl_calibrator, sample_feedback):
     # Add samples up to update_frequency
     for i, (conf, outcome, amb, crit_amb, rounds, answers) in enumerate(sample_feedback * 2):
         rl_calibrator.add_feedback(conf, outcome, amb, crit_amb, rounds, answers, auto_train=True)
-        
+
         # Should trigger training at update_frequency (5)
         if (i + 1) % rl_calibrator.config.update_frequency == 0:
             # Training might succeed or fail depending on samples
@@ -203,13 +202,13 @@ def test_save_and_load(rl_calibrator, sample_feedback, tmp_path):
     for conf, outcome, amb, crit_amb, rounds, answers in sample_feedback * 3:
         rl_calibrator.add_feedback(conf, outcome, amb, crit_amb, rounds, answers, auto_train=False)
     rl_calibrator.train()
-    
+
     # Save
     save_path = tmp_path / "rl_calibrator.pkl"
     success = rl_calibrator.save(str(save_path))
     assert success is True
     assert save_path.exists()
-    
+
     # Create new calibrator and load
     new_calibrator = RLConfidenceCalibrator()
     success = new_calibrator.load(str(save_path))

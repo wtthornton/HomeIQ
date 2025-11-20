@@ -4,10 +4,9 @@ Device Intelligence Service - Health API Tests
 Tests for the health API endpoints.
 """
 
-import pytest
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch
-import time
+
 
 class TestHealthAPI:
     """Test health API endpoints."""

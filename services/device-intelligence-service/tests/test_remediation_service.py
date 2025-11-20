@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-
 from src.config import Settings
 from src.core.database import get_db_session, initialize_database
 from src.models.database import DeviceHygieneIssue

@@ -9,7 +9,7 @@ code remains unchanged.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -26,12 +26,12 @@ def _truncate(text: str, limit: int = 2000) -> str:
     return f"{text[: limit - len(ellipsis)]}{ellipsis}"
 
 
-def _format_entities_for_prompt(entities: List[Dict[str, Any]], max_items: int = 10) -> str:
+def _format_entities_for_prompt(entities: list[dict[str, Any]], max_items: int = 10) -> str:
     """Create a compact list of key entity details for the LangChain prompt."""
     if not entities:
         return "No entities resolved."
 
-    lines: List[str] = []
+    lines: list[str] = []
     for entity in entities[:max_items]:
         entity_id = entity.get("entity_id", "unknown")
         friendly = entity.get("friendly_name") or entity.get("name") or entity_id
@@ -44,11 +44,11 @@ def _format_entities_for_prompt(entities: List[Dict[str, Any]], max_items: int =
     return "\n".join(lines)
 
 
-def _format_clarifications(clarification_context: Optional[Dict[str, Any]]) -> str:
+def _format_clarifications(clarification_context: dict[str, Any] | None) -> str:
     if not clarification_context or not clarification_context.get("questions_and_answers"):
         return "No clarification answers provided."
 
-    formatted: List[str] = []
+    formatted: list[str] = []
     for idx, qa in enumerate(clarification_context["questions_and_answers"], start=1):
         question = qa.get("question", "Unknown question")
         answer = qa.get("answer", "No answer")
@@ -61,11 +61,11 @@ def _format_clarifications(clarification_context: Optional[Dict[str, Any]]) -> s
 def build_prompt_with_langchain(
     *,
     query: str,
-    entities: List[Dict[str, Any]],
-    base_prompt: Dict[str, Any],
+    entities: list[dict[str, Any]],
+    base_prompt: dict[str, Any],
     entity_context_json: str = "",
-    clarification_context: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    clarification_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Wrap the unified prompt with LangChain templates for structured assembly.
 

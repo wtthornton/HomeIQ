@@ -2,9 +2,10 @@
 Unit tests for service configuration and validation
 """
 
-import pytest
 import os
 from unittest.mock import patch
+
+import pytest
 
 
 class TestServiceConfiguration:

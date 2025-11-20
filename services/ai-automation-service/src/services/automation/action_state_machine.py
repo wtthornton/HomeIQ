@@ -6,10 +6,9 @@ Uses shared state machine base class from shared/state_machine.py
 """
 
 import logging
-import sys
 import os
+import sys
 from enum import Enum
-from typing import Dict, List
 from pathlib import Path
 
 # Add shared directory to path for imports
@@ -39,9 +38,8 @@ if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
 # Import shared state machine base class
-from state_machine import StateMachine
 # Re-export InvalidStateTransition for backward compatibility
-from state_machine import InvalidStateTransition
+from state_machine import StateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +66,7 @@ class ActionExecutionStateMachine(StateMachine):
     - FAILED → (terminal state)
     - CANCELLED → (terminal state)
     """
-    
+
     VALID_TRANSITIONS = {
         ActionExecutionState.QUEUED: [
             ActionExecutionState.EXECUTING,
@@ -89,7 +87,7 @@ class ActionExecutionStateMachine(StateMachine):
         ActionExecutionState.FAILED: [],  # Terminal state
         ActionExecutionState.CANCELLED: []  # Terminal state
     }
-    
+
     def __init__(self, initial_state: ActionExecutionState = ActionExecutionState.QUEUED):
         super().__init__(initial_state, self.VALID_TRANSITIONS)
 

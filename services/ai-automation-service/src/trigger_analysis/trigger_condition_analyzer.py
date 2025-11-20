@@ -9,7 +9,7 @@ Part of Phase 1: Trigger Device Discovery for Presence Sensor Detection
 
 import logging
 import re
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,40 +29,40 @@ class TriggerConditionAnalyzer:
         #     'confidence': 0.85
         # }]
     """
-    
+
     # Trigger type patterns
     PRESENCE_PATTERNS = [
         r'\b(presence|occupancy|detected|someone|anyone|person)\b',
         r'\b(sit|sit down|sitting|arrive|arrives|arrival)\b',
         r'\b(present|arrive|enter)\b'
     ]
-    
+
     MOTION_PATTERNS = [
         r'\b(motion|movement|moving|moves|moved)\b',
         r'\b(walk|walks|walking|enter|enters|entering)\b'
     ]
-    
+
     DOOR_PATTERNS = [
         r'\b(door|doors)\b.*\b(open|opens|opened|close|closes|closed)\b',
         r'\b(open|opens|opened|close|closes|closed).* door'
     ]
-    
+
     WINDOW_PATTERNS = [
         r'\b(window|windows)\b.*\b(open|opens|opened|close|closes|closed)\b',
         r'\b(open|opens|opened|close|closes|closed).* window'
     ]
-    
+
     TEMPERATURE_PATTERNS = [
         r'\b(temperature|temp|hot|cold|cooler|warmer)\b',
         r'\b(above|below|over|under).*\b(degrees?|°)\b'
     ]
-    
+
     # Location extraction patterns
     LOCATION_PATTERNS = [
         r'\b(at|in|near|inside|outside)\s+([a-zA-Z\s]+?)(?:\s|,|$)',
         r'\b(desk|office|bedroom|kitchen|living room|bathroom|garage|hallway|entrance)\b'
     ]
-    
+
     def __init__(self):
         """Initialize the trigger condition analyzer."""
         # Compile regex patterns for better performance
@@ -72,12 +72,12 @@ class TriggerConditionAnalyzer:
         self.window_re = [re.compile(pattern, re.IGNORECASE) for pattern in self.WINDOW_PATTERNS]
         self.temp_re = [re.compile(pattern, re.IGNORECASE) for pattern in self.TEMPERATURE_PATTERNS]
         self.location_re = [re.compile(pattern, re.IGNORECASE) for pattern in self.LOCATION_PATTERNS]
-    
+
     async def analyze_trigger_conditions(
         self,
         query: str,
-        extracted_entities: Optional[List[Dict[str, Any]]] = None
-    ) -> List[Dict[str, Any]]:
+        extracted_entities: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Analyze query to identify trigger conditions.
         
@@ -95,47 +95,47 @@ class TriggerConditionAnalyzer:
         """
         if not query or not query.strip():
             return []
-        
+
         query_lower = query.lower()
         conditions = []
-        
+
         # Extract location context from entities or query
         location = self._extract_location(query, extracted_entities)
-        
+
         # Check for presence triggers
         presence_condition = self._check_presence_trigger(query, query_lower, location)
         if presence_condition:
             conditions.append(presence_condition)
-        
+
         # Check for motion triggers
         motion_condition = self._check_motion_trigger(query, query_lower, location)
         if motion_condition:
             conditions.append(motion_condition)
-        
+
         # Check for door triggers
         door_condition = self._check_door_trigger(query, query_lower, location)
         if door_condition:
             conditions.append(door_condition)
-        
+
         # Check for window triggers
         window_condition = self._check_window_trigger(query, query_lower, location)
         if window_condition:
             conditions.append(window_condition)
-        
+
         # Check for temperature triggers
         temp_condition = self._check_temperature_trigger(query, query_lower, location)
         if temp_condition:
             conditions.append(temp_condition)
-        
+
         logger.debug(f"Analyzed query '{query}': found {len(conditions)} trigger conditions")
         return conditions
-    
+
     def _check_presence_trigger(
         self,
         query: str,
         query_lower: str,
-        location: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        location: str | None
+    ) -> dict[str, Any] | None:
         """Check if query contains presence trigger condition."""
         for pattern in self.presence_re:
             if pattern.search(query_lower):
@@ -148,13 +148,13 @@ class TriggerConditionAnalyzer:
                     'matched_text': pattern.search(query_lower).group(0)
                 }
         return None
-    
+
     def _check_motion_trigger(
         self,
         query: str,
         query_lower: str,
-        location: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        location: str | None
+    ) -> dict[str, Any] | None:
         """Check if query contains motion trigger condition."""
         for pattern in self.motion_re:
             if pattern.search(query_lower):
@@ -167,13 +167,13 @@ class TriggerConditionAnalyzer:
                     'matched_text': pattern.search(query_lower).group(0)
                 }
         return None
-    
+
     def _check_door_trigger(
         self,
         query: str,
         query_lower: str,
-        location: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        location: str | None
+    ) -> dict[str, Any] | None:
         """Check if query contains door trigger condition."""
         for pattern in self.door_re:
             if pattern.search(query_lower):
@@ -186,13 +186,13 @@ class TriggerConditionAnalyzer:
                     'matched_text': pattern.search(query_lower).group(0)
                 }
         return None
-    
+
     def _check_window_trigger(
         self,
         query: str,
         query_lower: str,
-        location: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        location: str | None
+    ) -> dict[str, Any] | None:
         """Check if query contains window trigger condition."""
         for pattern in self.window_re:
             if pattern.search(query_lower):
@@ -205,13 +205,13 @@ class TriggerConditionAnalyzer:
                     'matched_text': pattern.search(query_lower).group(0)
                 }
         return None
-    
+
     def _check_temperature_trigger(
         self,
         query: str,
         query_lower: str,
-        location: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        location: str | None
+    ) -> dict[str, Any] | None:
         """Check if query contains temperature trigger condition."""
         for pattern in self.temp_re:
             if pattern.search(query_lower):
@@ -224,12 +224,12 @@ class TriggerConditionAnalyzer:
                     'matched_text': pattern.search(query_lower).group(0)
                 }
         return None
-    
+
     def _extract_location(
         self,
         query: str,
-        extracted_entities: Optional[List[Dict[str, Any]]] = None
-    ) -> Optional[str]:
+        extracted_entities: list[dict[str, Any]] | None = None
+    ) -> str | None:
         """
         Extract location context from query or entities.
         
@@ -247,21 +247,21 @@ class TriggerConditionAnalyzer:
                     area_name = entity.get('name') or entity.get('area_name')
                     if area_name:
                         return area_name.lower()
-        
+
         # Then, try to extract from query using patterns
         query_lower = query.lower()
-        
+
         # Common location keywords
         locations = [
             'desk', 'office', 'bedroom', 'kitchen', 'living room',
             'bathroom', 'garage', 'hallway', 'entrance', 'dining room',
             'study', 'workshop', 'basement', 'attic'
         ]
-        
+
         for location in locations:
             if location in query_lower:
                 return location
-        
+
         # Try pattern-based extraction
         for pattern in self.location_re:
             match = pattern.search(query)
@@ -273,7 +273,7 @@ class TriggerConditionAnalyzer:
                     location_text = re.sub(r'^(at|in|near|inside|outside)\s+', '', location_text, flags=re.IGNORECASE)
                     if location_text:
                         return location_text.lower()
-        
+
         return None
 
 

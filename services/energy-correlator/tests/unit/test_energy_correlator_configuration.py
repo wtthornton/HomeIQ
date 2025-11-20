@@ -3,9 +3,10 @@ Unit tests for Energy Correlator service configuration and validation
 Tests environment variable handling and default values
 """
 
-import pytest
 import os
 from unittest.mock import patch
+
+import pytest
 
 
 class TestEnergyCorrelatorConfiguration:

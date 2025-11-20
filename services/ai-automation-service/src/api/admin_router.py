@@ -9,29 +9,28 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
+from ..config import settings
 from ..database import (
+    create_training_run,
+    get_active_training_run,
     get_db,
     get_system_settings,
-    get_active_training_run,
-    create_training_run,
-    update_training_run,
     list_training_runs,
+    update_training_run,
 )
 from ..database.models import Suggestion, get_db_session
-from ..config import settings
-from .health import health_check
 from .ask_ai_router import (
-    get_soft_prompt,
     get_guardrail_checker_instance,
+    get_soft_prompt,
 )
 from .dependencies.auth import require_admin_user
+from .health import health_check
 
 logger = logging.getLogger(__name__)
 
@@ -274,11 +273,11 @@ async def get_admin_config(db: AsyncSession = Depends(get_db)) -> AdminConfigRes
         ) from exc
 
 
-@router.get("/training/runs", response_model=List[TrainingRunResponse])
+@router.get("/training/runs", response_model=list[TrainingRunResponse])
 async def list_training_runs_endpoint(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-) -> List[TrainingRunResponse]:
+) -> list[TrainingRunResponse]:
     """Return recent training runs for display in the admin dashboard."""
 
     try:

@@ -7,7 +7,6 @@ from datetime import timedelta
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-
 from src.auth import AuthManager
 
 

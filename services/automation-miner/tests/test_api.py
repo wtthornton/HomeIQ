@@ -3,14 +3,14 @@ Integration Tests for API
 
 Tests FastAPI endpoints.
 """
-import pytest
-from httpx import AsyncClient
 from datetime import datetime
 
+import pytest
+from httpx import AsyncClient
 from src.api.main import app
 from src.miner.database import get_database
-from src.miner.repository import CorpusRepository
 from src.miner.models import AutomationMetadata
+from src.miner.repository import CorpusRepository
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ async def sample_automation(test_db):
     """Create sample automation in database"""
     async for session in test_db.get_session().__aiter__():
         repo = CorpusRepository(session)
-        
+
         metadata = AutomationMetadata(
             title="Test Automation",
             description="Test description",
@@ -46,7 +46,7 @@ async def sample_automation(test_db):
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        
+
         await repo.save_automation(metadata)
         break
 
@@ -56,7 +56,7 @@ async def test_health_endpoint():
     """Test health check endpoint"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data['status'] in ['healthy', 'unhealthy']
@@ -68,7 +68,7 @@ async def test_root_endpoint():
     """Test root endpoint"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert 'message' in data
@@ -83,7 +83,7 @@ async def test_search_endpoint(sample_automation):
             "/api/automation-miner/corpus/search",
             params={"device": "light", "min_quality": 0.7, "limit": 10}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert 'automations' in data
@@ -96,7 +96,7 @@ async def test_stats_endpoint(sample_automation):
     """Test stats endpoint"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/api/automation-miner/corpus/stats")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert 'total' in data

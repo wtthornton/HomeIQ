@@ -4,10 +4,9 @@ Service Container for WebSocket Ingestion Service
 Uses shared service container base class for dependency injection.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Optional
 
 # Add shared directory to path for imports
 shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
@@ -35,9 +34,9 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
-from service_container import BaseServiceContainer
-
 import logging
+
+from service_container import BaseServiceContainer
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class WebSocketIngestionServiceContainer(BaseServiceContainer):
     
     Manages dependencies like ConnectionManager, BatchProcessor, etc.
     """
-    
+
     def __init__(self):
         super().__init__()
         # Services will be registered in main.py during initialization

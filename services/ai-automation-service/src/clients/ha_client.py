@@ -7,14 +7,15 @@ Stories:
 - AI4.1: HA Client Foundation
 """
 
-import aiohttp
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timezone
-import yaml
 import time
 import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+import aiohttp
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,10 @@ class HomeAssistantClient:
     Handles deployment and management of automations.
     Story AI4.1: Enhanced with connection health checks, retry logic, and version detection.
     """
-    
+
     def __init__(
-        self, 
-        ha_url: str, 
+        self,
+        ha_url: str,
         access_token: str,
         max_retries: int = 3,
         retry_delay: float = 1.0,
@@ -54,10 +55,10 @@ class HomeAssistantClient:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._version_info: Optional[Dict[str, Any]] = None
-        self._last_health_check: Optional[datetime] = None
-    
+        self._session: aiohttp.ClientSession | None = None
+        self._version_info: dict[str, Any] | None = None
+        self._last_health_check: datetime | None = None
+
     async def _get_session(self) -> aiohttp.ClientSession:
         """
         Get or create a reusable client session with connection pooling.
@@ -75,14 +76,14 @@ class HomeAssistantClient:
                 keepalive_timeout=30,  # Keep connections alive for reuse
                 force_close=False  # Enable connection reuse
             )
-            
+
             timeout = aiohttp.ClientTimeout(
                 total=self.timeout,
                 connect=5,  # Socket connect timeout
                 sock_connect=5,  # SSL handshake timeout
                 sock_read=self.timeout  # Read timeout
             )
-            
+
             self._session = aiohttp.ClientSession(
                 connector=connector,
                 headers=self.headers,
@@ -90,9 +91,9 @@ class HomeAssistantClient:
                 raise_for_status=False  # Manual status checking
             )
             logger.debug("✅ Created new ClientSession with connection pooling")
-        
+
         return self._session
-    
+
     async def close(self) -> None:
         """
         Close the client session and cleanup connections.
@@ -104,14 +105,14 @@ class HomeAssistantClient:
             # Grace period for SSL connections to close (Context7 recommendation)
             await asyncio.sleep(0.250)
             logger.debug("✅ Closed ClientSession and cleaned up connections")
-    
+
     async def _retry_request(
         self,
         method: str,
         endpoint: str,
         return_json: bool = False,
         **kwargs
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Make HTTP request with exponential backoff retry logic.
         
@@ -128,7 +129,7 @@ class HomeAssistantClient:
         """
         session = await self._get_session()
         url = f"{self.ha_url}{endpoint}"
-        
+
         for attempt in range(self.max_retries):
             try:
                 async with session.request(method, url, **kwargs) as response:
@@ -136,11 +137,11 @@ class HomeAssistantClient:
                     if return_json and response.status == 200:
                         data = await response.json()
                         return data
-                    
+
                     # Handle different status codes
                     if response.status < 500:  # Success or client error
                         return {'status': response.status, 'data': await response.json() if response.status == 200 else None}
-                    
+
                     # Server error - retry with backoff
                     if attempt + 1 < self.max_retries:
                         # Exponential backoff: delay * 2^attempt
@@ -155,7 +156,7 @@ class HomeAssistantClient:
                             f"❌ Max retries reached for {endpoint}, status: {response.status}"
                         )
                         return {'status': response.status, 'data': None}
-                        
+
             except (aiohttp.ClientConnectionError, aiohttp.ClientSSLError) as e:
                 if attempt + 1 < self.max_retries:
                     delay = self.retry_delay * (2 ** attempt)
@@ -169,7 +170,7 @@ class HomeAssistantClient:
                         f"❌ Max retries reached for {endpoint}, error: {e}"
                     )
                     return None
-                    
+
             except asyncio.TimeoutError:
                 if attempt + 1 < self.max_retries:
                     delay = self.retry_delay * (2 ** attempt)
@@ -181,10 +182,10 @@ class HomeAssistantClient:
                 else:
                     logger.error(f"❌ Max retries reached for {endpoint}, timeout")
                     return None
-        
+
         return None
-    
-    async def get_version(self) -> Optional[Dict[str, Any]]:
+
+    async def get_version(self) -> dict[str, Any] | None:
         """
         Get Home Assistant version and configuration information.
         
@@ -195,7 +196,7 @@ class HomeAssistantClient:
         """
         if self._version_info is not None:
             return self._version_info
-        
+
         try:
             result = await self._retry_request('GET', '/api/config', return_json=True)
             if result:
@@ -209,7 +210,7 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"❌ Error getting HA version: {e}")
             return None
-    
+
     async def test_connection(self) -> bool:
         """
         Test connection to Home Assistant with health check.
@@ -223,13 +224,13 @@ class HomeAssistantClient:
             result = await self._retry_request('GET', '/api/', return_json=True)
             if result:
                 logger.info(f"✅ Connected to Home Assistant: {result.get('message', 'OK')}")
-                
+
                 # Get version info
                 await self.get_version()
-                
+
                 # Update last health check timestamp
                 self._last_health_check = datetime.now(timezone.utc)
-                
+
                 return True
             else:
                 logger.error("❌ HA connection failed: No response")
@@ -237,8 +238,8 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"❌ Failed to connect to HA: {e}")
             return False
-    
-    async def health_check(self) -> Tuple[bool, Dict[str, Any]]:
+
+    async def health_check(self) -> tuple[bool, dict[str, Any]]:
         """
         Comprehensive health check with detailed status information.
         
@@ -248,17 +249,17 @@ class HomeAssistantClient:
             Tuple of (is_healthy, status_info)
         """
         is_healthy = await self.test_connection()
-        
+
         status_info = {
             'connected': is_healthy,
             'url': self.ha_url,
             'last_check': self._last_health_check.isoformat() if self._last_health_check else None,
             'version_info': self._version_info
         }
-        
+
         return is_healthy, status_info
-    
-    async def get_automation(self, automation_id: str) -> Optional[Dict]:
+
+    async def get_automation(self, automation_id: str) -> dict | None:
         """
         Get a specific automation by ID.
         
@@ -272,12 +273,12 @@ class HomeAssistantClient:
         """
         session = await self._get_session()
         url = f"{self.ha_url}/api/states/{automation_id}"
-        
+
         # Retry logic specifically for 404 (HA indexing race condition)
         # Exponential backoff: 1s, 2s, 4s (max 3 attempts)
         max_retries = 3
         retry_delays = [1.0, 2.0, 4.0]
-        
+
         for attempt in range(max_retries):
             try:
                 async with session.get(url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -307,10 +308,10 @@ class HomeAssistantClient:
             except Exception as e:
                 logger.error(f"Error getting automation {automation_id}: {e}")
                 return None
-        
+
         return None
-    
-    async def get_automations(self) -> List[Dict]:
+
+    async def get_automations(self) -> list[dict]:
         """
         Get automation configurations from Home Assistant.
         
@@ -324,12 +325,12 @@ class HomeAssistantClient:
         """
         try:
             result = await self._retry_request('GET', '/api/config/automation/config', return_json=True)
-            
+
             # Handle different response formats
             if result is None:
                 logger.warning("⚠️ No response from HA automation config endpoint")
                 return []
-            
+
             if isinstance(result, dict):
                 # Response wrapped in {status, data} format
                 if 'data' in result:
@@ -346,18 +347,18 @@ class HomeAssistantClient:
                 configs = result
             else:
                 configs = []
-            
+
             # Ensure configs is always a list
             if configs is None:
                 configs = []
-            
+
             logger.info(f"✅ Retrieved {len(configs)} automation configurations")
             return configs
         except Exception as e:
             logger.error(f"Error fetching automation configs: {e}", exc_info=True)
             return []
-    
-    async def list_automations(self) -> List[Dict]:
+
+    async def list_automations(self) -> list[dict]:
         """
         List all automations in Home Assistant.
         
@@ -370,7 +371,7 @@ class HomeAssistantClient:
             all_states = await self._retry_request('GET', '/api/states', return_json=True)
             if all_states:
                 automations = [
-                    s for s in all_states 
+                    s for s in all_states
                     if s.get('entity_id', '').startswith('automation.')
                 ]
                 logger.info(f"📋 Found {len(automations)} automations in HA")
@@ -381,8 +382,8 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error listing automations: {e}")
             return []
-    
-    async def deploy_automation(self, automation_yaml: str, automation_id: Optional[str] = None) -> Dict:
+
+    async def deploy_automation(self, automation_yaml: str, automation_id: str | None = None) -> dict:
         """
         Deploy (create or update) an automation in Home Assistant.
 
@@ -414,7 +415,7 @@ class HomeAssistantClient:
                 "success": False,
                 "error": str(e)
             }
-    
+
     async def enable_automation(self, automation_id: str) -> bool:
         """
         Enable/turn on an automation.
@@ -442,7 +443,7 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error enabling automation {automation_id}: {e}")
             return False
-    
+
     async def disable_automation(self, automation_id: str) -> bool:
         """
         Disable/turn off an automation.
@@ -470,7 +471,7 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error disabling automation {automation_id}: {e}")
             return False
-    
+
     async def trigger_automation(self, automation_id: str) -> bool:
         """
         Manually trigger an automation.
@@ -498,7 +499,7 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error triggering automation {automation_id}: {e}")
             return False
-    
+
     async def delete_automation(self, automation_id: str) -> bool:
         """
         Delete an automation from Home Assistant.
@@ -515,7 +516,7 @@ class HomeAssistantClient:
         # For MVP, just disable the automation
         return await self.disable_automation(automation_id)
 
-    async def conversation_process(self, text: str) -> Dict[str, Any]:
+    async def conversation_process(self, text: str) -> dict[str, Any]:
         """
         Process natural language using Home Assistant Conversation API.
 
@@ -547,8 +548,8 @@ class HomeAssistantClient:
             logger.error(f"Failed to process conversation with HA: {e}")
             # Return empty result instead of raising to allow fallback
             return {"entities": [], "intent": None, "response": None}
-    
-    async def validate_automation(self, automation_yaml: str) -> Dict[str, Any]:
+
+    async def validate_automation(self, automation_yaml: str) -> dict[str, Any]:
         """
         Validate automation YAML without creating it.
         
@@ -566,28 +567,28 @@ class HomeAssistantClient:
         try:
             # Parse YAML
             automation_data = yaml.safe_load(automation_yaml)
-            
+
             if not isinstance(automation_data, dict):
                 return {
                     "valid": False,
                     "error": "Invalid YAML: must be a dictionary",
                     "details": []
                 }
-            
+
             errors = []
             warnings = []
-            
+
             # Check required fields
             if 'trigger' not in automation_data and 'triggers' not in automation_data:
                 errors.append("Missing required field: 'trigger' or 'triggers'")
-            
+
             if 'action' not in automation_data and 'actions' not in automation_data:
                 errors.append("Missing required field: 'action' or 'actions'")
-            
+
             # Extract and validate entity IDs
             entity_ids = self._extract_entity_ids(automation_data)
             logger.info(f"Validating {len(entity_ids)} entities from automation")
-            
+
             # Check if entities exist in HA
             session = await self._get_session()
             for entity_id in entity_ids:
@@ -598,21 +599,21 @@ class HomeAssistantClient:
                 ) as response:
                     if response.status == 404:
                         warnings.append(f"Entity not found: {entity_id}")
-            
+
             if errors:
                 return {
                     "valid": False,
                     "error": "; ".join(errors),
                     "details": warnings
                 }
-            
+
             return {
                 "valid": True,
                 "warnings": warnings,
                 "entity_count": len(entity_ids),
                 "automation_id": automation_data.get('id', automation_data.get('alias', 'unknown'))
             }
-            
+
         except yaml.YAMLError as e:
             return {
                 "valid": False,
@@ -626,8 +627,8 @@ class HomeAssistantClient:
                 "error": f"Validation error: {str(e)}",
                 "details": []
             }
-    
-    def _extract_entity_ids(self, automation_data: Dict) -> List[str]:
+
+    def _extract_entity_ids(self, automation_data: dict) -> list[str]:
         """
         Extract all entity IDs from automation config.
         
@@ -638,8 +639,8 @@ class HomeAssistantClient:
             List of entity IDs found in the automation
         """
         entity_ids = set()
-        
-        def extract_from_dict(d: Dict):
+
+        def extract_from_dict(d: dict):
             for key, value in d.items():
                 if key in ['entity_id', 'target']:
                     if isinstance(value, str) and '.' in value:
@@ -659,11 +660,11 @@ class HomeAssistantClient:
                     for item in value:
                         if isinstance(item, dict):
                             extract_from_dict(item)
-        
+
         extract_from_dict(automation_data)
         return list(entity_ids)
-    
-    async def create_automation(self, automation_yaml: str, automation_id: Optional[str] = None, force_new: bool = True) -> Dict[str, Any]:
+
+    async def create_automation(self, automation_yaml: str, automation_id: str | None = None, force_new: bool = True) -> dict[str, Any]:
         """
         Create or update an automation in Home Assistant.
         
@@ -688,7 +689,7 @@ class HomeAssistantClient:
                     "error": f"Validation failed: {validation.get('error', 'Unknown error')}",
                     "details": validation.get('details', [])
                 }
-            
+
             # Parse YAML
             automation_data = yaml.safe_load(automation_yaml)
 
@@ -737,7 +738,7 @@ class HomeAssistantClient:
                     logger.info(f"📝 Using ID from YAML: {automation_data['id']}")
 
             automation_entity_id = f"automation.{automation_data['id']}"
-            
+
             # Create automation via HA REST API
             # Note: HA doesn't have a direct REST endpoint to create automations
             # We need to use the config/automation/config endpoint (requires HA config write access)
@@ -751,10 +752,10 @@ class HomeAssistantClient:
                 if response.status in [200, 201]:
                     result = await response.json()
                     logger.info(f"✅ Automation created: {automation_entity_id}")
-                    
+
                     # Enable the automation
                     await self.enable_automation(automation_entity_id)
-                    
+
                     return {
                         "success": True,
                         "automation_id": automation_entity_id,
@@ -769,7 +770,7 @@ class HomeAssistantClient:
                         error_text = error_json.get('message', error_text)
                     except:
                         pass  # Use text if JSON parsing fails
-                    
+
                     logger.error(f"❌ Failed to create automation ({response.status}): {error_text}")
                     raise Exception(f"HTTP {response.status}: {error_text}")
         except Exception as e:
@@ -778,8 +779,8 @@ class HomeAssistantClient:
                 "success": False,
                 "error": str(e)
             }
-    
-    async def get_entity_state(self, entity_id: str) -> Optional[Dict[str, Any]]:
+
+    async def get_entity_state(self, entity_id: str) -> dict[str, Any] | None:
         """
         Get current state and attributes for an entity from Home Assistant.
         
@@ -803,7 +804,7 @@ class HomeAssistantClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/states/{entity_id}"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     state_data = await response.json()
@@ -824,8 +825,8 @@ class HomeAssistantClient:
             # Other errors - log and return None (entity not found)
             logger.error(f"Error getting entity state for {entity_id}: {e}")
             return None
-    
-    async def get_entities_by_domain(self, domain: str) -> List[str]:
+
+    async def get_entities_by_domain(self, domain: str) -> list[str]:
         """
         Get all entity IDs for a specific domain from Home Assistant.
         
@@ -844,17 +845,17 @@ class HomeAssistantClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/states"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     states = await response.json()
                     domain_entities = []
-                    
+
                     # Handle case where states might not be a list
                     if not isinstance(states, list):
                         logger.warning(f"Unexpected states response type: {type(states)}")
                         return []
-                    
+
                     for state in states:
                         if isinstance(state, dict):
                             entity_id = state.get('entity_id')
@@ -863,7 +864,7 @@ class HomeAssistantClient:
                         elif isinstance(state, str) and state.startswith(f"{domain}."):
                             # Handle case where state is just an entity ID string
                             domain_entities.append(state)
-                    
+
                     logger.info(f"Found {len(domain_entities)} entities for domain '{domain}': {domain_entities[:5]}")
                     return domain_entities
                 else:
@@ -872,12 +873,12 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting entities by domain '{domain}': {e}", exc_info=True)
             return []
-    
+
     async def get_entities_by_area_and_domain(
         self,
         area_id: str,
-        domain: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        domain: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get entities from HA filtered by area and optionally domain.
         
@@ -898,35 +899,35 @@ class HomeAssistantClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/states"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     all_states = await response.json()
-                    
+
                     if not isinstance(all_states, list):
                         logger.warning(f"Unexpected states response type: {type(all_states)}")
                         return []
-                    
+
                     # Filter by area_id and optionally domain
                     filtered_entities = []
                     for state in all_states:
                         if not isinstance(state, dict):
                             continue
-                        
+
                         entity_id = state.get('entity_id', '')
                         attributes = state.get('attributes', {})
-                        
+
                         # Check if entity is in the specified area
                         entity_area_id = attributes.get('area_id')
                         if entity_area_id != area_id:
                             continue
-                        
+
                         # Check domain if specified
                         if domain:
                             entity_domain = entity_id.split('.')[0] if '.' in entity_id else ''
                             if entity_domain != domain:
                                 continue
-                        
+
                         # Include entity with full state data
                         filtered_entities.append({
                             'entity_id': entity_id,
@@ -938,14 +939,14 @@ class HomeAssistantClient:
                             'device_id': attributes.get('device_id'),
                             'platform': attributes.get('platform', 'unknown')
                         })
-                    
+
                     logger.info(
                         f"✅ Found {len(filtered_entities)} entities in area '{area_id}'"
                         f"{f' (domain: {domain})' if domain else ''}"
                     )
                     if len(filtered_entities) > 0:
                         logger.debug(f"First 3 entities: {[e['entity_id'] for e in filtered_entities[:3]]}")
-                    
+
                     return filtered_entities
                 else:
                     logger.warning(f"Failed to get states from HA: {response.status}")
@@ -956,12 +957,12 @@ class HomeAssistantClient:
                 exc_info=True
             )
             return []
-    
+
     async def get_entities_by_area_template(
         self,
         area_id: str,
-        domain: Optional[str] = None
-    ) -> List[str]:
+        domain: str | None = None
+    ) -> list[str]:
         """
         Get entity IDs by area using HA Template API.
         
@@ -981,7 +982,7 @@ class HomeAssistantClient:
         """
         try:
             session = await self._get_session()
-            
+
             # Build Jinja2 template
             if domain:
                 template = (
@@ -996,9 +997,9 @@ class HomeAssistantClient:
                     f"selectattr('attributes.area_id', 'eq', '{area_id}') | list %}}\n"
                     f"{{{{ filtered | map(attribute='entity_id') | list | tojson }}}}"
                 )
-            
+
             url = f"{self.ha_url}/api/template"
-            
+
             async with session.post(
                 url,
                 json={"template": template}
@@ -1011,11 +1012,11 @@ class HomeAssistantClient:
                         entity_ids = json.loads(result)
                     else:
                         entity_ids = result
-                    
+
                     if not isinstance(entity_ids, list):
                         logger.warning(f"Unexpected template response type: {type(entity_ids)}")
                         return []
-                    
+
                     logger.info(
                         f"✅ Template API found {len(entity_ids)} entities in area '{area_id}'"
                         f"{f' (domain: {domain})' if domain else ''}"
@@ -1033,8 +1034,8 @@ class HomeAssistantClient:
                 exc_info=True
             )
             return []
-    
-    async def get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+
+    async def get_entity_registry(self) -> dict[str, dict[str, Any]]:
         """
         Get entity registry from Home Assistant.
         
@@ -1059,7 +1060,7 @@ class HomeAssistantClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/config/entity_registry/list"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -1069,7 +1070,7 @@ class HomeAssistantClient:
                         entity_id = entity.get('entity_id')
                         if entity_id:
                             registry_dict[entity_id] = entity
-                    
+
                     logger.info(f"✅ Retrieved {len(registry_dict)} entities from Entity Registry")
                     return registry_dict
                 elif response.status == 404:
@@ -1081,8 +1082,8 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting entity registry: {e}", exc_info=True)
             return {}
-    
-    async def get_services(self) -> Dict[str, Dict[str, Any]]:
+
+    async def get_services(self) -> dict[str, dict[str, Any]]:
         """
         Get all available services from Home Assistant.
         
@@ -1104,7 +1105,7 @@ class HomeAssistantClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/services"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     services_data = await response.json()
@@ -1116,4 +1117,4 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting services: {e}", exc_info=True)
             return {}
-    
+

@@ -17,14 +17,13 @@ Improvement: 2-3x more sophisticated automations, 25-40% cost savings
 """
 
 import logging
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta, timezone
-from collections import defaultdict
+from datetime import datetime, timezone
+from typing import Any
 
-from .ml_pattern_detector import MLPatternDetector
+import pandas as pd
+
 from ..clients.data_enrichment_client import DataEnrichmentClient
+from .ml_pattern_detector import MLPatternDetector
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class FusionDetector(MLPatternDetector):
 
     def __init__(
         self,
-        enrichment_client: Optional[DataEnrichmentClient] = None,
+        enrichment_client: DataEnrichmentClient | None = None,
         min_fusion_confidence: float = 0.75,
         enable_energy_optimization: bool = True,
         enable_air_quality_triggers: bool = True,
@@ -85,7 +84,7 @@ class FusionDetector(MLPatternDetector):
             f"air_quality={enable_air_quality_triggers}, occupancy={enable_occupancy_patterns}"
         )
 
-    async def detect_patterns(self, events_df: pd.DataFrame) -> List[Dict]:
+    async def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect fusion patterns combining multiple data sources.
 
@@ -174,8 +173,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_ev_charging_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect EV charging optimization opportunities.
 
@@ -257,8 +256,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_hvac_air_quality_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect HVAC + Air Quality integration opportunities.
 
@@ -310,7 +309,7 @@ class FusionDetector(MLPatternDetector):
                     'current_category': category,
                     'priority': 'high' if aqi > 150 else 'medium',
                     'recommendation': (
-                        f"When AQI > 100, close windows and turn on air purifier"
+                        "When AQI > 100, close windows and turn on air purifier"
                     ),
                     'automation_template': {
                         'trigger': 'numeric_state sensor.aqi above 100',
@@ -329,8 +328,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_peak_shifting_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect energy peak shifting opportunities (dishwasher, laundry, etc.).
 
@@ -400,8 +399,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_phantom_load_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect phantom load opportunities using smart meter data.
 
@@ -421,7 +420,7 @@ class FusionDetector(MLPatternDetector):
         if not phantom_detected and not circuits:
             return patterns
 
-        logger.info(f"💡 Analyzing smart meter data for phantom loads...")
+        logger.info("💡 Analyzing smart meter data for phantom loads...")
 
         # Analyze circuits for high standby power
         for circuit in circuits:
@@ -456,8 +455,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_occupancy_aware_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect occupancy-aware automation opportunities.
 
@@ -507,8 +506,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_weather_comfort_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect weather-based comfort automation opportunities.
 
@@ -569,8 +568,8 @@ class FusionDetector(MLPatternDetector):
     async def _detect_carbon_aware_patterns(
         self,
         events_df: pd.DataFrame,
-        enrichment_data: Dict[str, Any]
-    ) -> List[Dict]:
+        enrichment_data: dict[str, Any]
+    ) -> list[dict]:
         """
         Detect carbon-aware scheduling opportunities.
 

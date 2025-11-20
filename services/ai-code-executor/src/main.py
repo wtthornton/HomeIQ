@@ -3,19 +3,20 @@ AI Code Executor Service - FastAPI application
 Secure Python code execution for MCP (Model Context Protocol) pattern.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header, status
+import logging
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional
-from contextlib import asynccontextmanager
-import logging
 
-from .executor.mcp_sandbox import MCPSandbox, SandboxConfig
 from .config import settings
+from .executor.mcp_sandbox import MCPSandbox, SandboxConfig
 from .security.code_validator import (
+    CodeValidationError,
     CodeValidator,
     CodeValidatorConfig,
-    CodeValidationError,
 )
 
 # Setup logging
@@ -26,8 +27,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global sandbox + validator instances
-sandbox: Optional[MCPSandbox] = None
-code_validator: Optional[CodeValidator] = None
+sandbox: MCPSandbox | None = None
+code_validator: CodeValidator | None = None
 
 
 @asynccontextmanager
@@ -102,7 +103,7 @@ app.add_middleware(
 )
 
 
-def verify_api_token(x_executor_token: Optional[str] = Header(default=None, alias="X-Executor-Token")):
+def verify_api_token(x_executor_token: str | None = Header(default=None, alias="X-Executor-Token")):
     """Simple header-based authentication for execute endpoint."""
     if not settings.api_token:
         raise HTTPException(
@@ -120,7 +121,7 @@ def verify_api_token(x_executor_token: Optional[str] = Header(default=None, alia
 class ExecuteRequest(BaseModel):
     """Request to execute code"""
     code: str = Field(..., description="Python code to execute")
-    context: Optional[Dict[str, Any]] = Field(
+    context: dict[str, Any] | None = Field(
         default=None,
         description="Context variables available to code"
     )
@@ -134,7 +135,7 @@ class ExecuteResponse(BaseModel):
     return_value: Any
     execution_time: float
     memory_used_mb: float
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @app.get("/health")

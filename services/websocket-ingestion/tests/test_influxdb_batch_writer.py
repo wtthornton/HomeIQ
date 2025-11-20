@@ -1,9 +1,7 @@
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
 from influxdb_batch_writer import InfluxDBBatchWriter
 
 

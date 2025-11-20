@@ -9,13 +9,13 @@ Impact: Expand from 16 hardcoded patterns to 50-100+ discovered patterns
 """
 
 import logging
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Set, Tuple, Any
 from datetime import datetime, timedelta, timezone
-from collections import defaultdict
+from typing import Any
 
-from .association_rules import AprioriMiner, TransactionBuilder, AssociationRule
+import numpy as np
+import pandas as pd
+
+from .association_rules import AprioriMiner, AssociationRule, TransactionBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class DiscoveredSynergy:
         self.discovered_at = discovered_at
         self.source = source
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
         return {
             'trigger_entity': self.trigger_entity,
@@ -148,9 +148,9 @@ class DynamicSynergyMiner:
 
     async def mine_synergies(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
-    ) -> List[DiscoveredSynergy]:
+        start_time: datetime | None = None,
+        end_time: datetime | None = None
+    ) -> list[DiscoveredSynergy]:
         """
         Mine synergies from historical event data.
 
@@ -299,9 +299,9 @@ class DynamicSynergyMiner:
 
     async def _analyze_temporal_patterns(
         self,
-        rules: List[AssociationRule],
+        rules: list[AssociationRule],
         events_df: pd.DataFrame
-    ) -> List[Tuple[AssociationRule, float, int]]:
+    ) -> list[tuple[AssociationRule, float, int]]:
         """
         Analyze temporal consistency of association rules.
 
@@ -349,7 +349,7 @@ class DynamicSynergyMiner:
         events_df: pd.DataFrame,
         trigger_entity: str,
         action_entity: str
-    ) -> Tuple[float, int]:
+    ) -> tuple[float, int]:
         """
         Calculate temporal consistency for trigger → action pattern.
 
@@ -394,8 +394,8 @@ class DynamicSynergyMiner:
 
     def _validate_synergies(
         self,
-        temporal_patterns: List[Tuple[AssociationRule, float, int]]
-    ) -> List[DiscoveredSynergy]:
+        temporal_patterns: list[tuple[AssociationRule, float, int]]
+    ) -> list[DiscoveredSynergy]:
         """
         Validate and convert temporal patterns to DiscoveredSynergy objects.
 
@@ -452,8 +452,8 @@ class DynamicSynergyMiner:
 
     def get_statistics(
         self,
-        discovered_synergies: List[DiscoveredSynergy]
-    ) -> Dict[str, Any]:
+        discovered_synergies: list[DiscoveredSynergy]
+    ) -> dict[str, Any]:
         """
         Calculate statistics for discovered synergies.
 

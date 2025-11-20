@@ -6,16 +6,17 @@ Provides aggregated analytics data from InfluxDB for dashboard visualization
 """
 
 import logging
-import sys
 import os
-from typing import Dict, Any, List, Optional, Literal
+import sys
 from datetime import datetime, timedelta
+from typing import Any, Literal
 
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
+
 from shared.influxdb_query_client import InfluxDBQueryClient
 
 logger = logging.getLogger(__name__)
@@ -32,10 +33,10 @@ def calculate_service_uptime() -> float:
     try:
         # Import SERVICE_START_TIME from main module
         from .main import SERVICE_START_TIME
-        
+
         # Calculate uptime (100% since last restart)
         uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
-        
+
         # Return 100% (service is up since it started)
         # In a more sophisticated system, this would track historical downtime
         return 100.0
@@ -59,7 +60,7 @@ class MetricData(BaseModel):
     average: float
     min: float
     trend: str  # 'up', 'down', 'stable'
-    data: List[TimeSeriesPoint]
+    data: list[TimeSeriesPoint]
 
 
 class AnalyticsSummary(BaseModel):
@@ -88,7 +89,7 @@ router = APIRouter(tags=["Analytics"])
 influxdb_client = InfluxDBQueryClient()
 
 
-def calculate_trend(data: List[float], window: int = 5) -> str:
+def calculate_trend(data: list[float], window: int = 5) -> str:
     """
     Calculate trend from time series data
     
@@ -101,19 +102,19 @@ def calculate_trend(data: List[float], window: int = 5) -> str:
     """
     if len(data) < window:
         return 'stable'
-    
+
     recent = data[-window:]
     older = data[-window*2:-window] if len(data) >= window*2 else data[:-window]
-    
+
     if not older:
         return 'stable'
-    
+
     recent_avg = sum(recent) / len(recent)
     older_avg = sum(older) / len(older)
-    
+
     # Threshold for considering a change significant (10%)
     threshold = abs(older_avg) * 0.1 if older_avg != 0 else 0.1
-    
+
     if recent_avg > older_avg + threshold:
         return 'up'
     elif recent_avg < older_avg - threshold:
@@ -133,7 +134,7 @@ def get_time_range_params(time_range: str) -> tuple:
         (start_time_str, interval_str, num_points)
     """
     now = datetime.utcnow()
-    
+
     if time_range == '1h':
         start = now - timedelta(hours=1)
         interval = '1m'
@@ -155,7 +156,7 @@ def get_time_range_params(time_range: str) -> tuple:
         start = now - timedelta(hours=1)
         interval = '1m'
         num_points = 60
-    
+
     return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), interval, num_points)
 
 
@@ -165,7 +166,7 @@ async def get_analytics(
         '1h',
         description="Time range: 1h, 6h, 24h, 7d"
     ),
-    metrics: Optional[str] = Query(None, description="Comma-separated list of metrics to include")
+    metrics: str | None = Query(None, description="Comma-separated list of metrics to include")
 ):
     """
     Get analytics data for the specified time range
@@ -181,27 +182,27 @@ async def get_analytics(
         # Ensure InfluxDB connection
         if not influxdb_client.is_connected:
             await influxdb_client.connect()
-        
+
         # Get time range parameters
         start_time, interval, num_points = get_time_range_params(range)
-        
+
         # Query events count over time
         events_data = await query_events_per_minute(start_time, interval, num_points)
-        
+
         # Query API response time (from InfluxDB query metrics if available)
         api_response_data = await query_api_response_time(start_time, interval, num_points)
-        
+
         # Query database latency
         db_latency_data = await query_database_latency(start_time, interval, num_points)
-        
+
         # Query error rate
         error_rate_data = await query_error_rate(start_time, interval, num_points)
-        
+
         # Calculate summary statistics
         total_events = sum(point['value'] for point in events_data)
         success_rate = 100.0 - (error_rate_data[-1]['value'] if error_rate_data else 0.0)
         avg_latency = sum(point['value'] for point in db_latency_data) / len(db_latency_data) if db_latency_data else 0.0
-        
+
         # Build response
         response = AnalyticsResponse(
             eventsPerMinute=MetricData(
@@ -245,9 +246,9 @@ async def get_analytics(
             timeRange=range,
             lastUpdate=datetime.utcnow().isoformat() + 'Z'
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error getting analytics: {e}", exc_info=True)
         raise HTTPException(
@@ -256,7 +257,7 @@ async def get_analytics(
         )
 
 
-async def query_events_per_minute(start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+async def query_events_per_minute(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Query events per minute from InfluxDB"""
     try:
         query = f'''
@@ -266,9 +267,9 @@ async def query_events_per_minute(start_time: str, interval: str, num_points: in
           |> aggregateWindow(every: {interval}, fn: count)
           |> keep(columns: ["_time", "_value"])
         '''
-        
+
         result = await influxdb_client.query(query)
-        
+
         # Convert result to list of dicts
         data = []
         for table in result:
@@ -277,11 +278,11 @@ async def query_events_per_minute(start_time: str, interval: str, num_points: in
                     'timestamp': record.get_time().isoformat() + 'Z',
                     'value': float(record.get_value() or 0)
                 })
-        
+
         # Fill missing data points
         if len(data) < num_points:
             data = fill_missing_points(data, start_time, interval, num_points)
-        
+
         return data[:num_points]
     except Exception as e:
         logger.error(f"Error querying events per minute: {e}")
@@ -289,39 +290,39 @@ async def query_events_per_minute(start_time: str, interval: str, num_points: in
         return generate_empty_series(start_time, interval, num_points)
 
 
-async def query_api_response_time(start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+async def query_api_response_time(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Query API response time (mock data for now)"""
     # TODO: Implement once we have API response time metrics in InfluxDB
     return generate_mock_series(start_time, interval, num_points, base=50, variance=30)
 
 
-async def query_database_latency(start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+async def query_database_latency(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Query database write latency (mock data for now)"""
     # TODO: Implement once we have database latency metrics in InfluxDB
     return generate_mock_series(start_time, interval, num_points, base=15, variance=10)
 
 
-async def query_error_rate(start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+async def query_error_rate(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Query error rate (mock data for now)"""
     # TODO: Implement once we have error tracking in InfluxDB
     return generate_mock_series(start_time, interval, num_points, base=0.5, variance=0.5)
 
 
-def fill_missing_points(data: List[Dict[str, Any]], start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+def fill_missing_points(data: list[dict[str, Any]], start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Fill missing data points with zeros"""
     if not data:
         return generate_empty_series(start_time, interval, num_points)
-    
+
     # For now, just return what we have
     # TODO: Implement proper gap filling
     return data
 
 
-def generate_empty_series(start_time: str, interval: str, num_points: int) -> List[Dict[str, Any]]:
+def generate_empty_series(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Generate empty time series"""
     import re
     from datetime import datetime, timedelta
-    
+
     # Parse interval (e.g., '1m', '5m', '15m', '2h')
     match = re.match(r'(\d+)([mhd])', interval)
     if not match:
@@ -334,9 +335,9 @@ def generate_empty_series(start_time: str, interval: str, num_points: int) -> Li
             interval_delta = timedelta(hours=value)
         else:  # 'd'
             interval_delta = timedelta(days=value)
-    
+
     start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-    
+
     return [
         {
             'timestamp': (start + interval_delta * i).isoformat() + 'Z',
@@ -346,12 +347,12 @@ def generate_empty_series(start_time: str, interval: str, num_points: int) -> Li
     ]
 
 
-def generate_mock_series(start_time: str, interval: str, num_points: int, base: float, variance: float) -> List[Dict[str, Any]]:
+def generate_mock_series(start_time: str, interval: str, num_points: int, base: float, variance: float) -> list[dict[str, Any]]:
     """Generate mock time series data"""
     import random
     import re
     from datetime import datetime, timedelta
-    
+
     # Parse interval
     match = re.match(r'(\d+)([mhd])', interval)
     if not match:
@@ -364,9 +365,9 @@ def generate_mock_series(start_time: str, interval: str, num_points: int, base: 
             interval_delta = timedelta(hours=value)
         else:  # 'd'
             interval_delta = timedelta(days=value)
-    
+
     start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-    
+
     return [
         {
             'timestamp': (start + interval_delta * i).isoformat() + 'Z',

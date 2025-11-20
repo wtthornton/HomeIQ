@@ -3,9 +3,10 @@ Unit tests for statistics tracking and reporting
 Tests all statistics methods in EnergyEventCorrelator
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 class TestStatisticsInitialization:

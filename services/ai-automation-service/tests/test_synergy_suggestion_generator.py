@@ -5,12 +5,10 @@ Story AI3.4: Synergy-Based Suggestion Generation
 Epic AI-3: Cross-Device Synergy & Contextual Opportunities
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
 
+import pytest
 from src.synergy_detection.synergy_suggestion_generator import SynergySuggestionGenerator
-
 
 # ============================================================================
 # Fixtures
@@ -20,10 +18,10 @@ from src.synergy_detection.synergy_suggestion_generator import SynergySuggestion
 def mock_llm_client():
     """Mock OpenAI client"""
     client = MagicMock()
-    
+
     # Mock client.client.chat.completions.create (nested structure)
     completion_api = AsyncMock()
-    
+
     async def mock_create(**kwargs):
         # Create mock response
         response = MagicMock()
@@ -47,29 +45,29 @@ RATIONALE: You have Bedroom Motion and Bedroom Light in the same room with no au
 CATEGORY: convenience
 PRIORITY: medium
 """
-        
+
         # Mock usage
         response.usage = MagicMock()
         response.usage.prompt_tokens = 200
         response.usage.completion_tokens = 150
         response.usage.total_tokens = 350
-        
+
         return response
-    
+
     completion_api.create = mock_create
-    
+
     # Set up nested structure
     chat_api = MagicMock()
     chat_api.completions = completion_api
     client.client = MagicMock()
     client.client.chat = chat_api
-    
+
     # Mock attributes
     client.model = "gpt-4o-mini"
     client.total_tokens_used = 0
     client.total_input_tokens = 0
     client.total_output_tokens = 0
-    
+
     return client
 
 
@@ -133,9 +131,9 @@ def sample_synergies(sample_device_pair_synergy):
 async def test_generate_suggestions_basic(mock_llm_client, sample_synergies):
     """Test basic suggestion generation"""
     generator = SynergySuggestionGenerator(mock_llm_client)
-    
+
     suggestions = await generator.generate_suggestions(sample_synergies)
-    
+
     assert len(suggestions) > 0
     assert len(suggestions) <= len(sample_synergies)
 
@@ -144,12 +142,12 @@ async def test_generate_suggestions_basic(mock_llm_client, sample_synergies):
 async def test_suggestion_structure(mock_llm_client, sample_device_pair_synergy):
     """Test that generated suggestion has correct structure"""
     generator = SynergySuggestionGenerator(mock_llm_client)
-    
+
     suggestions = await generator.generate_suggestions([sample_device_pair_synergy])
-    
+
     assert len(suggestions) == 1
     suggestion = suggestions[0]
-    
+
     # Check required fields
     assert 'type' in suggestion
     assert 'synergy_id' in suggestion
@@ -161,7 +159,7 @@ async def test_suggestion_structure(mock_llm_client, sample_device_pair_synergy)
     assert 'priority' in suggestion
     assert 'confidence' in suggestion
     assert 'complexity' in suggestion
-    
+
     # Check field types and values
     assert suggestion['type'] == 'synergy_device_pair'
     assert suggestion['synergy_id'] == 'test-synergy-123'
@@ -189,11 +187,11 @@ async def test_max_suggestions_limit(mock_llm_client):
         }
         for i in range(20)
     ]
-    
+
     generator = SynergySuggestionGenerator(mock_llm_client)
-    
+
     suggestions = await generator.generate_suggestions(synergies, max_suggestions=5)
-    
+
     # Should only generate 5
     assert len(suggestions) <= 5
 
@@ -202,9 +200,9 @@ async def test_max_suggestions_limit(mock_llm_client):
 async def test_empty_synergies_handling(mock_llm_client):
     """Test handling of empty synergies list"""
     generator = SynergySuggestionGenerator(mock_llm_client)
-    
+
     suggestions = await generator.generate_suggestions([])
-    
+
     assert suggestions == []
 
 
@@ -216,9 +214,9 @@ async def test_empty_synergies_handling(mock_llm_client):
 async def test_device_pair_prompt_building(sample_device_pair_synergy):
     """Test device pair prompt generation"""
     generator = SynergySuggestionGenerator(MagicMock())
-    
+
     prompt = generator._build_device_pair_prompt(sample_device_pair_synergy)
-    
+
     # Check prompt contains key information
     assert 'Bedroom Motion' in prompt or 'bedroom_motion' in prompt
     assert 'Bedroom Light' in prompt or 'bedroom_ceiling' in prompt
@@ -229,12 +227,12 @@ async def test_device_pair_prompt_building(sample_device_pair_synergy):
 def test_unknown_synergy_type_handling():
     """Test handling of unknown synergy type"""
     generator = SynergySuggestionGenerator(MagicMock())
-    
+
     invalid_synergy = {
         'synergy_type': 'unknown_type',
         'synergy_id': 'test'
     }
-    
+
     # Should raise ValueError
     with pytest.raises(ValueError):
         generator._build_prompt(invalid_synergy)
@@ -247,7 +245,7 @@ def test_unknown_synergy_type_handling():
 def test_parse_response_complete():
     """Test parsing complete OpenAI response"""
     generator = SynergySuggestionGenerator(MagicMock())
-    
+
     response_content = """
 ```yaml
 alias: "AI Suggested: Test Automation"
@@ -263,7 +261,7 @@ RATIONALE: This is a test rationale
 CATEGORY: convenience
 PRIORITY: medium
 """
-    
+
     synergy = {
         'synergy_id': 'test-123',
         'synergy_type': 'device_pair',
@@ -272,9 +270,9 @@ PRIORITY: medium
         'impact_score': 0.7,
         'devices': ['test.sensor', 'test.action']
     }
-    
+
     suggestion = generator._parse_response(response_content, synergy)
-    
+
     assert suggestion['title'] == "AI Suggested: Test Automation"
     assert suggestion['description'] == "Test description"
     assert 'alias:' in suggestion['automation_yaml']
@@ -286,7 +284,7 @@ PRIORITY: medium
 def test_parse_response_missing_fields():
     """Test parsing response with missing fields (graceful degradation)"""
     generator = SynergySuggestionGenerator(MagicMock())
-    
+
     response_content = """
 ```yaml
 alias: "Test Automation"
@@ -295,7 +293,7 @@ description: "Test description"
 
 No rationale or category provided
 """
-    
+
     synergy = {
         'synergy_id': 'test-123',
         'synergy_type': 'device_pair',
@@ -306,9 +304,9 @@ No rationale or category provided
         'devices': [],
         'rationale': 'Fallback rationale'
     }
-    
+
     suggestion = generator._parse_response(response_content, synergy)
-    
+
     # Should extract title from alias
     assert suggestion['title'] == "Test Automation"
     assert suggestion['description'] == "Test description"
@@ -324,11 +322,11 @@ No rationale or category provided
 async def test_token_usage_tracking(mock_llm_client, sample_device_pair_synergy):
     """Test that token usage is tracked"""
     generator = SynergySuggestionGenerator(mock_llm_client)
-    
+
     initial_tokens = mock_llm_client.total_tokens_used
-    
+
     await generator.generate_suggestions([sample_device_pair_synergy])
-    
+
     # Token usage should increase
     assert mock_llm_client.total_tokens_used > initial_tokens
 
@@ -341,29 +339,29 @@ async def test_token_usage_tracking(mock_llm_client, sample_device_pair_synergy)
 async def test_llm_failure_graceful_handling():
     """Test graceful handling when LLM fails"""
     mock_client = MagicMock()
-    
+
     # Mock client that raises exception
     completion_api = AsyncMock()
     completion_api.create = AsyncMock(side_effect=Exception("OpenAI API error"))
-    
+
     chat_api = MagicMock()
     chat_api.completions = completion_api
     mock_client.client = MagicMock()
     mock_client.client.chat = chat_api
     mock_client.model = "gpt-4o-mini"
-    
+
     generator = SynergySuggestionGenerator(mock_client)
-    
+
     synergy = {
         'synergy_id': 'test',
         'synergy_type': 'device_pair',
         'impact_score': 0.7,  # Required for sorting
         'opportunity_metadata': {}
     }
-    
+
     # Should continue and log error, not return suggestions
     suggestions = await generator.generate_suggestions([synergy])
-    
+
     # Empty list because generation failed
     assert suggestions == []
 

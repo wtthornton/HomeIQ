@@ -8,11 +8,10 @@ exercise rule management and alert lifecycle flows without external services.
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Dict, List, Optional
-import uuid
 
 
 class AlertSeverity(str, Enum):
@@ -37,9 +36,9 @@ class AlertRule:
     severity: AlertSeverity
     enabled: bool = True
     cooldown_minutes: int = 5
-    notification_channels: List[str] = field(default_factory=list)
+    notification_channels: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "name": self.name,
             "description": self.description,
@@ -65,12 +64,12 @@ class Alert:
     condition: str
     status: AlertStatus = AlertStatus.ACTIVE
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    acknowledged_at: Optional[str] = None
-    acknowledged_by: Optional[str] = None
-    resolved_at: Optional[str] = None
-    resolved_by: Optional[str] = None
+    acknowledged_at: str | None = None
+    acknowledged_by: str | None = None
+    resolved_at: str | None = None
+    resolved_by: str | None = None
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "alert_id": self.alert_id,
             "rule_name": self.rule_name,
@@ -90,7 +89,7 @@ class Alert:
 
 
 class EmailNotificationChannel:
-    def __init__(self, name: str, config: Dict[str, object]):
+    def __init__(self, name: str, config: dict[str, object]):
         self.name = name
         self.enabled = bool(config.get("enabled", False))
         self.smtp_server = config.get("smtp_server")
@@ -103,7 +102,7 @@ class EmailNotificationChannel:
 
 
 class WebhookNotificationChannel:
-    def __init__(self, name: str, config: Dict[str, object]):
+    def __init__(self, name: str, config: dict[str, object]):
         self.name = name
         self.enabled = bool(config.get("enabled", False))
         self.webhook_url = config.get("webhook_url")
@@ -112,7 +111,7 @@ class WebhookNotificationChannel:
 
 
 class SlackNotificationChannel:
-    def __init__(self, name: str, config: Dict[str, object]):
+    def __init__(self, name: str, config: dict[str, object]):
         self.name = name
         self.enabled = bool(config.get("enabled", False))
         self.webhook_url = config.get("webhook_url")
@@ -123,11 +122,11 @@ class SlackNotificationChannel:
 
 class AlertManager:
     def __init__(self) -> None:
-        self.rules: Dict[str, AlertRule] = {}
-        self.active_alerts: Dict[str, Alert] = {}
-        self.alert_history: List[Alert] = []
-        self.notification_channels: Dict[str, object] = {}
-        self.cooldown_timers: Dict[str, datetime] = {}
+        self.rules: dict[str, AlertRule] = {}
+        self.active_alerts: dict[str, Alert] = {}
+        self.alert_history: list[Alert] = []
+        self.notification_channels: dict[str, object] = {}
+        self.cooldown_timers: dict[str, datetime] = {}
         self.is_evaluating: bool = False
         self._load_default_rules()
 
@@ -148,7 +147,7 @@ class AlertManager:
     def remove_rule(self, name: str) -> None:
         self.rules.pop(name, None)
 
-    def get_rule(self, name: str) -> Optional[AlertRule]:
+    def get_rule(self, name: str) -> AlertRule | None:
         return self.rules.get(name)
 
     def update_rule(self, rule: AlertRule) -> None:
@@ -176,7 +175,7 @@ class AlertManager:
     def _set_cooldown(self, rule_name: str, minutes: int = 5) -> None:
         self.cooldown_timers[rule_name] = datetime.now(timezone.utc) + timedelta(minutes=minutes)
 
-    async def evaluate_alert(self, rule_name: str, metric_value: float) -> Optional[Alert]:
+    async def evaluate_alert(self, rule_name: str, metric_value: float) -> Alert | None:
         rule = self.rules.get(rule_name)
         if not rule or not rule.enabled:
             return None
@@ -209,7 +208,7 @@ class AlertManager:
         self._set_cooldown(rule.name, rule.cooldown_minutes)
         return alert
 
-    async def evaluate_all_alerts(self, metrics: Dict[str, float]) -> None:
+    async def evaluate_all_alerts(self, metrics: dict[str, float]) -> None:
         if self.is_evaluating:
             return
         self.is_evaluating = True
@@ -243,16 +242,16 @@ class AlertManager:
                 return True
         return False
 
-    def get_active_alerts(self) -> List[Alert]:
+    def get_active_alerts(self) -> list[Alert]:
         return list(self.active_alerts.values())
 
     def get_alert_history(
         self,
         *,
-        status: Optional[AlertStatus] = None,
-        severity: Optional[AlertSeverity] = None,
-        limit: Optional[int] = None,
-    ) -> List[Alert]:
+        status: AlertStatus | None = None,
+        severity: AlertSeverity | None = None,
+        limit: int | None = None,
+    ) -> list[Alert]:
         history = self.alert_history
         if status:
             history = [item for item in history if item.status == status]
@@ -262,15 +261,15 @@ class AlertManager:
             history = history[:limit]
         return history
 
-    def get_alert_statistics(self) -> Dict[str, object]:
+    def get_alert_statistics(self) -> dict[str, object]:
         total_rules = len(self.rules)
         enabled_rules = sum(1 for r in self.rules.values() if r.enabled)
-        active_alerts_by_severity: Dict[str, int] = {}
+        active_alerts_by_severity: dict[str, int] = {}
         for alert in self.active_alerts.values():
             active_alerts_by_severity.setdefault(alert.severity.value, 0)
             active_alerts_by_severity[alert.severity.value] += 1
 
-        alert_history_by_status: Dict[str, int] = {}
+        alert_history_by_status: dict[str, int] = {}
         for alert in self.alert_history:
             alert_history_by_status.setdefault(alert.status.value, 0)
             alert_history_by_status[alert.status.value] += 1
@@ -295,7 +294,7 @@ class AlertingService:
     def get_alert_manager(self) -> AlertManager:
         return self.alert_manager
 
-    def add_notification_channel(self, name: str, channel_type: str, config: Dict[str, object]) -> None:
+    def add_notification_channel(self, name: str, channel_type: str, config: dict[str, object]) -> None:
         if channel_type == "email":
             channel = EmailNotificationChannel(name, config)
         elif channel_type == "webhook":
@@ -306,16 +305,16 @@ class AlertingService:
             raise ValueError(f"Unsupported channel type '{channel_type}'")
         self.alert_manager.add_notification_channel(name, channel)
 
-    async def evaluate_metrics(self, metrics: Dict[str, float]) -> None:
+    async def evaluate_metrics(self, metrics: dict[str, float]) -> None:
         await self.alert_manager.evaluate_all_alerts(metrics)
 
-    def get_active_alerts(self) -> List[Alert]:
+    def get_active_alerts(self) -> list[Alert]:
         return self.alert_manager.get_active_alerts()
 
-    def get_alert_history(self, *, limit: Optional[int] = None) -> List[Alert]:
+    def get_alert_history(self, *, limit: int | None = None) -> list[Alert]:
         return self.alert_manager.get_alert_history(limit=limit)
 
-    def get_alert_statistics(self) -> Dict[str, object]:
+    def get_alert_statistics(self) -> dict[str, object]:
         return self.alert_manager.get_alert_statistics()
 
     async def start(self) -> None:

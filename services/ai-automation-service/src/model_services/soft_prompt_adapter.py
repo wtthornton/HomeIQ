@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,21 +44,21 @@ class SoftPromptAdapter:
         return self._pipeline is not None
 
     @property
-    def model_id(self) -> Optional[str]:
+    def model_id(self) -> str | None:
         return self._model_id
 
     def enhance_suggestions(
         self,
         query: str,
-        suggestions: List[Dict],
-        context: Optional[str],
+        suggestions: list[dict],
+        context: str | None,
         threshold: float
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Augment low-confidence suggestions with a locally generated refinement."""
         if not self.is_ready or not suggestions:
             return suggestions
 
-        updated: List[Dict] = []
+        updated: list[dict] = []
         for suggestion in suggestions:
             confidence = float(suggestion.get("confidence", 0.0) or 0.0)
             if confidence >= threshold:
@@ -88,9 +87,9 @@ class SoftPromptAdapter:
     def _generate_refinement(
         self,
         query: str,
-        suggestion: Dict,
-        context: Optional[str]
-    ) -> Optional[str]:
+        suggestion: dict,
+        context: str | None
+    ) -> str | None:
         """Generate a short refinement string using the local pipeline."""
         if not self.is_ready:
             return None
@@ -130,11 +129,11 @@ class SoftPromptAdapter:
             return None
 
 
-_adapter_singleton: Optional[SoftPromptAdapter] = None
+_adapter_singleton: SoftPromptAdapter | None = None
 _adapter_initialized = False
 
 
-def get_soft_prompt_adapter(model_dir: str) -> Optional[SoftPromptAdapter]:
+def get_soft_prompt_adapter(model_dir: str) -> SoftPromptAdapter | None:
     """Return a cached adapter instance if initialization succeeds."""
     global _adapter_singleton, _adapter_initialized
 

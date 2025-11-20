@@ -30,7 +30,7 @@ async def client():
     Automatically closes after test completes.
     """
     from src.api.main import app
-    
+
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
 

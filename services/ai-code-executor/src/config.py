@@ -3,7 +3,6 @@ Configuration for AI Code Executor Service.
 Simplified - optimized for single-home NUC deployment with strict security controls.
 """
 
-from typing import List
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
@@ -67,7 +66,7 @@ class Settings(BaseSettings):
     )
 
     # API surface security
-    allowed_origins: List[str] = Field(
+    allowed_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:8030"],
         env="ALLOWED_ORIGINS",
         description="Comma-separated list of allowed origins for CORS",

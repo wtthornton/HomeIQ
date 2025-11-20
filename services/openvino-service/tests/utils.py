@@ -10,7 +10,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-from typing import Any, Dict, Iterable, List, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -94,7 +95,7 @@ class _FakeLogits:
 class FakeRerankerTokenizer:
     """Tokenizer stand-in that simply stores the pair string."""
 
-    def __call__(self, pair: str, **_: Any) -> Dict[str, str]:
+    def __call__(self, pair: str, **_: Any) -> dict[str, str]:
         return {"pair": pair}
 
 
@@ -117,7 +118,7 @@ class FakeRerankerModel:
 class FakeClassifierTokenizer:
     """Tokenizer that only needs to round-trip prompt text."""
 
-    def __call__(self, prompt: str, **_: Any) -> Dict[str, str]:
+    def __call__(self, prompt: str, **_: Any) -> dict[str, str]:
         return {"prompt": prompt}
 
     def decode(self, generated: str, skip_special_tokens: bool = True) -> str:
@@ -127,7 +128,7 @@ class FakeClassifierTokenizer:
 class FakeClassifierModel:
     """Rule-based responses for category/priority prompts."""
 
-    def generate(self, *, prompt: str, **_: Any) -> List[str]:
+    def generate(self, *, prompt: str, **_: Any) -> list[str]:
         prompt_lower = prompt.lower()
         pattern_segment = self._extract_pattern_segment(prompt_lower)
         if "priority" in prompt_lower:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Quick script to investigate a specific query's prompt"""
-import sqlite3
 import json
+import sqlite3
 import sys
 
 query_id = sys.argv[1] if len(sys.argv) > 1 else 'query-70dcb45b'
@@ -26,7 +26,7 @@ print("=" * 80)
 if suggestions:
     s = suggestions[0]
     debug = s.get('debug', {})
-    
+
     print("\n=== CLARIFICATION CONTEXT ===")
     clarification = debug.get('clarification_context', {})
     if clarification:
@@ -39,7 +39,7 @@ if suggestions:
                 print(f"   Selected Entities: {qa.get('selected_entities')}")
     else:
         print("No clarification context")
-    
+
     print("\n=== ENRICHED ENTITY CONTEXT (Entities in Prompt) ===")
     user_prompt = debug.get('user_prompt', '')
     if 'ENRICHED ENTITY CONTEXT' in user_prompt:
@@ -50,7 +50,7 @@ if suggestions:
             end = user_prompt.find('CAPABILITY-SPECIFIC', start)
         context_section = user_prompt[start:end]
         print(context_section[:2000])
-        
+
         # Try to extract JSON
         json_start = context_section.find('{')
         json_end = context_section.rfind('}') + 1
@@ -64,7 +64,7 @@ if suggestions:
                 print(f"  Found {len(office_lights)} office lights")
                 for e in office_lights:
                     print(f"    - {e.get('friendly_name')} ({e.get('entity_id')})")
-                
+
                 print("\nAll lights (first 10):")
                 lights = [e for e in entities if e.get('domain') == 'light'][:10]
                 for e in lights:
@@ -72,12 +72,12 @@ if suggestions:
                     print(f"    - {e.get('friendly_name')} ({e.get('entity_id')}) - Area: {area}")
             except:
                 pass
-    
+
     print("\n=== SUGGESTION DETAILS ===")
     print(f"Description: {s.get('description', 'N/A')}")
     print(f"Devices Involved: {s.get('devices_involved', [])}")
     print(f"Validated Entities: {json.dumps(s.get('validated_entities', {}), indent=2)}")
-    
+
     print("\n=== ENTITY CONTEXT STATS ===")
     stats = debug.get('entity_context_stats', {})
     print(json.dumps(stats, indent=2))

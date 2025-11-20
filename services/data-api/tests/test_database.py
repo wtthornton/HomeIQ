@@ -5,13 +5,7 @@ Story 22.1
 
 import pytest
 from sqlalchemy import text
-from src.database import (
-    async_engine,
-    AsyncSessionLocal,
-    get_db,
-    init_db,
-    check_db_health
-)
+from src.database import AsyncSessionLocal, async_engine, check_db_health, get_db, init_db
 
 
 @pytest.mark.asyncio

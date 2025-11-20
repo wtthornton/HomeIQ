@@ -1,8 +1,8 @@
-import os
 import json
+import os
+
 import aiohttp
 import pytest
-
 from src.clients.ha_client import HomeAssistantClient
 
 

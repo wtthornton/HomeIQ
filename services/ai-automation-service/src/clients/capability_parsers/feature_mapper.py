@@ -4,10 +4,9 @@ Feature Mapper - Maps bitmask features to friendly descriptions.
 Provides human-readable descriptions for Home Assistant entity capabilities.
 """
 
-from typing import Dict, List
 
 # Mapping of feature names to friendly descriptions
-FEATURE_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
+FEATURE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'light': {
         'brightness': 'Adjust brightness (0-100%)',
         'color_temp': 'Set color temperature (warm to cool)',
@@ -87,12 +86,12 @@ FEATURE_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
 def get_feature_description(domain: str, feature: str) -> str:
     """Get friendly description for a feature."""
     return FEATURE_DESCRIPTIONS.get(domain, {}).get(
-        feature, 
+        feature,
         f"Control {feature.replace('_', ' ')}"
     )
 
 
-def generate_friendly_capabilities(domain: str, features: Dict[str, bool]) -> List[str]:
+def generate_friendly_capabilities(domain: str, features: dict[str, bool]) -> list[str]:
     """Generate list of friendly capability descriptions."""
     friendly_caps = []
     for feature, enabled in features.items():

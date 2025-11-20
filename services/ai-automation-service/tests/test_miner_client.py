@@ -19,7 +19,7 @@ from src.miner.miner_client import MinerClient
 async def test_search_corpus_success():
     """Test successful Miner query"""
     client = MinerClient(base_url="http://test-miner:8019", timeout=0.1)
-    
+
     mock_response = {
         'automations': [
             {
@@ -31,7 +31,7 @@ async def test_search_corpus_success():
         ],
         'count': 1
     }
-    
+
     with patch('httpx.AsyncClient') as mock_httpx:
         mock_httpx.return_value.__aenter__.return_value.get = AsyncMock(
             return_value=AsyncMock(
@@ -39,9 +39,9 @@ async def test_search_corpus_success():
                 json=AsyncMock(return_value=mock_response)
             )
         )
-        
+
         results = await client.search_corpus(device='light', min_quality=0.8)
-        
+
         assert len(results) == 1
         assert results[0]['title'] == 'Test Automation'
 
@@ -50,15 +50,15 @@ async def test_search_corpus_success():
 async def test_search_corpus_timeout():
     """Test Miner query timeout - graceful degradation"""
     client = MinerClient(timeout=0.001)  # 1ms timeout (will fail)
-    
+
     with patch('httpx.AsyncClient') as mock_httpx:
         mock_httpx.return_value.__aenter__.return_value.get = AsyncMock(
             side_effect=TimeoutError("Timeout")
         )
-        
+
         # Should return empty list on timeout
         results = await client.search_corpus(device='light')
-        
+
         assert results == []
 
 
@@ -66,7 +66,7 @@ async def test_search_corpus_timeout():
 async def test_search_corpus_http_error():
     """Test Miner query HTTP error - graceful degradation"""
     client = MinerClient()
-    
+
     with patch('httpx.AsyncClient') as mock_httpx:
         mock_response = AsyncMock()
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -77,10 +77,10 @@ async def test_search_corpus_http_error():
         mock_httpx.return_value.__aenter__.return_value.get = AsyncMock(
             return_value=mock_response
         )
-        
+
         # Should return empty list on HTTP error
         results = await client.search_corpus(device='light')
-        
+
         assert results == []
 
 
@@ -88,10 +88,10 @@ async def test_search_corpus_http_error():
 async def test_cache_hit():
     """Test cache returns cached results"""
     client = MinerClient(cache_ttl_days=7)
-    
+
     # First query - cache miss
     mock_response = {'automations': [{'id': 1}], 'count': 1}
-    
+
     with patch('httpx.AsyncClient') as mock_httpx:
         mock_httpx.return_value.__aenter__.return_value.get = AsyncMock(
             return_value=AsyncMock(
@@ -99,12 +99,12 @@ async def test_cache_hit():
                 json=AsyncMock(return_value=mock_response)
             )
         )
-        
+
         results1 = await client.search_corpus(device='light')
-        
+
         # Second query - should hit cache (no HTTP call)
         results2 = await client.search_corpus(device='light')
-        
+
         assert results1 == results2
         assert len(results1) == 1
 

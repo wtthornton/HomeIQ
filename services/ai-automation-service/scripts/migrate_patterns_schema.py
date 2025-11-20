@@ -15,11 +15,12 @@ Usage:
 """
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
-import logging
-from sqlalchemy import text, inspect
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
@@ -33,20 +34,20 @@ def get_database_url():
     # Try root data directory first (most common location)
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to project root
     script_dir = Path(__file__).parent.parent
-    
+
     db_paths = [
         root_dir / "data" / "ai_automation.db",  # Root data directory
         Path("data") / "ai_automation.db",  # Current directory
         script_dir / "data" / "ai_automation.db",  # Service data directory
         Path("/app/data/ai_automation.db"),  # Docker container path
     ]
-    
+
     for db_path in db_paths:
         if db_path.exists():
             # Convert to absolute path for SQLite URL (more reliable)
             abs_path = db_path.resolve()
             return f"sqlite+aiosqlite:///{abs_path}"
-    
+
     # Default fallback - try root data directory
     default_path = root_dir / "data" / "ai_automation.db"
     return f"sqlite+aiosqlite:///{default_path.resolve()}"
@@ -110,20 +111,20 @@ async def add_column_if_missing(conn, column_def):
     column_name = column_def['name']
     column_type = column_def['type']
     default = column_def.get('default', 'NULL')
-    
+
     # SQLite doesn't support adding NOT NULL columns with defaults easily
     # So we'll add as nullable first, then update existing rows
     nullable_clause = "" if column_def['nullable'] else ""
-    
+
     try:
         # ALTER TABLE ADD COLUMN
         sql = f"ALTER TABLE patterns ADD COLUMN {column_name} {column_type}"
         if default and default != 'NULL':
             sql += f" DEFAULT {default}"
-        
+
         await conn.execute(text(sql))
         logger.info(f"✅ Added column: {column_name}")
-        
+
         # If column is NOT NULL and has existing rows, update them
         if not column_def['nullable'] and default and default != 'NULL':
             await conn.execute(text(f"""
@@ -132,7 +133,7 @@ async def add_column_if_missing(conn, column_def):
                 WHERE {column_name} IS NULL
             """))
             logger.info(f"✅ Updated existing rows for {column_name}")
-        
+
         return True
     except Exception as e:
         if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -147,15 +148,15 @@ async def migrate():
     """Run the migration"""
     logger.info("🔄 Starting patterns table migration...")
     logger.info(f"📂 Database URL: {DATABASE_URL}")
-    
+
     # Create engine
     engine = create_async_engine(DATABASE_URL, echo=False)
-    
+
     try:
         # Get existing columns
         existing_columns = await get_existing_columns(engine)
         logger.info(f"📋 Existing columns: {', '.join(existing_columns)}")
-        
+
         # Check if patterns table exists
         async with engine.begin() as conn:
             result = await conn.execute(text("""
@@ -170,7 +171,7 @@ async def migrate():
                 logger.info("✅ Created patterns table from models")
                 # Refresh existing columns after table creation
                 existing_columns = await get_existing_columns(engine)
-        
+
         # Add missing columns
         async with engine.begin() as conn:
             added_count = 0
@@ -180,15 +181,15 @@ async def migrate():
                         added_count += 1
                 else:
                     logger.info(f"⏭️  Column {column_def['name']} already exists, skipping")
-        
+
         logger.info(f"✅ Migration complete! Added {added_count} columns.")
-        
+
         # Verify migration
         final_columns = await get_existing_columns(engine)
         logger.info(f"📋 Final columns: {', '.join(final_columns)}")
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Migration failed: {e}", exc_info=True)
         return False

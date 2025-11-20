@@ -5,7 +5,6 @@ from typing import Literal
 
 from fastapi import Depends, HTTPException, Request, status
 
-
 Role = Literal["user", "admin"]
 
 

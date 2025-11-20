@@ -1,11 +1,11 @@
 """Data retention policy management."""
 
-import logging
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
 import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class RetentionPeriod(Enum):
 @dataclass
 class RetentionPolicy:
     """Data retention policy configuration."""
-    
+
     name: str
     description: str
     retention_period: int
@@ -27,14 +27,14 @@ class RetentionPolicy:
     enabled: bool = True
     created_at: datetime = None
     updated_at: datetime = None
-    
+
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = datetime.utcnow()
         if self.updated_at is None:
             self.updated_at = datetime.utcnow()
-    
-    def get_expiration_date(self, from_date: Optional[datetime] = None) -> datetime:
+
+    def get_expiration_date(self, from_date: datetime | None = None) -> datetime:
         """
         Calculate expiration date based on retention policy.
         
@@ -46,7 +46,7 @@ class RetentionPolicy:
         """
         if from_date is None:
             from_date = datetime.utcnow()
-        
+
         if self.retention_unit == RetentionPeriod.DAYS:
             return from_date - timedelta(days=self.retention_period)
         elif self.retention_unit == RetentionPeriod.WEEKS:
@@ -59,8 +59,8 @@ class RetentionPolicy:
             return from_date - timedelta(days=self.retention_period * 365)
         else:
             raise ValueError(f"Unknown retention unit: {self.retention_unit}")
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert policy to dictionary."""
         return {
             "name": self.name,
@@ -71,9 +71,9 @@ class RetentionPolicy:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'RetentionPolicy':
+    def from_dict(cls, data: dict[str, Any]) -> 'RetentionPolicy':
         """Create policy from dictionary."""
         return cls(
             name=data["name"],
@@ -87,10 +87,10 @@ class RetentionPolicy:
 
 class RetentionPolicyManager:
     """Manages data retention policies."""
-    
+
     def __init__(self):
         """Initialize retention policy manager."""
-        self.policies: Dict[str, RetentionPolicy] = {}
+        self.policies: dict[str, RetentionPolicy] = {}
         self.default_policy = RetentionPolicy(
             name="default",
             description="Default 1-year retention policy",
@@ -98,9 +98,9 @@ class RetentionPolicyManager:
             retention_unit=RetentionPeriod.YEARS
         )
         self.policies["default"] = self.default_policy
-        
+
         logger.info("Retention policy manager initialized")
-    
+
     def add_policy(self, policy: RetentionPolicy) -> None:
         """
         Add a new retention policy.
@@ -110,10 +110,10 @@ class RetentionPolicyManager:
         """
         if policy.name in self.policies:
             raise ValueError(f"Policy '{policy.name}' already exists")
-        
+
         self.policies[policy.name] = policy
         logger.info(f"Added retention policy: {policy.name}")
-    
+
     def update_policy(self, policy: RetentionPolicy) -> None:
         """
         Update an existing retention policy.
@@ -123,11 +123,11 @@ class RetentionPolicyManager:
         """
         if policy.name not in self.policies:
             raise ValueError(f"Policy '{policy.name}' does not exist")
-        
+
         policy.updated_at = datetime.utcnow()
         self.policies[policy.name] = policy
         logger.info(f"Updated retention policy: {policy.name}")
-    
+
     def remove_policy(self, policy_name: str) -> None:
         """
         Remove a retention policy.
@@ -137,14 +137,14 @@ class RetentionPolicyManager:
         """
         if policy_name == "default":
             raise ValueError("Cannot remove default policy")
-        
+
         if policy_name not in self.policies:
             raise ValueError(f"Policy '{policy_name}' does not exist")
-        
+
         del self.policies[policy_name]
         logger.info(f"Removed retention policy: {policy_name}")
-    
-    def get_policy(self, policy_name: str) -> Optional[RetentionPolicy]:
+
+    def get_policy(self, policy_name: str) -> RetentionPolicy | None:
         """
         Get a retention policy by name.
         
@@ -155,8 +155,8 @@ class RetentionPolicyManager:
             RetentionPolicy or None if not found
         """
         return self.policies.get(policy_name)
-    
-    def get_all_policies(self) -> List[RetentionPolicy]:
+
+    def get_all_policies(self) -> list[RetentionPolicy]:
         """
         Get all retention policies.
         
@@ -164,8 +164,8 @@ class RetentionPolicyManager:
             List of all retention policies
         """
         return list(self.policies.values())
-    
-    def get_enabled_policies(self) -> List[RetentionPolicy]:
+
+    def get_enabled_policies(self) -> list[RetentionPolicy]:
         """
         Get all enabled retention policies.
         
@@ -173,8 +173,8 @@ class RetentionPolicyManager:
             List of enabled retention policies
         """
         return [policy for policy in self.policies.values() if policy.enabled]
-    
-    def validate_policy(self, policy: RetentionPolicy) -> List[str]:
+
+    def validate_policy(self, policy: RetentionPolicy) -> list[str]:
         """
         Validate a retention policy.
         
@@ -185,21 +185,21 @@ class RetentionPolicyManager:
             List of validation errors (empty if valid)
         """
         errors = []
-        
+
         if not policy.name:
             errors.append("Policy name is required")
-        
+
         if not policy.description:
             errors.append("Policy description is required")
-        
+
         if policy.retention_period <= 0:
             errors.append("Retention period must be positive")
-        
+
         if policy.retention_period > 100:
             errors.append("Retention period seems too long (>100 years)")
-        
+
         return errors
-    
+
     def export_policies(self) -> str:
         """
         Export all policies to JSON string.
@@ -212,7 +212,7 @@ class RetentionPolicyManager:
             "exported_at": datetime.utcnow().isoformat()
         }
         return json.dumps(policies_data, indent=2)
-    
+
     def import_policies(self, policies_json: str) -> None:
         """
         Import policies from JSON string.
@@ -223,22 +223,22 @@ class RetentionPolicyManager:
         try:
             data = json.loads(policies_json)
             policies_data = data.get("policies", [])
-            
+
             # Clear existing policies (except default)
             self.policies = {"default": self.default_policy}
-            
+
             for policy_data in policies_data:
                 if policy_data["name"] != "default":
                     policy = RetentionPolicy.from_dict(policy_data)
                     self.policies[policy.name] = policy
-            
+
             logger.info(f"Imported {len(policies_data)} retention policies")
-            
+
         except Exception as e:
             logger.error(f"Failed to import policies: {e}")
             raise ValueError(f"Invalid policies JSON: {e}")
-    
-    def get_policy_statistics(self) -> Dict[str, Any]:
+
+    def get_policy_statistics(self) -> dict[str, Any]:
         """
         Get statistics about retention policies.
         
@@ -247,7 +247,7 @@ class RetentionPolicyManager:
         """
         total_policies = len(self.policies)
         enabled_policies = len(self.get_enabled_policies())
-        
+
         # Calculate average retention period
         total_days = 0
         for policy in self.policies.values():
@@ -259,9 +259,9 @@ class RetentionPolicyManager:
                 total_days += policy.retention_period * 30
             elif policy.retention_unit == RetentionPeriod.YEARS:
                 total_days += policy.retention_period * 365
-        
+
         avg_retention_days = total_days / total_policies if total_policies > 0 else 0
-        
+
         return {
             "total_policies": total_policies,
             "enabled_policies": enabled_policies,

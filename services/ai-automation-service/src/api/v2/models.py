@@ -6,10 +6,10 @@ Defines all request and response models for v2 API endpoints.
 Created: Phase 3 - New API Routers
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
-from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class ResponseType(str, Enum):
@@ -34,14 +34,14 @@ class ConversationStartRequest(BaseModel):
     """Request to start a new conversation"""
     query: str = Field(..., description="Initial query to start conversation")
     user_id: str = Field(default="anonymous", description="User identifier")
-    conversation_type: Optional[ConversationType] = Field(default=None, description="Optional conversation type hint")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
+    conversation_type: ConversationType | None = Field(default=None, description="Optional conversation type hint")
+    context: dict[str, Any] | None = Field(default=None, description="Additional context")
 
 
 class MessageRequest(BaseModel):
     """Request to send a message in existing conversation"""
     message: str = Field(..., description="Message content")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
+    context: dict[str, Any] | None = Field(default=None, description="Additional context")
 
 
 class ConversationResponse(BaseModel):
@@ -57,9 +57,9 @@ class ConversationResponse(BaseModel):
 class ConfidenceScore(BaseModel):
     """Confidence score with breakdown"""
     overall: float
-    factors: Dict[str, float]
+    factors: dict[str, float]
     explanation: str
-    breakdown: Optional[Dict[str, Any]] = None
+    breakdown: dict[str, Any] | None = None
 
 
 class AutomationSuggestion(BaseModel):
@@ -67,9 +67,9 @@ class AutomationSuggestion(BaseModel):
     suggestion_id: str
     title: str
     description: str
-    automation_yaml: Optional[str] = None
+    automation_yaml: str | None = None
     confidence: float
-    validated_entities: Dict[str, str]
+    validated_entities: dict[str, str]
     status: str = "draft"
 
 
@@ -79,9 +79,9 @@ class ClarificationQuestion(BaseModel):
     category: str
     question_text: str
     question_type: str
-    options: Optional[List[str]] = None
+    options: list[str] | None = None
     priority: int = 0
-    related_entities: Optional[List[str]] = None
+    related_entities: list[str] | None = None
 
 
 class ConversationTurnResponse(BaseModel):
@@ -90,11 +90,11 @@ class ConversationTurnResponse(BaseModel):
     turn_number: int
     response_type: ResponseType
     content: str
-    suggestions: Optional[List[AutomationSuggestion]] = None
-    clarification_questions: Optional[List[ClarificationQuestion]] = None
-    confidence: Optional[ConfidenceScore] = None
+    suggestions: list[AutomationSuggestion] | None = None
+    clarification_questions: list[ClarificationQuestion] | None = None
+    confidence: ConfidenceScore | None = None
     processing_time_ms: int
-    next_actions: List[str]
+    next_actions: list[str]
     created_at: str
 
 
@@ -105,10 +105,10 @@ class ConversationDetail(BaseModel):
     conversation_type: ConversationType
     status: str
     initial_query: str
-    turns: List[ConversationTurnResponse]
+    turns: list[ConversationTurnResponse]
     created_at: str
     updated_at: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 class ActionRequest(BaseModel):
@@ -121,8 +121,8 @@ class ActionResult(BaseModel):
     """Result of immediate action execution"""
     success: bool
     action_type: str
-    entity_id: Optional[str] = None
-    result: Dict[str, Any]
+    entity_id: str | None = None
+    result: dict[str, Any]
     message: str
     execution_time_ms: int
 
@@ -138,7 +138,7 @@ class AutomationGenerationResponse(BaseModel):
     """Response from automation generation"""
     suggestion_id: str
     automation_yaml: str
-    validation_result: Dict[str, Any]
+    validation_result: dict[str, Any]
     confidence: float
 
 
@@ -151,9 +151,9 @@ class TestRequest(BaseModel):
 class TestResult(BaseModel):
     """Result of automation test"""
     success: bool
-    state_changes: Dict[str, Any]
-    errors: List[str]
-    warnings: List[str]
+    state_changes: dict[str, Any]
+    errors: list[str]
+    warnings: list[str]
     execution_time_ms: int
 
 
@@ -161,7 +161,7 @@ class DeploymentRequest(BaseModel):
     """Request to deploy automation"""
     suggestion_id: str
     automation_yaml: str
-    automation_id: Optional[str] = None
+    automation_id: str | None = None
 
 
 class DeploymentResult(BaseModel):

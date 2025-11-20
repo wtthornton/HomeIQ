@@ -3,22 +3,23 @@ Secure Python code execution sandbox for MCP code execution pattern.
 NUC-optimized: Minimal resource overhead, single-process isolation.
 """
 
-import sys
-import io
 import asyncio
+import contextlib
 import importlib
+import io
+import logging
 import multiprocessing
 import queue
-from typing import Dict, Any, Optional, Set
+import resource
+import sys
+import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-import traceback
-from RestrictedPython import compile_restricted
+from typing import Any
+
 import psutil
-import logging
-import resource
-import contextlib
+from RestrictedPython import compile_restricted
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ SAFE_VALUE_TYPES = (str, int, float, bool, type(None))
 MAX_CONTEXT_DEPTH = 4
 
 
-def _safe_import_factory(allowed_modules: Set[str]):
+def _safe_import_factory(allowed_modules: set[str]):
     """Build a safe __import__ implementation that enforces module whitelist."""
 
     allowed = set(allowed_modules)
@@ -51,7 +52,7 @@ def _safe_import_factory(allowed_modules: Set[str]):
     return _safe_import
 
 
-def _build_safe_builtins(allowed_imports: Set[str]) -> MappingProxyType:
+def _build_safe_builtins(allowed_imports: set[str]) -> MappingProxyType:
     """Create immutable mapping of safe builtins."""
     safe_import = _safe_import_factory(allowed_imports)
     builtins = {
@@ -88,9 +89,9 @@ def _build_safe_builtins(allowed_imports: Set[str]) -> MappingProxyType:
     return MappingProxyType(builtins)
 
 
-def _build_execution_env(context: Dict[str, Any], allowed_imports: Set[str]) -> Dict[str, Any]:
+def _build_execution_env(context: dict[str, Any], allowed_imports: set[str]) -> dict[str, Any]:
     """Construct the execution globals for sandbox runs."""
-    env: Dict[str, Any] = {
+    env: dict[str, Any] = {
         "__builtins__": _build_safe_builtins(allowed_imports),
         "__name__": "__sandbox__",
         "__package__": None,
@@ -99,7 +100,7 @@ def _build_execution_env(context: Dict[str, Any], allowed_imports: Set[str]) -> 
     return env
 
 
-def _apply_resource_limits(config: Dict[str, Any]):
+def _apply_resource_limits(config: dict[str, Any]):
     """Apply strict Linux resource limits inside sandbox process."""
     # These limits are only enforced on Linux; caller already ensures Linux
     max_memory_bytes = config["max_memory_mb"] * 1024 * 1024
@@ -121,8 +122,8 @@ def _apply_resource_limits(config: Dict[str, Any]):
 
 def _sandbox_process_worker(
     code: str,
-    context: Dict[str, Any],
-    config: Dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
     result_queue: multiprocessing.Queue,
 ):
     """Worker process that compiles and executes user code."""
@@ -132,7 +133,7 @@ def _sandbox_process_worker(
     process = psutil.Process()
     initial_memory = process.memory_info().rss / 1024 / 1024
 
-    def _write_result(success: bool, return_value: Any, error: Optional[str]):
+    def _write_result(success: bool, return_value: Any, error: str | None):
         execution_time = (datetime.now() - start_time).total_seconds()
         final_memory = process.memory_info().rss / 1024 / 1024
         memory_used = max(0, final_memory - initial_memory)
@@ -175,7 +176,7 @@ class ExecutionResult:
     return_value: Any
     execution_time: float
     memory_used_mb: float
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class SandboxConfig:
@@ -186,7 +187,7 @@ class SandboxConfig:
         timeout_seconds: int = 30,
         max_memory_mb: int = 128,  # Conservative for NUC
         max_cpu_percent: float = 50.0,  # Don't hog NUC resources
-        allowed_imports: Optional[Set[str]] = None,
+        allowed_imports: set[str] | None = None,
     ):
         self.timeout_seconds = timeout_seconds
         self.max_memory_mb = max_memory_mb
@@ -202,7 +203,7 @@ class SandboxConfig:
             "functools",
         })
 
-    def as_payload(self) -> Dict[str, Any]:
+    def as_payload(self) -> dict[str, Any]:
         """Serialize configuration for subprocess usage."""
         return {
             "timeout_seconds": self.timeout_seconds,
@@ -227,7 +228,7 @@ class PythonSandbox:
         self.config = config or SandboxConfig()
         self._mp_context = multiprocessing.get_context("spawn")
 
-    async def execute(self, code: str, context: Dict[str, Any] = None) -> ExecutionResult:
+    async def execute(self, code: str, context: dict[str, Any] = None) -> ExecutionResult:
         """
         Execute Python code in sandbox.
 
@@ -271,7 +272,7 @@ class PythonSandbox:
             error=result_payload["error"],
         )
 
-    def _sanitize_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_context(self, context: dict[str, Any]) -> dict[str, Any]:
         """Ensure user-provided context only contains JSON-serializable primitives."""
 
         def _sanitize(value: Any, depth: int = 0):
@@ -294,7 +295,7 @@ class PythonSandbox:
 
             raise ValueError("Only JSON-serializable context values are permitted")
 
-        sanitized: Dict[str, Any] = {}
+        sanitized: dict[str, Any] = {}
         for key, value in context.items():
             if key in {"__builtins__", "__name__", "__package__"}:
                 raise ValueError(f"Context key '{key}' is reserved")
@@ -302,7 +303,7 @@ class PythonSandbox:
 
         return sanitized
 
-    def _run_in_subprocess(self, code: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _run_in_subprocess(self, code: str, context: dict[str, Any]) -> dict[str, Any]:
         """Execute user code inside an isolated subprocess."""
         result_queue: multiprocessing.Queue = self._mp_context.Queue(maxsize=1)
         config_payload = self.config.as_payload()

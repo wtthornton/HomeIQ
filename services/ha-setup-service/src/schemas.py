@@ -1,8 +1,9 @@
 """Pydantic schemas for API validation (Context7 best practice)"""
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class HealthStatus(str, Enum):
@@ -30,29 +31,29 @@ class IntegrationHealthDetail(BaseModel):
     status: IntegrationStatus
     is_configured: bool
     is_connected: bool
-    error_message: Optional[str] = None
-    check_details: Optional[Dict[str, Any]] = None
-    last_check: Optional[datetime] = None
+    error_message: str | None = None
+    check_details: dict[str, Any] | None = None
+    last_check: datetime | None = None
 
 
 class PerformanceMetrics(BaseModel):
     """Performance metrics"""
     response_time_ms: float = Field(..., description="Average response time in milliseconds")
-    cpu_usage_percent: Optional[float] = Field(None, description="CPU usage percentage")
-    memory_usage_mb: Optional[float] = Field(None, description="Memory usage in MB")
-    uptime_seconds: Optional[int] = Field(None, description="System uptime in seconds")
+    cpu_usage_percent: float | None = Field(None, description="CPU usage percentage")
+    memory_usage_mb: float | None = Field(None, description="Memory usage in MB")
+    uptime_seconds: int | None = Field(None, description="System uptime in seconds")
 
 
 class EnvironmentHealthResponse(BaseModel):
     """Environment health response model"""
     health_score: int = Field(..., ge=0, le=100, description="Overall health score (0-100)")
     ha_status: HealthStatus
-    ha_version: Optional[str] = None
-    integrations: List[IntegrationHealthDetail]
+    ha_version: str | None = None
+    integrations: list[IntegrationHealthDetail]
     performance: PerformanceMetrics
-    issues_detected: List[str] = Field(default_factory=list)
+    issues_detected: list[str] = Field(default_factory=list)
     timestamp: datetime
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -91,8 +92,8 @@ class IntegrationHealthCreate(BaseModel):
     status: IntegrationStatus
     is_configured: bool = False
     is_connected: bool = False
-    error_message: Optional[str] = None
-    check_details: Optional[Dict] = None
+    error_message: str | None = None
+    check_details: dict | None = None
 
 
 class IntegrationHealthResponse(BaseModel):
@@ -103,10 +104,10 @@ class IntegrationHealthResponse(BaseModel):
     status: IntegrationStatus
     is_configured: bool
     is_connected: bool
-    error_message: Optional[str]
+    error_message: str | None
     last_check: datetime
     timestamp: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -117,8 +118,8 @@ class PerformanceMetricCreate(BaseModel):
     """Create performance metric"""
     metric_type: str
     metric_value: float
-    component: Optional[str] = None
-    metric_metadata: Optional[Dict] = None  # Renamed from 'metadata' to match model
+    component: str | None = None
+    metric_metadata: dict | None = None  # Renamed from 'metadata' to match model
 
 
 class PerformanceMetricResponse(BaseModel):
@@ -127,9 +128,9 @@ class PerformanceMetricResponse(BaseModel):
     timestamp: datetime
     metric_type: str
     metric_value: float
-    component: Optional[str]
-    metric_metadata: Optional[Dict]  # Renamed from 'metadata' to match model
-    
+    component: str | None
+    metric_metadata: dict | None  # Renamed from 'metadata' to match model
+
     class Config:
         from_attributes = True
 
@@ -149,7 +150,7 @@ class SetupWizardSessionCreate(BaseModel):
     """Create setup wizard session"""
     integration_type: str
     total_steps: int
-    configuration: Optional[Dict] = None
+    configuration: dict | None = None
 
 
 class SetupWizardSessionResponse(BaseModel):
@@ -159,13 +160,13 @@ class SetupWizardSessionResponse(BaseModel):
     status: SetupWizardStatus
     steps_completed: int
     total_steps: int
-    current_step: Optional[str]
-    configuration: Optional[Dict]
-    error_log: Optional[List[Dict]]
+    current_step: str | None
+    configuration: dict | None
+    error_log: list[dict] | None
     created_at: datetime
-    updated_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    
+    updated_at: datetime | None
+    completed_at: datetime | None
+
     class Config:
         from_attributes = True
 
@@ -187,8 +188,8 @@ class RecoveryAttemptResponse(BaseModel):
     timestamp: datetime
     action: str
     success: bool
-    error_message: Optional[str] = None
-    duration_seconds: Optional[float] = None
+    error_message: str | None = None
+    duration_seconds: float | None = None
 
 
 class BridgeHealthResponse(BaseModel):
@@ -198,12 +199,12 @@ class BridgeHealthResponse(BaseModel):
     health_score: float = Field(ge=0, le=100)
     device_count: int
     response_time_ms: float
-    signal_strength_avg: Optional[float] = None
-    network_health_score: Optional[float] = None
+    signal_strength_avg: float | None = None
+    network_health_score: float | None = None
     consecutive_failures: int
-    recommendations: List[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
     last_check: datetime
-    recovery_attempts: List[RecoveryAttemptResponse] = Field(default_factory=list)
+    recovery_attempts: list[RecoveryAttemptResponse] = Field(default_factory=list)
 
 
 class RecoveryRequest(BaseModel):

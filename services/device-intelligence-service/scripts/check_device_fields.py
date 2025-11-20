@@ -1,13 +1,15 @@
 """Script to check device fields in database."""
 import asyncio
+
 from sqlalchemy import text
-from src.core.database import get_db_session, initialize_database
 from src.config import Settings
+from src.core.database import get_db_session, initialize_database
+
 
 async def check_device_fields():
     settings = Settings()
     await initialize_database(settings)
-    
+
     async for session in get_db_session():
         # Get sample devices with all fields
         result = await session.execute(text('''
@@ -17,13 +19,13 @@ async def check_device_fields():
             FROM devices 
             LIMIT 5
         '''))
-        
+
         devices = result.fetchall()
-        
+
         if not devices:
             print("No devices found")
             return
-        
+
         print(f"Sample devices ({len(devices)} shown):\n")
         for device in devices:
             print(f"ID: {device[0]}")

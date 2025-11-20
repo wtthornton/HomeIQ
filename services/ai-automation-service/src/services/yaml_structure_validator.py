@@ -11,9 +11,9 @@ Catches common LLM mistakes like:
 
 import logging
 import re
-import yaml
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 class ValidationResult:
     """Result of YAML structure validation"""
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
-    fixed_yaml: Optional[str] = None
+    errors: list[str]
+    warnings: list[str]
+    fixed_yaml: str | None = None
 
 
 class YAMLStructureValidator:
@@ -36,7 +36,11 @@ class YAMLStructureValidator:
     - Plural vs singular keys
     - Incorrect nesting
     """
-    
+
+    def __init__(self):
+        """Initialize validator with recursion protection"""
+        self._validating_fixed = False  # Prevent infinite recursion
+
     def validate(self, yaml_str: str) -> ValidationResult:
         """
         Validate YAML structure.
@@ -49,10 +53,28 @@ class YAMLStructureValidator:
         """
         errors = []
         warnings = []
-        
-        # Parse YAML
+
+        # Parse YAML with recursion error protection
         try:
-            data = yaml.safe_load(yaml_str)
+            import sys
+            # Temporarily increase recursion limit if needed (default is usually 1000)
+            original_limit = sys.getrecursionlimit()
+            try:
+                # Set a reasonable limit to prevent stack overflow
+                if original_limit < 2000:
+                    sys.setrecursionlimit(2000)
+                data = yaml.safe_load(yaml_str)
+            finally:
+                # Restore original limit
+                sys.setrecursionlimit(original_limit)
+        except RecursionError as e:
+            logger.error(f"❌ YAML parse recursion error (likely malformed YAML with deep nesting): {e}")
+            return ValidationResult(
+                is_valid=False,
+                errors=[f"YAML parse recursion error: The YAML content appears to have extremely deep nesting or circular references. This may indicate malformed YAML generation. Error: {str(e)[:200]}"],
+                warnings=[],
+                fixed_yaml=None
+            )
         except yaml.YAMLError as e:
             logger.error(f"❌ YAML parse error: {e}")
             return ValidationResult(
@@ -61,7 +83,7 @@ class YAMLStructureValidator:
                 warnings=[],
                 fixed_yaml=None
             )
-        
+
         if not data:
             return ValidationResult(
                 is_valid=False,
@@ -69,10 +91,10 @@ class YAMLStructureValidator:
                 warnings=[],
                 fixed_yaml=None
             )
-        
+
         # Track if we need to regenerate YAML due to fixes
         trigger_fix_needed = False
-        
+
         # Check for plural keys (common mistake - NOT Home Assistant format)
         if 'triggers' in data:
             errors.append(
@@ -83,7 +105,7 @@ class YAMLStructureValidator:
             data['trigger'] = data.pop('triggers')
             trigger_fix_needed = True
             logger.info("🔧 Auto-fixed: Converted 'triggers:' to 'trigger:' at top level")
-        
+
         if 'actions' in data:
             errors.append(
                 "❌ Found 'actions:' (plural) at top level - Home Assistant requires 'action:' (singular). "
@@ -93,7 +115,7 @@ class YAMLStructureValidator:
             data['action'] = data.pop('actions')
             trigger_fix_needed = True  # Reuse flag to force YAML regeneration
             logger.info("🔧 Auto-fixed: Converted 'actions:' to 'action:' at top level")
-        
+
         # Check trigger structure
         triggers = data.get('trigger', [])
         if isinstance(triggers, list):
@@ -111,7 +133,7 @@ class YAMLStructureValidator:
                         del trigger['trigger']
                         trigger_fix_needed = True
                         logger.info(f"🔧 Fixed trigger {i+1}: Converted 'trigger: {trigger_type}' to 'platform: {trigger_type}'")
-                    
+
                     # CRITICAL FIX: If trigger: time has minutes/hours/seconds, it should be trigger: time_pattern
                     # Also fix if 'at' field contains cron expressions (like '/10 * * * *')
                     trigger_type = trigger.get('trigger', trigger.get('platform', ''))
@@ -120,7 +142,7 @@ class YAMLStructureValidator:
                         has_interval_fields = 'minutes' in trigger or 'hours' in trigger or 'seconds' in trigger
                         has_cron_in_at = False
                         minutes_value = None
-                        
+
                         # Check if 'at' contains a cron expression (e.g., '/10 * * * *')
                         if at_value:
                             if isinstance(at_value, list) and len(at_value) > 0:
@@ -134,7 +156,7 @@ class YAMLStructureValidator:
                                     if cron_match:
                                         minutes_value = f"/{cron_match.group(1)}"
                                         logger.info(f"🔧 Detected cron expression in 'at' field: {at_value}, extracting interval: {minutes_value}")
-                        
+
                         if has_interval_fields or has_cron_in_at:
                             # This is a recurring interval - should use time_pattern
                             if has_cron_in_at:
@@ -147,13 +169,13 @@ class YAMLStructureValidator:
                                     f"❌ Trigger {i+1}: Found 'trigger: time' with 'minutes'/'hours'/'seconds' - "
                                     f"should be 'trigger: time_pattern' for recurring intervals"
                                 )
-                            
+
                             # Auto-fix: Change trigger type to time_pattern
                             if 'trigger' in trigger:
                                 trigger['trigger'] = 'time_pattern'
                             elif 'platform' in trigger:
                                 trigger['platform'] = 'time_pattern'
-                            
+
                             # If we found a cron expression, convert it to minutes field
                             if has_cron_in_at and minutes_value:
                                 # Remove the invalid 'at' field
@@ -162,21 +184,21 @@ class YAMLStructureValidator:
                                 # Add the correct 'minutes' field
                                 trigger['minutes'] = minutes_value
                                 logger.info(f"🔧 Converted cron expression to time_pattern with minutes: {minutes_value}")
-                            
+
                             trigger_fix_needed = True
                             logger.info(f"🔧 Fixed trigger {i+1}: Changed 'trigger: time' to 'trigger: time_pattern'")
-                    
+
                     # Check that platform exists (required for state triggers)
                     if 'entity_id' in trigger and 'platform' not in trigger:
                         if 'trigger' not in trigger:  # Only error if 'trigger' field exists (wrong)
                             warnings.append(
                                 f"⚠️ Trigger {i+1}: Missing 'platform:' field (may need 'platform: state')"
                             )
-        
+
         # Check action structure and fix service names
         actions = data.get('action', data.get('actions', []))
         service_fixes_applied = []
-        
+
         def fix_services_in_structure(obj, path=""):
             """Recursively fix service names in actions, sequences, chooses, etc."""
             if isinstance(obj, dict):
@@ -185,21 +207,21 @@ class YAMLStructureValidator:
                     service = obj.get('service', '')
                     target = obj.get('target', {})
                     entity_id = None
-                    
+
                     # Extract entity_id from target
                     if isinstance(target, dict):
                         entity_id = target.get('entity_id')
                     elif isinstance(target, str):
                         entity_id = target
-                    
+
                     # Handle list of entity IDs
                     if isinstance(entity_id, list) and len(entity_id) > 0:
                         entity_id = entity_id[0]
-                    
+
                     # Fix WLED service names: wled.turn_on -> light.turn_on
                     if entity_id and isinstance(entity_id, str):
                         domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
-                        
+
                         # WLED entities are lights - use light.turn_on, not wled.turn_on
                         if domain == 'wled':
                             if service == 'wled.turn_on':
@@ -216,7 +238,7 @@ class YAMLStructureValidator:
                                 obj['service'] = new_service
                                 service_fixes_applied.append(f"{path}: {service} → {new_service} (WLED entities use light service)")
                                 logger.info(f"🔧 Fixed service: {service} → {new_service} for {entity_id}")
-                
+
                 # Recursively check nested structures
                 for key, value in obj.items():
                     if key in ['action', 'sequence', 'repeat', 'choose', 'parallel']:
@@ -224,10 +246,10 @@ class YAMLStructureValidator:
             elif isinstance(obj, list):
                 for i, item in enumerate(obj):
                     fix_services_in_structure(item, f"{path}[{i}]" if path else f"[{i}]")
-        
+
         # Fix services in the entire YAML structure
         fix_services_in_structure(actions, "action")
-        
+
         if service_fixes_applied:
             logger.info(f"✅ Applied {len(service_fixes_applied)} service name fixes")
             # Regenerate YAML with fixes
@@ -235,7 +257,7 @@ class YAMLStructureValidator:
             warnings.extend(service_fixes_applied)
         else:
             fixed_yaml = None
-        
+
         if isinstance(actions, list):
             for i, action in enumerate(actions):
                 if isinstance(action, dict):
@@ -245,7 +267,7 @@ class YAMLStructureValidator:
                             f"❌ Action {i+1}: Found 'action:' field - should be 'service:' "
                             f"(e.g., 'service: light.turn_on' not 'action: light.turn_on')"
                         )
-                    
+
                     # Check sequence structure
                     if 'sequence' in action:
                         sequence = action['sequence']
@@ -258,48 +280,48 @@ class YAMLStructureValidator:
                                             f"❌ Action {i+1}, sequence item {j+1}: "
                                             f"Found 'action:' - should be 'service:'"
                                         )
-                                    
+
                                     # Delay items should have 'delay' field, not 'action'
                                     if 'delay' not in seq_item and 'action' in seq_item:
                                         errors.append(
                                             f"❌ Action {i+1}, sequence item {j+1}: "
                                             f"Non-delay items should use 'service:' not 'action:'"
                                         )
-        
-        # Auto-fix if errors found
+
+        # Auto-fix if errors found (but only if not already validating a fixed version)
         auto_fixed_yaml = None
         fixed_yaml = None
-        if errors:
+        if errors and not self._validating_fixed:
             auto_fixed_yaml = self._auto_fix(yaml_str, errors)
             if auto_fixed_yaml:
-                # Validate the fixed version
+                # Validate the fixed version (with recursion protection)
                 fixed_validation = self._validate_fixed(auto_fixed_yaml)
                 if fixed_validation.is_valid:
                     logger.info("✅ Auto-fixed YAML structure errors")
                 else:
                     logger.warning(f"⚠️ Auto-fix incomplete: {len(fixed_validation.errors)} errors remain")
-        
+
         # Use the most complete fixed version
         # Priority: trigger_fix > service_fixes > auto_fix
         if trigger_fix_needed or service_fixes_applied:
             # Regenerate YAML with all fixes applied
             fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
             if trigger_fix_needed:
-                logger.info(f"🔧 Regenerated YAML with trigger fix applied (trigger_fix_needed=True)")
+                logger.info("🔧 Regenerated YAML with trigger fix applied (trigger_fix_needed=True)")
             if service_fixes_applied:
                 logger.info(f"🔧 Regenerated YAML with service fixes applied ({len(service_fixes_applied)} fixes)")
         elif auto_fixed_yaml:
             fixed_yaml = auto_fixed_yaml
-            logger.info(f"🔧 Using auto-fixed YAML from regex fixes")
-        
+            logger.info("🔧 Using auto-fixed YAML from regex fixes")
+
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
             fixed_yaml=fixed_yaml
         )
-    
-    def _auto_fix(self, yaml_str: str, errors: List[str]) -> Optional[str]:
+
+    def _auto_fix(self, yaml_str: str, errors: list[str]) -> str | None:
         """
         Attempt to auto-fix common YAML structure errors.
         
@@ -311,12 +333,12 @@ class YAMLStructureValidator:
             Fixed YAML string or None if auto-fix not possible
         """
         fixed = yaml_str
-        
+
         try:
             # Fix 1: Plural keys → singular
             fixed = re.sub(r'^(\s*)triggers:', r'\1trigger:', fixed, flags=re.MULTILINE)
             fixed = re.sub(r'^(\s*)actions:', r'\1action:', fixed, flags=re.MULTILINE)
-            
+
             # Fix 2: trigger: state → platform: state
             # Match indented "trigger: state" or "trigger:state"
             fixed = re.sub(
@@ -325,42 +347,42 @@ class YAMLStructureValidator:
                 fixed,
                 flags=re.MULTILINE
             )
-            
+
             # Fix 3: action: inside action list → service:
             # This is trickier - need to be careful about context
             # Only fix if it's clearly inside an action list (has indentation and looks like a service)
-            
+
             # Pattern: action: domain.service (like action: light.turn_on)
             # Replace with service: domain.service
             lines = fixed.split('\n')
             fixed_lines = []
             in_action_list = False
             in_sequence = False
-            
+
             for i, line in enumerate(lines):
                 # Detect if we're in an action list
                 if re.match(r'^\s*action:\s*$', line):
                     in_action_list = True
                     fixed_lines.append(line)
                     continue
-                
+
                 # Detect if we're in a sequence
                 if re.match(r'^\s+-?\s*sequence:\s*$', line):
                     in_sequence = True
                     fixed_lines.append(line)
                     continue
-                
+
                 # Detect end of action list (next top-level key)
                 if re.match(r'^[a-z_]+:', line) and not line.strip().startswith(' '):
                     if in_action_list and not any(line.strip().startswith(k) for k in ['trigger', 'action', 'condition', 'mode', 'alias', 'description', 'id']):
                         in_action_list = False
                         in_sequence = False
-                
+
                 # Detect end of sequence (less indentation)
                 if in_sequence:
                     if not re.match(r'^\s{4,}', line) and not re.match(r'^\s*-\s*$', line):
                         in_sequence = False
-                
+
                 # Fix action: → service: inside action lists or sequences
                 if in_action_list or in_sequence:
                     # Match: "    action: light.turn_on" or "      action: wled.turn_on"
@@ -371,18 +393,96 @@ class YAMLStructureValidator:
                             line
                         )
                         logger.debug(f"Fixed line {i+1}: action: → service:")
-                
+
                 fixed_lines.append(line)
-            
+
             fixed = '\n'.join(fixed_lines)
-            
+
             return fixed
-            
+
         except Exception as e:
             logger.warning(f"⚠️ Auto-fix failed: {e}")
             return None
-    
+
     def _validate_fixed(self, yaml_str: str) -> ValidationResult:
-        """Validate the auto-fixed YAML"""
-        return self.validate(yaml_str)
+        """
+        Validate the auto-fixed YAML without triggering another auto-fix cycle.
+        
+        This method prevents infinite recursion by:
+        1. Setting a flag to prevent recursive auto-fixing
+        2. Only doing basic validation (parse + structure check)
+        3. Not calling auto-fix again
+        """
+        # Prevent infinite recursion
+        if self._validating_fixed:
+            logger.warning("⚠️ Already validating fixed YAML - skipping to prevent recursion")
+            # Return a basic validation result without parsing
+            return ValidationResult(
+                is_valid=False,
+                errors=["Recursion detected in YAML validation"],
+                warnings=[],
+                fixed_yaml=None
+            )
+
+        # Set flag to prevent recursion
+        self._validating_fixed = True
+        try:
+            # Basic validation: just check if YAML parses and has basic structure
+            errors = []
+            warnings = []
+
+            try:
+                import sys
+                # Protect against YAML parser recursion errors
+                original_limit = sys.getrecursionlimit()
+                try:
+                    if original_limit < 2000:
+                        sys.setrecursionlimit(2000)
+                    data = yaml.safe_load(yaml_str)
+                except RecursionError as e:
+                    logger.error(f"❌ YAML parser recursion error in fixed YAML: {e}")
+                    return ValidationResult(
+                        is_valid=False,
+                        errors=[f"YAML parser recursion error: The fixed YAML appears to have extremely deep nesting or circular references. This may indicate malformed YAML generation."],
+                        warnings=warnings,
+                        fixed_yaml=None
+                    )
+                finally:
+                    sys.setrecursionlimit(original_limit)
+
+                if not data:
+                    errors.append("Fixed YAML is empty or invalid")
+                    return ValidationResult(
+                        is_valid=False,
+                        errors=errors,
+                        warnings=warnings,
+                        fixed_yaml=None
+                    )
+
+                # Basic structure check (without triggering auto-fix)
+                # Check if key fields exist
+                if 'trigger' not in data and 'triggers' not in data:
+                    errors.append("Missing 'trigger:' field")
+                if 'action' not in data and 'actions' not in data:
+                    errors.append("Missing 'action:' field")
+
+                # If no errors, consider it valid
+                return ValidationResult(
+                    is_valid=len(errors) == 0,
+                    errors=errors,
+                    warnings=warnings,
+                    fixed_yaml=yaml_str  # Return the fixed YAML as-is
+                )
+
+            except yaml.YAMLError as e:
+                logger.error(f"❌ Fixed YAML still has parse error: {e}")
+                return ValidationResult(
+                    is_valid=False,
+                    errors=[f"Fixed YAML parse error: {e}"],
+                    warnings=warnings,
+                    fixed_yaml=None
+                )
+        finally:
+            # Always reset flag
+            self._validating_fixed = False
 

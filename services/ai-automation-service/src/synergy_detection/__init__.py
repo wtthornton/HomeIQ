@@ -8,8 +8,8 @@ Story AI3.1: Device Synergy Detector Foundation
 Story AI3.2: Same-Area Device Pair Detection
 """
 
-from .synergy_detector import DeviceSynergyDetector
 from .device_pair_analyzer import DevicePairAnalyzer
+from .synergy_detector import DeviceSynergyDetector
 
 __all__ = ['DeviceSynergyDetector', 'DevicePairAnalyzer']
 

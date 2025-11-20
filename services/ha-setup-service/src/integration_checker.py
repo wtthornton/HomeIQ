@@ -7,12 +7,10 @@ Context7 Best Practices Applied:
 - Retry logic with exponential backoff
 - Pydantic models for validation
 """
-import aiohttp
 import asyncio
-import json
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime
-from enum import Enum
+
+import aiohttp
 from pydantic import BaseModel, Field
 
 from .config import get_settings
@@ -28,8 +26,8 @@ class CheckResult(BaseModel):
     status: IntegrationStatus
     is_configured: bool = False
     is_connected: bool = False
-    error_message: Optional[str] = None
-    check_details: Dict = Field(default_factory=dict)
+    error_message: str | None = None
+    check_details: dict = Field(default_factory=dict)
     last_check: datetime = Field(default_factory=datetime.now)
 
 
@@ -44,14 +42,14 @@ class IntegrationHealthChecker:
     - Device discovery validation
     - Authentication validation
     """
-    
+
     def __init__(self):
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.data_api_url = settings.data_api_url
         self.timeout = aiohttp.ClientTimeout(total=10)
-    
-    async def check_all_integrations(self) -> List[CheckResult]:
+
+    async def check_all_integrations(self) -> list[CheckResult]:
         """
         Check all integrations in parallel
         
@@ -69,7 +67,7 @@ class IntegrationHealthChecker:
             self.check_hacs_integration(),
             return_exceptions=True
         )
-        
+
         # Convert exceptions to error results
         check_results = []
         for result in results:
@@ -82,9 +80,9 @@ class IntegrationHealthChecker:
                 ))
             else:
                 check_results.append(result)
-        
+
         return check_results
-    
+
     async def check_ha_authentication(self) -> CheckResult:
         """
         Validate Home Assistant authentication token
@@ -107,14 +105,14 @@ class IntegrationHealthChecker:
                     "recommendation": "Set HA_TOKEN environment variable with long-lived access token"
                 }
             )
-        
+
         try:
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Test auth with /api/config endpoint
                 async with session.get(
                     f"{self.ha_url}/api/config",
@@ -160,7 +158,7 @@ class IntegrationHealthChecker:
                             error_message=f"Unexpected response: HTTP {response.status}",
                             check_details={"http_status": response.status}
                         )
-        
+
         except asyncio.TimeoutError:
             return CheckResult(
                 integration_name="HA Authentication",
@@ -185,7 +183,7 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__}
             )
-    
+
     async def check_mqtt_integration(self) -> CheckResult:
         """
         Check MQTT integration status
@@ -201,7 +199,7 @@ class IntegrationHealthChecker:
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Get all config entries
                 async with session.get(
                     f"{self.ha_url}/api/config/config_entries/entry",
@@ -214,7 +212,7 @@ class IntegrationHealthChecker:
                             (e for e in entries if e.get('domain') == 'mqtt'),
                             None
                         )
-                        
+
                         if not mqtt_entry:
                             return CheckResult(
                                 integration_name="MQTT",
@@ -227,18 +225,18 @@ class IntegrationHealthChecker:
                                     "recommendation": "Add MQTT integration via HA UI: Settings → Devices & Services → Add Integration → MQTT"
                                 }
                             )
-                        
+
                         # MQTT integration found - check details
                         entry_data = mqtt_entry.get('data', {})
                         broker_host = entry_data.get('broker', 'unknown')
                         broker_port = entry_data.get('port', 1883)
                         discovery = entry_data.get('discovery', False)
-                        
+
                         # Check if broker is reachable
                         is_connected = await self._check_mqtt_broker_connectivity(broker_host, broker_port)
-                        
+
                         status = IntegrationStatus.HEALTHY if is_connected else IntegrationStatus.WARNING
-                        
+
                         return CheckResult(
                             integration_name="MQTT",
                             integration_type="mqtt",
@@ -265,7 +263,7 @@ class IntegrationHealthChecker:
                             error_message=f"Failed to get config entries: HTTP {response.status}",
                             check_details={"http_status": response.status}
                         )
-        
+
         except Exception as e:
             return CheckResult(
                 integration_name="MQTT",
@@ -276,7 +274,7 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__}
             )
-    
+
     async def _check_mqtt_broker_connectivity(self, broker: str, port: int) -> bool:
         """
         Test MQTT broker TCP connectivity
@@ -299,7 +297,7 @@ class IntegrationHealthChecker:
             return True
         except:
             return False
-    
+
     async def check_zigbee2mqtt_integration(self) -> CheckResult:
         """
         Check Zigbee2MQTT integration status via Home Assistant API.
@@ -318,7 +316,7 @@ class IntegrationHealthChecker:
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Check for Zigbee2MQTT entities (indicates addon is working)
                 async with session.get(
                     f"{self.ha_url}/api/states",
@@ -327,19 +325,19 @@ class IntegrationHealthChecker:
                 ) as response:
                     if response.status == 200:
                         states = await response.json()
-                        
+
                         # Look for Zigbee2MQTT bridge state
                         z2m_bridge = next(
                             (s for s in states if s.get('entity_id') == 'sensor.zigbee2mqtt_bridge_state'),
                             None
                         )
-                        
+
                         # Count Zigbee devices
                         zigbee_devices = [
-                            s for s in states 
+                            s for s in states
                             if s.get('entity_id', '').startswith('zigbee2mqtt.')
                         ]
-                        
+
                         if not z2m_bridge and not zigbee_devices:
                             return CheckResult(
                                 integration_name="Zigbee2MQTT",
@@ -352,16 +350,16 @@ class IntegrationHealthChecker:
                                     "recommendation": "Install Zigbee2MQTT addon and configure MQTT integration"
                                 }
                             )
-                        
+
                         bridge_state = "unknown"
                         is_online = False
-                        
+
                         if z2m_bridge:
                             bridge_state = z2m_bridge.get('state', 'unknown')
                             is_online = bridge_state.lower() == 'online'
-                        
+
                         status = IntegrationStatus.HEALTHY if is_online else IntegrationStatus.WARNING
-                        
+
                         return CheckResult(
                             integration_name="Zigbee2MQTT",
                             integration_type="zigbee2mqtt",
@@ -386,7 +384,7 @@ class IntegrationHealthChecker:
                             error_message=f"Failed to get HA states: HTTP {response.status}",
                             check_details={"http_status": response.status}
                         )
-        
+
         except Exception as e:
             return CheckResult(
                 integration_name="Zigbee2MQTT",
@@ -397,7 +395,7 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__}
             )
-    
+
     async def check_device_discovery(self) -> CheckResult:
         """
         Validate device discovery functionality
@@ -413,7 +411,7 @@ class IntegrationHealthChecker:
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Get device registry
                 async with session.get(
                     f"{self.ha_url}/api/config/device_registry/list",
@@ -423,12 +421,12 @@ class IntegrationHealthChecker:
                     if response.status == 200:
                         devices = await response.json()
                         device_count = len(devices)
-                        
+
                         # Check if HA Ingestor is syncing devices
                         ingestor_sync = await self._check_ingestor_device_sync(device_count)
-                        
+
                         status = IntegrationStatus.HEALTHY if device_count > 0 else IntegrationStatus.WARNING
-                        
+
                         return CheckResult(
                             integration_name="Device Discovery",
                             integration_type="discovery",
@@ -467,7 +465,7 @@ class IntegrationHealthChecker:
                             error_message=f"Failed to get device registry: HTTP {response.status}",
                             check_details={"http_status": response.status}
                         )
-        
+
         except Exception as e:
             return CheckResult(
                 integration_name="Device Discovery",
@@ -478,8 +476,8 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__}
             )
-    
-    async def _check_ingestor_device_sync(self, ha_device_count: int) -> Dict:
+
+    async def _check_ingestor_device_sync(self, ha_device_count: int) -> dict:
         """Check if HA Ingestor has synced devices from HA"""
         try:
             async with aiohttp.ClientSession() as session:
@@ -519,39 +517,38 @@ class IntegrationHealthChecker:
                 "error": str(exc),
                 "error_type": type(exc).__name__,
             }
-    
+
     async def check_data_api_integration(self) -> CheckResult:
         """Check HA Ingestor Data API status"""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.data_api_url}/health",
-                    timeout=aiohttp.ClientTimeout(total=5)
-                ) as response:
-                    if response.status == 200:
-                        health_data = await response.json()
-                        return CheckResult(
-                            integration_name="Data API",
-                            integration_type="homeiq",
-                            status=IntegrationStatus.HEALTHY,
-                            is_configured=True,
-                            is_connected=True,
-                            check_details={
-                                "service": "data-api",
-                                "port": 8006,
-                                "health_status": health_data.get("status", "unknown")
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="Data API",
-                            integration_type="homeiq",
-                            status=IntegrationStatus.WARNING,
-                            is_configured=True,
-                            is_connected=False,
-                            error_message=f"Data API returned HTTP {response.status}",
-                            check_details={"http_status": response.status}
-                        )
+            async with aiohttp.ClientSession() as session, session.get(
+                f"{self.data_api_url}/health",
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as response:
+                if response.status == 200:
+                    health_data = await response.json()
+                    return CheckResult(
+                        integration_name="Data API",
+                        integration_type="homeiq",
+                        status=IntegrationStatus.HEALTHY,
+                        is_configured=True,
+                        is_connected=True,
+                        check_details={
+                            "service": "data-api",
+                            "port": 8006,
+                            "health_status": health_data.get("status", "unknown")
+                        }
+                    )
+                else:
+                    return CheckResult(
+                        integration_name="Data API",
+                        integration_type="homeiq",
+                        status=IntegrationStatus.WARNING,
+                        is_configured=True,
+                        is_connected=False,
+                        error_message=f"Data API returned HTTP {response.status}",
+                        check_details={"http_status": response.status}
+                    )
         except Exception as e:
             return CheckResult(
                 integration_name="Data API",
@@ -565,37 +562,36 @@ class IntegrationHealthChecker:
                     "recommendation": "Check if data-api service is running"
                 }
             )
-    
+
     async def check_admin_api_integration(self) -> CheckResult:
         """Check HA Ingestor Admin API status"""
         try:
             admin_api_url = settings.admin_api_url
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{admin_api_url}/health",
-                    timeout=aiohttp.ClientTimeout(total=5)
-                ) as response:
-                    if response.status == 200:
-                        return CheckResult(
-                            integration_name="Admin API",
-                            integration_type="homeiq",
-                            status=IntegrationStatus.HEALTHY,
-                            is_configured=True,
-                            is_connected=True,
-                            check_details={
-                                "service": "admin-api",
-                                "port": 8003
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="Admin API",
-                            integration_type="homeiq",
-                            status=IntegrationStatus.WARNING,
-                            is_configured=True,
-                            is_connected=False,
-                            error_message=f"Admin API returned HTTP {response.status}"
-                        )
+            async with aiohttp.ClientSession() as session, session.get(
+                f"{admin_api_url}/health",
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as response:
+                if response.status == 200:
+                    return CheckResult(
+                        integration_name="Admin API",
+                        integration_type="homeiq",
+                        status=IntegrationStatus.HEALTHY,
+                        is_configured=True,
+                        is_connected=True,
+                        check_details={
+                            "service": "admin-api",
+                            "port": 8003
+                        }
+                    )
+                else:
+                    return CheckResult(
+                        integration_name="Admin API",
+                        integration_type="homeiq",
+                        status=IntegrationStatus.WARNING,
+                        is_configured=True,
+                        is_connected=False,
+                        error_message=f"Admin API returned HTTP {response.status}"
+                    )
         except Exception as e:
             return CheckResult(
                 integration_name="Admin API",
@@ -628,7 +624,7 @@ class IntegrationHealthChecker:
                     "Authorization": f"Bearer {self.ha_token}",
                     "Content-Type": "application/json"
                 }
-                
+
                 # Get all config entries to check for HACS
                 async with session.get(
                     f"{self.ha_url}/api/config/config_entries",
@@ -647,9 +643,9 @@ class IntegrationHealthChecker:
                                 "recommendation": "Check HA connectivity and token permissions"
                             }
                         )
-                    
+
                     config_entries = await config_response.json()
-                    
+
                     # Look for HACS in config entries
                     hacs_entry = None
                     for entry in config_entries:
@@ -658,7 +654,7 @@ class IntegrationHealthChecker:
                         if entry_domain == 'hacs' or 'hacs' in entry_title:
                             hacs_entry = entry
                             break
-                
+
                 # Also check if HACS entities exist (backup check)
                 async with session.get(
                     f"{self.ha_url}/api/states",
@@ -668,20 +664,20 @@ class IntegrationHealthChecker:
                     hacs_entities_exist = False
                     if states_response.status == 200:
                         states = await states_response.json()
-                        hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or 
+                        hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or
                                        s['entity_id'].startswith('binary_sensor.hacs')]
                         hacs_entities_exist = len(hacs_entities) > 0
-                    
+
                     # Determine HACS status
                     hacs_installed = hacs_entry is not None or hacs_entities_exist
-                    
+
                     if hacs_installed:
                         # Check for Team Tracker
                         team_tracker_installed = any(
                             'team_tracker' in entry.get('domain', '').lower()
                             for entry in config_entries
                         )
-                        
+
                         # Check for Team Tracker sensors
                         async with session.get(
                             f"{self.ha_url}/api/states",
@@ -690,10 +686,10 @@ class IntegrationHealthChecker:
                         ) as tt_response:
                             if tt_response.status == 200:
                                 tt_states = await tt_response.json()
-                                tt_sensors = [s for s in tt_states 
+                                tt_sensors = [s for s in tt_states
                                             if 'team_tracker' in s['entity_id'].lower()]
                                 team_tracker_installed = team_tracker_installed or len(tt_sensors) > 0
-                        
+
                         return CheckResult(
                             integration_name="HACS",
                             integration_type="custom_component",

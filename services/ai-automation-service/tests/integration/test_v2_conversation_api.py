@@ -9,10 +9,10 @@ Tests critical conversation flows:
 - Streaming support
 """
 
-import pytest
-import httpx
-from typing import Dict, Any
 import json
+
+import httpx
+import pytest
 
 
 @pytest.mark.integration
@@ -28,7 +28,7 @@ class TestV2ConversationAPI:
             yield client
 
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         """Authentication headers"""
         api_key = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
         return {
@@ -247,7 +247,7 @@ class TestV2ActionAPI:
             yield client
 
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         """Authentication headers"""
         api_key = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
         return {
@@ -288,7 +288,7 @@ class TestV2AutomationAPI:
             yield client
 
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         """Authentication headers"""
         api_key = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
         return {
@@ -340,7 +340,7 @@ class TestV2StreamingAPI:
             yield client
 
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         """Authentication headers"""
         api_key = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
         return {

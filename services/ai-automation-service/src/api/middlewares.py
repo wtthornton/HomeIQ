@@ -2,15 +2,14 @@
 API Middlewares - Authentication, Idempotency and Rate Limiting
 """
 
-from typing import Callable, Optional, Dict, List
-from fastapi import Request, HTTPException, status
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response, JSONResponse
-import hashlib
-import time
 import logging
+import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from collections.abc import Callable
+
+from fastapi import Request, status
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from ..config import settings
 from .dependencies.auth import AuthContext
@@ -19,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 # Simple in-memory store for idempotency (can be replaced with Redis)
-_idempotency_store: Dict[str, tuple] = {}  # key -> (response, timestamp)
+_idempotency_store: dict[str, tuple] = {}  # key -> (response, timestamp)
 
 # Simple token bucket for rate limiting (can be replaced with Redis)
-_rate_limit_buckets: Dict[str, dict] = defaultdict(lambda: {
+_rate_limit_buckets: dict[str, dict] = defaultdict(lambda: {
     "tokens": 100,  # Default: 100 requests (10x increase)
     "last_refill": time.time(),
     "capacity": 100,  # 10x increase: 100 tokens capacity
@@ -37,28 +36,28 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     Requires Idempotency-Key header on POST requests.
     Returns cached response for duplicate keys.
     """
-    
+
     def __init__(self, app, key_header: str = "Idempotency-Key"):
         super().__init__(app)
         self.key_header = key_header
         self.ttl_seconds = 3600  # 1 hour TTL for idempotency keys
-    
+
     async def dispatch(self, request: Request, call_next: Callable):
         # Only apply to POST requests
         if request.method != "POST":
             return await call_next(request)
-        
+
         # Check for idempotency key
         idempotency_key = request.headers.get(self.key_header)
-        
+
         if idempotency_key:
             # Generate cache key from method + path + key
             cache_key = f"{request.method}:{request.url.path}:{idempotency_key}"
-            
+
             # Check cache
             if cache_key in _idempotency_store:
                 cached_response, timestamp = _idempotency_store[cache_key]
-                
+
                 # Check TTL
                 if time.time() - timestamp < self.ttl_seconds:
                     logger.info(f"Idempotent request: {idempotency_key}")
@@ -69,10 +68,10 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 else:
                     # Expired, remove from cache
                     del _idempotency_store[cache_key]
-            
+
             # Process request
             response = await call_next(request)
-            
+
             # Cache successful responses (only JSON responses)
             if response.status_code < 400:
                 try:
@@ -83,22 +82,22 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                         response_body = await response.body()
                         import json
                         cached_data = json.loads(response_body)
-                        
+
                         # Store in cache
                         _idempotency_store[cache_key] = (cached_data, time.time())
-                        
+
                         # Cleanup old entries (simple cleanup)
                         self._cleanup_old_entries()
                     else:
                         logger.debug(f"Skipping idempotency cache for non-JSON response: {content_type}")
                 except Exception as e:
                     logger.warning(f"Failed to cache idempotent response: {e}")
-            
+
             return response
         else:
             # No idempotency key, process normally
             return await call_next(request)
-    
+
     def _cleanup_old_entries(self):
         """Clean up expired entries (simple cleanup every 100 requests)"""
         if len(_idempotency_store) > 1000:
@@ -117,7 +116,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     
     Per-user/IP rate limiting with configurable limits.
     """
-    
+
     def __init__(
         self,
         app,
@@ -140,12 +139,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Set capacity to allow 1 minute of burst
         self.bucket_capacity = requests_per_minute
         self.internal_bucket_capacity = internal_requests_per_minute
-    
+
     async def dispatch(self, request: Request, call_next: Callable):
         # Skip rate limiting entirely if disabled (for internal single-home projects)
         if not settings.rate_limit_enabled:
             return await call_next(request)
-        
+
         # Exempt health checks, status endpoints, and read-only GET endpoints from rate limiting
         # Context7 Best Practice: Early return for exempt paths (performance)
         exempt_paths = [
@@ -154,7 +153,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             '/api/analysis/status',
             '/api/analysis/schedule'
         ]
-        
+
         # Exempt read-only GET endpoints (they're just reading data, not causing load)
         read_only_get_paths = [
             '/api/patterns/list',
@@ -165,32 +164,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             '/api/suggestions',  # Suggestions list (GET)
             '/api/devices/names',  # Device name lookup (GET)
         ]
-        
+
         # Check if this is a read-only GET request
         is_read_only_get = (
-            request.method == "GET" and 
+            request.method == "GET" and
             any(request.url.path.startswith(path) for path in read_only_get_paths)
         )
-        
+
         if any(request.url.path.startswith(path) for path in exempt_paths) or is_read_only_get:
             # Process request without rate limiting
             return await call_next(request)
-        
+
         # Get identifier (user ID or IP)
         identifier = request.headers.get(self.key_header)
         client_ip = request.client.host if request.client else "unknown"
-        
+
         if not identifier:
             # Fallback to IP
             identifier = client_ip
-        
+
         # Detect internal traffic using actual IP address (not just identifier)
         # Context7: Clear separation of concerns - check both identifier and IP
         is_internal = (
             any(identifier.startswith(prefix) for prefix in self.internal_network_prefixes) or
             any(client_ip.startswith(prefix) for prefix in self.internal_network_prefixes)
         )
-        
+
         # Use appropriate limits based on traffic type
         if is_internal:
             effective_limit = self.internal_requests_per_minute
@@ -200,7 +199,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             effective_limit = self.requests_per_minute
             effective_refill = self.refill_rate
             effective_capacity = self.bucket_capacity
-        
+
         # Check rate limit with appropriate bucket
         if not self._check_rate_limit(identifier, effective_refill, effective_capacity):
             return JSONResponse(
@@ -213,22 +212,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "Retry-After": "60"
                 }
             )
-        
+
         # Process request
         response = await call_next(request)
-        
+
         # Add rate limit headers
         bucket = _rate_limit_buckets[identifier]
         response.headers["X-RateLimit-Limit"] = str(effective_limit)
         response.headers["X-RateLimit-Remaining"] = str(int(bucket["tokens"]))
-        
+
         return response
-    
+
     def _check_rate_limit(
-        self, 
-        identifier: str, 
-        refill_rate: Optional[float] = None,
-        capacity: Optional[int] = None
+        self,
+        identifier: str,
+        refill_rate: float | None = None,
+        capacity: int | None = None
     ) -> bool:
         """
         Check if request is within rate limit.
@@ -245,19 +244,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """
         bucket = _rate_limit_buckets[identifier]
         current_time = time.time()
-        
+
         # Use provided refill_rate and capacity, or defaults
         effective_refill_rate = refill_rate if refill_rate is not None else self.refill_rate
         effective_capacity = capacity if capacity is not None else self.bucket_capacity
-        
+
         # Initialize bucket with correct capacity and refill rate if not set
         if "capacity" not in bucket or bucket.get("capacity") != effective_capacity:
             bucket["capacity"] = effective_capacity
             bucket["tokens"] = min(bucket.get("tokens", effective_capacity), effective_capacity)
-        
+
         if "refill_rate" not in bucket or bucket.get("refill_rate") != effective_refill_rate:
             bucket["refill_rate"] = effective_refill_rate
-        
+
         # Refill tokens
         time_since_refill = current_time - bucket["last_refill"]
         tokens_to_add = time_since_refill * bucket["refill_rate"]
@@ -266,7 +265,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             bucket["tokens"] + tokens_to_add
         )
         bucket["last_refill"] = current_time
-        
+
         # Reset hourly counters if needed
         hour_start = bucket.get("hour_start", current_time)
         if current_time - hour_start >= 3600:
@@ -292,7 +291,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         self,
         app,
         enabled: bool = True,
-        public_paths: Optional[List[str]] = None,
+        public_paths: list[str] | None = None,
         header_name: str = "X-HomeIQ-API-Key",
     ):
         super().__init__(app)
@@ -346,7 +345,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     def _is_public_path(self, path: str) -> bool:
         return any(path == public or path.startswith(f"{public}/") for public in self.public_paths)
 
-    def _extract_api_key(self, request: Request) -> Optional[str]:
+    def _extract_api_key(self, request: Request) -> str | None:
         api_key = request.headers.get(self.header_name)
         if api_key:
             return api_key.strip()
@@ -357,7 +356,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    def _determine_role(self, key: str) -> Optional[str]:
+    def _determine_role(self, key: str) -> str | None:
         if key == self.admin_key:
             return "admin"
         if key == self.api_key:

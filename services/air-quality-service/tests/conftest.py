@@ -2,12 +2,12 @@
 Shared test fixtures for air-quality-service
 """
 
-import pytest
-from datetime import datetime
-from typing import Dict
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -32,7 +32,7 @@ def mock_influxdb_client():
 
 
 @pytest.fixture
-def sample_openweather_response() -> Dict:
+def sample_openweather_response() -> dict:
     """Sample OpenWeather API response (good air quality)"""
     return {
         'coord': {'lon': -115.1398, 'lat': 36.1699},
@@ -58,7 +58,7 @@ def sample_openweather_response() -> Dict:
 
 
 @pytest.fixture
-def sample_poor_aqi_response() -> Dict:
+def sample_poor_aqi_response() -> dict:
     """Sample OpenWeather response with poor AQI"""
     return {
         'list': [
@@ -81,7 +81,7 @@ def sample_poor_aqi_response() -> Dict:
 
 
 @pytest.fixture
-def sample_ha_config_response() -> Dict:
+def sample_ha_config_response() -> dict:
     """Sample Home Assistant config response"""
     return {
         'latitude': 36.1699,
@@ -99,7 +99,7 @@ def sample_ha_config_response() -> Dict:
 
 
 @pytest.fixture
-def sample_aqi_data() -> Dict:
+def sample_aqi_data() -> dict:
     """Sample processed AQI data"""
     now = datetime.now()
     return {

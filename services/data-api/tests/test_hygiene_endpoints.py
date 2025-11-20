@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
 from src.main import app
+
 from src import hygiene_endpoints
 
 

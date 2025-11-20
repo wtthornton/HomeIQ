@@ -4,10 +4,10 @@ Tests for Relationship Checker Integration
 Story AI4.3: Relationship Checker
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
-from src.clients.automation_parser import AutomationParser, EntityRelationship
+import pytest
+from src.clients.automation_parser import AutomationParser
 from src.synergy_detection.synergy_detector import DeviceSynergyDetector
 
 
@@ -17,7 +17,7 @@ class TestRelationshipCheckerIntegration:
     
     Story AI4.3: Tests filtering of existing automations from synergy suggestions
     """
-    
+
     @pytest.mark.asyncio
     async def test_filter_with_existing_automations(self):
         """
@@ -39,17 +39,17 @@ class TestRelationshipCheckerIntegration:
                 }
             }
         ])
-        
+
         # Mock data API client
         data_api_client = AsyncMock()
-        
+
         # Create detector with HA client
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client,
             min_confidence=0.5
         )
-        
+
         # Compatible pairs (one matches existing automation)
         compatible_pairs = [
             {
@@ -65,15 +65,15 @@ class TestRelationshipCheckerIntegration:
                 'area': 'bedroom'
             }
         ]
-        
+
         # Filter existing automations
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # Should filter out the first pair (already automated)
         assert len(new_pairs) == 1
         assert new_pairs[0]['trigger_entity'] == 'binary_sensor.motion_bedroom'
         assert new_pairs[0]['action_entity'] == 'light.bedroom'
-    
+
     @pytest.mark.asyncio
     async def test_filter_with_no_existing_automations(self):
         """
@@ -82,14 +82,14 @@ class TestRelationshipCheckerIntegration:
         # Mock HA client with no automations
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(return_value=[])
-        
+
         data_api_client = AsyncMock()
-        
+
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client
         )
-        
+
         compatible_pairs = [
             {
                 'trigger_entity': 'binary_sensor.motion_bedroom',
@@ -97,25 +97,25 @@ class TestRelationshipCheckerIntegration:
                 'relationship_type': 'motion_to_light'
             }
         ]
-        
+
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # All pairs should remain (no existing automations)
         assert len(new_pairs) == 1
-    
+
     @pytest.mark.asyncio
     async def test_filter_without_ha_client(self):
         """
         Test AC3: Graceful fallback when HA client not available
         """
         data_api_client = AsyncMock()
-        
+
         # Detector without HA client
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=None
         )
-        
+
         compatible_pairs = [
             {
                 'trigger_entity': 'binary_sensor.motion_bedroom',
@@ -123,12 +123,12 @@ class TestRelationshipCheckerIntegration:
                 'relationship_type': 'motion_to_light'
             }
         ]
-        
+
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # All pairs should remain (no filtering without HA client)
         assert len(new_pairs) == 1
-    
+
     @pytest.mark.asyncio
     async def test_bidirectional_relationship_filtering(self):
         """
@@ -149,14 +149,14 @@ class TestRelationshipCheckerIntegration:
                 }
             }
         ])
-        
+
         data_api_client = AsyncMock()
-        
+
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client
         )
-        
+
         # Try both directions - both should be filtered
         compatible_pairs = [
             {
@@ -170,12 +170,12 @@ class TestRelationshipCheckerIntegration:
                 'relationship_type': 'lock_to_door'
             }
         ]
-        
+
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # Both should be filtered (bidirectional check)
         assert len(new_pairs) == 0
-    
+
     @pytest.mark.asyncio
     async def test_filter_with_error_handling(self):
         """
@@ -184,14 +184,14 @@ class TestRelationshipCheckerIntegration:
         # Mock HA client that raises error
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(side_effect=Exception("Connection failed"))
-        
+
         data_api_client = AsyncMock()
-        
+
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client
         )
-        
+
         compatible_pairs = [
             {
                 'trigger_entity': 'binary_sensor.motion_bedroom',
@@ -199,20 +199,20 @@ class TestRelationshipCheckerIntegration:
                 'relationship_type': 'motion_to_light'
             }
         ]
-        
+
         # Should not raise, should return all pairs
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # All pairs should remain (fallback on error)
         assert len(new_pairs) == 1
-    
+
     @pytest.mark.asyncio
     async def test_filter_performance_with_large_dataset(self):
         """
         Test AC4: Performance with 100+ pairs and 50+ automations
         """
         import time
-        
+
         # Create 50 automations
         automations = [
             {
@@ -229,17 +229,17 @@ class TestRelationshipCheckerIntegration:
             }
             for i in range(50)
         ]
-        
+
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(return_value=automations)
-        
+
         data_api_client = AsyncMock()
-        
+
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client
         )
-        
+
         # Create 100 device pairs (half will match existing automations)
         compatible_pairs = []
         for i in range(100):
@@ -257,22 +257,22 @@ class TestRelationshipCheckerIntegration:
                     'action_entity': f'light.new_action_{i}',
                     'relationship_type': 'sensor_to_light'
                 })
-        
+
         # Measure performance
         start_time = time.time()
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
         elapsed_time = time.time() - start_time
-        
+
         # Should filter out 50 pairs
         assert len(new_pairs) == 50
-        
+
         # Should complete within 5 seconds (AC4 requirement)
         assert elapsed_time < 5.0, f"Filtering took {elapsed_time:.2f}s, expected < 5s"
-        
+
         # Verify correct filtering
         for pair in new_pairs:
             assert pair['trigger_entity'].startswith('sensor.new_trigger_')
-    
+
     @pytest.mark.asyncio
     async def test_filter_with_multiple_triggers_actions(self):
         """
@@ -293,14 +293,14 @@ class TestRelationshipCheckerIntegration:
                 ]
             }
         ])
-        
+
         data_api_client = AsyncMock()
-        
+
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client
         )
-        
+
         # All these combinations should be filtered
         compatible_pairs = [
             {'trigger_entity': 'binary_sensor.motion_1', 'action_entity': 'light.1'},
@@ -310,9 +310,9 @@ class TestRelationshipCheckerIntegration:
             # This one is new
             {'trigger_entity': 'binary_sensor.motion_3', 'action_entity': 'light.3'}
         ]
-        
+
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
-        
+
         # Only the last pair should remain
         assert len(new_pairs) == 1
         assert new_pairs[0]['trigger_entity'] == 'binary_sensor.motion_3'
@@ -322,7 +322,7 @@ class TestRelationshipCheckerIntegration:
 async def test_automation_parser_integration():
     """Test that automation parser correctly identifies relationships"""
     parser = AutomationParser()
-    
+
     automations = [
         {
             'id': 'test_auto',
@@ -331,13 +331,13 @@ async def test_automation_parser_integration():
             'action': {'service': 'light.turn_on', 'entity_id': 'light.test'}
         }
     ]
-    
+
     parser.parse_automations(automations)
-    
+
     # Should find relationship
     assert parser.has_relationship('sensor.test', 'light.test')
     assert parser.has_relationship('light.test', 'sensor.test')  # Bidirectional
-    
+
     # Should not find non-existent relationship
     assert not parser.has_relationship('sensor.test', 'light.other')
 

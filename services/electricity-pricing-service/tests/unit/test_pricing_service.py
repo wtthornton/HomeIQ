@@ -3,10 +3,10 @@ Unit tests for electricity pricing service core logic
 Tests fetching, caching, InfluxDB storage, and API endpoints
 """
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from aiohttp import web
+
+import pytest
 
 
 class TestDataFetching:

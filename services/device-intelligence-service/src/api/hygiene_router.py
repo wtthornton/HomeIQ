@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -19,7 +20,7 @@ from ..services.remediation_service import DeviceHygieneRemediationService
 router = APIRouter(prefix="/api/hygiene", tags=["Device Hygiene"])
 
 
-def _serialize_issue(issue: DeviceHygieneIssue) -> Dict[str, Any]:
+def _serialize_issue(issue: DeviceHygieneIssue) -> dict[str, Any]:
     return {
         "issue_key": issue.issue_key,
         "issue_type": issue.issue_type,
@@ -65,15 +66,15 @@ class StatusUpdateRequest(BaseModel):
 
 class ApplyActionRequest(BaseModel):
     action: str
-    value: Optional[str] = None
+    value: str | None = None
 
 
 @router.get("/issues", response_model=IssuesResponse)
 async def list_hygiene_issues(
-    status_filter: Optional[str] = Query(default=None, alias="status"),
-    severity: Optional[str] = None,
-    issue_type: Optional[str] = None,
-    device_id: Optional[str] = None,
+    status_filter: str | None = Query(default=None, alias="status"),
+    severity: str | None = None,
+    issue_type: str | None = None,
+    device_id: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_db_session),
 ):

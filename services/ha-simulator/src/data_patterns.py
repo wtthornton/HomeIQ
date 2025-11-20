@@ -4,69 +4,68 @@ Data Patterns Analyzer for HA Simulator
 Analyzes existing HA event logs to extract realistic patterns for simulation.
 """
 
-import json
 import logging
 import re
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from collections import defaultdict, Counter
+from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 class HADataPatternAnalyzer:
     """Analyzes HA event logs to extract patterns for simulation"""
-    
+
     def __init__(self, log_file_path: str):
         self.log_file_path = log_file_path
-        self.entity_patterns: Dict[str, Dict[str, Any]] = {}
-        self.event_frequencies: Dict[str, int] = defaultdict(int)
-        self.temporal_patterns: Dict[str, List[datetime]] = defaultdict(list)
-    
-    def analyze_log_file(self) -> Dict[str, Any]:
+        self.entity_patterns: dict[str, dict[str, Any]] = {}
+        self.event_frequencies: dict[str, int] = defaultdict(int)
+        self.temporal_patterns: dict[str, list[datetime]] = defaultdict(list)
+
+    def analyze_log_file(self) -> dict[str, Any]:
         """Analyze HA event log file"""
         logger.info(f"Analyzing log file: {self.log_file_path}")
-        
+
         if not Path(self.log_file_path).exists():
             logger.warning(f"Log file not found: {self.log_file_path}")
             return self._generate_default_patterns()
-        
+
         try:
-            with open(self.log_file_path, 'r') as f:
+            with open(self.log_file_path) as f:
                 for line_num, line in enumerate(f, 1):
                     try:
                         self._parse_log_line(line)
                     except Exception as e:
                         logger.debug(f"Error parsing line {line_num}: {e}")
                         continue
-            
+
             logger.info(f"Analyzed {line_num} log lines")
             return self._generate_patterns()
-            
+
         except Exception as e:
             logger.error(f"Error analyzing log file: {e}")
             return self._generate_default_patterns()
-    
+
     def _parse_log_line(self, line: str):
         """Parse a single log line"""
         # Extract timestamp
         timestamp_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
         if not timestamp_match:
             return
-        
+
         try:
             timestamp = datetime.strptime(timestamp_match.group(1), '%Y-%m-%d %H:%M:%S')
         except ValueError:
             return
-        
+
         # Extract entity information
         entity_match = re.search(r'Entity: ([a-zA-Z_\.]+)', line)
         if entity_match:
             entity_id = entity_match.group(1)
             self.temporal_patterns[entity_id].append(timestamp)
             self.event_frequencies[entity_id] += 1
-    
-    def _generate_patterns(self) -> Dict[str, Any]:
+
+    def _generate_patterns(self) -> dict[str, Any]:
         """Generate patterns from analyzed data"""
         patterns = {
             "entities": {},
@@ -75,28 +74,28 @@ class HADataPatternAnalyzer:
             "generated_at": datetime.now().isoformat(),
             "source": "log_analysis"
         }
-        
+
         for entity_id, timestamps in self.temporal_patterns.items():
             if len(timestamps) < 2:
                 continue
-            
+
             # Calculate update intervals
             intervals = []
             for i in range(1, len(timestamps)):
                 interval = (timestamps[i] - timestamps[i-1]).total_seconds()
                 if interval > 0:  # Only positive intervals
                     intervals.append(interval)
-            
+
             if not intervals:
                 continue
-                
+
             avg_interval = sum(intervals) / len(intervals)
-            
+
             # Determine entity type and default values
             domain = entity_id.split('.')[0]
             device_class = self._infer_device_class(entity_id)
             base_value, variance = self._infer_value_range(entity_id, device_class)
-            
+
             patterns["entities"][entity_id] = {
                 "entity_id": entity_id,
                 "domain": domain,
@@ -110,14 +109,14 @@ class HADataPatternAnalyzer:
                 "unit_of_measurement": self._infer_unit(entity_id, device_class),
                 "friendly_name": self._generate_friendly_name(entity_id)
             }
-        
+
         logger.info(f"Generated patterns for {len(patterns['entities'])} entities")
         return patterns
-    
-    def _infer_device_class(self, entity_id: str) -> Optional[str]:
+
+    def _infer_device_class(self, entity_id: str) -> str | None:
         """Infer device class from entity ID"""
         entity_lower = entity_id.lower()
-        
+
         if 'temperature' in entity_lower or 'temp' in entity_lower:
             return 'temperature'
         elif 'current' in entity_lower:
@@ -130,11 +129,11 @@ class HADataPatternAnalyzer:
             return None
         else:
             return None
-    
-    def _infer_value_range(self, entity_id: str, device_class: Optional[str]) -> tuple:
+
+    def _infer_value_range(self, entity_id: str, device_class: str | None) -> tuple:
         """Infer base value and variance from entity ID and device class"""
         entity_lower = entity_id.lower()
-        
+
         if device_class == 'temperature':
             if 'chip' in entity_lower or 'coordinator' in entity_lower:
                 return 45.0, 5.0  # Chip temperature
@@ -155,8 +154,8 @@ class HADataPatternAnalyzer:
             return 'above_horizon', None  # Sun state
         else:
             return 0.0, 1.0  # Default numeric value
-    
-    def _infer_unit(self, entity_id: str, device_class: Optional[str]) -> Optional[str]:
+
+    def _infer_unit(self, entity_id: str, device_class: str | None) -> str | None:
         """Infer unit of measurement from entity ID and device class"""
         if device_class == 'temperature':
             return '°C'
@@ -168,24 +167,24 @@ class HADataPatternAnalyzer:
             return '%'
         else:
             return None
-    
+
     def _generate_friendly_name(self, entity_id: str) -> str:
         """Generate friendly name from entity ID"""
         # Convert entity_id to friendly name
         parts = entity_id.split('.')
         if len(parts) < 2:
             return entity_id
-        
+
         domain = parts[0]
         name_parts = parts[1].split('_')
-        
+
         # Capitalize each word
         friendly_parts = [part.capitalize() for part in name_parts]
         friendly_name = ' '.join(friendly_parts)
-        
+
         return friendly_name
-    
-    def _generate_default_patterns(self) -> Dict[str, Any]:
+
+    def _generate_default_patterns(self) -> dict[str, Any]:
         """Generate default patterns when no log data available"""
         logger.info("Generating default patterns")
         return {

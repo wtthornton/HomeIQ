@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,7 +9,6 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-
 from src.api.hygiene_router import get_ha_client
 from src.config import Settings
 from src.core.database import get_db_session, initialize_database

@@ -8,8 +8,8 @@ Created: Phase 5 - Error Recovery & Validation
 """
 
 import logging
-from typing import Dict, Optional, Any, List
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ class ErrorResponse:
     """Structured error response with recovery actions"""
     type: str
     message: str
-    recovery_actions: List[str]
-    error_details: Optional[Dict[str, Any]] = None
+    recovery_actions: list[str]
+    error_details: dict[str, Any] | None = None
 
 
 class NoEntitiesFoundError(Exception):
@@ -45,16 +45,16 @@ class ErrorRecoveryService:
     Handles different error types and suggests recovery actions
     to help users resolve issues.
     """
-    
+
     def __init__(self):
         """Initialize error recovery service"""
         logger.info("ErrorRecoveryService initialized")
-    
+
     async def handle_processing_error(
         self,
         error: Exception,
         query: str,
-        partial_results: Optional[Dict] = None
+        partial_results: dict | None = None
     ) -> ErrorResponse:
         """
         Handle processing error and provide recovery guidance.
@@ -75,11 +75,11 @@ class ErrorRecoveryService:
             return await self._handle_validation_error(error, query, partial_results)
         else:
             return self._handle_generic_error(error, query, partial_results)
-    
+
     async def _handle_no_entities_error(
         self,
         query: str,
-        partial_results: Optional[Dict]
+        partial_results: dict | None
     ) -> ErrorResponse:
         """Handle no entities found error"""
         # Suggest similar entities (would use entity search in full implementation)
@@ -88,18 +88,18 @@ class ErrorRecoveryService:
             "Try using the search feature to find devices",
             "Verify device names match exactly (case-sensitive)"
         ]
-        
+
         return ErrorResponse(
             type="no_entities",
             message="Couldn't find the devices you mentioned",
             recovery_actions=suggestions,
             error_details={"query": query}
         )
-    
+
     async def _handle_ambiguous_query_error(
         self,
         query: str,
-        partial_results: Optional[Dict]
+        partial_results: dict | None
     ) -> ErrorResponse:
         """Handle ambiguous query error"""
         return ErrorResponse(
@@ -112,12 +112,12 @@ class ErrorRecoveryService:
             ],
             error_details={"query": query}
         )
-    
+
     async def _handle_validation_error(
         self,
         error: ValidationError,
         query: str,
-        partial_results: Optional[Dict]
+        partial_results: dict | None
     ) -> ErrorResponse:
         """Handle validation error"""
         return ErrorResponse(
@@ -130,12 +130,12 @@ class ErrorRecoveryService:
             ],
             error_details={"query": query, "error": str(error)}
         )
-    
+
     def _handle_generic_error(
         self,
         error: Exception,
         query: str,
-        partial_results: Optional[Dict]
+        partial_results: dict | None
     ) -> ErrorResponse:
         """Handle generic error"""
         return ErrorResponse(

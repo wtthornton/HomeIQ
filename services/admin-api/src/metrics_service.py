@@ -4,13 +4,11 @@ Simplified metrics collection utilities for admin-api tests.
 
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class MetricType(str, Enum):
@@ -27,9 +25,9 @@ def _utc_iso_now() -> str:
 class MetricValue:
     timestamp: str
     value: float
-    labels: Dict[str, str] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "timestamp": self.timestamp,
             "value": self.value,
@@ -43,10 +41,10 @@ class Metric:
     type: MetricType
     description: str
     unit: str
-    values: List[MetricValue] = field(default_factory=list)
-    labels: Dict[str, str] = field(default_factory=dict)
+    values: list[MetricValue] = field(default_factory=list)
+    labels: dict[str, str] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "name": self.name,
             "type": self.type.value,
@@ -59,7 +57,7 @@ class Metric:
 
 class MetricsCollector:
     def __init__(self) -> None:
-        self.metrics: Dict[str, Metric] = {}
+        self.metrics: dict[str, Metric] = {}
         self.max_values_per_metric = 1000
         self.system_metrics_enabled = True
         self.metrics_interval = 60.0
@@ -72,7 +70,7 @@ class MetricsCollector:
         description: str,
         unit: str,
         *,
-        labels: Optional[Dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
     ) -> None:
         if name not in self.metrics:
             self.metrics[name] = Metric(
@@ -83,7 +81,7 @@ class MetricsCollector:
                 labels=labels or {},
             )
 
-    def record_value(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def record_value(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric:
             raise ValueError(f"Metric '{name}' not registered")
@@ -91,26 +89,26 @@ class MetricsCollector:
         if len(metric.values) > self.max_values_per_metric:
             metric.values = metric.values[-self.max_values_per_metric :]
 
-    def increment_counter(self, name: str, value: float = 1.0, labels: Optional[Dict[str, str]] = None) -> None:
+    def increment_counter(self, name: str, value: float = 1.0, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.COUNTER:
             raise ValueError(f"Counter metric '{name}' not registered")
         current = self.get_latest_value(name, labels)
         self.record_value(name, current + value, labels)
 
-    def set_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def set_gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.GAUGE:
             raise ValueError(f"Gauge metric '{name}' not registered")
         self.record_value(name, value, labels)
 
-    def record_timer(self, name: str, value_seconds: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def record_timer(self, name: str, value_seconds: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.TIMER:
             raise ValueError(f"Timer metric '{name}' not registered")
         self.record_value(name, value_seconds, labels)
 
-    def get_latest_value(self, name: str, labels: Optional[Dict[str, str]] = None) -> float:
+    def get_latest_value(self, name: str, labels: dict[str, str] | None = None) -> float:
         metric = self.metrics.get(name)
         if not metric or not metric.values:
             return 0.0
@@ -121,13 +119,13 @@ class MetricsCollector:
                 return value.value
         return 0.0
 
-    def get_metric(self, name: str) -> Optional[Metric]:
+    def get_metric(self, name: str) -> Metric | None:
         return self.metrics.get(name)
 
-    def get_all_metrics(self) -> List[Metric]:
+    def get_all_metrics(self) -> list[Metric]:
         return list(self.metrics.values())
 
-    def get_metrics_summary(self) -> Dict[str, object]:
+    def get_metrics_summary(self) -> dict[str, object]:
         summary = {
             "total_metrics": len(self.metrics),
             "metric_types": {},
@@ -149,14 +147,14 @@ class MetricsCollector:
 class PerformanceTracker:
     def __init__(self, collector: MetricsCollector) -> None:
         self.metrics_collector = collector
-        self.operation_timers: Dict[str, float] = {}
+        self.operation_timers: dict[str, float] = {}
 
     def start_operation(self, operation_name: str) -> str:
         timer_id = f"{operation_name}_{uuid.uuid4().hex[:8]}"
         self.operation_timers[timer_id] = time.perf_counter()
         return timer_id
 
-    def end_operation(self, timer_id: str, labels: Optional[Dict[str, str]] = None) -> None:
+    def end_operation(self, timer_id: str, labels: dict[str, str] | None = None) -> None:
         start_time = self.operation_timers.pop(timer_id, None)
         if start_time is None:
             return
@@ -219,7 +217,7 @@ class MetricsService:
     def get_performance_tracker(self) -> PerformanceTracker:
         return self.performance_tracker
 
-    def get_metrics(self, names: Optional[List[str]] = None) -> List[Dict[str, object]]:
+    def get_metrics(self, names: list[str] | None = None) -> list[dict[str, object]]:
         metrics = (
             [self.collector.metrics[name] for name in names if name in self.collector.metrics]
             if names
@@ -227,10 +225,10 @@ class MetricsService:
         )
         return [metric.to_dict() for metric in metrics]
 
-    def get_metrics_summary(self) -> Dict[str, object]:
+    def get_metrics_summary(self) -> dict[str, object]:
         return self.collector.get_metrics_summary()
 
-    def get_current_metrics(self) -> Dict[str, Dict[str, object]]:
+    def get_current_metrics(self) -> dict[str, dict[str, object]]:
         current = {}
         for name, metric in self.collector.metrics.items():
             value = self.collector.get_latest_value(name)

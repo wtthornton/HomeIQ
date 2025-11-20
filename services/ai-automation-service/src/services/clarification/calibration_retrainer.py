@@ -11,19 +11,19 @@ Can be run as a scheduled job (weekly/monthly) or on-demand.
 """
 
 import logging
-from typing import Optional
 from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .confidence_calibrator import ClarificationConfidenceCalibrator
 from ...database.crud import get_clarification_confidence_feedback
+from .confidence_calibrator import ClarificationConfidenceCalibrator
 
 logger = logging.getLogger(__name__)
 
 
 async def retrain_calibration_model(
     db: AsyncSession,
-    calibrator: Optional[ClarificationConfidenceCalibrator] = None,
+    calibrator: ClarificationConfidenceCalibrator | None = None,
     min_samples: int = 10,
     days_back: int = 30
 ) -> bool:
@@ -44,17 +44,17 @@ async def retrain_calibration_model(
             calibrator = ClarificationConfidenceCalibrator()
             # Try to load existing model
             calibrator.load()
-        
+
         # Get feedback from database
         feedback_records = await get_clarification_confidence_feedback(db, limit=10000)
-        
+
         if len(feedback_records) < min_samples:
             logger.warning(
                 f"Insufficient feedback data for retraining: "
                 f"{len(feedback_records)} < {min_samples} samples"
             )
             return False
-        
+
         # Add all feedback to calibrator
         for record in feedback_records:
             calibrator.add_feedback(
@@ -67,11 +67,11 @@ async def retrain_calibration_model(
                 answer_count=record.answer_count,
                 save_immediately=False  # Don't save after each addition
             )
-        
+
         # Train and save
         calibrator.train(min_samples=min_samples)
         calibrator.save()
-        
+
         stats = calibrator.get_stats()
         logger.info(
             f"✅ Calibration model retrained successfully: "
@@ -79,9 +79,9 @@ async def retrain_calibration_model(
             f"{stats['positive_feedback']} positive, "
             f"{stats['negative_feedback']} negative"
         )
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to retrain calibration model: {e}", exc_info=True)
         return False
@@ -89,7 +89,7 @@ async def retrain_calibration_model(
 
 async def should_retrain_calibration(
     db: AsyncSession,
-    last_retrain_date: Optional[datetime] = None,
+    last_retrain_date: datetime | None = None,
     retrain_interval_days: int = 7,
     min_new_samples: int = 50
 ) -> bool:
@@ -109,27 +109,27 @@ async def should_retrain_calibration(
         # Check time-based retraining
         if last_retrain_date is None:
             return True  # Never retrained, should retrain
-        
+
         # Use timezone-aware datetime (2025 best practice)
         days_since_retrain = (datetime.now(timezone.utc) - last_retrain_date).days
         if days_since_retrain >= retrain_interval_days:
             return True
-        
+
         # Check sample-based retraining
         # Use timezone-aware datetime (2025 best practice)
         cutoff_date = last_retrain_date if last_retrain_date else datetime.now(timezone.utc) - timedelta(days=30)
         feedback_records = await get_clarification_confidence_feedback(db, limit=10000)
-        
+
         new_samples = sum(
             1 for record in feedback_records
             if record.created_at >= cutoff_date
         )
-        
+
         if new_samples >= min_new_samples:
             return True
-        
+
         return False
-        
+
     except Exception as e:
         logger.error(f"Failed to check retrain condition: {e}", exc_info=True)
         return False

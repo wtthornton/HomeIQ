@@ -2,11 +2,11 @@
 Simple tests for InfluxDB client
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-import sys
 import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
@@ -18,7 +18,7 @@ from src.influxdb_client import AdminAPIInfluxDBClient
 async def test_influxdb_client_initialization():
     """Test InfluxDB client can be initialized"""
     client = AdminAPIInfluxDBClient()
-    
+
     assert client is not None
     assert client.url == os.getenv("INFLUXDB_URL", "http://influxdb:8086")
     assert client.org == os.getenv("INFLUXDB_ORG", "homeiq")
@@ -32,9 +32,9 @@ async def test_influxdb_client_initialization():
 async def test_connection_status():
     """Test connection status method"""
     client = AdminAPIInfluxDBClient()
-    
+
     status = client.get_connection_status()
-    
+
     assert isinstance(status, dict)
     assert "is_connected" in status
     assert "url" in status
@@ -49,7 +49,7 @@ async def test_connection_status():
 async def test_period_to_seconds():
     """Test period conversion"""
     client = AdminAPIInfluxDBClient()
-    
+
     assert client._period_to_seconds("15m") == 900
     assert client._period_to_seconds("1h") == 3600
     assert client._period_to_seconds("6h") == 21600
@@ -66,10 +66,10 @@ async def test_connection_failure_handling():
         'INFLUXDB_TOKEN': 'fake-token'
     }):
         client = AdminAPIInfluxDBClient()
-        
+
         # Connection should fail but not raise exception
         result = await client.connect()
-        
+
         assert result is False
         assert client.is_connected is False
 
@@ -78,11 +78,11 @@ async def test_connection_failure_handling():
 async def test_query_without_connection():
     """Test that queries fail gracefully when not connected"""
     client = AdminAPIInfluxDBClient()
-    
+
     # Try to query without connecting
     with pytest.raises(Exception) as exc_info:
         await client.get_event_statistics("1h")
-    
+
     assert "not connected" in str(exc_info.value).lower()
 
 
@@ -90,10 +90,10 @@ async def test_query_without_connection():
 async def test_close_without_connection():
     """Test that close works even without active connection"""
     client = AdminAPIInfluxDBClient()
-    
+
     # Should not raise exception
     await client.close()
-    
+
     assert client.client is None
     assert client.query_api is None
     assert client.is_connected is False
@@ -108,13 +108,13 @@ async def test_successful_connection(mock_client_class, mock_test_connection):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
     mock_test_connection.return_value = None  # Success
-    
+
     client = AdminAPIInfluxDBClient()
-    
+
     # Mock query_api
     client.client = mock_client
     result = await client.connect()
-    
+
     # Should succeed but will fail due to missing query_api in mock
     # This is a simple test, just verify it tried to connect
     assert mock_client_class.called

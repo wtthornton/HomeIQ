@@ -29,10 +29,9 @@ Usage:
 """
 
 import asyncio
-import os
+import logging
 import sys
 from pathlib import Path
-import logging
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
@@ -61,46 +60,46 @@ def confirm_deletion():
     print("")
     print("All existing suggestions will be LOST!")
     print("")
-    
+
     response = input("Type 'yes' to continue or anything else to cancel: ")
     return response.lower() == 'yes'
 
 
 async def reset_database():
     """Reset the database"""
-    
+
     # Check if database exists
     db_exists = DB_PATH.exists()
-    
+
     if db_exists:
         logger.info(f"📁 Found existing database: {DB_PATH}")
         logger.info(f"📊 Size: {DB_PATH.stat().st_size / 1024:.2f} KB")
-        
+
         # Delete database file
         logger.info("🗑️  Deleting database...")
         DB_PATH.unlink()
         logger.info("✅ Database deleted")
     else:
         logger.info(f"ℹ️  No existing database found at {DB_PATH}")
-    
+
     # Ensure data directory exists
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Import and initialize database (creates new schema)
     logger.info("🔨 Creating new database with conversational schema...")
-    
-    from database.models import init_db, Base, Suggestion
-    
+
+    from database.models import Suggestion, init_db
+
     await init_db()
-    
+
     logger.info("✅ Database created successfully")
-    
+
     # Verify schema
     logger.info("🔍 Verifying new schema...")
-    
+
     # Check that Suggestion model has new fields
     suggestion_fields = [c.name for c in Suggestion.__table__.columns]
-    
+
     required_fields = [
         'description_only',
         'conversation_history',
@@ -109,18 +108,18 @@ async def reset_database():
         'yaml_generated_at',
         'approved_at'
     ]
-    
+
     missing_fields = [f for f in required_fields if f not in suggestion_fields]
-    
+
     if missing_fields:
         logger.error(f"❌ Schema validation failed! Missing fields: {missing_fields}")
         logger.error("   The model might not be updated correctly.")
         return False
-    
+
     logger.info("✅ Schema validation passed")
     logger.info(f"   Found {len(suggestion_fields)} columns in suggestions table")
     logger.info(f"   Key fields: {', '.join(required_fields)}")
-    
+
     return True
 
 
@@ -131,19 +130,19 @@ async def main():
     logger.info("🔬 ALPHA DATABASE RESET - Conversational Automation System")
     logger.info("="*80)
     logger.info("")
-    
+
     # Confirm with user
     if not confirm_deletion():
         logger.info("❌ Reset cancelled by user")
         return
-    
+
     logger.info("")
     logger.info("🚀 Starting database reset...")
     logger.info("")
-    
+
     # Reset database
     success = await reset_database()
-    
+
     if not success:
         logger.error("")
         logger.error("="*80)
@@ -151,7 +150,7 @@ async def main():
         logger.error("="*80)
         logger.error("")
         sys.exit(1)
-    
+
     # Success message
     logger.info("")
     logger.info("="*80)

@@ -4,8 +4,9 @@ Home Assistant REST API Client for Calendar Integration
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
 import aiohttp
 from aiohttp import ClientError, ClientTimeout
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class HomeAssistantCalendarClient:
     """Client for Home Assistant Calendar REST API"""
-    
+
     def __init__(self, base_url: str, token: str, timeout: int = 10):
         """
         Initialize Home Assistant Calendar Client
@@ -27,21 +28,21 @@ class HomeAssistantCalendarClient:
         self.base_url = base_url.rstrip('/')
         self.token = token
         self.timeout = ClientTimeout(total=timeout)
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
         self._headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
-    
+
     async def __aenter__(self):
         """Async context manager entry"""
         await self.connect()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.close()
-    
+
     async def connect(self):
         """Initialize HTTP session"""
         if self.session is None:
@@ -50,14 +51,14 @@ class HomeAssistantCalendarClient:
                 timeout=self.timeout
             )
             logger.info("Home Assistant client session created")
-    
+
     async def close(self):
         """Close HTTP session"""
         if self.session:
             await self.session.close()
             self.session = None
             logger.info("Home Assistant client session closed")
-    
+
     async def test_connection(self) -> bool:
         """
         Test connection to Home Assistant
@@ -77,8 +78,8 @@ class HomeAssistantCalendarClient:
         except Exception as e:
             logger.error(f"HA connection test failed: {e}")
             return False
-    
-    async def get_calendars(self) -> List[str]:
+
+    async def get_calendars(self) -> list[str]:
         """
         Get list of available calendar entities
         
@@ -90,32 +91,32 @@ class HomeAssistantCalendarClient:
                 if response.status != 200:
                     logger.error(f"Failed to get states: HTTP {response.status}")
                     return []
-                
+
                 states = await response.json()
-                
+
                 # Filter for calendar entities
                 calendars = [
-                    state['entity_id'] 
-                    for state in states 
+                    state['entity_id']
+                    for state in states
                     if state['entity_id'].startswith('calendar.')
                 ]
-                
+
                 logger.info(f"Found {len(calendars)} calendar entities: {calendars}")
                 return calendars
-                
+
         except ClientError as e:
             logger.error(f"Network error getting calendars: {e}")
             return []
         except Exception as e:
             logger.error(f"Error getting calendars: {e}")
             return []
-    
+
     async def get_events(
-        self, 
-        calendar_id: str, 
-        start: datetime, 
+        self,
+        calendar_id: str,
+        start: datetime,
         end: datetime
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get calendar events within time range
         
@@ -139,42 +140,42 @@ class HomeAssistantCalendarClient:
         # Ensure calendar_id doesn't have 'calendar.' prefix for API call
         if calendar_id.startswith('calendar.'):
             calendar_id = calendar_id[9:]  # Remove 'calendar.' prefix
-        
+
         # Format timestamps for HA API
         start_str = start.isoformat()
         end_str = end.isoformat()
-        
+
         url = f"{self.base_url}/api/calendars/calendar.{calendar_id}"
         params = {
             'start': start_str,
             'end': end_str
         }
-        
+
         try:
             logger.debug(f"Fetching events for calendar.{calendar_id} from {start_str} to {end_str}")
-            
+
             async with self.session.get(url, params=params) as response:
                 if response.status == 404:
                     logger.warning(f"Calendar not found: calendar.{calendar_id}")
                     return []
-                
+
                 if response.status != 200:
                     text = await response.text()
                     logger.error(f"Failed to get events: HTTP {response.status}, {text}")
                     return []
-                
+
                 events = await response.json()
                 logger.info(f"Retrieved {len(events)} events from calendar.{calendar_id}")
                 return events
-                
+
         except ClientError as e:
             logger.error(f"Network error getting events from calendar.{calendar_id}: {e}")
             return []
         except Exception as e:
             logger.error(f"Error getting events from calendar.{calendar_id}: {e}")
             return []
-    
-    async def get_calendar_state(self, calendar_id: str) -> Optional[Dict[str, Any]]:
+
+    async def get_calendar_state(self, calendar_id: str) -> dict[str, Any] | None:
         """
         Get current calendar entity state
         
@@ -199,36 +200,36 @@ class HomeAssistantCalendarClient:
         # Ensure calendar_id has 'calendar.' prefix for state API
         if not calendar_id.startswith('calendar.'):
             calendar_id = f'calendar.{calendar_id}'
-        
+
         url = f"{self.base_url}/api/states/{calendar_id}"
-        
+
         try:
             async with self.session.get(url) as response:
                 if response.status == 404:
                     logger.warning(f"Calendar state not found: {calendar_id}")
                     return None
-                
+
                 if response.status != 200:
                     logger.error(f"Failed to get calendar state: HTTP {response.status}")
                     return None
-                
+
                 state = await response.json()
                 logger.debug(f"Retrieved state for {calendar_id}: {state.get('state')}")
                 return state
-                
+
         except ClientError as e:
             logger.error(f"Network error getting calendar state {calendar_id}: {e}")
             return None
         except Exception as e:
             logger.error(f"Error getting calendar state {calendar_id}: {e}")
             return None
-    
+
     async def get_events_from_multiple_calendars(
         self,
-        calendar_ids: List[str],
+        calendar_ids: list[str],
         start: datetime,
         end: datetime
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Get events from multiple calendars concurrently
         
@@ -248,9 +249,9 @@ class HomeAssistantCalendarClient:
             self.get_events(calendar_id, start, end)
             for calendar_id in calendar_ids
         ]
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         events_by_calendar = {}
         for calendar_id, result in zip(calendar_ids, results):
             if isinstance(result, Exception):
@@ -258,9 +259,9 @@ class HomeAssistantCalendarClient:
                 events_by_calendar[calendar_id] = []
             else:
                 events_by_calendar[calendar_id] = result
-        
+
         total_events = sum(len(events) for events in events_by_calendar.values())
         logger.info(f"Retrieved {total_events} total events from {len(calendar_ids)} calendars")
-        
+
         return events_by_calendar
 

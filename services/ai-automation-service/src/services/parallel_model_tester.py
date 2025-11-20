@@ -10,20 +10,20 @@ Created: January 2025
 import asyncio
 import logging
 import time
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any
 
-from ..llm.openai_client import OpenAIClient
-from ..llm.cost_tracker import CostTracker
-from ..database.models import ModelComparisonMetrics
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..database.models import ModelComparisonMetrics
+from ..llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
 
 class ParallelModelTester:
     """Service for running multiple models in parallel and tracking comparison metrics"""
-    
+
     def __init__(self, api_key: str):
         """
         Initialize parallel model tester.
@@ -33,17 +33,17 @@ class ParallelModelTester:
         """
         self.api_key = api_key
         logger.info("ParallelModelTester initialized")
-    
+
     async def generate_suggestions_parallel(
         self,
-        prompt_dict: Dict[str, str],
-        models: List[str],
+        prompt_dict: dict[str, str],
+        models: list[str],
         endpoint: str,
-        db_session: Optional[AsyncSession] = None,
-        query_id: Optional[str] = None,
+        db_session: AsyncSession | None = None,
+        query_id: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 1200
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate suggestions using multiple models in parallel.
         
@@ -61,10 +61,10 @@ class ParallelModelTester:
         """
         if len(models) < 2:
             raise ValueError("Parallel testing requires at least 2 models")
-        
+
         # Create clients for each model
         clients = [OpenAIClient(api_key=self.api_key, model=model) for model in models]
-        
+
         # Create tasks for parallel execution
         tasks = []
         for client in clients:
@@ -76,7 +76,7 @@ class ParallelModelTester:
                 max_tokens=max_tokens
             )
             tasks.append(task)
-        
+
         # Execute in parallel
         results = await self._execute_parallel(
             tasks=tasks,
@@ -85,23 +85,23 @@ class ParallelModelTester:
             db_session=db_session,
             query_id=query_id
         )
-        
+
         # Return primary model result (first model) for immediate use
         return {
             'primary_result': results['model_results'][0]['result'],
             'comparison': results
         }
-    
+
     async def generate_yaml_parallel(
         self,
-        suggestion: Dict[str, Any],
-        prompt_dict: Dict[str, str],
-        models: List[str],
-        db_session: Optional[AsyncSession] = None,
-        suggestion_id: Optional[str] = None,
+        suggestion: dict[str, Any],
+        prompt_dict: dict[str, str],
+        models: list[str],
+        db_session: AsyncSession | None = None,
+        suggestion_id: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2000
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate YAML using multiple models in parallel.
         
@@ -119,10 +119,10 @@ class ParallelModelTester:
         """
         if len(models) < 2:
             raise ValueError("Parallel testing requires at least 2 models")
-        
+
         # Create clients for each model
         clients = [OpenAIClient(api_key=self.api_key, model=model) for model in models]
-        
+
         # Create tasks for parallel execution
         tasks = []
         for client in clients:
@@ -134,7 +134,7 @@ class ParallelModelTester:
                 max_tokens=max_tokens
             )
             tasks.append(task)
-        
+
         # Execute in parallel
         results = await self._execute_parallel(
             tasks=tasks,
@@ -143,21 +143,21 @@ class ParallelModelTester:
             db_session=db_session,
             suggestion_id=suggestion_id
         )
-        
+
         # Return primary model result (first model) for immediate use
         return {
             'primary_result': results['model_results'][0]['result'],
             'comparison': results
         }
-    
+
     async def _generate_suggestion_task(
         self,
         client: OpenAIClient,
-        prompt_dict: Dict[str, str],
+        prompt_dict: dict[str, str],
         endpoint: str,
         temperature: float,
         max_tokens: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate suggestion task for a single model"""
         start_time = time.time()
         try:
@@ -169,13 +169,13 @@ class ParallelModelTester:
                 endpoint=endpoint
             )
             latency_ms = int((time.time() - start_time) * 1000)
-            
+
             # Get token usage from client
             usage = client.last_usage or {}
             tokens_input = usage.get('prompt_tokens', 0)
             tokens_output = usage.get('completion_tokens', 0)
             cost_usd = usage.get('cost_usd', 0.0)
-            
+
             return {
                 'success': True,
                 'result': result,
@@ -197,15 +197,15 @@ class ParallelModelTester:
                 'latency_ms': latency_ms,
                 'error': str(e)
             }
-    
+
     async def _generate_yaml_task(
         self,
         client: OpenAIClient,
-        prompt_dict: Dict[str, str],
+        prompt_dict: dict[str, str],
         endpoint: str,
         temperature: float,
         max_tokens: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate YAML task for a single model"""
         start_time = time.time()
         try:
@@ -217,13 +217,13 @@ class ParallelModelTester:
                 endpoint=endpoint
             )
             latency_ms = int((time.time() - start_time) * 1000)
-            
+
             # Get token usage from client
             usage = client.last_usage or {}
             tokens_input = usage.get('prompt_tokens', 0)
             tokens_output = usage.get('completion_tokens', 0)
             cost_usd = usage.get('cost_usd', 0.0)
-            
+
             return {
                 'success': True,
                 'result': result,
@@ -245,16 +245,16 @@ class ParallelModelTester:
                 'latency_ms': latency_ms,
                 'error': str(e)
             }
-    
+
     async def _execute_parallel(
         self,
-        tasks: List,
-        model_names: List[str],
+        tasks: list,
+        model_names: list[str],
         task_type: str,
-        db_session: Optional[AsyncSession] = None,
-        query_id: Optional[str] = None,
-        suggestion_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        db_session: AsyncSession | None = None,
+        query_id: str | None = None,
+        suggestion_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Execute tasks in parallel and store metrics.
         
@@ -271,7 +271,7 @@ class ParallelModelTester:
         """
         # Execute all tasks in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results
         model_results = []
         for i, result in enumerate(results):
@@ -292,7 +292,7 @@ class ParallelModelTester:
                     'model': model_names[i],
                     **result
                 })
-        
+
         # Store metrics in database if session provided
         if db_session and len(model_results) >= 2:
             await self._store_metrics(
@@ -302,20 +302,20 @@ class ParallelModelTester:
                 query_id=query_id,
                 suggestion_id=suggestion_id
             )
-        
+
         return {
             'task_type': task_type,
             'model_results': model_results,
             'timestamp': datetime.utcnow().isoformat()
         }
-    
+
     async def _store_metrics(
         self,
         task_type: str,
-        model_results: List[Dict[str, Any]],
+        model_results: list[dict[str, Any]],
         db_session: AsyncSession,
-        query_id: Optional[str] = None,
-        suggestion_id: Optional[str] = None
+        query_id: str | None = None,
+        suggestion_id: str | None = None
     ):
         """
         Store comparison metrics in database.
@@ -330,18 +330,18 @@ class ParallelModelTester:
         if len(model_results) < 2:
             logger.warning("Need at least 2 model results to store comparison metrics")
             return
-        
+
         try:
             # Get first two models for comparison
             model1 = model_results[0]
             model2 = model_results[1]
-            
+
             # Create metrics record
             metrics = ModelComparisonMetrics(
                 task_type=task_type,
                 query_id=query_id,
                 suggestion_id=suggestion_id,
-                
+
                 # Model 1
                 model1_name=model1['model'],
                 model1_tokens_input=model1.get('tokens_input', 0),
@@ -350,7 +350,7 @@ class ParallelModelTester:
                 model1_latency_ms=model1.get('latency_ms', 0),
                 model1_result=model1.get('result'),
                 model1_error=model1.get('error'),
-                
+
                 # Model 2
                 model2_name=model2['model'],
                 model2_tokens_input=model2.get('tokens_input', 0),
@@ -359,13 +359,13 @@ class ParallelModelTester:
                 model2_latency_ms=model2.get('latency_ms', 0),
                 model2_result=model2.get('result'),
                 model2_error=model2.get('error'),
-                
+
                 created_at=datetime.utcnow()
             )
-            
+
             db_session.add(metrics)
             await db_session.commit()
-            
+
             logger.info(
                 f"Stored comparison metrics: {task_type} - {model1['model']} vs {model2['model']}, "
                 f"cost_diff=${abs(model1.get('cost_usd', 0) - model2.get('cost_usd', 0)):.4f}"

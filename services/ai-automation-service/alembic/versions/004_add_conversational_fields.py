@@ -5,9 +5,8 @@ Revises: 20251016_120000
 Create Date: 2025-10-17 18:50:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '004'
@@ -22,32 +21,32 @@ def upgrade():
         op.add_column('suggestions', sa.Column('description_only', sa.Text(), nullable=False, server_default=''))
     except:
         pass
-    
+
     try:
         op.add_column('suggestions', sa.Column('conversation_history', sa.JSON(), nullable=True))
     except:
         pass
-    
+
     try:
         op.add_column('suggestions', sa.Column('device_capabilities', sa.JSON(), nullable=True))
     except:
         pass
-    
+
     try:
         op.add_column('suggestions', sa.Column('refinement_count', sa.Integer(), nullable=True, server_default='0'))
     except:
         pass
-    
+
     try:
         op.add_column('suggestions', sa.Column('yaml_generated_at', sa.DateTime(), nullable=True))
     except:
         pass
-    
+
     try:
         op.add_column('suggestions', sa.Column('approved_at', sa.DateTime(), nullable=True))
     except:
         pass
-    
+
     # Make automation_yaml nullable (only if not already nullable)
     try:
         op.alter_column('suggestions', 'automation_yaml', nullable=True)
@@ -63,6 +62,6 @@ def downgrade():
     op.drop_column('suggestions', 'device_capabilities')
     op.drop_column('suggestions', 'conversation_history')
     op.drop_column('suggestions', 'description_only')
-    
+
     # Make automation_yaml not nullable again
     op.alter_column('suggestions', 'automation_yaml', nullable=False)

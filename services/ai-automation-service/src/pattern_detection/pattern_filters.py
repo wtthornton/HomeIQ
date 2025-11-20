@@ -58,13 +58,13 @@ def is_actionable_device(device_id: str) -> bool:
     """
     if not device_id or '.' not in device_id:
         return False
-    
+
     domain = device_id.split('.')[0]
-    
+
     # Check excluded domains
     if domain in EXCLUDED_DOMAINS:
         return False
-    
+
     # Check excluded prefixes
     for prefix in EXCLUDED_PREFIXES:
         if prefix.endswith('*'):
@@ -74,11 +74,11 @@ def is_actionable_device(device_id: str) -> bool:
                 return False
         elif device_id.startswith(prefix):
             return False
-    
+
     # Check if it's an actionable domain
     if domain in ACTIONABLE_DOMAINS:
         return True
-    
+
     # Default: allow if not explicitly excluded
     return True
 
@@ -95,16 +95,16 @@ def validate_pattern(pattern: dict) -> bool:
         True if pattern is valid, False otherwise
     """
     pattern_type = pattern.get('pattern_type', '')
-    
+
     # For co-occurrence patterns, check BOTH devices
     if pattern_type == 'co_occurrence':
         device1 = pattern.get('device1', '')
         device2 = pattern.get('device2', '')
-        
+
         # Both devices must be actionable for co-occurrence patterns
         if not device1 or not device2:
             return False
-        
+
         if not is_actionable_device(device1) or not is_actionable_device(device2):
             return False
     else:
@@ -112,16 +112,16 @@ def validate_pattern(pattern: dict) -> bool:
         device_id = pattern.get('device_id', '')
         if not is_actionable_device(device_id):
             return False
-    
+
     # Check minimum occurrences
     occurrences = pattern.get('occurrences', 0)
     if occurrences < MIN_OCCURRENCES:
         return False
-    
+
     # Check minimum confidence
     confidence = pattern.get('confidence', 0.0)
     if confidence < MIN_CONFIDENCE:
         return False
-    
+
     return True
 

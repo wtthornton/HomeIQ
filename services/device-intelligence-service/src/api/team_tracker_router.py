@@ -6,8 +6,8 @@ team configuration, and entity detection.
 """
 
 import logging
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -15,8 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
-from ..models.database import TeamTrackerIntegration, TeamTrackerTeam, DeviceEntity
-from ..clients.ha_client import HAClient
+from ..models.database import DeviceEntity, TeamTrackerIntegration, TeamTrackerTeam
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class TeamTrackerStatus(BaseModel):
     """Team Tracker integration status response"""
     is_installed: bool
     installation_status: str  # not_installed, detected, configured
-    version: Optional[str] = None
+    version: str | None = None
     last_checked: datetime
     configured_teams_count: int
     active_teams_count: int
@@ -39,12 +38,12 @@ class TeamConfiguration(BaseModel):
     team_id: str  # Team abbreviation
     league_id: str  # NFL, NBA, MLB, etc.
     team_name: str
-    team_long_name: Optional[str] = None
-    entity_id: Optional[str] = None
-    sensor_name: Optional[str] = None
+    team_long_name: str | None = None
+    entity_id: str | None = None
+    sensor_name: str | None = None
     is_active: bool = True
-    sport: Optional[str] = None
-    user_notes: Optional[str] = None
+    sport: str | None = None
+    user_notes: str | None = None
     priority: int = 0
 
 
@@ -54,17 +53,17 @@ class TeamResponse(BaseModel):
     team_id: str
     league_id: str
     team_name: str
-    team_long_name: Optional[str]
-    entity_id: Optional[str]
-    sensor_name: Optional[str]
+    team_long_name: str | None
+    entity_id: str | None
+    sensor_name: str | None
     is_active: bool
-    sport: Optional[str]
-    team_abbreviation: Optional[str]
-    team_logo: Optional[str]
-    league_logo: Optional[str]
+    sport: str | None
+    team_abbreviation: str | None
+    team_logo: str | None
+    league_logo: str | None
     configured_in_ha: bool
-    last_detected: Optional[datetime]
-    user_notes: Optional[str]
+    last_detected: datetime | None
+    user_notes: str | None
     priority: int
     created_at: datetime
     updated_at: datetime
@@ -76,7 +75,7 @@ class TeamResponse(BaseModel):
 class DetectedTeamSensor(BaseModel):
     """Detected Team Tracker sensor entity"""
     entity_id: str
-    name: Optional[str]
+    name: str | None
     platform: str
     domain: str
     unique_id: str
@@ -137,7 +136,7 @@ async def get_team_tracker_status(
 @router.post("/detect")
 async def detect_team_tracker_entities(
     session: AsyncSession = Depends(get_db_session)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detect Team Tracker sensor entities from Home Assistant.
 
@@ -214,11 +213,11 @@ async def detect_team_tracker_entities(
     }
 
 
-@router.get("/teams", response_model=List[TeamResponse])
+@router.get("/teams", response_model=list[TeamResponse])
 async def get_configured_teams(
     active_only: bool = False,
     session: AsyncSession = Depends(get_db_session)
-) -> List[TeamResponse]:
+) -> list[TeamResponse]:
     """
     Get all configured Team Tracker teams.
 
@@ -330,7 +329,7 @@ async def update_team(
 async def delete_team(
     team_id: int,
     session: AsyncSession = Depends(get_db_session)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete a Team Tracker team configuration.
     """
@@ -355,7 +354,7 @@ async def delete_team(
 @router.post("/sync-from-ha")
 async def sync_teams_from_ha(
     session: AsyncSession = Depends(get_db_session)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Sync team configurations from Home Assistant state attributes.
 

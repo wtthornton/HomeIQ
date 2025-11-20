@@ -12,8 +12,9 @@ Uses bootstrap sampling and statistical methods for uncertainty estimation.
 """
 
 import logging
-from typing import Optional, Literal, List
 from dataclasses import dataclass
+from typing import Literal
+
 import numpy as np
 from scipy import stats
 
@@ -33,7 +34,7 @@ class ConfidenceWithUncertainty:
     upper_bound: float  # Confidence interval upper bound
     distribution: Literal["normal", "beta", "gamma"] = "normal"  # Type-safe distribution
     confidence_level: float = 0.90  # Confidence interval level (e.g., 0.90 for 90% CI)
-    
+
     def __post_init__(self):
         """Validate bounds after initialization."""
         # Ensure bounds are in valid range
@@ -53,7 +54,7 @@ class UncertaintyQuantifier:
     
     Uses 2025 best practices: type hints, numpy/scipy for statistics.
     """
-    
+
     def __init__(self, method: Literal["bootstrap", "bayesian"] = "bootstrap"):
         """
         Initialize uncertainty quantifier.
@@ -64,7 +65,7 @@ class UncertaintyQuantifier:
                 - "bayesian": Bayesian approach (more sophisticated)
         """
         self.method = method
-    
+
     def calculate_uncertainty_bootstrap(
         self,
         raw_confidence: float,
@@ -100,27 +101,27 @@ class UncertaintyQuantifier:
                 distribution="normal",
                 confidence_level=confidence_level
             )
-        
+
         # Bootstrap sampling
-        bootstrap_samples: List[float] = []
-        
+        bootstrap_samples: list[float] = []
+
         for _ in range(n_samples):
             # Resample with replacement
             resampled = np.random.choice(historical_data, size=len(historical_data), replace=True)
             # Calculate mean of resampled data
             bootstrap_samples.append(float(np.mean(resampled)))
-        
+
         bootstrap_array = np.array(bootstrap_samples)
-        
+
         # Calculate statistics
         mean = float(np.mean(bootstrap_array))
         std = float(np.std(bootstrap_array))
-        
+
         # Calculate confidence intervals
         alpha = 1.0 - confidence_level
         lower_bound = float(np.percentile(bootstrap_array, 100 * alpha / 2))
         upper_bound = float(np.percentile(bootstrap_array, 100 * (1 - alpha / 2)))
-        
+
         return ConfidenceWithUncertainty(
             mean=mean,
             std=std,
@@ -129,7 +130,7 @@ class UncertaintyQuantifier:
             distribution="normal",
             confidence_level=confidence_level
         )
-    
+
     def calculate_uncertainty_bayesian(
         self,
         raw_confidence: float,
@@ -157,39 +158,39 @@ class UncertaintyQuantifier:
             # Beta distribution is bounded [0, 1], perfect for confidence scores
             mean_hist = np.mean(historical_data)
             var_hist = np.var(historical_data)
-            
+
             # Method of moments for Beta distribution
             # mean = alpha / (alpha + beta)
             # var = alpha * beta / ((alpha + beta)^2 * (alpha + beta + 1))
             if var_hist > 0 and mean_hist > 0 and mean_hist < 1:
                 alpha = mean_hist * (mean_hist * (1 - mean_hist) / var_hist - 1)
                 beta = (1 - mean_hist) * (mean_hist * (1 - mean_hist) / var_hist - 1)
-                
+
                 # Ensure positive parameters
                 alpha = max(0.1, alpha)
                 beta = max(0.1, beta)
             else:
                 # Fallback to uniform
                 alpha, beta = 1.0, 1.0
-        
+
         # Update with current observation
         # Treat raw_confidence as a sample from Beta(alpha, beta)
         # For simplicity, we add it as a weighted observation
         alpha_posterior = alpha + raw_confidence * 10  # Weight current observation
         beta_posterior = beta + (1 - raw_confidence) * 10
-        
+
         # Calculate statistics from Beta distribution
         mean = alpha_posterior / (alpha_posterior + beta_posterior)
         var = (alpha_posterior * beta_posterior) / (
             (alpha_posterior + beta_posterior) ** 2 * (alpha_posterior + beta_posterior + 1)
         )
         std = np.sqrt(var)
-        
+
         # Calculate confidence intervals using Beta distribution
         alpha_ci = (1.0 - confidence_level) / 2
         lower_bound = float(stats.beta.ppf(alpha_ci, alpha_posterior, beta_posterior))
         upper_bound = float(stats.beta.ppf(1 - alpha_ci, alpha_posterior, beta_posterior))
-        
+
         return ConfidenceWithUncertainty(
             mean=float(mean),
             std=float(std),
@@ -198,11 +199,11 @@ class UncertaintyQuantifier:
             distribution="beta",
             confidence_level=confidence_level
         )
-    
+
     def calculate_uncertainty(
         self,
         raw_confidence: float,
-        historical_data: Optional[np.ndarray] = None,
+        historical_data: np.ndarray | None = None,
         confidence_level: float = 0.90
     ) -> ConfidenceWithUncertainty:
         """
@@ -218,7 +219,7 @@ class UncertaintyQuantifier:
         """
         if historical_data is None:
             historical_data = np.array([])
-        
+
         if self.method == "bootstrap":
             return self.calculate_uncertainty_bootstrap(
                 raw_confidence, historical_data, confidence_level=confidence_level
@@ -229,7 +230,7 @@ class UncertaintyQuantifier:
             )
         else:
             raise ValueError(f"Unknown method: {self.method}")
-    
+
     def get_uncertainty_summary(self, uncertainty: ConfidenceWithUncertainty) -> str:
         """
         Get human-readable summary of uncertainty.
