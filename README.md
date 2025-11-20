@@ -429,6 +429,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Implement token optimization for Ask AI clarification flow** (November 20, 2025)
 - **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (November 20, 2025)
 - **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (November 20, 2025)
 - **Implement confidence algorithm improvements (Phase 1 & 2)** (November 20, 2025)
