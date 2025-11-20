@@ -300,7 +300,7 @@ async def get_integrations_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error checking integrations: {str(e)}"
-        )
+        ) from e
 
 
 async def _store_integration_health_results(
@@ -375,7 +375,7 @@ async def start_setup_wizard(integration_type: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error starting setup wizard: {str(e)}"
-        )
+        ) from e
 
 
 @app.post(
@@ -415,7 +415,7 @@ async def execute_wizard_step(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error executing wizard step: {str(e)}"
-        )
+        ) from e
 
 
 # Performance Optimization Endpoints
@@ -449,7 +449,7 @@ async def analyze_performance():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing performance: {str(e)}"
-        )
+        ) from e
 
 
 @app.get(
@@ -492,7 +492,7 @@ async def get_optimization_recommendations():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating recommendations: {str(e)}"
-        )
+        ) from e
 
 
 # Zigbee2MQTT Bridge Management Endpoints
@@ -527,7 +527,7 @@ async def get_bridge_status():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}") from e
 
 
 @app.post("/api/zigbee2mqtt/bridge/recovery", tags=["Zigbee2MQTT Bridge"])
@@ -544,7 +544,7 @@ async def attempt_bridge_recovery(force: bool = False):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}") from e
 
 
 @app.post("/api/zigbee2mqtt/bridge/restart", tags=["Zigbee2MQTT Bridge"])
@@ -561,7 +561,7 @@ async def restart_bridge():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}") from e
 
 
 @app.get("/api/zigbee2mqtt/bridge/health", tags=["Zigbee2MQTT Bridge"])
@@ -600,7 +600,7 @@ async def start_zigbee_setup_wizard(request: SetupWizardRequest):
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start setup wizard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start setup wizard: {str(e)}") from e
 
 
 @app.post("/api/zigbee2mqtt/setup/{wizard_id}/continue", tags=["Zigbee2MQTT Setup"])
@@ -612,9 +612,9 @@ async def continue_zigbee_setup_wizard(wizard_id: str):
         return response
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to continue wizard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to continue wizard: {str(e)}") from e
 
 
 @app.get("/api/zigbee2mqtt/setup/{wizard_id}/status", tags=["Zigbee2MQTT Setup"])
@@ -632,7 +632,7 @@ async def get_zigbee_setup_wizard_status(wizard_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get wizard status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get wizard status: {str(e)}") from e
 
 
 @app.delete("/api/zigbee2mqtt/setup/{wizard_id}", tags=["Zigbee2MQTT Setup"])
@@ -650,7 +650,7 @@ async def cancel_zigbee_setup_wizard(wizard_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cancel wizard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel wizard: {str(e)}") from e
 
 
 # Root endpoint

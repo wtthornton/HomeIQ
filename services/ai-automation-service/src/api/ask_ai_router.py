@@ -515,7 +515,7 @@ async def get_reverse_engineering_analytics(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve analytics: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/entities/search")
@@ -616,7 +616,7 @@ async def search_entities(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to search entities: {str(e)}"
-        )
+        ) from e
 
 
 # Initialize clients (reassign global variables)
@@ -3284,6 +3284,108 @@ async def generate_technical_prompt(
     return technical_prompt
 
 
+async def _score_entities_by_relevance(
+    enriched_entities: list[dict[str, Any]],
+    enriched_data: dict[str, dict[str, Any]],
+    query: str,
+    clarification_context: dict[str, Any] | None = None,
+    mentioned_locations: list[str] | None = None,
+    mentioned_domains: list[str] | None = None
+) -> dict[str, float]:
+    """
+    Score entities by relevance to query + clarification answers.
+    Uses keyword matching and basic relevance signals.
+    
+    Args:
+        enriched_entities: List of enriched entity dicts
+        enriched_data: Dictionary mapping entity_id to enriched entity data
+        query: User query (may already be enriched)
+        clarification_context: Optional clarification Q&A context
+        mentioned_locations: Optional list of mentioned locations
+        mentioned_domains: Optional list of mentioned domains
+    
+    Returns:
+        Dictionary mapping entity_id to relevance score (0.0-1.0)
+    """
+    scores: dict[str, float] = {}
+    
+    # Build enriched query from original + clarification answers
+    enriched_query = query.lower()
+    clarification_entities = set()
+    clarification_keywords = set()
+    
+    if clarification_context and clarification_context.get('questions_and_answers'):
+        qa_list = clarification_context['questions_and_answers']
+        for qa in qa_list:
+            answer = qa.get('answer', '').lower()
+            clarification_keywords.update(answer.split())
+            
+            # Extract entities from selected_entities
+            if qa.get('selected_entities'):
+                clarification_entities.update(qa['selected_entities'])
+    
+    # Build keyword set from query + clarifications
+    query_keywords = set(enriched_query.split())
+    all_keywords = query_keywords | clarification_keywords
+    
+    # Score each entity
+    for entity in enriched_entities:
+        entity_id = entity.get('entity_id', '')
+        if not entity_id or entity_id not in enriched_data:
+            scores[entity_id] = 0.0
+            continue
+        
+        enriched = enriched_data[entity_id]
+        score = 0.0
+        
+        # Signal 1: Entity mentioned in clarification answers (HIGHEST PRIORITY - 0.5 points)
+        if entity_id in clarification_entities:
+            score += 0.5
+        elif any(entity_id.lower() in kw or kw in entity_id.lower() for kw in clarification_keywords):
+            score += 0.3
+        
+        # Signal 2: Location match (0.3 points)
+        if mentioned_locations:
+            entity_area_id = (enriched.get('area_id') or '').lower()
+            entity_area_name = (enriched.get('area_name') or '').lower()
+            for location in mentioned_locations:
+                location_lower = location.lower().replace('_', ' ')
+                if (location_lower in entity_area_id or
+                    entity_area_id in location_lower or
+                    location_lower in entity_area_name or
+                    entity_area_name in location_lower):
+                    score += 0.3
+                    break
+        
+        # Signal 3: Domain match (0.2 points)
+        if mentioned_domains:
+            entity_domain = (enriched.get('domain') or '').lower()
+            if entity_domain in mentioned_domains:
+                score += 0.2
+        
+        # Signal 4: Name/Keyword match (0.2 points)
+        friendly_name = (enriched.get('friendly_name') or '').lower()
+        entity_id_lower = entity_id.lower()
+        
+        # Check if any query keyword appears in entity name/ID
+        for keyword in all_keywords:
+            if len(keyword) > 3:  # Only meaningful keywords (length > 3)
+                if (keyword in friendly_name or
+                    keyword in entity_id_lower or
+                    friendly_name in keyword):
+                    score += 0.1
+                    break
+        
+        # Cap score at 1.0
+        scores[entity_id] = min(score, 1.0)
+    
+    # Log top scored entities for debugging
+    top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:5]
+    logger.debug(f"📊 Top 5 scored entities: {top_scores}")
+    
+    return scores
+
+
 async def generate_suggestions_from_query(
     query: str,
     entities: list[dict[str, Any]],
@@ -3697,14 +3799,45 @@ async def generate_suggestions_from_query(
                     resolved_entity_ids = list(location_expanded_entity_ids)
 
                     # ========================================================================
-                    # LOCATION-PRIORITY FILTERING (NEW)
+                    # RELEVANCE-BASED FILTERING (NEW - Option 3)
+                    # ========================================================================
+                    # OPTIMIZATION: Score entities by relevance BEFORE filtering
+                    # Priority: Relevance scoring > Location matching > Device name matching
+                    # This ensures most relevant entities are kept even if they don't match location/name filters
+                    # Token savings: 4,000-6,000 tokens by keeping only top N most relevant entities
+                    
+                    # NEW: Score all entities by relevance first
+                    relevance_scores = await _score_entities_by_relevance(
+                        enriched_entities=[{'entity_id': eid} for eid in resolved_entity_ids],
+                        enriched_data=enriched_data,
+                        query=enriched_query,
+                        clarification_context=clarification_context,
+                        mentioned_locations=mentioned_locations,
+                        mentioned_domains=mentioned_domains
+                    )
+                    
+                    # Keep top N most relevant entities (N = 25, but can be adjusted)
+                    top_n_relevant = 25
+                    sorted_entity_ids = sorted(
+                        resolved_entity_ids,
+                        key=lambda eid: relevance_scores.get(eid, 0.0),
+                        reverse=True
+                    )[:top_n_relevant]
+                    
+                    logger.info(
+                        f"📊 Relevance-scored: {len(sorted_entity_ids)}/{len(resolved_entity_ids)} "
+                        f"entities selected (top {top_n_relevant} by relevance)"
+                    )
+                    
+                    # Now apply location/name filtering on top of relevance filtering
+                    # LOCATION-PRIORITY FILTERING (EXISTING)
                     # ========================================================================
                     # OPTIMIZATION: Filter entity context to reduce token usage
                     # Priority: Location matching > Device name matching
                     # Only include entities that match location OR extracted device names
                     # BUT: Don't filter if extracted names are generic domain terms (e.g., "lights", "sensor", "led")
                     # This reduces prompt size while still giving AI enough context
-                    filtered_entity_ids_for_prompt = set(resolved_entity_ids)
+                    filtered_entity_ids_for_prompt = set(sorted_entity_ids)  # Start with relevance-filtered set
 
                     # Generic domain terms that should NOT trigger filtering (too broad)
                     generic_terms = {
@@ -3717,9 +3850,10 @@ async def generate_suggestions_from_query(
                     }
 
                     # Step 1: Filter by location if location is mentioned (HIGHEST PRIORITY)
+                    # NOTE: Filters from relevance-filtered set (sorted_entity_ids), not full set
                     if mentioned_locations:
                         location_filtered_entity_ids = set()
-                        for entity_id in resolved_entity_ids:
+                        for entity_id in filtered_entity_ids_for_prompt:  # Filter from relevance-filtered set
                             enriched = enriched_data.get(entity_id, {})
                             # Handle None values: get() returns None if key exists but value is None
                             entity_area_id_raw = enriched.get('area_id') or ''
@@ -3838,13 +3972,14 @@ async def generate_suggestions_from_query(
                     if getattr(settings, 'enable_token_counting', True):
                         from ..utils.entity_context_compressor import compress_entity_context
 
-                        max_entity_tokens = getattr(settings, 'max_entity_context_tokens', 10_000)
+                        max_entity_tokens = getattr(settings, 'max_entity_context_tokens', 7_000)  # Updated default from 10_000 to 7_000 (Option 1)
                         suggestion_model = getattr(settings, 'suggestion_generation_model', 'gpt-5.1')
 
                         filtered_enriched_data_for_prompt = compress_entity_context(
                             filtered_enriched_data_for_prompt,
                             max_tokens=max_entity_tokens,
-                            model=suggestion_model
+                            model=suggestion_model,
+                            relevance_scores=relevance_scores  # NEW: Pass relevance scores for prioritized compression
                         )
 
                         logger.info(
@@ -4728,6 +4863,67 @@ async def process_natural_language_query(
                             context=automation_context
                         )
 
+                    # NEW: Check for cached answers from past sessions
+                    cached_answers = {}
+                    if questions:
+                        try:
+                            from ..database.crud import find_similar_past_answers
+                            
+                            # Get RAG client if available for semantic matching
+                            rag_client = None
+                            if db:
+                                try:
+                                    from ..services.rag.rag_client import RAGClient
+                                    openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
+                                    rag_client = RAGClient(
+                                        openvino_service_url=openvino_url,
+                                        db_session=db
+                                    )
+                                except Exception as e:
+                                    logger.debug(f"RAG client not available for answer caching: {e}")
+                            
+                            # Convert questions to dict format for matching
+                            questions_dict = [
+                                {
+                                    'id': q.id,
+                                    'question_text': q.question_text,
+                                    'question_id': q.id  # Alias for compatibility
+                                }
+                                for q in questions
+                            ]
+                            
+                            # Find similar past answers
+                            cached_answers = await find_similar_past_answers(
+                                db=db,
+                                user_id=request.user_id,
+                                current_questions=questions_dict,
+                                rag_client=rag_client,
+                                similarity_threshold=0.75,  # 75% similarity threshold
+                                ha_client=None  # Entity validation can be added later
+                            )
+                            
+                            if cached_answers:
+                                logger.info(f"✅ Found {len(cached_answers)} cached answers from past sessions")
+                                
+                                # Pre-fill answers in questions (add cached_answer field)
+                                for question in questions:
+                                    if question.id in cached_answers:
+                                        cached_data = cached_answers[question.id]
+                                        # Store cached answer as metadata on question object
+                                        if not hasattr(question, 'cached_answer'):
+                                            question.cached_answer = cached_data['answer_text']
+                                        if not hasattr(question, 'cached_entities'):
+                                            question.cached_entities = cached_data.get('selected_entities')
+                                        if not hasattr(question, 'cached_similarity'):
+                                            question.cached_similarity = cached_data.get('similarity', 0.0)
+                                        logger.debug(
+                                            f"Pre-filled answer for question '{question.question_text[:50]}...': "
+                                            f"'{cached_data['answer_text'][:50]}...' (similarity={cached_data.get('similarity', 0.0):.2f})"
+                                        )
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to retrieve cached answers: {e}", exc_info=True)
+                            # Continue without cached answers - not critical
+
                     # Create clarification session
                     if questions:
                         clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
@@ -4772,7 +4968,11 @@ async def process_natural_language_query(
                                     'context': q.context,
                                     'priority': q.priority,
                                     'related_entities': q.related_entities,
-                                    'ambiguity_id': q.ambiguity_id
+                                    'ambiguity_id': q.ambiguity_id,
+                                    # Include cached answer if available
+                                    'cached_answer': getattr(q, 'cached_answer', None),
+                                    'cached_entities': getattr(q, 'cached_entities', None),
+                                    'cached_similarity': getattr(q, 'cached_similarity', None)
                                 } for q in questions
                             ]
 
@@ -4972,7 +5172,11 @@ async def process_natural_language_query(
                     'question_type': q.question_type.value,
                     'options': q.options,
                     'priority': q.priority,
-                    'related_entities': q.related_entities
+                    'related_entities': q.related_entities,
+                    # Include cached answer if available
+                    'cached_answer': getattr(q, 'cached_answer', None),
+                    'cached_entities': getattr(q, 'cached_entities', None),
+                    'cached_similarity': getattr(q, 'cached_similarity', None)
                 }
                 for q in questions
             ]
@@ -5667,7 +5871,7 @@ async def provide_clarification(
                 raise HTTPException(
                     status_code=500,
                     detail=f"Failed to rebuild enriched query: {str(e)}"
-                )
+                ) from e
 
             # NEW: Re-extract entities from enriched query (original + Q&A)
             logger.info("🔧 Step 2: Extracting entities from enriched query (timeout: 30s)")
@@ -5683,14 +5887,18 @@ async def provide_clarification(
                 logger.error("❌ Entity extraction timed out after 30 seconds")
                 raise HTTPException(
                     status_code=504,
-                    detail="Entity extraction timed out. Please try again."
+                    detail={
+                        "error": "timeout",
+                        "message": "Entity extraction is taking longer than expected. Please try again.",
+                        "retry_after": 30
+                    }
                 )
             except Exception as e:
                 logger.error(f"❌ Failed to extract entities from enriched query: {e}", exc_info=True)
                 raise HTTPException(
                     status_code=500,
                     detail=f"Failed to extract entities: {str(e)}"
-                )
+                ) from e
 
             # NEW: Re-enrich devices based on selected entities from Q&A answers
             logger.info("🔧 Step 3: Re-enriching entities with Q&A information (timeout: 45s)")
@@ -5708,7 +5916,11 @@ async def provide_clarification(
                 logger.error("❌ Entity re-enrichment timed out after 45 seconds")
                 raise HTTPException(
                     status_code=504,
-                    detail="Entity re-enrichment timed out. Please try again."
+                    detail={
+                        "error": "timeout",
+                        "message": "Entity enrichment is taking longer than expected. Please try again.",
+                        "retry_after": 30
+                    }
                 )
             except Exception as e:
                 logger.error(f"❌ Failed to re-enrich entities: {e}", exc_info=True)
@@ -5788,7 +6000,7 @@ async def provide_clarification(
                                 "error": "internal_error",
                                 "message": error_message
                             }
-                        )
+                        ) from e
 
                 except Exception as e:
                     logger.error(f"❌ Unexpected error on attempt {attempt + 1}/{max_retries}: {e}", exc_info=True)
@@ -5808,7 +6020,7 @@ async def provide_clarification(
                                 "error": "internal_error",
                                 "message": error_message
                             }
-                        )
+                        ) from e
 
             # Validate suggestions were generated
             if suggestions is None:
@@ -5884,6 +6096,38 @@ async def provide_clarification(
                     await db.execute(stmt)
                     await db.commit()
                     logger.info(f"✅ Updated clarification session {request.session_id} with clarification_query_id={request.session_id}")
+                    
+                    # NEW: Store clarification questions in semantic_knowledge for future answer caching
+                    try:
+                        rag_client = await _get_rag_client(db)
+                        if rag_client:
+                            for question in session.questions:
+                                # Find matching answer
+                                answer = next(
+                                    (a for a in session.answers if a.question_id == question.id),
+                                    None
+                                )
+                                
+                                if answer:
+                                    await rag_client.store(
+                                        text=question.question_text,
+                                        knowledge_type='clarification_question',  # NEW type for answer caching
+                                        metadata={
+                                            'question_id': question.id,
+                                            'answer_text': answer.answer_text,
+                                            'selected_entities': answer.selected_entities,
+                                            'session_id': request.session_id,
+                                            'user_id': session.original_query_id,  # Use original query context
+                                            'category': question.category,
+                                            'created_at': datetime.utcnow().isoformat()
+                                        },
+                                        success_score=1.0  # Start high, can decrease if user modifies
+                                    )
+                            logger.debug(f"✅ Stored {len(session.questions)} clarification questions in semantic_knowledge")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to store clarification questions in semantic_knowledge: {e}")
+                        # Non-critical, continue
+                        
                 except Exception as e:
                     logger.error(f"Failed to update clarification session in database: {e}", exc_info=True)
                     # Don't fail the request
@@ -6145,7 +6389,7 @@ async def provide_clarification(
                     raise HTTPException(
                         status_code=500,
                         detail=f"Failed to rebuild enriched query: {str(e)}"
-                    )
+                    ) from e
 
                 # Re-extract entities from enriched query
                 logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 5s - reduced for performance)")
@@ -6161,14 +6405,18 @@ async def provide_clarification(
                     logger.error("❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
-                        detail="Entity extraction timed out. Please try again."
+                        detail={
+                            "error": "timeout",
+                            "message": "Entity extraction is taking longer than expected. Please try again.",
+                            "retry_after": 30
+                        }
                     )
                 except Exception as e:
                     logger.error(f"❌ Failed to extract entities (all-ambiguities-resolved path): {e}", exc_info=True)
                     raise HTTPException(
                         status_code=500,
                         detail=f"Failed to extract entities: {str(e)}"
-                    )
+                    ) from e
 
                 # Re-enrich devices based on selected entities from Q&A answers
                 logger.info("🔧 Step 3 (all-ambiguities-resolved): Re-enriching entities (timeout: 45s)")
@@ -6186,7 +6434,11 @@ async def provide_clarification(
                     logger.error("❌ Entity re-enrichment timed out after 45 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
-                        detail="Entity re-enrichment timed out. Please try again."
+                        detail={
+                            "error": "timeout",
+                            "message": "Entity enrichment is taking longer than expected. Please try again.",
+                            "retry_after": 30
+                        }
                     )
                 except Exception as e:
                     logger.error(f"❌ Failed to re-enrich entities (all-ambiguities-resolved path): {e}", exc_info=True)
@@ -6212,7 +6464,11 @@ async def provide_clarification(
                     logger.error("❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
-                        detail="Suggestion generation timed out. Please try again."
+                        detail={
+                            "error": "timeout",
+                            "message": "The request is taking longer than expected. This may be due to a complex query or high system load. Please try again with a simpler request or wait a moment.",
+                            "retry_after": 30
+                        }
                     )
                 except ValueError as e:
                     error_str = str(e)
@@ -6236,7 +6492,7 @@ async def provide_clarification(
                                 "error": "internal_error",
                                 "message": f"Failed to generate suggestions: {str(e)}"
                             }
-                        )
+                        ) from e
                 except Exception as e:
                     logger.error(f"❌ Failed to generate suggestions (all-ambiguities-resolved path): {e}", exc_info=True)
                     raise HTTPException(
@@ -6245,7 +6501,7 @@ async def provide_clarification(
                             "error": "internal_error",
                             "message": f"Failed to generate suggestions: {str(e)}"
                         }
-                    )
+                    ) from e
 
                 # Add conversation history to suggestions
                 for suggestion in suggestions:
@@ -6561,7 +6817,7 @@ async def get_query_suggestions(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve suggestions: {str(e)}"
-        )
+        ) from e
 
 
 def _detects_timing_requirement(query: str) -> bool:
@@ -7470,7 +7726,7 @@ async def test_suggestion_from_query(
                 raise HTTPException(
                     status_code=500,
                     detail=f"Both AutomationTestExecutor and fallback method failed. AutomationTestExecutor error: {action_error}, Fallback error: {fallback_error}"
-                )
+                ) from fallback_error
             raise
 
     except HTTPException as e:
@@ -8124,7 +8380,7 @@ async def approve_suggestion_from_query(
     except Exception as e:
         logger.error(f"❌ [APPROVAL] Unexpected exception: {type(e).__name__}: {str(e)}")
         logger.error("❌ [APPROVAL] Full stack trace:", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}") from e
 
 
 # ============================================================================
@@ -8196,7 +8452,7 @@ async def create_alias(
         raise
     except Exception as e:
         logger.error(f"Error creating alias: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/aliases/{alias}", status_code=status.HTTP_204_NO_CONTENT)
@@ -8230,7 +8486,7 @@ async def delete_alias(
         raise
     except Exception as e:
         logger.error(f"Error deleting alias: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/aliases", response_model=dict[str, list[str]])
@@ -8259,7 +8515,7 @@ async def list_aliases(
         return aliases_by_entity
     except Exception as e:
         logger.error(f"Error listing aliases: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/model-comparison/metrics")
@@ -8351,7 +8607,7 @@ async def get_model_comparison_metrics(
         }
     except Exception as e:
         logger.error(f"Error fetching model comparison metrics: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/model-comparison/summary")
@@ -8439,7 +8695,7 @@ async def get_model_comparison_summary(
         }
     except Exception as e:
         logger.error(f"Error fetching model comparison summary: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/reverse-engineer-yaml", response_model=dict[str, Any])
@@ -8531,7 +8787,7 @@ async def reverse_engineer_yaml(request: dict[str, Any]):
 
     except ValueError as e:
         logger.error(f"Invalid request: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Reverse engineering failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -71,6 +71,7 @@ class SystemSettingsSchema(BaseModel):
         default_factory=lambda: ParallelTestingModelsModel(),
         alias="parallelTestingModels"
     )
+    enable_answer_caching: bool = Field(default=True, alias="enableAnswerCaching")  # NEW: Enable/disable answer caching
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 

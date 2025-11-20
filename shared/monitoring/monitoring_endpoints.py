@@ -93,7 +93,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}") from e
         
         @self.router.get("/metrics/realtime", response_model=Dict[str, Any])
         async def get_realtime_metrics():
@@ -157,7 +157,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve log statistics: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve log statistics: {str(e)}") from e
         
         @self.router.post("/logs/compress", response_model=Dict[str, Any])
         async def compress_logs(
@@ -177,7 +177,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to compress logs: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to compress logs: {str(e)}") from e
         
         @self.router.delete("/logs/cleanup", response_model=Dict[str, Any])
         async def cleanup_old_logs(
@@ -199,7 +199,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to cleanup logs: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to cleanup logs: {str(e)}") from e
         
         # Metrics endpoints
         @self.router.get("/metrics", response_model=Dict[str, Any])
@@ -222,7 +222,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}") from e
         
         @self.router.get("/metrics/current", response_model=Dict[str, Any])
         async def get_current_metrics(
@@ -239,7 +239,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve current metrics: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve current metrics: {str(e)}") from e
         
         @self.router.get("/metrics/summary", response_model=Dict[str, Any])
         async def get_metrics_summary(
@@ -256,7 +256,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics summary: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics summary: {str(e)}") from e
         
         # Alert endpoints
         @self.router.get("/alerts", response_model=Dict[str, Any])
@@ -278,14 +278,14 @@ class MonitoringEndpoints:
                 if status:
                     try:
                         status_enum = AlertStatus(status)
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+                    except ValueError as err:
+                        raise HTTPException(status_code=400, detail=f"Invalid status: {status}") from err
                 
                 if severity:
                     try:
                         severity_enum = AlertSeverity(severity)
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}")
+                    except ValueError as err:
+                        raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}") from err
                 
                 alerts = alert_manager.get_alert_history(
                     limit=limit,
@@ -311,7 +311,7 @@ class MonitoringEndpoints:
             except HTTPException:
                 raise
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve alerts: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve alerts: {str(e)}") from e
         
         @self.router.get("/alerts/active", response_model=Dict[str, Any])
         async def get_active_alerts(
@@ -332,7 +332,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve active alerts: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve active alerts: {str(e)}") from e
         
         @self.router.get("/alerts/statistics", response_model=Dict[str, Any])
         async def get_alert_statistics(
@@ -350,7 +350,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve alert statistics: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve alert statistics: {str(e)}") from e
         
         @self.router.post("/alerts/{alert_id}/acknowledge", response_model=Dict[str, Any])
         async def acknowledge_alert(
@@ -376,7 +376,7 @@ class MonitoringEndpoints:
             except HTTPException:
                 raise
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to acknowledge alert: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to acknowledge alert: {str(e)}") from e
         
         @self.router.post("/alerts/{alert_id}/resolve", response_model=Dict[str, Any])
         async def resolve_alert(
@@ -402,7 +402,7 @@ class MonitoringEndpoints:
             except HTTPException:
                 raise
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to resolve alert: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to resolve alert: {str(e)}") from e
         
         # Dashboard endpoints
         @self.router.get("/dashboard/overview", response_model=Dict[str, Any])
@@ -446,7 +446,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard overview: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard overview: {str(e)}") from e
         
         @self.router.get("/dashboard/health", response_model=Dict[str, Any])
         async def get_dashboard_health(
@@ -485,7 +485,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard health: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard health: {str(e)}") from e
         
         # Configuration endpoints
         @self.router.get("/config/alert-rules", response_model=Dict[str, Any])
@@ -508,7 +508,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to retrieve alert rules: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to retrieve alert rules: {str(e)}") from e
         
         @self.router.post("/config/alert-rules", response_model=Dict[str, Any])
         async def create_alert_rule(
@@ -543,7 +543,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to create alert rule: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Failed to create alert rule: {str(e)}") from e
         
         @self.router.put("/config/alert-rules/{rule_name}", response_model=Dict[str, Any])
         async def update_alert_rule(
@@ -579,7 +579,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to update alert rule: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Failed to update alert rule: {str(e)}") from e
         
         @self.router.delete("/config/alert-rules/{rule_name}", response_model=Dict[str, Any])
         async def delete_alert_rule(
@@ -598,7 +598,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to delete alert rule: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to delete alert rule: {str(e)}") from e
         
         @self.router.post("/config/notification-channels", response_model=Dict[str, Any])
         async def create_notification_channel(
@@ -620,7 +620,7 @@ class MonitoringEndpoints:
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to create notification channel: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Failed to create notification channel: {str(e)}") from e
         
         # Export endpoints
         @self.router.get("/export/logs", response_model=Dict[str, Any])
@@ -666,7 +666,7 @@ class MonitoringEndpoints:
                     }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to export logs: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to export logs: {str(e)}") from e
         
         @self.router.get("/export/metrics", response_model=Dict[str, Any])
         async def export_metrics(
@@ -725,7 +725,7 @@ class MonitoringEndpoints:
                     }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to export metrics: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to export metrics: {str(e)}") from e
         
         @self.router.get("/export/alerts", response_model=Dict[str, Any])
         async def export_alerts(
@@ -772,4 +772,4 @@ class MonitoringEndpoints:
                     }
                 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to export alerts: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to export alerts: {str(e)}") from e

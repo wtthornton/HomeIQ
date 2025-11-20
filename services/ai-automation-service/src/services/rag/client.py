@@ -141,6 +141,72 @@ class RAGClient:
             logger.error(f"Unexpected error generating embedding: {e}")
             raise EmbeddingGenerationError(f"Failed to generate embedding: {e}") from e
 
+    async def _batch_get_embeddings(self, texts: list[str]) -> list[np.ndarray]:
+        """
+        Get embeddings for multiple texts in batch (more efficient).
+        
+        Args:
+            texts: List of texts to embed
+            
+        Returns:
+            List of 384-dim numpy arrays
+            
+        Raises:
+            EmbeddingGenerationError: If embedding generation fails
+        """
+        if not texts:
+            return []
+        
+        # Check cache first, collect uncached texts
+        embeddings = []
+        uncached_texts = []
+        uncached_indices = []
+        
+        for i, text in enumerate(texts):
+            if text in self._embedding_cache:
+                embeddings.append((i, self._embedding_cache[text]))
+            else:
+                uncached_texts.append(text)
+                uncached_indices.append(i)
+        
+        # Generate embeddings for uncached texts
+        if uncached_texts:
+            try:
+                response = await self._client.post(
+                    f"{self.openvino_url}/embeddings",
+                    json={
+                        "texts": uncached_texts,
+                        "normalize": True
+                    },
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                new_embeddings = [np.array(emb) for emb in data["embeddings"]]
+                
+                # Cache new embeddings
+                for text, embedding in zip(uncached_texts, new_embeddings):
+                    if len(self._embedding_cache) >= self._cache_size:
+                        oldest_key = next(iter(self._embedding_cache))
+                        del self._embedding_cache[oldest_key]
+                    self._embedding_cache[text] = embedding
+                
+                # Add to results
+                for idx, embedding in zip(uncached_indices, new_embeddings):
+                    embeddings.append((idx, embedding))
+                    
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error generating batch embeddings: {e}")
+                raise EmbeddingGenerationError(f"Failed to generate batch embeddings: {e}") from e
+            except Exception as e:
+                logger.error(f"Unexpected error generating batch embeddings: {e}")
+                raise EmbeddingGenerationError(f"Failed to generate batch embeddings: {e}") from e
+        
+        # Sort by original index and return just embeddings
+        embeddings.sort(key=lambda x: x[0])
+        return [emb for _, emb in embeddings]
+
     async def store(
         self,
         text: str,

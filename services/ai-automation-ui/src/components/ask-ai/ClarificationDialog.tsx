@@ -17,6 +17,9 @@ interface ClarificationQuestion {
   options?: string[];
   priority: number;
   related_entities?: string[];
+  cached_answer?: string;  // NEW: Cached answer from past sessions
+  cached_entities?: string[];  // NEW: Cached entity selections
+  cached_similarity?: number;  // NEW: Similarity score of cached answer
 }
 
 interface ClarificationDialogProps {
@@ -51,20 +54,30 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
   const [optionDescriptions, setOptionDescriptions] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize answers
+  // Initialize answers (with cached answers if available)
   useEffect(() => {
     const initialAnswers: Record<string, string> = {};
     const initialEntities: Record<string, string[]> = {};
     
     questions.forEach(q => {
-      if (q.question_type === 'entity_selection') {
-        initialEntities[q.id] = [];
-      } else if (q.question_type === 'boolean') {
-        initialAnswers[q.id] = '';
-      } else if (q.question_type === 'multiple_choice' && q.options && q.options.length > 0) {
-        initialAnswers[q.id] = '';
+      // NEW: Pre-fill with cached answer if available
+      if (q.cached_answer) {
+        if (q.question_type === 'entity_selection' && q.cached_entities) {
+          initialEntities[q.id] = q.cached_entities;
+        } else {
+          initialAnswers[q.id] = q.cached_answer;
+        }
       } else {
-        initialAnswers[q.id] = '';
+        // Default initialization
+        if (q.question_type === 'entity_selection') {
+          initialEntities[q.id] = [];
+        } else if (q.question_type === 'boolean') {
+          initialAnswers[q.id] = '';
+        } else if (q.question_type === 'multiple_choice' && q.options && q.options.length > 0) {
+          initialAnswers[q.id] = '';
+        } else {
+          initialAnswers[q.id] = '';
+        }
       }
     });
     
@@ -455,9 +468,26 @@ export const ClarificationDialog: React.FC<ClarificationDialogProps> = ({
                   {index + 1}
                 </span>
                 <div className="flex-1">
-                  <p className="font-medium mb-2" style={{ color: '#ffffff' }}>
-                    {question.question_text}
-                  </p>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <p className="font-medium" style={{ color: '#ffffff' }}>
+                      {question.question_text}
+                    </p>
+                    {/* Cached answer indicator */}
+                    {question.cached_answer && (
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded flex items-center space-x-1"
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.2)',
+                          border: '1px solid rgba(59, 130, 246, 0.4)',
+                          color: '#93c5fd'
+                        }}
+                        title={`Pre-filled from previous answer (${Math.round((question.cached_similarity || 0) * 100)}% match)`}
+                      >
+                        <span>💾</span>
+                        <span>Pre-filled</span>
+                      </span>
+                    )}
+                  </div>
                   {renderQuestion(question)}
                 </div>
               </div>
