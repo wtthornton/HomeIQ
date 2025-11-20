@@ -31,6 +31,7 @@ numpy>=1.26.0,<2.0.0  # Stable NumPy 1.x (compatible with pandas and openvino)
 
 # Machine Learning
 scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
+scipy>=1.14.0,<2.0.0  # Stable SciPy for statistical operations (Phase 3: Uncertainty Quantification)
 
 # LLM Integration - Multi-Model Entity Extraction
 openai>=1.54.0,<2.0.0  # Stable OpenAI Python SDK (November 2025 - supports GPT-5.1)
