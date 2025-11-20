@@ -1081,16 +1081,21 @@ async def map_devices_to_entities(
     devices_involved: list[str],
     enriched_data: dict[str, dict[str, Any]],
     ha_client: HomeAssistantClient | None = None,
-    fuzzy_match: bool = True
+    fuzzy_match: bool = True,
+    clarification_context: dict[str, Any] | None = None,
+    query_location: str | None = None
 ) -> dict[str, str]:
     """
     Map device friendly names to entity IDs from enriched data.
+    
+    Context-aware (2025 pattern): Uses clarification context and location hints for better matching.
     
     Optimized for single-home local solutions:
     - Deduplicates redundant mappings (multiple friendly names → same entity_id)
     - Prioritizes exact matches over fuzzy matches
     - Uses area context for better matching in single-home scenarios
     - Consolidates devices_involved to unique entity mappings
+    - Uses clarification context to resolve generic device names (e.g., "led" → "office WLED")
     
     IMPORTANT: Only includes entity IDs that actually exist in Home Assistant.
     
@@ -1099,6 +1104,8 @@ async def map_devices_to_entities(
         enriched_data: Dictionary mapping entity_id to enriched entity data
         ha_client: Optional HA client for verifying entities exist
         fuzzy_match: If True, use fuzzy matching for partial matches
+        clarification_context: Optional clarification Q&A context for context-aware matching
+        query_location: Optional location hint (e.g., "office") for location-aware matching
         
     Returns:
         Dictionary mapping device_name → entity_id (only verified entities, deduplicated)
@@ -1176,10 +1183,35 @@ async def map_devices_to_entities(
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
                 break
 
-        # Strategy 2: Fuzzy matching (case-insensitive substring) - area-aware for single-home
+        # Strategy 2: Fuzzy matching (case-insensitive substring) - context-aware for 2025
         if not matched_entity_id and fuzzy_match:
             best_fuzzy_match = None
             best_fuzzy_score = 0
+
+            # Extract location and device hints from clarification context (2025: context-aware)
+            context_location = query_location
+            context_device_hints = set()
+            if clarification_context:
+                # Extract location from Q&A answers
+                qa_list = clarification_context.get('questions_and_answers', [])
+                for qa in qa_list:
+                    answer_text = qa.get('answer', '').lower()
+                    # Look for location mentions (office, living room, etc.)
+                    if not context_location:
+                        # Simple location extraction (can be enhanced)
+                        location_keywords = ['office', 'living room', 'bedroom', 'kitchen', 'bathroom', 'garage']
+                        for loc in location_keywords:
+                            if loc in answer_text:
+                                context_location = loc
+                                break
+                    
+                    # Extract device type hints (WLED, Hue, etc.)
+                    if device_name_lower in ['led', 'light']:
+                        # Look for specific device types in answers
+                        if 'wled' in answer_text:
+                            context_device_hints.add('wled')
+                        if 'hue' in answer_text:
+                            context_device_hints.add('hue')
 
             for entity_id, enriched in enriched_data.items():
                 friendly_name = enriched.get('friendly_name', '')
@@ -1192,7 +1224,7 @@ async def map_devices_to_entities(
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
                 area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
 
-                # Calculate fuzzy match score (higher = better)
+                # Calculate fuzzy match score (higher = better) - 2025: context-aware scoring
                 score = 0
                 if device_name_lower in name_to_check or name_to_check in device_name_lower:
                     score += 2  # Strong match
@@ -1201,6 +1233,20 @@ async def map_devices_to_entities(
                 # Area context bonus for single-home scenarios
                 if area_name and device_name_lower in area_name:
                     score += 1  # Area context bonus
+                
+                # 2025 ENHANCEMENT: Context-aware location matching
+                if context_location:
+                    location_lower = context_location.lower()
+                    if location_lower in area_name or location_lower in name_to_check:
+                        score += 2  # Strong location match bonus
+                        logger.debug(f"📍 Location match bonus: '{device_name_lower}' matches location '{context_location}' for entity '{entity_id}'")
+                
+                # 2025 ENHANCEMENT: Context-aware device type matching
+                if context_device_hints:
+                    for hint in context_device_hints:
+                        if hint in name_to_check or hint in entity_name_part:
+                            score += 2  # Strong device type match bonus
+                            logger.debug(f"🔧 Device type match bonus: '{device_name_lower}' matches hint '{hint}' for entity '{entity_id}'")
 
                 if score > best_fuzzy_score:
                     best_fuzzy_score = score
@@ -1413,10 +1459,13 @@ async def map_devices_to_entities(
 
 def _pre_consolidate_device_names(
     devices_involved: list[str],
-    enriched_data: dict[str, dict[str, Any]] | None = None
+    enriched_data: dict[str, dict[str, Any]] | None = None,
+    clarification_context: dict[str, Any] | None = None
 ) -> list[str]:
     """
     Pre-consolidate device names by removing generic/redundant terms BEFORE entity mapping.
+    
+    Context-aware (2025 pattern): Uses clarification context to preserve terms mentioned by user.
     
     This handles cases where OpenAI includes:
     - Generic domain names ("light", "switch")
@@ -1427,9 +1476,10 @@ def _pre_consolidate_device_names(
     Args:
         devices_involved: Original list of device names from OpenAI
         enriched_data: Optional enriched entity data for better filtering
+        clarification_context: Optional clarification Q&A context to preserve user-mentioned terms
         
     Returns:
-        Filtered list with generic/redundant terms removed
+        Filtered list with generic/redundant terms removed (but preserves context-relevant terms)
     """
     if not devices_involved:
         return devices_involved
@@ -1437,6 +1487,29 @@ def _pre_consolidate_device_names(
     # Generic terms to remove (domain names, device types, very short terms)
     generic_terms = {'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover',
                      'fan', 'lock', 'wled', 'hue', 'mqtt', 'zigbee', 'zwave'}
+
+    # Extract user-mentioned terms from clarification context (2025: context-aware filtering)
+    user_mentioned_terms = set()
+    if clarification_context:
+        # Check Q&A answers for device mentions
+        qa_list = clarification_context.get('questions_and_answers', [])
+        for qa in qa_list:
+            answer_text = qa.get('answer', '').lower()
+            # Extract potential device names from answers
+            # Look for terms that match devices_involved
+            for device in devices_involved:
+                device_lower = device.lower()
+                if device_lower in answer_text or answer_text.find(device_lower) != -1:
+                    user_mentioned_terms.add(device_lower)
+                    logger.debug(f"🔍 Preserving '{device}' - mentioned in clarification: '{answer_text[:50]}...'")
+        
+        # Also check original query
+        original_query = clarification_context.get('original_query', '').lower()
+        for device in devices_involved:
+            device_lower = device.lower()
+            if device_lower in original_query:
+                user_mentioned_terms.add(device_lower)
+                logger.debug(f"🔍 Preserving '{device}' - mentioned in original query")
 
     filtered = []
     removed_terms = []
@@ -1449,7 +1522,13 @@ def _pre_consolidate_device_names(
             removed_terms.append(device_name)
             continue
 
-        # Skip generic domain/integration terms
+        # CONTEXT-AWARE: Don't remove terms mentioned by user in clarifications (2025 pattern)
+        if device_lower in user_mentioned_terms:
+            filtered.append(device_name)
+            logger.debug(f"✅ Preserved '{device_name}' - user mentioned in clarification context")
+            continue
+
+        # Skip generic domain/integration terms (unless user mentioned them)
         if device_lower in generic_terms:
             removed_terms.append(device_name)
             continue
@@ -3409,6 +3488,7 @@ async def generate_suggestions_from_query(
         resolved_entity_ids = []
         enriched_data = {}  # Initialize at function level for use in suggestion building
         enriched_entities: list[dict[str, Any]] = []
+        query_location: str | None = None  # Initialize at function level for context-aware entity mapping
 
         try:
             logger.info("🔍 Resolving and enriching entities for suggestion generation...")
@@ -4197,9 +4277,14 @@ async def generate_suggestions_from_query(
                 logger.info(f"🔍 [CONSOLIDATION DEBUG] Suggestion {i+1}: devices_involved BEFORE processing = {devices_involved}")
 
                 # PRE-CONSOLIDATION: Remove generic/redundant terms before entity mapping
+                # 2025 ENHANCEMENT: Context-aware - preserves terms mentioned in clarifications
                 # This handles cases where OpenAI includes generic terms like "light", "wled", domain names, etc.
                 if devices_involved:
-                    devices_involved = _pre_consolidate_device_names(devices_involved, enriched_data)
+                    devices_involved = _pre_consolidate_device_names(
+                        devices_involved, 
+                        enriched_data,
+                        clarification_context=clarification_context  # Pass context for context-aware filtering
+                    )
                     if len(devices_involved) < original_devices_count:
                         logger.info(
                             f"🔄 Pre-consolidated devices for suggestion {i+1}: "
@@ -4243,11 +4328,27 @@ async def generate_suggestions_from_query(
                             access_token=settings.ha_token
                         ) if settings.ha_url and settings.ha_token else None
                     )
+                    # 2025 ENHANCEMENT: Pass clarification context and location for context-aware mapping
+                    # query_location is initialized at function level (line 3491), so it's always accessible here
+                    # If not already extracted, try to extract from query as fallback
+                    if not query_location and ha_client_for_mapping:
+                        try:
+                            from ..clients.data_api_client import DataAPIClient
+                            from ..services.entity_validator import EntityValidator
+                            data_api_client = DataAPIClient()
+                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_for_mapping)
+                            query_location = entity_validator._extract_location_from_query(query)
+                            logger.debug(f"🔍 Extracted query_location='{query_location}' as fallback for entity mapping")
+                        except Exception as e:
+                            logger.debug(f"Could not extract location from query: {e}, using None (context-aware matching will use clarification context)")
+                    
                     validated_entities = await map_devices_to_entities(
                         devices_involved,
                         enriched_data,
                         ha_client=ha_client_for_mapping,
-                        fuzzy_match=True
+                        fuzzy_match=True,
+                        clarification_context=clarification_context,  # Pass context for better matching
+                        query_location=query_location  # Pass location hint from query (always in scope)
                     )
                     if validated_entities:
                         logger.info(f"✅ Mapped {len(validated_entities)}/{len(devices_involved)} devices to VERIFIED entities for suggestion {i+1}")
@@ -6460,6 +6561,18 @@ async def provide_clarification(
                         timeout=60.0
                     )
                     logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions (all-ambiguities-resolved path)")
+                    
+                    # Validate suggestions were actually generated
+                    if not suggestions or len(suggestions) == 0:
+                        logger.error("❌ No suggestions generated after ambiguity resolution - suggestions array is empty")
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "suggestion_generation_failed",
+                                "message": "Failed to generate automation suggestions after clarification. This may be due to a complex query or AI service issue. Please try rephrasing your request or try again later.",
+                                "session_id": request.session_id
+                            }
+                        )
                 except asyncio.TimeoutError:
                     logger.error("❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(

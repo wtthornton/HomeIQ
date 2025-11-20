@@ -2249,6 +2249,14 @@ export const AskAI: React.FC = () => {
                   }))
                 });
                 
+                // Validate suggestions array is not empty
+                if (!response.suggestions || response.suggestions.length === 0) {
+                  console.error('❌ [CLARIFICATION] Suggestions array is empty after clarification completion');
+                  toast.error('⚠️ No suggestions were generated. Please try rephrasing your request or try again.');
+                  setClarificationDialog(null);
+                  return; // Don't add message with empty suggestions
+                }
+                
                 // Verify suggestions have required fields for approval
                 const invalidSuggestions = response.suggestions?.filter((s: any) => !s.suggestion_id);
                 if (invalidSuggestions && invalidSuggestions.length > 0) {
