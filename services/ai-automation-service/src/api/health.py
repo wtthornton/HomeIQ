@@ -256,17 +256,17 @@ async def get_call_statistics():
         latency metrics, and model usage statistics
     """
     # Try multi-model extractor first (currently active)
-    if _multi_model_extractor and hasattr(_multi_model_extractor, 'stats'):
+    if _multi_model_extractor and hasattr(_multi_model_extractor, 'call_stats'):
         return {
             "call_patterns": {
-                "direct_calls": _multi_model_extractor.stats.get('total_queries', 0),
-                "orchestrated_calls": 0  # Not implemented yet
+                "direct_calls": _multi_model_extractor.call_stats.get('direct_calls', 0),
+                "orchestrated_calls": _multi_model_extractor.call_stats.get('orchestrated_calls', 0)
             },
             "performance": {
-                "avg_direct_latency_ms": _multi_model_extractor.stats.get('avg_processing_time', 0.0) * 1000,
-                "avg_orch_latency_ms": 0.0
+                "avg_direct_latency_ms": _multi_model_extractor.call_stats.get('avg_direct_latency', 0.0),
+                "avg_orch_latency_ms": _multi_model_extractor.call_stats.get('avg_orch_latency', 0.0)
             },
-            "model_usage": _multi_model_extractor.stats
+            "model_usage": _multi_model_extractor.stats if hasattr(_multi_model_extractor, 'stats') else {}
         }
     
     # Fallback to model orchestrator (if configured)

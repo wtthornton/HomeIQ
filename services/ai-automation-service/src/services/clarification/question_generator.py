@@ -5,7 +5,7 @@ Question Generator - Generates structured clarification questions using OpenAI
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from .models import Ambiguity, ClarificationQuestion, QuestionType, AmbiguitySeverity
+from .models import Ambiguity, ClarificationQuestion, QuestionType, AmbiguitySeverity, AmbiguityType
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,14 @@
 """
 Data models for clarification system
+
+2025 Best Practices:
+- Dataclasses for type-safe data structures
+- Enum types for type-safe constants
+- Full type hints (PEP 484/526)
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from enum import Enum
 
 
@@ -70,16 +75,20 @@ class ClarificationAnswer:
 
 @dataclass
 class ClarificationSession:
-    """Multi-round clarification conversation"""
+    """
+    Multi-round clarification conversation.
+    
+    Uses 2025 best practices: dataclass for type-safe structure.
+    """
     session_id: str
     original_query: str
     questions: List[ClarificationQuestion] = field(default_factory=list)
     answers: List[ClarificationAnswer] = field(default_factory=list)
     current_confidence: float = 0.0
-    confidence_threshold: float = 0.85  # Default threshold
+    confidence_threshold: float = 0.85  # Default threshold (can be adaptive)
     rounds_completed: int = 0
     max_rounds: int = 3  # Maximum clarification rounds
-    status: str = "in_progress"  # 'in_progress', 'complete', 'abandoned'
+    status: Literal["in_progress", "complete", "abandoned"] = "in_progress"  # Type-safe status
     ambiguities: List[Ambiguity] = field(default_factory=list)
     query_id: Optional[str] = None  # Related AskAI query ID
 

@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Baseline metrics (before optimization)
 BASELINE_AVG_INPUT_TOKENS = 25_000  # Average before optimization
-BASELINE_AVG_COST_PER_REQUEST = 0.03925  # $0.03925 per request (GPT-5.1 only)
-BASELINE_MONTHLY_COST = 64.43  # $64.43/month (900 requests, GPT-5.1 only)
+BASELINE_AVG_COST_PER_REQUEST = 0.03925  # $0.03925 per request (GPT-4o only)
+BASELINE_MONTHLY_COST = 64.43  # $64.43/month (900 requests, GPT-4o only)
 
 
 def calculate_success_metrics(

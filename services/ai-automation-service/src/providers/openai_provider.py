@@ -23,13 +23,13 @@ class OpenAIProvider(BaseProvider):
     JSON-only responses that can be validated against schema.
     """
     
-    def __init__(self, api_key: str, model: str = "gpt-5.1"):
+    def __init__(self, api_key: str, model: str = "gpt-4o"):
         """
         Initialize OpenAI provider.
         
         Args:
             api_key: OpenAI API key
-            model: Model identifier (default: gpt-5.1 - latest and best model)
+            model: Model identifier (default: gpt-4o - latest and best model)
         """
         self.client = AsyncOpenAI(api_key=api_key)
         self._model = model
@@ -101,7 +101,7 @@ CRITICAL RULES:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=temperature,
-                max_completion_tokens=max_tokens,  # Use max_completion_tokens for newer models (gpt-5.1+)
+                max_completion_tokens=max_tokens,  # Use max_completion_tokens for newer models (gpt-4o+)
                 response_format={"type": "json_object"}  # JSON mode enforcement
             )
             

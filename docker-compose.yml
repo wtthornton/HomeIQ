@@ -1097,8 +1097,8 @@ services:
 
   device-intelligence-service:
     build:
-      context: services/device-intelligence-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-intelligence-service/Dockerfile
     container_name: homeiq-device-intelligence
     restart: unless-stopped
     ports:

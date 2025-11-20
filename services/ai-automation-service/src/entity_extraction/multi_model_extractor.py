@@ -34,7 +34,7 @@ class MultiModelEntityExtractor:
                  openai_api_key: str,
                  device_intelligence_client: Optional[DeviceIntelligenceClient] = None,
                  ner_model: str = "dslim/bert-base-NER",
-                 openai_model: str = "gpt-4o-mini"):
+                 openai_model: str = "gpt-5.1"):
         """
         Initialize multi-model entity extractor.
         
@@ -71,6 +71,16 @@ class MultiModelEntityExtractor:
             'pattern_fallback': 0,
             'avg_processing_time': 0.0,
             'trigger_devices_discovered': 0
+        }
+        
+        # Call pattern tracking
+        self.call_stats = {
+            'direct_calls': 0,
+            'orchestrated_calls': 0,  # Reserved for future orchestrated workflows
+            'avg_direct_latency': 0.0,
+            'avg_orch_latency': 0.0,
+            'total_direct_time': 0.0,
+            'total_orch_time': 0.0
         }
         
         logger.info(f"MultiModelEntityExtractor initialized with NER model: {ner_model}")
@@ -431,6 +441,15 @@ class MultiModelEntityExtractor:
                     / self.stats['total_queries']
                 )
                 
+                # Track direct call pattern
+                processing_time_ms = processing_time * 1000
+                self.call_stats['direct_calls'] += 1
+                self.call_stats['total_direct_time'] += processing_time_ms
+                self.call_stats['avg_direct_latency'] = (
+                    self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                )
+                logger.info(f"SERVICE_CALL: pattern=direct, service=ner, latency={processing_time_ms:.2f}ms, success=True")
+                
                 return all_entities
             
             # Step 2: Try OpenAI for complex queries (10% of queries)
@@ -451,6 +470,15 @@ class MultiModelEntityExtractor:
                         / self.stats['total_queries']
                     )
                     
+                    # Track direct call pattern
+                    processing_time_ms = processing_time * 1000
+                    self.call_stats['direct_calls'] += 1
+                    self.call_stats['total_direct_time'] += processing_time_ms
+                    self.call_stats['avg_direct_latency'] = (
+                        self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                    )
+                    logger.info(f"SERVICE_CALL: pattern=direct, service=openai, latency={processing_time_ms:.2f}ms, success=True")
+                    
                     return all_entities
             
             # Step 3: Fallback to pattern matching (0% of queries)
@@ -468,6 +496,15 @@ class MultiModelEntityExtractor:
                 (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time) 
                 / self.stats['total_queries']
             )
+            
+            # Track direct call pattern
+            processing_time_ms = processing_time * 1000
+            self.call_stats['direct_calls'] += 1
+            self.call_stats['total_direct_time'] += processing_time_ms
+            self.call_stats['avg_direct_latency'] = (
+                self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+            )
+            logger.info(f"SERVICE_CALL: pattern=direct, service=pattern_fallback, latency={processing_time_ms:.2f}ms, success=True")
             
             return all_entities
             

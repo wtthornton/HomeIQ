@@ -1,0 +1,60 @@
+# Code Quality Tools for HomeIQ (NUC-Optimized)
+# Install with: pip install -r requirements-quality.txt
+# Last Updated: January 2025
+# 
+# Optimized for single-home, NUC deployment:
+# - Lightweight tools only
+# - Fast execution
+# - Minimal resource usage
+
+# ============================================
+# ESSENTIAL: Fast & Lightweight (Install First)
+# ============================================
+
+# Fast Python linter and formatter (replaces flake8, isort, etc.)
+# 10-100x faster than pylint/flake8, minimal memory footprint
+ruff>=0.1.0
+
+# Static type checker for Python (optional but recommended)
+# Lightweight static analysis, catches bugs early
+mypy>=1.7.0
+
+# ============================================
+# OPTIONAL: Run Occasionally (Not Every Time)
+# ============================================
+
+# Security linter - run weekly/monthly, not on every commit
+bandit>=1.7.5
+
+# Dead code detection - run occasionally to clean up
+vulture>=2.10
+
+# ============================================
+# ALREADY IN USE: Keep Existing Tools
+# ============================================
+
+# Code complexity analysis (already configured in scripts)
+radon>=6.0.1
+
+# Traditional Python linter (keep as backup, but Ruff is faster)
+pylint>=3.0.0
+
+# Code coverage (if not already installed)
+coverage>=7.3.0
+
+# ============================================
+# SKIPPED: Too Heavy for NUC
+# ============================================
+# - SonarQube: Requires 2GB+ RAM Docker container (overkill)
+# - wily: Trend tracking (nice-to-have, not essential)
+# - CodeScene: Enterprise-focused (not needed for single home)
+# - plato: Heavy visualization (use simpler tools)
+
+# ============================================
+# Notes
+# ============================================
+# - Start with Ruff and mypy (essential)
+# - Add bandit/vulture only if you want them
+# - Keep existing radon/pylint for compatibility
+# - See docs/CODE_QUALITY_TOOLS_2025.md for usage
+

@@ -1,12 +1,12 @@
 """
 OpenAI Client for Automation Suggestion Generation
 
-Uses GPT-5.1 to convert detected patterns into natural language
+Uses GPT-4o to convert detected patterns into natural language
 automation suggestions with valid Home Assistant YAML.
 
-**Model:** GPT-5.1 (latest and best model - released Nov 2025)
+**Model:** GPT-4o (latest and best model)
 **Temperature:** 0.7 (balanced creativity + consistency)
-**Typical Cost:** Varies based on GPT-5.1 pricing
+**Typical Cost:** Varies based on GPT-4o pricing
 
 **Complete Documentation:**
 See implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md for:
@@ -56,13 +56,13 @@ class AutomationSuggestion(BaseModel):
 class OpenAIClient:
     """Client for generating automation suggestions via OpenAI API"""
     
-    def __init__(self, api_key: str, model: str = "gpt-5.1", enable_token_counting: bool = True):
+    def __init__(self, api_key: str, model: str = "gpt-4o", enable_token_counting: bool = True):
         """
         Initialize OpenAI client.
         
         Args:
             api_key: OpenAI API key
-            model: Model to use (default: gpt-5.1 - latest and best model for accuracy)
+            model: Model to use (default: gpt-4o - latest and best model for accuracy)
             enable_token_counting: Enable token counting before API calls (default: True)
         """
         self.client = AsyncOpenAI(api_key=api_key)
@@ -495,7 +495,7 @@ actions:
                 "model": self.model,
                 "messages": messages,
                 "temperature": temperature,
-                "max_completion_tokens": max_tokens  # Use max_completion_tokens for newer models (gpt-5.1+)
+                "max_completion_tokens": max_tokens  # Use max_completion_tokens for newer models (gpt-4o+)
             }
             
             # NOTE: cache_control parameter is not supported in OpenAI Python SDK
@@ -556,15 +556,33 @@ actions:
             
             # Parse based on output_format
             content = response.choices[0].message.content
-            logger.info(f"OpenAI response content (length={len(content) if content else 0}): {content[:200] if content else 'None'}")
+            
+            # Enhanced error handling for empty responses
+            if not content:
+                finish_reason = response.choices[0].finish_reason if response.choices else "unknown"
+                logger.error(f"❌ Empty content from OpenAI API. Finish reason: {finish_reason}, Model: {self.model}")
+                logger.error(f"Response object: {response}")
+                
+                # Check if it's a model error (invalid model name)
+                if finish_reason == "stop" and not content:
+                    raise ValueError(
+                        f"Empty content from OpenAI API. This may indicate an invalid model name '{self.model}'. "
+                        f"Please verify the model name is correct (e.g., 'gpt-4o', 'gpt-4o-mini'). "
+                        f"Finish reason: {finish_reason}"
+                    )
+                else:
+                    raise ValueError(
+                        f"Empty content from OpenAI API. Finish reason: {finish_reason}. "
+                        f"This may be due to API rate limiting, content filtering, or model unavailability."
+                    )
+            
+            logger.info(f"OpenAI response content (length={len(content)}): {content[:200]}")
             
             pattern_source = prompt_dict.get("pattern_source", {})
 
             if output_format == "json":
                 import json
                 # Handle markdown code blocks
-                if not content:
-                    raise ValueError("Empty content from OpenAI API")
                 if content.startswith('```json'):
                     content = content[7:]
                 elif content.startswith('```'):
@@ -617,7 +635,7 @@ actions:
         Infer category and priority from automation description.
         
         Used for regenerating category when description changes during redeploy.
-        Uses GPT-5 Nano for classification (96% cost savings vs GPT-5.1).
+        Uses GPT-4o-mini for classification (cost savings vs GPT-4o).
         
         Args:
             description: Automation description
@@ -625,9 +643,9 @@ actions:
         Returns:
             Dictionary with 'category' and 'priority' keys
         """
-        # Use classification model (GPT-5 Nano) for cost efficiency
+        # Use classification model (GPT-4o-mini) for cost efficiency
         from ..config import settings
-        classification_model = getattr(settings, 'classification_model', 'gpt-5-nano')
+        classification_model = getattr(settings, 'classification_model', 'gpt-5.1')
         
         # Create temporary client with classification model if different
         original_model = self.model

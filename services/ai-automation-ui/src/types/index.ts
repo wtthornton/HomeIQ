@@ -94,6 +94,41 @@ export interface AnalysisStatus {
   } | null;
 }
 
+export interface ClarificationQuestion {
+  id: string;
+  category: string;
+  question_text: string;
+  question_type: 'multiple_choice' | 'text' | 'entity_selection' | 'boolean';
+  options?: string[];
+  priority: number;
+  related_entities?: string[];
+}
+
+export interface ClarificationAnswer {
+  question_id: string;
+  answer_text: string;
+  selected_entities?: string[];
+}
+
+export interface ClarificationResponse {
+  session_id: string;
+  confidence: number;
+  confidence_threshold: number;
+  clarification_complete: boolean;
+  message: string;
+  suggestions?: Suggestion[];
+  questions?: ClarificationQuestion[];
+  previous_confidence?: number;
+  confidence_delta?: number;
+  confidence_summary?: string;
+  enriched_prompt?: string;
+  questions_and_answers?: Array<{
+    question: string;
+    answer: string;
+    selected_entities?: string[];
+  }>;
+}
+
 export interface UsageStats {
   total_tokens: number;
   input_tokens: number;
