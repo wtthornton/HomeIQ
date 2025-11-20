@@ -9,9 +9,15 @@ Confidence Calculator - Enhanced confidence calculation with clarification suppo
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Literal
+from typing import List, Dict, Any, Optional, Literal, Union
+import numpy as np
 from .models import Ambiguity, ClarificationAnswer, AmbiguitySeverity
 from .confidence_calibrator import ClarificationConfidenceCalibrator
+from .rl_calibrator import RLConfidenceCalibrator
+from .uncertainty_quantification import (
+    ConfidenceWithUncertainty,
+    UncertaintyQuantifier
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +30,11 @@ class ConfidenceCalculator:
         default_threshold: float = 0.85,
         rag_client: Optional[Any] = None,
         calibrator: Optional[ClarificationConfidenceCalibrator] = None,
-        calibration_enabled: bool = True
+        calibration_enabled: bool = True,
+        rl_calibrator: Optional[RLConfidenceCalibrator] = None,
+        rl_calibration_enabled: bool = False,  # Phase 3: Optional RL calibration
+        uncertainty_quantifier: Optional[UncertaintyQuantifier] = None,
+        uncertainty_enabled: bool = False  # Phase 3: Optional uncertainty quantification
     ):
         """
         Initialize confidence calculator.
@@ -32,13 +42,21 @@ class ConfidenceCalculator:
         Args:
             default_threshold: Default confidence threshold for proceeding
             rag_client: Optional RAG client for historical success checking
-            calibrator: Optional confidence calibrator instance
+            calibrator: Optional confidence calibrator instance (isotonic regression)
             calibration_enabled: Whether to apply calibration (default: True)
+            rl_calibrator: Optional RL-based calibrator (Phase 3)
+            rl_calibration_enabled: Whether to apply RL calibration (default: False)
+            uncertainty_quantifier: Optional uncertainty quantifier (Phase 3)
+            uncertainty_enabled: Whether to calculate uncertainty (default: False)
         """
         self.default_threshold = default_threshold
         self.rag_client = rag_client
         self.calibrator = calibrator
         self.calibration_enabled = calibration_enabled
+        self.rl_calibrator = rl_calibrator
+        self.rl_calibration_enabled = rl_calibration_enabled
+        self.uncertainty_quantifier = uncertainty_quantifier or UncertaintyQuantifier()
+        self.uncertainty_enabled = uncertainty_enabled
     
     async def calculate_confidence(
         self,
@@ -47,8 +65,9 @@ class ConfidenceCalculator:
         ambiguities: List[Ambiguity],
         clarification_answers: Optional[List[ClarificationAnswer]] = None,
         base_confidence: float = 0.75,
-        rag_client: Optional[Any] = None
-    ) -> float:
+        rag_client: Optional[Any] = None,
+        return_uncertainty: bool = False
+    ) -> Union[float, ConfidenceWithUncertainty]:
         """
         Calculate confidence score.
         
@@ -58,6 +77,8 @@ class ConfidenceCalculator:
         - Ambiguity severity (reduces confidence)
         - Clarification completeness (increases confidence)
         - Answer quality (validated answers increase confidence)
+        - Phase 3: RL calibration (optional)
+        - Phase 3: Uncertainty quantification (optional)
         
         Args:
             query: Original user query (or enriched query)
@@ -66,9 +87,10 @@ class ConfidenceCalculator:
             clarification_answers: Answers to clarification questions
             base_confidence: Base confidence from extraction
             rag_client: Optional RAG client for historical success checking (if not set in __init__)
+            return_uncertainty: If True and uncertainty_enabled, returns ConfidenceWithUncertainty
             
         Returns:
-            Confidence score (0.0 to 1.0)
+            Confidence score (0.0 to 1.0) or ConfidenceWithUncertainty if return_uncertainty=True
         """
         # Use provided rag_client or instance rag_client
         active_rag_client = rag_client or self.rag_client
@@ -228,17 +250,65 @@ class ConfidenceCalculator:
                     f"(base: {base_confidence:.2f}, ambiguities: {len(ambiguities)}, "
                     f"answers: {len(clarification_answers or [])})"
                 )
-                return calibrated_confidence
+                final_confidence = calibrated_confidence
             except Exception as e:
                 logger.warning(f"Calibration failed, using raw confidence: {e}")
-                return raw_confidence
+                final_confidence = raw_confidence
+        else:
+            final_confidence = raw_confidence
+        
+        # Phase 3: Apply RL calibration if enabled (optional enhancement)
+        if self.rl_calibration_enabled and self.rl_calibrator:
+            try:
+                critical_count = sum(
+                    1 for amb in ambiguities
+                    if amb.severity == AmbiguitySeverity.CRITICAL
+                )
+                answer_count = len(clarification_answers or [])
+                rounds = 0  # Will be provided by caller if available
+                
+                rl_calibrated = self.rl_calibrator.calibrate(
+                    raw_confidence=final_confidence,
+                    ambiguity_count=len(ambiguities),
+                    critical_ambiguity_count=critical_count,
+                    rounds=rounds,
+                    answer_count=answer_count
+                )
+                
+                logger.debug(
+                    f"🤖 RL calibration: {final_confidence:.2f} → {rl_calibrated:.2f}"
+                )
+                final_confidence = rl_calibrated
+            except Exception as e:
+                logger.warning(f"RL calibration failed, using previous confidence: {e}")
+        
+        # Phase 3: Calculate uncertainty if enabled (optional enhancement)
+        if self.uncertainty_enabled and return_uncertainty:
+            try:
+                # Get historical confidence data for uncertainty estimation
+                # For now, use empty array (could be enhanced to fetch from database)
+                historical_data = np.array([])  # TODO: Fetch from database if available
+                
+                uncertainty = self.uncertainty_quantifier.calculate_uncertainty(
+                    raw_confidence=final_confidence,
+                    historical_data=historical_data,
+                    confidence_level=0.90
+                )
+                
+                logger.debug(
+                    f"📊 Uncertainty: {self.uncertainty_quantifier.get_uncertainty_summary(uncertainty)}"
+                )
+                return uncertainty
+            except Exception as e:
+                logger.warning(f"Uncertainty calculation failed: {e}")
+                # Fall back to point estimate
+                return final_confidence
         
         logger.debug(
-            f"📊 Confidence calculated: {raw_confidence:.2f} (base: {base_confidence:.2f}, "
+            f"📊 Confidence calculated: {final_confidence:.2f} (base: {base_confidence:.2f}, "
             f"ambiguities: {len(ambiguities)}, answers: {len(clarification_answers or [])})"
         )
-        
-        return raw_confidence
+        return final_confidence
     
     def should_ask_clarification(
         self,

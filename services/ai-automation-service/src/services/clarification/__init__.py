@@ -22,6 +22,11 @@ from .answer_validator import AnswerValidator
 from .confidence_calculator import ConfidenceCalculator
 from .confidence_calibrator import ClarificationConfidenceCalibrator
 from .outcome_tracker import ClarificationOutcomeTracker
+from .rl_calibrator import RLConfidenceCalibrator, RLCalibrationConfig, RLFeedback
+from .uncertainty_quantification import (
+    ConfidenceWithUncertainty,
+    UncertaintyQuantifier
+)
 
 __all__ = [
     'ClarificationQuestion',
@@ -33,6 +38,11 @@ __all__ = [
     'AnswerValidator',
     'ConfidenceCalculator',
     'ClarificationConfidenceCalibrator',
-    'ClarificationOutcomeTracker'
+    'ClarificationOutcomeTracker',
+    'RLConfidenceCalibrator',
+    'RLCalibrationConfig',
+    'RLFeedback',
+    'ConfidenceWithUncertainty',
+    'UncertaintyQuantifier',
 ]
 
