@@ -1155,10 +1155,18 @@ async def find_similar_past_answers(
                 if created_at_str:
                     try:
                         if isinstance(created_at_str, str):
-                            from dateutil.parser import parse as parse_date
-                            created_at = parse_date(created_at_str)
+                            # Try ISO format first (what we store)
+                            try:
+                                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                            except (ValueError, AttributeError):
+                                # Fallback to datetime parsing
+                                created_at = datetime.strptime(created_at_str, '%Y-%m-%dT%H:%M:%S.%f')
                         else:
                             created_at = created_at_str
+                        
+                        # Ensure timezone-aware
+                        if created_at.tzinfo is None:
+                            created_at = created_at.replace(tzinfo=timezone.utc)
                         
                         days_old = (current_time - created_at).days
                         # Decay: 100% for 0 days, 50% after 180 days
