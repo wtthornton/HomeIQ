@@ -443,6 +443,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **Implement device detection enhancement with two-stage matching** (November 21, 2025)
+- **Implement device detection enhancement with two-stage matching** (November 21, 2025)
 - **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (November 21, 2025)
 - **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (November 21, 2025)
 - **Add AI automation learning features and QA improvements** (November 21, 2025)
