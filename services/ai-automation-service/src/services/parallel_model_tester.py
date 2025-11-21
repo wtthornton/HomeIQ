@@ -42,7 +42,7 @@ class ParallelModelTester:
         db_session: AsyncSession | None = None,
         query_id: str | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 1200
+        max_tokens: int = 8000  # Increased for GPT-5.1 reasoning models - allows reasoning tokens + full completion
     ) -> dict[str, Any]:
         """
         Generate suggestions using multiple models in parallel.
@@ -100,7 +100,7 @@ class ParallelModelTester:
         db_session: AsyncSession | None = None,
         suggestion_id: str | None = None,
         temperature: float = 0.3,
-        max_tokens: int = 2000
+        max_tokens: int = 5000  # Increased from 2000 to 5000 for complex YAML generation (2025 best practice)
     ) -> dict[str, Any]:
         """
         Generate YAML using multiple models in parallel.

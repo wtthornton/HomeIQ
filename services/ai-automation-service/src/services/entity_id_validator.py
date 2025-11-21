@@ -315,6 +315,87 @@ class EntityIDValidator:
 
         return entity_ids
 
+    def extract_scenes_created(self, yaml_data: dict) -> set[str]:
+        """
+        Extract scene entity IDs that are created by scene.create service calls.
+        
+        Home Assistant 2025 format:
+        - action: (top level, singular)
+        - service: scene.create (inside action items)
+        - data.scene_id: The scene ID (becomes scene.{scene_id} entity)
+        
+        Args:
+            yaml_data: Parsed YAML dictionary
+            
+        Returns:
+            Set of scene entity IDs that are created dynamically
+        """
+        created_scenes = set()
+        actions = yaml_data.get('action', yaml_data.get('actions', []))
+        if actions:
+            self._extract_scenes_created(actions, created_scenes)
+        return created_scenes
+
+    def _extract_scenes_created(self, actions: Any, created_scenes: set[str]) -> None:
+        """
+        Recursively extract scene IDs created by scene.create service calls.
+        
+        Home Assistant 2025 format:
+        - action: (top level, singular)
+        - service: scene.create (inside action items)
+        - data.scene_id: The scene ID (becomes scene.{scene_id} entity)
+        
+        Args:
+            actions: Action structure (list or dict)
+            created_scenes: Set to populate with created scene entity IDs
+        """
+        if isinstance(actions, list):
+            for action in actions:
+                if isinstance(action, dict):
+                    # Check for scene.create service (2025 format: service: field)
+                    service = action.get('service')
+                    if service == 'scene.create':
+                        scene_id = action.get('data', {}).get('scene_id')
+                        if scene_id:
+                            # Convert scene_id to entity_id format (Home Assistant 2025 pattern)
+                            if not scene_id.startswith('scene.'):
+                                scene_entity_id = f"scene.{scene_id}"
+                            else:
+                                scene_entity_id = scene_id
+                            created_scenes.add(scene_entity_id)
+                            logger.debug(f"🔍 Found dynamically created scene: {scene_entity_id}")
+                    
+                    # Recursively check nested structures (sequence, repeat.sequence, choose)
+                    if 'sequence' in action:
+                        sequence = action['sequence']
+                        if sequence:
+                            self._extract_scenes_created(sequence, created_scenes)
+                    if 'repeat' in action and isinstance(action['repeat'], dict):
+                        if 'sequence' in action['repeat']:
+                            sequence = action['repeat']['sequence']
+                            if sequence:
+                                self._extract_scenes_created(sequence, created_scenes)
+                    if 'choose' in action:
+                        choose = action['choose']
+                        if isinstance(choose, list):
+                            for branch in choose:
+                                if isinstance(branch, dict) and 'sequence' in branch:
+                                    sequence = branch['sequence']
+                                    if sequence:
+                                        self._extract_scenes_created(sequence, created_scenes)
+        elif isinstance(actions, dict):
+            # Handle single action dict
+            service = actions.get('service')
+            if service == 'scene.create':
+                scene_id = actions.get('data', {}).get('scene_id')
+                if scene_id:
+                    if not scene_id.startswith('scene.'):
+                        scene_entity_id = f"scene.{scene_id}"
+                    else:
+                        scene_entity_id = scene_id
+                    created_scenes.add(scene_entity_id)
+                    logger.debug(f"🔍 Found dynamically created scene: {scene_entity_id}")
+
     def _extract_from_actions(self, actions: Any, base_path: str) -> list[tuple[str, str]]:
         """Recursively extract entity_ids from action structures"""
         entity_ids = []

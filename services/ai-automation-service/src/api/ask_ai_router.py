@@ -2463,7 +2463,7 @@ Generate ONLY the YAML content:
                 db_session=db_session,
                 suggestion_id=suggestion_id,
                 temperature=yaml_temperature,
-                max_tokens=2000
+                max_tokens=5000  # Increased from 2000 to 5000 for complex automations (2025 best practice: 4000-6000 for YAML generation)
             )
 
             yaml_content = result['primary_result']  # Use first model's result
@@ -2569,7 +2569,7 @@ Generate ONLY the YAML content:
                     }
                 ],
                 temperature=yaml_temperature,
-                max_completion_tokens=2000  # Increased to prevent truncation of complex automations (use max_completion_tokens for newer models)
+                max_completion_tokens=5000  # Increased from 2000 to 5000 for complex automations (2025 best practice: 4000-6000 for YAML generation)
             )
 
         # Phase 5: Track endpoint-level stats for YAML generation
@@ -3528,7 +3528,8 @@ async def generate_suggestions_from_query(
     user_id: str,
     db_session: AsyncSession | None = None,
     clarification_context: dict[str, Any] | None = None,  # NEW: Clarification Q&A
-    query_id: str | None = None  # NEW: Query ID for metrics tracking
+    query_id: str | None = None,  # NEW: Query ID for metrics tracking
+    area_filter: str | None = None  # NEW: Area filter from query (e.g., "office" or "office,kitchen")
 ) -> list[dict[str, Any]]:
     """Generate automation suggestions based on query and entities"""
     if not openai_client:
@@ -3571,7 +3572,15 @@ async def generate_suggestions_from_query(
                 entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
 
                 # Extract location and ALL domains from query to get ALL matching entities
-                query_location = entity_validator._extract_location_from_query(query)
+                # Use area_filter if provided (from extract_area_from_request), otherwise extract from query
+                if area_filter:
+                    # area_filter can be comma-separated (e.g., "office,kitchen"), use first one for query_location
+                    query_location = area_filter.split(',')[0].strip()
+                    logger.info(f"📍 Using area_filter for location: '{query_location}' (from area_filter: '{area_filter}')")
+                else:
+                    query_location = entity_validator._extract_location_from_query(query)
+                    if query_location:
+                        logger.info(f"📍 Extracted location from query: '{query_location}'")
                 query_domains = entity_validator._extract_all_domains_from_query(query)  # Get ALL domains
                 query_domain = query_domains[0] if query_domains else None  # Keep single domain for logging
 
@@ -3811,14 +3820,24 @@ async def generate_suggestions_from_query(
                     mentioned_locations = set()
                     query_lower = query.lower()
 
-                    # Common location keywords
+                    # PRIORITY: Use area_filter if provided (most reliable source)
+                    if area_filter:
+                        from ..utils.area_detection import get_area_list
+                        area_list = get_area_list(area_filter)
+                        for area in area_list:
+                            # Add normalized (office) and with spaces (office)
+                            mentioned_locations.add(area)
+                            mentioned_locations.add(area.replace('_', ' '))
+                            logger.info(f"📍 Added area_filter to mentioned_locations: '{area}' (from area_filter: '{area_filter}')")
+
+                    # Common location keywords (fallback if area_filter not provided)
                     location_keywords = [
                         'office', 'living room', 'bedroom', 'kitchen', 'bathroom', 'dining room',
                         'garage', 'basement', 'attic', 'hallway', 'entryway', 'patio', 'deck',
                         'outdoor', 'outdoors', 'garden', 'yard', 'backyard', 'front yard'
                     ]
 
-                    # Extract locations from query
+                    # Extract locations from query (only if not already in mentioned_locations from area_filter)
                     for keyword in location_keywords:
                         if keyword in query_lower:
                             # Normalize location name (e.g., "living room" -> "living_room")
@@ -3957,8 +3976,8 @@ async def generate_suggestions_from_query(
                         mentioned_domains=mentioned_domains
                     )
                     
-                    # Keep top N most relevant entities (N = 25, but can be adjusted)
-                    top_n_relevant = 25
+                    # Keep top N most relevant entities (reduced to 15 to avoid token overflow)
+                    top_n_relevant = 15
                     sorted_entity_ids = sorted(
                         resolved_entity_ids,
                         key=lambda eid: relevance_scores.get(eid, 0.0),
@@ -4004,15 +4023,17 @@ async def generate_suggestions_from_query(
 
                             # Check if entity is in any mentioned location
                             entity_matches_location = False
-                            for location in mentioned_locations:
-                                location_lower = location.lower().replace('_', ' ')
-                                # Check area_id and area_name
-                                if (location_lower in entity_area_id or
-                                    entity_area_id in location_lower or
-                                    location_lower in entity_area_name or
-                                    entity_area_name in location_lower):
-                                    entity_matches_location = True
-                                    break
+                            # CRITICAL: Only match if entity has an area_id or area_name (empty strings match everything with 'in' operator)
+                            if entity_area_id or entity_area_name:
+                                for location in mentioned_locations:
+                                    location_lower = location.lower().replace('_', ' ')
+                                    # Check area_id and area_name
+                                    if (location_lower in entity_area_id or
+                                        entity_area_id in location_lower or
+                                        location_lower in entity_area_name or
+                                        entity_area_name in location_lower):
+                                        entity_matches_location = True
+                                        break
 
                             if entity_matches_location:
                                 location_filtered_entity_ids.add(entity_id)
@@ -4256,7 +4277,7 @@ async def generate_suggestions_from_query(
                     db_session=db_session,
                     query_id=query_id,  # Use query_id from function parameter
                     temperature=settings.creative_temperature,
-                    max_tokens=1200
+                    max_tokens=8000  # Increased to 8000 for GPT-5.1 reasoning models - allows reasoning tokens + full JSON completion
                 )
 
                 suggestions_data = result['primary_result']  # Use first model's result
@@ -4298,7 +4319,7 @@ async def generate_suggestions_from_query(
                     endpoint="ask_ai_suggestions",  # Phase 5: Track endpoint
                     prompt_dict=prompt_dict,
                     temperature=settings.creative_temperature,
-                    max_tokens=1200,
+                    max_tokens=8000,  # Increased to 8000 for GPT-5.1 reasoning models - allows reasoning tokens + full JSON completion
                     output_format="json"
                 )
 
@@ -4553,12 +4574,17 @@ async def generate_suggestions_from_query(
                                     normalized_entity = re.sub(r'\b(room|area|space)\b', '', entity_area).strip()
 
                                     # Check if entity area matches query location
-                                    area_matches = (
-                                        query_location_lower in entity_area or
-                                        entity_area in query_location_lower or
-                                        normalized_query in normalized_entity or
-                                        normalized_entity in normalized_query
-                                    )
+                                    # CRITICAL: Only match if entity_area is NOT empty (empty string matches everything with 'in' operator)
+                                    if not entity_area or not normalized_entity:
+                                        # Entity has no area_id - cannot validate, so don't match
+                                        area_matches = False
+                                    else:
+                                        area_matches = (
+                                            query_location_lower in entity_area or
+                                            entity_area in query_location_lower or
+                                            normalized_query in normalized_entity or
+                                            normalized_entity in normalized_query
+                                        )
 
                                     logger.info(f"🔍 [LOCATION VALIDATION] Area match check: entity_area='{entity_area}', query_location='{query_location_lower}', normalized_query='{normalized_query}', normalized_entity='{normalized_entity}', matches={area_matches}")
 
@@ -5288,7 +5314,8 @@ async def process_natural_language_query(
                 request.user_id,
                 db_session=db,
                 clarification_context=None,
-                query_id=query_id  # Pass query_id for metrics tracking
+                query_id=query_id,  # Pass query_id for metrics tracking
+                area_filter=area_filter  # Pass area_filter for location filtering
             )
 
             # Recalculate confidence with suggestions
@@ -6184,6 +6211,12 @@ async def provide_clarification(
             # Generate suggestions WITH enriched query and clarification context
             logger.info(f"🔧 Step 4: Generating suggestions from enriched query (timeout: {CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS}s)")
 
+            # Extract area_filter from original query (for location filtering)
+            from ..utils.area_detection import extract_area_from_request
+            area_filter = extract_area_from_request(session.original_query)
+            if area_filter:
+                logger.info(f"📍 Extracted area_filter from original query: '{area_filter}'")
+
             # Retry logic for OpenAI failures
             max_retries = CLARIFICATION_RETRY_MAX_ATTEMPTS
             retry_delay = CLARIFICATION_RETRY_DELAY_SECONDS
@@ -6198,7 +6231,8 @@ async def provide_clarification(
                             "anonymous",  # TODO: Get from session
                             db_session=db,
                             clarification_context=clarification_context,  # Pass structured clarification
-                            query_id=getattr(session, 'query_id', None)  # Pass query_id for metrics tracking
+                            query_id=getattr(session, 'query_id', None),  # Pass query_id for metrics tracking
+                            area_filter=area_filter  # Pass area_filter for location filtering
                         ),
                         timeout=CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS
                     )
@@ -6712,6 +6746,13 @@ async def provide_clarification(
 
                 # Generate suggestions WITH enriched query and clarification context
                 logger.info("🔧 Step 4 (all-ambiguities-resolved): Generating suggestions (timeout: 60s)")
+                
+                # Extract area_filter from original query (for location filtering)
+                from ..utils.area_detection import extract_area_from_request
+                area_filter = extract_area_from_request(session.original_query)
+                if area_filter:
+                    logger.info(f"📍 Extracted area_filter from original query: '{area_filter}'")
+                
                 try:
                     suggestions = await asyncio.wait_for(
                         generate_suggestions_from_query(
@@ -6720,7 +6761,8 @@ async def provide_clarification(
                             "anonymous",  # TODO: Get from session
                             db_session=db,
                             clarification_context=clarification_context,
-                            query_id=getattr(session, 'query_id', None)  # Pass query_id for metrics tracking
+                            query_id=getattr(session, 'query_id', None),  # Pass query_id for metrics tracking
+                            area_filter=area_filter  # Pass area_filter for location filtering
                         ),
                         timeout=60.0
                     )
@@ -7558,7 +7600,7 @@ Response format: ONLY JSON, no other text:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,  # Low temperature for consistent analysis
-                max_completion_tokens=400,  # Use max_completion_tokens for newer models
+                max_completion_tokens=800,  # Increased from 400 to 800 for multiple ambiguities + JSON (2025 best practice)
                 response_format={"type": "json_object"}  # Force JSON mode
             )
 
@@ -8168,7 +8210,7 @@ Response format: ONLY JSON, no other text:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,  # Very low temperature for deterministic, consistent restoration
-            max_completion_tokens=500,  # Increased for nested component descriptions (use max_completion_tokens for newer models)
+            max_completion_tokens=1500,  # Increased from 500 to 1500 for nested component descriptions (2025 best practice)
             response_format={"type": "json_object"}
         )
 
@@ -8370,12 +8412,24 @@ async def approve_suggestion_from_query(
                     all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
                     # Deduplicate entity IDs before validation (YAML may have same entity in multiple actions)
                     unique_entity_ids = list(set(all_entity_ids_in_yaml))
-                    logger.info(f"🔍 Final validation: Checking {len(unique_entity_ids)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
+                    
+                    # Extract scenes created dynamically by scene.create service calls (2025 Home Assistant pattern)
+                    created_scenes = entity_id_extractor.extract_scenes_created(parsed_yaml)
+                    if created_scenes:
+                        logger.info(f"🔍 Found {len(created_scenes)} dynamically created scenes (will exclude from validation): {', '.join(sorted(created_scenes))}")
+                    
+                    # Filter out dynamically created scenes from validation (they don't exist until runtime)
+                    entities_to_validate = [eid for eid in unique_entity_ids if eid not in created_scenes]
+                    
+                    if created_scenes:
+                        logger.info(f"🔍 Final validation: Checking {len(entities_to_validate)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML, excluding {len(created_scenes)} dynamically created scenes)...")
+                    else:
+                        logger.info(f"🔍 Final validation: Checking {len(unique_entity_ids)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
 
-                    # Validate each unique entity ID exists in HA
+                    # Validate each unique entity ID exists in HA (excluding dynamically created scenes)
                     invalid_entities = []
                     connection_error = None
-                    for entity_id in unique_entity_ids:
+                    for entity_id in entities_to_validate:
                         try:
                             entity_state = await ha_client.get_entity_state(entity_id)
                             if not entity_state:
@@ -8474,18 +8528,27 @@ async def approve_suggestion_from_query(
                             logger.info(f"✅ Fixed {len(entity_replacements)} entity IDs in YAML, re-validating...")
                             automation_yaml = sanitized_yaml
 
-                            # Re-parse and re-validate
+                                # Re-parse and re-validate
                             parsed_yaml = yaml_lib.safe_load(automation_yaml)
                             if parsed_yaml:
                                 entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
                                 all_entity_ids_in_yaml = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
                                 # Deduplicate again after fix
                                 unique_entity_ids_after_fix = list(set(all_entity_ids_in_yaml))
+                                
+                                # Re-extract dynamically created scenes (in case they changed)
+                                created_scenes_after_fix = entity_id_extractor.extract_scenes_created(parsed_yaml)
+                                
+                                # Filter out dynamically created scenes from re-validation
+                                entities_to_validate_after_fix = [eid for eid in unique_entity_ids_after_fix if eid not in created_scenes_after_fix]
+                                
+                                if created_scenes_after_fix:
+                                    logger.info(f"🔍 Re-validation: Checking {len(entities_to_validate_after_fix)} unique entity IDs (excluding {len(created_scenes_after_fix)} dynamically created scenes)...")
 
-                                # Re-validate unique entities only
+                                # Re-validate unique entities only (excluding dynamically created scenes)
                                 remaining_invalid = []
                                 connection_error_after_fix = None
-                                for entity_id in unique_entity_ids_after_fix:
+                                for entity_id in entities_to_validate_after_fix:
                                     try:
                                         entity_state = await ha_client.get_entity_state(entity_id)
                                         if not entity_state:
@@ -8551,7 +8614,10 @@ async def approve_suggestion_from_query(
                                 }
                             }
                     else:
-                        logger.info(f"✅ Final validation passed: All {len(unique_entity_ids)} unique entity IDs exist in HA")
+                        if created_scenes:
+                            logger.info(f"✅ Final validation passed: All {len(entities_to_validate)} unique entity IDs exist in HA (excluded {len(created_scenes)} dynamically created scenes)")
+                        else:
+                            logger.info(f"✅ Final validation passed: All {len(unique_entity_ids)} unique entity IDs exist in HA")
 
                         # Update metrics: Mark YAML as valid
                         # Get model used from YAML generation (stored in suggestion debug data)

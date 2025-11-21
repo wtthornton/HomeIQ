@@ -76,8 +76,8 @@ class QuestionGenerator:
                         "content": prompt
                     }
                 ],
-                temperature=0.3,  # Consistent with existing patterns
-                max_completion_tokens=400,  # Use max_completion_tokens for newer models
+                temperature=0.2,  # Low temperature for consistent structured question generation (2025 best practice: 0.2-0.5 for structured output)
+                max_completion_tokens=1000,  # Increased from 400 to 1000 for multiple questions + JSON overhead (2025 best practice)
                 response_format={"type": "json_object"}
             )
 

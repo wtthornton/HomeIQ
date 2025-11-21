@@ -484,7 +484,7 @@ Write as if explaining to a user who asked for this automation."""
                         "content": reverse_engineering_prompt
                     }
                 ],
-                temperature=0.3,  # Low temperature for consistency
+                temperature=0.1,  # Very low temperature for deterministic syntax error detection (2025 best practice)
                 max_completion_tokens=300  # Use max_completion_tokens for newer models
             )
 
@@ -581,8 +581,8 @@ ACTION 2: [specific change needed]
                         "content": feedback_prompt
                     }
                 ],
-                temperature=0.5,
-                max_completion_tokens=400  # Use max_completion_tokens for newer models
+                temperature=0.2,  # Low temperature for precise YAML error fixing (2025 best practice: 0.2-0.5 for structured output, use lower end for YAML)
+                max_completion_tokens=1000  # Increased from 400 to 1000 for multiple error fixes (2025 best practice)
             )
 
             # Track tokens (will be added to total_tokens by caller)
@@ -673,7 +673,7 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                     }
                 ],
                 temperature=0.2,  # Low temperature for consistency
-                max_completion_tokens=1500  # Use max_completion_tokens for newer models
+                max_completion_tokens=3000  # Increased from 1500 to 3000 for complex YAML restoration (2025 best practice)
             )
 
             # Track tokens
