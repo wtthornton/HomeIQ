@@ -93,12 +93,27 @@ class EntityAttributeService:
                 entity_count = len(self._entity_registry_cache or {})
                 logger.info(f"✅ Loaded Entity Registry cache with {entity_count} entities")
                 if entity_count == 0:
-                    logger.warning("⚠️ Entity Registry cache is empty - friendly names may not be available")
-            except Exception as e:
-                logger.error(f"❌ Failed to load Entity Registry: {e}", exc_info=True)
+                    # Empty cache could mean: 404 (API not available) or no entities
+                    # Check if it was a real error by examining the exception context
+                    logger.info("ℹ️ Entity Registry cache is empty - using state-based fallback for friendly names")
+            except (ConnectionError, PermissionError) as e:
+                # Real errors (connection/auth) - log as ERROR but still allow fallback
+                # This prevents cascading failures while maintaining error visibility
+                logger.error(f"❌ Failed to load Entity Registry (will use state-based fallback): {type(e).__name__}: {e}")
                 self._entity_registry_cache = {}
                 self._registry_cache_loaded = True  # Mark as loaded to avoid repeated failures
                 self._registry_cache_timestamp = time.time()
+                # Don't re-raise - allow graceful degradation with fallback
+            except Exception as e:
+                # Other unexpected errors - check if it was a 404 (expected) or real error
+                # get_entity_registry() now propagates real errors, so if we catch here it's unexpected
+                error_type = type(e).__name__
+                logger.error(f"❌ Unexpected error loading Entity Registry (will use state-based fallback): {error_type}: {e}", exc_info=True)
+                self._entity_registry_cache = {}
+                self._registry_cache_loaded = True
+                self._registry_cache_timestamp = time.time()
+                # Don't re-raise - allow graceful degradation with fallback
+                # But log as ERROR so we know something went wrong
 
         return self._entity_registry_cache or {}
 
