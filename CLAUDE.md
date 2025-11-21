@@ -9,8 +9,10 @@
 ## 🎯 Quick Reference
 
 **What is HomeIQ?** AI-powered Home Assistant intelligence platform with 24 active microservices (plus InfluxDB infrastructure)
+**Deployment:** Single NUC (Intel NUC or similar), Docker Compose, local network
 **Architecture:** Hybrid database (InfluxDB + 5 SQLite), distributed AI services, microservices
 **Languages:** Python 3.11+ (backend), TypeScript/React 18 (frontend)
+**Home Assistant:** External instance (typically `192.168.1.86:8123`), WebSocket connection
 **Documentation:** See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)
 
 ---
@@ -103,8 +105,9 @@ HomeIQ/
 
 **Development/External Dependencies:**
 - HA Simulator - Port 8123 (dev environment only, not in production docker-compose)
-- External MQTT Broker - mqtt://192.168.1.86:1883 (not a HomeIQ service)
-- ❌ Enrichment Pipeline (DEPRECATED - Epic 31)
+- External MQTT Broker - mqtt://192.168.1.86:1883 (Home Assistant's MQTT broker, not a HomeIQ service)
+- Home Assistant - http://192.168.1.86:8123 (external, single NUC deployment)
+- ❌ Enrichment Pipeline (DEPRECATED - Epic 31, removed October 2025)
 
 ---
 
@@ -167,7 +170,7 @@ max_retries = 3                  # Retry on network errors
 
 ## 🛠️ Development Workflows
 
-### Environment Setup
+### Environment Setup (Single NUC Deployment)
 
 ```bash
 # 1. Clone and setup
@@ -175,10 +178,13 @@ git clone https://github.com/wtthornton/HomeIQ.git
 cd HomeIQ
 
 # 2. Configure environment
-cp infrastructure/env.example infrastructure/.env
-# Edit infrastructure/.env with your HA details
+cp infrastructure/env.example .env
+# Edit .env with your HA details:
+# - HA_HTTP_URL=http://192.168.1.86:8123  # Your Home Assistant IP
+# - HA_WS_URL=ws://192.168.1.86:8123/api/websocket
+# - HA_TOKEN=your-long-lived-access-token
 
-# 3. Start services
+# 3. Start services (all run on single NUC)
 docker compose up -d
 
 # 4. Verify deployment
@@ -803,6 +809,13 @@ docker compose logs websocket-ingestion
 - [InfluxDB Best Practices](https://docs.influxdata.com/influxdb/v2.7/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [React Documentation](https://react.dev/)
+
+**External API Integrations:**
+- **OpenWeatherMap** - Weather data (API key required)
+- **WattTime** - Carbon intensity data (username/password required)
+- **Awattar** - Electricity pricing (no auth required, Germany/Austria)
+- **AirNow** - Air quality data (API key optional)
+- **ESPN** - Sports data (no auth required, free API)
 
 ---
 

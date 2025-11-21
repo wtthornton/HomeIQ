@@ -397,6 +397,7 @@ The HomeIQ system uses two API services:
 ┌─────────────────────┐
 │ Home Assistant      │
 │ @ 192.168.1.86:8123 │
+│ (Single NUC)        │
 └──────────┬──────────┘
            │
            │ WebSocket Discovery (on connect)

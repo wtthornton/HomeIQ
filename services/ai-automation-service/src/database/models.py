@@ -67,6 +67,10 @@ def get_system_settings_defaults() -> dict:
             "yaml": ["gpt-5.1"]
         },
         "enable_answer_caching": True,  # NEW: Enable answer caching by default
+        "enable_qa_learning": True,  # Enable Q&A learning features
+        "preference_consistency_threshold": 0.9,  # Threshold for applying preferences
+        "min_questions_for_preference": 3,  # Minimum questions needed to learn preference
+        "learning_retrain_frequency": "weekly",  # Retrain frequency: 'daily', 'weekly', 'monthly'
     }
 
 
@@ -129,6 +133,10 @@ class SystemSettings(Base):
         "yaml": ["gpt-5.1"]
     })
     enable_answer_caching = Column(Boolean, nullable=False, default=True)  # NEW: Enable/disable answer caching
+    enable_qa_learning = Column(Boolean, nullable=False, default=True)  # Enable Q&A learning features
+    preference_consistency_threshold = Column(Float, nullable=False, default=0.9)  # Threshold for applying preferences (0.0-1.0)
+    min_questions_for_preference = Column(Integer, nullable=False, default=3)  # Minimum questions needed to learn preference
+    learning_retrain_frequency = Column(String, nullable=False, default='weekly')  # 'daily', 'weekly', 'monthly'
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -949,3 +957,147 @@ class TrainingRun(Base):
         Index('idx_training_runs_started_at', 'started_at'),
         Index('idx_training_runs_run_identifier', 'run_identifier'),
     )
+
+
+class QAOutcome(Base):
+    """
+    Track outcomes of Q&A sessions for learning.
+    
+    Links clarification sessions to automation outcomes to enable
+    learning from successful and failed automation creation attempts.
+    
+    Created: January 2025
+    Story: Q&A Learning Enhancement Plan
+    """
+    __tablename__ = 'qa_outcomes'
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
+    automation_id = Column(String, nullable=True)  # If automation was created
+    questions_count = Column(Integer, nullable=False)
+    confidence_achieved = Column(Float, nullable=False)
+    outcome_type = Column(String, nullable=False)  # 'automation_created', 'abandoned', 'rejected'
+    days_active = Column(Integer, nullable=True)  # For automations (tracked separately)
+    user_satisfaction = Column(Float, nullable=True)  # 0.0-1.0, optional user feedback
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index('idx_qa_outcome_session', 'session_id'),
+        Index('idx_qa_outcome_type', 'outcome_type'),
+        Index('idx_qa_outcome_created', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<QAOutcome(id={self.id}, session_id={self.session_id}, outcome_type='{self.outcome_type}')>"
+
+
+class UserPreference(Base):
+    """
+    Learn user preferences from Q&A patterns.
+    
+    Tracks consistent answer patterns to enable personalization:
+    - Skip questions user always answers the same way
+    - Pre-fill answers based on learned preferences
+    - Adapt question style to user preferences
+    
+    Created: January 2025
+    Story: Q&A Learning Enhancement Plan
+    """
+    __tablename__ = 'user_preferences'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    question_category = Column(String, nullable=False)  # 'device_selection', 'action_type', etc.
+    question_pattern = Column(Text)  # Pattern of question text (for matching)
+    answer_pattern = Column(Text)  # Pattern of answer (normalized)
+    consistency_score = Column(Float, nullable=False)  # 0.0-1.0, how often user gives this answer
+    usage_count = Column(Integer, default=1, nullable=False)
+    last_used = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index('idx_user_pref_user', 'user_id', 'question_category'),
+        Index('idx_user_pref_consistency', 'consistency_score'),
+        Index('idx_user_pref_last_used', 'last_used'),
+        UniqueConstraint('user_id', 'question_category', 'question_pattern', name='uq_user_pref_unique'),
+    )
+
+    def __repr__(self):
+        return f"<UserPreference(id={self.id}, user_id='{self.user_id}', category='{self.question_category}', consistency={self.consistency_score:.2f})>"
+
+
+class QuestionQualityMetric(Base):
+    """
+    Track effectiveness of individual questions.
+    
+    Measures question quality to improve question generation:
+    - Success rate (questions that lead to approved automations)
+    - Confusion rate (user marked as confusing)
+    - Necessity rate (user skipped or marked unnecessary)
+    - Confidence impact (average confidence increase after answer)
+    
+    Created: January 2025
+    Story: Q&A Learning Enhancement Plan
+    """
+    __tablename__ = 'question_quality_metrics'
+
+    id = Column(Integer, primary_key=True)
+    question_id = Column(String, nullable=False, index=True)  # Unique question identifier
+    question_text = Column(Text, nullable=False)
+    question_category = Column(String, nullable=True)
+    times_asked = Column(Integer, default=1, nullable=False)
+    times_led_to_success = Column(Integer, default=0, nullable=False)
+    confusion_count = Column(Integer, default=0, nullable=False)  # User marked as confusing
+    unnecessary_count = Column(Integer, default=0, nullable=False)  # User skipped or marked unnecessary
+    avg_confidence_impact = Column(Float, nullable=True)  # Average confidence increase after answer
+    success_rate = Column(Float, nullable=True)  # times_led_to_success / times_asked
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index('idx_question_quality_id', 'question_id'),
+        Index('idx_question_quality_category', 'question_category'),
+        Index('idx_question_quality_success', 'success_rate'),
+        Index('idx_question_quality_updated', 'updated_at'),
+        UniqueConstraint('question_id', name='uq_question_quality_id'),
+    )
+
+    def __repr__(self):
+        return f"<QuestionQualityMetric(id={self.id}, question_id='{self.question_id}', success_rate={self.success_rate:.2f if self.success_rate else None})>"
+
+
+class AutoResolutionMetric(Base):
+    """
+    Track auto-resolution decisions and outcomes for analysis.
+    
+    2025 Best Practice: Comprehensive observability for ML decisions.
+    """
+    __tablename__ = 'auto_resolution_metrics'
+    
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), index=True)
+    ambiguity_id = Column(String, nullable=False)
+    query = Column(Text, nullable=False)
+    
+    # Decision data
+    resolution = Column(JSON, nullable=True)  # Selected entities/answer
+    confidence = Column(Float, nullable=False)
+    method = Column(String, nullable=False)  # 'llm', 'rag', 'location', 'preference'
+    
+    # Outcome data (updated after user feedback)
+    user_accepted = Column(Boolean, nullable=True)  # Did user accept auto-resolution?
+    user_modified = Column(Boolean, nullable=True)  # Did user modify the resolution?
+    
+    # Performance
+    latency_ms = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_auto_resolution_session', 'session_id'),
+        Index('idx_auto_resolution_confidence', 'confidence'),
+        Index('idx_auto_resolution_method', 'method'),
+    )
+
+    def __repr__(self):
+        return f"<AutoResolutionMetric(id={self.id}, method='{self.method}', confidence={self.confidence:.2f}, accepted={self.user_accepted})>"

@@ -10,7 +10,9 @@ Provides conversational clarification system for ambiguous automation requests.
 - Adaptive thresholds
 """
 
+from .ab_testing import ABTestingService
 from .answer_validator import AnswerValidator
+from .auto_resolver import AutoResolver
 from .confidence_calculator import ConfidenceCalculator
 from .confidence_calibrator import ClarificationConfidenceCalibrator
 from .detector import ClarificationDetector
@@ -36,5 +38,7 @@ __all__ = [
     'RLFeedback',
     'ConfidenceWithUncertainty',
     'UncertaintyQuantifier',
+    'AutoResolver',
+    'ABTestingService',
 ]
 

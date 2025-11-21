@@ -313,11 +313,11 @@ Based on web research and industry trends, here are the key 2025 AI/ML best prac
 
 | Practice | Current Status | 2025 Best Practice | Gap |
 |----------|---------------|-------------------|-----|
-| **Hybrid Retrieval** | ❌ Dense only | Dense + Sparse (BM25) | Missing keyword-based retrieval |
-| **Reranking** | ❌ None | Cross-encoder reranking | No final reranking step |
-| **Query Expansion** | ❌ None | Synonym expansion, related terms | Queries not expanded |
-| **Larger Embeddings** | ⚠️ 384-dim | 768+ dimensions | Could use larger models |
-| **Domain Fine-Tuning** | ❌ Generic model | Fine-tuned on device names | Using generic embeddings |
+| **Hybrid Retrieval** | ❌ Dense only | Dense + Sparse (BM25) | ⚠️ Optional - Dense retrieval is sufficient for single-home |
+| **Reranking** | ❌ None | Cross-encoder reranking | ⚠️ Future optimization - adds latency, may not be needed |
+| **Query Expansion** | ❌ None | Synonym expansion, related terms | ⚠️ Optional enhancement |
+| **Larger Embeddings** | ⚠️ 384-dim | 768+ dimensions | ⚠️ Optional - 384-dim works well, larger may be overkill |
+| **Domain Fine-Tuning** | ❌ Generic model | Fine-tuned on device names | ⚠️ Research only - generic embeddings work well |
 | **Intent Classification** | ⚠️ Implicit | Explicit intent classification | No explicit intent model |
 | **Entity Linking** | ⚠️ Partial | Full entity linking pipeline | Partial implementation |
 | **Cross-Encoder Reranking** | ❌ None | Cross-encoder for final ranking | Missing reranking step |

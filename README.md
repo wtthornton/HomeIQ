@@ -73,11 +73,13 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 ### 🌐 Rich Data Enrichment
 
-- ☁️ **Weather**: OpenWeatherMap integration with forecasts
-- ⚡ **Energy Pricing**: Dynamic electricity cost tracking
-- 🌬️ **Air Quality**: AQI monitoring and alerts
-- 🏈 **Sports**: Live game tracking for team-based automations
-- 🌍 **Carbon Intensity**: Grid carbon footprint awareness
+- ☁️ **Weather**: OpenWeatherMap API integration with forecasts (standalone service)
+- ⚡ **Energy Pricing**: Awattar API for dynamic electricity cost tracking
+- 🌬️ **Air Quality**: AirNow API for AQI monitoring and alerts
+- 🏈 **Sports**: ESPN API for NFL/NHL live game tracking
+- 🌍 **Carbon Intensity**: WattTime API for grid carbon footprint awareness
+- 📅 **Calendar**: Home Assistant calendar integration (optional, currently disabled)
+- ⚡ **Smart Meter**: SMETS2/P1 protocol support for energy consumption data
 
 ### 🎨 Modern UI/UX
 
@@ -92,10 +94,14 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 ### Prerequisites
 
-- **Home Assistant** instance (any version)
-- **Docker** & **Docker Compose**
-- **Node.js 20+** (for development)
-- **Python 3.10+** (for development)
+- **Home Assistant** instance (any version) running on local network (e.g., `192.168.1.86:8123`)
+- **Docker** & **Docker Compose** (Docker Compose v2.0+)
+- **Single NUC or dedicated machine** with:
+  - **4GB RAM minimum** (8GB+ recommended for full stack)
+  - **20GB+ free disk space** (for InfluxDB data retention)
+  - **Network access** to Home Assistant instance
+- **Node.js 20+** (for development only)
+- **Python 3.11+** (for development only)
 
 ### Installation
 
@@ -108,9 +114,10 @@ cd HomeIQ
 cp infrastructure/env.example infrastructure/.env
 
 # Configure your Home Assistant connection
-# Edit infrastructure/.env and add:
-# - HA_HTTP_URL=http://your-ha-instance:8123
-# - HA_TOKEN=your-long-lived-access-token
+# Edit .env (or infrastructure/.env) and add:
+# - HA_HTTP_URL=http://192.168.1.86:8123  # Your HA instance IP
+# - HA_WS_URL=ws://192.168.1.86:8123/api/websocket  # WebSocket URL
+# - HA_TOKEN=your-long-lived-access-token  # From HA Profile → Long-Lived Access Tokens
 
 # Start all services
 docker compose up -d
@@ -237,9 +244,12 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
                             │
                    ┌────────┴────────┐
                    │ Home Assistant  │
+                   │ 192.168.1.86    │
                    │  :8123 / :1883  │
                    │  WebSocket API  │
+                   │  (External)     │
                    └─────────────────┘
+                   Single NUC Deployment
 ```
 
 ### 🤖 Phase 1 AI Services (Containerized)
@@ -331,20 +341,21 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 Key configuration options in `infrastructure/.env`:
 
 ```bash
-# Home Assistant Connection
-HA_HTTP_URL=http://192.168.1.86:8123
-HA_WS_URL=ws://192.168.1.86:8123/api/websocket  # /api/websocket is auto-appended if missing
-HA_TOKEN=your-long-lived-token
+# Home Assistant Connection (Single NUC Deployment)
+HA_HTTP_URL=http://192.168.1.86:8123  # Your Home Assistant IP address
+HA_WS_URL=ws://192.168.1.86:8123/api/websocket  # WebSocket endpoint
+HA_TOKEN=your-long-lived-access-token  # From HA Profile → Long-Lived Access Tokens
 
-# InfluxDB
+# InfluxDB (Local instance, runs in Docker)
 INFLUXDB_ORG=homeiq
 INFLUXDB_BUCKET=home_assistant_events
-INFLUXDB_TOKEN=your-influxdb-token
+INFLUXDB_TOKEN=your-influxdb-token  # Auto-generated on first run
 
-# Optional Integrations
-WEATHER_API_KEY=your-openweathermap-key
-WATTTIME_USERNAME=your-watttime-username
+# Optional External API Integrations
+WEATHER_API_KEY=your-openweathermap-key  # OpenWeatherMap API key
+WATTTIME_USERNAME=your-watttime-username  # WattTime API credentials
 WATTTIME_PASSWORD=your-watttime-password
+AIRNOW_API_KEY=your-airnow-key  # AirNow API key (optional)
 ```
 
 ### Docker Compose Variants
@@ -358,24 +369,26 @@ WATTTIME_PASSWORD=your-watttime-password
 
 ## 🧪 Development
 
-### Local Development Setup
+### Local Development Setup (Single NUC)
+
+**Note:** This project is designed for single-machine deployment on a NUC. All services run in Docker containers on the same host.
 
 ```bash
-# Backend (Python services)
+# Backend (Python services) - Development mode
 cd services/ai-automation-service
 python -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8018
 
-# Frontend (React apps)
-# Build and run with Docker (recommended)
-docker compose up -d health-dashboard
+# Frontend (React apps) - Development mode
+# Build and run with Docker (recommended for consistency)
+docker compose -f docker-compose.dev.yml up -d health-dashboard
 
 # Or build locally
 cd services/health-dashboard
 npm install
-npm run build
+npm run dev  # Development server with hot reload
 ```
 
 ### Running Tests
@@ -529,14 +542,17 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ## 📊 Project Stats
 
 - **Services**: 24 active microservices (+ InfluxDB infrastructure = 25 containers)
-- **Languages**: Python, TypeScript, JavaScript
-- **Databases**: InfluxDB (time-series) + 5 SQLite databases (metadata)
-- **APIs**: RESTful, WebSocket, MQTT (external)
+- **Deployment**: Single NUC (Intel NUC or similar), Docker Compose
+- **Languages**: Python 3.11+ (backend), TypeScript/React 18 (frontend)
+- **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
+- **APIs**: RESTful (FastAPI), WebSocket (Home Assistant), MQTT (external broker)
 - **UI Frameworks**: React 18, Vite, Tailwind CSS
 - **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
-- **Testing**: Legacy suites removed; new targeted coverage TBD
+- **External Integrations**: OpenWeatherMap, WattTime, Awattar, AirNow, ESPN
+- **Testing**: Legacy suites removed (November 2025); new targeted coverage TBD
 - **Lines of Code**: 50,000+ (reviewed November 2025)
 - **Shared Libraries**: 3,947 lines across 11 core modules
+- **System Requirements**: 4GB RAM minimum, 8GB+ recommended, 20GB+ disk space
 
 ---
 

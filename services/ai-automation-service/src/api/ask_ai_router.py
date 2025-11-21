@@ -1273,11 +1273,21 @@ async def map_devices_to_entities(
             # Check friendly_name first, then device_name if friendly_name is empty
             name_to_check = friendly_name if friendly_name else device_name_from_enriched
             if name_to_check and name_to_check.lower() == device_name_lower:
-                matched_entity_id = entity_id
-                match_quality = 3
-                name_type = 'friendly_name' if friendly_name else 'device_name'
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
-                break
+                # Add area check for exact matches - boost priority for area matches
+                area_name = enriched.get('area_name', '').lower()
+                if area_name and device_name_lower in area_name:
+                    # Boost priority for area matches (single-home optimization)
+                    match_quality = 4  # Higher than regular exact match
+                    matched_entity_id = entity_id
+                    name_type = 'friendly_name' if friendly_name else 'device_name'
+                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type} with area match)")
+                    break
+                else:
+                    matched_entity_id = entity_id
+                    match_quality = 3
+                    name_type = 'friendly_name' if friendly_name else 'device_name'
+                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
+                    break
 
         # Strategy 2: Fuzzy matching with rapidfuzz - context-aware for 2025
         if not matched_entity_id and fuzzy_match and settings.fuzzy_matching_enabled:
@@ -1322,9 +1332,9 @@ async def map_devices_to_entities(
                 # Build context bonuses for enhanced scoring
                 context_bonuses = {}
                 
-                # Area context bonus for single-home scenarios
+                # Area context bonus for single-home scenarios (increased from 0.1 to 0.3)
                 if area_name and device_name_lower in area_name:
-                    context_bonuses['area'] = 0.1
+                    context_bonuses['area'] = 0.3  # Increased for single-home optimization
                 
                 # 2025 ENHANCEMENT: Context-aware location matching
                 if context_location:
@@ -1340,6 +1350,16 @@ async def map_devices_to_entities(
                             context_bonuses['device_type'] = 0.2  # Strong device type match bonus
                             logger.debug(f"🔧 Device type match bonus: '{device_name_lower}' matches hint '{hint}' for entity '{entity_id}'")
                             break
+                
+                # Add area + device type combination bonus (single-home optimization)
+                if context_location and context_device_hints:
+                    location_lower = context_location.lower()
+                    if location_lower in area_name:
+                        for hint in context_device_hints:
+                            if hint in entity_name_part or hint in name_to_check.lower():
+                                context_bonuses['area_device_type'] = 0.4  # Strong combination match
+                                logger.debug(f"🎯 Area+Device type combination bonus: '{device_name_lower}' ({hint}) in '{location_lower}' area → '{entity_id}'")
+                                break
 
                 # Use fuzzy_match_with_context() for base similarity + context bonuses
                 # Check both friendly_name and entity_name_part for better matching
@@ -1409,12 +1429,19 @@ async def map_devices_to_entities(
                         if integration and device_type in integration:
                             score += 2  # Strong match: integration matches
                     
-                    # Location context bonus: prioritize entities in query_location
+                    # Location context bonus: prioritize entities in query_location (increased from +2 to +4)
                     if query_location:
                         location_lower = query_location.lower()
                         if location_lower in area_name or location_lower in entity_name_part:
-                            score += 2  # Strong location match bonus
+                            score += 4  # Strong location match bonus (increased for single-home optimization)
                             logger.debug(f"📍 Device type + location match: '{device_name}' ({matching_device_types}) in '{query_location}' → '{entity_id}'")
+                    
+                    # Add entity name pattern matching (e.g., "office" in entity_id when area is "office")
+                    if query_location:
+                        location_lower = query_location.lower()
+                        if location_lower in entity_name_part:
+                            score += 2  # Additional bonus for location in entity name
+                            logger.debug(f"📍 Entity name pattern match: '{location_lower}' in entity_id '{entity_id}'")
                     
                     if score > best_match_score:
                         best_match_score = score
@@ -2220,14 +2247,24 @@ EXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified t
 VALIDATED ENTITIES (ALL verified to exist in Home Assistant - use these EXACT entity IDs):
 {chr(10).join(entity_id_list)}
 {mapping_text}
-CRITICAL: Use ONLY the entity IDs listed above. Do NOT create new entity IDs.
-Entity IDs must ALWAYS be in format: domain.entity (e.g., {example_entity})
+
+CRITICAL RULES:
+1. Use ONLY the entity IDs listed above - DO NOT modify, shorten, or create new ones
+2. Entity IDs are case-sensitive and format-sensitive
+3. If device is "Office" and mapping shows "Office": "light.wled_office", 
+   use EXACTLY "light.wled_office" - NOT "light.wled" or "light.office"
+4. Scene IDs should be derived from entity IDs for consistency:
+   - Entity: "light.wled_office" → Scene ID: "office_wled_before_show"
+   - Use consistent naming: "before_show", "before_random", "restore", etc.
 
 COMMON MISTAKES TO AVOID:
-❌ WRONG: entity_id: wled (missing domain prefix - will cause "Entity not found" error)
-❌ WRONG: entity_id: WLED (missing domain prefix and wrong format)
-❌ WRONG: entity_id: office (missing domain prefix - incomplete entity ID)
-✅ CORRECT: entity_id: {example_entity} (complete domain.entity format from validated list above)
+❌ WRONG: entity_id: wled (missing domain prefix)
+❌ WRONG: entity_id: light.wled (shortened - not in validated list)
+❌ WRONG: entity_id: light.office (generic - not in validated list)
+✅ CORRECT: entity_id: {example_entity} (EXACT match from validated list above)
+
+ENTITY ID EXAMPLES FROM VALIDATED LIST:
+{chr(10).join([f"  - Device '{name}' → Use EXACTLY: {eid}" for name, eid in list(validated_entities.items())[:5]])}
 """
 
         # Add entity context JSON if available
@@ -5348,15 +5385,108 @@ async def process_natural_language_query(
                             'risk_tolerance': getattr(settings, "default_risk_tolerance", "medium")
                         }
 
-                # Calculate adaptive threshold
-                adaptive_threshold = confidence_calculator.calculate_adaptive_threshold(
+                # Calculate adaptive threshold (now async with RAG support)
+                adaptive_threshold = await confidence_calculator.calculate_adaptive_threshold(
                     query=request.query,
                     extracted_entities=entities,
                     ambiguities=ambiguities,
-                    user_preferences=user_preferences
+                    user_preferences=user_preferences,
+                    rag_client=rag_client_for_confidence
                 ) if getattr(settings, "adaptive_threshold_enabled", True) else 0.85
 
-                # Check if clarification is needed
+                # NEW: Try auto-resolution before asking questions (2025 best practice)
+                auto_resolved_answers = {}
+                remaining_ambiguities = ambiguities
+                
+                if ambiguities and getattr(settings, "auto_resolution_enabled", True):
+                    try:
+                        from ..services.clarification import AutoResolver, ABTestingService
+                        from ..services.clarification.uncertainty_quantification import UncertaintyQuantifier
+                        
+                        # Initialize A/B testing service
+                        ab_testing = ABTestingService(
+                            enabled=getattr(settings, "ab_testing_enabled", False),
+                            rollout_percentage=getattr(settings, "ab_testing_rollout_percentage", 1.0)
+                        )
+                        
+                        # Check if auto-resolution should be used for this session
+                        auto_resolution_config = ab_testing.get_auto_resolution_config(
+                            user_id=request.user_id,
+                            session_id=None  # Will be set when session is created
+                        )
+                        
+                        if auto_resolution_config.get('enabled', True):
+                            # Initialize auto resolver
+                            uncertainty_quantifier = UncertaintyQuantifier(method="bootstrap")
+                            auto_resolver = AutoResolver(
+                                detector=clarification_detector,
+                                rag_client=rag_client_for_confidence,
+                                uncertainty_quantifier=uncertainty_quantifier
+                            )
+                            
+                            # Get user preferences for auto-resolution
+                            user_prefs_for_resolution = None
+                            try:
+                                from ..database.crud import get_user_preferences
+                                user_prefs_for_resolution = await get_user_preferences(
+                                    db=db,
+                                    user_id=request.user_id
+                                )
+                            except Exception as e:
+                                logger.debug(f"Failed to get user preferences for auto-resolution: {e}")
+                            
+                            # Attempt auto-resolution
+                            remaining_ambiguities, auto_resolved_answers = await auto_resolver.resolve_ambiguities(
+                                ambiguities=ambiguities,
+                                query=request.query,
+                                extracted_entities=entities,
+                                available_devices=automation_context,
+                                user_preferences=user_prefs_for_resolution,
+                                min_confidence=auto_resolution_config.get('min_confidence', 0.85)
+                            )
+                            
+                            if auto_resolved_answers:
+                                logger.info(
+                                    f"✅ Auto-resolved {len(auto_resolved_answers)} ambiguities, "
+                                    f"{len(remaining_ambiguities)} remaining"
+                                )
+                                
+                                # Track auto-resolution metrics (for observability)
+                                try:
+                                    from ..database.models import AutoResolutionMetric
+                                    from datetime import datetime
+                                    
+                                    # Store metrics for each auto-resolved ambiguity
+                                    for amb_id, resolution in auto_resolved_answers.items():
+                                        metric = AutoResolutionMetric(
+                                            session_id=None,  # Will be set when session is created
+                                            ambiguity_id=amb_id,
+                                            query=request.query,
+                                            resolution=resolution.get('entities', []),
+                                            confidence=resolution.get('confidence', 0.0),
+                                            method=resolution.get('method', 'unknown'),
+                                            latency_ms=resolution.get('latency_ms', 0.0),
+                                            created_at=datetime.utcnow()
+                                        )
+                                        db.add(metric)
+                                    
+                                    await db.commit()
+                                except Exception as e:
+                                    logger.warning(f"Failed to track auto-resolution metrics: {e}")
+                                    await db.rollback()
+                        else:
+                            logger.debug(f"Auto-resolution disabled for this session (A/B test variant: {auto_resolution_config.get('variant')})")
+                    
+                    except Exception as e:
+                        logger.warning(f"⚠️ Auto-resolution failed, falling back to questions: {e}", exc_info=True)
+                        # Fall back to all ambiguities if auto-resolution fails
+                        remaining_ambiguities = ambiguities
+                        auto_resolved_answers = {}
+                
+                # Update ambiguities to remaining ones (after auto-resolution)
+                ambiguities = remaining_ambiguities
+
+                # Check if clarification is needed (using remaining ambiguities)
                 if confidence_calculator.should_ask_clarification(confidence, ambiguities, threshold=adaptive_threshold):
                     # Generate questions
                     if question_generator:
@@ -5365,6 +5495,32 @@ async def process_natural_language_query(
                             query=request.query,
                             context=automation_context
                         )
+
+                    # NEW: Apply user preferences (skip questions with high consistency, pre-fill answers)
+                    pre_filled_answers = {}
+                    if questions:
+                        try:
+                            from ...services.learning.user_preference_learner import UserPreferenceLearner
+                            from ...database.models import SystemSettings
+                            
+                            # Check if learning is enabled
+                            settings_result = await db.execute(select(SystemSettings).limit(1))
+                            settings_obj = settings_result.scalar_one_or_none()
+                            if settings_obj and getattr(settings_obj, 'enable_qa_learning', True):
+                                preference_learner = UserPreferenceLearner()
+                                filtered_questions, pre_filled = await preference_learner.apply_user_preferences(
+                                    db=db,
+                                    user_id=request.user_id,
+                                    questions=questions
+                                )
+                                questions = filtered_questions
+                                pre_filled_answers = pre_filled
+                                
+                                if pre_filled_answers:
+                                    logger.info(f"✅ Applied user preferences: {len(pre_filled_answers)} answers pre-filled, {len(questions)} questions remaining")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to apply user preferences: {e}")
+                            # Non-critical: continue with all questions
 
                     # NEW: Check for cached answers from past sessions
                     cached_answers = {}
@@ -5409,14 +5565,21 @@ async def process_natural_language_query(
                                 logger.info(f"✅ Found {len(cached_answers)} cached answers from past sessions")
                                 
                                 # Pre-fill answers in questions (add cached_answer field)
+                                # Merge with preference-based pre-filled answers
                                 for question in questions:
-                                    if question.id in cached_answers:
+                                    # Check preference-based pre-fill first (higher priority)
+                                    if question.id in pre_filled_answers:
+                                        if not hasattr(question, 'cached_answer'):
+                                            question.cached_answer = pre_filled_answers[question.id]
+                                        logger.debug(f"Pre-filled answer from preference for question {question.id}")
+                                    elif question.id in cached_answers:
                                         cached_data = cached_answers[question.id]
                                         # Store cached answer as metadata on question object
                                         if not hasattr(question, 'cached_answer'):
                                             question.cached_answer = cached_data['answer_text']
                                         if not hasattr(question, 'cached_entities'):
                                             question.cached_entities = cached_data.get('selected_entities')
+                                        logger.debug(f"Pre-filled answer from cache for question {question.id}")
                                         if not hasattr(question, 'cached_similarity'):
                                             question.cached_similarity = cached_data.get('similarity', 0.0)
                                         logger.debug(
@@ -5428,7 +5591,7 @@ async def process_natural_language_query(
                             # Continue without cached answers - not critical
 
                     # Create clarification session
-                    if questions:
+                    if questions or auto_resolved_answers:
                         clarification_session_id = f"clarify-{uuid.uuid4().hex[:8]}"
 
                         # Create in-memory session (for real-time access)
@@ -5441,6 +5604,12 @@ async def process_natural_language_query(
                             ambiguities=ambiguities,
                             query_id=query_id
                         )
+                        
+                        # Store auto-resolved answers in session context (for later use)
+                        if auto_resolved_answers:
+                            if not hasattr(session, 'auto_resolved_answers'):
+                                session.auto_resolved_answers = auto_resolved_answers
+                            logger.info(f"✅ Stored {len(auto_resolved_answers)} auto-resolved answers in session")
                         _clarification_sessions[clarification_session_id] = session
 
                         # Persist to database
@@ -5709,7 +5878,12 @@ async def process_natural_language_query(
 
             area_info = f" I detected these locations: {', '.join(area_names)}." if area_names else ""
 
-            message = f"I found some ambiguities in your request.{device_info}{area_info} Please answer {len(questions)} question(s) to help me create the automation accurately."
+            # Include auto-resolved information in message if available
+            auto_resolved_info = ""
+            if auto_resolved_answers:
+                auto_resolved_info = f" I've automatically resolved {len(auto_resolved_answers)} ambiguity(ies) based on context."
+            
+            message = f"I found some ambiguities in your request.{device_info}{area_info}{auto_resolved_info} Please answer {len(questions)} question(s) to help me create the automation accurately."
         elif suggestions:
             device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
             device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else ""
@@ -6164,6 +6338,34 @@ async def provide_clarification(
 
         logger.info(f"📊 Session now has {len(session.answers)} unique answers across {session.rounds_completed} rounds")
         logger.info(f"📋 Current session answers breakdown: {[f'{a.question_id}: {a.answer_text[:50]}...' for a in session.answers]}")
+
+        # NEW: Learn user preferences from answers
+        try:
+            from ...services.learning.user_preference_learner import UserPreferenceLearner
+            from ...database.models import SystemSettings
+            
+            # Check if learning is enabled
+            settings_result = await db.execute(select(SystemSettings).limit(1))
+            settings_obj = settings_result.scalar_one_or_none()
+            if settings_obj and getattr(settings_obj, 'enable_qa_learning', True):
+                preference_learner = UserPreferenceLearner()
+                
+                # Learn from each new answer
+                for validated_answer in validated_answers:
+                    question = next((q for q in session.questions if q.id == validated_answer.question_id), None)
+                    if question:
+                        await preference_learner.learn_user_preference(
+                            db=db,
+                            user_id=request.user_id or "anonymous",
+                            question_category=getattr(question, 'category', 'unknown'),
+                            question_pattern=question.question_text.lower().strip(),
+                            answer_pattern=validated_answer.answer_text.lower().strip()
+                        )
+                
+                logger.debug(f"✅ Learned preferences from {len(validated_answers)} answers")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to learn user preferences: {e}")
+            # Non-critical: continue even if preference learning fails
 
         # NEW: Track previous confidence before recalculating
         previous_confidence = session.current_confidence
@@ -6682,6 +6884,73 @@ async def provide_clarification(
                 except Exception as e:
                     # Non-critical: continue even if RAG storage fails
                     logger.warning(f"⚠️ Failed to store enriched query in RAG knowledge base: {e}")
+
+                # Track Q&A outcome for learning
+                try:
+                    from ...services.learning.qa_outcome_tracker import QAOutcomeTracker
+                    from ...services.learning.question_quality_tracker import QuestionQualityTracker
+                    from ...database.models import SystemSettings
+                    
+                    # Check if learning is enabled
+                    settings_result = await db.execute(select(SystemSettings).limit(1))
+                    settings = settings_result.scalar_one_or_none()
+                    if settings and getattr(settings, 'enable_qa_learning', True):
+                        outcome_tracker = QAOutcomeTracker()
+                        await outcome_tracker.track_qa_outcome(
+                            db=db,
+                            session_id=request.session_id,
+                            questions_count=len(session.questions),
+                            confidence_achieved=session.current_confidence,
+                            outcome_type='automation_created' if suggestions else 'abandoned',
+                            automation_id=None  # Will be updated when automation is deployed
+                        )
+                        logger.debug(f"✅ Tracked Q&A outcome for session {request.session_id}")
+                        
+                        # Track question quality (initial tracking - will be updated when automation deployed)
+                        if suggestions:
+                            quality_tracker = QuestionQualityTracker()
+                            previous_confidence = getattr(session, 'previous_confidence', 0.0)
+                            confidence_impact = session.current_confidence - previous_confidence
+                            
+                            for question in session.questions:
+                                await quality_tracker.track_question_quality(
+                                    db=db,
+                                    question_id=question.id,
+                                    question_text=question.question_text,
+                                    question_category=getattr(question, 'category', None),
+                                    outcome='success' if suggestions else None,
+                                    confidence_impact=confidence_impact if confidence_impact > 0 else None
+                                )
+                            logger.debug(f"✅ Tracked question quality for {len(session.questions)} questions")
+                            
+                            # Feed outcome to RL calibrator for confidence prediction improvement
+                            try:
+                                from ...services.clarification.rl_calibrator import RLConfidenceCalibrator
+                                rl_calibrator = RLConfidenceCalibrator()
+                                
+                                # Get predicted confidence (from before clarification)
+                                predicted_confidence = previous_confidence if previous_confidence > 0 else session.current_confidence
+                                
+                                # Actual outcome: True if suggestions were generated (proceeded)
+                                actual_outcome = bool(suggestions)
+                                
+                                # Add feedback to RL calibrator
+                                rl_calibrator.add_feedback(
+                                    predicted_confidence=predicted_confidence,
+                                    actual_outcome=actual_outcome,
+                                    ambiguity_count=len(session.ambiguities) if hasattr(session, 'ambiguities') else 0,
+                                    critical_ambiguity_count=len([a for a in (session.ambiguities or []) if getattr(a, 'severity', None) == 'critical']),
+                                    rounds=session.rounds_completed,
+                                    answer_count=len(session.answers),
+                                    auto_train=True
+                                )
+                                logger.debug(f"✅ Fed outcome to RL calibrator: predicted={predicted_confidence:.2f}, actual={actual_outcome}")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to feed outcome to RL calibrator: {e}")
+                                # Non-critical: continue
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to track Q&A outcome: {e}")
+                    # Non-critical: continue even if tracking fails
 
             except Exception as e:
                 logger.error(f"⚠️ Failed to create query record for clarification session {request.session_id}: {e}", exc_info=True)
@@ -8580,6 +8849,60 @@ async def approve_suggestion_from_query(
         try:
             automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, [], db_session=db, ha_client=ha_client)
 
+            # Phase 4: Post-YAML entity ID correction - catch and fix entity ID mismatches
+            import re
+            parsed_yaml = yaml_lib.safe_load(automation_yaml)
+            if parsed_yaml:
+                from ..services.entity_id_validator import EntityIDValidator
+                entity_id_extractor = EntityIDValidator()
+                entity_id_tuples = entity_id_extractor._extract_all_entity_ids(parsed_yaml)
+                yaml_entity_ids = [eid for eid, _ in entity_id_tuples] if entity_id_tuples else []
+                
+                # Find entity IDs in YAML that don't match validated_entities
+                validated_entity_ids = set(final_suggestion['validated_entities'].values())
+                mismatched_entities = [eid for eid in yaml_entity_ids if eid not in validated_entity_ids and not eid.startswith('scene.')]
+                
+                if mismatched_entities:
+                    logger.warning(f"⚠️ Found {len(mismatched_entities)} entity IDs in YAML that don't match validated_entities: {', '.join(mismatched_entities)}")
+                    entity_replacements = {}
+                    
+                    for invalid_entity_id in mismatched_entities:
+                        # Find best match from validated_entities using similarity
+                        best_match = None
+                        best_score = 0.0
+                        
+                        for validated_entity_id in validated_entity_ids:
+                            # Calculate similarity (domain match + name similarity)
+                            invalid_domain = invalid_entity_id.split('.')[0] if '.' in invalid_entity_id else ''
+                            validated_domain = validated_entity_id.split('.')[0] if '.' in validated_entity_id else ''
+                            
+                            if invalid_domain != validated_domain:
+                                continue  # Must match domain
+                            
+                            # Use rapidfuzz for name similarity
+                            invalid_name = invalid_entity_id.split('.')[-1] if '.' in invalid_entity_id else invalid_entity_id
+                            validated_name = validated_entity_id.split('.')[-1] if '.' in validated_entity_id else validated_entity_id
+                            
+                            from rapidfuzz import fuzz
+                            similarity = fuzz.ratio(invalid_name.lower(), validated_name.lower())
+                            
+                            if similarity > best_score and similarity >= 50.0:  # Minimum 50% similarity
+                                best_score = similarity
+                                best_match = validated_entity_id
+                        
+                        if best_match:
+                            entity_replacements[invalid_entity_id] = best_match
+                            logger.info(f"🔧 Auto-correcting entity ID: '{invalid_entity_id}' → '{best_match}' (similarity: {best_score:.1f}%)")
+                    
+                    # Apply replacements to YAML
+                    if entity_replacements:
+                        for old_id, new_id in entity_replacements.items():
+                            pattern = r'\b' + re.escape(old_id) + r'\b'
+                            automation_yaml = re.sub(pattern, new_id, automation_yaml)
+                        logger.info(f"✅ Auto-corrected {len(entity_replacements)} entity IDs in YAML")
+                        # Re-parse after correction
+                        parsed_yaml = yaml_lib.safe_load(automation_yaml)
+
             # Update metrics: Mark suggestion as approved
             if suggestion_model_used:
                 await _update_model_comparison_metrics_on_approval(
@@ -8642,33 +8965,38 @@ async def approve_suggestion_from_query(
                     # Also check for scene entities in the YAML that might be created
                     scene_entities_in_yaml = [eid for eid in unique_entity_ids if eid.startswith('scene.')]
                     
+                    # Filter out dynamically created scenes from validation (they don't exist until runtime)
+                    entities_to_validate = [
+                        eid for eid in unique_entity_ids 
+                        if eid not in created_scenes
+                    ]
+                    
                     if created_scenes:
-                        logger.info(f"🔍 Found {len(created_scenes)} dynamically created scenes (will exclude from validation): {', '.join(sorted(created_scenes))}")
+                        logger.info(f"🔍 Excluding {len(created_scenes)} dynamically created scenes from validation: {', '.join(sorted(created_scenes))}")
+                        logger.info(f"🔍 Validating {len(entities_to_validate)} static entities")
                     
                     if scene_entities_in_yaml:
                         logger.info(f"🔍 Found {len(scene_entities_in_yaml)} scene entities in YAML: {', '.join(sorted(scene_entities_in_yaml))}")
                         
+                        # Check for scene ID consistency (Phase 5)
+                        if created_scenes:
+                            referenced_scenes = set(scene_entities_in_yaml)
+                            missing_scenes = referenced_scenes - created_scenes
+                            if missing_scenes:
+                                logger.warning(f"⚠️ Scene entities referenced but not created: {', '.join(sorted(missing_scenes))}")
+                            unused_scenes = created_scenes - referenced_scenes
+                            if unused_scenes:
+                                logger.info(f"ℹ️ Scenes created but not referenced: {', '.join(sorted(unused_scenes))}")
+                        
                         # Check if any scene entities are not in created_scenes - these need to exist in HA
                         scenes_not_created = [eid for eid in scene_entities_in_yaml if eid not in created_scenes]
                         if scenes_not_created:
-                            logger.warning(f"⚠️ Scene entities found in YAML but not detected as created dynamically: {', '.join(sorted(scenes_not_created))}")
-                            logger.info(f"🔍 These will be validated against HA (they should exist as static scenes)")
-                            
-                            # Debug: Check if scene.create calls exist in the YAML
-                            actions = parsed_yaml.get('action', parsed_yaml.get('actions', []))
-                            if actions:
-                                import json
-                                actions_str = json.dumps(actions, indent=2)
-                                if 'scene.create' in actions_str:
-                                    logger.debug(f"🔍 scene.create found in actions, but extraction didn't match. Actions structure: {actions_str[:500]}")
-                    
-                    # Filter out dynamically created scenes from validation (they don't exist until runtime)
-                    entities_to_validate = [eid for eid in unique_entity_ids if eid not in created_scenes]
+                            logger.info(f"🔍 {len(scenes_not_created)} static scene entities will be validated against HA: {', '.join(sorted(scenes_not_created))}")
                     
                     if created_scenes:
                         logger.info(f"🔍 Final validation: Checking {len(entities_to_validate)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML, excluding {len(created_scenes)} dynamically created scenes)...")
                     else:
-                        logger.info(f"🔍 Final validation: Checking {len(unique_entity_ids)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
+                        logger.info(f"🔍 Final validation: Checking {len(entities_to_validate)} unique entity IDs exist in HA (found {len(all_entity_ids_in_yaml)} total in YAML)...")
 
                     # Validate each unique entity ID exists in HA (excluding dynamically created scenes)
                     invalid_entities = []

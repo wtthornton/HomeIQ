@@ -1,6 +1,11 @@
 # Data Retention Service
 
-The Data Retention Service is a comprehensive solution for managing data lifecycle, storage optimization, and backup operations in the Home Assistant Ingestor system.
+**Port:** 8080
+**Technology:** Python 3.11+, FastAPI 0.121, InfluxDB 3.0
+**Container:** `homeiq-data-retention`
+**Status:** Production Ready
+
+The Data Retention Service is a comprehensive solution for managing data lifecycle, storage optimization, and backup operations in the HomeIQ system for single NUC deployment.
 
 ## Overview
 

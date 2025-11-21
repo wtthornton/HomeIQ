@@ -375,17 +375,18 @@ class ConfidenceCalculator:
         # Medium: everything else
         return 'medium'
 
-    def calculate_adaptive_threshold(
+    async def calculate_adaptive_threshold(
         self,
         query: str,
         extracted_entities: list[dict[str, Any]],
         ambiguities: list[Ambiguity],
-        user_preferences: dict[str, str] | None = None
+        user_preferences: dict[str, str] | None = None,
+        rag_client: Any | None = None
     ) -> float:
         """
         Calculate adaptive confidence threshold based on context.
         
-        Uses 2025 best practices: type hints, context-aware adjustments.
+        Uses 2025 best practices: type hints, context-aware adjustments, RAG-based historical learning.
         
         Args:
             query: User query
@@ -393,11 +394,12 @@ class ConfidenceCalculator:
             ambiguities: Detected ambiguities
             user_preferences: Optional user preferences dict with 'risk_tolerance' key
                 ('high', 'medium', or 'low')
+            rag_client: Optional RAG client for historical success checking
             
         Returns:
             Adaptive threshold (0.65 to 0.95)
         """
-        base_threshold: float = 0.85
+        base_threshold: float = self.default_threshold
         threshold: float = base_threshold
 
         # Adjust based on query complexity
@@ -413,6 +415,35 @@ class ConfidenceCalculator:
             threshold -= 0.05  # Lower threshold if no ambiguities
         elif ambiguity_count >= 3:
             threshold += 0.05  # Higher threshold if many ambiguities
+
+        # Adjust based on historical success (2025: RAG-based learning)
+        active_rag_client = rag_client or self.rag_client
+        if active_rag_client:
+            try:
+                # Check for similar successful queries using hybrid retrieval
+                similar_queries = await active_rag_client.retrieve_hybrid(
+                    query=query,
+                    knowledge_type='query',
+                    top_k=1,
+                    min_similarity=0.75,
+                    use_query_expansion=True,
+                    use_reranking=True
+                )
+                
+                if similar_queries:
+                    top_result = similar_queries[0]
+                    similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
+                    success_score = top_result.get('success_score', 0.5)
+                    
+                    # If similar query was successful, lower threshold
+                    if similarity >= 0.75 and success_score > 0.8:
+                        threshold -= 0.10  # Lower threshold for proven patterns
+                        logger.debug(
+                            f"Historical success detected (similarity={similarity:.2f}, "
+                            f"success={success_score:.2f}) - lowering threshold by 0.10"
+                        )
+            except Exception as e:
+                logger.debug(f"RAG historical check failed in adaptive threshold: {e}")
 
         # Adjust based on user preferences (2025: type-safe with Literal if using Pydantic)
         if user_preferences:

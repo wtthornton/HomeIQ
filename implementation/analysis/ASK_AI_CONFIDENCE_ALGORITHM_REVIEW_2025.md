@@ -96,7 +96,7 @@
 
 **Assessment:** We have a **simpler but effective** version. GrACE's hidden state approach is more sophisticated but may not be necessary given our RAG-based approach.
 
-### 2. Reinforcement Learning for Confidence Calibration ❌ Not Implemented
+### 2. Reinforcement Learning for Confidence Calibration ❌ Not Implemented (⚠️ FUTURE ONLY)
 
 **What It Is:**
 - Fine-tunes models to express calibrated confidence
@@ -109,9 +109,9 @@
 - ❌ **No Penalty for Over-Confidence**: System doesn't track when confidence is too high
 - ❌ **No Feedback Loop**: Clarification confidence doesn't learn from user acceptance
 
-**Assessment:** **Missing critical capability**. RL calibration could significantly improve our confidence accuracy.
+**Assessment:** ⚠️ **Advanced technique - not priority for single-home**. RL calibration is complex and may be over-engineered. Start with simpler calibration (Platt/Isotonic regression) first. Consider RL only if simpler methods are insufficient.
 
-### 3. CCPS (Calibrating LLM Confidence by Probing Perturbed Representation Stability) ❌ Not Implemented
+### 3. CCPS (Calibrating LLM Confidence by Probing Perturbed Representation Stability) ❌ Not Implemented (⚠️ OVER-ENGINEERED)
 
 **What It Is:**
 - Analyzes internal representational stability
@@ -123,7 +123,7 @@
 - ❌ **Not Implemented**: No perturbation-based analysis
 - ❌ **No Stability Testing**: Don't test how stable our confidence is under perturbations
 
-**Assessment:** **Advanced technique** - could be valuable but may be overkill for our use case.
+**Assessment:** ⚠️ **Over-engineered for single-home use case**. CCPS is a research technique that adds significant complexity. For single-home deployment, simpler calibration methods (Platt/Isotonic) are sufficient. **Not recommended for production.**
 
 ### 4. Platt Scaling / Isotonic Regression ✅ Partially Implemented (Patterns Only)
 
@@ -192,11 +192,11 @@
 |----------|---------------|-------------------|-----|----------|
 | **Historical Learning** | ✅ RAG-based similarity | GrACE (hidden state) | Minor | Low |
 | **Calibration** | ❌ None for clarification | Platt/Isotonic | **Major** | **HIGH** |
-| **RL-Based Learning** | ❌ Not implemented | RL calibration | **Major** | **MEDIUM** |
+| **RL-Based Learning** | ❌ Not implemented | RL calibration | **Major** | **LOW** (⚠️ Future only - complex) |
 | **Adaptive Thresholds** | ❌ Fixed (0.85) | Context-aware | **Major** | **MEDIUM** |
 | **Temperature Scaling** | ❌ Not implemented | Post-hoc calibration | Minor | Low |
 | **Uncertainty Quantification** | ❌ Single point | Intervals/distributions | Minor | Low |
-| **Perturbation Testing** | ❌ Not implemented | CCPS | Minor | Low |
+| **Perturbation Testing** | ❌ Not implemented | CCPS | Minor | **SKIP** (⚠️ Over-engineered) |
 
 **Key Findings:**
 - ✅ **Good foundation** with historical learning (RAG-based)

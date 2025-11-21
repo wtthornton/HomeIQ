@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
 import { DeviceMappingModal } from './DeviceMappingModal';
 import { DeployedBadge } from './DeployedBadge';
+import { QuestionsAndAnswersSection } from './ask-ai/QuestionsAndAnswersSection';
 
 interface DeviceInfo {
   friendly_name: string;
@@ -50,6 +51,11 @@ interface ConversationalSuggestion {
     deployed_at?: string;
   };
   ha_automation_id?: string | null;
+  questionsAndAnswers?: Array<{
+    question: string;
+    answer: string;
+    selected_entities?: string[];
+  }>;
 }
 
 interface Props {
@@ -435,6 +441,15 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
 
       {/* Body */}
       <div className="p-4 space-y-3">
+        {/* Questions and Answers Section */}
+        {suggestion.questionsAndAnswers && suggestion.questionsAndAnswers.length > 0 && (
+          <QuestionsAndAnswersSection
+            questionsAndAnswers={suggestion.questionsAndAnswers}
+            darkMode={darkMode}
+            title="How Your Questions Were Answered"
+          />
+        )}
+
         {/* Device Capabilities (Expandable) */}
         {suggestion.device_capabilities && suggestion.device_capabilities.friendly_capabilities && suggestion.device_capabilities.friendly_capabilities.length > 0 && (
           <div>

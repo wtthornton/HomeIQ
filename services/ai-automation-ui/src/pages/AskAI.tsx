@@ -1807,7 +1807,8 @@ export const AskAI: React.FC = () => {
                                   automation_yaml: suggestion.automation_yaml || null,
                                   created_at: suggestion.created_at,
                                   approve_response: suggestion.approve_response,
-                                  ha_automation_id: suggestion.ha_automation_id
+                                  ha_automation_id: suggestion.ha_automation_id,
+                                  questionsAndAnswers: message.questionsAndAnswers
                                 }}
                                 onRefine={async (_id: number, refinement: string) => {
                                   try {
@@ -2035,7 +2036,8 @@ export const AskAI: React.FC = () => {
                                     automation_yaml: suggestion.automation_yaml || null,
                                     created_at: suggestion.created_at,
                                     approve_response: suggestion.approve_response,
-                                    ha_automation_id: suggestion.ha_automation_id
+                                    ha_automation_id: suggestion.ha_automation_id,
+                                    questionsAndAnswers: message.questionsAndAnswers
                                   }}
                                   onRefine={async (_id: number, refinement: string) => {
                                     try {

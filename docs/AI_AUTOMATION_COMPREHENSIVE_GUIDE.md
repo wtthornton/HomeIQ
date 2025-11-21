@@ -80,6 +80,63 @@ Turn on kitchen light at 7 AM on weekdays
 
 ---
 
+### 🧠 Q&A Learning System (January 2025)
+
+**What:** AI learns from your Q&A sessions to improve automation creation  
+**How:** System tracks outcomes, learns preferences, and improves question quality  
+**Benefits:** Fewer questions, better suggestions, personalized experience
+
+**Key Features:**
+
+1. **User Preference Learning**
+   - Learns from consistent answers (e.g., "always random colors for WLED")
+   - Skips questions with >90% consistent answers
+   - Pre-fills answers based on past patterns
+   - Reduces repetitive questions over time
+
+2. **Question Quality Tracking**
+   - Tracks which questions lead to successful automations
+   - Identifies confusing or unnecessary questions
+   - Improves question generation over time
+   - Measures success rates and confidence impact
+
+3. **Outcome Tracking**
+   - Links Q&A sessions to automation success
+   - Tracks days active and user satisfaction
+   - Measures effectiveness rate (% of sessions leading to automations)
+   - Enables continuous improvement
+
+4. **Auto-Resolution**
+   - Automatically resolves ambiguities when confidence is high
+   - Reduces need for clarification questions
+   - Tracks auto-resolution accuracy
+   - Improves over time with feedback
+
+5. **Pattern Learning**
+   - Learns correlations between Q&A patterns and automation types
+   - Improves suggestion generation based on Q&A history
+   - Predicts user intent from past interactions
+
+**Configuration:**
+- `enable_qa_learning`: Enable/disable Q&A learning (default: true)
+- `preference_consistency_threshold`: Threshold for applying preferences (default: 0.9)
+- `min_questions_for_preference`: Minimum questions needed to learn preference (default: 3)
+- `learning_retrain_frequency`: Retrain frequency - 'daily', 'weekly', 'monthly' (default: 'weekly')
+
+**API Endpoints:**
+- `GET /api/learning/preferences` - Get user preferences
+- `GET /api/learning/question-quality` - Get question quality metrics
+- `GET /api/learning/outcomes` - Get Q&A outcome statistics
+- `GET /api/learning/high-quality-questions` - Get high-quality questions for learning
+
+**Metrics:**
+- **Effectiveness Rate**: % of Q&A sessions leading to successful automations
+- **Hit Rate**: % of times preferences are applied
+- **Accuracy**: Question success rates and prediction accuracy
+- **Overall Score**: Weighted combination of all metrics
+
+---
+
 ### 🛡️ Safety Validation (AI1.19)
 
 **What:** 6-rule engine that blocks dangerous automations  

@@ -166,8 +166,8 @@ curl http://localhost:8001/health
 **Trigger**: Runs automatically on every WebSocket connection to Home Assistant
 
 **Process**:
-1. Connect to HA at configured URL (e.g., http://192.168.1.86:8123)
-2. Authenticate with long-lived token
+1. Connect to HA at configured URL (e.g., http://192.168.1.86:8123 - single NUC deployment)
+2. Authenticate with long-lived access token (from HA Profile → Long-Lived Access Tokens)
 3. Query device registry: `config/device_registry/list`
 4. Query entity registry: `config/entity_registry/list`
 5. **POST to data-api** → Stores in SQLite (primary storage) ✅
@@ -206,11 +206,11 @@ STORE_DEVICE_HISTORY_IN_INFLUXDB=false
 ### Required Environment Variables
 
 ```bash
-# Home Assistant Connection
-HOME_ASSISTANT_URL=http://your-ha-ip:8123  # Your HA instance
-HA_HTTP_URL=http://your-ha-ip:8123  # Alternative naming (also supported)
-HA_WS_URL=ws://your-ha-ip:8123  # WebSocket URL (optional - /api/websocket auto-appended if missing)
-HOME_ASSISTANT_TOKEN=your_long_lived_access_token
+# Home Assistant Connection (Single NUC Deployment)
+HOME_ASSISTANT_URL=http://192.168.1.86:8123  # Your HA instance IP (example - use your actual IP)
+HA_HTTP_URL=http://192.168.1.86:8123  # Alternative naming (also supported)
+HA_WS_URL=ws://192.168.1.86:8123  # WebSocket URL (optional - /api/websocket auto-appended if missing)
+HOME_ASSISTANT_TOKEN=your_long_lived_access_token  # From HA Profile → Long-Lived Access Tokens
 HA_TOKEN=your_long_lived_access_token  # Alternative naming (also supported)
 
 # Service Port
@@ -329,6 +329,7 @@ GET /metrics
 ```
 ┌─────────────────────────────────────────────┐
 │  Home Assistant @ 192.168.1.86:8123         │
+│  (Single NUC Deployment)                    │
 │  - WebSocket API (events)                   │
 │  - Device Registry (discovery)              │
 │  - Entity Registry (discovery)              │
@@ -426,8 +427,8 @@ python -m src.main
 
 Create `.env` file:
 ```bash
-HOME_ASSISTANT_URL=http://192.168.1.86:8123
-HOME_ASSISTANT_TOKEN=your_token_here
+HOME_ASSISTANT_URL=http://192.168.1.86:8123  # Your Home Assistant IP (single NUC deployment)
+HOME_ASSISTANT_TOKEN=your_long_lived_access_token  # From HA Profile → Long-Lived Access Tokens
 INFLUXDB_URL=http://localhost:8086
 INFLUXDB_TOKEN=your_influxdb_token
 INFLUXDB_ORG=homeiq
@@ -514,10 +515,10 @@ websocket-ingestion:
 **Problem:** Service can't connect to Home Assistant
 
 **Check:**
-1. Home Assistant URL is correct (http://your-ha-ip:8123)
-2. Access token is valid (create new long-lived token if needed)
-3. Network connectivity exists between containers
-4. Home Assistant is accessible from Docker network
+1. Home Assistant URL is correct (http://192.168.1.86:8123 - single NUC deployment, use your actual HA IP)
+2. Access token is valid (create new long-lived token in HA Profile → Long-Lived Access Tokens if needed)
+3. Network connectivity exists between containers (all services run on same NUC)
+4. Home Assistant is accessible from Docker network (same local network)
 5. Firewall rules allow WebSocket connections
 6. **WebSocket URL Format**: The service automatically appends `/api/websocket` to WebSocket URLs if missing. You can use either:
    - `HA_WS_URL=ws://192.168.1.86:8123` (auto-appends `/api/websocket`)

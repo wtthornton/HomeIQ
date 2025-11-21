@@ -14,6 +14,7 @@ from .pattern_router import router as pattern_router
 from .settings_router import router as settings_router
 from .suggestion_management_router import router as suggestion_management_router
 from .suggestion_router import router as suggestion_router
+from .learning_router import router as learning_router
 
 __all__ = [
     'health_router',
@@ -29,6 +30,7 @@ __all__ = [
     'devices_router',
     'settings_router',
     'admin_router',
+    'learning_router',  # Q&A Learning Enhancement Plan
     'set_device_intelligence_client'
 ]
 

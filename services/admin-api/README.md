@@ -4,7 +4,7 @@
 
 The Admin API Service is a FastAPI-based REST API that provides comprehensive administration, monitoring, and configuration management for the HomeIQ system.
 
-**Port:** 8004 (previously 8003)
+**Port:** 8004 (internal), exposed as 8003 (external) - Single NUC deployment
 **Technology:** Python 3.11+, FastAPI 0.121, Pydantic 2.12
 **Container:** `homeiq-admin-api`
 

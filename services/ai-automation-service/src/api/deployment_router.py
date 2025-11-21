@@ -164,6 +164,100 @@ async def deploy_suggestion(
                 suggestion.updated_at = datetime.now(timezone.utc)
                 await db.commit()
 
+                # Track Q&A outcome for learning (link automation to clarification session)
+                try:
+                    from ...services.learning.qa_outcome_tracker import QAOutcomeTracker
+                    from ...database.models import SystemSettings, AskAIQuery, ClarificationSessionDB
+                    from sqlalchemy import select
+                    
+                    # Check if learning is enabled
+                    settings_result = await db.execute(select(SystemSettings).limit(1))
+                    settings = settings_result.scalar_one_or_none()
+                    if settings and getattr(settings, 'enable_qa_learning', True):
+                        # Find clarification session through AskAIQuery
+                        # Suggestions are stored in AskAIQuery.suggestions JSON, need to find query
+                        # that contains this suggestion_id
+                        query_result = await db.execute(
+                            select(AskAIQuery).where(
+                                AskAIQuery.suggestions.contains([{"id": suggestion_id}])
+                            )
+                        )
+                        ask_query = query_result.scalar_one_or_none()
+                        
+                        if ask_query:
+                            # Find clarification session linked to this query
+                            session_result = await db.execute(
+                                select(ClarificationSessionDB).where(
+                                    ClarificationSessionDB.clarification_query_id == ask_query.query_id
+                                )
+                            )
+                            clarification_session = session_result.scalar_one_or_none()
+                            
+                            if clarification_session:
+                                outcome_tracker = QAOutcomeTracker()
+                                await outcome_tracker.update_automation_outcome(
+                                    db=db,
+                                    session_id=clarification_session.session_id,
+                                    automation_id=automation_id,
+                                    outcome_type='automation_created'
+                                )
+                                logger.debug(f"✅ Updated Q&A outcome with automation_id for session {clarification_session.session_id}")
+                                
+                                # Update question quality metrics (mark questions as successful)
+                                try:
+                                    from ...services.learning.question_quality_tracker import QuestionQualityTracker
+                                    quality_tracker = QuestionQualityTracker()
+                                    
+                                    # Get questions from session
+                                    questions = clarification_session.questions or []
+                                    for question in questions:
+                                        question_id = question.get('id') if isinstance(question, dict) else getattr(question, 'id', None)
+                                        if question_id:
+                                            await quality_tracker.update_question_quality(
+                                                db=db,
+                                                question_id=question_id,
+                                                outcome='success',
+                                                confidence_impact=None  # Already tracked earlier
+                                            )
+                                    logger.debug(f"✅ Updated question quality for {len(questions)} questions")
+                                    
+                                    # Feed successful deployment to RL calibrator
+                                    try:
+                                        from ...services.clarification.rl_calibrator import RLConfidenceCalibrator
+                                        from ...database.models import ClarificationSessionDB
+                                        
+                                        # Get session to find confidence
+                                        session_result = await db.execute(
+                                            select(ClarificationSessionDB).where(
+                                                ClarificationSessionDB.session_id == clarification_session.session_id
+                                            )
+                                        )
+                                        session = session_result.scalar_one_or_none()
+                                        
+                                        if session:
+                                            rl_calibrator = RLConfidenceCalibrator()
+                                            
+                                            # Feed successful automation creation
+                                            rl_calibrator.add_feedback(
+                                                predicted_confidence=session.current_confidence,
+                                                actual_outcome=True,  # Automation was created and deployed
+                                                ambiguity_count=len(session.ambiguities) if session.ambiguities else 0,
+                                                critical_ambiguity_count=len([a for a in (session.ambiguities or []) if isinstance(a, dict) and a.get('severity') == 'critical']),
+                                                rounds=session.rounds_completed,
+                                                answer_count=len(session.answers) if session.answers else 0,
+                                                auto_train=True
+                                            )
+                                            logger.debug(f"✅ Fed successful deployment to RL calibrator")
+                                    except Exception as e:
+                                        logger.warning(f"⚠️ Failed to feed deployment to RL calibrator: {e}")
+                                        # Non-critical: continue
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Failed to update question quality: {e}")
+                                    # Non-critical: continue
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to update Q&A outcome with automation: {e}")
+                    # Non-critical: continue even if tracking fails
+
                 logger.info(f"✅ Successfully deployed suggestion {suggestion_id}")
 
                 response_data = {
