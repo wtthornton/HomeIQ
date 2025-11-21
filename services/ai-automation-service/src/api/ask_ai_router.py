@@ -64,6 +64,7 @@ from ..services.clarification.confidence_calibrator import ClarificationConfiden
 from ..services.clarification.models import AmbiguitySeverity
 from ..services.clarification.outcome_tracker import ClarificationOutcomeTracker
 from ..services.component_detector import ComponentDetector
+from ..services.device_matching import DeviceMatchingService
 from ..services.entity_attribute_service import EntityAttributeService
 from ..services.rag import RAGClient
 from ..services.safety_validator import SafetyValidator
@@ -3750,7 +3751,9 @@ async def generate_suggestions_from_query(
                 # 2025 ENHANCEMENT: Context-aware - preserves terms mentioned in clarifications
                 # This handles cases where OpenAI includes generic terms like "light", "wled", domain names, etc.
                 if devices_involved:
-                    devices_involved = _pre_consolidate_device_names(
+                    # Use DeviceMatchingService for pre-consolidation (moved from router)
+                    device_matching_service = DeviceMatchingService(ha_client=ha_client_for_mapping)
+                    devices_involved = device_matching_service._pre_consolidate_device_names(
                         devices_involved, 
                         enriched_data,
                         clarification_context=clarification_context  # Pass context for context-aware filtering
@@ -3921,11 +3924,19 @@ async def generate_suggestions_from_query(
                         logger.info(f"📍 Location expansion: {len(location_names_expanded)} locations expanded, {len(devices_involved)} -> {len(expanded_devices_involved)} devices")
                         devices_involved = expanded_devices_involved
                     
-                    validated_entities = await map_devices_to_entities(
+                    # Use DeviceMatchingService for two-stage matching (2025 best practice)
+                    device_matching_service = DeviceMatchingService(
+                        ha_client=ha_client_for_mapping,
+                        auto_select_threshold=settings.device_matching_auto_select_threshold,
+                        high_confidence_threshold=settings.device_matching_high_confidence_threshold,
+                        minimum_threshold=settings.device_matching_minimum_threshold,
+                        area_fuzzy_threshold=settings.device_matching_area_fuzzy_threshold,
+                        max_candidates=settings.device_matching_max_candidates,
+                    )
+                    validated_entities = await device_matching_service.match_devices_to_entities(
                         devices_involved,  # Now contains friendly names instead of location names
                         enriched_data,
-                        ha_client=ha_client_for_mapping,
-                        fuzzy_match=True,
+                        area_filter=area_filter,  # Pass area filter for Stage 1 filtering
                         clarification_context=clarification_context,  # Pass context for better matching
                         query_location=query_location  # Pass location hint from query (always in scope)
                     )
@@ -4138,7 +4149,9 @@ async def generate_suggestions_from_query(
                 # Ensure devices are consolidated before user display (even if enrichment skipped)
                 if devices_involved and validated_entities:
                     before_consolidation_count = len(devices_involved)
-                    consolidated_devices = consolidate_devices_involved(devices_involved, validated_entities)
+                    # Use DeviceMatchingService for consolidation (moved from router)
+                    device_matching_service = DeviceMatchingService(ha_client=ha_client_for_mapping)
+                    consolidated_devices = device_matching_service.consolidate_devices_involved(devices_involved, validated_entities)
                     if len(consolidated_devices) < before_consolidation_count:
                         logger.info(
                             f"🔄 Optimized devices_involved for suggestion {i+1}: "

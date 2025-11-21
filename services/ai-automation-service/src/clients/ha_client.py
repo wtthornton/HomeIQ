@@ -58,6 +58,10 @@ class HomeAssistantClient:
         self._session: aiohttp.ClientSession | None = None
         self._version_info: dict[str, Any] | None = None
         self._last_health_check: datetime | None = None
+        # Area registry cache (2025 best practice)
+        self._area_registry_cache: dict[str, dict[str, Any]] | None = None
+        self._area_registry_cache_timestamp: float | None = None
+        self._area_registry_cache_ttl: float = 300.0  # 5 minutes TTL (configurable)
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """
@@ -1141,6 +1145,121 @@ class HomeAssistantClient:
             # Other unexpected errors - log with full traceback and propagate
             logger.error(f"❌ Unexpected error getting entity registry: {e}", exc_info=True)
             raise
+
+    async def get_area_registry(self) -> dict[str, dict[str, Any]]:
+        """
+        Get area registry from Home Assistant with caching.
+        
+        2025 Best Practice: Uses Entity Registry API pattern for consistency.
+        Caches area registry with 5-minute TTL (configurable).
+        
+        IMPORTANT ERROR HANDLING (2025 standards):
+        - 404: Expected (some HA versions don't expose this endpoint) - returns empty dict
+        - Connection errors: Propagated as ConnectionError (real error, don't hide)
+        - 401/403: Propagated as PermissionError (real error, don't hide)
+        - 500+: Logged as ERROR and propagated (real error, don't hide)
+        
+        Returns:
+            Dictionary mapping area_id -> area data (name, aliases, normalized_name, etc.)
+            Example: {
+                "office": {
+                    "area_id": "office",
+                    "name": "Office",
+                    "aliases": ["workspace", "study"],
+                    ...
+                },
+                "kitchen": {
+                    "area_id": "kitchen",
+                    "name": "Kitchen",
+                    ...
+                }
+            }
+            
+        Raises:
+            ConnectionError: If cannot connect to HA (network/connection issues)
+            PermissionError: If authentication fails (401/403)
+            Exception: Other unexpected errors (500+, etc.)
+        """
+        # Check cache validity
+        if self._area_registry_cache is not None and self._area_registry_cache_timestamp:
+            cache_age = time.time() - self._area_registry_cache_timestamp
+            if cache_age < self._area_registry_cache_ttl:
+                logger.debug(f"✅ Using cached area registry (age: {cache_age:.0f}s)")
+                return self._area_registry_cache
+
+        try:
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/config/area_registry/list"
+
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Convert list to dict for easy lookup by area_id
+                    registry_dict = {}
+                    for area in data.get('areas', []):
+                        area_id = area.get('area_id')
+                        if area_id:
+                            registry_dict[area_id] = area
+                            # Add normalized name for matching
+                            area_name = area.get('name', '')
+                            if area_name:
+                                registry_dict[area_id]['normalized_name'] = area_name.lower().strip()
+
+                    # Update cache
+                    self._area_registry_cache = registry_dict
+                    self._area_registry_cache_timestamp = time.time()
+
+                    logger.info(f"✅ Retrieved {len(registry_dict)} areas from Area Registry")
+                    return registry_dict
+                elif response.status == 404:
+                    # Expected: Some HA versions/configurations don't expose Area Registry API
+                    # This is NOT an error - it's a feature availability issue
+                    logger.info("ℹ️ Area Registry API not available (404) - using Entity Registry area_id instead")
+                    # Cache empty result to avoid repeated 404s
+                    self._area_registry_cache = {}
+                    self._area_registry_cache_timestamp = time.time()
+                    return {}
+                elif response.status in (401, 403):
+                    # Authentication/authorization error - this is a REAL error
+                    error_msg = f"Authentication failed for Area Registry API: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise PermissionError(error_msg)
+                elif response.status >= 500:
+                    # Server error - this is a REAL error
+                    error_msg = f"Home Assistant server error getting Area Registry: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise Exception(error_msg)
+                else:
+                    # Other HTTP errors (e.g., 400, 429) - log as warning but propagate
+                    error_msg = f"Unexpected response from Area Registry API: {response.status}"
+                    logger.warning(f"⚠️ {error_msg}")
+                    raise Exception(error_msg)
+        except (aiohttp.ClientConnectorError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Connection/network errors - these are REAL errors, don't hide them
+            error_msg = f"Cannot connect to Home Assistant Area Registry API at {self.ha_url}: {e}"
+            logger.error(f"❌ {error_msg}")
+            raise ConnectionError(error_msg) from e
+        except (PermissionError, ConnectionError):
+            # Re-raise authentication/connection errors (already logged above)
+            raise
+        except Exception as e:
+            # Other unexpected errors - log with full traceback and propagate
+            logger.error(f"❌ Unexpected error getting area registry: {e}", exc_info=True)
+            raise
+
+    async def refresh_area_registry_cache(self) -> dict[str, dict[str, Any]]:
+        """
+        Force refresh the area registry cache.
+        
+        Useful when areas are updated in Home Assistant and we need fresh data.
+        
+        Returns:
+            Dictionary mapping area_id -> area data
+        """
+        logger.info("🔄 Forcing area registry cache refresh...")
+        self._area_registry_cache = None
+        self._area_registry_cache_timestamp = None
+        return await self.get_area_registry()
 
     async def get_services(self) -> dict[str, dict[str, Any]]:
         """

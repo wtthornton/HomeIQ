@@ -348,6 +348,42 @@ class Settings(BaseSettings):
     used for critical operations where precision is paramount.
     """
 
+    # Device Matching Configuration (2025 Enhancement)
+    device_matching_auto_select_threshold: float = 0.90
+    """Auto-select if single match above this score (default: 0.90)
+    
+    When device matching finds a single match with score >= this threshold,
+    it will be automatically selected without user confirmation.
+    """
+
+    device_matching_high_confidence_threshold: float = 0.85
+    """Return top 3 matches if above this score (default: 0.85)
+    
+    When device matching finds matches with score >= this threshold,
+    return top 3 matches for user selection.
+    """
+
+    device_matching_minimum_threshold: float = 0.70
+    """Minimum score to consider a match (default: 0.70)
+    
+    Only matches with score >= this threshold will be considered.
+    Lower scores are discarded as invalid matches.
+    """
+
+    device_matching_area_fuzzy_threshold: float = 0.80
+    """Area name fuzzy matching threshold (default: 0.80)
+    
+    When matching area names from queries against HA area registry,
+    only matches with score >= this threshold will be considered.
+    """
+
+    device_matching_max_candidates: int = 100
+    """Max entities for fuzzy matching performance (default: 100)
+    
+    Limits the number of candidate entities for fuzzy matching to
+    prevent performance degradation with large entity sets.
+    """
+
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",
         case_sensitive=False,
