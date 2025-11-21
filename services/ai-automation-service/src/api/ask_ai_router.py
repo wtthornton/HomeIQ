@@ -1191,11 +1191,11 @@ async def map_devices_to_entities(
     Context-aware (2025 pattern): Uses clarification context and location hints for better matching.
     
     Optimized for single-home local solutions:
-    - Deduplicates redundant mappings (multiple friendly names → same entity_id)
+    - Deduplicates redundant mappings (multiple friendly names -> same entity_id)
     - Prioritizes exact matches over fuzzy matches
     - Uses area context for better matching in single-home scenarios
     - Consolidates devices_involved to unique entity mappings
-    - Uses clarification context to resolve generic device names (e.g., "led" → "office WLED")
+    - Uses clarification context to resolve generic device names (e.g., "led" -> "office WLED")
     
     IMPORTANT: Only includes entity IDs that actually exist in Home Assistant.
     
@@ -1208,7 +1208,7 @@ async def map_devices_to_entities(
         query_location: Optional location hint (e.g., "office") for location-aware matching
         
     Returns:
-        Dictionary mapping device_name → entity_id (only verified entities, deduplicated)
+        Dictionary mapping device_name -> entity_id (only verified entities, deduplicated)
     """
     # 🔍 DETAILED DEBUGGING for approval flow
     logger.info(f"🔍 [MAP_DEVICES] Called with {len(devices_involved)} devices and {len(enriched_data) if enriched_data else 0} enriched entities")
@@ -1284,13 +1284,13 @@ async def map_devices_to_entities(
                     match_quality = 4  # Higher than regular exact match
                     matched_entity_id = entity_id
                     name_type = 'friendly_name' if friendly_name else 'device_name'
-                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type} with area match)")
+                    logger.debug(f"✅ Mapped device '{device_name}' -> entity_id '{entity_id}' (exact match by {name_type} with area match)")
                     break
                 else:
                     matched_entity_id = entity_id
                     match_quality = 3
                     name_type = 'friendly_name' if friendly_name else 'device_name'
-                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
+                    logger.debug(f"✅ Mapped device '{device_name}' -> entity_id '{entity_id}' (exact match by {name_type})")
                     break
 
         # Strategy 2: Fuzzy matching with rapidfuzz - context-aware for 2025
@@ -1362,7 +1362,7 @@ async def map_devices_to_entities(
                         for hint in context_device_hints:
                             if hint in entity_name_part or hint in name_to_check.lower():
                                 context_bonuses['area_device_type'] = 0.4  # Strong combination match
-                                logger.debug(f"🎯 Area+Device type combination bonus: '{device_name_lower}' ({hint}) in '{location_lower}' area → '{entity_id}'")
+                                logger.debug(f"🎯 Area+Device type combination bonus: '{device_name_lower}' ({hint}) in '{location_lower}' area -> '{entity_id}'")
                                 break
 
                 # Use fuzzy_match_with_context() for base similarity + context bonuses
@@ -1392,7 +1392,7 @@ async def map_devices_to_entities(
                 best_enriched = enriched_data.get(best_fuzzy_match, {})
                 best_friendly_name = best_enriched.get('friendly_name', '')
                 name_type = 'friendly_name' if best_friendly_name else 'device_name'
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score:.2f})")
+                logger.debug(f"✅ Mapped device '{device_name}' -> entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score:.2f})")
 
         # Strategy 3: Match by device type/integration (e.g., "WLED", "Hue") - NEW for 2025
         if not matched_entity_id and fuzzy_match:
@@ -1438,7 +1438,7 @@ async def map_devices_to_entities(
                         location_lower = query_location.lower()
                         if location_lower in area_name or location_lower in entity_name_part:
                             score += 4  # Strong location match bonus (increased for single-home optimization)
-                            logger.debug(f"📍 Device type + location match: '{device_name}' ({matching_device_types}) in '{query_location}' → '{entity_id}'")
+                            logger.debug(f"📍 Device type + location match: '{device_name}' ({matching_device_types}) in '{query_location}' -> '{entity_id}'")
                     
                     # Add entity name pattern matching (e.g., "office" in entity_id when area is "office")
                     if query_location:
@@ -1454,7 +1454,7 @@ async def map_devices_to_entities(
                 if best_match_entity_id and best_match_score > 0:
                     matched_entity_id = best_match_entity_id
                     match_quality = 2 if best_match_score >= 3 else 1  # Quality 2 for strong matches, 1 for weak
-                    logger.info(f"✅ Mapped device '{device_name}' ({matching_device_types}) → entity_id '{matched_entity_id}' (device type match, score: {best_match_score})")
+                    logger.info(f"✅ Mapped device '{device_name}' ({matching_device_types}) -> entity_id '{matched_entity_id}' (device type match, score: {best_match_score})")
         
         # Strategy 4: Match by domain name (lowest priority)
         if not matched_entity_id and fuzzy_match:
@@ -1463,7 +1463,7 @@ async def map_devices_to_entities(
                 if domain == device_name_lower:
                     matched_entity_id = entity_id
                     match_quality = 1
-                    logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (domain match)")
+                    logger.debug(f"✅ Mapped device '{device_name}' -> entity_id '{entity_id}' (domain match)")
                     break
 
         # Store mapping if found, but only keep best device name for each entity_id
@@ -1473,7 +1473,7 @@ async def map_devices_to_entities(
                 # Replace existing mapping with better match
                 if matched_entity_id in entity_id_to_best_device_name:
                     old_device_name = entity_id_to_best_device_name[matched_entity_id]['device_name']
-                    logger.debug(f"🔄 Replacing '{old_device_name}' → '{device_name}' for entity_id '{matched_entity_id}' (better match quality)")
+                    logger.debug(f"🔄 Replacing '{old_device_name}' -> '{device_name}' for entity_id '{matched_entity_id}' (better match quality)")
                     validated_entities.pop(old_device_name, None)
 
                 entity_id_to_best_device_name[matched_entity_id] = {
@@ -1486,7 +1486,7 @@ async def map_devices_to_entities(
                 # Same quality - keep both, but log for consolidation
                 validated_entities[device_name] = matched_entity_id
                 mapped = True
-                logger.debug(f"📋 Duplicate mapping: '{device_name}' → '{matched_entity_id}' (same quality as existing)")
+                logger.debug(f"📋 Duplicate mapping: '{device_name}' -> '{matched_entity_id}' (same quality as existing)")
         else:
             unmapped_devices.append(device_name)
             logger.warning(f"⚠️ Could not map device '{device_name}' to entity_id (not found in enriched_data)")
@@ -1504,7 +1504,7 @@ async def map_devices_to_entities(
             if verification_results.get(entity_id, False):
                 verified_validated_entities[device_name] = entity_id
             else:
-                invalid_entities.append(f"{device_name} → {entity_id}")
+                invalid_entities.append(f"{device_name} -> {entity_id}")
                 logger.warning(f"❌ Entity {entity_id} (mapped from '{device_name}') does NOT exist in HA - removed from validated_entities")
 
         if invalid_entities:
@@ -1517,7 +1517,7 @@ async def map_devices_to_entities(
     unique_entity_count = len(set(validated_entities.values()))
     if len(validated_entities) > unique_entity_count:
         logger.info(
-            f"🔄 Consolidated {len(devices_involved)} devices → {unique_entity_count} unique entities "
+            f"🔄 Consolidated {len(devices_involved)} devices -> {unique_entity_count} unique entities "
             f"({len(validated_entities)} device names mapped, {len(devices_involved) - len(validated_entities)} redundant)"
         )
 
@@ -1622,13 +1622,13 @@ async def map_devices_to_entities(
                                 if exists.get(best_match, False):
                                     validated_entities[device_name] = best_match
                                     matched_entity_ids.add(best_match)  # Mark as used
-                                    logger.info(f"✅ Mapped unmapped device '{device_name}' → {best_match} (score: {best_score})")
+                                    logger.info(f"✅ Mapped unmapped device '{device_name}' -> {best_match} (score: {best_score})")
                                 else:
                                     logger.warning(f"⚠️ Best match {best_match} for '{device_name}' does not exist in HA")
                             else:
                                 validated_entities[device_name] = best_match
                                 matched_entity_ids.add(best_match)  # Mark as used
-                                logger.info(f"✅ Mapped unmapped device '{device_name}' → {best_match} (score: {best_score}, unverified)")
+                                logger.info(f"✅ Mapped unmapped device '{device_name}' -> {best_match} (score: {best_score}, unverified)")
 
                     logger.info(f"✅ HA direct query mapped {len([d for d in unmapped_devices if d in validated_entities])}/{len(unmapped_devices)} previously unmapped devices")
                 else:
@@ -1759,7 +1759,7 @@ def consolidate_devices_involved(
     
     Args:
         devices_involved: Original list of device friendly names
-        validated_entities: Dictionary mapping device_name → entity_id
+        validated_entities: Dictionary mapping device_name -> entity_id
         
     Returns:
         Consolidated list of unique device names (one per entity_id)
@@ -1792,7 +1792,7 @@ def consolidate_devices_involved(
                 consolidated.append(best_name)
                 logger.debug(
                     f"🔄 Consolidated {len(candidates)} devices ({', '.join(candidates)}) "
-                    f"→ '{best_name}' for entity_id '{entity_id}'"
+                    f"-> '{best_name}' for entity_id '{entity_id}'"
                 )
             else:
                 consolidated.append(device_name)
@@ -1803,7 +1803,7 @@ def consolidate_devices_involved(
 
     if len(consolidated) < len(devices_involved):
         logger.info(
-            f"🔄 Consolidated devices_involved: {len(devices_involved)} → {len(consolidated)} "
+            f"🔄 Consolidated devices_involved: {len(devices_involved)} -> {len(consolidated)} "
             f"({len(devices_involved) - len(consolidated)} redundant entries removed)"
         )
 
@@ -1841,11 +1841,11 @@ def extract_device_mentions_from_text(
     
     Args:
         text: Text to scan (description, trigger_summary, action_summary)
-        validated_entities: Dictionary mapping friendly_name → entity_id
+        validated_entities: Dictionary mapping friendly_name -> entity_id
         enriched_data: Optional enriched entity data for fuzzy matching
         
     Returns:
-        Dictionary mapping mention → entity_id (no entity IDs as keys)
+        Dictionary mapping mention -> entity_id (no entity IDs as keys)
     """
     if not text:
         return {}
@@ -1866,13 +1866,13 @@ def extract_device_mentions_from_text(
         pattern = r'\b' + re.escape(friendly_name_lower) + r'\b'
         if re.search(pattern, text_lower):
             mentions[friendly_name] = entity_id
-            logger.debug(f"🔍 Found mention '{friendly_name}' in text → {entity_id}")
+            logger.debug(f"🔍 Found mention '{friendly_name}' in text -> {entity_id}")
 
         # Also check for partial matches (e.g., "wled" matches "WLED" or "wled strip")
         if friendly_name_lower in text_lower or text_lower in friendly_name_lower:
             if friendly_name not in mentions:
                 mentions[friendly_name] = entity_id
-                logger.debug(f"🔍 Found partial mention '{friendly_name}' in text → {entity_id}")
+                logger.debug(f"🔍 Found partial mention '{friendly_name}' in text -> {entity_id}")
 
     # If enriched_data available, also check entity names and domains
     if enriched_data:
@@ -1889,14 +1889,14 @@ def extract_device_mentions_from_text(
             if domain and domain in text_lower and len(domain) >= 3:
                 if domain not in [m.lower() for m in mentions] and not _is_entity_id(domain):
                     mentions[domain] = entity_id
-                    logger.debug(f"🔍 Found domain mention '{domain}' in text → {entity_id}")
+                    logger.debug(f"🔍 Found domain mention '{domain}' in text -> {entity_id}")
 
             # Check entity name matches
             # Skip if entity_name looks like an entity ID (defensive check)
             if entity_name and entity_name in text_lower:
                 if entity_name not in [m.lower() for m in mentions] and not _is_entity_id(entity_name):
                     mentions[entity_name] = entity_id
-                    logger.debug(f"🔍 Found entity name mention '{entity_name}' in text → {entity_id}")
+                    logger.debug(f"🔍 Found entity name mention '{entity_name}' in text -> {entity_id}")
 
     return mentions
 
@@ -1913,11 +1913,11 @@ async def enhance_suggestion_with_entity_ids(
     Adds:
     - entity_ids_used: List of actual entity IDs
     - entity_id_annotations: Detailed mapping with context
-    - device_mentions: Maps description terms → entity IDs
+    - device_mentions: Maps description terms -> entity IDs
     
     Args:
         suggestion: Suggestion dictionary
-        validated_entities: Mapping friendly_name → entity_id
+        validated_entities: Mapping friendly_name -> entity_id
         enriched_data: Optional enriched entity data
         ha_client: Optional HA client for querying entities
         
@@ -2000,7 +2000,7 @@ def deduplicate_entity_mapping(entity_mapping: dict[str, str]) -> dict[str, str]
         else:
             # Duplicate - log and skip
             logger.debug(
-                f"⚠️ Duplicate entity mapping: '{device_name}' → {entity_id} "
+                f"⚠️ Duplicate entity mapping: '{device_name}' -> {entity_id} "
                 f"(already mapped as '{seen_entities[entity_id]}')"
             )
 
@@ -2031,6 +2031,7 @@ async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> 
         logger.warning("⚠️ No enriched_entity_context in suggestion (should be set during creation)")
 
     # Build validated entities text for prompt
+    validated_entities = suggestion.get('validated_entities', {})
     if validated_entities:
         # Build explicit mapping examples GENERICALLY (not hardcoded for specific terms)
         mapping_examples = []
@@ -2042,24 +2043,22 @@ async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> 
             domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
             term_variations = [term, term.lower(), term.upper(), term.title()]
             mapping_examples.append(
-                f"  - If you see any variation of '{term}' (or domain '{domain}') in the description → use EXACTLY: {entity_id}"
+                f"  - If you see any variation of '{term}' (or domain '{domain}') in the description -> use EXACTLY: {entity_id}"
             )
 
         mapping_text = ""
         if mapping_examples:
-            mapping_text = f"""
-EXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified to exist in Home Assistant):
-{chr(10).join(mapping_examples[:15])}
-
-"""
+            mapping_lines = '\n'.join(mapping_examples[:15])
+            mapping_text = "\nEXPLICIT ENTITY ID MAPPINGS (use these EXACT mappings - ALL have been verified to exist in Home Assistant):\n" + mapping_lines + "\n\n"
 
         # Build dynamic example entity IDs for the prompt
         example_light = next((eid for eid in validated_entities.values() if eid.startswith('light.')), None)
         example_entity = list(validated_entities.values())[0] if validated_entities else '{EXAMPLE_ENTITY_ID}'
 
+        entity_list_text = '\n'.join(entity_id_list)
         validated_entities_text = f"""
 VALIDATED ENTITIES (ALL verified to exist in Home Assistant - use these EXACT entity IDs):
-{chr(10).join(entity_id_list)}
+{entity_list_text}
 {mapping_text}
 
 CRITICAL RULES:
@@ -2099,13 +2098,13 @@ CRITICAL RULES:
    - Works for ANY entity: lights, climate, covers, media players, etc. - not specific to any device type
 
 COMMON MISTAKES TO AVOID:
-❌ WRONG: entity_id: wled (missing domain prefix)
-❌ WRONG: entity_id: light.wled (shortened - not in validated list)
-❌ WRONG: entity_id: light.office (generic - not in validated list)
-✅ CORRECT: entity_id: {example_entity} (EXACT match from validated list above)
+WRONG: entity_id: wled (missing domain prefix)
+WRONG: entity_id: light.wled (shortened - not in validated list)
+WRONG: entity_id: light.office (generic - not in validated list)
+CORRECT: entity_id: {example_entity} (EXACT match from validated list above)
 
 ENTITY ID EXAMPLES FROM VALIDATED LIST:
-{chr(10).join([f"  - Device '{name}' → Use EXACTLY: {eid}" for name, eid in list(validated_entities.items())[:5]])}
+{'\n'.join([f"  - Device '{name}' -> Use EXACTLY: {eid}" for name, eid in list(validated_entities.items())[:5]])}
 """
 
         # Add entity context JSON if available
@@ -2132,7 +2131,7 @@ ENTITY ID EXAMPLES FROM VALIDATED LIST:
                 available_services_text = f"""
 
 AVAILABLE SERVICES (use ONLY these services for each entity):
-{chr(10).join(available_services_info)}
+{'\n'.join(available_services_info)}
 
 CRITICAL: Only use services listed above. Do NOT use services that are not available for an entity.
 """
@@ -2189,11 +2188,11 @@ AUTOMATION SPECIFICATION:
 
 {validated_entities_text}
 
-{"🔴 TEST MODE (SEQUENCES) - Shortened delays (10x faster) and reduced repeat counts for quick testing" if is_sequence_test else ("🔴 TEST MODE - Use event trigger (event_type: test_trigger) for immediate manual execution" if is_test else "")}
+{"[TEST] TEST MODE (SEQUENCES) - Shortened delays (10x faster) and reduced repeat counts for quick testing" if is_sequence_test else ("[TEST] TEST MODE - Use event trigger (event_type: test_trigger) for immediate manual execution" if is_test else "")}
 
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 2025 HOME ASSISTANT YAML EXAMPLES
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 
 Example 1 - Simple Time-Based Automation (Specific Time):
 ```yaml
@@ -2208,12 +2207,12 @@ conditions: []
 actions:
   - action: light.turn_on
     target:
-      entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+      entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
     data:
       brightness_pct: 100
 ```
 
-Example 1b - Recurring Time-Based Automation (Every X Minutes/Hours):
+Example 1-B - Recurring Time-Based Automation (Every N Minutes/Hours):
 ```yaml
 id: '1234567891'
 alias: Periodic Light Effect
@@ -2226,21 +2225,21 @@ conditions: []
 action:
   - service: light.turn_on
     target:
-      entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+      entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
     data:
       effect: random
 ```
 
 CRITICAL TIME TRIGGER RULES:
 - Use "platform: time" with "at:" field ONLY for SPECIFIC times (e.g., "at 7 AM", "at 14:30:00")
-  ✅ CORRECT: platform: time → at: '07:00:00'
-  ❌ WRONG: platform: time → at: '/10 * * * *' (cron expressions NOT supported in 'at:' field)
+  CORRECT: platform: time -> at: '07:00:00'
+  WRONG: platform: time -> at: '/10 * * * *' (cron expressions NOT supported in 'at:' field)
   
 - Use "platform: time_pattern" with "minutes:", "hours:", or "seconds:" for RECURRING intervals
-  ✅ CORRECT: platform: time_pattern → minutes: '/10' (every 10 minutes)
-  ✅ CORRECT: platform: time_pattern → hours: '/2' (every 2 hours)
-  ✅ CORRECT: platform: time_pattern → seconds: '/30' (every 30 seconds)
-  ❌ WRONG: platform: time → at: '/10 * * * *' (cron syntax not supported)
+  CORRECT: platform: time_pattern -> minutes: '/10' (every 10 minutes)
+  CORRECT: platform: time_pattern -> hours: '/2' (every 2 hours)
+  CORRECT: platform: time_pattern -> seconds: '/30' (every 30 seconds)
+  WRONG: platform: time -> at: '/10 * * * *' (cron syntax not supported)
 
 Example 2 - Advanced Automation with Sequences and Conditions:
 ```yaml
@@ -2269,14 +2268,14 @@ action:
         sequence:
           - action: light.turn_on
             target:
-              entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+              entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
             data:
               brightness_pct: 100
               color_name: red
           - delay: '00:00:02'
           - action: light.turn_off
             target:
-              entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+              entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
       - conditions:
           - condition: trigger
             id: back_door
@@ -2286,18 +2285,18 @@ action:
               sequence:
                 - action: light.turn_on
                   target:
-                    entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+                    entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
                   data:
                     brightness_pct: 50
                 - delay: '00:00:01'
                 - action: light.turn_off
                   target:
-                    entity_id: {example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}
+                    entity_id: {{example_light if example_light else 'REPLACE_WITH_VALIDATED_ENTITY'}}
 ```
 
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 HOME ASSISTANT YAML FORMAT (CURRENT STANDARD)
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 
 REQUIRED STRUCTURE:
 ```yaml
@@ -2305,12 +2304,12 @@ id: '<base_id>'              # Base ID (will be made unique automatically with t
 alias: <descriptive_name>
 description: "<quoted_if_contains_colons>"
 mode: single|restart|queued|parallel
-trigger:                     # ✅ SINGULAR "trigger:" (Home Assistant standard)
-  - platform: state|time|time_pattern|...  # ✅ "platform:" field (REQUIRED)
+trigger:                     # SINGULAR "trigger:" (Home Assistant standard)
+  - platform: state|time|time_pattern|...  # "platform:" field (REQUIRED)
     <trigger_fields>
 conditions: []               # Optional
-action:                      # ✅ SINGULAR "action:" (Home Assistant standard)
-  - service: domain.service  # ✅ "service:" field (REQUIRED)
+action:                      # SINGULAR "action:" (Home Assistant standard)
+  - service: domain.service  # "service:" field (REQUIRED)
     target:
       entity_id: <validated_entity>
     data:
@@ -2319,7 +2318,7 @@ action:                      # ✅ SINGULAR "action:" (Home Assistant standard)
 
 NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix appended) to ensure each approval creates a NEW automation, not an update to an existing one.
 
-🔴 CRITICAL RULES (Automation will FAIL if violated):
+[CRITICAL] CRITICAL RULES (Automation will FAIL if violated):
 1. Entity IDs: MUST use EXACT IDs from VALIDATED ENTITIES list above
    - Format: domain.entity (e.g., light.office_ceiling)
    - NEVER invent IDs (causes "Entity not found" error)
@@ -2329,29 +2328,29 @@ NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix 
    - Top-level: "trigger:" and "action:" (SINGULAR, not plural)
    - Inside trigger items: "platform:" field (REQUIRED - platform: state, platform: time, etc.)
    - Inside action items: "service:" field (REQUIRED - service: light.turn_on, etc.)
-   - ❌ WRONG: "triggers:", "actions:", "trigger: state", "action: light.turn_on" (these formats don't exist)
+   - WRONG: "triggers:", "actions:", "trigger: state", "action: light.turn_on" (these formats don't exist)
    
 3. Time Triggers: MUST use correct platform type for time-based automations
    - SPECIFIC times (e.g., "at 7 AM"): Use "platform: time" with "at: 'HH:MM:SS'"
    - RECURRING intervals (e.g., "every 10 minutes"): Use "platform: time_pattern" with "minutes: '/10'"
-   - ❌ NEVER use cron expressions in "at:" field (e.g., '/10 * * * *' - NOT supported)
-   - ❌ NEVER use "platform: time" for recurring intervals
+   - NEVER use cron expressions in "at:" field (e.g., '/10 * * * *' - NOT supported)
+   - NEVER use "platform: time" for recurring intervals
    
 4. Target Structure: MUST use target.entity_id
-   - ✅ CORRECT: service: light.turn_on → target: → entity_id: light.example
-   - ❌ WRONG: service: light.turn_on with entity_id directly in action
+   - CORRECT: service: light.turn_on -> target: -> entity_id: light.example
+   - WRONG: service: light.turn_on with entity_id directly in action
 
 5. WLED Entities: Use light.turn_on (NOT wled.turn_on - doesn't exist)
 
 6. Special Characters: Quote descriptions containing colons
-   - ✅ "TEST MODE: Alert" or "TEST MODE - Alert"
-   - ❌ TEST MODE: Alert (breaks YAML)
+   - CORRECT: "TEST MODE: Alert" or "TEST MODE - Alert"
+   - WRONG: TEST MODE: Alert (breaks YAML)
 
 7. Jinja2 Templates: MUST be quoted in YAML strings
-   - ✅ data: "{{ states('sensor.temperature') }}"
-   - ✅ data: '{% if old_effect is not none %}{{ old_effect }}{% endif %}'
-   - ❌ data: {% if old_effect is not none %} (breaks YAML - unquoted Jinja2)
-   - ❌ data: {{ states('sensor.temperature') }} (breaks YAML - unquoted template)
+   - CORRECT: data: "{{ states('sensor.temperature') }}"
+   - CORRECT: data: '{% if old_effect is not none %}{{ old_effect }}{% endif %}'
+   - WRONG: data: {% if old_effect is not none %} (breaks YAML - unquoted Jinja2)
+   - WRONG: data: {{ states('sensor.temperature') }} (breaks YAML - unquoted template)
    - Rule: ALL Jinja2 syntax ({{ }}, {% %}) MUST be inside quoted strings
 
 ADVANCED FEATURES (Use for creative implementations):
@@ -2377,15 +2376,15 @@ TEST MODE ADJUSTMENTS:
     elif is_sequence_test:
         test_mode_text = """
 TEST MODE ADJUSTMENTS:
-- SHORTEN delays by 10x (5 sec → 0.5 sec)
-- REDUCE repeat counts (10 → 3, 5 → 2)
+- SHORTEN delays by 10x (5 sec -> 0.5 sec)
+- REDUCE repeat counts (10 -> 3, 5 -> 2)
 - Keep structure but execute faster
 """
 
     prompt += test_mode_text + """
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 PRE-GENERATION VALIDATION CHECKLIST
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 
 Before generating YAML, verify ALL requirements:
 
@@ -2409,9 +2408,9 @@ If missing entities needed for automation:
 □ Simplify to use only available validated entities
 □ Return error explaining missing entities
 
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 OUTPUT INSTRUCTIONS
-═══════════════════════════════════════════════════════════════════════════════
+===================================================================================
 
 Generate ONLY the YAML content:
 - NO markdown code blocks (no ```yaml or ```)
@@ -2644,7 +2643,7 @@ Generate ONLY the YAML content:
             logger.error(f"❌ Generated invalid YAML syntax: {e}")
             raise ValueError(f"Generated YAML syntax is invalid: {e}") from e
 
-        # Validate YAML structure and fix service names (e.g., wled.turn_on → light.turn_on)
+        # Validate YAML structure and fix service names (e.g., wled.turn_on -> light.turn_on)
         from ..services.yaml_structure_validator import YAMLStructureValidator
         validator = YAMLStructureValidator()
 
@@ -2659,7 +2658,7 @@ Generate ONLY the YAML content:
             logger.info(f"🔧 Using fixed YAML from validator (original had {len(validation.errors)} errors)")
             original_yaml = yaml_content
             yaml_content = validation.fixed_yaml
-            service_fixes = [w for w in validation.warnings if '→' in w]
+            service_fixes = [w for w in validation.warnings if '->' in w]
             if service_fixes:
                 logger.info(f"✅ Applied {len(service_fixes)} service name fixes")
             # Log trigger fixes
@@ -2713,10 +2712,10 @@ async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> 
     
     Examples:
     - "Flash office lights every 30 seconds only after 5pm"
-      → "Flash the office lights"
+      -> "Flash the office lights"
     
     - "Turn on bedroom lights when door opens after sunset"
-      → "Turn on the bedroom lights when door opens"
+      -> "Turn on the bedroom lights when door opens"
     
     Why Use AI instead of Regex:
     - Smarter: Understands context, not just pattern matching
@@ -2807,7 +2806,7 @@ CONSTRAINTS:
         logger.info(" Got OpenAI response")
 
         simplified = response.choices[0].message.content.strip()
-        logger.info(f"Simplified '{description}' → '{simplified}'")
+        logger.info(f"Simplified '{description}' -> '{simplified}'")
         return simplified
 
     except Exception as e:
@@ -2830,7 +2829,7 @@ async def extract_entities_with_ha(query: str) -> list[dict[str, Any]]:
     Extract entities from query using multi-model approach.
     
     Strategy:
-    1. Multi-Model Extractor (NER → OpenAI → Pattern) - 90% of queries
+    1. Multi-Model Extractor (NER -> OpenAI -> Pattern) - 90% of queries
     2. Enhanced Extractor (Device Intelligence) - Fallback
     3. Basic Pattern Matching - Emergency fallback
     
@@ -2843,7 +2842,7 @@ async def extract_entities_with_ha(query: str) -> list[dict[str, Any]]:
     # Try multi-model extraction first (if configured)
     if settings.entity_extraction_method == "multi_model" and _multi_model_extractor:
         try:
-            logger.info("🔍 Using multi-model entity extraction (NER → OpenAI → Pattern)")
+            logger.info("🔍 Using multi-model entity extraction (NER -> OpenAI -> Pattern)")
             return await _multi_model_extractor.extract_entities(query)
         except Exception as e:
             logger.error(f"Multi-model extraction failed, falling back to enhanced: {e}")
@@ -4446,7 +4445,7 @@ async def generate_suggestions_from_query(
                     if len(devices_involved) < original_devices_count:
                         logger.info(
                             f"🔄 Pre-consolidated devices for suggestion {i+1}: "
-                            f"{original_devices_count} → {len(devices_involved)} "
+                            f"{original_devices_count} -> {len(devices_involved)} "
                             f"(removed {original_devices_count - len(devices_involved)} generic/redundant terms)"
                         )
                         original_devices_count = len(devices_involved)  # Update for next consolidation
@@ -4468,7 +4467,7 @@ async def generate_suggestions_from_query(
                     if len(deduplicated) < len(devices_involved):
                         logger.info(
                             f"🔄 Deduplicated devices for suggestion {i+1}: "
-                            f"{len(devices_involved)} → {len(deduplicated)} "
+                            f"{len(devices_involved)} -> {len(deduplicated)} "
                             f"(removed {len(duplicates_removed)} duplicates: {duplicates_removed})"
                         )
                     else:
@@ -4606,7 +4605,7 @@ async def generate_suggestions_from_query(
                     
                     # Use expanded list for mapping (replace devices_involved with expanded_devices_involved)
                     if location_names_expanded:
-                        logger.info(f"📍 Location expansion: {len(location_names_expanded)} locations expanded, {len(devices_involved)} → {len(expanded_devices_involved)} devices")
+                        logger.info(f"📍 Location expansion: {len(location_names_expanded)} locations expanded, {len(devices_involved)} -> {len(expanded_devices_involved)} devices")
                         devices_involved = expanded_devices_involved
                     
                     validated_entities = await map_devices_to_entities(
@@ -4650,7 +4649,7 @@ async def generate_suggestions_from_query(
                                 )
                                 if actual_device_name:
                                     updated_devices_involved.append(actual_device_name)
-                                    logger.info(f"🔄 Replaced '{device_name}' → '{actual_device_name}' in devices_involved")
+                                    logger.info(f"🔄 Replaced '{device_name}' -> '{actual_device_name}' in devices_involved")
                                 else:
                                     # No name available, keep original but log warning
                                     updated_devices_involved.append(device_name)
@@ -4662,7 +4661,7 @@ async def generate_suggestions_from_query(
                                     logger.debug(f"⚠️ Entity {entity_id} not found in enriched_data, keeping original name")
 
                         if updated_devices_involved != devices_involved:
-                            logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
+                            logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} -> {updated_devices_involved}")
                             devices_involved = updated_devices_involved
 
                         # NEW: Validate location context for matched devices
@@ -4782,7 +4781,7 @@ async def generate_suggestions_from_query(
                                     )
                                     if actual_device_name:
                                         updated_devices_involved.append(actual_device_name)
-                                        logger.info(f"🔄 Replaced entity ID '{device_name}' → '{actual_device_name}' in devices_involved")
+                                        logger.info(f"🔄 Replaced entity ID '{device_name}' -> '{actual_device_name}' in devices_involved")
                                     else:
                                         updated_devices_involved.append(device_name)
                                         logger.warning(f"⚠️ No device name found for {entity_id} in enriched_data (all name fields NULL)")
@@ -4790,7 +4789,7 @@ async def generate_suggestions_from_query(
                                     updated_devices_involved.append(device_name)
 
                             if updated_devices_involved != devices_involved:
-                                logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
+                                logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} -> {updated_devices_involved}")
                                 devices_involved = updated_devices_involved
                         else:
                             # CRITICAL ERROR: Entity mapping completely failed - no entity IDs found
@@ -4830,7 +4829,7 @@ async def generate_suggestions_from_query(
                     if len(consolidated_devices) < before_consolidation_count:
                         logger.info(
                             f"🔄 Optimized devices_involved for suggestion {i+1}: "
-                            f"{before_consolidation_count} → {len(consolidated_devices)} entries "
+                            f"{before_consolidation_count} -> {len(consolidated_devices)} entries "
                             f"({before_consolidation_count - len(consolidated_devices)} redundant entries removed)"
                         )
                     devices_involved = consolidated_devices
@@ -7783,7 +7782,7 @@ async def validate_state_changes(
                                 'changed': True,
                                 'timestamp': datetime.now().isoformat()
                             }
-                            logger.info(f"✅ State change detected for {entity_id}: {before_state} → {after_state_value}")
+                            logger.info(f"✅ State change detected for {entity_id}: {before_state} -> {after_state_value}")
                         # Also check attribute changes for entities that might not change state
                         elif before_state == after_state_value:
                             # Check common attributes that might change (brightness, color, etc.)
@@ -8607,7 +8606,7 @@ class ApproveSuggestionRequest(BaseModel):
     selected_entity_ids: list[str] | None = Field(default=None, description="List of entity IDs selected by user to include in automation")
     custom_entity_mapping: dict[str, str] | None = Field(
         default=None,
-        description="Custom mapping of friendly_name → entity_id overrides. Allows users to change which entity_id maps to a device name."
+        description="Custom mapping of friendly_name -> entity_id overrides. Allows users to change which entity_id maps to a device name."
     )
 
 @router.post("/query/{query_id}/suggestions/{suggestion_id}/approve")
@@ -8692,7 +8691,7 @@ async def approve_suggestion_from_query(
                     for friendly_name, new_entity_id in request.custom_entity_mapping.items():
                         if verification_results.get(new_entity_id, False):
                             final_suggestion['validated_entities'][friendly_name] = new_entity_id
-                            logger.info(f"✅ Applied custom mapping: '{friendly_name}' → {new_entity_id}")
+                            logger.info(f"✅ Applied custom mapping: '{friendly_name}' -> {new_entity_id}")
                         else:
                             logger.warning(f"⚠️ Custom entity_id {new_entity_id} for '{friendly_name}' does not exist in HA - skipped")
                 else:
@@ -8758,7 +8757,7 @@ async def approve_suggestion_from_query(
                         
                         if best_match:
                             entity_replacements[invalid_entity_id] = best_match
-                            logger.info(f"🔧 Auto-correcting entity ID: '{invalid_entity_id}' → '{best_match}' (similarity: {best_score:.1f}%)")
+                            logger.info(f"🔧 Auto-correcting entity ID: '{invalid_entity_id}' -> '{best_match}' (similarity: {best_score:.1f}%)")
                     
                     # Apply replacements to YAML
                     if entity_replacements:
@@ -8968,7 +8967,7 @@ async def approve_suggestion_from_query(
 
                             if best_match and best_score >= 30.0:  # Minimum threshold for replacement
                                 entity_replacements[invalid_entity_id] = best_match
-                                logger.info(f"🔧 Mapping invalid entity '{invalid_entity_id}' → '{best_match}' (score: {best_score:.1f})")
+                                logger.info(f"🔧 Mapping invalid entity '{invalid_entity_id}' -> '{best_match}' (score: {best_score:.1f})")
                             else:
                                 logger.warning(f"⚠️ Could not find match for invalid entity '{invalid_entity_id}'")
 
@@ -9308,7 +9307,7 @@ async def list_aliases(
     """
     Get all aliases for a user, grouped by entity_id.
     
-    Returns a dictionary mapping entity_id → list of aliases.
+    Returns a dictionary mapping entity_id -> list of aliases.
     
     Example:
         GET /api/v1/ask-ai/aliases?user_id=user123
