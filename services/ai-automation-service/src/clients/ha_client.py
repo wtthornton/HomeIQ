@@ -925,6 +925,8 @@ class HomeAssistantClient:
                         return []
 
                     # Filter by area_id and optionally domain
+                    # Normalize area_id for case-insensitive matching
+                    area_id_normalized = area_id.lower().strip() if area_id else None
                     filtered_entities = []
                     for state in all_states:
                         if not isinstance(state, dict):
@@ -933,9 +935,15 @@ class HomeAssistantClient:
                         entity_id = state.get('entity_id', '')
                         attributes = state.get('attributes', {})
 
-                        # Check if entity is in the specified area
+                        # Check if entity is in the specified area (case-insensitive)
                         entity_area_id = attributes.get('area_id')
-                        if entity_area_id != area_id:
+                        if entity_area_id:
+                            # Normalize for comparison (handle both "Office" and "office")
+                            entity_area_normalized = str(entity_area_id).lower().strip()
+                            if entity_area_normalized != area_id_normalized:
+                                continue
+                        elif area_id_normalized:
+                            # Entity has no area_id but we're filtering by area - skip
                             continue
 
                         # Check domain if specified

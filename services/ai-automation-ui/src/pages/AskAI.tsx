@@ -1548,7 +1548,7 @@ export const AskAI: React.FC = () => {
                       }
                       
                       // Extract clarifications from questionsAndAnswers (answers are the clarifications)
-                      const clarifications = message.questionsAndAnswers?.map(qa => qa?.answer || qa?.answer_text || '').filter(a => a) || [];
+                      const clarifications = message.questionsAndAnswers?.map(qa => qa?.answer || '').filter(a => a) || [];
                       
                       // Only show timeline if we have original request or clarifications
                       const hasContext = originalRequest || clarifications.length > 0;
