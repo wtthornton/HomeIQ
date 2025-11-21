@@ -1536,17 +1536,32 @@ export const AskAI: React.FC = () => {
                     
                     {/* Show suggestions with context timeline if available */}
                     {message.suggestions && message.suggestions.length > 0 && (() => {
-                      // Find the original user request (previous user message)
+                      // Find the original user request (look backwards through messages for the first user message)
                       const messageIndex = messages.findIndex(m => m.id === message.id);
-                      const originalRequest = messageIndex > 0 && messages[messageIndex - 1]?.type === 'user'
-                        ? messages[messageIndex - 1].content
-                        : '';
+                      let originalRequest = '';
+                      // Look backwards to find the original user message (skip over any intermediate AI messages)
+                      for (let i = messageIndex - 1; i >= 0; i--) {
+                        if (messages[i]?.type === 'user') {
+                          originalRequest = messages[i].content;
+                          break;
+                        }
+                      }
                       
                       // Extract clarifications from questionsAndAnswers (answers are the clarifications)
-                      const clarifications = message.questionsAndAnswers?.map(qa => qa.answer) || [];
+                      const clarifications = message.questionsAndAnswers?.map(qa => qa?.answer || qa?.answer_text || '').filter(a => a) || [];
                       
                       // Only show timeline if we have original request or clarifications
                       const hasContext = originalRequest || clarifications.length > 0;
+                      
+                      // Debug logging
+                      console.log('🔍 [SUGGESTIONS RENDER]', {
+                        hasSuggestions: !!(message.suggestions && message.suggestions.length > 0),
+                        suggestionsCount: message.suggestions?.length || 0,
+                        hasContext,
+                        originalRequest: !!originalRequest,
+                        clarificationsCount: clarifications.length,
+                        questionsAndAnswers: message.questionsAndAnswers?.length || 0
+                      });
                       
                       return hasContext ? (
                         <div className="mt-4">
@@ -2244,8 +2259,12 @@ export const AskAI: React.FC = () => {
                   suggestions_count: response.suggestions?.length,
                   suggestions: response.suggestions?.map((s: any) => ({
                     suggestion_id: s.suggestion_id,
-                    title: s.title,
-                    has_validated_entities: !!s.validated_entities
+                    title: s.title || `${s.trigger_summary} → ${s.action_summary}`,
+                    has_validated_entities: !!s.validated_entities,
+                    has_description: !!s.description,
+                    has_trigger_summary: !!s.trigger_summary,
+                    has_action_summary: !!s.action_summary,
+                    has_debug: !!s.debug
                   }))
                 });
                 
@@ -2263,6 +2282,21 @@ export const AskAI: React.FC = () => {
                   console.error('❌ [CLARIFICATION] Some suggestions are missing suggestion_id', invalidSuggestions);
                   toast.error('⚠️ Some suggestions are missing required fields. Please try again.');
                 }
+                
+                // Log each suggestion's structure for debugging
+                response.suggestions?.forEach((s: any, idx: number) => {
+                  console.log(`📋 [SUGGESTION ${idx + 1}]`, {
+                    suggestion_id: s.suggestion_id,
+                    has_description: !!s.description,
+                    has_trigger_summary: !!s.trigger_summary,
+                    has_action_summary: !!s.action_summary,
+                    has_validated_entities: !!s.validated_entities,
+                    validated_entities_count: s.validated_entities ? Object.keys(s.validated_entities).length : 0,
+                    has_debug: !!s.debug,
+                    has_devices_involved: !!s.devices_involved,
+                    devices_involved_count: s.devices_involved ? s.devices_involved.length : 0
+                  });
+                });
                 
                 // Add enriched prompt message if available
                 if (response.enriched_prompt) {
@@ -2329,9 +2363,31 @@ export const AskAI: React.FC = () => {
                   questionsAndAnswers: response.questions_and_answers
                 };
                 
-                setMessages(prev => [...prev, suggestionMessage]);
+                // Log the message structure before adding it
+                console.log('📝 [CLARIFICATION] Adding suggestion message to conversation:', {
+                  message_id: suggestionMessage.id,
+                  has_suggestions: !!(suggestionMessage.suggestions && suggestionMessage.suggestions.length > 0),
+                  suggestions_count: suggestionMessage.suggestions?.length || 0,
+                  has_questionsAndAnswers: !!suggestionMessage.questionsAndAnswers,
+                  questionsAndAnswers_count: suggestionMessage.questionsAndAnswers?.length || 0,
+                  message_content: suggestionMessage.content.substring(0, 100)
+                });
+                
+                setMessages(prev => {
+                  const updated = [...prev, suggestionMessage];
+                  console.log('✅ [CLARIFICATION] Messages updated, total messages:', updated.length);
+                  // Log the last message to verify it was added correctly
+                  const lastMessage = updated[updated.length - 1];
+                  console.log('📋 [CLARIFICATION] Last message in array:', {
+                    id: lastMessage.id,
+                    type: lastMessage.type,
+                    has_suggestions: !!(lastMessage.suggestions && lastMessage.suggestions.length > 0),
+                    suggestions_count: lastMessage.suggestions?.length || 0
+                  });
+                  return updated;
+                });
                 setClarificationDialog(null);
-                toast.success('Clarification complete! Suggestions generated.');
+                toast.success(`Clarification complete! ${response.suggestions?.length || 0} suggestion(s) generated.`);
               } else if (response.questions && response.questions.length > 0) {
                 // More questions needed
                 setClarificationDialog({
