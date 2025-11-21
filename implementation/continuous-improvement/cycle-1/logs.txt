@@ -1,0 +1,11 @@
+Cycle 1 Execution Log
+================================================================================
+
+Timestamp: 2025-11-21T09:46:18.840770
+Status: Failed
+Total Score: 0.00/100
+Automation Score: 0.00/100
+YAML Score: 0.00/100
+Clarification Rounds: 3
+
+Error: Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: scene.office_wled_before_show

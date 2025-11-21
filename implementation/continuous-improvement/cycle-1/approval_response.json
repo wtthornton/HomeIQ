@@ -1,0 +1,14 @@
+{
+  "suggestion_id": "ask-ai-ce597b1a",
+  "query_id": "clarify-a0540d06",
+  "status": "error",
+  "safe": false,
+  "message": "Automation contains invalid entity IDs",
+  "error_details": {
+    "type": "invalid_entities",
+    "message": "Invalid entity IDs in YAML: scene.kitchen_strip_segment_1_before_show",
+    "invalid_entities": [
+      "scene.kitchen_strip_segment_1_before_show"
+    ]
+  }
+}

@@ -1,17 +1,21 @@
 """
 Automation YAML Generator
 
-Consolidates YAML generation logic from ask_ai_router.py.
+Wrapper class for YAML generation service.
 Generates Home Assistant automation YAML from suggestions.
 
 Created: Phase 2 - Core Service Refactoring
+Refactored: Now uses yaml_generation_service module
 """
 
 import logging
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ...clients.ha_client import HomeAssistantClient
 from ...llm.openai_client import OpenAIClient
+from .yaml_generation_service import generate_automation_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +50,8 @@ class AutomationYAMLGenerator:
         suggestion: dict[str, Any],
         original_query: str,
         entities: list[dict[str, Any]] | None = None,
-        validated_entities: dict[str, str] | None = None
+        validated_entities: dict[str, str] | None = None,
+        db_session: AsyncSession | None = None
     ) -> str:
         """
         Generate automation YAML from suggestion.
@@ -56,20 +61,18 @@ class AutomationYAMLGenerator:
             original_query: Original user query for context
             entities: Optional list of entities
             validated_entities: Dictionary mapping device names to entity IDs
+            db_session: Optional database session
         
         Returns:
             YAML string for the automation
         """
-        # Import the existing function from ask_ai_router
-        # This will be refactored in later phases
-        from ...api.ask_ai_router import generate_automation_yaml
-
         try:
             yaml_content = await generate_automation_yaml(
                 suggestion=suggestion,
                 original_query=original_query,
+                openai_client=self.openai_client,
                 entities=entities,
-                db_session=None,  # Will be passed in later
+                db_session=db_session,
                 ha_client=self.ha_client
             )
 

@@ -258,7 +258,7 @@ def extract_device_mentions_from_text(
     for friendly_name, entity_id in validated_entities.items():
         # Skip if friendly_name is actually an entity ID (prevents entity IDs as keys)
         if _is_entity_id(friendly_name):
-            logger.debug(f"⏭️ Skipping entity ID '{friendly_name}' from validated_entities (not a friendly name)")
+            logger.debug(f"[SKIP] Skipping entity ID '{friendly_name}' from validated_entities (not a friendly name)")
             continue
 
         friendly_name_lower = friendly_name.lower()
@@ -267,7 +267,7 @@ def extract_device_mentions_from_text(
         pattern = r'\b' + re.escape(friendly_name_lower) + r'\b'
         if re.search(pattern, text_lower):
             mentions[friendly_name] = entity_id
-            logger.debug(f"🔍 Found mention '{friendly_name}' in text → {entity_id}")
+            logger.debug(f"[FOUND] Found mention '{friendly_name}' in text → {entity_id}")
 
         # Also check for partial matches (e.g., "wled" matches "WLED" or "wled strip")
         if friendly_name_lower in text_lower or text_lower in friendly_name_lower:
@@ -344,7 +344,7 @@ async def pre_validate_suggestion_for_yaml(
     for mention, entity_id in all_mentions.items():
         # Skip if mention is an entity ID (prevents entity IDs as keys in validated_entities)
         if _is_entity_id(mention):
-            logger.debug(f"⏭️ Skipping entity ID mention '{mention}' (not a friendly name)")
+            logger.debug(f"[SKIP] Skipping entity ID mention '{mention}' (not a friendly name)")
             continue
         if mention not in enhanced_validated_entities:
             new_mentions[mention] = entity_id
@@ -366,7 +366,7 @@ async def pre_validate_suggestion_for_yaml(
             for mention, entity_id in incomplete_mentions.items():
                 domains_to_query.add(entity_id.lower().strip('.'))
 
-            logger.info(f"🔍 Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
+            logger.info(f"[QUERY] Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
             for domain in domains_to_query:
                 try:
                     domain_entities = await ha_client.get_entities_by_domain(domain)
@@ -379,15 +379,15 @@ async def pre_validate_suggestion_for_yaml(
                             for mention in incomplete_mentions:
                                 if incomplete_mentions[mention].lower().strip('.') == domain:
                                     complete_mentions[mention] = first_entity
-                                    logger.info(f"✅ Queried HA for '{domain}', verified and using: {first_entity}")
+                                    logger.info(f"[OK] Queried HA for '{domain}', verified and using: {first_entity}")
                         else:
-                            logger.warning(f"⚠️ Entity {first_entity} from domain '{domain}' query does not exist in HA")
+                            logger.warning(f"[WARNING] Entity {first_entity} from domain '{domain}' query does not exist in HA")
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
+                    logger.warning(f"[WARNING] Failed to query HA for domain '{domain}': {e}")
 
         # CRITICAL: Verify ALL complete mentions exist in HA before adding
         if complete_mentions and ha_client:
-            logger.info(f"🔍 Verifying {len(complete_mentions)} extracted mentions exist in HA...")
+            logger.info(f"[VERIFY] Verifying {len(complete_mentions)} extracted mentions exist in HA...")
             entity_ids_to_verify = list(complete_mentions.values())
             verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
 
@@ -395,9 +395,9 @@ async def pre_validate_suggestion_for_yaml(
             for mention, entity_id in complete_mentions.items():
                 if verification_results.get(entity_id, False):
                     enhanced_validated_entities[mention] = entity_id
-                    logger.debug(f"✅ Added verified mention '{mention}' → {entity_id} to validated entities")
+                    logger.debug(f"[OK] Added verified mention '{mention}' → {entity_id} to validated entities")
                 else:
-                    logger.warning(f"❌ Mention '{mention}' → {entity_id} does NOT exist in HA - skipped")
+                    logger.warning(f"[ERROR] Mention '{mention}' → {entity_id} does NOT exist in HA - skipped")
 
     return enhanced_validated_entities
 
@@ -624,7 +624,7 @@ async def generate_automation_yaml(
         ...     openai_client=openai_client
         ... )
     """
-    logger.info(f"🚀 GENERATE_YAML CALLED - Query: {original_query[:50]}...")
+    logger.info(f"[START] GENERATE_YAML CALLED - Query: {original_query[:50]}...")
     
     # Validate inputs
     if not openai_client:

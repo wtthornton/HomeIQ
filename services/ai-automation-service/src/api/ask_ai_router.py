@@ -38,6 +38,10 @@ from ..config import settings
 from ..database import get_db
 from ..database.models import AskAIQuery as AskAIQueryModel
 from ..database.models import ClarificationSessionDB
+from ..services.automation.yaml_generation_service import (
+    generate_automation_yaml,
+    pre_validate_suggestion_for_yaml,
+)
 from ..entity_extraction import (
     EnhancedEntityExtractor,
     MultiModelEntityExtractor,
@@ -84,7 +88,7 @@ logger.info("🔧 Ask AI Router logger initialized")
 # Constants for clarification retry logic
 CLARIFICATION_RETRY_MAX_ATTEMPTS = 2
 CLARIFICATION_RETRY_DELAY_SECONDS = 2
-CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS = 60.0
+CLARIFICATION_SUGGESTION_TIMEOUT_SECONDS = 300.0  # Increased to 300s (5 minutes) to allow for longer OpenAI API calls
 
 
 async def _update_model_comparison_metrics_on_approval(
@@ -1274,7 +1278,7 @@ async def map_devices_to_entities(
             name_to_check = friendly_name if friendly_name else device_name_from_enriched
             if name_to_check and name_to_check.lower() == device_name_lower:
                 # Add area check for exact matches - boost priority for area matches
-                area_name = enriched.get('area_name', '').lower()
+                area_name = (enriched.get('area_name') or '').lower()
                 if area_name and device_name_lower in area_name:
                     # Boost priority for area matches (single-home optimization)
                     match_quality = 4  # Higher than regular exact match
@@ -1327,7 +1331,7 @@ async def map_devices_to_entities(
                 if not name_to_check:
                     continue
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
-                area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
+                area_name = (enriched.get('area_name') or '').lower()
 
                 # Build context bonuses for enhanced scoring
                 context_bonuses = {}
@@ -1414,9 +1418,9 @@ async def map_devices_to_entities(
                 
                 for entity_id, enriched in enriched_data.items():
                     entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
-                    platform = enriched.get('platform', '').lower() if enriched.get('platform') else ''
-                    integration = enriched.get('integration', '').lower() if enriched.get('integration') else ''
-                    area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
+                    platform = (enriched.get('platform') or '').lower()
+                    integration = (enriched.get('integration') or '').lower()
+                    area_name = (enriched.get('area_name') or '').lower()
                     
                     score = 0
                     
@@ -2009,205 +2013,15 @@ def deduplicate_entity_mapping(entity_mapping: dict[str, str]) -> dict[str, str]
     return deduplicated
 
 
-async def pre_validate_suggestion_for_yaml(
-    suggestion: dict[str, Any],
-    validated_entities: dict[str, str],
-    ha_client: HomeAssistantClient | None = None
-) -> dict[str, str]:
+# YAML generation functions moved to services/automation/yaml_generation_service.py
+# Functions: generate_automation_yaml, pre_validate_suggestion_for_yaml, build_suggestion_specific_entity_mapping
+
+
+async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> str:
     """
-    Pre-validate and enhance suggestion before YAML generation.
+    Simplify automation description to test core behavior using AI.
     
-    Extracts all device mentions from description/trigger/action summaries,
-    maps them to entity IDs, and queries HA for domain entities if device name is incomplete.
-    
-    Args:
-        suggestion: Suggestion dictionary
-        validated_entities: Mapping friendly_name → entity_id
-        ha_client: Optional HA client for querying entities
-        
-    Returns:
-        Enhanced validated_entities dictionary with all mentions mapped
-    """
-    enhanced_validated_entities = validated_entities.copy()
-
-    # Extract device mentions from all text fields
-    text_fields = {
-        'description': suggestion.get('description', ''),
-        'trigger_summary': suggestion.get('trigger_summary', ''),
-        'action_summary': suggestion.get('action_summary', '')
-    }
-
-    all_mentions = {}
-    for field, text in text_fields.items():
-        mentions = extract_device_mentions_from_text(text, validated_entities, None)
-        all_mentions.update(mentions)
-
-    # Add mentions to enhanced_validated_entities, but collect for verification first
-    # Filter out entity IDs from being used as keys (prevents entity IDs as friendly names)
-    new_mentions = {}
-    for mention, entity_id in all_mentions.items():
-        # Skip if mention is an entity ID (prevents entity IDs as keys in validated_entities)
-        if _is_entity_id(mention):
-            logger.debug(f"⏭️ Skipping entity ID mention '{mention}' (not a friendly name)")
-            continue
-        if mention not in enhanced_validated_entities:
-            new_mentions[mention] = entity_id
-            logger.debug(f"🔍 Found mention '{mention}' → {entity_id}")
-
-    # Check for incomplete entity IDs (domain-only mentions like "wled", "office")
-    if ha_client and new_mentions:
-        incomplete_mentions = {}
-        complete_mentions = {}
-        for mention, entity_id in new_mentions.items():
-            if '.' not in entity_id or entity_id.startswith('.') or entity_id.endswith('.'):  # Incomplete entity ID
-                incomplete_mentions[mention] = entity_id
-            else:
-                complete_mentions[mention] = entity_id
-
-        # Query HA for domain entities if we found incomplete mentions
-        if incomplete_mentions:
-            domains_to_query = set()
-            for mention, entity_id in incomplete_mentions.items():
-                domains_to_query.add(entity_id.lower().strip('.'))
-
-            logger.info(f"🔍 Found {len(incomplete_mentions)} incomplete mentions, querying HA for domains: {list(domains_to_query)}")
-            for domain in domains_to_query:
-                try:
-                    domain_entities = await ha_client.get_entities_by_domain(domain)
-                    if domain_entities:
-                        # Verify the first entity exists before using it
-                        first_entity = domain_entities[0]
-                        state = await ha_client.get_entity_state(first_entity)
-                        if state:
-                            # Use first entity from domain if it exists
-                            for mention in incomplete_mentions:
-                                if incomplete_mentions[mention].lower().strip('.') == domain:
-                                    complete_mentions[mention] = first_entity
-                                    logger.info(f"✅ Queried HA for '{domain}', verified and using: {first_entity}")
-                        else:
-                            logger.warning(f"⚠️ Entity {first_entity} from domain '{domain}' query does not exist in HA")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to query HA for domain '{domain}': {e}")
-
-        # CRITICAL: Verify ALL complete mentions exist in HA before adding
-        if complete_mentions and ha_client:
-            logger.info(f"🔍 Verifying {len(complete_mentions)} extracted mentions exist in HA...")
-            entity_ids_to_verify = list(complete_mentions.values())
-            verification_results = await verify_entities_exist_in_ha(entity_ids_to_verify, ha_client)
-
-            # Only add verified entities
-            for mention, entity_id in complete_mentions.items():
-                if verification_results.get(entity_id, False):
-                    enhanced_validated_entities[mention] = entity_id
-                    logger.debug(f"✅ Added verified mention '{mention}' → {entity_id} to validated entities")
-                else:
-                    logger.warning(f"❌ Mention '{mention}' → {entity_id} does NOT exist in HA - skipped")
-
-    return enhanced_validated_entities
-
-
-async def build_suggestion_specific_entity_mapping(
-    suggestion: dict[str, Any],
-    validated_entities: dict[str, str]
-) -> str:
-    """
-    Build suggestion-specific entity ID mapping text for LLM prompt.
-    
-    Creates explicit mapping table for devices mentioned in THIS specific suggestion.
-    
-    Args:
-        suggestion: Suggestion dictionary
-        validated_entities: Mapping friendly_name → entity_id
-        
-    Returns:
-        Formatted text for LLM prompt
-    """
-    if not validated_entities:
-        return ""
-
-    # Extract devices mentioned in this suggestion
-    description = suggestion.get('description', '').lower()
-    trigger = suggestion.get('trigger_summary', '').lower()
-    action = suggestion.get('action_summary', '').lower()
-    combined_text = f"{description} {trigger} {action}"
-
-    # Build mapping for devices mentioned in this suggestion
-    mappings = []
-    for friendly_name, entity_id in validated_entities.items():
-        friendly_name_lower = friendly_name.lower()
-        # Check if this device is mentioned in the suggestion
-        if (friendly_name_lower in combined_text or
-            friendly_name_lower in description or
-            friendly_name_lower in trigger or
-            friendly_name_lower in action):
-            domain = entity_id.split('.')[0] if '.' in entity_id else ''
-            mappings.append(f"  - \"{friendly_name}\" or \"{friendly_name_lower}\" → {entity_id} (domain: {domain})")
-
-    if not mappings:
-        # Fallback: include all validated entities
-        for friendly_name, entity_id in validated_entities.items():
-            domain = entity_id.split('.')[0] if '.' in entity_id else ''
-            mappings.append(f"  - \"{friendly_name}\" → {entity_id} (domain: {domain})")
-
-    if mappings:
-        return f"""
-SUGGESTION-SPECIFIC ENTITY ID MAPPINGS:
-For THIS specific automation suggestion, use these exact mappings:
-
-Description: "{suggestion.get('description', '')[:100]}..."
-Trigger mentions: "{suggestion.get('trigger_summary', '')[:100]}..."
-Action mentions: "{suggestion.get('action_summary', '')[:100]}..."
-
-ENTITY ID MAPPINGS FOR THIS AUTOMATION:
-{chr(10).join(mappings[:10])}  # Limit to first 10 to avoid prompt bloat
-
-CRITICAL: When generating YAML, use the entity IDs above. For example, if you see "wled" in the description, use the full entity ID from above (NOT just "wled").
-"""
-
-    return ""
-
-
-async def generate_automation_yaml(
-    suggestion: dict[str, Any],
-    original_query: str,
-    entities: list[dict[str, Any]] | None = None,
-    db_session: AsyncSession | None = None,
-    ha_client: HomeAssistantClient | None = None
-) -> str:
-    """
-    Generate Home Assistant automation YAML from a suggestion.
-    
-    Uses OpenAI to convert the natural language suggestion into valid HA YAML.
-    Now includes entity validation to prevent "Entity not found" errors.
-    Includes capability details for more precise YAML generation.
-    
-    Args:
-        suggestion: Suggestion dictionary with description, trigger_summary, action_summary, devices_involved
-        original_query: Original user query for context
-        entities: Optional list of entities with capabilities for enhanced context
-        db_session: Optional database session for alias support
-    
-    Returns:
-        YAML string for the automation
-    """
-    logger.info(f"🚀 GENERATE_YAML CALLED - Query: {original_query[:50]}...")
-    logger.info(f"🚀 Suggestion: {suggestion}")
-
-    if not openai_client:
-        raise ValueError("OpenAI client not initialized - cannot generate YAML")
-
-    # Get validated_entities from suggestion (already set during suggestion creation)
-    validated_entities = suggestion.get('validated_entities', {})
-    if not validated_entities or not isinstance(validated_entities, dict):
-        devices_involved = suggestion.get('devices_involved', [])
-        error_msg = (
-            f"Cannot generate automation YAML: No validated entities found. "
-            f"The system could not map any of {len(devices_involved)} requested devices "
-            f"({', '.join(devices_involved[:5])}{'...' if len(devices_involved) > 5 else ''}) "
-            f"to actual Home Assistant entities."
-        )
-        logger.error(f"❌ {error_msg}")
-        raise ValueError(error_msg)
+    Uses OpenAI to intelligently extract just the core action without conditions.
 
     # Use enriched_entity_context from suggestion (already computed during creation)
     entity_context_json = suggestion.get('enriched_entity_context', '')
@@ -2253,9 +2067,36 @@ CRITICAL RULES:
 2. Entity IDs are case-sensitive and format-sensitive
 3. If device is "Office" and mapping shows "Office": "light.wled_office", 
    use EXACTLY "light.wled_office" - NOT "light.wled" or "light.office"
-4. Scene IDs should be derived from entity IDs for consistency:
-   - Entity: "light.wled_office" → Scene ID: "office_wled_before_show"
-   - Use consistent naming: "before_show", "before_random", "restore", etc.
+4. State Restoration with scene.create (REQUIRED for "return to previous state"):
+   - Generic Home Assistant pattern - works with ANY entity type (lights, climate, covers, etc.)
+   - MUST use scene.create to save state BEFORE changing it
+   - MUST use scene.turn_on to restore state AFTER changes
+   - Scene ID format: scene_id in scene.create (without "scene." prefix) must match scene entity ID
+   - Example pattern (works for lights, climate, covers, and all entity types):
+     ```yaml
+     actions:
+       # Step 1: Save current state (captures ALL attributes: brightness, color, effect, etc.)
+       - service: scene.create
+         data:
+           scene_id: office_light_before_show  # NO "scene." prefix here
+           snapshot_entities:
+             - light.office_main  # Can be any entity: light, climate, cover, etc.
+       # Step 2: Make changes
+       - service: light.turn_on
+         target:
+           entity_id: light.office_main
+         data:
+           effect: random
+           brightness_pct: 100
+       - delay: '00:00:15'
+       # Step 3: Restore previous state (restores ALL original attributes)
+       - service: scene.turn_on
+         target:
+           entity_id: scene.office_light_before_show  # WITH "scene." prefix here
+     ```
+   - CRITICAL: scene_id in scene.create (e.g., "office_light_before_show") must match the scene entity ID (e.g., "scene.office_light_before_show")
+   - If you reference scene.office_light_before_show, you MUST have a scene.create call with scene_id: office_light_before_show
+   - Works for ANY entity: lights, climate, covers, media players, etc. - not specific to any device type
 
 COMMON MISTAKES TO AVOID:
 ❌ WRONG: entity_id: wled (missing domain prefix)
@@ -2506,6 +2347,13 @@ NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix 
    - ✅ "TEST MODE: Alert" or "TEST MODE - Alert"
    - ❌ TEST MODE: Alert (breaks YAML)
 
+7. Jinja2 Templates: MUST be quoted in YAML strings
+   - ✅ data: "{{ states('sensor.temperature') }}"
+   - ✅ data: '{% if old_effect is not none %}{{ old_effect }}{% endif %}'
+   - ❌ data: {% if old_effect is not none %} (breaks YAML - unquoted Jinja2)
+   - ❌ data: {{ states('sensor.temperature') }} (breaks YAML - unquoted template)
+   - Rule: ALL Jinja2 syntax ({{ }}, {% %}) MUST be inside quoted strings
+
 ADVANCED FEATURES (Use for creative implementations):
 - sequence: Multi-step actions
 - choose: Conditional branching
@@ -2548,6 +2396,10 @@ Before generating YAML, verify ALL requirements:
 □ Each action uses "action:" field (NOT "service:")
 □ Service calls use target.entity_id structure
 □ Description quoted if contains colons, or uses dashes instead
+□ ALL Jinja2 templates ({{ }}, {% %}) are properly quoted in YAML strings
+□ If using scene entities (scene.xxx), MUST have scene.create service call BEFORE referencing the scene
+□ Scene ID in scene.create (e.g., "office_light_before_show") must match scene entity ID (e.g., "scene.office_light_before_show")
+□ State restoration pattern (scene.create + scene.turn_on) works for ANY entity type - not device-specific
 □ Includes required fields: id, alias, mode, triggers, actions
 □ YAML syntax valid (2-space indentation, proper quoting)
 □ WLED entities use light domain (not wled domain)
@@ -2564,6 +2416,8 @@ OUTPUT INSTRUCTIONS
 Generate ONLY the YAML content:
 - NO markdown code blocks (no ```yaml or ```)
 - NO explanations or comments outside YAML
+- NO YAML document separators (no ---)
+- SINGLE YAML document only (not multiple documents)
 - USE ONLY validated entity IDs from the list above
 - FOLLOW 2025 format: triggers:/actions: (plural), trigger:/action: (in items)
 - START with "id:" (first line of YAML)
@@ -2594,7 +2448,8 @@ Generate ONLY the YAML content:
                     "Your output is production-ready YAML that passes Home Assistant validation. "
                     "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
                     "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
-                    "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
+                    "You ALWAYS quote Jinja2 templates ({{ }}, {% %}) in YAML strings - unquoted templates break YAML syntax. "
+                    "Return ONLY a SINGLE YAML document starting with 'id:' - NO markdown, NO explanations, NO document separators (---)."
                 ),
                 "user_prompt": prompt
             }
@@ -2647,6 +2502,15 @@ Generate ONLY the YAML content:
                 yaml_content = yaml_content[:-3]  # Remove closing ```
 
             yaml_content = yaml_content.strip()
+            
+            # Remove YAML document separators (---) - we only want a single document
+            if '---' in yaml_content:
+                # Split by --- and take the first non-empty document
+                parts = yaml_content.split('---')
+                yaml_content = parts[0].strip()
+                if not yaml_content and len(parts) > 1:
+                    yaml_content = parts[1].strip()
+                logger.info(f"🧹 Removed YAML document separators (---), using first document ({len(yaml_content)} chars)")
 
             logger.info(f"📥 [YAML_RAW] OpenAI returned {len(yaml_content)} chars (parallel mode)")
 
@@ -2702,11 +2566,12 @@ Generate ONLY the YAML content:
                     {
                         "role": "system",
                         "content": (
-                            "You are a Home Assistant 2025 YAML automation expert. "
-                            "Your output is production-ready YAML that passes Home Assistant validation. "
-                            "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
-                            "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
-                            "Return ONLY valid YAML starting with 'id:' - NO markdown, NO explanations."
+                    "You are a Home Assistant 2025 YAML automation expert. "
+                    "Your output is production-ready YAML that passes Home Assistant validation. "
+                    "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
+                    "You ALWAYS use 2025 format: triggers: (plural), actions: (plural), action: (not service:). "
+                    "You ALWAYS quote Jinja2 templates ({{ }}, {% %}) in YAML strings - unquoted templates break YAML syntax. "
+                    "Return ONLY a SINGLE YAML document starting with 'id:' - NO markdown, NO explanations, NO document separators (---)."
                         )
                     },
                     {
@@ -2759,6 +2624,15 @@ Generate ONLY the YAML content:
             yaml_content = yaml_content[:-3]  # Remove closing ```
 
         yaml_content = yaml_content.strip()
+        
+        # Remove YAML document separators (---) - we only want a single document
+        if '---' in yaml_content:
+            # Split by --- and take the first non-empty document
+            parts = yaml_content.split('---')
+            yaml_content = parts[0].strip()
+            if not yaml_content and len(parts) > 1:
+                yaml_content = parts[1].strip()
+            logger.info(f"🧹 Removed YAML document separators (---), using first document ({len(yaml_content)} chars)")
 
         logger.info(f"🧹 [YAML_CLEANED] After cleanup: {len(yaml_content)} chars")
 
@@ -2830,13 +2704,6 @@ Generate ONLY the YAML content:
         logger.info("=" * 80)
         logger.info(yaml_content)
         logger.info("=" * 80)
-
-        return yaml_content
-
-    except Exception as e:
-        logger.error(f"Failed to generate automation YAML: {e}", exc_info=True)
-        raise
-
 
 async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> str:
     """
@@ -5454,7 +5321,6 @@ async def process_natural_language_query(
                                 # Track auto-resolution metrics (for observability)
                                 try:
                                     from ..database.models import AutoResolutionMetric
-                                    from datetime import datetime
                                     
                                     # Store metrics for each auto-resolved ambiguity
                                     for amb_id, resolution in auto_resolved_answers.items():
@@ -7183,17 +7049,17 @@ async def provide_clarification(
                     ) from e
 
                 # Re-extract entities from enriched query
-                logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 5s - reduced for performance)")
+                logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 60s - allows for OpenAI calls)")
                 try:
                     entities = await asyncio.wait_for(
                         extract_entities_with_ha(enriched_query),
-                        timeout=5.0  # Reduced from 30s for better UX
+                        timeout=60.0  # Increased to 60s to handle OpenAI API calls which can take longer
                     )
                     logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                     if not entities:
                         logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
                 except asyncio.TimeoutError as e:
-                    logger.error("❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
+                    logger.error("❌ Entity extraction timed out after 60 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
                         detail={
@@ -8273,7 +8139,7 @@ async def test_suggestion_from_query(
         logger.debug(f" test_suggestion validated_entities key exists: {'validated_entities' in test_suggestion}")
         logger.debug(f" test_suggestion['validated_entities'] content: {test_suggestion.get('validated_entities')}")
 
-        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, entities, db_session=db, ha_client=ha_client)
+        automation_yaml = await generate_automation_yaml(test_suggestion, query.original_query, openai_client, entities, db_session=db, ha_client=ha_client)
         yaml_gen_time = (time.time() - yaml_gen_start) * 1000
         logger.debug(f"After generate_automation_yaml - validated_entities still exists: {'validated_entities' in test_suggestion}")
         logger.info("Generated test automation YAML")
@@ -8847,7 +8713,7 @@ async def approve_suggestion_from_query(
             suggestion_model_used = suggestion['debug']['token_usage'].get('model')
 
         try:
-            automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, [], db_session=db, ha_client=ha_client)
+            automation_yaml = await generate_automation_yaml(final_suggestion, query.original_query, openai_client, [], db_session=db, ha_client=ha_client)
 
             # Phase 4: Post-YAML entity ID correction - catch and fix entity ID mismatches
             import re
@@ -8979,14 +8845,31 @@ async def approve_suggestion_from_query(
                         logger.info(f"🔍 Found {len(scene_entities_in_yaml)} scene entities in YAML: {', '.join(sorted(scene_entities_in_yaml))}")
                         
                         # Check for scene ID consistency (Phase 5)
+                        referenced_scenes = set(scene_entities_in_yaml)
                         if created_scenes:
-                            referenced_scenes = set(scene_entities_in_yaml)
                             missing_scenes = referenced_scenes - created_scenes
                             if missing_scenes:
-                                logger.warning(f"⚠️ Scene entities referenced but not created: {', '.join(sorted(missing_scenes))}")
+                                # Fail early: scenes referenced but not created via scene.create
+                                error_msg = (
+                                    f"Scene entities referenced but not created via scene.create: {', '.join(sorted(missing_scenes))}. "
+                                    f"All scene entities must be created using the scene.create service before they can be used. "
+                                    f"Example: Use 'service: scene.create' with 'data.scene_id' before referencing the scene entity."
+                                )
+                                logger.error(f"❌ {error_msg}")
+                                raise ValueError(error_msg)
                             unused_scenes = created_scenes - referenced_scenes
                             if unused_scenes:
                                 logger.info(f"ℹ️ Scenes created but not referenced: {', '.join(sorted(unused_scenes))}")
+                        else:
+                            # No scenes created, but scene entities are referenced - this is an error
+                            if referenced_scenes:
+                                error_msg = (
+                                    f"Scene entities referenced but no scene.create service calls found: {', '.join(sorted(referenced_scenes))}. "
+                                    f"All scene entities must be created using the scene.create service before they can be used. "
+                                    f"Example: Use 'service: scene.create' with 'data.scene_id' before referencing the scene entity."
+                                )
+                                logger.error(f"❌ {error_msg}")
+                                raise ValueError(error_msg)
                         
                         # Check if any scene entities are not in created_scenes - these need to exist in HA
                         scenes_not_created = [eid for eid in scene_entities_in_yaml if eid not in created_scenes]
