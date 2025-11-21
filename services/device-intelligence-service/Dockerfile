@@ -1,5 +1,8 @@
 # Multi-stage build for minimal image size
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -13,7 +16,7 @@ COPY services/device-intelligence-service/requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \

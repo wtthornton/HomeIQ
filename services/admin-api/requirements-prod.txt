@@ -1,23 +1,23 @@
 # FastAPI and web framework
-fastapi==0.121.0
-uvicorn[standard]==0.38.0
-pydantic==2.8.2
+fastapi>=0.115.0,<0.116.0
+uvicorn[standard]>=0.32.0,<0.33.0
+pydantic>=2.9.0,<3.0.0
 
 # Authentication and security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.20
+python-jose[cryptography]>=3.3.0,<4.0.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+python-multipart>=0.0.12,<0.1.0
 
 # HTTP client
-aiohttp==3.9.5
-requests==2.32.3
-httpx==0.27.2
+aiohttp>=3.10.0,<4.0.0
+requests>=2.32.0,<3.0.0
+httpx>=0.27.0,<0.28.0
 
 # Environment and configuration
-python-dotenv==1.0.1
+python-dotenv>=1.0.0,<2.0.0
 
 # System monitoring
-psutil==6.0.0
+psutil>=5.9.0,<6.0.0
 
 # Docker management
-docker==6.1.3
+docker>=7.0.0,<8.0.0

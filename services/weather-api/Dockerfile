@@ -5,6 +5,9 @@ FROM python:3.12-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev linux-headers
 

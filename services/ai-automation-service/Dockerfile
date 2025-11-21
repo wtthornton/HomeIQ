@@ -2,9 +2,12 @@
 # Using Debian-slim instead of Alpine for pre-built numpy/scikit-learn wheels
 # (Alpine requires building from source which is complex and time-consuming)
 
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Copy requirements from service directory
 COPY services/ai-automation-service/requirements.txt .
@@ -17,7 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # ============================================================================
 # Final stage
 # ============================================================================
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

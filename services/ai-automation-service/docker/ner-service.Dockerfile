@@ -1,13 +1,15 @@
 # NER Model Service Container
 # Pre-built container with dslim/bert-base-NER model
 
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
 # Install minimal dependencies (CPU-only)
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir --user \
+RUN pip install --no-cache-dir --user \
     --index-url https://download.pytorch.org/whl/cpu \
     torch==2.3.1+cpu \
  && pip install --no-cache-dir --user \
@@ -27,7 +29,7 @@ pipeline("ner", model="dslim/bert-base-NER", cache_dir=str(cache_dir))
 PY
 
 # Final stage keeps runtime lean
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

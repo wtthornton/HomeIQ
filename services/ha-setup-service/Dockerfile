@@ -1,5 +1,8 @@
 # Multi-stage build for production optimization
-FROM python:3.11-alpine AS builder
+FROM python:3.12-alpine AS builder
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev libffi-dev
@@ -11,7 +14,7 @@ COPY services/ha-setup-service/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 # Add non-root user for security
 RUN addgroup -g 1000 appuser && \

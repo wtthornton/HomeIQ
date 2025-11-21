@@ -2,18 +2,20 @@
 # Phase 1: Containerized AI Models
 # Models: all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small (INT8)
 
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Copy requirements first for better caching
 COPY services/openvino-service/requirements.txt .
 
 # Install Python dependencies with CPU-only torch wheels
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

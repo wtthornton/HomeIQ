@@ -1,4 +1,7 @@
-aiohttp==3.13.2
-influxdb-client==1.49.0
-python-dotenv==1.2.1
+# Energy Correlator Service Dependencies
+# Updated to latest stable 2025 versions
+
+aiohttp>=3.10.0,<4.0.0
+influxdb-client>=1.40.0,<2.0.0
+python-dotenv>=1.0.0,<2.0.0
 
