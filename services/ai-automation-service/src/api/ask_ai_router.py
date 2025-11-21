@@ -1261,7 +1261,62 @@ async def map_devices_to_entities(
                 name_type = 'friendly_name' if best_friendly_name else 'device_name'
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score})")
 
-        # Strategy 3: Match by domain name (lowest priority)
+        # Strategy 3: Match by device type/integration (e.g., "WLED", "Hue") - NEW for 2025
+        if not matched_entity_id and fuzzy_match:
+            # Device type aliases mapping (common integration types)
+            device_type_aliases = {
+                'wled': ['wled', 'led', 'leds'],
+                'hue': ['hue', 'philips hue'],
+                'sonoff': ['sonoff', 'tasmota'],
+                'tuya': ['tuya', 'smart life'],
+                'tp-link': ['tp-link', 'kasa', 'tplink']
+            }
+            
+            # Check if device_name matches any device type alias
+            matching_device_types = []
+            for device_type, aliases in device_type_aliases.items():
+                if device_name_lower in aliases or any(alias in device_name_lower for alias in aliases):
+                    matching_device_types.append(device_type)
+            
+            if matching_device_types:
+                # Try to find entities matching this device type in the location context
+                best_match_score = 0
+                best_match_entity_id = None
+                
+                for entity_id, enriched in enriched_data.items():
+                    entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
+                    platform = enriched.get('platform', '').lower() if enriched.get('platform') else ''
+                    integration = enriched.get('integration', '').lower() if enriched.get('integration') else ''
+                    area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
+                    
+                    score = 0
+                    
+                    # Check if entity matches device type (platform, integration, or entity name)
+                    for device_type in matching_device_types:
+                        if device_type in entity_name_part:
+                            score += 3  # Strong match: entity name contains device type
+                        if platform and device_type in platform:
+                            score += 2  # Strong match: platform matches
+                        if integration and device_type in integration:
+                            score += 2  # Strong match: integration matches
+                    
+                    # Location context bonus: prioritize entities in query_location
+                    if query_location:
+                        location_lower = query_location.lower()
+                        if location_lower in area_name or location_lower in entity_name_part:
+                            score += 2  # Strong location match bonus
+                            logger.debug(f"📍 Device type + location match: '{device_name}' ({matching_device_types}) in '{query_location}' → '{entity_id}'")
+                    
+                    if score > best_match_score:
+                        best_match_score = score
+                        best_match_entity_id = entity_id
+                
+                if best_match_entity_id and best_match_score > 0:
+                    matched_entity_id = best_match_entity_id
+                    match_quality = 2 if best_match_score >= 3 else 1  # Quality 2 for strong matches, 1 for weak
+                    logger.info(f"✅ Mapped device '{device_name}' ({matching_device_types}) → entity_id '{matched_entity_id}' (device type match, score: {best_match_score})")
+        
+        # Strategy 4: Match by domain name (lowest priority)
         if not matched_entity_id and fuzzy_match:
             for entity_id, enriched in enriched_data.items():
                 domain = entity_id.split('.')[0].lower() if '.' in entity_id else ''
@@ -1484,9 +1539,11 @@ def _pre_consolidate_device_names(
     if not devices_involved:
         return devices_involved
 
-    # Generic terms to remove (domain names, device types, very short terms)
+    # Generic terms to remove (domain names, very short terms)
+    # NOTE: Removed 'wled', 'hue' - they're specific device integration types users commonly reference
+    # Keep truly generic domain-level terms like 'light', 'switch', etc.
     generic_terms = {'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover',
-                     'fan', 'lock', 'wled', 'hue', 'mqtt', 'zigbee', 'zwave'}
+                     'fan', 'lock', 'mqtt', 'zigbee', 'zwave'}
 
     # Extract user-mentioned terms from clarification context (2025: context-aware filtering)
     user_mentioned_terms = set()
@@ -1503,13 +1560,13 @@ def _pre_consolidate_device_names(
                     user_mentioned_terms.add(device_lower)
                     logger.debug(f"🔍 Preserving '{device}' - mentioned in clarification: '{answer_text[:50]}...'")
         
-        # Also check original query
+        # Also check original query (preserve terms mentioned by user in their original request)
         original_query = clarification_context.get('original_query', '').lower()
         for device in devices_involved:
             device_lower = device.lower()
             if device_lower in original_query:
                 user_mentioned_terms.add(device_lower)
-                logger.debug(f"🔍 Preserving '{device}' - mentioned in original query")
+                logger.debug(f"🔍 Preserving '{device}' - mentioned in original query: '{original_query[:100]}...'")
 
     filtered = []
     removed_terms = []
@@ -3477,6 +3534,10 @@ async def generate_suggestions_from_query(
     if not openai_client:
         raise ValueError("OpenAI client not available - cannot generate suggestions")
 
+    # Track skipped suggestions for better error reporting
+    skipped_suggestions_count = 0
+    skipped_reasons = []
+
     try:
         # Use unified prompt builder for consistent prompt generation
         from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
@@ -4579,17 +4640,34 @@ async def generate_suggestions_from_query(
                                 logger.info(f"🔄 Updated devices_involved with actual device names: {devices_involved} → {updated_devices_involved}")
                                 devices_involved = updated_devices_involved
                         else:
-                            logger.error(f"❌ CRITICAL: devices_involved contains no entity IDs and mapping failed: {devices_involved}")
-                            # validated_entities is still empty at this point - this is a critical error
+                            # CRITICAL ERROR: Entity mapping completely failed - no entity IDs found
+                            # This is a REAL error that should be logged clearly, not hidden by fallback
+                            logger.error(f"❌ CRITICAL: Entity mapping failed for suggestion {i+1}")
+                            logger.error(f"❌ devices_involved: {devices_involved}")
+                            logger.error(f"❌ No entity IDs found in devices_involved")
+                            logger.error(f"❌ enriched_data available: {bool(enriched_data)}")
+                            logger.error(f"❌ enriched_data entity count: {len(enriched_data) if enriched_data else 0}")
+                            # Log what we tried to map (for debugging)
+                            if enriched_data:
+                                sample_entities = list(enriched_data.keys())[:5]
+                                logger.error(f"❌ Sample entities in enriched_data: {sample_entities}")
                             # We cannot proceed without validated_entities, so we'll skip this suggestion
-                            logger.error(f"❌ Skipping suggestion {i+1} - no validated entities found")
+                            # This is an ERROR condition, not an expected fallback
+                            skipped_suggestions_count += 1
+                            skipped_reasons.append(f"Suggestion {i+1}: Entity mapping failed (no validated entities)")
+                            logger.error(f"❌ Skipping suggestion {i+1} - entity mapping failed (no validated entities)")
                             continue  # Skip this suggestion entirely
 
                 # CRITICAL CHECK: Ensure validated_entities is not empty before saving
                 if not validated_entities or len(validated_entities) == 0:
-                    logger.error(f"❌ CRITICAL: validated_entities is empty for suggestion {i+1} - cannot save suggestion without entity mapping")
+                    # CRITICAL ERROR: This should never happen if mapping succeeded above
+                    # If we reach here, something went wrong in the entity ID extraction logic
+                    skipped_suggestions_count += 1
+                    skipped_reasons.append(f"Suggestion {i+1}: validated_entities is empty (validation failed)")
+                    logger.error(f"❌ CRITICAL: validated_entities is empty for suggestion {i+1} - entity mapping validation failed")
                     logger.error(f"❌ devices_involved: {devices_involved}")
-                    logger.error(f"❌ Skipping suggestion {i+1} - no validated entities")
+                    logger.error(f"❌ This indicates a bug in entity mapping logic - mapping should have populated validated_entities")
+                    logger.error(f"❌ Skipping suggestion {i+1} - no validated entities (validation failed)")
                     continue  # Skip this suggestion entirely
 
                 # Ensure devices are consolidated before user display (even if enrichment skipped)
@@ -4632,6 +4710,8 @@ async def generate_suggestions_from_query(
                 # CRITICAL: Ensure validated_entities is not empty before saving
                 # This should never happen if the code above is working correctly
                 if not validated_entities or len(validated_entities) == 0:
+                    skipped_suggestions_count += 1
+                    skipped_reasons.append(f"Suggestion {i+1}: validated_entities is empty before saving")
                     logger.error(f"❌ CRITICAL: Cannot save suggestion {i+1} - validated_entities is empty")
                     logger.error(f"❌ devices_involved: {devices_involved}")
                     logger.error("❌ This indicates a bug in entity mapping - skipping this suggestion")
@@ -4823,6 +4903,21 @@ async def generate_suggestions_from_query(
                 )
 
         logger.info(f"Generated {len(suggestions)} suggestions for query: {query}")
+        
+        # Log skipped suggestions if any
+        if skipped_suggestions_count > 0:
+            logger.warning(f"⚠️ Skipped {skipped_suggestions_count} suggestion(s) due to entity mapping failures:")
+            for reason in skipped_reasons:
+                logger.warning(f"  - {reason}")
+        
+        # If all suggestions were skipped, provide helpful error
+        if len(suggestions) == 0 and skipped_suggestions_count > 0:
+            error_msg = f"All {skipped_suggestions_count} suggestion(s) were skipped due to entity mapping failures. "
+            error_msg += "This usually means the device names in the query don't match available entities. "
+            error_msg += f"Reasons: {', '.join(skipped_reasons[:3])}"  # Show first 3 reasons
+            logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
+        
         return suggestions
 
     except Exception as e:
@@ -6145,6 +6240,17 @@ async def provide_clarification(
                                     "retry_after": 30
                                 }
                             ) from e
+                    elif "entity mapping failures" in error_str.lower() or "skipped" in error_str.lower():
+                        # Entity mapping failure - don't retry, provide helpful error
+                        logger.error(f"❌ Entity mapping failed during suggestion generation: {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "suggestion_generation_failed",
+                                "message": f"Failed to generate suggestions: {str(e)}. This usually means the device names don't match available entities. Please check your device names and try again.",
+                                "session_id": request.session_id
+                            }
+                        ) from e
                     else:
                         # Other ValueError - don't retry
                         logger.error(f"❌ ValueError during suggestion generation: {e}", exc_info=True)
@@ -6623,13 +6729,15 @@ async def provide_clarification(
                     # Validate suggestions were actually generated
                     if not suggestions or len(suggestions) == 0:
                         logger.error("❌ No suggestions generated after ambiguity resolution - suggestions array is empty")
+                        # Check if this was due to entity mapping failures (ValueError from generate_suggestions_from_query)
+                        error_detail = {
+                            "error": "suggestion_generation_failed",
+                            "message": "Failed to generate automation suggestions after clarification. This may be due to a complex query or AI service issue. Please try rephrasing your request or try again later.",
+                            "session_id": request.session_id
+                        }
                         raise HTTPException(
                             status_code=500,
-                            detail={
-                                "error": "suggestion_generation_failed",
-                                "message": "Failed to generate automation suggestions after clarification. This may be due to a complex query or AI service issue. Please try rephrasing your request or try again later.",
-                                "session_id": request.session_id
-                            }
+                            detail=error_detail
                         )
                 except asyncio.TimeoutError as e:
                     logger.error("❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
@@ -6653,6 +6761,17 @@ async def provide_clarification(
                                 "error": "api_error",
                                 "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
                                 "retry_after": 30
+                            }
+                        ) from e
+                    elif "entity mapping failures" in error_str.lower() or "skipped" in error_str.lower():
+                        # Entity mapping failure - provide more helpful error message
+                        logger.error(f"❌ Entity mapping failed during suggestion generation (all-ambiguities-resolved path): {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "suggestion_generation_failed",
+                                "message": f"Failed to generate suggestions: {str(e)}. This usually means the device names don't match available entities. Please check your device names and try again.",
+                                "session_id": request.session_id
                             }
                         ) from e
                     else:

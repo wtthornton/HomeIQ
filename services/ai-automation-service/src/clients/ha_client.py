@@ -811,20 +811,36 @@ class HomeAssistantClient:
                     logger.debug(f"Retrieved state for {entity_id}: {state_data.get('state', 'unknown')}")
                     return state_data
                 elif response.status == 404:
-                    logger.warning(f"Entity {entity_id} not found in HA")
+                    # Expected: Entity doesn't exist in HA - this is not an error
+                    logger.debug(f"Entity {entity_id} not found in HA (404)")
                     return None
+                elif response.status in (401, 403):
+                    # Authentication/authorization error - this is a REAL error
+                    error_msg = f"Authentication failed getting entity state for {entity_id}: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise PermissionError(error_msg)
+                elif response.status >= 500:
+                    # Server error - this is a REAL error
+                    error_msg = f"Home Assistant server error getting entity state for {entity_id}: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise Exception(error_msg)
                 else:
-                    logger.warning(f"Failed to get entity state for {entity_id}: {response.status}")
-                    return None
+                    # Other HTTP errors (e.g., 400, 429) - log and propagate
+                    error_msg = f"Unexpected response getting entity state for {entity_id}: {response.status}"
+                    logger.warning(f"⚠️ {error_msg}")
+                    raise Exception(error_msg)
         except (aiohttp.ClientConnectorError, aiohttp.ClientError, asyncio.TimeoutError) as e:
-            # Connection/network errors - re-raise as ConnectionError for better error handling upstream
-            error_msg = f"Cannot connect to Home Assistant at {self.ha_url}: {e}"
-            logger.error(f"Connection error getting entity state for {entity_id}: {error_msg}")
+            # Connection/network errors - these are REAL errors, don't hide them
+            error_msg = f"Cannot connect to Home Assistant at {self.ha_url} getting entity state for {entity_id}: {e}"
+            logger.error(f"❌ {error_msg}")
             raise ConnectionError(error_msg) from e
+        except (PermissionError, ConnectionError):
+            # Re-raise authentication/connection errors (already logged above)
+            raise
         except Exception as e:
-            # Other errors - log and return None (entity not found)
-            logger.error(f"Error getting entity state for {entity_id}: {e}")
-            return None
+            # Other unexpected errors - log with full traceback and propagate
+            logger.error(f"❌ Unexpected error getting entity state for {entity_id}: {e}", exc_info=True)
+            raise
 
     async def get_entities_by_domain(self, domain: str) -> list[str]:
         """
@@ -1042,6 +1058,13 @@ class HomeAssistantClient:
         The Entity Registry contains the actual entity names as shown in the HA UI.
         This is the source of truth for entity names, not the state API's friendly_name.
         
+        IMPORTANT ERROR HANDLING:
+        - 404: Expected (some HA versions don't expose this endpoint) - returns empty dict
+        - Connection errors: Propagated as ConnectionError (real error, don't hide)
+        - 401/403: Propagated as PermissionError (real error, don't hide)
+        - 500+: Logged as ERROR and propagated (real error, don't hide)
+        - Other exceptions: Logged with full traceback and propagated
+        
         Returns:
             Dictionary mapping entity_id -> entity registry data
             Example: {
@@ -1056,6 +1079,11 @@ class HomeAssistantClient:
                     ...
                 }
             }
+            
+        Raises:
+            ConnectionError: If cannot connect to HA (network/connection issues)
+            PermissionError: If authentication fails (401/403)
+            Exception: Other unexpected errors (500+, etc.)
         """
         try:
             session = await self._get_session()
@@ -1074,14 +1102,37 @@ class HomeAssistantClient:
                     logger.info(f"✅ Retrieved {len(registry_dict)} entities from Entity Registry")
                     return registry_dict
                 elif response.status == 404:
-                    logger.warning("Entity Registry API not available (404)")
+                    # Expected: Some HA versions/configurations don't expose Entity Registry API
+                    # This is NOT an error - it's a feature availability issue
+                    logger.info("ℹ️ Entity Registry API not available (404) - using state-based fallback")
                     return {}
+                elif response.status in (401, 403):
+                    # Authentication/authorization error - this is a REAL error
+                    error_msg = f"Authentication failed for Entity Registry API: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise PermissionError(error_msg)
+                elif response.status >= 500:
+                    # Server error - this is a REAL error
+                    error_msg = f"Home Assistant server error getting Entity Registry: {response.status}"
+                    logger.error(f"❌ {error_msg}")
+                    raise Exception(error_msg)
                 else:
-                    logger.warning(f"Failed to get entity registry: {response.status}")
-                    return {}
+                    # Other HTTP errors (e.g., 400, 429) - log as warning but propagate
+                    error_msg = f"Unexpected response from Entity Registry API: {response.status}"
+                    logger.warning(f"⚠️ {error_msg}")
+                    raise Exception(error_msg)
+        except (aiohttp.ClientConnectorError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Connection/network errors - these are REAL errors, don't hide them
+            error_msg = f"Cannot connect to Home Assistant Entity Registry API at {self.ha_url}: {e}"
+            logger.error(f"❌ {error_msg}")
+            raise ConnectionError(error_msg) from e
+        except (PermissionError, ConnectionError):
+            # Re-raise authentication/connection errors (already logged above)
+            raise
         except Exception as e:
-            logger.error(f"Error getting entity registry: {e}", exc_info=True)
-            return {}
+            # Other unexpected errors - log with full traceback and propagate
+            logger.error(f"❌ Unexpected error getting entity registry: {e}", exc_info=True)
+            raise
 
     async def get_services(self) -> dict[str, dict[str, Any]]:
         """
