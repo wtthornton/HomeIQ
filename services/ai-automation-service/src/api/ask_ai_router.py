@@ -2454,7 +2454,7 @@ Generate ONLY the YAML content:
                 logger.info("✅ Generated valid YAML syntax")
             except yaml_lib.YAMLError as e:
                 logger.error(f"❌ Generated invalid YAML syntax: {e}")
-                raise ValueError(f"Generated YAML syntax is invalid: {e}")
+                raise ValueError(f"Generated YAML syntax is invalid: {e}") from e
 
             # Validate YAML structure and fix service names
             from ..services.yaml_structure_validator import YAMLStructureValidator
@@ -2565,7 +2565,7 @@ Generate ONLY the YAML content:
             logger.info("✅ Generated valid YAML syntax")
         except yaml_lib.YAMLError as e:
             logger.error(f"❌ Generated invalid YAML syntax: {e}")
-            raise ValueError(f"Generated YAML syntax is invalid: {e}")
+            raise ValueError(f"Generated YAML syntax is invalid: {e}") from e
 
         # Validate YAML structure and fix service names (e.g., wled.turn_on → light.turn_on)
         from ..services.yaml_structure_validator import YAMLStructureValidator
@@ -6042,7 +6042,7 @@ async def provide_clarification(
                 logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                 if not entities:
                     logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 logger.error("❌ Entity extraction timed out after 30 seconds")
                 raise HTTPException(
                     status_code=504,
@@ -6051,7 +6051,7 @@ async def provide_clarification(
                         "message": "Entity extraction is taking longer than expected. Please try again.",
                         "retry_after": 30
                     }
-                )
+                ) from e
             except Exception as e:
                 logger.error(f"❌ Failed to extract entities from enriched query: {e}", exc_info=True)
                 raise HTTPException(
@@ -6071,7 +6071,7 @@ async def provide_clarification(
                     timeout=45.0
                 )
                 logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 logger.error("❌ Entity re-enrichment timed out after 45 seconds")
                 raise HTTPException(
                     status_code=504,
@@ -6080,7 +6080,7 @@ async def provide_clarification(
                         "message": "Entity enrichment is taking longer than expected. Please try again.",
                         "retry_after": 30
                     }
-                )
+                ) from e
             except Exception as e:
                 logger.error(f"❌ Failed to re-enrich entities: {e}", exc_info=True)
                 # Don't fail the request - continue with un-enriched entities
@@ -6110,7 +6110,7 @@ async def provide_clarification(
                     logger.info(f"✅ Step 4 complete: Generated {len(suggestions)} suggestions")
                     break  # Success, exit retry loop
 
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as e:
                     if attempt < max_retries - 1:
                         logger.warning(f"⚠️ Attempt {attempt + 1}/{max_retries} timed out, retrying in {retry_delay}s...")
                         await asyncio.sleep(retry_delay)
@@ -6124,7 +6124,7 @@ async def provide_clarification(
                                 "message": "AI suggestion generation is taking longer than expected. This may be due to a complex request. Please try simplifying your query or try again later.",
                                 "retry_after": 60
                             }
-                        )
+                        ) from e
 
                 except ValueError as e:
                     error_str = str(e)
@@ -6144,7 +6144,7 @@ async def provide_clarification(
                                     "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
                                     "retry_after": 30
                                 }
-                            )
+                            ) from e
                     else:
                         # Other ValueError - don't retry
                         logger.error(f"❌ ValueError during suggestion generation: {e}", exc_info=True)
@@ -6560,7 +6560,7 @@ async def provide_clarification(
                     logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
                     if not entities:
                         logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as e:
                     logger.error("❌ Entity extraction timed out after 5 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
@@ -6569,7 +6569,7 @@ async def provide_clarification(
                             "message": "Entity extraction is taking longer than expected. Please try again.",
                             "retry_after": 30
                         }
-                    )
+                    ) from e
                 except Exception as e:
                     logger.error(f"❌ Failed to extract entities (all-ambiguities-resolved path): {e}", exc_info=True)
                     raise HTTPException(
@@ -6589,7 +6589,7 @@ async def provide_clarification(
                         timeout=45.0
                     )
                     logger.info(f"✅ Step 3 complete: Re-enriched entities with Q&A information: {len(entities)} entities")
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as e:
                     logger.error("❌ Entity re-enrichment timed out after 45 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
@@ -6598,7 +6598,7 @@ async def provide_clarification(
                             "message": "Entity enrichment is taking longer than expected. Please try again.",
                             "retry_after": 30
                         }
-                    )
+                    ) from e
                 except Exception as e:
                     logger.error(f"❌ Failed to re-enrich entities (all-ambiguities-resolved path): {e}", exc_info=True)
                     # Don't fail the request - continue with un-enriched entities
@@ -6631,7 +6631,7 @@ async def provide_clarification(
                                 "session_id": request.session_id
                             }
                         )
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as e:
                     logger.error("❌ Suggestion generation timed out after 60 seconds (all-ambiguities-resolved path)")
                     raise HTTPException(
                         status_code=504,
@@ -6640,7 +6640,7 @@ async def provide_clarification(
                             "message": "The request is taking longer than expected. This may be due to a complex query or high system load. Please try again with a simpler request or wait a moment.",
                             "retry_after": 30
                         }
-                    )
+                    ) from e
                 except ValueError as e:
                     error_str = str(e)
                     # Catch all variations of empty content/response errors
@@ -6654,7 +6654,7 @@ async def provide_clarification(
                                 "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
                                 "retry_after": 30
                             }
-                        )
+                        ) from e
                     else:
                         logger.error(f"❌ ValueError during suggestion generation (all-ambiguities-resolved path): {e}", exc_info=True)
                         raise HTTPException(
@@ -6868,14 +6868,14 @@ async def provide_clarification(
                     "message": "AI service temporarily unavailable. This may be due to high demand or a complex request. Please try again in a moment.",
                     "retry_after": 30
                 }
-            )
+            ) from e
         raise HTTPException(
             status_code=500,
             detail={
                 "error": "internal_error",
                 "message": f"Failed to process clarification: {str(e)}"
             }
-        )
+        ) from e
 
 
 @router.post("/query/{query_id}/refine", response_model=QueryRefinementResponse)
