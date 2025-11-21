@@ -212,20 +212,20 @@ def _validate_with_pydantic_schema(yaml_content: str) -> tuple[bool, str | None]
         # Validate against Pydantic schema
         automation_plan = AutomationPlan.model_validate(data)
         
-        logger.debug("✅ Pydantic schema validation passed")
+        logger.debug("[OK] Pydantic schema validation passed")
         return (True, None)
         
     except yaml_lib.YAMLError as e:
         # YAML parsing error - should not happen as syntax validation already passed
-        logger.warning(f"⚠️ YAML parsing error in schema validation (unexpected): {e}")
+        logger.warning(f"[WARNING] YAML parsing error in schema validation (unexpected): {e}")
         return (False, f"YAML parsing error: {e}")
     except PydanticValidationError as e:
         error_messages = [f"{'.'.join(str(loc) for loc in err['loc'])}: {err['msg']}" for err in e.errors()]
         error_msg = "; ".join(error_messages[:3])  # First 3 errors
-        logger.debug(f"⚠️ Pydantic schema validation issues: {error_msg}")
+        logger.debug(f"[WARNING] Pydantic schema validation issues: {error_msg}")
         return (False, error_msg)
     except Exception as e:
-        logger.debug(f"⚠️ Pydantic schema validation error (non-fatal): {e}")
+        logger.debug(f"[WARNING] Pydantic schema validation error (non-fatal): {e}")
         return (False, str(e))
 
 
@@ -491,7 +491,7 @@ async def _validate_generated_yaml(
         - final_yaml: Validated YAML (auto-fixed if available)
         - validation_metadata: Dictionary with validation results
     """
-    logger.info("🔍 Starting comprehensive YAML validation...")
+    logger.info("[VALIDATION] Starting comprehensive YAML validation...")
     
     # Initialize multi-stage validator
     validator = AutomationYAMLValidator(ha_client=ha_client)
@@ -513,7 +513,7 @@ async def _validate_generated_yaml(
     if not validation_result.stages or not validation_result.stages[0].valid:
         syntax_errors = validation_result.stages[0].errors if validation_result.stages else []
         error_msg = syntax_errors[0] if syntax_errors else "Invalid YAML syntax"
-        logger.error(f"❌ YAML syntax validation failed: {error_msg}")
+        logger.error(f"[ERROR] YAML syntax validation failed: {error_msg}")
         raise YAMLGenerationError(f"Generated YAML syntax is invalid: {error_msg}")
     
     # Use fixed YAML if available
@@ -521,7 +521,7 @@ async def _validate_generated_yaml(
     auto_fixed = bool(validation_result.fixed_yaml)
     
     if auto_fixed:
-        logger.info(f"✅ Using auto-fixed YAML (fixes applied from structure validation)")
+        logger.info("[OK] Using auto-fixed YAML (fixes applied from structure validation)")
     
     # Log validation results for each stage
     all_stages_passed = validation_result.all_checks_passed
@@ -529,9 +529,9 @@ async def _validate_generated_yaml(
     
     for stage in validation_result.stages:
         if stage.valid:
-            logger.info(f"✅ Validation stage '{stage.name}' passed")
+            logger.info(f"[OK] Validation stage '{stage.name}' passed")
         else:
-            logger.warning(f"⚠️ Validation stage '{stage.name}' found {len(stage.errors)} errors")
+            logger.warning(f"[WARNING] Validation stage '{stage.name}' found {len(stage.errors)} errors")
             if stage.errors:
                 logger.warning(f"  First error: {stage.errors[0]}")
             if stage.warnings:
@@ -549,9 +549,9 @@ async def _validate_generated_yaml(
     # Optional Pydantic schema validation
     schema_valid, schema_error = _validate_with_pydantic_schema(final_yaml)
     if schema_valid:
-        logger.info("✅ Pydantic schema validation passed")
+        logger.info("[OK] Pydantic schema validation passed")
     else:
-        logger.warning(f"⚠️ Pydantic schema validation issues (non-fatal): {schema_error}")
+        logger.warning(f"[WARNING] Pydantic schema validation issues (non-fatal): {schema_error}")
     
     # Calculate totals once
     total_errors = sum(len(stage['errors']) for stage in stages_metadata)
@@ -570,10 +570,10 @@ async def _validate_generated_yaml(
     }
     
     if all_stages_passed:
-        logger.info("✅ All validation stages passed")
+        logger.info("[OK] All validation stages passed")
     else:
         logger.warning(
-            f"⚠️ Validation found {total_errors} errors and {total_warnings} warnings but continuing "
+            f"[WARNING] Validation found {total_errors} errors and {total_warnings} warnings but continuing "
             f"(will be caught by HA when creating automation)"
         )
     
@@ -646,15 +646,15 @@ async def generate_automation_yaml(
             f"({', '.join(devices_involved[:5])}{'...' if len(devices_involved) > 5 else ''}) "
             f"to actual Home Assistant entities."
         )
-        logger.error(f"❌ {error_msg}")
+        logger.error(f"[ERROR] {error_msg}")
         raise EntityValidationError(error_msg)
 
     # Use enriched_entity_context from suggestion (already computed during creation)
     entity_context_json = suggestion.get('enriched_entity_context', '')
     if entity_context_json:
-        logger.info("✅ Using cached enriched entity context from suggestion")
+        logger.info("[OK] Using cached enriched entity context from suggestion")
     else:
-        logger.warning("⚠️ No enriched_entity_context in suggestion (should be set during creation)")
+        logger.warning("[WARNING] No enriched_entity_context in suggestion (should be set during creation)")
 
     # Build validated entities text for prompt
     if validated_entities:
@@ -974,11 +974,11 @@ NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix 
    - ❌ TEST MODE: Alert (breaks YAML)
 
 7. Jinja2 Templates: MUST be quoted in YAML strings
-   - ✅ data: "{{ states('sensor.temperature') }}"
-   - ✅ data: '{% if old_effect is not none %}{{ old_effect }}{% endif %}'
-   - ❌ data: {% if old_effect is not none %} (breaks YAML - unquoted Jinja2)
-   - ❌ data: {{ states('sensor.temperature') }} (breaks YAML - unquoted template)
-   - Rule: ALL Jinja2 syntax ({{ }}, {% %}) MUST be inside quoted strings
+   - ✅ data: "{{{{ states(\\'sensor.temperature\\') }}}}"
+   - ✅ data: '{{% if old_effect is not none %}}{{{{ old_effect }}}}{{% endif %}}'
+   - ❌ data: {{% if old_effect is not none %}} (breaks YAML - unquoted Jinja2)
+   - ❌ data: {{{{ states(\\'sensor.temperature\\') }}}} (breaks YAML - unquoted template)
+   - Rule: ALL Jinja2 syntax (double braces and percent braces) MUST be inside quoted strings
 
 ADVANCED FEATURES (Use for creative implementations):
 - sequence: Multi-step actions
@@ -1259,28 +1259,28 @@ Generate ONLY the YAML content:
             # Note: Entity validation is already done in the pipeline, but HA API provides additional checks
             if ha_client:
                 try:
-                    logger.info("🔍 Validating YAML with Home Assistant API...")
+                    logger.info("[VALIDATION] Validating YAML with Home Assistant API...")
                     ha_validation = await ha_client.validate_automation(final_yaml)
 
                     if not ha_validation.get('valid', False):
                         error_msg = ha_validation.get('error', 'Unknown validation error')
                         warnings = ha_validation.get('warnings', [])
 
-                        logger.warning(f"⚠️ HA API validation issues: {error_msg}")
+                        logger.warning(f"[WARNING] HA API validation issues: {error_msg}")
                         if warnings:
-                            logger.warning(f"⚠️ HA API validation warnings: {', '.join(warnings[:3])}")
+                            logger.warning(f"[WARNING] HA API validation warnings: {', '.join(warnings[:3])}")
 
                         # Don't fail here - let the create_automation endpoint handle it
                         # This gives better error messages to the user
                     else:
-                        logger.info(f"✅ HA API validation passed ({ha_validation.get('entity_count', 0)} entities validated)")
+                        logger.info(f"[OK] HA API validation passed ({ha_validation.get('entity_count', 0)} entities validated)")
                 except Exception as e:
-                    logger.warning(f"⚠️ Could not validate with HA API (non-fatal): {e}")
+                    logger.warning(f"[WARNING] Could not validate with HA API (non-fatal): {e}")
                     # Continue - HA API validation is best-effort, not required
 
             # Debug: Print the final YAML content
             logger.info("=" * 80)
-            logger.info("📋 FINAL HA AUTOMATION YAML")
+            logger.info("[YAML] FINAL HA AUTOMATION YAML")
             logger.info("=" * 80)
             logger.info(final_yaml)
             logger.info("=" * 80)
