@@ -39,8 +39,8 @@ from ..llm.openai_client import OpenAIClient
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 from ..services.safety_validator import SafetyValidator
 
-# Import YAML generation from ask_ai_router
-from .ask_ai_router import generate_automation_yaml
+# Import YAML generation from service
+from ..services.automation.yaml_generation_service import generate_automation_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -885,9 +885,12 @@ async def approve_suggestion(
 
         # Step 4: Generate YAML using unified method (same as Ask-AI page)
         logger.info("🚀 Using unified YAML generation with entity validation...")
+        if not openai_client:
+            raise HTTPException(status_code=500, detail="OpenAI API not configured")
         automation_yaml = await generate_automation_yaml(
             suggestion=suggestion_dict,
             original_query=description_to_use,
+            openai_client=openai_client,
             entities=entities if entities else None,
             db_session=db
         )
@@ -1353,9 +1356,12 @@ async def generate_yaml_expert_mode(
 
         # Step 5: Generate YAML using unified generator
         logger.info("🚀 Calling unified YAML generator...")
+        if not openai_client:
+            raise HTTPException(status_code=500, detail="OpenAI API not configured")
         automation_yaml = await generate_automation_yaml(
             suggestion=suggestion_dict,
             original_query=description_to_use,
+            openai_client=openai_client,
             entities=entities if entities else None,
             db_session=db
         )

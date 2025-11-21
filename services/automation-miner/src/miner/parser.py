@@ -546,6 +546,22 @@ class AutomationParser:
             post_data.get('updated_at', created_at.isoformat()).replace('Z', '+00:00')
         )
 
+        # Build metadata dictionary
+        metadata = {
+            'tags': post_data.get('tags', []),
+            'views': post_data.get('views', 0),
+            'author': post_data.get('author', ''),
+            'has_yaml': parsed.has_yaml
+        }
+
+        # Include blueprint metadata if this is a blueprint
+        if parsed.parsed_data and isinstance(parsed.parsed_data, dict):
+            if '_blueprint_metadata' in parsed.parsed_data:
+                metadata['_blueprint_metadata'] = parsed.parsed_data['_blueprint_metadata']
+                metadata['_blueprint_variables'] = parsed.parsed_data.get('_blueprint_variables', {})
+                metadata['_blueprint_devices'] = parsed.parsed_data.get('_blueprint_devices', [])
+                logger.debug(f"Including blueprint metadata for: {title}")
+
         return AutomationMetadata(
             title=title,
             description=description[:2000],  # Limit length
@@ -562,11 +578,6 @@ class AutomationParser:
             source_id=str(post_data.get('id', '')),
             created_at=created_at,
             updated_at=updated_at,
-            metadata={
-                'tags': post_data.get('tags', []),
-                'views': post_data.get('views', 0),
-                'author': post_data.get('author', ''),
-                'has_yaml': parsed.has_yaml
-            }
+            metadata=metadata
         )
 

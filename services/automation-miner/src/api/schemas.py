@@ -101,6 +101,7 @@ class StatsResponse(BaseModel):
     integrations: list[str]
     by_use_case: dict[str, int]
     by_complexity: dict[str, int]
+    blueprint_count: int = 0
     last_crawl_time: str | None = None
 
     class Config:

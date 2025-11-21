@@ -1,0 +1,66 @@
+{
+  "query_id": "query-1179847a",
+  "original_query": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
+  "parsed_intent": "general",
+  "extracted_entities": [
+    {
+      "name": "light",
+      "type": "device",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "openai"
+    },
+    {
+      "name": "wled",
+      "type": "device",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "openai"
+    }
+  ],
+  "suggestions": [],
+  "confidence": 0.5192007317012258,
+  "processing_time_ms": 13201,
+  "created_at": "2025-11-21T09:46:32.101123",
+  "clarification_needed": true,
+  "clarification_session_id": "clarify-bc985804",
+  "questions": [
+    {
+      "id": "q1",
+      "category": "device",
+      "question_text": "Which device should this WLED effect automation control? I don\u2019t see a clearly named WLED light in your devices list. Is it one of these, or a different light entity that isn\u2019t shown here?",
+      "question_type": "multiple_choice",
+      "options": [
+        "Office Front Left",
+        "Porch",
+        "Garage",
+        "It\u2019s a different light entity (I\u2019ll provide the exact entity_id, e.g. light.office_wled)"
+      ],
+      "priority": 1,
+      "related_entities": [
+        "light.office_front_left",
+        "light.porch",
+        "light.garage"
+      ],
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    },
+    {
+      "id": "q2",
+      "category": "action",
+      "question_text": "When you say brightness to 100%, do you want the automation to always force the WLED brightness to 100% during the 15-second effect, even if it was dimmer before, and then restore the original brightness afterward?",
+      "question_type": "multiple_choice",
+      "options": [
+        "Yes, always set to 100% during the effect, then restore the previous brightness",
+        "No, keep the current brightness and only randomize the effect and colors"
+      ],
+      "priority": 2,
+      "related_entities": [],
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    }
+  ],
+  "message": "I found some ambiguities in your request. I detected these devices: light, wled. Please answer 2 question(s) to help me create the automation accurately."
+}

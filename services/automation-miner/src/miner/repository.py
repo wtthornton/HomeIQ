@@ -4,6 +4,7 @@ Corpus Repository
 Handles all database operations for the automation corpus.
 Uses SQLAlchemy async session management (Context7 pattern).
 """
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -258,6 +259,79 @@ class CorpusRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def search_blueprints(
+        self,
+        filters: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Search for blueprints specifically (automations with blueprint metadata)
+        
+        Args:
+            filters: Optional dictionary with keys:
+                - device: Filter by device type
+                - integration: Filter by integration
+                - use_case: Filter by use case
+                - min_quality: Minimum quality score
+                - limit: Maximum results
+        
+        Returns:
+            List of automation dictionaries that are blueprints
+        """
+        # Build base query
+        stmt = select(CommunityAutomation)
+        
+        # Filter for blueprints: must have _blueprint_metadata in extra_metadata
+        # SQLite doesn't have native JSON support in SQLAlchemy, so we'll filter in Python
+        # Get all automations first, then filter for blueprints
+        all_automations = await self.get_all(
+            source=filters.get('source') if filters else None,
+            min_quality=filters.get('min_quality', 0.0) if filters else 0.0
+        )
+        
+        # Filter for blueprints and apply other filters
+        blueprints = []
+        for automation in all_automations:
+            # Check if it's a blueprint
+            if not automation.extra_metadata:
+                continue
+                
+            try:
+                metadata = automation.extra_metadata
+                if isinstance(metadata, str):
+                    metadata = json.loads(metadata)
+                
+                if not isinstance(metadata, dict) or '_blueprint_metadata' not in metadata:
+                    continue
+            except (json.JSONDecodeError, TypeError):
+                continue
+            
+            # Apply device filter
+            if filters and filters.get('device'):
+                device = filters['device']
+                if device not in (automation.devices or []):
+                    continue
+            
+            # Apply integration filter
+            if filters and filters.get('integration'):
+                integration = filters['integration']
+                if integration not in (automation.integrations or []):
+                    continue
+            
+            # Apply use case filter
+            if filters and filters.get('use_case'):
+                use_case = filters['use_case']
+                if automation.use_case != use_case:
+                    continue
+            
+            blueprints.append(self._to_dict(automation))
+        
+        # Sort by quality descending
+        blueprints.sort(key=lambda x: x.get('quality_score', 0), reverse=True)
+        
+        # Apply limit
+        limit = filters.get('limit', 50) if filters else 50
+        return blueprints[:limit]
+
     async def get_stats(self) -> dict[str, Any]:
         """
         Get corpus statistics
@@ -315,6 +389,20 @@ class CorpusRepository:
             if integrations:
                 unique_integrations.update(integrations)
 
+        # Count blueprints (automations with _blueprint_metadata)
+        blueprint_count = 0
+        all_automations_stmt = select(CommunityAutomation.extra_metadata)
+        all_metadata_result = await self.session.execute(all_automations_stmt)
+        for metadata_row in all_metadata_result.all():
+            metadata = metadata_row[0]
+            if metadata:
+                try:
+                    metadata_dict = metadata if isinstance(metadata, dict) else json.loads(metadata)
+                    if isinstance(metadata_dict, dict) and '_blueprint_metadata' in metadata_dict:
+                        blueprint_count += 1
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
         return {
             'total': total,
             'avg_quality': round(avg_quality, 3),
@@ -324,6 +412,7 @@ class CorpusRepository:
             'integrations': sorted(list(unique_integrations)),
             'by_use_case': by_use_case,
             'by_complexity': by_complexity,
+            'blueprint_count': blueprint_count,
             'last_crawl_time': last_crawl_time.isoformat() if last_crawl_time else None
         }
 

@@ -274,6 +274,9 @@ class EntityIDValidator:
                 return str(eid) if eid is not None else None
             # Remove trailing commas and whitespace
             cleaned = eid.rstrip(', ').strip()
+            # Filter out Jinja2 template variables ({{ ... }}, {% ... %})
+            if cleaned and ('{{' in cleaned or '{%' in cleaned):
+                return None  # Skip Jinja2 template variables - they're not entity IDs
             return cleaned if cleaned else None
 
         # Check triggers
