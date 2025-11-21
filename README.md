@@ -429,6 +429,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **feat(validation): add comprehensive validation command** (November 21, 2025)
 - **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (November 21, 2025)
 - **Fix ASK AI clarification flow: resolve NameError and location expansion** (November 21, 2025)
 - **Fix ASK AI clarification flow: resolve NameError and location expansion** (November 21, 2025)
