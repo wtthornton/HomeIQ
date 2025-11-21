@@ -137,7 +137,7 @@ async def detect_time_of_day_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Pattern detection failed: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/detect/co-occurrence")
@@ -260,7 +260,7 @@ async def detect_co_occurrence_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Co-occurrence detection failed: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/list")
@@ -317,7 +317,7 @@ async def list_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list patterns: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/stats")
@@ -339,7 +339,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get pattern stats: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/{pattern_id}/history")
@@ -382,7 +382,7 @@ async def get_pattern_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get pattern history: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/{pattern_id}/trend")
@@ -414,7 +414,7 @@ async def get_pattern_trend(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get pattern trend: {str(e)}"
-        )
+        ) from e
 
 
 @router.delete("/cleanup")
@@ -443,7 +443,7 @@ async def cleanup_old_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cleanup patterns: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/incremental-update")
@@ -527,7 +527,7 @@ async def incremental_pattern_update(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Incremental update failed: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/quality-metrics")
@@ -699,7 +699,7 @@ async def get_quality_metrics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get quality metrics: {str(e)}"
-        )
+        ) from e
 
 
 @router.on_event("shutdown")
