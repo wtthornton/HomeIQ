@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+import yaml
+
 from ...clients.ha_client import HomeAssistantClient
 from ...services.yaml_structure_validator import YAMLStructureValidator
 
@@ -32,6 +34,7 @@ class ValidationPipelineResult:
     valid: bool
     stages: list[ValidationStage]
     all_checks_passed: bool
+    fixed_yaml: str | None = None
 
 
 class AutomationYAMLValidator:
@@ -86,38 +89,44 @@ class AutomationYAMLValidator:
             return ValidationPipelineResult(
                 valid=False,
                 stages=stages,
-                all_checks_passed=False
+                all_checks_passed=False,
+                fixed_yaml=None
             )
 
         # Stage 2: Structure validation
-        structure_result = await self._validate_structure(yaml_content)
+        structure_result, fixed_yaml = await self._validate_structure(yaml_content)
         stages.append(structure_result)
+
+        # Use fixed YAML if available for subsequent stages
+        yaml_content_to_validate = fixed_yaml if fixed_yaml else yaml_content
 
         if not structure_result.valid:
             return ValidationPipelineResult(
                 valid=False,
                 stages=stages,
-                all_checks_passed=False
+                all_checks_passed=False,
+                fixed_yaml=fixed_yaml
             )
 
         # Stage 3: Entity existence (if HA client available)
         if self.ha_client:
-            entity_result = await self._validate_entities(yaml_content, context)
+            entity_result = await self._validate_entities(yaml_content_to_validate, context)
             stages.append(entity_result)
 
             if not entity_result.valid:
                 return ValidationPipelineResult(
                     valid=False,
                     stages=stages,
-                    all_checks_passed=False
+                    all_checks_passed=False,
+                    fixed_yaml=fixed_yaml
                 )
 
         # Stage 4: Logic validation
-        logic_result = await self._validate_logic(yaml_content)
+        logic_result = await self._validate_logic(yaml_content_to_validate)
         stages.append(logic_result)
 
         # Stage 5: Safety checks
-        safety_result = await self._validate_safety(yaml_content)
+        safety_result = await self._validate_safety(yaml_content_to_validate)
         stages.append(safety_result)
 
         all_passed = all(stage.valid for stage in stages)
@@ -125,13 +134,12 @@ class AutomationYAMLValidator:
         return ValidationPipelineResult(
             valid=all_passed,
             stages=stages,
-            all_checks_passed=all_passed
+            all_checks_passed=all_passed,
+            fixed_yaml=fixed_yaml
         )
 
     async def _validate_syntax(self, yaml_content: str) -> ValidationStage:
         """Stage 1: Validate YAML syntax"""
-        import yaml
-
         try:
             yaml.safe_load(yaml_content)
             return ValidationStage(
@@ -148,22 +156,31 @@ class AutomationYAMLValidator:
                 warnings=[]
             )
 
-    async def _validate_structure(self, yaml_content: str) -> ValidationStage:
-        """Stage 2: Validate HA automation structure"""
+    async def _validate_structure(self, yaml_content: str) -> tuple[ValidationStage, str | None]:
+        """
+        Stage 2: Validate HA automation structure
+        
+        Note: Structure validator is synchronous, but we keep this async for consistency
+        with the validation pipeline pattern.
+        
+        Returns:
+            Tuple of (ValidationStage, fixed_yaml) where fixed_yaml is the auto-fixed YAML if available
+        """
+        # Structure validator is sync, but we keep method async for pipeline consistency
         result = self.structure_validator.validate(yaml_content)
 
-        return ValidationStage(
-            name="structure",
-            valid=result.is_valid,
-            errors=result.errors,
-            warnings=result.warnings
+        return (
+            ValidationStage(
+                name="structure",
+                valid=result.is_valid,
+                errors=result.errors,
+                warnings=result.warnings
+            ),
+            result.fixed_yaml
         )
 
     async def _validate_entities(self, yaml_content: str, context: dict | None) -> ValidationStage:
         """Stage 3: Validate entities exist in HA"""
-
-        import yaml
-
         errors = []
         warnings = []
 
@@ -200,12 +217,18 @@ class AutomationYAMLValidator:
                     if isinstance(action, dict):
                         # Check target.entity_id
                         if 'target' in action and isinstance(action['target'], dict):
-                            if 'entity_id' in action['target']:
-                                entity_id = action['target']['entity_id']
-                                if isinstance(entity_id, str):
-                                    entity_ids.add(entity_id)
-                                elif isinstance(entity_id, list):
-                                    entity_ids.update(entity_id)
+                            target_entity_id = action['target'].get('entity_id')
+                            if isinstance(target_entity_id, str):
+                                entity_ids.add(target_entity_id)
+                            elif isinstance(target_entity_id, list):
+                                entity_ids.update(target_entity_id)
+                        # Also check direct entity_id in action (some actions may have this)
+                        if 'entity_id' in action:
+                            entity_id = action['entity_id']
+                            if isinstance(entity_id, str):
+                                entity_ids.add(entity_id)
+                            elif isinstance(entity_id, list):
+                                entity_ids.update(entity_id)
 
             # Validate entities exist (if HA client available)
             if entity_ids and self.ha_client:
