@@ -29,7 +29,7 @@ def test_environment_health_includes_check_details() -> None:
             "check_details": {"broker": "mqtt.local", "port": 1883},
             "last_check": datetime.now(timezone.utc),
             "extra_field": "ignored",
-        }
+        },
     ]
     mock_performance = {
         "response_time_ms": 12.5,

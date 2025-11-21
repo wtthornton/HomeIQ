@@ -44,45 +44,45 @@ class ErrorHandler:
     def categorize_error(self, error: Exception) -> tuple[ErrorCategory, ErrorSeverity]:
         """
         Categorize an error and determine its severity
-        
+
         Args:
             error: The exception to categorize
-            
+
         Returns:
             Tuple of (category, severity)
         """
         error_str = str(error).lower()
-        error_type = type(error).__name__.lower()
+        type(error).__name__.lower()
 
         # Network errors
-        if any(keyword in error_str for keyword in ['connection', 'network', 'unreachable', 'timeout', 'refused']):
-            if 'timeout' in error_str:
+        if any(keyword in error_str for keyword in ["connection", "network", "unreachable", "timeout", "refused"]):
+            if "timeout" in error_str:
                 return ErrorCategory.TIMEOUT, ErrorSeverity.MEDIUM
             return ErrorCategory.NETWORK, ErrorSeverity.HIGH
 
         # Authentication errors
-        if any(keyword in error_str for keyword in ['auth', 'token', 'unauthorized', 'forbidden', 'invalid']):
+        if any(keyword in error_str for keyword in ["auth", "token", "unauthorized", "forbidden", "invalid"]):
             return ErrorCategory.AUTHENTICATION, ErrorSeverity.CRITICAL
 
         # WebSocket specific errors
-        if any(keyword in error_str for keyword in ['websocket', 'ws', 'protocol', 'handshake']):
+        if any(keyword in error_str for keyword in ["websocket", "ws", "protocol", "handshake"]):
             return ErrorCategory.WEBSOCKET, ErrorSeverity.HIGH
 
         # Subscription errors
-        if any(keyword in error_str for keyword in ['subscription', 'subscribe', 'event']):
+        if any(keyword in error_str for keyword in ["subscription", "subscribe", "event"]):
             return ErrorCategory.SUBSCRIPTION, ErrorSeverity.MEDIUM
 
         # Default categorization
         return ErrorCategory.UNKNOWN, ErrorSeverity.LOW
 
-    def log_error(self, error: Exception, context: dict[str, Any] = None) -> dict[str, Any]:
+    def log_error(self, error: Exception, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Log an error with categorization and context
-        
+
         Args:
             error: The exception to log
             context: Additional context information
-            
+
         Returns:
             Dictionary with error information
         """
@@ -96,7 +96,7 @@ class ErrorHandler:
             "severity": severity.value,
             "error_type": type(error).__name__,
             "error_message": str(error),
-            "context": context or {}
+            "context": context or {},
         }
 
         # Update error counts
@@ -113,7 +113,7 @@ class ErrorHandler:
         self._clean_old_errors()
 
         # Log based on severity
-        log_message = f"[{category.value.upper()}] {type(error).__name__}: {str(error)}"
+        log_message = f"[{category.value.upper()}] {type(error).__name__}: {error!s}"
         if context:
             log_message += f" | Context: {context}"
 
@@ -136,7 +136,7 @@ class ErrorHandler:
     def get_error_rate(self) -> float:
         """
         Get current error rate (errors per minute)
-        
+
         Returns:
             Error rate in errors per minute
         """
@@ -146,7 +146,7 @@ class ErrorHandler:
     def get_error_statistics(self) -> dict[str, Any]:
         """
         Get comprehensive error statistics
-        
+
         Returns:
             Dictionary with error statistics
         """
@@ -161,16 +161,16 @@ class ErrorHandler:
             "last_error_time": self.last_error_time.isoformat() if self.last_error_time else None,
             "recent_errors_count": len(self.recent_errors),
             "error_history_size": len(self.error_history),
-            "most_common_category": max(self.error_counts.items(), key=lambda x: x[1])[0].value if total_errors > 0 else None
+            "most_common_category": max(self.error_counts.items(), key=lambda x: x[1])[0].value if total_errors > 0 else None,
         }
 
     def get_recent_errors(self, limit: int = 10) -> list:
         """
         Get recent error records
-        
+
         Args:
             limit: Maximum number of errors to return
-            
+
         Returns:
             List of recent error records
         """
@@ -187,10 +187,10 @@ class ErrorHandler:
     def should_alert(self, threshold_rate: float = 5.0) -> bool:
         """
         Check if error rate exceeds alert threshold
-        
+
         Args:
             threshold_rate: Error rate threshold (errors per minute)
-            
+
         Returns:
             True if alert should be triggered
         """

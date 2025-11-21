@@ -75,7 +75,7 @@ def get_device_service(session: AsyncSession = Depends(get_db_session)) -> Devic
 @router.get("/devices", response_model=DevicesListResponse, summary="Get all devices")
 async def get_devices(
     limit: int = 100,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get all devices with optional limit - compatible with data-api format."""
     try:
@@ -89,7 +89,7 @@ async def get_devices(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
             )
             for device in devices
         ]
@@ -97,16 +97,16 @@ async def get_devices(
         return DevicesListResponse(
             devices=device_responses,
             count=len(device_responses),
-            limit=limit
+            limit=limit,
         )
     except Exception as e:
-        logger.error(f"Error retrieving devices: {e}")
+        logger.exception(f"Error retrieving devices: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/devices/{device_id}/capabilities", response_model=list[DeviceCapabilityResponse], summary="Get device capabilities")
 async def get_device_capabilities(
     device_id: str,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get capabilities for a specific device."""
     try:
@@ -120,19 +120,19 @@ async def get_device_capabilities(
                 exposed=cap.exposed,
                 configured=cap.configured,
                 source=cap.source,
-                last_updated=cap.last_updated
+                last_updated=cap.last_updated,
             )
             for cap in capabilities
         ]
     except Exception as e:
-        logger.error(f"Error retrieving capabilities for device {device_id}: {e}")
+        logger.exception(f"Error retrieving capabilities for device {device_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/devices/{device_id}/health", response_model=list[DeviceHealthResponse], summary="Get device health metrics")
 async def get_device_health(
     device_id: str,
     limit: int = 100,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get health metrics for a specific device."""
     try:
@@ -144,18 +144,18 @@ async def get_device_health(
                 metric_value=metric.metric_value,
                 metric_unit=metric.metric_unit,
                 metadata_json=metric.metadata_json,
-                timestamp=metric.timestamp
+                timestamp=metric.timestamp,
             )
             for metric in metrics
         ]
     except Exception as e:
-        logger.error(f"Error retrieving health metrics for device {device_id}: {e}")
+        logger.exception(f"Error retrieving health metrics for device {device_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse, summary="Get device by ID")
 async def get_device(
     device_id: str,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get specific device by ID - compatible with data-api format."""
     try:
@@ -171,18 +171,18 @@ async def get_device(
             sw_version=None,  # Not available in Device Intelligence Service yet
             area_id=device.area_id,
             entity_count=0,  # Not available in Device Intelligence Service yet
-            timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+            timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving device {device_id}: {e}")
+        logger.exception(f"Error retrieving device {device_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/devices/area/{area_id}", response_model=list[DeviceResponse], summary="Get devices by area")
 async def get_devices_by_area(
     area_id: str,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get all devices in a specific area - compatible with data-api format."""
     try:
@@ -196,18 +196,18 @@ async def get_devices_by_area(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
             )
             for device in devices
         ]
     except Exception as e:
-        logger.error(f"Error retrieving devices for area {area_id}: {e}")
+        logger.exception(f"Error retrieving devices for area {area_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/devices/integration/{integration}", response_model=list[DeviceResponse], summary="Get devices by integration")
 async def get_devices_by_integration(
     integration: str,
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get all devices for a specific integration - compatible with data-api format."""
     try:
@@ -221,32 +221,32 @@ async def get_devices_by_integration(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
             )
             for device in devices
         ]
     except Exception as e:
-        logger.error(f"Error retrieving devices for integration {integration}: {e}")
+        logger.exception(f"Error retrieving devices for integration {integration}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Statistics Endpoints
 @router.get("/stats", response_model=DeviceStatsResponse, summary="Get device statistics")
 async def get_device_stats(
-    device_service: DeviceService = Depends(get_device_service)
+    device_service: DeviceService = Depends(get_device_service),
 ):
     """Get device statistics and analytics."""
     try:
         stats = await device_service.get_device_stats()
         return DeviceStatsResponse(**stats)
     except Exception as e:
-        logger.error(f"Error retrieving device statistics: {e}")
+        logger.exception(f"Error retrieving device statistics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Cache Management Endpoints
 @router.post("/cache/invalidate/{device_id}", summary="Invalidate device cache")
 async def invalidate_device_cache(
     device_id: str,
-    cache: DeviceCache = Depends(get_device_cache)
+    cache: DeviceCache = Depends(get_device_cache),
 ):
     """Invalidate cache for a specific device."""
     await cache.invalidate_device(device_id)
@@ -254,7 +254,7 @@ async def invalidate_device_cache(
 
 @router.post("/cache/invalidate-all", summary="Invalidate all caches")
 async def invalidate_all_caches(
-    cache: DeviceCache = Depends(get_device_cache)
+    cache: DeviceCache = Depends(get_device_cache),
 ):
     """Invalidate all device caches."""
     await cache.invalidate_all_device_cache()

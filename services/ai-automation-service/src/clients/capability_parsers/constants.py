@@ -55,10 +55,10 @@ class FanEntityFeature:
 
 # Mapping domain to its feature constants
 DOMAIN_CONSTANTS: dict[str, Any] = {
-    'light': LightEntityFeature,
-    'climate': ClimateEntityFeature,
-    'cover': CoverEntityFeature,
-    'fan': FanEntityFeature,
+    "light": LightEntityFeature,
+    "climate": ClimateEntityFeature,
+    "cover": CoverEntityFeature,
+    "fan": FanEntityFeature,
 }
 
 

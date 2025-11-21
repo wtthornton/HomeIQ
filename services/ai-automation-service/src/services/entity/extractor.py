@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class EntityExtractor:
     """
     Unified entity extractor that consolidates all extraction methods.
-    
+
     Uses multi-model approach with fallbacks:
     1. MultiModelEntityExtractor (primary - NER + OpenAI)
     2. EnhancedEntityExtractor (fallback)
@@ -35,11 +35,11 @@ class EntityExtractor:
         device_intelligence_client: DeviceIntelligenceClient | None = None,
         openai_api_key: str | None = None,
         ner_model: str | None = None,
-        openai_model: str | None = None
+        openai_model: str | None = None,
     ):
         """
         Initialize unified entity extractor.
-        
+
         Args:
             device_intelligence_client: Optional device intelligence client
             openai_api_key: OpenAI API key (defaults to settings)
@@ -66,7 +66,7 @@ class EntityExtractor:
                 openai_api_key=self.openai_api_key,
                 device_intelligence_client=self.device_intelligence_client,
                 ner_model=self.ner_model,
-                openai_model=self.openai_model
+                openai_model=self.openai_model,
             )
         return self._multi_model_extractor
 
@@ -75,7 +75,7 @@ class EntityExtractor:
         if self._enhanced_extractor is None and self.device_intelligence_client:
             try:
                 self._enhanced_extractor = EnhancedEntityExtractor(
-                    self.device_intelligence_client
+                    self.device_intelligence_client,
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize EnhancedEntityExtractor: {e}")
@@ -84,15 +84,15 @@ class EntityExtractor:
     async def extract(
         self,
         query: str,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Extract entities from natural language query.
-        
+
         Args:
             query: Natural language query string
             context: Optional context (conversation history, etc.)
-        
+
         Returns:
             List of extracted entities with metadata
         """

@@ -16,21 +16,21 @@ class TestConfiguration:
     def test_missing_influxdb_token(self):
         """GIVEN: No INFLUXDB_TOKEN | WHEN: Initialize | THEN: Raise ValueError"""
         from src.main import SmartMeterService
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': ''}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True):
             with pytest.raises(ValueError, match="INFLUXDB_TOKEN required"):
                 SmartMeterService()
 
     def test_default_meter_type(self):
         """GIVEN: No METER_TYPE | WHEN: Initialize | THEN: Default to 'home_assistant'"""
         from src.main import SmartMeterService
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = SmartMeterService()
-            assert service.meter_type == 'home_assistant'
+            assert service.meter_type == "home_assistant"
 
     def test_fetch_interval_default(self):
         """GIVEN: Service | WHEN: Check interval | THEN: Should be 300 seconds"""
         from src.main import SmartMeterService
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = SmartMeterService()
             assert service.fetch_interval == 300
 
@@ -48,8 +48,8 @@ class TestDataFetching:
         data = await service_instance.fetch_consumption()
 
         assert data is not None
-        assert data['total_power_w'] == 2450.0
-        assert 'timestamp' in data
+        assert data["total_power_w"] == 2450.0
+        assert "timestamp" in data
 
     @pytest.mark.asyncio
     async def test_fetch_updates_cache(self, service_instance, sample_meter_data, mock_ha_adapter):
@@ -67,13 +67,13 @@ class TestDataFetching:
     async def test_fetch_calculates_percentages(self, service_instance, mock_ha_adapter):
         """GIVEN: Data without percentages | WHEN: Fetch | THEN: Calculate percentages"""
         data_no_pct = {
-            'total_power_w': 1000.0,
-            'daily_kwh': 10.0,
-            'circuits': [
-                {'name': 'Circuit1', 'power_w': 600.0},
-                {'name': 'Circuit2', 'power_w': 400.0},
+            "total_power_w": 1000.0,
+            "daily_kwh": 10.0,
+            "circuits": [
+                {"name": "Circuit1", "power_w": 600.0},
+                {"name": "Circuit2", "power_w": 400.0},
             ],
-            'timestamp': datetime.now()
+            "timestamp": datetime.now(),
         }
         mock_ha_adapter.fetch_consumption.return_value = data_no_pct
         service_instance.adapter = mock_ha_adapter
@@ -81,8 +81,8 @@ class TestDataFetching:
 
         data = await service_instance.fetch_consumption()
 
-        assert data['circuits'][0]['percentage'] == 60.0
-        assert data['circuits'][1]['percentage'] == 40.0
+        assert data["circuits"][0]["percentage"] == 60.0
+        assert data["circuits"][1]["percentage"] == 40.0
 
     @pytest.mark.asyncio
     async def test_fetch_error_returns_cached(self, service_instance, sample_meter_data, mock_ha_adapter):
@@ -105,8 +105,8 @@ class TestDataFetching:
         data = await service_instance.fetch_consumption()
 
         assert data is not None
-        assert data['total_power_w'] == 2450.0
-        assert len(data['circuits']) == 6
+        assert data["total_power_w"] == 2450.0
+        assert len(data["circuits"]) == 6
 
 
 class TestPhantomLoadDetection:
@@ -115,15 +115,15 @@ class TestPhantomLoadDetection:
     @pytest.mark.asyncio
     async def test_high_3am_baseline_detected(self, service_instance, mock_ha_adapter):
         """GIVEN: High power at 3am | WHEN: Fetch | THEN: Set baseline and warn"""
-        with patch('src.main.datetime') as mock_dt:
+        with patch("src.main.datetime") as mock_dt:
             mock_time = datetime(2025, 1, 1, 3, 0, 0)
             mock_dt.now.return_value = mock_time
 
             data = {
-                'total_power_w': 250.0,  # High for 3am
-                'daily_kwh': 1.0,
-                'circuits': [],
-                'timestamp': mock_time
+                "total_power_w": 250.0,  # High for 3am
+                "daily_kwh": 1.0,
+                "circuits": [],
+                "timestamp": mock_time,
             }
             mock_ha_adapter.fetch_consumption.return_value = data
             service_instance.adapter = mock_ha_adapter
@@ -136,15 +136,15 @@ class TestPhantomLoadDetection:
     @pytest.mark.asyncio
     async def test_low_3am_baseline_ok(self, service_instance, mock_ha_adapter):
         """GIVEN: Low power at 3am | WHEN: Fetch | THEN: Set baseline without warning"""
-        with patch('src.main.datetime') as mock_dt:
+        with patch("src.main.datetime") as mock_dt:
             mock_time = datetime(2025, 1, 1, 3, 0, 0)
             mock_dt.now.return_value = mock_time
 
             data = {
-                'total_power_w': 100.0,  # Low baseline
-                'daily_kwh': 0.5,
-                'circuits': [],
-                'timestamp': mock_time
+                "total_power_w": 100.0,  # Low baseline
+                "daily_kwh": 0.5,
+                "circuits": [],
+                "timestamp": mock_time,
             }
             mock_ha_adapter.fetch_consumption.return_value = data
             service_instance.adapter = mock_ha_adapter
@@ -167,7 +167,7 @@ class TestHighPowerAlert:
 
         data = await service_instance.fetch_consumption()
 
-        assert data['total_power_w'] > 10000
+        assert data["total_power_w"] > 10000
 
 
 class TestInfluxDBStorage:
@@ -217,11 +217,11 @@ class TestMockData:
         """GIVEN: No adapter | WHEN: Get mock | THEN: Return valid structure"""
         data = service_instance._get_mock_data()
 
-        assert 'total_power_w' in data
-        assert 'daily_kwh' in data
-        assert 'circuits' in data
-        assert 'timestamp' in data
-        assert len(data['circuits']) == 6
+        assert "total_power_w" in data
+        assert "daily_kwh" in data
+        assert "circuits" in data
+        assert "timestamp" in data
+        assert len(data["circuits"]) == 6
 
     def test_mock_data_updates_stats(self, service_instance):
         """GIVEN: Mock data request | WHEN: Generate | THEN: Update health stats"""
@@ -237,18 +237,18 @@ class TestAdapterCreation:
 
     def test_create_ha_adapter_with_config(self, service_instance):
         """GIVEN: HA config provided | WHEN: Create adapter | THEN: Return HomeAssistantAdapter"""
-        service_instance.ha_url = 'http://test:8123'
-        service_instance.ha_token = 'token'
+        service_instance.ha_url = "http://test:8123"
+        service_instance.ha_token = "token"
 
         adapter = service_instance._create_adapter()
 
         assert adapter is not None
-        assert adapter.__class__.__name__ == 'HomeAssistantAdapter'
+        assert adapter.__class__.__name__ == "HomeAssistantAdapter"
 
     def test_create_ha_adapter_without_config(self):
         """GIVEN: No HA config | WHEN: Create adapter | THEN: Return None"""
         from src.main import SmartMeterService
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = SmartMeterService()
             adapter = service._create_adapter()
             assert adapter is None
@@ -257,8 +257,8 @@ class TestAdapterCreation:
         """GIVEN: meter_type=emporia | WHEN: Create | THEN: Return None with warning"""
         from src.main import SmartMeterService
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'METER_TYPE': 'emporia'
+            "INFLUXDB_TOKEN": "test-token",
+            "METER_TYPE": "emporia",
         }, clear=True):
             service = SmartMeterService()
             adapter = service._create_adapter()
@@ -268,8 +268,8 @@ class TestAdapterCreation:
         """GIVEN: unknown meter_type | WHEN: Create | THEN: Return None"""
         from src.main import SmartMeterService
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'METER_TYPE': 'unknown'
+            "INFLUXDB_TOKEN": "test-token",
+            "METER_TYPE": "unknown",
         }, clear=True):
             service = SmartMeterService()
             adapter = service._create_adapter()

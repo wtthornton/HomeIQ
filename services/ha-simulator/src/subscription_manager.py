@@ -41,13 +41,13 @@ class SubscriptionManager:
             "id": subscription_id,
             "type": "result",
             "success": success,
-            "result": None
+            "result": None,
         }
         try:
             await ws.send_str(json.dumps(result))
             logger.debug(f"Sent subscription result: {subscription_id}, success: {success}")
         except Exception as e:
-            logger.error(f"Error sending subscription result: {e}")
+            logger.exception(f"Error sending subscription result: {e}")
 
     async def send_subscription_error(self, ws: WebSocketResponse, message: str):
         """Send subscription error"""
@@ -56,14 +56,14 @@ class SubscriptionManager:
             "success": False,
             "error": {
                 "code": "invalid_format",
-                "message": message
-            }
+                "message": message,
+            },
         }
         try:
             await ws.send_str(json.dumps(error))
             logger.warning(f"Sent subscription error: {message}")
         except Exception as e:
-            logger.error(f"Error sending subscription error: {e}")
+            logger.exception(f"Error sending subscription error: {e}")
 
     def has_subscriptions(self, ws: WebSocketResponse) -> bool:
         """Check if client has active subscriptions"""

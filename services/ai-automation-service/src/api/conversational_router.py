@@ -28,16 +28,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..clients.ha_client import HomeAssistantClient
-from ..config import settings
-from ..database import get_db, store_suggestion
-from ..database.models import Pattern as PatternModel
-from ..database.models import Suggestion as SuggestionModel
+from src.clients.ha_client import HomeAssistantClient
+from src.config import settings
+from src.database import get_db, store_suggestion
+from src.database.models import Pattern as PatternModel
+from src.database.models import Suggestion as SuggestionModel
 
 # Phase 2-4: Import OpenAI components (SIMPLIFIED)
-from ..llm.openai_client import OpenAIClient
-from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
-from ..services.safety_validator import SafetyValidator
+from src.llm.openai_client import OpenAIClient
+from src.prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+from src.services.safety_validator import SafetyValidator
 
 # Import YAML generation from ask_ai_router
 from .ask_ai_router import generate_automation_yaml
@@ -56,7 +56,7 @@ if settings.openai_api_key:
         prompt_builder = UnifiedPromptBuilder()
         logger.info("✅ OpenAI client initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize OpenAI client: {e}")
+        logger.exception(f"❌ Failed to initialize OpenAI client: {e}")
 else:
     logger.warning("⚠️ OpenAI API key not set - conversational features disabled")
 
@@ -67,7 +67,7 @@ if settings.ha_url and settings.ha_token:
         ha_client = HomeAssistantClient(settings.ha_url, settings.ha_token)
         logger.info("✅ Home Assistant client initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize HA client: {e}")
+        logger.exception(f"❌ Failed to initialize HA client: {e}")
 else:
     logger.warning("⚠️ Home Assistant URL/token not set - deployment disabled")
 
@@ -86,14 +86,14 @@ class GenerateRequest(BaseModel):
     # Mode selection (NEW: Expert Mode)
     mode: Literal["auto_draft", "expert"] = Field(
         "auto_draft",
-        description="Generation mode: 'auto_draft' (fast, automated) or 'expert' (full control)"
+        description="Generation mode: 'auto_draft' (fast, automated) or 'expert' (full control)",
     )
 
     # Explicit control (overrides mode)
     auto_generate_yaml: bool | None = Field(
         None,
         description="Explicitly control YAML generation. If None, determined by mode. "
-                    "auto_draft mode: default true, expert mode: default false"
+                    "auto_draft mode: default true, expert mode: default false",
     )
 
 
@@ -110,12 +110,12 @@ class ApproveRequest(BaseModel):
     regenerate_yaml: bool = Field(
         False,
         description="Force regeneration of YAML even if auto-draft exists. "
-                    "Useful if user edited description and wants fresh YAML"
+                    "Useful if user edited description and wants fresh YAML",
     )
     deploy_immediately: bool = Field(
         True,
         description="Deploy to Home Assistant immediately after approval. "
-                    "Set to false to stage without deploying (expert mode)"
+                    "Set to false to stage without deploying (expert mode)",
     )
 
 
@@ -123,15 +123,15 @@ class GenerateYAMLRequest(BaseModel):
     """Request to manually generate YAML (expert mode)"""
     description: str | None = Field(
         None,
-        description="Override description to use. If None, uses current suggestion description"
+        description="Override description to use. If None, uses current suggestion description",
     )
     validate_syntax: bool = Field(
         True,
-        description="Run YAML syntax validation after generation"
+        description="Run YAML syntax validation after generation",
     )
     run_safety_check: bool = Field(
         False,
-        description="Run safety validation during generation (adds ~300ms, optional)"
+        description="Run safety validation during generation (adds ~300ms, optional)",
     )
 
 
@@ -139,15 +139,15 @@ class EditYAMLRequest(BaseModel):
     """Request to manually edit YAML (expert mode)"""
     automation_yaml: str = Field(
         ...,
-        description="Updated YAML content"
+        description="Updated YAML content",
     )
     validate_on_save: bool = Field(
         True,
-        description="Validate YAML before saving (recommended)"
+        description="Validate YAML before saving (recommended)",
     )
     user_notes: str | None = Field(
         None,
-        description="Notes about what was changed"
+        description="Notes about what was changed",
     )
 
 
@@ -172,23 +172,23 @@ class YAMLValidationReport(BaseModel):
     syntax_valid: bool = Field(description="Whether YAML syntax is valid")
     safety_score: int | None = Field(
         None, ge=0, le=100,
-        description="Safety score (0-100). Only present if safety validation ran"
+        description="Safety score (0-100). Only present if safety validation ran",
     )
     issues: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="List of validation issues (warnings or errors)"
+        description="List of validation issues (warnings or errors)",
     )
     services_used: list[str] = Field(
         default_factory=list,
-        description="Home Assistant services used (e.g., ['light.turn_on'])"
+        description="Home Assistant services used (e.g., ['light.turn_on'])",
     )
     entities_referenced: list[str] = Field(
         default_factory=list,
-        description="Entity IDs referenced in YAML"
+        description="Entity IDs referenced in YAML",
     )
     advanced_features_used: list[str] = Field(
         default_factory=list,
-        description="Advanced features used (e.g., ['choose', 'parallel'])"
+        description="Advanced features used (e.g., ['choose', 'parallel'])",
     )
 
 
@@ -206,48 +206,48 @@ class SuggestionResponse(BaseModel):
     # Mode tracking (NEW: Expert Mode)
     mode: Literal["auto_draft", "expert"] = Field(
         "auto_draft",
-        description="Mode used to create this suggestion"
+        description="Mode used to create this suggestion",
     )
 
     # Auto-Draft Fields
     draft_id: str | None = Field(
         None,
-        description="Draft ID (same as suggestion_id, for semantic clarity)"
+        description="Draft ID (same as suggestion_id, for semantic clarity)",
     )
     automation_yaml: str | None = Field(
         None,
         description="Pre-generated Home Assistant YAML automation. "
                     "Only present if auto_draft_suggestions_enabled=true "
-                    "and this suggestion is in top N (auto_draft_count)"
+                    "and this suggestion is in top N (auto_draft_count)",
     )
     yaml_validation: YAMLValidationReport | None = Field(
         None,
-        description="YAML validation report. Only present if automation_yaml was generated"
+        description="YAML validation report. Only present if automation_yaml was generated",
     )
     yaml_generation_error: str | None = Field(
         None,
         description="Error message if YAML generation failed. "
-                    "Suggestion is still returned but without YAML"
+                    "Suggestion is still returned but without YAML",
     )
     yaml_generated_at: str | None = Field(
         None,
         description="ISO 8601 timestamp when YAML was generated. "
-                    "None if YAML not yet generated"
+                    "None if YAML not yet generated",
     )
     yaml_generation_status: str | None = Field(
         None,
         description="Status of YAML generation: 'completed', 'queued', 'failed', 'not_requested'. "
-                    "Used for async generation when count > async_threshold"
+                    "Used for async generation when count > async_threshold",
     )
 
     # Expert Mode Fields (NEW)
     yaml_edited_at: str | None = Field(
         None,
-        description="ISO 8601 timestamp when YAML was manually edited (expert mode)"
+        description="ISO 8601 timestamp when YAML was manually edited (expert mode)",
     )
     yaml_edit_count: int = Field(
         0,
-        description="Number of manual YAML edits made (expert mode)"
+        description="Number of manual YAML edits made (expert mode)",
     )
 
 
@@ -278,13 +278,13 @@ class ApprovalResponse(BaseModel):
 @router.post("/generate", response_model=SuggestionResponse, status_code=status.HTTP_201_CREATED)
 async def generate_description_only(
     request: GenerateRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> SuggestionResponse:
     """
     Generate description-only suggestion (no YAML yet).
-    
+
     Phase 2: ✅ IMPLEMENTED - Real OpenAI description generation!
-    
+
     Flow:
     1. Fetch device metadata from data-api
     2. Call OpenAI to generate human-readable description
@@ -298,7 +298,7 @@ async def generate_description_only(
     if not openai_client:
         raise HTTPException(
             status_code=500,
-            detail="OpenAI API not configured"
+            detail="OpenAI API not configured",
         )
 
     try:
@@ -306,7 +306,7 @@ async def generate_description_only(
         validated_pattern_id = None
         if request.pattern_id is not None:
             result = await db.execute(
-                select(PatternModel).where(PatternModel.id == request.pattern_id)
+                select(PatternModel).where(PatternModel.id == request.pattern_id),
             )
             pattern_exists = result.scalar_one_or_none()
 
@@ -321,19 +321,19 @@ async def generate_description_only(
 
         # Build pattern dict for OpenAI
         pattern_dict = {
-            'pattern_type': request.pattern_type,
-            'device_id': request.device_id,
-            'hour': request.metadata.get('hour', 18),
-            'minute': request.metadata.get('minute', 0),
-            'occurrences': request.metadata.get('occurrences', 20),
-            'confidence': request.metadata.get('confidence', 0.85)
+            "pattern_type": request.pattern_type,
+            "device_id": request.device_id,
+            "hour": request.metadata.get("hour", 18),
+            "minute": request.metadata.get("minute", 0),
+            "occurrences": request.metadata.get("occurrences", 20),
+            "confidence": request.metadata.get("confidence", 0.85),
         }
 
         # Simple device context (no data-api dependency for now)
-        device_name = request.device_id.split('.')[-1].replace('_', ' ').title() if '.' in request.device_id else request.device_id
+        device_name = request.device_id.split(".")[-1].replace("_", " ").title() if "." in request.device_id else request.device_id
         device_context = {
-            'name': device_name,
-            'domain': request.device_id.split('.')[0] if '.' in request.device_id else 'unknown'
+            "name": device_name,
+            "domain": request.device_id.split(".")[0] if "." in request.device_id else "unknown",
         }
 
         # Generate description via OpenAI
@@ -341,7 +341,7 @@ async def generate_description_only(
         prompt_dict = await prompt_builder.build_pattern_prompt(
             pattern=pattern_dict,
             device_context=device_context,
-            output_mode="description"
+            output_mode="description",
         )
 
         # Generate with unified method
@@ -349,38 +349,38 @@ async def generate_description_only(
             prompt_dict=prompt_dict,
             temperature=0.7,
             max_tokens=300,
-            output_format="description"
+            output_format="description",
         )
 
         # Extract description from result
-        description = result.get('description', '')
+        description = result.get("description", "")
 
         # Simple capabilities (mock for now)
         capabilities = {
-            'entity_id': request.device_id,
-            'friendly_name': device_name,
-            'domain': device_context['domain'],
-            'supported_features': {},
-            'friendly_capabilities': []
+            "entity_id": request.device_id,
+            "friendly_name": device_name,
+            "domain": device_context["domain"],
+            "supported_features": {},
+            "friendly_capabilities": [],
         }
 
         # Persist suggestion using enriched storage helper
         suggestion = await store_suggestion(
             db,
             {
-                'pattern_id': validated_pattern_id,
-                'title': f"Automation: {device_name}",
-                'description': description,
-                'description_only': description,
-                'automation_yaml': None,
-                'confidence': request.metadata.get('confidence', 0.75),
-                'category': 'convenience',
-                'priority': request.metadata.get('priority'),
-                'status': 'draft',
-                'device_id': request.device_id,
-                'devices_involved': [request.device_id],
-                'device_capabilities': capabilities,
-            }
+                "pattern_id": validated_pattern_id,
+                "title": f"Automation: {device_name}",
+                "description": description,
+                "description_only": description,
+                "automation_yaml": None,
+                "confidence": request.metadata.get("confidence", 0.75),
+                "category": "convenience",
+                "priority": request.metadata.get("priority"),
+                "status": "draft",
+                "device_id": request.device_id,
+                "devices_involved": [request.device_id],
+                "device_capabilities": capabilities,
+            },
         )
 
         # Build response
@@ -390,71 +390,70 @@ async def generate_description_only(
             trigger_summary=_extract_trigger_summary_from_request(request),
             action_summary=_extract_action_summary_from_request(request, capabilities),
             devices_involved=[{
-                "entity_id": capabilities.get('entity_id', request.device_id),
-                "friendly_name": capabilities.get('friendly_name', request.device_id),
-                "domain": capabilities.get('domain', 'unknown'),
-                "area": capabilities.get('area', ''),
+                "entity_id": capabilities.get("entity_id", request.device_id),
+                "friendly_name": capabilities.get("friendly_name", request.device_id),
+                "domain": capabilities.get("domain", "unknown"),
+                "area": capabilities.get("area", ""),
                 "capabilities": {
-                    "supported_features": list(capabilities.get('supported_features', {}).keys()),
-                    "friendly_capabilities": capabilities.get('friendly_capabilities', [])
-                }
+                    "supported_features": list(capabilities.get("supported_features", {}).keys()),
+                    "friendly_capabilities": capabilities.get("friendly_capabilities", []),
+                },
             }],
-            confidence=request.metadata.get('confidence', 0.75),
+            confidence=request.metadata.get("confidence", 0.75),
             status="draft",
-            created_at=suggestion.created_at.isoformat()
+            created_at=suggestion.created_at.isoformat(),
         )
 
         logger.info(f"✅ Generated description: {description[:60]}... (ID: {suggestion.id})")
         return response
 
     except Exception as e:
-        logger.error(f"❌ Failed to generate description: {e}")
+        logger.exception(f"❌ Failed to generate description: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate description: {str(e)}"
+            detail=f"Failed to generate description: {e!s}",
         ) from e
 
 
 def _extract_trigger_summary_from_request(request: GenerateRequest) -> str:
     """Extract trigger summary from pattern"""
-    if request.pattern_type == 'time_of_day':
-        hour = int(request.metadata.get('avg_time_decimal', 0))
+    if request.pattern_type == "time_of_day":
+        hour = int(request.metadata.get("avg_time_decimal", 0))
         return f"At {hour:02d}:00 daily"
-    elif request.pattern_type == 'co_occurrence':
-        if '+' in request.device_id:
-            device1 = request.device_id.split('+')[0].split('.')[-1].replace('_', ' ').title()
+    if request.pattern_type == "co_occurrence":
+        if "+" in request.device_id:
+            device1 = request.device_id.split("+")[0].split(".")[-1].replace("_", " ").title()
             return f"When {device1} activates"
-    elif request.pattern_type == 'anomaly':
+    elif request.pattern_type == "anomaly":
         return "Unusual activity detected"
     return "Pattern detected"
 
 
 def _extract_action_summary_from_request(request: GenerateRequest, capabilities: dict) -> str:
     """Extract action summary from pattern and capabilities"""
-    device_name = capabilities.get('friendly_name', request.device_id)
-    domain = capabilities.get('domain', 'unknown')
+    device_name = capabilities.get("friendly_name", request.device_id)
+    domain = capabilities.get("domain", "unknown")
 
-    if domain == 'light':
+    if domain == "light":
         return f"Turn on {device_name}"
-    elif domain == 'switch':
+    if domain == "switch":
         return f"Activate {device_name}"
-    elif domain == 'climate':
+    if domain == "climate":
         return f"Adjust {device_name}"
-    else:
-        return f"Control {device_name}"
+    return f"Control {device_name}"
 
 
 @router.post("/{suggestion_id}/refine", response_model=RefinementResponse)
 async def refine_description(
     suggestion_id: str,
     request: RefineRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> RefinementResponse:
     """
     Refine suggestion description with natural language.
-    
+
     Phase 3: ✅ IMPLEMENTED - Real OpenAI refinement with validation!
-    
+
     Flow:
     1. Fetch current suggestion from database
     2. Get device capabilities (cached in suggestion)
@@ -468,16 +467,16 @@ async def refine_description(
     if not openai_client:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="OpenAI API not configured. Set OPENAI_API_KEY environment variable."
+            detail="OpenAI API not configured. Set OPENAI_API_KEY environment variable.",
         )
 
     try:
         # Step 1: Fetch current suggestion
         # Handle both string IDs (suggestion-1) and integer IDs
         try:
-            if suggestion_id.startswith('suggestion-'):
+            if suggestion_id.startswith("suggestion-"):
                 # Extract integer from "suggestion-1" format
-                db_id = int(suggestion_id.split('-')[1])
+                db_id = int(suggestion_id.split("-")[1])
             else:
                 # Direct integer ID
                 db_id = int(suggestion_id)
@@ -485,7 +484,7 @@ async def refine_description(
             raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
 
         result = await db.execute(
-            select(SuggestionModel).where(SuggestionModel.id == db_id)
+            select(SuggestionModel).where(SuggestionModel.id == db_id),
         )
         suggestion = result.scalar_one_or_none()
 
@@ -498,10 +497,10 @@ async def refine_description(
             raise HTTPException(status_code=400, detail=error_msg)
 
         # Verify editable status
-        if suggestion.status not in ['draft', 'refining']:
+        if suggestion.status not in ["draft", "refining"]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot refine suggestion in '{suggestion.status}' status"
+                detail=f"Cannot refine suggestion in '{suggestion.status}' status",
             )
 
         logger.info(f"📖 Current: {suggestion.description_only[:60]}...")
@@ -510,7 +509,7 @@ async def refine_description(
         refinement_result = await openai_client.refine_description(
             current_description=suggestion.description_only,
             user_input=request.user_input,
-            device_capabilities=suggestion.device_capabilities
+            device_capabilities=suggestion.device_capabilities,
         )
 
         # Step 4: Update database
@@ -518,52 +517,51 @@ async def refine_description(
         updated_history.append({
             "timestamp": datetime.utcnow().isoformat(),
             "user_input": request.user_input,
-            "updated_description": refinement_result['updated_description'],
-            "changes": refinement_result['changes_made'],
-            "validation": refinement_result['validation']
+            "updated_description": refinement_result["updated_description"],
+            "changes": refinement_result["changes_made"],
+            "validation": refinement_result["validation"],
         })
 
         await db.execute(
             update(SuggestionModel)
             .where(SuggestionModel.id == db_id)
             .values(
-                description_only=refinement_result['updated_description'],
+                description_only=refinement_result["updated_description"],
                 conversation_history=updated_history,
                 refinement_count=suggestion.refinement_count + 1,
-                status='refining',
-                updated_at=datetime.utcnow()
-            )
+                status="refining",
+                updated_at=datetime.utcnow(),
+            ),
         )
         await db.commit()
 
         logger.info(f"✅ Refined: {len(refinement_result['changes_made'])} changes")
 
         # Build response
-        validation_data = refinement_result['validation']
-        response = RefinementResponse(
+        validation_data = refinement_result["validation"]
+        return RefinementResponse(
             suggestion_id=suggestion_id,
-            updated_description=refinement_result['updated_description'],
-            changes_detected=refinement_result['changes_made'],
+            updated_description=refinement_result["updated_description"],
+            changes_detected=refinement_result["changes_made"],
             validation=ValidationResult(
-                ok=validation_data['ok'],
+                ok=validation_data["ok"],
                 messages=[],
-                warnings=[validation_data.get('error')] if validation_data.get('error') else [],
-                alternatives=[]
+                warnings=[validation_data.get("error")] if validation_data.get("error") else [],
+                alternatives=[],
             ),
             confidence=suggestion.confidence,
             refinement_count=suggestion.refinement_count + 1,
-            status="refining"
+            status="refining",
         )
 
-        return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to refine suggestion {suggestion_id}: {e}")
+        logger.exception(f"❌ Failed to refine suggestion {suggestion_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to refine suggestion: {str(e)}"
+            detail=f"Failed to refine suggestion: {e!s}",
         )
 
 
@@ -579,8 +577,8 @@ def _extract_trigger_summary(description: str) -> str:
 
     # Common trigger patterns
     trigger_patterns = [
-        r'(?:when|if|at|on|after|before)\s+([^,]+?)(?:,|$|\.)',
-        r'time[:\s]+([^,]+?)(?:,|$|\.)',
+        r"(?:when|if|at|on|after|before)\s+([^,]+?)(?:,|$|\.)",
+        r"time[:\s]+([^,]+?)(?:,|$|\.)",
     ]
 
     for pattern in trigger_patterns:
@@ -589,10 +587,10 @@ def _extract_trigger_summary(description: str) -> str:
             return match.group(1).strip()
 
     # Fallback: extract first part before comma or period
-    parts = re.split(r'[,.]+', description)
+    parts = re.split(r"[,.]+", description)
     if len(parts) > 1:
         # Look for trigger keywords in first part
-        for keyword in ['when', 'if', 'at', 'on', 'after', 'before']:
+        for keyword in ["when", "if", "at", "on", "after", "before"]:
             if keyword.lower() in parts[0].lower():
                 return parts[0].strip()
 
@@ -607,8 +605,8 @@ def _extract_action_summary(description: str) -> str:
 
     # Common action patterns
     action_patterns = [
-        r'(turn\s+(?:on|off|up|down)|flash|dim|brighten|change|set|enable|disable|activate|deactivate)\s+([^,]+?)(?:,|$|\.)',
-        r'(?:then|and)\s+(.+?)(?:,|$|\.)',
+        r"(turn\s+(?:on|off|up|down)|flash|dim|brighten|change|set|enable|disable|activate|deactivate)\s+([^,]+?)(?:,|$|\.)",
+        r"(?:then|and)\s+(.+?)(?:,|$|\.)",
     ]
 
     for pattern in action_patterns:
@@ -617,7 +615,7 @@ def _extract_action_summary(description: str) -> str:
             return match.group(0).strip()
 
     # Fallback: extract last part after comma or period
-    parts = re.split(r'[,.]+', description)
+    parts = re.split(r"[,.]+", description)
     if len(parts) > 1:
         # Last part often contains the action
         return parts[-1].strip()
@@ -635,7 +633,7 @@ def _extract_devices(suggestion: SuggestionModel, conversation_history: list[dic
     # Extract from title (often contains device name)
     if suggestion.title:
         # Pattern: "AI Suggested: {device}" or "Automation: {device}"
-        title_match = re.search(r'(?:AI Suggested|Automation):\s*(.+?)(?:\s|$|at|when)', suggestion.title)
+        title_match = re.search(r"(?:AI Suggested|Automation):\s*(.+?)(?:\s|$|at|when)", suggestion.title)
         if title_match:
             devices.append(title_match.group(1).strip())
 
@@ -644,8 +642,8 @@ def _extract_devices(suggestion: SuggestionModel, conversation_history: list[dic
         desc = suggestion.description_only or suggestion.description
         # Look for common device patterns
         device_patterns = [
-            r'(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock|thermostat|camera)',
-            r'(?:office|living room|kitchen|bedroom|garage|front|back)\s+([a-z\s]+)',
+            r"(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock|thermostat|camera)",
+            r"(?:office|living room|kitchen|bedroom|garage|front|back)\s+([a-z\s]+)",
         ]
         for pattern in device_patterns:
             matches = re.findall(pattern, desc, re.IGNORECASE)
@@ -654,12 +652,12 @@ def _extract_devices(suggestion: SuggestionModel, conversation_history: list[dic
     # Extract from conversation history
     if conversation_history:
         for entry in conversation_history:
-            user_input = entry.get('user_input', '')
+            user_input = entry.get("user_input", "")
             # Look for device mentions in user edits
             device_matches = re.findall(
-                r'(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock)',
+                r"(?:the\s+)?([a-z\s]+?)\s+(?:light|sensor|switch|door|lock)",
                 user_input,
-                re.IGNORECASE
+                re.IGNORECASE,
             )
             devices.extend([m.strip() for m in device_matches if m.strip()])
 
@@ -670,14 +668,14 @@ def _extract_devices(suggestion: SuggestionModel, conversation_history: list[dic
 async def _extract_entities_from_context(
     suggestion: SuggestionModel,
     conversation_history: list[dict],
-    db: AsyncSession
+    db: AsyncSession,
 ) -> list[dict[str, Any]]:
     """
     Extract entities from conversation history and device capabilities.
     Uses EntityValidator to map natural language to real entity IDs.
     """
-    from ..clients.data_api_client import DataAPIClient
-    from ..services.entity_validator import EntityValidator
+    from src.clients.data_api_client import DataAPIClient
+    from src.services.entity_validator import EntityValidator
 
     # Build combined description from suggestion and history
     combined_text = suggestion.description_only or suggestion.description or ""
@@ -685,7 +683,7 @@ async def _extract_entities_from_context(
     # Add conversation history context
     if conversation_history:
         for entry in conversation_history:
-            user_input = entry.get('user_input', '')
+            user_input = entry.get("user_input", "")
             if user_input:
                 combined_text += f" {user_input}"
 
@@ -694,13 +692,13 @@ async def _extract_entities_from_context(
         data_api_client = DataAPIClient()
         ha_client_for_validation = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token
+            access_token=settings.ha_token,
         ) if settings.ha_url and settings.ha_token else None
 
         entity_validator = EntityValidator(
             data_api_client,
             db_session=db,
-            ha_client=ha_client_for_validation
+            ha_client=ha_client_for_validation,
         )
 
         # Extract devices from context
@@ -709,7 +707,7 @@ async def _extract_entities_from_context(
         # Map to real entities
         entity_mapping = await entity_validator.map_query_to_entities(
             combined_text,
-            devices_involved
+            devices_involved,
         )
 
         # Convert mapping to entity list format
@@ -717,9 +715,9 @@ async def _extract_entities_from_context(
             entities = []
             for term, entity_id in entity_mapping.items():
                 entities.append({
-                    'name': term,
-                    'entity_id': entity_id,
-                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                    "name": term,
+                    "entity_id": entity_id,
+                    "domain": entity_id.split(".")[0] if "." in entity_id else "unknown",
                 })
             return entities
 
@@ -731,30 +729,30 @@ async def _extract_entities_from_context(
             except Exception:
                 caps = {}
         fallback_entities: list[dict[str, Any]] = []
-        devices = caps.get('devices') if isinstance(caps, dict) else None
+        devices = caps.get("devices") if isinstance(caps, dict) else None
         if isinstance(devices, list):
             for entry in devices:
                 if isinstance(entry, dict):
-                    entity_id = entry.get('entity_id')
+                    entity_id = entry.get("entity_id")
                     if entity_id:
                         fallback_entities.append({
-                            'name': entry.get('friendly_name', entity_id),
-                            'entity_id': entity_id,
-                            'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                            "name": entry.get("friendly_name", entity_id),
+                            "entity_id": entity_id,
+                            "domain": entity_id.split(".")[0] if "." in entity_id else "unknown",
                         })
         else:
-            entity_id = caps.get('entity_id') if isinstance(caps, dict) else None
+            entity_id = caps.get("entity_id") if isinstance(caps, dict) else None
             if isinstance(entity_id, str):
                 fallback_entities.append({
-                    'name': caps.get('friendly_name', entity_id),
-                    'entity_id': entity_id,
-                    'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                    "name": caps.get("friendly_name", entity_id),
+                    "entity_id": entity_id,
+                    "domain": entity_id.split(".")[0] if "." in entity_id else "unknown",
                 })
 
         if fallback_entities:
             logger.info(
                 "Using fallback device metadata for entity extraction on suggestion %s",
-                suggestion.id
+                suggestion.id,
             )
             return fallback_entities
     except Exception as e:
@@ -768,13 +766,13 @@ async def _extract_entities_from_context(
 async def approve_suggestion(
     suggestion_id: str,
     request: ApproveRequest | None = Body(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Approve suggestion and generate YAML.
-    
+
     Unified Implementation (Phase 2): Uses same YAML generation as Ask-AI page!
-    
+
     Flow:
     1. Fetch suggestion from database
     2. Verify status (draft or refining)
@@ -784,7 +782,7 @@ async def approve_suggestion(
     6. Run safety validation before deployment
     7. Store YAML and update status
     8. Deploy to Home Assistant (if enabled)
-    
+
     Uses superset of available data:
     - description_only / final_description
     - conversation_history (for context)
@@ -802,16 +800,16 @@ async def approve_suggestion(
     if not openai_client:
         raise HTTPException(
             status_code=500,
-            detail="OpenAI API not configured"
+            detail="OpenAI API not configured",
         )
 
     try:
         # Step 1: Fetch suggestion
         # Handle both string IDs (suggestion-1) and integer IDs
         try:
-            if suggestion_id.startswith('suggestion-'):
+            if suggestion_id.startswith("suggestion-"):
                 # Extract integer from "suggestion-1" format
-                db_id = int(suggestion_id.split('-')[1])
+                db_id = int(suggestion_id.split("-")[1])
             else:
                 # Direct integer ID
                 db_id = int(suggestion_id)
@@ -819,7 +817,7 @@ async def approve_suggestion(
             raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
 
         result = await db.execute(
-            select(SuggestionModel).where(SuggestionModel.id == db_id)
+            select(SuggestionModel).where(SuggestionModel.id == db_id),
         )
         suggestion = result.scalar_one_or_none()
 
@@ -830,17 +828,17 @@ async def approve_suggestion(
 
         # Step 2: Verify status (allow re-approving deployed suggestions for updates)
         # Note: 'approved' status is set after YAML generation, so it should be allowed for re-deployment
-        if suggestion.status not in ['draft', 'refining', 'deployed', 'yaml_generated', 'approved']:
+        if suggestion.status not in ["draft", "refining", "deployed", "yaml_generated", "approved"]:
             error_msg = f"Cannot approve suggestion in '{suggestion.status}' status"
             logger.warning(f"⚠️ {error_msg} for suggestion {suggestion_id} (DB ID: {db_id})")
             raise HTTPException(
                 status_code=400,
-                detail=error_msg
+                detail=error_msg,
             )
 
         # If already deployed, this is a re-deploy (regenerate YAML and update)
         # Include 'approved' status since it means YAML was generated but may need re-deployment
-        is_redeploy = suggestion.status in ['deployed', 'yaml_generated', 'approved']
+        is_redeploy = suggestion.status in ["deployed", "yaml_generated", "approved"]
         if is_redeploy:
             logger.info(f"🔄 Re-deploying suggestion {suggestion_id} - regenerating YAML with latest logic")
 
@@ -854,34 +852,34 @@ async def approve_suggestion(
         entities = await _extract_entities_from_context(suggestion, conversation_history, db)
 
         if entities:
-            resolved_entities = [entity.get('entity_id') for entity in entities if entity.get('entity_id')]
+            resolved_entities = [entity.get("entity_id") for entity in entities if entity.get("entity_id")]
             if resolved_entities:
                 devices_involved = resolved_entities
 
         # Build suggestion dictionary in format expected by generate_automation_yaml
         suggestion_dict = {
-            'description': description_to_use,
-            'trigger_summary': _extract_trigger_summary(description_to_use),
-            'action_summary': _extract_action_summary(description_to_use),
-            'devices_involved': devices_involved,
-            'device_capabilities': suggestion.device_capabilities or {}
+            "description": description_to_use,
+            "trigger_summary": _extract_trigger_summary(description_to_use),
+            "action_summary": _extract_action_summary(description_to_use),
+            "devices_involved": devices_involved,
+            "device_capabilities": suggestion.device_capabilities or {},
         }
 
         if entities:
             validated_entities_map = {}
             for entity in entities:
-                entity_id = entity.get('entity_id')
+                entity_id = entity.get("entity_id")
                 if not entity_id:
                     continue
-                key = entity.get('name') or entity_id
+                key = entity.get("name") or entity_id
                 validated_entities_map[key] = entity_id
 
             if validated_entities_map:
-                suggestion_dict['validated_entities'] = validated_entities_map
+                suggestion_dict["validated_entities"] = validated_entities_map
                 try:
-                    suggestion_dict['enriched_entity_context'] = json.dumps(entities)
+                    suggestion_dict["enriched_entity_context"] = json.dumps(entities)
                 except (TypeError, ValueError):
-                    suggestion_dict['enriched_entity_context'] = json.dumps(validated_entities_map)
+                    suggestion_dict["enriched_entity_context"] = json.dumps(validated_entities_map)
 
         # Step 4: Generate YAML using unified method (same as Ask-AI page)
         logger.info("🚀 Using unified YAML generation with entity validation...")
@@ -889,7 +887,7 @@ async def approve_suggestion(
             suggestion=suggestion_dict,
             original_query=description_to_use,
             entities=entities if entities else None,
-            db_session=db
+            db_session=db,
         )
 
         if not automation_yaml:
@@ -903,7 +901,7 @@ async def approve_suggestion(
         except yaml.YAMLError as e:
             yaml_valid = False
             logger.warning(f"⚠️ Generated YAML has syntax errors: {e}")
-            raise HTTPException(status_code=400, detail=f"Generated YAML has syntax errors: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Generated YAML has syntax errors: {e!s}")
 
         # Step 6: Run safety validation before deployment
         logger.info("🔒 Running safety validation...")
@@ -913,8 +911,8 @@ async def approve_suggestion(
                 safety_validator = SafetyValidator(ha_client=ha_client)
                 safety_report = await safety_validator.validate_automation(automation_yaml)
 
-                if not safety_report.get('safe', True):
-                    critical_issues = safety_report.get('critical_issues', [])
+                if not safety_report.get("safe", True):
+                    critical_issues = safety_report.get("critical_issues", [])
                     logger.warning(f"⚠️ Safety validation failed: {len(critical_issues)} critical issues")
                     return {
                         "suggestion_id": suggestion_id,
@@ -922,20 +920,20 @@ async def approve_suggestion(
                         "safe": False,
                         "safety_report": safety_report,
                         "message": "Automation creation blocked due to safety concerns",
-                        "warnings": [issue.get('message') for issue in critical_issues],
+                        "warnings": [issue.get("message") for issue in critical_issues],
                         "automation_yaml": automation_yaml,  # Still return YAML for review
                         "yaml_validation": {
                             "syntax_valid": yaml_valid,
-                            "safety_score": safety_report.get('safety_score', 0),
-                            "issues": critical_issues
-                        }
+                            "safety_score": safety_report.get("safety_score", 0),
+                            "issues": critical_issues,
+                        },
                     }
 
-                if safety_report.get('warnings'):
+                if safety_report.get("warnings"):
                     logger.info(f"⚠️ Safety validation passed with {len(safety_report.get('warnings', []))} warnings")
             except Exception as e:
                 logger.warning(f"⚠️ Safety validation error: {e}, continuing without safety check")
-                safety_report = {'safe': True, 'warnings': [f'Safety check skipped: {str(e)}']}
+                safety_report = {"safe": True, "warnings": [f"Safety check skipped: {e!s}"]}
 
         # Step 6.5: Regenerate category and priority during redeploy
         category = suggestion.category
@@ -944,8 +942,8 @@ async def approve_suggestion(
             logger.info("🔄 Re-deploy detected - regenerating category and priority")
             try:
                 classification = await openai_client.infer_category_and_priority(description_to_use)
-                category = classification['category']
-                priority = classification['priority']
+                category = classification["category"]
+                priority = classification["priority"]
                 logger.info(f"✅ Updated category: {category}, priority: {priority}")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to regenerate category: {e}, keeping original values")
@@ -960,9 +958,9 @@ async def approve_suggestion(
                 priority=priority,
                 yaml_generated_at=datetime.utcnow(),
                 approved_at=datetime.utcnow(),
-                status='approved',  # Set to 'approved' so deploy endpoint accepts it
-                updated_at=datetime.utcnow()
-            )
+                status="approved",  # Set to 'approved' so deploy endpoint accepts it
+                updated_at=datetime.utcnow(),
+            ),
         )
         await db.commit()
 
@@ -984,58 +982,58 @@ async def approve_suggestion(
                     if isinstance(automation_data, dict):
                         # Extract ID from entity_id (e.g., "automation.test" -> "test")
                         # Try to preserve the original ID if present, otherwise extract from entity_id
-                        entity_id_parts = existing_automation_id.replace('automation.', '').split('.')
+                        entity_id_parts = existing_automation_id.replace("automation.", "").split(".")
                         base_id = entity_id_parts[-1] if entity_id_parts else None
 
                         # If YAML doesn't have an 'id', try to set it from the existing automation
                         # Note: This is a best-effort approach - HA may use the alias for matching
-                        if 'id' not in automation_data and base_id:
+                        if "id" not in automation_data and base_id:
                             # Use create_automation which handles updates properly
                             deployment_result = await ha_client.create_automation(
                                 automation_yaml,
                                 automation_id=existing_automation_id,
-                                force_new=False  # Update existing automation
+                                force_new=False,  # Update existing automation
                             )
                         else:
                             # YAML has an ID, use create_automation which will update if ID exists
                             deployment_result = await ha_client.create_automation(
                                 automation_yaml,
                                 automation_id=existing_automation_id,
-                                force_new=False  # Update existing automation
+                                force_new=False,  # Update existing automation
                             )
                     else:
                         # Fallback to deploy_automation if YAML parsing fails
                         deployment_result = await ha_client.deploy_automation(
                             automation_yaml=automation_yaml,
-                            automation_id=existing_automation_id
+                            automation_id=existing_automation_id,
                         )
                 else:
                     logger.info(f"🚀 Deploying automation to Home Assistant for suggestion {suggestion_id}")
                     deployment_result = await ha_client.deploy_automation(automation_yaml=automation_yaml)
 
-                if deployment_result.get('success'):
-                    automation_id = deployment_result.get('automation_id')
+                if deployment_result.get("success"):
+                    automation_id = deployment_result.get("automation_id")
 
                     # Update status to deployed
                     await db.execute(
                         update(SuggestionModel)
                         .where(SuggestionModel.id == db_id)
                         .values(
-                            status='deployed',
+                            status="deployed",
                             ha_automation_id=automation_id,
                             deployed_at=datetime.utcnow(),
-                            updated_at=datetime.utcnow()
-                        )
+                            updated_at=datetime.utcnow(),
+                        ),
                     )
                     await db.commit()
 
                     logger.info(f"✅ Successfully deployed automation {automation_id} to Home Assistant")
                 else:
-                    deployment_error = deployment_result.get('error', 'Unknown deployment error')
+                    deployment_error = deployment_result.get("error", "Unknown deployment error")
                     logger.error(f"❌ Deployment failed: {deployment_error}")
             except Exception as e:
                 deployment_error = str(e)
-                logger.error(f"❌ Deployment error: {deployment_error}")
+                logger.exception(f"❌ Deployment error: {deployment_error}")
         else:
             logger.warning("⚠️ HA client not available - skipping deployment")
             deployment_error = "Home Assistant client not configured"
@@ -1048,21 +1046,21 @@ async def approve_suggestion(
             "automation_id": automation_id,
             "category": category,
             "priority": priority,
-            "ready_to_deploy": yaml_valid and (safety_report is None or safety_report.get('safe', True)),
+            "ready_to_deploy": yaml_valid and (safety_report is None or safety_report.get("safe", True)),
             "yaml_validation": {
                 "syntax_valid": yaml_valid,
-                "safety_score": safety_report.get('safety_score', 95) if safety_report else 95,
-                "issues": safety_report.get('critical_issues', []) if safety_report else []
+                "safety_score": safety_report.get("safety_score", 95) if safety_report else 95,
+                "issues": safety_report.get("critical_issues", []) if safety_report else [],
             },
-            "approved_at": datetime.utcnow().isoformat()
+            "approved_at": datetime.utcnow().isoformat(),
         }
 
         # Add safety report if available
         if safety_report:
             response["safety_report"] = safety_report
-            response["safe"] = safety_report.get('safe', True)
-            if safety_report.get('warnings'):
-                response["warnings"] = [w.get('message') if isinstance(w, dict) else w for w in safety_report.get('warnings', [])]
+            response["safe"] = safety_report.get("safe", True)
+            if safety_report.get("warnings"):
+                response["warnings"] = [w.get("message") if isinstance(w, dict) else w for w in safety_report.get("warnings", [])]
 
         # Add restoration info (empty for now, for consistency with Ask-AI)
         response["restoration_log"] = []
@@ -1077,20 +1075,20 @@ async def approve_suggestion(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to approve suggestion: {e}")
-        raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")
+        logger.exception(f"❌ Failed to approve suggestion: {e}")
+        raise HTTPException(status_code=500, detail=f"Approval failed: {e!s}")
 
 
 @router.get("/devices/{device_id}/capabilities", response_model=dict[str, Any])
 async def get_device_capabilities(
     device_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get device capabilities for showing to user.
-    
+
     Phase 2: ✅ IMPLEMENTED - Real capability fetching from data-api!
-    
+
     Flow:
     1. Query data-api for device metadata
     2. Parse supported features
@@ -1102,61 +1100,61 @@ async def get_device_capabilities(
     try:
         # Mock capabilities for now (data-api integration pending)
         capabilities = {
-            'entity_id': device_id,
-            'friendly_name': device_id.split('.')[-1].replace('_', ' ').title(),
-            'domain': device_id.split('.')[0] if '.' in device_id else 'unknown',
-            'area': '',
-            'supported_features': {},
-            'friendly_capabilities': [],
-            'cached': False
+            "entity_id": device_id,
+            "friendly_name": device_id.split(".")[-1].replace("_", " ").title(),
+            "domain": device_id.split(".")[0] if "." in device_id else "unknown",
+            "area": "",
+            "supported_features": {},
+            "friendly_capabilities": [],
+            "cached": False,
         }
 
         # Format response with detailed capability information
         formatted_capabilities = {
-            "entity_id": capabilities.get('entity_id', device_id),
-            "friendly_name": capabilities.get('friendly_name', device_id),
-            "domain": capabilities.get('domain', 'unknown'),
-            "area": capabilities.get('area', ''),
+            "entity_id": capabilities.get("entity_id", device_id),
+            "friendly_name": capabilities.get("friendly_name", device_id),
+            "domain": capabilities.get("domain", "unknown"),
+            "area": capabilities.get("area", ""),
             "supported_features": {},
-            "friendly_capabilities": capabilities.get('friendly_capabilities', []),
-            "cached": capabilities.get('cached', False)
+            "friendly_capabilities": capabilities.get("friendly_capabilities", []),
+            "cached": capabilities.get("cached", False),
         }
 
         # Add detailed feature descriptions
-        for feature, is_available in capabilities.get('supported_features', {}).items():
+        for feature, is_available in capabilities.get("supported_features", {}).items():
             if is_available:
-                formatted_capabilities['supported_features'][feature] = {
+                formatted_capabilities["supported_features"][feature] = {
                     "available": True,
-                    "description": _get_feature_description(feature, capabilities['domain'])
+                    "description": _get_feature_description(feature, capabilities["domain"]),
                 }
 
         # Add common use cases based on capabilities
-        formatted_capabilities['common_use_cases'] = _generate_use_cases(capabilities)
+        formatted_capabilities["common_use_cases"] = _generate_use_cases(capabilities)
 
         logger.info(f"✅ Returned {len(formatted_capabilities['friendly_capabilities'])} capabilities")
         return formatted_capabilities
 
     except Exception as e:
-        logger.error(f"❌ Failed to fetch capabilities for {device_id}: {e}")
+        logger.exception(f"❌ Failed to fetch capabilities for {device_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch device capabilities: {str(e)}"
+            detail=f"Failed to fetch device capabilities: {e!s}",
         )
 
 
 def _get_feature_description(feature: str, domain: str) -> str:
     """Get friendly description for a feature"""
     descriptions = {
-        'brightness': "Adjust brightness level (0-100%)",
-        'rgb_color': "Set any RGB color (red, blue, warm white, etc.)",
-        'color_temp': "Set color temperature (2700K warm - 6500K cool)",
-        'transition': "Smooth fade in/out transitions",
-        'effect': "Light effects and animations",
-        'temperature': "Set target temperature",
-        'hvac_mode': "Change heating/cooling mode",
-        'fan_mode': "Adjust fan speed",
-        'position': "Set position (0-100%)",
-        'speed': "Adjust speed level"
+        "brightness": "Adjust brightness level (0-100%)",
+        "rgb_color": "Set any RGB color (red, blue, warm white, etc.)",
+        "color_temp": "Set color temperature (2700K warm - 6500K cool)",
+        "transition": "Smooth fade in/out transitions",
+        "effect": "Light effects and animations",
+        "temperature": "Set target temperature",
+        "hvac_mode": "Change heating/cooling mode",
+        "fan_mode": "Adjust fan speed",
+        "position": "Set position (0-100%)",
+        "speed": "Adjust speed level",
     }
     return descriptions.get(feature, f"Control {feature.replace('_', ' ')}")
 
@@ -1164,28 +1162,28 @@ def _get_feature_description(feature: str, domain: str) -> str:
 def _generate_use_cases(capabilities: dict) -> list[str]:
     """Generate example use cases based on capabilities"""
     use_cases = []
-    domain = capabilities.get('domain', '')
-    features = capabilities.get('supported_features', {})
-    device_name = capabilities.get('friendly_name', 'device')
+    domain = capabilities.get("domain", "")
+    features = capabilities.get("supported_features", {})
+    device_name = capabilities.get("friendly_name", "device")
 
-    if domain == 'light':
-        if features.get('brightness'):
+    if domain == "light":
+        if features.get("brightness"):
             use_cases.append(f"Turn on {device_name} to 50% brightness")
-        if features.get('rgb_color'):
+        if features.get("rgb_color"):
             use_cases.append(f"Change {device_name} to blue")
-        if features.get('color_temp'):
+        if features.get("color_temp"):
             use_cases.append(f"Set {device_name} to warm white")
-        if features.get('transition'):
+        if features.get("transition"):
             use_cases.append(f"Fade in {device_name} over 2 seconds")
 
-    elif domain == 'climate':
-        if features.get('temperature'):
+    elif domain == "climate":
+        if features.get("temperature"):
             use_cases.append(f"Set {device_name} to 72°F")
-        if features.get('hvac_mode'):
+        if features.get("hvac_mode"):
             use_cases.append(f"Switch {device_name} to heat/cool")
 
-    elif domain == 'cover':
-        if features.get('position'):
+    elif domain == "cover":
+        if features.get("position"):
             use_cases.append(f"Open {device_name} to 50%")
         use_cases.append(f"Close {device_name}")
 
@@ -1200,7 +1198,7 @@ def _generate_use_cases(capabilities: dict) -> list[str]:
 @router.get("/by-automation/{automation_id}", response_model=dict[str, Any])
 async def get_suggestion_by_automation_id(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get suggestion by Home Assistant automation ID.
@@ -1210,7 +1208,7 @@ async def get_suggestion_by_automation_id(
 
     try:
         result = await db.execute(
-            select(SuggestionModel).where(SuggestionModel.ha_automation_id == automation_id)
+            select(SuggestionModel).where(SuggestionModel.ha_automation_id == automation_id),
         )
         suggestion = result.scalar_one_or_none()
 
@@ -1231,30 +1229,30 @@ async def get_suggestion_by_automation_id(
             "refinement_count": suggestion.refinement_count or 0,
             "confidence": suggestion.confidence,
             "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
-            "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None
+            "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None,
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get suggestion by automation_id: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get suggestion: {str(e)}")
+        logger.exception(f"❌ Failed to get suggestion by automation_id: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggestion: {e!s}")
 
 
 @router.get("/{suggestion_id}", response_model=dict[str, Any])
 async def get_suggestion_detail(
     suggestion_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get detailed suggestion information.
-    
+
     Phase 1: Returns mock data
     Phase 2+: Fetch from database
     """
     logger.info(f"📖 [STUB] Get suggestion detail: {suggestion_id}")
 
     # TODO: Implement database fetch
-    mock_detail = {
+    return {
         "suggestion_id": suggestion_id,
         "pattern_id": 123,
         "description_only": "When motion is detected in the Living Room after 6PM on weekdays, turn on the Living Room Light to blue",
@@ -1263,24 +1261,23 @@ async def get_suggestion_detail(
                 "timestamp": "2025-10-17T18:30:00Z",
                 "user_input": "Make it blue",
                 "updated_description": "When motion is detected in the Living Room after 6PM, turn on the Living Room Light to blue",
-                "validation_result": {"ok": True, "message": "Device supports RGB colors"}
+                "validation_result": {"ok": True, "message": "Device supports RGB colors"},
             },
             {
                 "timestamp": "2025-10-17T18:31:00Z",
                 "user_input": "Only on weekdays",
                 "updated_description": "When motion is detected in the Living Room after 6PM on weekdays, turn on the Living Room Light to blue",
-                "validation_result": {"ok": True}
-            }
+                "validation_result": {"ok": True},
+            },
         ],
         "device_capabilities": {},
         "refinement_count": 2,
         "automation_yaml": None,
         "status": "refining",
         "confidence": 0.92,
-        "created_at": "2025-10-17T18:25:00Z"
+        "created_at": "2025-10-17T18:25:00Z",
     }
 
-    return mock_detail
 
 
 # ============================================================================
@@ -1291,7 +1288,7 @@ async def get_suggestion_detail(
 async def generate_yaml_expert_mode(
     suggestion_id: str,
     request: GenerateYAMLRequest = Body(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Generate YAML on-demand for expert mode (Step 3 of expert flow).
@@ -1315,15 +1312,12 @@ async def generate_yaml_expert_mode(
     try:
         # Step 1: Fetch suggestion
         try:
-            if suggestion_id.startswith('suggestion-'):
-                db_id = int(suggestion_id.split('-')[1])
-            else:
-                db_id = int(suggestion_id)
+            db_id = int(suggestion_id.split("-")[1]) if suggestion_id.startswith("suggestion-") else int(suggestion_id)
         except (ValueError, IndexError):
             raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
 
         result = await db.execute(
-            select(SuggestionModel).where(SuggestionModel.id == db_id)
+            select(SuggestionModel).where(SuggestionModel.id == db_id),
         )
         suggestion = result.scalar_one_or_none()
 
@@ -1344,11 +1338,11 @@ async def generate_yaml_expert_mode(
 
         # Step 4: Build suggestion dict for YAML generator
         suggestion_dict = {
-            'description': description_to_use,
-            'trigger_summary': _extract_trigger_summary(description_to_use),
-            'action_summary': _extract_action_summary(description_to_use),
-            'devices_involved': _extract_devices(suggestion, conversation_history),
-            'device_capabilities': suggestion.device_capabilities or {}
+            "description": description_to_use,
+            "trigger_summary": _extract_trigger_summary(description_to_use),
+            "action_summary": _extract_action_summary(description_to_use),
+            "devices_involved": _extract_devices(suggestion, conversation_history),
+            "device_capabilities": suggestion.device_capabilities or {},
         }
 
         # Step 5: Generate YAML using unified generator
@@ -1357,7 +1351,7 @@ async def generate_yaml_expert_mode(
             suggestion=suggestion_dict,
             original_query=description_to_use,
             entities=entities if entities else None,
-            db_session=db
+            db_session=db,
         )
 
         if not automation_yaml:
@@ -1374,7 +1368,7 @@ async def generate_yaml_expert_mode(
                 logger.info("✅ YAML syntax validation passed")
             except yaml_module.YAMLError as e:
                 yaml_valid = False
-                issues.append({"type": "error", "message": f"YAML syntax error: {str(e)}"})
+                issues.append({"type": "error", "message": f"YAML syntax error: {e!s}"})
                 logger.warning(f"⚠️ YAML syntax validation failed: {e}")
         else:
             yaml_valid = True  # Skip validation if requested
@@ -1385,9 +1379,9 @@ async def generate_yaml_expert_mode(
             try:
                 safety_validator = SafetyValidator(ha_client=ha_client)
                 safety_report = await safety_validator.validate_automation(automation_yaml)
-                safety_score = safety_report.get('safety_score', 0)
-                if not safety_report.get('safe', True):
-                    issues.extend(safety_report.get('critical_issues', []))
+                safety_score = safety_report.get("safety_score", 0)
+                if not safety_report.get("safe", True):
+                    issues.extend(safety_report.get("critical_issues", []))
                 logger.info(f"✅ Safety validation completed (score: {safety_score})")
             except Exception as e:
                 logger.warning(f"⚠️ Safety validation failed: {e}")
@@ -1399,7 +1393,7 @@ async def generate_yaml_expert_mode(
             "issues": issues,
             "services_used": _extract_services(automation_yaml),
             "entities_referenced": _extract_entities_from_yaml(automation_yaml),
-            "advanced_features_used": _extract_advanced_features(automation_yaml)
+            "advanced_features_used": _extract_advanced_features(automation_yaml),
         }
 
         # Step 9: Update database with generated YAML
@@ -1421,16 +1415,16 @@ async def generate_yaml_expert_mode(
             "yaml_validation": yaml_validation,
             "status": "yaml_generated",
             "yaml_generated_at": suggestion.yaml_generated_at.isoformat(),
-            "yaml_generation_method": "expert_manual"
+            "yaml_generation_method": "expert_manual",
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Expert mode YAML generation failed: {e}")
+        logger.exception(f"❌ Expert mode YAML generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"YAML generation failed: {str(e)}"
+            detail=f"YAML generation failed: {e!s}",
         )
 
 
@@ -1438,7 +1432,7 @@ async def generate_yaml_expert_mode(
 async def edit_yaml_expert_mode(
     suggestion_id: str,
     request: EditYAMLRequest = Body(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Edit YAML manually for expert mode (Step 4 of expert flow).
@@ -1460,15 +1454,12 @@ async def edit_yaml_expert_mode(
     try:
         # Step 1: Fetch suggestion
         try:
-            if suggestion_id.startswith('suggestion-'):
-                db_id = int(suggestion_id.split('-')[1])
-            else:
-                db_id = int(suggestion_id)
+            db_id = int(suggestion_id.split("-")[1]) if suggestion_id.startswith("suggestion-") else int(suggestion_id)
         except (ValueError, IndexError):
             raise HTTPException(status_code=400, detail=f"Invalid suggestion ID format: {suggestion_id}")
 
         result = await db.execute(
-            select(SuggestionModel).where(SuggestionModel.id == db_id)
+            select(SuggestionModel).where(SuggestionModel.id == db_id),
         )
         suggestion = result.scalar_one_or_none()
 
@@ -1483,7 +1474,7 @@ async def edit_yaml_expert_mode(
             raise HTTPException(
                 status_code=400,
                 detail=f"Maximum YAML edit limit reached ({settings.expert_mode_max_yaml_edits} edits). "
-                       "Create a new suggestion to continue editing."
+                       "Create a new suggestion to continue editing.",
             )
 
         # Step 3: Validate YAML syntax
@@ -1497,11 +1488,11 @@ async def edit_yaml_expert_mode(
                 logger.info("✅ Edited YAML syntax validation passed")
             except yaml_module.YAMLError as e:
                 yaml_valid = False
-                issues.append({"type": "error", "message": f"YAML syntax error: {str(e)}", "line": getattr(e, 'problem_mark', None)})
+                issues.append({"type": "error", "message": f"YAML syntax error: {e!s}", "line": getattr(e, "problem_mark", None)})
                 logger.warning(f"⚠️ Edited YAML syntax validation failed: {e}")
                 raise HTTPException(
                     status_code=400,
-                    detail=f"YAML syntax error: {str(e)}"
+                    detail=f"YAML syntax error: {e!s}",
                 )
         else:
             yaml_valid = True  # Skip validation if requested (not recommended)
@@ -1513,13 +1504,13 @@ async def edit_yaml_expert_mode(
                 issues.append({
                     "type": "security",
                     "message": f"Dangerous services detected: {', '.join(dangerous_services)}",
-                    "services": dangerous_services
+                    "services": dangerous_services,
                 })
                 logger.warning(f"⚠️ Dangerous services detected in YAML edit: {dangerous_services}")
                 raise HTTPException(
                     status_code=400,
                     detail=f"Dangerous services not allowed: {', '.join(dangerous_services)}. "
-                           "Contact admin to enable expert_mode_allow_dangerous_operations."
+                           "Contact admin to enable expert_mode_allow_dangerous_operations.",
                 )
 
         # Step 5: Generate YAML diff (show what changed)
@@ -1527,17 +1518,17 @@ async def edit_yaml_expert_mode(
         if suggestion.automation_yaml and settings.expert_mode_show_yaml_diff:
             old_lines = suggestion.automation_yaml.splitlines(keepends=True)
             new_lines = request.automation_yaml.splitlines(keepends=True)
-            diff = difflib.unified_diff(old_lines, new_lines, lineterm='')
+            diff = difflib.unified_diff(old_lines, new_lines, lineterm="")
             diff_lines = list(diff)
 
-        diff_text = ''.join(diff_lines) if diff_lines else "No previous YAML to compare"
+        diff_text = "".join(diff_lines) if diff_lines else "No previous YAML to compare"
 
         # Step 6: Extract modified fields from diff
         modified_fields = []
         for line in diff_lines:
-            if line.startswith('+') and not line.startswith('+++'):
+            if line.startswith("+") and not line.startswith("+++"):
                 # Extract field name from added lines
-                match = re.match(r'\+\s*(\w+):', line)
+                match = re.match(r"\+\s*(\w+):", line)
                 if match:
                     modified_fields.append(match.group(1))
 
@@ -1548,7 +1539,7 @@ async def edit_yaml_expert_mode(
             "issues": issues,
             "services_used": _extract_services(request.automation_yaml),
             "entities_referenced": _extract_entities_from_yaml(request.automation_yaml),
-            "advanced_features_used": _extract_advanced_features(request.automation_yaml)
+            "advanced_features_used": _extract_advanced_features(request.automation_yaml),
         }
 
         # Step 8: Update database with edited YAML
@@ -1566,7 +1557,7 @@ async def edit_yaml_expert_mode(
                 "role": "user",
                 "content": request.user_notes,
                 "timestamp": datetime.utcnow().isoformat(),
-                "action": "yaml_edit"
+                "action": "yaml_edit",
             })
 
         await db.commit()
@@ -1581,20 +1572,20 @@ async def edit_yaml_expert_mode(
             "yaml_validation": yaml_validation,
             "changes": {
                 "modified_fields": list(set(modified_fields)),
-                "diff": diff_text
+                "diff": diff_text,
             },
             "status": "yaml_edited",
             "yaml_edited_at": suggestion.yaml_edited_at.isoformat(),
-            "edit_count": suggestion.yaml_edit_count
+            "edit_count": suggestion.yaml_edit_count,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Expert mode YAML edit failed: {e}")
+        logger.exception(f"❌ Expert mode YAML edit failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"YAML edit failed: {str(e)}"
+            detail=f"YAML edit failed: {e!s}",
         )
 
 
@@ -1605,7 +1596,7 @@ async def edit_yaml_expert_mode(
 def _extract_services(yaml_content: str) -> list[str]:
     """Extract Home Assistant service calls from YAML"""
     services = []
-    for match in re.finditer(r'service:\s+([\w.]+)', yaml_content):
+    for match in re.finditer(r"service:\s+([\w.]+)", yaml_content):
         service = match.group(1)
         if service not in services:
             services.append(service)
@@ -1615,7 +1606,7 @@ def _extract_services(yaml_content: str) -> list[str]:
 def _extract_entities_from_yaml(yaml_content: str) -> list[str]:
     """Extract entity IDs from YAML content"""
     entities = []
-    for match in re.finditer(r'entity_id:\s+([\w.]+)', yaml_content):
+    for match in re.finditer(r"entity_id:\s+([\w.]+)", yaml_content):
         entity = match.group(1)
         if entity not in entities:
             entities.append(entity)
@@ -1626,13 +1617,13 @@ def _extract_advanced_features(yaml_content: str) -> list[str]:
     """Detect advanced HA automation features in YAML"""
     features = []
     advanced_keywords = {
-        'choose': 'choose',
-        'parallel': 'parallel',
-        'sequence': 'sequence',
-        'repeat': 'repeat',
-        'wait_template': 'wait_template',
-        'variables': 'variables',
-        'condition:': 'condition'
+        "choose": "choose",
+        "parallel": "parallel",
+        "sequence": "sequence",
+        "repeat": "repeat",
+        "wait_template": "wait_template",
+        "variables": "variables",
+        "condition:": "condition",
     }
 
     for keyword, feature_name in advanced_keywords.items():
@@ -1648,13 +1639,12 @@ def _check_dangerous_services(yaml_content: str) -> list[str]:
 
     for blocked_service in settings.expert_mode_blocked_services:
         # Check for exact match or wildcard
-        if blocked_service.endswith('*'):
+        if blocked_service.endswith("*"):
             prefix = blocked_service[:-1]  # Remove asterisk
             if f"service: {prefix}" in yaml_content:
                 dangerous_found.append(blocked_service)
-        else:
-            if f"service: {blocked_service}" in yaml_content:
-                dangerous_found.append(blocked_service)
+        elif f"service: {blocked_service}" in yaml_content:
+            dangerous_found.append(blocked_service)
 
     return dangerous_found
 
@@ -1669,6 +1659,6 @@ async def health_check() -> dict[str, str]:
     return {
         "status": "healthy",
         "message": "Conversational suggestion router (Phase 1: Stubs)",
-        "phase": "1-mock-data"
+        "phase": "1-mock-data",
     }
 

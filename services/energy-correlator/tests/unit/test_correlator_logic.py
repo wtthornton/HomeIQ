@@ -19,9 +19,9 @@ class TestPowerDeltaCalculation:
         WHEN: Calculate delta
         THEN: Delta should be +60W
         """
-        power_before = sample_power_data['before']
-        power_after = sample_power_data['after']
-        expected_delta = sample_power_data['delta']
+        power_before = sample_power_data["before"]
+        power_after = sample_power_data["after"]
+        expected_delta = sample_power_data["delta"]
 
         # Calculate delta (simulating _correlate_event_with_power logic)
         power_delta = power_after - power_before
@@ -36,9 +36,9 @@ class TestPowerDeltaCalculation:
         WHEN: Calculate percentage change
         THEN: Percentage should be +135%
         """
-        power_before = sample_large_power_change['before']
-        power_after = sample_large_power_change['after']
-        expected_delta_pct = sample_large_power_change['delta_pct']
+        power_before = sample_large_power_change["before"]
+        power_after = sample_large_power_change["after"]
+        expected_delta_pct = sample_large_power_change["delta_pct"]
 
         # Calculate delta and percentage
         power_delta = power_after - power_before
@@ -54,9 +54,9 @@ class TestPowerDeltaCalculation:
         WHEN: Calculate delta
         THEN: Delta should be -120W (-5.6%)
         """
-        power_before = sample_negative_power_change['before']
-        power_after = sample_negative_power_change['after']
-        expected_delta = sample_negative_power_change['delta']
+        power_before = sample_negative_power_change["before"]
+        power_after = sample_negative_power_change["after"]
+        expected_delta = sample_negative_power_change["delta"]
 
         # Calculate delta
         power_delta = power_after - power_before
@@ -79,7 +79,7 @@ class TestCorrelationThresholds:
         WHEN: Apply threshold (10W minimum)
         THEN: Correlation should be skipped
         """
-        power_delta = sample_small_power_change['delta']
+        power_delta = sample_small_power_change["delta"]
         min_threshold = correlator_instance.min_power_delta
 
         assert abs(power_delta) < min_threshold
@@ -92,7 +92,7 @@ class TestCorrelationThresholds:
         WHEN: Apply threshold (10W minimum)
         THEN: Correlation should be created
         """
-        power_delta = sample_power_data['delta']
+        power_delta = sample_power_data["delta"]
         min_threshold = correlator_instance.min_power_delta
 
         assert abs(power_delta) >= min_threshold
@@ -105,7 +105,7 @@ class TestCorrelationThresholds:
         WHEN: Apply threshold (10W minimum)
         THEN: Should pass threshold easily
         """
-        power_delta = sample_large_power_change['delta']
+        power_delta = sample_large_power_change["delta"]
         min_threshold = correlator_instance.min_power_delta
 
         assert abs(power_delta) >= min_threshold
@@ -170,15 +170,15 @@ class TestEventCorrelationFlow:
         THEN: Should skip correlation gracefully
         """
         # Mock _get_power_at_time to return None for "before" reading
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             mock_get_power.return_value = None
 
             event = {
-                'time': datetime.utcnow(),
-                'entity_id': 'switch.test',
-                'domain': 'switch',
-                'state': 'on',
-                'previous_state': 'off'
+                "time": datetime.utcnow(),
+                "entity_id": "switch.test",
+                "domain": "switch",
+                "state": "on",
+                "previous_state": "off",
             }
 
             # Should not raise an exception
@@ -196,15 +196,15 @@ class TestEventCorrelationFlow:
         THEN: Should skip correlation gracefully
         """
         # Mock _get_power_at_time to return value for first call, None for second
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             mock_get_power.side_effect = [2450.0, None]  # before exists, after is None
 
             event = {
-                'time': datetime.utcnow(),
-                'entity_id': 'switch.test',
-                'domain': 'switch',
-                'state': 'on',
-                'previous_state': 'off'
+                "time": datetime.utcnow(),
+                "entity_id": "switch.test",
+                "domain": "switch",
+                "state": "on",
+                "previous_state": "off",
             }
 
             # Should not raise an exception
@@ -222,15 +222,15 @@ class TestEventCorrelationFlow:
         THEN: Should skip writing correlation
         """
         # Mock power readings with small delta (5W)
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             mock_get_power.side_effect = [2450.0, 2455.0]  # 5W delta
 
             event = {
-                'time': datetime.utcnow(),
-                'entity_id': 'switch.test',
-                'domain': 'switch',
-                'state': 'on',
-                'previous_state': 'off'
+                "time": datetime.utcnow(),
+                "entity_id": "switch.test",
+                "domain": "switch",
+                "state": "on",
+                "previous_state": "off",
             }
 
             await correlator_instance._correlate_event_with_power(event)
@@ -248,15 +248,15 @@ class TestEventCorrelationFlow:
         THEN: Should create and write correlation
         """
         # Mock power readings with significant delta (60W)
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             mock_get_power.side_effect = [2450.0, 2510.0]  # 60W delta
 
             event = {
-                'time': datetime.utcnow(),
-                'entity_id': 'switch.living_room_lamp',
-                'domain': 'switch',
-                'state': 'on',
-                'previous_state': 'off'
+                "time": datetime.utcnow(),
+                "entity_id": "switch.living_room_lamp",
+                "domain": "switch",
+                "state": "on",
+                "previous_state": "off",
             }
 
             await correlator_instance._correlate_event_with_power(event)
@@ -277,15 +277,15 @@ class TestEventCorrelationFlow:
         THEN: Should handle negative delta correctly
         """
         # Mock power readings with negative delta (-120W)
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             mock_get_power.side_effect = [2150.0, 2030.0]  # -120W delta
 
             event = {
-                'time': datetime.utcnow(),
-                'entity_id': 'light.bedroom',
-                'domain': 'light',
-                'state': 'off',
-                'previous_state': 'on'
+                "time": datetime.utcnow(),
+                "entity_id": "light.bedroom",
+                "domain": "light",
+                "state": "off",
+                "previous_state": "on",
             }
 
             await correlator_instance._correlate_event_with_power(event)
@@ -307,7 +307,7 @@ class TestMultipleEventCorrelation:
         THEN: Should track count correctly
         """
         # Mock power readings for all events (all with significant deltas)
-        with patch.object(correlator_instance, '_get_power_at_time', new_callable=AsyncMock) as mock_get_power:
+        with patch.object(correlator_instance, "_get_power_at_time", new_callable=AsyncMock) as mock_get_power:
             # Alternate between before/after readings
             mock_get_power.side_effect = [
                 2450.0, 2510.0,  # Event 1: +60W

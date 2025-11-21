@@ -20,7 +20,7 @@ class ScoreComponent(Enum):
 class HealthScoringAlgorithm:
     """
     Advanced health scoring with configurable weights and multi-factor analysis
-    
+
     Default Weighting:
     - HA Core: 35% (reduced from 40% to accommodate reliability)
     - Integrations: 35% (reduced from 40%)
@@ -33,11 +33,11 @@ class HealthScoringAlgorithm:
         ha_core_weight: float = 0.35,
         integrations_weight: float = 0.35,
         performance_weight: float = 0.15,
-        reliability_weight: float = 0.15
+        reliability_weight: float = 0.15,
     ):
         """
         Initialize scoring algorithm with configurable weights
-        
+
         Args:
             ha_core_weight: Weight for HA core status (0-1)
             integrations_weight: Weight for integrations health (0-1)
@@ -47,13 +47,14 @@ class HealthScoringAlgorithm:
         # Validate weights sum to 1.0
         total = ha_core_weight + integrations_weight + performance_weight + reliability_weight
         if abs(total - 1.0) > 0.01:
-            raise ValueError(f"Weights must sum to 1.0, got {total}")
+            msg = f"Weights must sum to 1.0, got {total}"
+            raise ValueError(msg)
 
         self.weights = {
             ScoreComponent.HA_CORE: ha_core_weight,
             ScoreComponent.INTEGRATIONS: integrations_weight,
             ScoreComponent.PERFORMANCE: performance_weight,
-            ScoreComponent.RELIABILITY: reliability_weight
+            ScoreComponent.RELIABILITY: reliability_weight,
         }
 
     def calculate_score(
@@ -61,17 +62,17 @@ class HealthScoringAlgorithm:
         ha_status: dict,
         integrations: list[dict],
         performance: dict,
-        reliability_data: dict = None
+        reliability_data: dict | None = None,
     ) -> tuple[int, dict[str, int]]:
         """
         Calculate overall health score with component breakdown
-        
+
         Args:
             ha_status: HA core status data
             integrations: List of integration health data
             performance: Performance metrics
             reliability_data: Reliability metrics (optional)
-            
+
         Returns:
             Tuple of (total_score, component_scores_breakdown)
         """
@@ -103,7 +104,7 @@ class HealthScoringAlgorithm:
     def _score_ha_core(self, ha_status: dict) -> int:
         """
         Score HA core status
-        
+
         Scoring:
         - healthy: 100 points
         - warning: 50 points
@@ -113,15 +114,14 @@ class HealthScoringAlgorithm:
 
         if status == "healthy":
             return 100
-        elif status == "warning":
+        if status == "warning":
             return 50
-        else:
-            return 0
+        return 0
 
     def _score_integrations(self, integrations: list[dict]) -> int:
         """
         Score integrations health
-        
+
         Scoring:
         - Each healthy integration adds proportional points
         - Warning integrations count as 50% healthy
@@ -156,7 +156,7 @@ class HealthScoringAlgorithm:
     def _score_performance(self, performance: dict) -> int:
         """
         Score performance metrics
-        
+
         Scoring based on response time:
         - < 100ms: 100 points
         - < 250ms: 80 points
@@ -168,19 +168,18 @@ class HealthScoringAlgorithm:
 
         if response_time < 100:
             return 100
-        elif response_time < 250:
+        if response_time < 250:
             return 80
-        elif response_time < 500:
+        if response_time < 500:
             return 60
-        elif response_time < 1000:
+        if response_time < 1000:
             return 30
-        else:
-            return 0
+        return 0
 
     def _score_reliability(self, reliability_data: dict) -> int:
         """
         Score reliability metrics
-        
+
         Scoring:
         - Uptime percentage
         - Error rate (lower is better)
@@ -214,11 +213,11 @@ class HealthScoringAlgorithm:
     def get_score_breakdown_explanation(
         self,
         total_score: int,
-        component_scores: dict[str, int]
+        component_scores: dict[str, int],
     ) -> dict:
         """
         Generate human-readable explanation of score breakdown
-        
+
         Returns:
             Dictionary with score explanation and recommendations
         """
@@ -266,6 +265,6 @@ class HealthScoringAlgorithm:
             "overall_assessment": overall,
             "component_scores": component_scores,
             "explanations": explanations,
-            "recommendations": recommendations
+            "recommendations": recommendations,
         }
 

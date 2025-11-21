@@ -41,7 +41,7 @@ class HealthCheckHandler:
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
             "success_rate": (self.total_fetches - self.failed_fetches) / self.total_fetches if self.total_fetches > 0 else 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         return web.json_response(status, status=200 if healthy else 503)

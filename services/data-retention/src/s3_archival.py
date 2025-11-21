@@ -22,14 +22,14 @@ class S3ArchivalManager:
     """Manage S3 archival for long-term data retention"""
 
     def __init__(self):
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         # S3 configuration
-        self.s3_bucket = os.getenv('S3_ARCHIVE_BUCKET', '')
-        self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
+        self.s3_bucket = os.getenv("S3_ARCHIVE_BUCKET", "")
+        self.aws_region = os.getenv("AWS_REGION", "us-east-1")
 
         self.influxdb_client: InfluxDBClient3 = None
         self.s3_client = None
@@ -37,10 +37,10 @@ class S3ArchivalManager:
         # Only initialize S3 if configured
         if self.s3_bucket:
             self.s3_client = boto3.client(
-                's3',
+                "s3",
                 region_name=self.aws_region,
-                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             )
 
     def initialize(self):
@@ -49,7 +49,7 @@ class S3ArchivalManager:
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
 
     async def archive_to_s3(self) -> dict[str, Any]:
@@ -57,7 +57,7 @@ class S3ArchivalManager:
 
         if not self.s3_bucket or not self.s3_client:
             logger.warning("S3 not configured, skipping archival")
-            return {'status': 'skipped', 'reason': 's3_not_configured'}
+            return {"status": "skipped", "reason": "s3_not_configured"}
 
         logger.info("Starting S3 archival...")
 
@@ -65,25 +65,25 @@ class S3ArchivalManager:
 
         try:
             # Query old data
-            query = f'''
+            query = f"""
             SELECT * FROM daily_aggregates
             WHERE time < TIMESTAMP '{cutoff_date.isoformat()}'
             ORDER BY time
-            '''
+            """
 
-            result = self.influxdb_client.query(query, language='sql', mode='pandas')
+            result = self.influxdb_client.query(query, language="sql", mode="pandas")
 
             if result.empty:
                 logger.info("No data to archive")
-                return {'status': 'no_data'}
+                return {"status": "no_data"}
 
             # Convert to Arrow table
             table = pa.Table.from_pandas(result)
 
             # Save to Parquet file
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.parquet') as f:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".parquet") as f:
                 parquet_file = f.name
-                pq.write_table(table, f, compression='gzip')
+                pq.write_table(table, f, compression="gzip")
 
             file_size_mb = os.path.getsize(parquet_file) / (1024 * 1024)
 
@@ -95,9 +95,9 @@ class S3ArchivalManager:
                 Bucket=self.s3_bucket,
                 Key=s3_key,
                 ExtraArgs={
-                    'StorageClass': 'GLACIER_IR',
-                    'ServerSideEncryption': 'AES256'
-                }
+                    "StorageClass": "GLACIER_IR",
+                    "ServerSideEncryption": "AES256",
+                },
             )
 
             # Store archive metadata in InfluxDB
@@ -116,35 +116,36 @@ class S3ArchivalManager:
             logger.info(f"Archived {len(result)} records to s3://{self.s3_bucket}/{s3_key} ({file_size_mb:.2f}MB)")
 
             return {
-                'status': 'success',
-                's3_key': s3_key,
-                'records_archived': len(result),
-                'file_size_mb': file_size_mb,
-                'cutoff_date': cutoff_date.isoformat(),
-                'timestamp': datetime.now()
+                "status": "success",
+                "s3_key": s3_key,
+                "records_archived": len(result),
+                "file_size_mb": file_size_mb,
+                "cutoff_date": cutoff_date.isoformat(),
+                "timestamp": datetime.now(),
             }
 
         except Exception as e:
-            logger.error(f"Error archiving to S3: {e}")
-            return {'status': 'error', 'error': str(e)}
+            logger.exception(f"Error archiving to S3: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def restore_from_s3(self, s3_key: str) -> pd.DataFrame:
         """Restore data from S3 archive"""
 
         if not self.s3_client:
-            raise Exception("S3 not configured")
+            msg = "S3 not configured"
+            raise Exception(msg)
 
         logger.info(f"Restoring from S3: {s3_key}")
 
         try:
             # Download from S3
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as f:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".parquet") as f:
                 local_file = f.name
 
                 self.s3_client.download_file(
                     Bucket=self.s3_bucket,
                     Key=s3_key,
-                    Filename=local_file
+                    Filename=local_file,
                 )
 
             # Read Parquet file
@@ -159,6 +160,6 @@ class S3ArchivalManager:
             return df
 
         except Exception as e:
-            logger.error(f"Error restoring from S3: {e}")
+            logger.exception(f"Error restoring from S3: {e}")
             raise
 

@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -85,13 +85,13 @@ influxdb_client = InfluxDBQueryClient()
 @router.get("/sports/games/live")
 async def get_live_games(
     team_ids: str | None = Query(None, description="Comma-separated team IDs"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get currently live games
-    
+
     Story 21.2: Live games endpoint for Sports Tab
-    
+
     This is a passthrough to the sports-data service for real-time game data.
     For historical data, use /sports/games/history endpoint.
     """
@@ -102,24 +102,24 @@ async def get_live_games(
             "games": [],
             "count": 0,
             "status": "no_live_games",
-            "message": "Live games integration coming soon"
+            "message": "Live games integration coming soon",
         }
     except Exception as e:
-        logger.error(f"Error fetching live games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch live games: {str(e)}")
+        logger.exception(f"Error fetching live games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch live games: {e!s}")
 
 
 @router.get("/sports/games/upcoming")
 async def get_upcoming_games(
     team_ids: str | None = Query(None, description="Comma-separated team IDs"),
     hours: int = Query(default=24, description="Hours ahead to look for games"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get upcoming games
-    
+
     Story 21.2: Upcoming games endpoint for Sports Tab
-    
+
     This is a passthrough to the sports-data service for scheduled games.
     For historical data, use /sports/games/history endpoint.
     """
@@ -130,20 +130,20 @@ async def get_upcoming_games(
             "games": [],
             "count": 0,
             "hours": hours,
-            "message": "Upcoming games integration coming soon"
+            "message": "Upcoming games integration coming soon",
         }
     except Exception as e:
-        logger.error(f"Error fetching upcoming games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch upcoming games: {str(e)}")
+        logger.exception(f"Error fetching upcoming games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch upcoming games: {e!s}")
 
 
 @router.get("/sports/teams")
 async def get_teams(
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get available teams
-    
+
     Story 21.2: Teams endpoint for Setup Wizard
     """
     try:
@@ -180,13 +180,12 @@ async def get_teams(
 
         if league == "NFL":
             return {"teams": nfl_teams, "count": len(nfl_teams)}
-        elif league == "NHL":
+        if league == "NHL":
             return {"teams": nhl_teams, "count": len(nhl_teams)}
-        else:
-            return {"teams": nfl_teams + nhl_teams, "count": len(nfl_teams) + len(nhl_teams)}
+        return {"teams": nfl_teams + nhl_teams, "count": len(nfl_teams) + len(nhl_teams)}
     except Exception as e:
-        logger.error(f"Error fetching teams: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {str(e)}")
+        logger.exception(f"Error fetching teams: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {e!s}")
 
 
 @router.get("/sports/games/history", response_model=GameListResponse)
@@ -195,20 +194,20 @@ async def get_game_history(
     season: int | None = Query(None, description="Season year (default: current)"),
     league: str | None = Query(None, description="NFL or NHL"),
     status_filter: str | None = Query(None, alias="status", description="Filter by status"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of games")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of games"),
 ):
     """
     Get historical games for a team
-    
+
     Epic 12 Story 12.2: Query sports data from InfluxDB
-    
+
     Args:
         team: Team name (e.g., "Patriots", "Bruins")
         season: Season year (e.g., 2025)
         league: Filter by league (NFL or NHL)
         status_filter: Filter by game status (scheduled, live, finished)
         limit: Maximum results
-        
+
     Returns:
         List of games with scores and details
     """
@@ -227,18 +226,18 @@ async def get_game_history(
         all_games = []
 
         for measurement in measurements:
-            query = f'''
+            query = f"""
                 from(bucket: "sports_data")
                     |> range(start: {season}-01-01T00:00:00Z, stop: {season+1}-01-01T00:00:00Z)
                     |> filter(fn: (r) => r._measurement == "{measurement}")
                     |> filter(fn: (r) => r.home_team == "{team}" or r.away_team == "{team}")
-            '''
+            """
 
             if status_filter:
                 query += f'|> filter(fn: (r) => r.status == "{status_filter}")'
 
             query += '|> sort(columns: ["_time"], desc: true)'
-            query += f'|> limit(n: {limit})'
+            query += f"|> limit(n: {limit})"
 
             try:
                 results = await influxdb_client._execute_query(query)
@@ -246,7 +245,7 @@ async def get_game_history(
                 for record in results:
                     game = GameResponse(
                         game_id=record.get("game_id", ""),
-                        league=measurement.split('_')[0].upper(),
+                        league=measurement.split("_")[0].upper(),
                         season=int(record.get("season", season)),
                         week=record.get("week"),
                         home_team=record.get("home_team", ""),
@@ -256,7 +255,7 @@ async def get_game_history(
                         status=record.get("status", "unknown"),
                         quarter_period=record.get("quarter") or record.get("period"),
                         time_remaining=record.get("time_remaining"),
-                        timestamp=record.get("_time", datetime.now().isoformat())
+                        timestamp=record.get("_time", datetime.now().isoformat()),
                     )
                     all_games.append(game)
 
@@ -267,31 +266,31 @@ async def get_game_history(
             games=all_games,
             count=len(all_games),
             team=team,
-            season=season
+            season=season,
         )
 
     except Exception as e:
-        logger.error(f"Error getting game history: {e}")
+        logger.exception(f"Error getting game history: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game history: {str(e)}"
+            detail=f"Failed to get game history: {e!s}",
         )
 
 
 @router.get("/sports/games/timeline/{game_id}", response_model=ScoreTimelineResponse)
 async def get_game_timeline(
     game_id: str,
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get score progression timeline for a specific game
-    
+
     Shows how the score changed throughout the game (useful for comeback visualizations)
-    
+
     Args:
         game_id: Unique game identifier
         league: NFL or NHL (optional, will search both if not specified)
-        
+
     Returns:
         Score timeline with timestamps
     """
@@ -303,13 +302,13 @@ async def get_game_timeline(
             measurements.extend(["nfl_scores", "nhl_scores"])
 
         for measurement in measurements:
-            query = f'''
+            query = f"""
                 from(bucket: "sports_data")
                     |> range(start: -7d)
                     |> filter(fn: (r) => r._measurement == "{measurement}")
                     |> filter(fn: (r) => r.game_id == "{game_id}")
                     |> sort(columns: ["_time"])
-            '''
+            """
 
             try:
                 results = await influxdb_client._execute_query(query)
@@ -325,7 +324,7 @@ async def get_game_timeline(
                         home_score=record.get("home_score", 0),
                         away_score=record.get("away_score", 0),
                         quarter_period=record.get("quarter") or record.get("period", ""),
-                        time_remaining=record.get("time_remaining", "")
+                        time_remaining=record.get("time_remaining", ""),
                     )
                     timeline.append(point)
 
@@ -338,7 +337,7 @@ async def get_game_timeline(
                         home_team=first_record.get("home_team", ""),
                         away_team=first_record.get("away_team", ""),
                         timeline=timeline,
-                        final_score=f"{final_record.get('home_score', 0)}-{final_record.get('away_score', 0)}"
+                        final_score=f"{final_record.get('home_score', 0)}-{final_record.get('away_score', 0)}",
                     )
 
             except Exception as e:
@@ -347,16 +346,16 @@ async def get_game_timeline(
         # Game not found in any measurement
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Game {game_id} not found"
+            detail=f"Game {game_id} not found",
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting game timeline: {e}")
+        logger.exception(f"Error getting game timeline: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game timeline: {str(e)}"
+            detail=f"Failed to get game timeline: {e!s}",
         )
 
 
@@ -364,21 +363,21 @@ async def get_game_timeline(
 async def get_team_schedule(
     team: str,
     season: int | None = Query(None, description="Season year (default: current)"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Retrieve complete season schedule for a team with calculated win/loss record.
-    
+
     Fetches all games for the specified team and season from ESPN API via sports-data service,
     then calculates team record (wins/losses/ties) by analyzing game scores.
-    
+
     Complexity: C (14) - Moderate-high complexity due to game data processing and record calculation
-    
+
     Args:
         team (str): Team identifier/name (e.g., "49ers", "Patriots")
         season (Optional[int]): Season year (default: current year)
         league (Optional[str]): League identifier - "NFL" or "NHL" (auto-detected if None)
-        
+
     Returns:
         TeamScheduleResponse: Complete schedule containing:
             - team: Team name
@@ -388,7 +387,7 @@ async def get_team_schedule(
             - wins: Number of wins
             - losses: Number of losses
             - ties: Number of ties
-            
+
     Process Flow:
         1. Determine current season (if not provided)
         2. Fetch all games via get_game_history() endpoint
@@ -396,7 +395,7 @@ async def get_team_schedule(
         4. Calculate wins/losses/ties based on score comparison
         5. Distinguish home vs away game logic
         6. Return complete schedule with calculated record
-    
+
     Example:
         >>> # Get 49ers current season schedule
         >>> response = await get_team_schedule("49ers", league="NFL")
@@ -404,7 +403,7 @@ async def get_team_schedule(
         >>> print(f"Total games: {len(response.games)}")
         >>> for game in response.games:
         ...     print(f"{game.home_team} vs {game.away_team}: {game.home_score}-{game.away_score}")
-    
+
     Note:
         Complexity arises from:
         - Iteration through all team games (up to 200 games)
@@ -413,7 +412,7 @@ async def get_team_schedule(
         - Null/None handling for unfinished games
         - Record calculation logic
         - Response formatting
-        
+
     Performance:
         - Typical response time: <500ms
         - Caches team data where possible
@@ -441,13 +440,12 @@ async def get_team_schedule(
                         losses += 1
                     else:
                         ties += 1
-                else:  # away team
-                    if game.away_score > game.home_score:
-                        wins += 1
-                    elif game.away_score < game.home_score:
-                        losses += 1
-                    else:
-                        ties += 1
+                elif game.away_score > game.home_score:
+                    wins += 1
+                elif game.away_score < game.home_score:
+                    losses += 1
+                else:
+                    ties += 1
 
         total_games_played = wins + losses + ties
         win_percentage = (wins / total_games_played) if total_games_played > 0 else 0.0
@@ -460,15 +458,15 @@ async def get_team_schedule(
             wins=wins,
             losses=losses,
             ties=ties,
-            win_percentage=round(win_percentage, 3)
+            win_percentage=round(win_percentage, 3),
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting team schedule: {e}")
+        logger.exception(f"Error getting team schedule: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get team schedule: {str(e)}"
+            detail=f"Failed to get team schedule: {e!s}",
         )
 

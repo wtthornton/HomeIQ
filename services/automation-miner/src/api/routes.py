@@ -8,8 +8,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..miner.database import get_db_session
-from ..miner.repository import CorpusRepository
+from src.miner.database import get_db_session
+from src.miner.repository import CorpusRepository
+
 from .schemas import AutomationResponse, SearchResponse, StatsResponse
 
 logger = logging.getLogger(__name__)
@@ -24,29 +25,29 @@ async def search_corpus(
     use_case: str | None = Query(None, description="Filter by use case (energy/comfort/security/convenience)"),
     min_quality: float = Query(0.7, ge=0.0, le=1.0, description="Minimum quality score"),
     limit: int = Query(50, ge=1, le=500, description="Maximum results"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Search community automation corpus
-    
+
     Query automations by device type, integration, use case, and quality threshold.
-    
+
     Example:
         GET /api/automation-miner/corpus/search?device=motion_sensor&use_case=security&min_quality=0.8
     """
     logger.info(
         f"Search request: device={device}, integration={integration}, "
-        f"use_case={use_case}, min_quality={min_quality}, limit={limit}"
+        f"use_case={use_case}, min_quality={min_quality}, limit={limit}",
     )
 
     repo = CorpusRepository(db)
 
     filters = {
-        'device': device,
-        'integration': integration,
-        'use_case': use_case,
-        'min_quality': min_quality,
-        'limit': limit
+        "device": device,
+        "integration": integration,
+        "use_case": use_case,
+        "min_quality": min_quality,
+        "limit": limit,
     }
 
     try:
@@ -57,21 +58,21 @@ async def search_corpus(
         return SearchResponse(
             automations=automations,
             count=len(automations),
-            filters=filters
+            filters=filters,
         )
 
     except Exception as e:
-        logger.error(f"Search failed: {e}")
+        logger.exception(f"Search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/corpus/stats", response_model=StatsResponse)
 async def get_stats(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Get corpus statistics
-    
+
     Returns:
         - Total automation count
         - Average quality score
@@ -89,27 +90,27 @@ async def get_stats(
 
         logger.info(
             f"Stats: {stats['total']} automations, "
-            f"avg quality {stats['avg_quality']}"
+            f"avg quality {stats['avg_quality']}",
         )
 
         return StatsResponse(**stats)
 
     except Exception as e:
-        logger.error(f"Stats request failed: {e}")
+        logger.exception(f"Stats request failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/corpus/{automation_id}", response_model=AutomationResponse)
 async def get_automation(
     automation_id: int,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Get single automation by ID
-    
+
     Args:
         automation_id: Database ID of automation
-    
+
     Returns:
         Full automation details
     """
@@ -128,6 +129,6 @@ async def get_automation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Get automation failed: {e}")
+        logger.exception(f"Get automation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -12,7 +12,7 @@ from typing import Any
 import aiohttp
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -55,13 +55,12 @@ class MetricsEndpoints:
         async def get_admin_metrics():
             """Get admin-api service metrics"""
             try:
-                metrics = self.metrics_collector.get_all_metrics()
-                return metrics
+                return self.metrics_collector.get_all_metrics()
             except Exception as e:
-                logger.error(f"Error getting metrics: {e}")
+                logger.exception(f"Error getting metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get metrics: {str(e)}"
+                    detail=f"Failed to get metrics: {e!s}",
                 )
 
         @self.router.get("/metrics/all", response_model=dict[str, ServiceMetrics])
@@ -87,23 +86,22 @@ class MetricsEndpoints:
 
                 return all_metrics
             except Exception as e:
-                logger.error(f"Error getting all services metrics: {e}")
+                logger.exception(f"Error getting all services metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get all services metrics: {str(e)}"
+                    detail=f"Failed to get all services metrics: {e!s}",
                 )
 
         @self.router.get("/metrics/system")
         async def get_system_metrics():
             """Get system metrics for admin-api"""
             try:
-                system_metrics = self.metrics_collector.get_system_metrics()
-                return system_metrics
+                return self.metrics_collector.get_system_metrics()
             except Exception as e:
-                logger.error(f"Error getting system metrics: {e}")
+                logger.exception(f"Error getting system metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get system metrics: {str(e)}"
+                    detail=f"Failed to get system metrics: {e!s}",
                 )
 
         @self.router.get("/metrics/summary")
@@ -113,7 +111,7 @@ class MetricsEndpoints:
                 all_metrics = {}
 
                 # Collect metrics from all services
-                for service_name in ["admin-api"] + list(self.service_urls.keys()):
+                for service_name in ["admin-api", *list(self.service_urls.keys())]:
                     try:
                         if service_name == "admin-api":
                             metrics = self.metrics_collector.get_all_metrics()
@@ -141,8 +139,8 @@ class MetricsEndpoints:
                         "total_memory_mb": 0.0,
                         "total_uptime_seconds": 0.0,
                         "total_requests": 0,
-                        "avg_response_time_ms": 0.0
-                    }
+                        "avg_response_time_ms": 0.0,
+                    },
                 }
 
                 # Calculate aggregates
@@ -152,38 +150,38 @@ class MetricsEndpoints:
 
                 for service_name, metrics in all_metrics.items():
                     # System metrics
-                    if 'system' in metrics:
-                        if 'cpu' in metrics['system']:
-                            summary['aggregate']['total_cpu_percent'] += metrics['system']['cpu'].get('percent', 0)
-                        if 'memory' in metrics['system']:
-                            summary['aggregate']['total_memory_mb'] += metrics['system']['memory'].get('rss_mb', 0)
+                    if "system" in metrics:
+                        if "cpu" in metrics["system"]:
+                            summary["aggregate"]["total_cpu_percent"] += metrics["system"]["cpu"].get("percent", 0)
+                        if "memory" in metrics["system"]:
+                            summary["aggregate"]["total_memory_mb"] += metrics["system"]["memory"].get("rss_mb", 0)
 
                     # Uptime
-                    summary['aggregate']['total_uptime_seconds'] += metrics.get('uptime_seconds', 0)
+                    summary["aggregate"]["total_uptime_seconds"] += metrics.get("uptime_seconds", 0)
 
                     # Request counts
-                    if 'counters' in metrics:
-                        for key, value in metrics['counters'].items():
-                            if 'request' in key.lower() or 'call' in key.lower():
+                    if "counters" in metrics:
+                        for key, value in metrics["counters"].items():
+                            if "request" in key.lower() or "call" in key.lower():
                                 total_requests += value
 
                     # Response times
-                    if 'timers' in metrics:
-                        for key, timer in metrics['timers'].items():
-                            if 'request' in key.lower() or 'response' in key.lower():
-                                total_response_time += timer.get('avg_ms', 0)
+                    if "timers" in metrics:
+                        for key, timer in metrics["timers"].items():
+                            if "request" in key.lower() or "response" in key.lower():
+                                total_response_time += timer.get("avg_ms", 0)
                                 response_count += 1
 
-                summary['aggregate']['total_requests'] = total_requests
+                summary["aggregate"]["total_requests"] = total_requests
                 if response_count > 0:
-                    summary['aggregate']['avg_response_time_ms'] = total_response_time / response_count
+                    summary["aggregate"]["avg_response_time_ms"] = total_response_time / response_count
 
                 return summary
             except Exception as e:
-                logger.error(f"Error getting metrics summary: {e}")
+                logger.exception(f"Error getting metrics summary: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get metrics summary: {str(e)}"
+                    detail=f"Failed to get metrics summary: {e!s}",
                 )
 
         @self.router.post("/metrics/reset")
@@ -194,23 +192,23 @@ class MetricsEndpoints:
                 return {
                     "status": "success",
                     "message": "Metrics reset successfully",
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 }
             except Exception as e:
-                logger.error(f"Error resetting metrics: {e}")
+                logger.exception(f"Error resetting metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to reset metrics: {str(e)}"
+                    detail=f"Failed to reset metrics: {e!s}",
                 )
 
 
 def create_metrics_router(metrics_collector: MetricsCollector | None = None) -> APIRouter:
     """
     Create and return metrics router
-    
+
     Args:
         metrics_collector: Optional metrics collector instance
-        
+
     Returns:
         FastAPI APIRouter with metrics endpoints
     """

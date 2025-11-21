@@ -12,26 +12,25 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.log_level == "DEBUG",
-    future=True
+    future=True,
 )
 
 # Create async session factory (Context7 best practice)
 async_session_maker = async_sessionmaker(
     engine,
     class_=AsyncSession,
-    expire_on_commit=False
+    expire_on_commit=False,
 )
 
 
 class Base(DeclarativeBase):
     """Base class for all database models"""
-    pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for FastAPI endpoints to get database session.
-    
+
     Context7 Pattern: Async dependency injection with proper exception handling
     """
     async with async_session_maker() as session:

@@ -50,13 +50,13 @@ PATTERNS: dict[str, PatternDefinition] = {
                 type="binary_sensor",
                 domain="binary_sensor",
                 device_class="motion",
-                description="Motion sensor to trigger light"
+                description="Motion sensor to trigger light",
             ),
             PatternVariable(
                 name="light",
                 type="light",
                 domain="light",
-                description="Light to control"
+                description="Light to control",
             ),
             PatternVariable(
                 name="no_motion_delay",
@@ -64,7 +64,7 @@ PATTERNS: dict[str, PatternDefinition] = {
                 domain="duration",
                 default="5",
                 description="Minutes to wait after no motion",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="timeout",
@@ -72,8 +72,8 @@ PATTERNS: dict[str, PatternDefinition] = {
                 domain="duration",
                 default="10",
                 description="Maximum wait time in minutes",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -100,7 +100,7 @@ actions:
     continue_on_timeout: true
   - action: light.turn_off
     target:
-      entity_id: {light}"""
+      entity_id: {light}""",
     ),
 
     "door_left_open_alert": PatternDefinition(
@@ -116,7 +116,7 @@ actions:
                 type="binary_sensor",
                 domain="binary_sensor",
                 device_class="door",
-                description="Door/window sensor to monitor"
+                description="Door/window sensor to monitor",
             ),
             PatternVariable(
                 name="notification_service",
@@ -124,7 +124,7 @@ actions:
                 domain="notify",
                 default="notify.mobile_app",
                 description="Notification service",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="wait_time",
@@ -132,8 +132,8 @@ actions:
                 domain="duration",
                 default="5",
                 description="Minutes to wait before alerting",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -157,7 +157,7 @@ actions:
   - action: {notification_service}
     data:
       title: 'Door Alert'
-      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} has been open for {wait_time} minutes!'"""
+      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} has been open for {wait_time} minutes!'""",
     ),
 
     "battery_low_notification": PatternDefinition(
@@ -173,7 +173,7 @@ actions:
                 type="sensor",
                 domain="sensor",
                 device_class="battery",
-                description="Battery level sensor"
+                description="Battery level sensor",
             ),
             PatternVariable(
                 name="notification_service",
@@ -181,7 +181,7 @@ actions:
                 domain="notify",
                 default="notify.mobile_app",
                 description="Notification service",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="threshold",
@@ -189,8 +189,8 @@ actions:
                 domain="number",
                 default="20",
                 description="Battery percentage threshold",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -205,7 +205,7 @@ actions:
   - action: {notification_service}
     data:
       title: 'Low Battery Alert'
-      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} battery is at {{{{ trigger.to_state.state }}}}%'"""
+      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} battery is at {{{{ trigger.to_state.state }}}}%'""",
     ),
 
     "presence_lighting": PatternDefinition(
@@ -220,14 +220,14 @@ actions:
                 name="person",
                 type="person",
                 domain="person",
-                description="Person entity to track"
+                description="Person entity to track",
             ),
             PatternVariable(
                 name="lights",
                 type="light",
                 domain="light",
-                description="Lights to control (can be multiple)"
-            )
+                description="Lights to control (can be multiple)",
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -243,7 +243,7 @@ actions:
     target:
       entity_id: {lights}
     data:
-      brightness: 200"""
+      brightness: 200""",
     ),
 
     "presence_climate": PatternDefinition(
@@ -258,13 +258,13 @@ actions:
                 name="person",
                 type="person",
                 domain="person",
-                description="Person entity to track"
+                description="Person entity to track",
             ),
             PatternVariable(
                 name="climate",
                 type="climate",
                 domain="climate",
-                description="Climate control entity"
+                description="Climate control entity",
             ),
             PatternVariable(
                 name="temperature",
@@ -272,8 +272,8 @@ actions:
                 domain="number",
                 default="72",
                 description="Target temperature in Fahrenheit",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -289,7 +289,7 @@ actions:
     target:
       entity_id: {climate}
     data:
-      temperature: {temperature}"""
+      temperature: {temperature}""",
     ),
 
     "time_based_schedule": PatternDefinition(
@@ -304,7 +304,7 @@ actions:
                 name="entity",
                 type="any",
                 domain="any",
-                description="Entity to control"
+                description="Entity to control",
             ),
             PatternVariable(
                 name="time",
@@ -312,7 +312,7 @@ actions:
                 domain="time",
                 default="07:00:00",
                 description="Time to trigger",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="action_type",
@@ -320,8 +320,8 @@ actions:
                 domain="action",
                 default="turn_on",
                 description="Action to perform (turn_on/turn_off)",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -334,7 +334,7 @@ conditions: []
 actions:
   - action: homeassistant.{action_type}
     target:
-      entity_id: {entity}"""
+      entity_id: {entity}""",
     ),
 
     "sunset_lighting": PatternDefinition(
@@ -349,7 +349,7 @@ actions:
                 name="lights",
                 type="light",
                 domain="light",
-                description="Lights to control"
+                description="Lights to control",
             ),
             PatternVariable(
                 name="offset",
@@ -357,8 +357,8 @@ actions:
                 domain="duration",
                 default="0",
                 description="Minutes before/after sunset (negative for before)",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -374,7 +374,7 @@ actions:
     target:
       entity_id: {lights}
     data:
-      brightness: 180"""
+      brightness: 180""",
     ),
 
     "garage_door_auto_close": PatternDefinition(
@@ -390,7 +390,7 @@ actions:
                 type="cover",
                 domain="cover",
                 device_class="garage",
-                description="Garage door cover entity"
+                description="Garage door cover entity",
             ),
             PatternVariable(
                 name="wait_time",
@@ -398,8 +398,8 @@ actions:
                 domain="duration",
                 default="10",
                 description="Minutes to wait before auto-closing",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -422,7 +422,7 @@ actions:
     state: 'open'
   - action: cover.close_cover
     target:
-      entity_id: {garage_door}"""
+      entity_id: {garage_door}""",
     ),
 
     "appliance_completion_notify": PatternDefinition(
@@ -438,7 +438,7 @@ actions:
                 type="sensor",
                 domain="sensor",
                 device_class="power",
-                description="Power consumption sensor"
+                description="Power consumption sensor",
             ),
             PatternVariable(
                 name="notification_service",
@@ -446,7 +446,7 @@ actions:
                 domain="notify",
                 default="notify.mobile_app",
                 description="Notification service",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="threshold",
@@ -454,8 +454,8 @@ actions:
                 domain="number",
                 default="5",
                 description="Power threshold in watts (below = done)",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -472,7 +472,7 @@ actions:
   - action: {notification_service}
     data:
       title: 'Appliance Complete'
-      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} has finished!'"""
+      message: '{{{{ trigger.to_state.attributes.friendly_name }}}} has finished!'""",
     ),
 
     "nighttime_motion_dim_light": PatternDefinition(
@@ -488,13 +488,13 @@ actions:
                 type="binary_sensor",
                 domain="binary_sensor",
                 device_class="motion",
-                description="Motion sensor"
+                description="Motion sensor",
             ),
             PatternVariable(
                 name="light",
                 type="light",
                 domain="light",
-                description="Light to control"
+                description="Light to control",
             ),
             PatternVariable(
                 name="start_time",
@@ -502,7 +502,7 @@ actions:
                 domain="time",
                 default="22:00:00",
                 description="Nighttime start time",
-                required=False
+                required=False,
             ),
             PatternVariable(
                 name="end_time",
@@ -510,8 +510,8 @@ actions:
                 domain="time",
                 default="06:00:00",
                 description="Nighttime end time",
-                required=False
-            )
+                required=False,
+            ),
         ],
         template="""id: '{automation_id}'
 alias: '{alias}'
@@ -541,7 +541,7 @@ actions:
     continue_on_timeout: true
   - action: light.turn_off
     target:
-      entity_id: {light}"""
+      entity_id: {light}""",
     ),
 }
 

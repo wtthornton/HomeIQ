@@ -48,7 +48,7 @@ class MinerIntegration:
         try:
             response = await self.client.get(
                 f"{self.miner_url}/health",
-                timeout=2.0
+                timeout=2.0,
             )
             self._available = response.status_code == 200
             return self._available
@@ -62,7 +62,7 @@ class MinerIntegration:
         device: str | None = None,
         use_case: str | None = None,
         min_quality: float = 0.7,
-        limit: int = 50
+        limit: int = 50,
     ) -> list[dict[str, Any]]:
         """
         Search community automations.
@@ -83,7 +83,7 @@ class MinerIntegration:
         try:
             params = {
                 "min_quality": min_quality,
-                "limit": limit
+                "limit": limit,
             }
 
             if device:
@@ -94,7 +94,7 @@ class MinerIntegration:
 
             response = await self.client.get(
                 f"{self.miner_url}/api/automation-miner/corpus/search",
-                params=params
+                params=params,
             )
 
             response.raise_for_status()
@@ -103,12 +103,12 @@ class MinerIntegration:
             return data.get("automations", [])
 
         except Exception as e:
-            logger.error(f"Failed to search automations: {e}")
+            logger.exception(f"Failed to search automations: {e}")
             return []
 
     async def get_device_usage_stats(
         self,
-        device: str
+        device: str,
     ) -> dict[str, Any]:
         """
         Get usage statistics for a device type from community.
@@ -126,7 +126,7 @@ class MinerIntegration:
                 "device": device,
                 "total_automations": 0,
                 "common_patterns": [],
-                "avg_complexity": "unknown"
+                "avg_complexity": "unknown",
             }
 
         # Analyze automations
@@ -143,13 +143,13 @@ class MinerIntegration:
             "total_automations": len(automations),
             "common_use_cases": dict(use_case_counts.most_common(3)),
             "common_complexity": complexity_counts.most_common(1)[0][0] if complexity_counts else "unknown",
-            "avg_quality": sum(a.get("quality_score", 0) for a in automations) / len(automations)
+            "avg_quality": sum(a.get("quality_score", 0) for a in automations) / len(automations),
         }
 
     async def get_similar_automations(
         self,
         devices: list[str],
-        limit: int = 5
+        limit: int = 5,
     ) -> list[dict[str, Any]]:
         """
         Find similar automations based on device types.
@@ -186,7 +186,7 @@ class MinerIntegration:
     async def enrich_llm_prompt(
         self,
         base_prompt: str,
-        devices: list[str]
+        devices: list[str],
     ) -> str:
         """
         Enrich LLM prompt with community examples.
@@ -221,8 +221,7 @@ class MinerIntegration:
         if "**Output Format" in base_prompt:
             parts = base_prompt.split("**Output Format")
             return parts[0] + examples_section + "**Output Format" + parts[1]
-        else:
-            return base_prompt + examples_section
+        return base_prompt + examples_section
 
     async def get_corpus_stats(self) -> dict[str, Any]:
         """
@@ -236,7 +235,7 @@ class MinerIntegration:
 
         try:
             response = await self.client.get(
-                f"{self.miner_url}/api/automation-miner/corpus/stats"
+                f"{self.miner_url}/api/automation-miner/corpus/stats",
             )
 
             response.raise_for_status()
@@ -244,11 +243,11 @@ class MinerIntegration:
 
             return {
                 "available": True,
-                **stats
+                **stats,
             }
 
         except Exception as e:
-            logger.error(f"Failed to get corpus stats: {e}")
+            logger.exception(f"Failed to get corpus stats: {e}")
             return {"available": False, "error": str(e)}
 
     async def close(self):

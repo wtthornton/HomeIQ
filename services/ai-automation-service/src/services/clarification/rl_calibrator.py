@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class RLCalibrationConfig:
     """
     Configuration for RL-based calibration (2025 type-safe approach).
-    
+
     Uses dataclasses for type-safe configuration (2025 best practice).
     """
     learning_rate: float = 0.01
@@ -41,7 +41,7 @@ class RLCalibrationConfig:
 class RLFeedback:
     """
     Feedback sample for RL training.
-    
+
     Stores predicted confidence, actual outcome, and context.
     """
     predicted_confidence: float
@@ -56,18 +56,18 @@ class RLFeedback:
 class RLConfidenceCalibrator:
     """
     RL-based confidence calibration.
-    
+
     Uses reinforcement learning to fine-tune confidence scores by penalizing
     over-confidence (claiming high confidence when wrong) and under-confidence
     (claiming low confidence when right).
-    
+
     Uses 2025 best practices: type hints, dataclasses, numpy for numerical operations.
     """
 
     def __init__(self, config: RLCalibrationConfig | None = None, model_path: str | None = None):
         """
         Initialize RL calibrator.
-        
+
         Args:
             config: Optional configuration (uses defaults if None)
             model_path: Optional path to save/load model
@@ -90,21 +90,21 @@ class RLConfidenceCalibrator:
     def calculate_reward(
         self,
         predicted_confidence: float,
-        actual_outcome: bool
+        actual_outcome: bool,
     ) -> float:
         """
         Calculate reward using logarithmic scoring rule.
-        
+
         The logarithmic scoring rule is proper (incentivizes honest confidence estimates):
         - If outcome is positive: reward = log(predicted_confidence)
         - If outcome is negative: reward = log(1 - predicted_confidence)
-        
+
         This penalizes both over-confidence and under-confidence.
-        
+
         Args:
             predicted_confidence: Predicted confidence (0.0-1.0)
             actual_outcome: True if suggestion was approved/proceeded
-        
+
         Returns:
             Reward value (negative for penalties, can be -inf for extreme cases)
         """
@@ -112,10 +112,7 @@ class RLConfidenceCalibrator:
         # Clip to avoid log(0) or log(1) issues
         predicted_confidence = np.clip(predicted_confidence, 1e-10, 1.0 - 1e-10)
 
-        if actual_outcome:
-            reward = np.log(predicted_confidence)
-        else:
-            reward = np.log(1.0 - predicted_confidence)
+        reward = np.log(predicted_confidence) if actual_outcome else np.log(1.0 - predicted_confidence)
 
         return float(reward)
 
@@ -125,18 +122,18 @@ class RLConfidenceCalibrator:
         ambiguity_count: int = 0,
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
-        answer_count: int = 0
+        answer_count: int = 0,
     ) -> np.ndarray:
         """
         Extract features for RL model.
-        
+
         Args:
             raw_confidence: Raw confidence score
             ambiguity_count: Number of ambiguities
             critical_ambiguity_count: Number of critical ambiguities
             rounds: Number of clarification rounds
             answer_count: Number of answers provided
-        
+
         Returns:
             Feature vector for RL model
         """
@@ -147,7 +144,7 @@ class RLConfidenceCalibrator:
             min(ambiguity_count / 5.0, 1.0),
             min(critical_ambiguity_count / 3.0, 1.0),
             min(rounds / 3.0, 1.0),
-            min(answer_count / 5.0, 1.0)
+            min(answer_count / 5.0, 1.0),
         ], dtype=np.float32)
 
     def predict_adjustment(
@@ -156,18 +153,18 @@ class RLConfidenceCalibrator:
         ambiguity_count: int = 0,
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
-        answer_count: int = 0
+        answer_count: int = 0,
     ) -> float:
         """
         Predict confidence adjustment using learned RL model.
-        
+
         Args:
             raw_confidence: Raw confidence score
             ambiguity_count: Number of ambiguities
             critical_ambiguity_count: Number of critical ambiguities
             rounds: Number of clarification rounds
             answer_count: Number of answers provided
-        
+
         Returns:
             Adjustment factor to apply to confidence (typically close to 1.0)
         """
@@ -176,7 +173,7 @@ class RLConfidenceCalibrator:
 
         features = self.extract_features(
             raw_confidence, ambiguity_count, critical_ambiguity_count,
-            rounds, answer_count
+            rounds, answer_count,
         )
 
         # Linear model: adjustment = weights @ features
@@ -196,11 +193,11 @@ class RLConfidenceCalibrator:
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
         answer_count: int = 0,
-        auto_train: bool = True
+        auto_train: bool = True,
     ) -> None:
         """
         Add feedback sample and optionally update RL model.
-        
+
         Args:
             predicted_confidence: Predicted confidence score
             actual_outcome: True if suggestion was approved/proceeded
@@ -216,7 +213,7 @@ class RLConfidenceCalibrator:
             ambiguity_count=ambiguity_count,
             critical_ambiguity_count=critical_ambiguity_count,
             rounds=rounds,
-            answer_count=answer_count
+            answer_count=answer_count,
         )
 
         self.feedback_history.append(feedback)
@@ -234,17 +231,17 @@ class RLConfidenceCalibrator:
     def train(self) -> bool:
         """
         Train RL model using collected feedback.
-        
+
         Uses gradient descent with logarithmic scoring rule as reward signal.
         Updates weights to maximize expected reward.
-        
+
         Returns:
             True if training was successful, False otherwise
         """
         if len(self.feedback_history) < self.config.min_samples_for_training:
             logger.debug(
                 f"Insufficient samples for RL training: "
-                f"{len(self.feedback_history)} < {self.config.min_samples_for_training}"
+                f"{len(self.feedback_history)} < {self.config.min_samples_for_training}",
             )
             return False
 
@@ -259,14 +256,14 @@ class RLConfidenceCalibrator:
                     feedback.ambiguity_count,
                     feedback.critical_ambiguity_count,
                     feedback.rounds,
-                    feedback.answer_count
+                    feedback.answer_count,
                 )
                 features_list.append(features)
 
                 # Calculate reward for this sample
                 reward = self.calculate_reward(
                     feedback.predicted_confidence,
-                    feedback.actual_outcome
+                    feedback.actual_outcome,
                 )
                 rewards.append(reward)
 
@@ -310,7 +307,7 @@ class RLConfidenceCalibrator:
             avg_reward = np.mean(rewards)
             logger.info(
                 f"✅ RL calibrator trained: {len(self.feedback_history)} samples, "
-                f"avg_reward={avg_reward:.4f}, weights={self.adjustment_weights}"
+                f"avg_reward={avg_reward:.4f}, weights={self.adjustment_weights}",
             )
 
             return True
@@ -325,18 +322,18 @@ class RLConfidenceCalibrator:
         ambiguity_count: int = 0,
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
-        answer_count: int = 0
+        answer_count: int = 0,
     ) -> float:
         """
         Apply RL-based calibration to confidence score.
-        
+
         Args:
             raw_confidence: Raw confidence score
             ambiguity_count: Number of ambiguities
             critical_ambiguity_count: Number of critical ambiguities
             rounds: Number of clarification rounds
             answer_count: Number of answers provided
-        
+
         Returns:
             Calibrated confidence score (0.0-1.0)
         """
@@ -346,7 +343,7 @@ class RLConfidenceCalibrator:
         # Get adjustment factor from RL model
         adjustment = self.predict_adjustment(
             raw_confidence, ambiguity_count, critical_ambiguity_count,
-            rounds, answer_count
+            rounds, answer_count,
         )
 
         # Apply adjustment
@@ -360,10 +357,10 @@ class RLConfidenceCalibrator:
     def save(self, path: str | None = None) -> bool:
         """
         Save RL model to disk.
-        
+
         Args:
             path: Optional path to save model (uses default if None)
-        
+
         Returns:
             True if save was successful, False otherwise
         """
@@ -374,15 +371,15 @@ class RLConfidenceCalibrator:
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
             model_data = {
-                'adjustment_weights': self.adjustment_weights,
-                'is_trained': self.is_trained,
-                'training_samples': self.training_samples,
-                'config': self.config,
-                'total_rewards': self.total_rewards,
-                'total_samples': self.total_samples
+                "adjustment_weights": self.adjustment_weights,
+                "is_trained": self.is_trained,
+                "training_samples": self.training_samples,
+                "config": self.config,
+                "total_rewards": self.total_rewards,
+                "total_samples": self.total_samples,
             }
 
-            with open(save_path, 'wb') as f:
+            with open(save_path, "wb") as f:
                 pickle.dump(model_data, f)
 
             logger.debug(f"Saved RL calibrator model to {save_path}")
@@ -395,10 +392,10 @@ class RLConfidenceCalibrator:
     def load(self, path: str | None = None) -> bool:
         """
         Load RL model from disk.
-        
+
         Args:
             path: Optional path to load model from (uses default if None)
-        
+
         Returns:
             True if load was successful, False otherwise
         """
@@ -409,15 +406,15 @@ class RLConfidenceCalibrator:
                 logger.debug(f"RL calibrator model not found at {load_path}")
                 return False
 
-            with open(load_path, 'rb') as f:
+            with open(load_path, "rb") as f:
                 model_data = pickle.load(f)
 
-            self.adjustment_weights = model_data.get('adjustment_weights', np.zeros(6))
-            self.is_trained = model_data.get('is_trained', False)
-            self.training_samples = model_data.get('training_samples', 0)
-            self.config = model_data.get('config', RLCalibrationConfig())
-            self.total_rewards = model_data.get('total_rewards', 0.0)
-            self.total_samples = model_data.get('total_samples', 0)
+            self.adjustment_weights = model_data.get("adjustment_weights", np.zeros(6))
+            self.is_trained = model_data.get("is_trained", False)
+            self.training_samples = model_data.get("training_samples", 0)
+            self.config = model_data.get("config", RLCalibrationConfig())
+            self.total_rewards = model_data.get("total_rewards", 0.0)
+            self.total_samples = model_data.get("total_samples", 0)
 
             logger.debug(f"Loaded RL calibrator model from {load_path}")
             return True
@@ -429,7 +426,7 @@ class RLConfidenceCalibrator:
     def get_stats(self) -> dict:
         """
         Get statistics about RL calibrator.
-        
+
         Returns:
             Dictionary with statistics
         """
@@ -440,11 +437,11 @@ class RLConfidenceCalibrator:
         )
 
         return {
-            'is_trained': self.is_trained,
-            'training_samples': self.training_samples,
-            'total_samples': self.total_samples,
-            'avg_reward': avg_reward,
-            'total_rewards': self.total_rewards,
-            'adjustment_weights': self.adjustment_weights.tolist() if self.is_trained else None
+            "is_trained": self.is_trained,
+            "training_samples": self.training_samples,
+            "total_samples": self.total_samples,
+            "avg_reward": avg_reward,
+            "total_rewards": self.total_rewards,
+            "adjustment_weights": self.adjustment_weights.tolist() if self.is_trained else None,
         }
 

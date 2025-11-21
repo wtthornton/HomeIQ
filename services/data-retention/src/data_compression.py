@@ -1,6 +1,7 @@
 """Data compression and optimization service."""
 
 import asyncio
+import contextlib
 import gzip
 import json
 import logging
@@ -48,7 +49,7 @@ class CompressionResult:
             "error_message": self.error_message,
             "compression_timestamp": self.compression_timestamp.isoformat(),
             "space_saved_bytes": self.original_size_bytes - self.compressed_size_bytes,
-            "space_saved_percentage": (1 - self.compression_ratio) * 100
+            "space_saved_percentage": (1 - self.compression_ratio) * 100,
         }
 
 class DataCompressionService:
@@ -57,7 +58,7 @@ class DataCompressionService:
     def __init__(self, influxdb_client=None):
         """
         Initialize data compression service.
-        
+
         Args:
             influxdb_client: InfluxDB client for data operations
         """
@@ -70,7 +71,7 @@ class DataCompressionService:
         self.compression_algorithms = [
             CompressionAlgorithm.GZIP,
             CompressionAlgorithm.LZMA,
-            CompressionAlgorithm.ZLIB
+            CompressionAlgorithm.ZLIB,
         ]
 
         logger.info("Data compression service initialized")
@@ -93,21 +94,19 @@ class DataCompressionService:
 
         if self.compression_task and not self.compression_task.done():
             self.compression_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.compression_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Data compression service stopped")
 
     async def compress_data(self, data: bytes, algorithm: CompressionAlgorithm) -> CompressionResult:
         """
         Compress data using specified algorithm.
-        
+
         Args:
             data: Data to compress
             algorithm: Compression algorithm to use
-            
+
         Returns:
             CompressionResult: Result of compression operation
         """
@@ -122,7 +121,8 @@ class DataCompressionService:
             elif algorithm == CompressionAlgorithm.ZLIB:
                 compressed_data = zlib.compress(data, level=9)
             else:
-                raise ValueError(f"Unsupported compression algorithm: {algorithm}")
+                msg = f"Unsupported compression algorithm: {algorithm}"
+                raise ValueError(msg)
 
             compressed_size = len(compressed_data)
             compression_ratio = compressed_size / original_size
@@ -134,7 +134,7 @@ class DataCompressionService:
                 compressed_size_bytes=compressed_size,
                 compression_ratio=compression_ratio,
                 compression_duration=compression_duration,
-                success=True
+                success=True,
             )
 
             self.compression_history.append(result)
@@ -154,21 +154,21 @@ class DataCompressionService:
                 compression_ratio=1.0,
                 compression_duration=compression_duration,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
             self.compression_history.append(result)
-            logger.error(f"Data compression failed with {algorithm.value}: {e}")
+            logger.exception(f"Data compression failed with {algorithm.value}: {e}")
 
             return result
 
     async def find_best_compression(self, data: bytes) -> CompressionResult:
         """
         Find the best compression algorithm for given data.
-        
+
         Args:
             data: Data to compress
-            
+
         Returns:
             CompressionResult: Best compression result
         """
@@ -189,16 +189,16 @@ class DataCompressionService:
             compression_ratio=1.0,
             compression_duration=0.0,
             success=False,
-            error_message="No compression algorithm succeeded"
+            error_message="No compression algorithm succeeded",
         )
 
     async def compress_old_data(self, days_old: int = 30) -> list[CompressionResult]:
         """
         Compress old data in the database.
-        
+
         Args:
             days_old: Age of data to compress in days
-            
+
         Returns:
             List of compression results
         """
@@ -220,17 +220,17 @@ class DataCompressionService:
             logger.info(f"Compressed {len(results)} data chunks")
 
         except Exception as e:
-            logger.error(f"Failed to compress old data: {e}")
+            logger.exception(f"Failed to compress old data: {e}")
 
         return results
 
     async def _get_old_data(self, days_old: int) -> list[bytes]:
         """
         Get old data from database.
-        
+
         Args:
             days_old: Age of data to retrieve in days
-            
+
         Returns:
             List of data chunks
         """
@@ -262,7 +262,7 @@ class DataCompressionService:
                         "measurement": record.get_measurement(),
                         "field": record.get_field(),
                         "value": record.get_value(),
-                        "tags": record.values
+                        "tags": record.values,
                     })
 
                 if chunk_data:
@@ -271,13 +271,13 @@ class DataCompressionService:
             return data_chunks
 
         except Exception as e:
-            logger.error(f"Failed to get old data: {e}")
+            logger.exception(f"Failed to get old data: {e}")
             return []
 
     async def _apply_compression_to_database(self, data: bytes, result: CompressionResult) -> None:
         """
         Apply compression to database storage.
-        
+
         Args:
             data: Original data
             result: Compression result
@@ -294,12 +294,12 @@ class DataCompressionService:
             logger.debug(f"Applied compression to database: {result.algorithm.value}")
 
         except Exception as e:
-            logger.error(f"Failed to apply compression to database: {e}")
+            logger.exception(f"Failed to apply compression to database: {e}")
 
     async def schedule_compression(self, interval_hours: int = 24) -> None:
         """
         Schedule periodic data compression.
-        
+
         Args:
             interval_hours: Interval between compression runs in hours
         """
@@ -318,7 +318,7 @@ class DataCompressionService:
                     logger.info(f"Scheduled compression completed: {total_saved} bytes saved")
 
                 except Exception as e:
-                    logger.error(f"Scheduled compression failed: {e}")
+                    logger.exception(f"Scheduled compression failed: {e}")
 
                 # Wait for next compression cycle
                 await asyncio.sleep(interval_hours * 3600)
@@ -329,10 +329,10 @@ class DataCompressionService:
     def get_compression_history(self, limit: int = 100) -> list[CompressionResult]:
         """
         Get compression history.
-        
+
         Args:
             limit: Maximum number of history entries to return
-            
+
         Returns:
             List of compression results
         """
@@ -341,7 +341,7 @@ class DataCompressionService:
     def get_compression_statistics(self) -> dict[str, Any]:
         """
         Get compression statistics.
-        
+
         Returns:
             Dictionary containing compression statistics
         """
@@ -352,7 +352,7 @@ class DataCompressionService:
                 "average_compression_ratio": 1.0,
                 "best_compression_ratio": 1.0,
                 "success_rate": 0.0,
-                "last_compression": None
+                "last_compression": None,
             }
 
         successful_results = [result for result in self.compression_history if result.success]
@@ -364,7 +364,7 @@ class DataCompressionService:
                 "average_compression_ratio": 1.0,
                 "best_compression_ratio": 1.0,
                 "success_rate": 0.0,
-                "last_compression": self.compression_history[-1].compression_timestamp.isoformat()
+                "last_compression": self.compression_history[-1].compression_timestamp.isoformat(),
             }
 
         total_bytes_saved = sum(
@@ -381,13 +381,13 @@ class DataCompressionService:
             "average_compression_ratio": sum(compression_ratios) / len(compression_ratios),
             "best_compression_ratio": min(compression_ratios),
             "success_rate": len(successful_results) / len(self.compression_history),
-            "last_compression": self.compression_history[-1].compression_timestamp.isoformat()
+            "last_compression": self.compression_history[-1].compression_timestamp.isoformat(),
         }
 
     def get_algorithm_performance(self) -> dict[str, Any]:
         """
         Get performance statistics by algorithm.
-        
+
         Returns:
             Dictionary containing algorithm performance statistics
         """
@@ -411,7 +411,7 @@ class DataCompressionService:
                     "total_bytes_saved": sum(
                         result.original_size_bytes - result.compressed_size_bytes
                         for result in algorithm_results
-                    )
+                    ),
                 }
             else:
                 algorithm_stats[algorithm.value] = {
@@ -419,7 +419,7 @@ class DataCompressionService:
                     "average_ratio": 1.0,
                     "best_ratio": 1.0,
                     "average_duration": 0.0,
-                    "total_bytes_saved": 0
+                    "total_bytes_saved": 0,
                 }
 
         return algorithm_stats

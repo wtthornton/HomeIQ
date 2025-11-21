@@ -17,20 +17,20 @@ def mock_ha_client():
     client = MagicMock(spec=HomeAssistantClient)
     client.get_states = AsyncMock(return_value=[
         {
-            'entity_id': 'sensor.temperature',
-            'state': '22.5',
-            'attributes': {'unit_of_measurement': '°C'}
+            "entity_id": "sensor.temperature",
+            "state": "22.5",
+            "attributes": {"unit_of_measurement": "°C"},
         },
         {
-            'entity_id': 'light.office',
-            'state': 'on',
-            'attributes': {'brightness': 255}
+            "entity_id": "light.office",
+            "state": "on",
+            "attributes": {"brightness": 255},
         },
         {
-            'entity_id': 'sensor.temp_threshold',
-            'state': '20.0',
-            'attributes': {}
-        }
+            "entity_id": "sensor.temp_threshold",
+            "state": "20.0",
+            "attributes": {},
+        },
     ])
     return client
 
@@ -48,8 +48,8 @@ class TestStateProxy:
     async def test_state_callable(self, mock_ha_client):
         """Test states('entity_id') callable interface"""
         proxy = StateProxy(mock_ha_client)
-        state = await proxy('sensor.temperature')
-        assert state == '22.5'
+        state = await proxy("sensor.temperature")
+        assert state == "22.5"
 
     @pytest.mark.asyncio
     async def test_state_caching(self, mock_ha_client):
@@ -57,10 +57,10 @@ class TestStateProxy:
         proxy = StateProxy(mock_ha_client)
 
         # First call
-        await proxy('sensor.temperature')
+        await proxy("sensor.temperature")
 
         # Second call should use cache (same timestamp)
-        await proxy('sensor.temperature')
+        await proxy("sensor.temperature")
 
         # Should only call get_states once (cached for 5 seconds)
         assert mock_ha_client.get_states.call_count == 1
@@ -69,8 +69,8 @@ class TestStateProxy:
     async def test_state_not_found(self, mock_ha_client):
         """Test state for non-existent entity"""
         proxy = StateProxy(mock_ha_client)
-        state = await proxy('sensor.nonexistent')
-        assert state == 'unknown'
+        state = await proxy("sensor.nonexistent")
+        assert state == "unknown"
 
 
 class TestTimeProxy:
@@ -110,7 +110,7 @@ class TestTemplateEngine:
     async def test_template_with_context(self, template_engine):
         """Test template with additional context"""
         template_str = "Value: {{ value }}"
-        result = await template_engine.render(template_str, {'value': 42})
+        result = await template_engine.render(template_str, {"value": 42})
         assert result == "Value: 42"
 
     @pytest.mark.asyncio
@@ -118,7 +118,7 @@ class TestTemplateEngine:
         """Test template with time object"""
         template_str = "Current time: {{ now.strftime('%Y-%m-%d') }}"
         result = await template_engine.render(template_str)
-        assert datetime.now().strftime('%Y-%m-%d') in result
+        assert datetime.now().strftime("%Y-%m-%d") in result
 
     @pytest.mark.asyncio
     async def test_template_undefined_variable(self, template_engine):
@@ -167,18 +167,18 @@ actions:
     async def test_get_available_filters(self, template_engine):
         """Test getting available filters"""
         filters = template_engine.get_available_filters()
-        assert 'float' in filters
-        assert 'int' in filters
-        assert 'round' in filters
+        assert "float" in filters
+        assert "int" in filters
+        assert "round" in filters
 
     @pytest.mark.asyncio
     async def test_get_available_objects(self, template_engine):
         """Test getting available template objects"""
         objects = template_engine.get_available_objects()
-        assert 'states' in objects
-        assert 'time' in objects
-        assert 'now' in objects
-        assert 'utcnow' in objects
+        assert "states" in objects
+        assert "time" in objects
+        assert "now" in objects
+        assert "utcnow" in objects
 
     @pytest.mark.asyncio
     async def test_complex_template(self, template_engine):
@@ -191,7 +191,7 @@ Office light is off
 {% endif %}
 """
         result = await template_engine.render(template_str)
-        assert 'on' in result.lower() or 'off' in result.lower()
+        assert "on" in result.lower() or "off" in result.lower()
 
     @pytest.mark.asyncio
     async def test_template_error_handling(self, template_engine):

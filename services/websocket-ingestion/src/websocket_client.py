@@ -20,7 +20,7 @@ class HomeAssistantWebSocketClient:
     """WebSocket client for Home Assistant with authentication"""
 
     def __init__(self, base_url: str, token: str):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.token = token
         self.token_validator = TokenValidator()
         self.session: ClientSession | None = None
@@ -52,7 +52,7 @@ class HomeAssistantWebSocketClient:
     async def connect(self) -> bool:
         """
         Establish WebSocket connection with Home Assistant
-        
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -75,12 +75,9 @@ class HomeAssistantWebSocketClient:
             await self._ensure_single_session()
 
             # Build WebSocket URL (always ensure /api/websocket path is present)
-            if self.base_url.startswith('ws://') or self.base_url.startswith('wss://'):
+            if self.base_url.startswith("ws://") or self.base_url.startswith("wss://"):
                 # If already a WebSocket URL, check if /api/websocket is present
-                if '/api/websocket' not in self.base_url:
-                    ws_url = f"{self.base_url}/api/websocket"
-                else:
-                    ws_url = self.base_url
+                ws_url = f"{self.base_url}/api/websocket" if "/api/websocket" not in self.base_url else self.base_url
             else:
                 ws_url = f"{self.base_url.replace('http', 'ws')}/api/websocket"
 
@@ -88,9 +85,9 @@ class HomeAssistantWebSocketClient:
             self.websocket = await self.session.ws_connect(
                 ws_url,
                 headers={
-                    'Authorization': f'Bearer {self.token}',
-                    'User-Agent': 'HomeIQ/1.0'
-                }
+                    "Authorization": f"Bearer {self.token}",
+                    "User-Agent": "HomeIQ/1.0",
+                },
             )
 
             self.is_connected = True
@@ -110,13 +107,12 @@ class HomeAssistantWebSocketClient:
                 else:
                     logger.warning("No on_connect callback registered")
                 return True
-            else:
-                logger.error("Authentication failed")
-                await self.disconnect()
-                return False
+            logger.error("Authentication failed")
+            await self.disconnect()
+            return False
 
         except Exception as e:
-            logger.error(f"Failed to connect to Home Assistant: {e}")
+            logger.exception(f"Failed to connect to Home Assistant: {e}")
             if self.on_error:
                 await self.on_error(f"Connection failed: {e}")
             await self.disconnect()
@@ -134,13 +130,13 @@ class HomeAssistantWebSocketClient:
                 auth_data = json.loads(auth_required_msg.data)
                 logger.info(f"Parsed auth data: {auth_data}")
 
-                if auth_data.get('type') == 'auth_required':
+                if auth_data.get("type") == "auth_required":
                     logger.info("Authentication required, sending token")
 
                     # Send authentication message
                     auth_message = {
-                        'type': 'auth',
-                        'access_token': self.token
+                        "type": "auth",
+                        "access_token": self.token,
                     }
 
                     logger.info(f"Sending auth message: {auth_message}")
@@ -155,7 +151,7 @@ class HomeAssistantWebSocketClient:
                         auth_result = json.loads(auth_result_msg.data)
                         logger.info(f"Parsed auth result: {auth_result}")
 
-                        if auth_result.get('type') == 'auth_ok':
+                        if auth_result.get("type") == "auth_ok":
                             self.is_authenticated = True
                             logger.info("Authentication successful")
                         else:
@@ -172,7 +168,7 @@ class HomeAssistantWebSocketClient:
                 self.is_authenticated = False
 
         except Exception as e:
-            logger.error(f"Authentication error: {e}")
+            logger.exception(f"Authentication error: {e}")
             self.is_authenticated = False
 
     async def disconnect(self):
@@ -195,15 +191,15 @@ class HomeAssistantWebSocketClient:
                 await self.on_disconnect()
 
         except Exception as e:
-            logger.error(f"Error during disconnect: {e}")
+            logger.exception(f"Error during disconnect: {e}")
 
     async def send_message(self, message: dict[str, Any]) -> bool:
         """
         Send message to Home Assistant
-        
+
         Args:
             message: Message to send
-            
+
         Returns:
             True if message sent successfully, False otherwise
         """
@@ -216,7 +212,7 @@ class HomeAssistantWebSocketClient:
             logger.debug(f"Sent message: {message}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send message: {e}")
+            logger.exception(f"Failed to send message: {e}")
             return False
 
     async def listen(self):
@@ -236,7 +232,7 @@ class HomeAssistantWebSocketClient:
                             await self.on_message(data)
 
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse message: {e}")
+                        logger.exception(f"Failed to parse message: {e}")
                 elif msg.type == WSMsgType.ERROR:
                     logger.error(f"WebSocket error: {msg.data}")
                     if self.on_error:
@@ -247,14 +243,14 @@ class HomeAssistantWebSocketClient:
                     break
 
         except Exception as e:
-            logger.error(f"Error listening for messages: {e}")
+            logger.exception(f"Error listening for messages: {e}")
             if self.on_error:
                 await self.on_error(f"Listen error: {e}")
 
     async def reconnect(self) -> bool:
         """
         Reconnect to Home Assistant with exponential backoff
-        
+
         Returns:
             True if reconnection successful, False otherwise
         """
@@ -274,7 +270,7 @@ class HomeAssistantWebSocketClient:
     def get_connection_status(self) -> dict[str, Any]:
         """
         Get current connection status
-        
+
         Returns:
             Dictionary with connection status information
         """
@@ -285,5 +281,5 @@ class HomeAssistantWebSocketClient:
             "max_retries": self.max_retries,
             "base_url": self.base_url,
             "token_info": self.token_validator.get_token_info(self.token),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

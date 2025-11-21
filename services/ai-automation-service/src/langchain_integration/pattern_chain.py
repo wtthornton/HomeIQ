@@ -45,11 +45,10 @@ def _build_co_occurrence_step(co_detector):
 
         if incremental and last_update and hasattr(co_detector, "incremental_update"):
             patterns = co_detector.incremental_update(events_df, last_update)
+        elif len(events_df) > 10000 and hasattr(co_detector, "detect_patterns_optimized"):
+            patterns = co_detector.detect_patterns_optimized(events_df)
         else:
-            if len(events_df) > 10000 and hasattr(co_detector, "detect_patterns_optimized"):
-                patterns = co_detector.detect_patterns_optimized(events_df)
-            else:
-                patterns = co_detector.detect_patterns(events_df)
+            patterns = co_detector.detect_patterns(events_df)
 
         existing = inputs.get("time_of_day_patterns", [])
         return {

@@ -3,7 +3,7 @@ InfluxDB Schema Design and Data Models
 
 IMPORTANT SCHEMA NOTE:
 ----------------------
-This schema defines the ORIGINAL DESIGN for Home Assistant events. However, the 
+This schema defines the ORIGINAL DESIGN for Home Assistant events. However, the
 ACTUAL PRODUCTION SCHEMA used by the enrichment-pipeline is different:
 
 - This schema (websocket-ingestion): Used for direct writes and fallback scenarios
@@ -15,7 +15,7 @@ Key Differences:
 
 This schema IS actively used for:
 - weather_data measurement
-- sports_data measurement  
+- sports_data measurement
 - system_metrics measurement
 - Fallback/direct writes when enrichment is bypassed
 
@@ -94,10 +94,10 @@ class InfluxDBSchema:
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """
         Create InfluxDB Point for Home Assistant event
-        
+
         Args:
             event_data: Processed event data
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -119,7 +119,7 @@ class InfluxDBSchema:
             if timestamp:
                 try:
                     if isinstance(timestamp, str):
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     else:
                         dt = timestamp
                 except Exception:
@@ -136,22 +136,21 @@ class InfluxDBSchema:
             point = self._add_event_tags(point, event_data)
 
             # Add fields for data storage
-            point = self._add_event_fields(point, event_data)
+            return self._add_event_fields(point, event_data)
 
-            return point
 
         except Exception as e:
-            logger.error(f"Error creating event point: {e}")
+            logger.exception(f"Error creating event point: {e}")
             return None
 
     def create_weather_point(self, weather_data: dict[str, Any], location: str) -> Point | None:
         """
         Create InfluxDB Point for weather data
-        
+
         Args:
             weather_data: Weather data dictionary
             location: Location string
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -165,7 +164,7 @@ class InfluxDBSchema:
             if timestamp:
                 try:
                     if isinstance(timestamp, str):
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     else:
                         dt = timestamp
                 except Exception:
@@ -204,7 +203,7 @@ class InfluxDBSchema:
             return point
 
         except Exception as e:
-            logger.error(f"Error creating weather point: {e}")
+            logger.exception(f"Error creating weather point: {e}")
             return None
 
     def _add_event_tags(self, point: Point, event_data: dict[str, Any]) -> Point:
@@ -215,7 +214,7 @@ class InfluxDBSchema:
             point = point.tag(self.TAG_ENTITY_ID, entity_id)
 
             # Extract domain from entity_id (e.g., "sensor.temperature" -> "sensor")
-            domain = entity_id.split('.')[0] if '.' in entity_id else "unknown"
+            domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
             point = point.tag(self.TAG_DOMAIN, domain)
 
         # Event type tag
@@ -324,13 +323,13 @@ class InfluxDBSchema:
                            timestamp: datetime) -> Point | None:
         """
         Create InfluxDB Point for summary data
-        
+
         Args:
             measurement: Measurement name
             tags: Dictionary of tags
             fields: Dictionary of fields
             timestamp: Timestamp for the point
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -349,15 +348,12 @@ class InfluxDBSchema:
             # Add fields
             for key, value in fields.items():
                 if value is not None:
-                    if isinstance(value, (int, float)):
-                        point = point.field(key, value)
-                    else:
-                        point = point.field(key, str(value))
+                    point = point.field(key, value) if isinstance(value, (int, float)) else point.field(key, str(value))
 
             return point
 
         except Exception as e:
-            logger.error(f"Error creating summary point: {e}")
+            logger.exception(f"Error creating summary point: {e}")
             return None
 
     def get_retention_policies(self) -> list[dict[str, Any]]:
@@ -368,22 +364,22 @@ class InfluxDBSchema:
                 "duration": "365d",
                 "shard_duration": "7d",
                 "replication": 1,
-                "description": "Raw event data retention for 1 year"
+                "description": "Raw event data retention for 1 year",
             },
             {
                 "name": self.RETENTION_HOURLY_SUMMARY,
                 "duration": "730d",
                 "shard_duration": "30d",
                 "replication": 1,
-                "description": "Hourly summary data retention for 2 years"
+                "description": "Hourly summary data retention for 2 years",
             },
             {
                 "name": self.RETENTION_DAILY_SUMMARY,
                 "duration": "1825d",
                 "shard_duration": "90d",
                 "replication": 1,
-                "description": "Daily summary data retention for 5 years"
-            }
+                "description": "Daily summary data retention for 5 years",
+            },
         ]
 
     def get_schema_validation_rules(self) -> dict[str, Any]:
@@ -394,7 +390,7 @@ class InfluxDBSchema:
             "tag_patterns": {
                 self.TAG_ENTITY_ID: r"^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$",
                 self.TAG_DOMAIN: r"^[a-zA-Z0-9_]+$",
-                self.TAG_DEVICE_CLASS: r"^[a-zA-Z0-9_]+$"
+                self.TAG_DEVICE_CLASS: r"^[a-zA-Z0-9_]+$",
             },
             "field_types": {
                 self.FIELD_STATE: "string",
@@ -406,17 +402,17 @@ class InfluxDBSchema:
                 self.FIELD_WIND_SPEED: "float",
                 self.FIELD_WEATHER_DESCRIPTION: "string",
                 self.FIELD_CONTEXT_ID: "string",
-                self.FIELD_CONTEXT_USER_ID: "string"
-            }
+                self.FIELD_CONTEXT_USER_ID: "string",
+            },
         }
 
     def validate_point(self, point: Point) -> tuple[bool, list[str]]:
         """
         Validate InfluxDB point against schema
-        
+
         Args:
             point: InfluxDB Point to validate
-            
+
         Returns:
             Tuple of (is_valid, error_messages)
         """

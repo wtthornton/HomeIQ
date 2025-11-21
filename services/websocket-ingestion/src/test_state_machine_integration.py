@@ -63,7 +63,7 @@ def test_processing_state_machine():
 
     # Test invalid transition
     try:
-        machine.transition(machine.VALID_TRANSITIONS[list(machine.VALID_TRANSITIONS.keys())[0]][0])
+        machine.transition(machine.VALID_TRANSITIONS[next(iter(machine.VALID_TRANSITIONS.keys()))][0])
         print("  ✓ Valid transition")
     except InvalidStateTransition:
         print("  ✗ Invalid transition (unexpected)")

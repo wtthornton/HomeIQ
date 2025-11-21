@@ -12,13 +12,13 @@ async def find_real_devices():
 
     async for session in get_db_session():
         # Find devices with connections or identifiers (real hardware devices)
-        result = await session.execute(text('''
-            SELECT id, name, manufacturer, model, integration, area_name, 
+        result = await session.execute(text("""
+            SELECT id, name, manufacturer, model, integration, area_name,
                    config_entry_id, connections_json, identifiers_json
-            FROM devices 
+            FROM devices
             WHERE connections_json IS NOT NULL OR identifiers_json IS NOT NULL
             LIMIT 10
-        '''))
+        """))
 
         devices = result.fetchall()
 

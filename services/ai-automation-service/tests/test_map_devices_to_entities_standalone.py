@@ -11,7 +11,7 @@ import pytest
 
 def consolidate_devices_involved_logic(
     devices_involved: list[str],
-    validated_entities: dict[str, str]
+    validated_entities: dict[str, str],
 ) -> list[str]:
     """
     Standalone version of consolidate_devices_involved for testing.
@@ -43,7 +43,7 @@ def consolidate_devices_involved_logic(
                     # Multiple devices map to this entity - choose the best one
                     candidates = entity_id_to_devices[entity_id]
                     # Prefer longer, more specific names
-                    best_name = max(candidates, key=lambda x: (len(x), x.count(' '), x.lower()))
+                    best_name = max(candidates, key=lambda x: (len(x), x.count(" "), x.lower()))
                     consolidated.append(best_name)
                 else:
                     # Only one device maps to this entity
@@ -66,7 +66,7 @@ class TestConsolidateDevicesInvolved:
         validated_entities = {
             "wled led strip": "light.wled_office",
             "Office": "light.wled_office",
-            "WLED Office": "light.wled_office"
+            "WLED Office": "light.wled_office",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -82,13 +82,13 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling",
             "LR Back Right Ceiling",
             "LR Front Right Ceiling",
-            "LR Back Left Ceiling"
+            "LR Back Left Ceiling",
         ]
         validated_entities = {
             "LR Front Left Ceiling": "light.lr_front_left_ceiling",
             "LR Back Right Ceiling": "light.lr_back_right_ceiling",
             "LR Front Right Ceiling": "light.lr_front_right_ceiling",
-            "LR Back Left Ceiling": "light.lr_back_left_ceiling"
+            "LR Back Left Ceiling": "light.lr_back_left_ceiling",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -106,7 +106,7 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling",
             "LR Back Right Ceiling",
             "LR Front Right Ceiling",
-            "LR Back Left Ceiling"
+            "LR Back Left Ceiling",
         ]
         validated_entities = {
             "wled led strip": "light.wled_office",
@@ -114,7 +114,7 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling": "light.lr_front_left_ceiling",
             "LR Back Right Ceiling": "light.lr_back_right_ceiling",
             "LR Front Right Ceiling": "light.lr_front_right_ceiling",
-            "LR Back Left Ceiling": "light.lr_back_left_ceiling"
+            "LR Back Left Ceiling": "light.lr_back_left_ceiling",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -138,7 +138,7 @@ class TestConsolidateDevicesInvolved:
         devices_involved = ["WLED Office", "Non-existent Device", "LR Front Left Ceiling"]
         validated_entities = {
             "WLED Office": "light.wled_office",
-            "LR Front Left Ceiling": "light.lr_front_left_ceiling"
+            "LR Front Left Ceiling": "light.lr_front_left_ceiling",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -161,7 +161,7 @@ class TestConsolidateDevicesInvolved:
         validated_entities = {
             "Office": "light.wled_office",
             "WLED Office": "light.wled_office",
-            "Office WLED Light": "light.wled_office"
+            "Office WLED Light": "light.wled_office",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -177,7 +177,7 @@ class TestConsolidateDevicesInvolved:
             "A": "light.entity1",
             "B": "light.entity1",  # Same as A
             "C": "light.entity2",
-            "D": "light.entity2"   # Same as C
+            "D": "light.entity2",   # Same as C
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)
@@ -206,7 +206,7 @@ class TestConsolidateDevicesInvolved:
         validated_entities = {
             "ceiling lights": "light.lr_front_left_ceiling",  # Generic maps to one
             "LR Front Left Ceiling": "light.lr_front_left_ceiling",
-            "LR Back Right Ceiling": "light.lr_back_right_ceiling"
+            "LR Back Right Ceiling": "light.lr_back_right_ceiling",
         }
 
         result = consolidate_devices_involved_logic(devices_involved, validated_entities)

@@ -12,5 +12,4 @@ class MeterAdapter(ABC):
     @abstractmethod
     async def fetch_consumption(self, session: aiohttp.ClientSession, api_token: str, device_id: str) -> dict[str, Any]:
         """Fetch consumption data from meter API"""
-        pass
 

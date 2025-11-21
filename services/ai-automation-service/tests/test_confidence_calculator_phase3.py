@@ -36,7 +36,7 @@ def rl_calibrator_trained():
     config = RLCalibrationConfig(
         learning_rate=0.01,
         min_samples_for_training=5,  # Lower for testing
-        update_frequency=3
+        update_frequency=3,
     )
     calibrator = RLConfidenceCalibrator(config=config)
 
@@ -49,7 +49,7 @@ def rl_calibrator_trained():
             critical_ambiguity_count=0,
             rounds=1,
             answer_count=1,
-            auto_train=False
+            auto_train=False,
         )
     calibrator.train()
 
@@ -70,7 +70,7 @@ def confidence_calculator_base(mock_calibrator):
         calibrator=mock_calibrator,
         calibration_enabled=True,
         rl_calibration_enabled=False,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
 
@@ -83,7 +83,7 @@ def confidence_calculator_with_rl(mock_calibrator, rl_calibrator_trained):
         calibration_enabled=True,
         rl_calibrator=rl_calibrator_trained,
         rl_calibration_enabled=True,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
 
@@ -96,7 +96,7 @@ def confidence_calculator_with_uncertainty(mock_calibrator, uncertainty_quantifi
         calibration_enabled=True,
         rl_calibration_enabled=False,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
 
@@ -110,7 +110,7 @@ def confidence_calculator_full(mock_calibrator, rl_calibrator_trained, uncertain
         rl_calibrator=rl_calibrator_trained,
         rl_calibration_enabled=True,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
 
@@ -123,8 +123,8 @@ def sample_ambiguities():
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices match",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
 
@@ -136,8 +136,8 @@ def sample_answers():
             question_id="q1",
             answer_text="light.living_room",
             validated=True,
-            confidence=0.9
-        )
+            confidence=0.9,
+        ),
     ]
 
 
@@ -148,7 +148,7 @@ async def test_rl_calibration_disabled_by_default(confidence_calculator_base, sa
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     # Should use isotonic regression calibration only
@@ -165,7 +165,7 @@ async def test_rl_calibration_enabled(confidence_calculator_with_rl, sample_ambi
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     # Should apply both isotonic regression and RL calibration
@@ -183,25 +183,17 @@ async def test_rl_calibration_with_ambiguities(confidence_calculator_with_rl, sa
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
             # More ambiguities should affect RL calibration
-    more_ambiguities = sample_ambiguities + [
-        Ambiguity(
-            id="amb2",
-            type=AmbiguityType.TIMING,
-            severity=AmbiguitySeverity.OPTIONAL,
-            description="When?",
-            related_entities=None
-        )
-    ]
+    more_ambiguities = [*sample_ambiguities, Ambiguity(id="amb2", type=AmbiguityType.TIMING, severity=AmbiguitySeverity.OPTIONAL, description="When?", related_entities=None)]
 
     confidence_2 = await confidence_calculator_with_rl.calculate_confidence(
         query="turn on the light",
         extracted_entities=[],
         ambiguities=more_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     # Both should be valid
@@ -213,7 +205,7 @@ async def test_rl_calibration_with_ambiguities(confidence_calculator_with_rl, sa
 async def test_rl_calibration_with_answers(
     confidence_calculator_with_rl,
     sample_ambiguities,
-    sample_answers
+    sample_answers,
 ):
     """Test RL calibration with clarification answers."""
     confidence = await confidence_calculator_with_rl.calculate_confidence(
@@ -221,7 +213,7 @@ async def test_rl_calibration_with_answers(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         clarification_answers=sample_answers,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     assert isinstance(confidence, float)
@@ -231,7 +223,7 @@ async def test_rl_calibration_with_answers(
 @pytest.mark.asyncio
 async def test_uncertainty_quantification_disabled_by_default(
     confidence_calculator_base,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test that uncertainty quantification is disabled by default."""
     confidence = await confidence_calculator_base.calculate_confidence(
@@ -239,7 +231,7 @@ async def test_uncertainty_quantification_disabled_by_default(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True  # Request uncertainty but it's disabled
+        return_uncertainty=True,  # Request uncertainty but it's disabled
     )
 
     # Should return float, not ConfidenceWithUncertainty
@@ -250,7 +242,7 @@ async def test_uncertainty_quantification_disabled_by_default(
 @pytest.mark.asyncio
 async def test_uncertainty_quantification_enabled(
     confidence_calculator_with_uncertainty,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test uncertainty quantification when enabled."""
     result = await confidence_calculator_with_uncertainty.calculate_confidence(
@@ -258,7 +250,7 @@ async def test_uncertainty_quantification_enabled(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     # Should return ConfidenceWithUncertainty
@@ -274,7 +266,7 @@ async def test_uncertainty_quantification_enabled(
 @pytest.mark.asyncio
 async def test_uncertainty_quantification_without_flag(
     confidence_calculator_with_uncertainty,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test that uncertainty is not returned unless return_uncertainty=True."""
     confidence = await confidence_calculator_with_uncertainty.calculate_confidence(
@@ -282,7 +274,7 @@ async def test_uncertainty_quantification_without_flag(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=False
+        return_uncertainty=False,
     )
 
     # Should return float even if uncertainty is enabled
@@ -293,7 +285,7 @@ async def test_uncertainty_quantification_without_flag(
 @pytest.mark.asyncio
 async def test_uncertainty_quantification_confidence_intervals(
     confidence_calculator_with_uncertainty,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test that uncertainty provides valid confidence intervals."""
     result = await confidence_calculator_with_uncertainty.calculate_confidence(
@@ -301,7 +293,7 @@ async def test_uncertainty_quantification_confidence_intervals(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     # Mean should be within bounds
@@ -317,7 +309,7 @@ async def test_uncertainty_quantification_confidence_intervals(
 async def test_full_phase3_integration(
     confidence_calculator_full,
     sample_ambiguities,
-    sample_answers
+    sample_answers,
 ):
     """Test all Phase 3 features working together."""
     # Test with uncertainty
@@ -327,7 +319,7 @@ async def test_full_phase3_integration(
         ambiguities=sample_ambiguities,
         clarification_answers=sample_answers,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     assert isinstance(result_with_uncertainty, ConfidenceWithUncertainty)
@@ -340,7 +332,7 @@ async def test_full_phase3_integration(
         ambiguities=sample_ambiguities,
         clarification_answers=sample_answers,
         base_confidence=0.8,
-        return_uncertainty=False
+        return_uncertainty=False,
     )
 
     assert isinstance(confidence, float)
@@ -350,7 +342,7 @@ async def test_full_phase3_integration(
 @pytest.mark.asyncio
 async def test_rl_calibration_error_handling(
     confidence_calculator_with_rl,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test that RL calibration errors don't break the flow."""
     # Create a broken RL calibrator
@@ -363,7 +355,7 @@ async def test_rl_calibration_error_handling(
         calibration_enabled=True,
         rl_calibrator=broken_rl,
         rl_calibration_enabled=True,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
     # Should fall back to previous confidence (from isotonic regression)
@@ -371,7 +363,7 @@ async def test_rl_calibration_error_handling(
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     # Should still return valid confidence
@@ -382,13 +374,13 @@ async def test_rl_calibration_error_handling(
 @pytest.mark.asyncio
 async def test_uncertainty_quantification_error_handling(
     confidence_calculator_with_uncertainty,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test that uncertainty calculation errors don't break the flow."""
     # Create a broken uncertainty quantifier
     broken_quantifier = Mock(spec=UncertaintyQuantifier)
     broken_quantifier.calculate_uncertainty = Mock(
-        side_effect=Exception("Uncertainty calculation failed")
+        side_effect=Exception("Uncertainty calculation failed"),
     )
 
     calculator = ConfidenceCalculator(
@@ -397,7 +389,7 @@ async def test_uncertainty_quantification_error_handling(
         calibration_enabled=True,
         rl_calibration_enabled=False,
         uncertainty_quantifier=broken_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     # Should fall back to point estimate
@@ -406,7 +398,7 @@ async def test_uncertainty_quantification_error_handling(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     # Should return float (fallback) instead of crashing
@@ -417,7 +409,7 @@ async def test_uncertainty_quantification_error_handling(
 @pytest.mark.asyncio
 async def test_rl_calibration_not_trained(
     confidence_calculator_base,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test RL calibration when not trained (should pass through)."""
     # Create untrained RL calibrator
@@ -430,14 +422,14 @@ async def test_rl_calibration_not_trained(
         calibration_enabled=True,
         rl_calibrator=untrained_rl,
         rl_calibration_enabled=True,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
     confidence = await calculator.calculate_confidence(
         query="turn on the light",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     # Should return valid confidence (RL should pass through if not trained)
@@ -450,7 +442,7 @@ async def test_phase3_feature_combinations(
     mock_calibrator,
     rl_calibrator_trained,
     uncertainty_quantifier,
-    sample_ambiguities
+    sample_ambiguities,
 ):
     """Test different combinations of Phase 3 features."""
     # Test 1: Only RL calibration
@@ -460,14 +452,14 @@ async def test_phase3_feature_combinations(
         calibration_enabled=True,
         rl_calibrator=rl_calibrator_trained,
         rl_calibration_enabled=True,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
     conf_rl = await calculator_rl_only.calculate_confidence(
         query="test",
         extracted_entities=[],
         ambiguities=sample_ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
     assert isinstance(conf_rl, float)
 
@@ -478,7 +470,7 @@ async def test_phase3_feature_combinations(
         calibration_enabled=True,
         rl_calibration_enabled=False,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     result_uncertainty = await calculator_uncertainty_only.calculate_confidence(
@@ -486,7 +478,7 @@ async def test_phase3_feature_combinations(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
     assert isinstance(result_uncertainty, ConfidenceWithUncertainty)
 
@@ -498,7 +490,7 @@ async def test_phase3_feature_combinations(
         rl_calibrator=rl_calibrator_trained,
         rl_calibration_enabled=True,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     result_both = await calculator_both.calculate_confidence(
@@ -506,7 +498,7 @@ async def test_phase3_feature_combinations(
         extracted_entities=[],
         ambiguities=sample_ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
     assert isinstance(result_both, ConfidenceWithUncertainty)
     assert 0.0 <= result_both.mean <= 1.0

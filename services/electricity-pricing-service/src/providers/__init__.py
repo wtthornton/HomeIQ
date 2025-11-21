@@ -2,5 +2,5 @@
 
 from .awattar import AwattarProvider
 
-__all__ = ['AwattarProvider']
+__all__ = ["AwattarProvider"]
 

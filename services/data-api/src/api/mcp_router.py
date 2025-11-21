@@ -39,7 +39,7 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
     try:
         logger.info(
             f"MCP query_device_history: {request.entity_id} "
-            f"from {request.start_time} to {request.end_time}"
+            f"from {request.start_time} to {request.end_time}",
         )
 
         # Import here to avoid circular dependencies
@@ -48,17 +48,17 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
         influx_client = InfluxDBQueryClient()
 
         # Query InfluxDB
-        query = f'''
+        query = f"""
         from(bucket: "home_assistant_events")
             |> range(start: {request.start_time}, stop: {request.end_time})
             |> filter(fn: (r) => r.entity_id == "{request.entity_id}")
-        '''
+        """
 
         if request.fields:
-            fields_filter = ' or '.join(
+            fields_filter = " or ".join(
                 f'r._field == "{field}"' for field in request.fields
             )
-            query += f'\n    |> filter(fn: (r) => {fields_filter})'
+            query += f"\n    |> filter(fn: (r) => {fields_filter})"
 
         results = await influx_client.query(query)
 
@@ -67,11 +67,11 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
             "start_time": request.start_time,
             "end_time": request.end_time,
             "data_points": len(results),
-            "data": results[:1000]  # Limit to prevent huge responses
+            "data": results[:1000],  # Limit to prevent huge responses
         }
 
     except Exception as e:
-        logger.error(f"MCP tool error: {e}")
+        logger.exception(f"MCP tool error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -101,11 +101,11 @@ async def get_devices():
 
         return {
             "count": len(devices),
-            "devices": devices
+            "devices": devices,
         }
 
     except Exception as e:
-        logger.error(f"MCP tool error: {e}")
+        logger.exception(f"MCP tool error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -115,7 +115,7 @@ async def search_events(
     event_type: str | None = None,
     start_time: str = "-24h",
     end_time: str = "now",
-    limit: int = 100
+    limit: int = 100,
 ):
     """
     MCP Tool: Search events by criteria.
@@ -138,10 +138,10 @@ async def search_events(
         influx_client = InfluxDBQueryClient()
 
         # Build query
-        query = f'''
+        query = f"""
         from(bucket: "home_assistant_events")
             |> range(start: {start_time}, stop: {end_time})
-        '''
+        """
 
         if entity_id:
             query += f'\n    |> filter(fn: (r) => r.entity_id == "{entity_id}")'
@@ -149,15 +149,15 @@ async def search_events(
         if event_type:
             query += f'\n    |> filter(fn: (r) => r.event_type == "{event_type}")'
 
-        query += f'\n    |> limit(n: {limit})'
+        query += f"\n    |> limit(n: {limit})"
 
         results = await influx_client.query(query)
 
         return {
             "count": len(results),
-            "events": results
+            "events": results,
         }
 
     except Exception as e:
-        logger.error(f"MCP tool error: {e}")
+        logger.exception(f"MCP tool error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

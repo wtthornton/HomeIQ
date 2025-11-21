@@ -51,7 +51,7 @@ class PatternMatcher:
     async def match_patterns(
         self,
         user_request: str,
-        available_entities: list[dict[str, Any]]
+        available_entities: list[dict[str, Any]],
     ) -> list[PatternMatch]:
         """
         Find patterns that match the user's request.
@@ -79,7 +79,7 @@ class PatternMatcher:
                 variables, missing = await self._extract_variables(
                     user_request,
                     pattern.variables,
-                    available_entities
+                    available_entities,
                 )
 
                 if variables:
@@ -95,13 +95,13 @@ class PatternMatcher:
                         pattern=pattern,
                         variables=variables,
                         confidence=confidence,
-                        missing_variables=missing
+                        missing_variables=missing,
                     ))
 
                     logger.info(
                         f"✓ Pattern '{pattern_id}' matched "
                         f"(confidence: {confidence:.2f}, "
-                        f"vars: {len(variables)}/{len(pattern.variables)})"
+                        f"vars: {len(variables)}/{len(pattern.variables)})",
                     )
 
         # Sort by confidence (highest first)
@@ -128,7 +128,7 @@ class PatternMatcher:
         matched_keywords = 0
         for keyword in keywords:
             # Check for whole word matches (more accurate than substring)
-            if re.search(r'\b' + re.escape(keyword) + r'\b', request):
+            if re.search(r"\b" + re.escape(keyword) + r"\b", request):
                 matched_keywords += 1
 
         return matched_keywords / len(keywords)
@@ -137,7 +137,7 @@ class PatternMatcher:
         self,
         user_request: str,
         variable_defs: list[PatternVariable],
-        available_entities: list[dict[str, Any]]
+        available_entities: list[dict[str, Any]],
     ) -> tuple[dict[str, str], list[str]]:
         """
         Extract variable values from user request and available entities.
@@ -157,11 +157,11 @@ class PatternMatcher:
 
         for var_def in variable_defs:
             # Try to find matching entity
-            if var_def.domain in ['light', 'binary_sensor', 'sensor', 'person', 'climate', 'cover']:
+            if var_def.domain in ["light", "binary_sensor", "sensor", "person", "climate", "cover"]:
                 match = await self._find_entity_match(
                     request_lower,
                     var_def,
-                    available_entities
+                    available_entities,
                 )
 
                 if match:
@@ -172,7 +172,7 @@ class PatternMatcher:
                     missing.append(var_def.name)
 
             # Handle duration/time/number variables
-            elif var_def.domain in ['duration', 'time', 'number']:
+            elif var_def.domain in ["duration", "time", "number"]:
                 value = self._extract_value_from_request(request_lower, var_def)
                 if value:
                     extracted[var_def.name] = value
@@ -182,16 +182,16 @@ class PatternMatcher:
                     missing.append(var_def.name)
 
             # Handle action type (turn_on/turn_off)
-            elif var_def.domain == 'action':
-                if 'turn on' in request_lower or 'turn_on' in request_lower:
-                    extracted[var_def.name] = 'turn_on'
-                elif 'turn off' in request_lower or 'turn_off' in request_lower:
-                    extracted[var_def.name] = 'turn_off'
+            elif var_def.domain == "action":
+                if "turn on" in request_lower or "turn_on" in request_lower:
+                    extracted[var_def.name] = "turn_on"
+                elif "turn off" in request_lower or "turn_off" in request_lower:
+                    extracted[var_def.name] = "turn_off"
                 elif var_def.default:
                     extracted[var_def.name] = var_def.default
 
             # Handle any domain (generic entity)
-            elif var_def.domain == 'any':
+            elif var_def.domain == "any":
                 # Try to extract any entity mention
                 match = await self._find_any_entity_match(request_lower, available_entities)
                 if match:
@@ -205,7 +205,7 @@ class PatternMatcher:
         self,
         request: str,
         var_def: PatternVariable,
-        entities: list[dict[str, Any]]
+        entities: list[dict[str, Any]],
     ) -> str | None:
         """
         Find best matching entity for variable definition.
@@ -219,21 +219,21 @@ class PatternMatcher:
         candidates = []
 
         for entity in entities:
-            entity_id = entity.get('entity_id', '')
+            entity_id = entity.get("entity_id", "")
 
             # Filter by domain
-            if not entity_id.startswith(var_def.domain + '.'):
+            if not entity_id.startswith(var_def.domain + "."):
                 continue
 
             # Filter by device class if specified
             if var_def.device_class:
-                device_class = entity.get('attributes', {}).get('device_class')
+                device_class = entity.get("attributes", {}).get("device_class")
                 if device_class != var_def.device_class:
                     continue
 
             # Calculate match score
             score = 0.0
-            friendly_name = entity.get('friendly_name', '').lower()
+            friendly_name = entity.get("friendly_name", "").lower()
             entity_id_lower = entity_id.lower()
 
             # Check if friendly name appears in request
@@ -241,14 +241,14 @@ class PatternMatcher:
                 score += 2.0
 
             # Check if parts of entity_id appear in request
-            entity_parts = entity_id_lower.split('.')[1].split('_')
+            entity_parts = entity_id_lower.split(".")[1].split("_")
             for part in entity_parts:
                 if part in request and len(part) > 2:  # Skip very short words
                     score += 0.5
 
             # Prefer entities with area info
-            if entity.get('area_id'):
-                area_name = entity.get('area_id', '').lower()
+            if entity.get("area_id"):
+                area_name = entity.get("area_id", "").lower()
                 if area_name in request:
                     score += 1.0
 
@@ -264,7 +264,7 @@ class PatternMatcher:
 
         logger.debug(
             f"Variable '{var_def.name}' matched to '{best_match[0]}' "
-            f"({best_match[2]}) with score {best_match[1]:.1f}"
+            f"({best_match[2]}) with score {best_match[1]:.1f}",
         )
 
         return best_match[0]
@@ -272,19 +272,19 @@ class PatternMatcher:
     async def _find_any_entity_match(
         self,
         request: str,
-        entities: list[dict[str, Any]]
+        entities: list[dict[str, Any]],
     ) -> str | None:
         """Find any entity that appears in the request"""
         for entity in entities:
-            friendly_name = entity.get('friendly_name', '').lower()
+            friendly_name = entity.get("friendly_name", "").lower()
             if friendly_name and friendly_name in request:
-                return entity.get('entity_id')
+                return entity.get("entity_id")
         return None
 
     def _extract_value_from_request(
         self,
         request: str,
-        var_def: PatternVariable
+        var_def: PatternVariable,
     ) -> str | None:
         """
         Extract numeric/time values from request.
@@ -294,28 +294,28 @@ class PatternMatcher:
         - "at 7 AM" → "07:00:00"
         - "20 percent" → "20"
         """
-        if var_def.domain == 'duration':
+        if var_def.domain == "duration":
             # Look for duration patterns
             patterns = [
-                r'(\d+)\s*minute',
-                r'(\d+)\s*min',
-                r'(\d+)\s*hour',
-                r'(\d+)\s*hr',
+                r"(\d+)\s*minute",
+                r"(\d+)\s*min",
+                r"(\d+)\s*hour",
+                r"(\d+)\s*hr",
             ]
             for pattern in patterns:
                 match = re.search(pattern, request)
                 if match:
                     value = match.group(1)
                     # Convert hours to minutes if needed
-                    if 'hour' in pattern or 'hr' in pattern:
+                    if "hour" in pattern or "hr" in pattern:
                         value = str(int(value) * 60)
                     return value
 
-        elif var_def.domain == 'time':
+        elif var_def.domain == "time":
             # Look for time patterns
             patterns = [
-                r'at\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)?',
-                r'(\d{1,2}):(\d{2})',
+                r"at\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)?",
+                r"(\d{1,2}):(\d{2})",
             ]
             for pattern in patterns:
                 match = re.search(pattern, request)
@@ -325,21 +325,21 @@ class PatternMatcher:
 
                     # Handle AM/PM
                     if match.lastindex >= 3 and match.group(3):
-                        if match.group(3).lower() == 'pm' and hour < 12:
+                        if match.group(3).lower() == "pm" and hour < 12:
                             hour += 12
-                        elif match.group(3).lower() == 'am' and hour == 12:
+                        elif match.group(3).lower() == "am" and hour == 12:
                             hour = 0
 
                     return f"{hour:02d}:{minute:02d}:00"
 
-        elif var_def.domain == 'number':
+        elif var_def.domain == "number":
             # Look for number patterns
             patterns = [
-                r'(\d+)\s*percent',
-                r'(\d+)\s*%',
-                r'(\d+)\s*degree',
-                r'(\d+)\s*°',
-                r'(\d+)',  # Fallback: any number
+                r"(\d+)\s*percent",
+                r"(\d+)\s*%",
+                r"(\d+)\s*degree",
+                r"(\d+)\s*°",
+                r"(\d+)",  # Fallback: any number
             ]
             for pattern in patterns:
                 match = re.search(pattern, request)

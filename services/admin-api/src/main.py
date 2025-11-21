@@ -6,7 +6,7 @@ import asyncio
 import os
 import secrets
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from typing import Any
 
@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.logging_config import setup_logging
@@ -95,36 +95,37 @@ class AdminAPIService:
     def __init__(self):
         """Initialize Admin API service"""
         # Configuration
-        self.api_host = os.getenv('API_HOST', '0.0.0.0')
-        self.api_port = int(os.getenv('API_PORT', '8000'))
-        self.api_title = os.getenv('API_TITLE', 'Home Assistant Ingestor Admin API')
-        self.api_version = os.getenv('API_VERSION', '1.0.0')
-        self.api_description = os.getenv('API_DESCRIPTION', 'Admin API for Home Assistant Ingestor')
+        self.api_host = os.getenv("API_HOST", "0.0.0.0")
+        self.api_port = int(os.getenv("API_PORT", "8000"))
+        self.api_title = os.getenv("API_TITLE", "Home Assistant Ingestor Admin API")
+        self.api_version = os.getenv("API_VERSION", "1.0.0")
+        self.api_description = os.getenv("API_DESCRIPTION", "Admin API for Home Assistant Ingestor")
 
         # Security
-        self.api_key = os.getenv('ADMIN_API_API_KEY') or os.getenv('API_KEY')
-        self.allow_anonymous = os.getenv('ADMIN_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
-        self.docs_enabled = os.getenv('ADMIN_API_ENABLE_DOCS', 'false').lower() == 'true'
-        self.openapi_enabled = os.getenv('ADMIN_API_ENABLE_OPENAPI', 'false').lower() == 'true'
-        rate_limit_per_minute = int(os.getenv('ADMIN_API_RATE_LIMIT_PER_MIN', '60'))
-        burst = int(os.getenv('ADMIN_API_RATE_LIMIT_BURST', '20'))
+        self.api_key = os.getenv("ADMIN_API_API_KEY") or os.getenv("API_KEY")
+        self.allow_anonymous = os.getenv("ADMIN_API_ALLOW_ANONYMOUS", "false").lower() == "true"
+        self.docs_enabled = os.getenv("ADMIN_API_ENABLE_DOCS", "false").lower() == "true"
+        self.openapi_enabled = os.getenv("ADMIN_API_ENABLE_OPENAPI", "false").lower() == "true"
+        rate_limit_per_minute = int(os.getenv("ADMIN_API_RATE_LIMIT_PER_MIN", "60"))
+        burst = int(os.getenv("ADMIN_API_RATE_LIMIT_BURST", "20"))
         self.rate_limiter = RateLimiter(rate=rate_limit_per_minute, per=60, burst=burst)
 
         if not self.api_key:
             if not self.allow_anonymous:
+                msg = "API_KEY (or ADMIN_API_API_KEY) must be set before starting admin-api"
                 raise RuntimeError(
-                    "API_KEY (or ADMIN_API_API_KEY) must be set before starting admin-api"
+                    msg,
                 )
             self.api_key = secrets.token_urlsafe(48)
             logger.warning(
                 "Admin API started in anonymous mode for local testing only. "
-                "Set ADMIN_API_API_KEY to enforce authentication."
+                "Set ADMIN_API_API_KEY to enforce authentication.",
             )
 
         # CORS settings
-        self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
-        self.cors_methods = os.getenv('CORS_METHODS', 'GET,POST,PUT,DELETE').split(',')
-        self.cors_headers = os.getenv('CORS_HEADERS', '*').split(',')
+        self.cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+        self.cors_methods = os.getenv("CORS_METHODS", "GET,POST,PUT,DELETE").split(",")
+        self.cors_headers = os.getenv("CORS_HEADERS", "*").split(",")
 
         # Initialize components
         self.start_time = datetime.now()  # Add start time for uptime calculation
@@ -181,7 +182,7 @@ class AdminAPIService:
             app=self.app,
             host=self.api_host,
             port=self.api_port,
-            log_level=os.getenv('LOG_LEVEL', 'info').lower()
+            log_level=os.getenv("LOG_LEVEL", "info").lower(),
         )
         server = uvicorn.Server(config)
 
@@ -199,17 +200,15 @@ class AdminAPIService:
 
         if self.server_task:
             self.server_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self.server_task
-            except asyncio.CancelledError:
-                pass
 
         # Close InfluxDB connection
         try:
             logger.info("Closing InfluxDB connection...")
             await self.stats_endpoints.close()
         except Exception as e:
-            logger.error(f"Error closing InfluxDB connection: {e}")
+            logger.exception(f"Error closing InfluxDB connection: {e}")
 
         # Stop monitoring services
         await alerting_service.stop()
@@ -223,7 +222,7 @@ class AdminAPIService:
         # Observability setup (tracing and correlation ID)
         if OBSERVABILITY_AVAILABLE:
             # Set up OpenTelemetry tracing
-            otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+            otlp_endpoint = os.getenv("OTLP_ENDPOINT")
             if setup_tracing("admin-api", otlp_endpoint):
                 logger.info("✅ OpenTelemetry tracing configured")
 
@@ -244,7 +243,7 @@ class AdminAPIService:
             allow_origins=self.cors_origins,
             allow_credentials=True,
             allow_methods=self.cors_methods,
-            allow_headers=self.cors_headers
+            allow_headers=self.cors_headers,
         )
 
         # Rate limiting middleware
@@ -265,7 +264,7 @@ class AdminAPIService:
             logger.info(
                 f"{request.method} {request.url.path} - "
                 f"Status: {response.status_code} - "
-                f"Time: {process_time:.3f}s"
+                f"Time: {process_time:.3f}s",
             )
 
             return response
@@ -279,7 +278,7 @@ class AdminAPIService:
             return {
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
-                "service": "admin-api"
+                "service": "admin-api",
             }
 
         # Enhanced health endpoint with dependency information
@@ -296,22 +295,22 @@ class AdminAPIService:
                         "type": "database",
                         "status": "healthy",
                         "response_time_ms": 5.2,
-                        "last_check": datetime.now().isoformat()
+                        "last_check": datetime.now().isoformat(),
                     },
                     {
                         "name": "WebSocket Ingestion",
                         "type": "service",
                         "status": "healthy",
                         "response_time_ms": 12.1,
-                        "last_check": datetime.now().isoformat()
+                        "last_check": datetime.now().isoformat(),
                     },
                     {
                         "name": "Data API",
                         "type": "service",
                         "status": "healthy",
                         "response_time_ms": 9.4,
-                        "last_check": datetime.now().isoformat()
-                    }
+                        "last_check": datetime.now().isoformat(),
+                    },
                 ]
                 rate_limiter_stats = self.rate_limiter.get_stats()
 
@@ -332,16 +331,16 @@ class AdminAPIService:
                         "uptime_human": f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s",
                         "uptime_percentage": 100.0,
                         "total_requests": 0,
-                        "error_rate": 0.0
-                    }
+                        "error_rate": 0.0,
+                    },
                 }
             except Exception as e:
-                logger.error(f"Enhanced health check failed: {e}")
+                logger.exception(f"Enhanced health check failed: {e}")
                 return {
                     "status": "unhealthy",
                     "service": "admin-api",
                     "timestamp": datetime.now().isoformat(),
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Simple metrics endpoint that always works
@@ -353,7 +352,7 @@ class AdminAPIService:
                 "events_per_second": 0.0,
                 "active_api_calls": 0,
                 "active_sources": [],
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         secure_dependency = [Depends(self.auth_manager.get_current_user)]
@@ -362,7 +361,7 @@ class AdminAPIService:
         self.app.include_router(
             self.health_endpoints.router,
             prefix="/api/v1",
-            tags=["Health"]
+            tags=["Health"],
         )
 
         # Statistics endpoints
@@ -370,7 +369,7 @@ class AdminAPIService:
             self.stats_endpoints.router,
             prefix="/api/v1",
             tags=["Statistics"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Configuration endpoints
@@ -378,7 +377,7 @@ class AdminAPIService:
             self.config_endpoints.router,
             prefix="/api/v1",
             tags=["Configuration"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # MQTT/Zigbee configuration endpoints
@@ -386,14 +385,14 @@ class AdminAPIService:
             mqtt_config_router,
             prefix="/api/v1",
             tags=["Integrations"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Docker management endpoints
         self.app.include_router(
             self.docker_endpoints.router,
             tags=["Docker Management"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Events endpoints
@@ -401,7 +400,7 @@ class AdminAPIService:
             self.events_endpoints.router,
             prefix="/api/v1",
             tags=["Events"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Monitoring endpoints
@@ -409,7 +408,7 @@ class AdminAPIService:
             self.monitoring_endpoints.router,
             prefix="/api/v1/monitoring",
             tags=["Monitoring"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
@@ -419,21 +418,21 @@ class AdminAPIService:
             self.integration_router,
             prefix="/api/v1",
             tags=["Integration Management"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Devices & Entities endpoints
         self.app.include_router(
             devices_router,
             tags=["Devices & Entities"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Home Assistant proxy endpoints
         self.app.include_router(
             ha_proxy_router,
             tags=["Home Assistant Proxy"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Metrics endpoints (Epic 17.3)
@@ -441,7 +440,7 @@ class AdminAPIService:
             create_metrics_router(),
             prefix="/api/v1",
             tags=["Metrics"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Alert endpoints (Epic 17.4)
@@ -449,7 +448,7 @@ class AdminAPIService:
             create_alert_router(),
             prefix="/api/v1",
             tags=["Alerts"],
-            dependencies=secure_dependency
+            dependencies=secure_dependency,
         )
 
         # Root health endpoint (for Docker health checks)
@@ -461,7 +460,7 @@ class AdminAPIService:
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "service": "admin-api",
-                "uptime_seconds": uptime
+                "uptime_seconds": uptime,
             }
 
         # Root endpoint
@@ -474,9 +473,9 @@ class AdminAPIService:
                     "service": self.api_title,
                     "version": self.api_version,
                     "status": "running",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 },
-                message="Admin API is running"
+                message="Admin API is running",
             )
 
         # API info endpoint
@@ -493,19 +492,19 @@ class AdminAPIService:
                         "health": "/api/v1/health",
                         "stats": "/api/v1/stats",
                         "config": "/api/v1/config",
-                        "events": "/api/v1/events"
+                        "events": "/api/v1/events",
                     },
                   "authentication": {
                       "api_key_required": not self.allow_anonymous,
-                      "docs_enabled": self.docs_enabled
+                      "docs_enabled": self.docs_enabled,
                   },
                   "rate_limit": {
                       "requests_per_minute": self.rate_limiter.rate,
-                      "burst": self.rate_limiter.burst
+                      "burst": self.rate_limiter.burst,
                   },
-                  "cors_enabled": True
+                  "cors_enabled": True,
                 },
-                message="API information retrieved successfully"
+                message="API information retrieved successfully",
             )
 
     def _add_exception_handlers(self):
@@ -524,8 +523,8 @@ class AdminAPIService:
                     content=ErrorResponse(
                         error=exc.detail,
                         error_code=f"HTTP_{exc.status_code}",
-                        request_id=getattr(request.state, 'request_id', None)
-                    ).model_dump()
+                        request_id=getattr(request.state, "request_id", None),
+                    ).model_dump(),
                 )
 
             @self.app.exception_handler(Exception)
@@ -537,8 +536,8 @@ class AdminAPIService:
                     content=ErrorResponse(
                         error="Internal server error",
                         error_code="INTERNAL_ERROR",
-                        request_id=getattr(request.state, 'request_id', None)
-                    ).model_dump()
+                        request_id=getattr(request.state, "request_id", None),
+                    ).model_dump(),
                 )
 
     def get_app(self) -> FastAPI:
@@ -586,7 +585,7 @@ async def lifespan(app: FastAPI):
     try:
         await admin_api_service.stats_endpoints.close()
     except Exception as e:
-        logger.error(f"Error closing InfluxDB connection: {e}")
+        logger.exception(f"Error closing InfluxDB connection: {e}")
 
     # Stop monitoring services
     await alerting_service.stop()
@@ -604,7 +603,7 @@ app = FastAPI(
     docs_url="/docs" if admin_api_service.docs_enabled else None,
     redoc_url="/redoc" if admin_api_service.docs_enabled else None,
     openapi_url="/openapi.json" if (admin_api_service.docs_enabled or admin_api_service.openapi_enabled) else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Initialize the app in the service
@@ -622,6 +621,6 @@ if __name__ == "__main__":
         "src.main:app",
         host=admin_api_service.api_host,
         port=admin_api_service.api_port,
-        reload=os.getenv('RELOAD', 'false').lower() == 'true',
-        log_level=os.getenv('LOG_LEVEL', 'info').lower()
+        reload=os.getenv("RELOAD", "false").lower() == "true",
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )

@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,133 +20,133 @@ logger = logging.getLogger(__name__)
 # Compatible device relationship mappings
 COMPATIBLE_RELATIONSHIPS = {
     # Original patterns
-    'motion_to_light': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'motion',
-        'action_domain': 'light',
-        'benefit_score': 0.7,  # Convenience
-        'complexity': 'low',
-        'description': 'Motion-activated lighting'
+    "motion_to_light": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "motion",
+        "action_domain": "light",
+        "benefit_score": 0.7,  # Convenience
+        "complexity": "low",
+        "description": "Motion-activated lighting",
     },
-    'door_to_light': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'door',
-        'action_domain': 'light',
-        'benefit_score': 0.6,
-        'complexity': 'low',
-        'description': 'Door-activated lighting'
+    "door_to_light": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "door",
+        "action_domain": "light",
+        "benefit_score": 0.6,
+        "complexity": "low",
+        "description": "Door-activated lighting",
     },
-    'door_to_lock': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'door',
-        'action_domain': 'lock',
-        'benefit_score': 1.0,  # Security
-        'complexity': 'medium',
-        'description': 'Auto-lock when door closes'
+    "door_to_lock": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "door",
+        "action_domain": "lock",
+        "benefit_score": 1.0,  # Security
+        "complexity": "medium",
+        "description": "Auto-lock when door closes",
     },
-    'temp_to_climate': {
-        'trigger_domain': 'sensor',
-        'trigger_device_class': 'temperature',
-        'action_domain': 'climate',
-        'benefit_score': 0.5,  # Comfort
-        'complexity': 'medium',
-        'description': 'Temperature-based climate control'
+    "temp_to_climate": {
+        "trigger_domain": "sensor",
+        "trigger_device_class": "temperature",
+        "action_domain": "climate",
+        "benefit_score": 0.5,  # Comfort
+        "complexity": "medium",
+        "description": "Temperature-based climate control",
     },
-    'occupancy_to_light': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'occupancy',
-        'action_domain': 'light',
-        'benefit_score': 0.7,
-        'complexity': 'low',
-        'description': 'Occupancy-based lighting'
+    "occupancy_to_light": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "occupancy",
+        "action_domain": "light",
+        "benefit_score": 0.7,
+        "complexity": "low",
+        "description": "Occupancy-based lighting",
     },
     # NEW: Additional patterns (Phase 2)
-    'motion_to_climate': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'motion',
-        'action_domain': 'climate',
-        'benefit_score': 0.6,
-        'complexity': 'medium',
-        'description': 'Motion-activated climate control'
+    "motion_to_climate": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "motion",
+        "action_domain": "climate",
+        "benefit_score": 0.6,
+        "complexity": "medium",
+        "description": "Motion-activated climate control",
     },
-    'light_to_media': {
-        'trigger_domain': 'light',
-        'action_domain': 'media_player',
-        'benefit_score': 0.5,
-        'complexity': 'low',
-        'description': 'Light change triggers media player'
+    "light_to_media": {
+        "trigger_domain": "light",
+        "action_domain": "media_player",
+        "benefit_score": 0.5,
+        "complexity": "low",
+        "description": "Light change triggers media player",
     },
-    'temp_to_fan': {
-        'trigger_domain': 'sensor',
-        'trigger_device_class': 'temperature',
-        'action_domain': 'fan',
-        'benefit_score': 0.6,
-        'complexity': 'medium',
-        'description': 'Temperature-based fan control'
+    "temp_to_fan": {
+        "trigger_domain": "sensor",
+        "trigger_device_class": "temperature",
+        "action_domain": "fan",
+        "benefit_score": 0.6,
+        "complexity": "medium",
+        "description": "Temperature-based fan control",
     },
-    'window_to_climate': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'window',
-        'action_domain': 'climate',
-        'benefit_score': 0.8,
-        'complexity': 'medium',
-        'description': 'Window open triggers climate adjustment'
+    "window_to_climate": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "window",
+        "action_domain": "climate",
+        "benefit_score": 0.8,
+        "complexity": "medium",
+        "description": "Window open triggers climate adjustment",
     },
-    'humidity_to_fan': {
-        'trigger_domain': 'sensor',
-        'trigger_device_class': 'humidity',
-        'action_domain': 'fan',
-        'benefit_score': 0.6,
-        'complexity': 'medium',
-        'description': 'Humidity-based fan control'
+    "humidity_to_fan": {
+        "trigger_domain": "sensor",
+        "trigger_device_class": "humidity",
+        "action_domain": "fan",
+        "benefit_score": 0.6,
+        "complexity": "medium",
+        "description": "Humidity-based fan control",
     },
-    'presence_to_light': {
-        'trigger_domain': 'device_tracker',
-        'action_domain': 'light',
-        'benefit_score': 0.7,
-        'complexity': 'low',
-        'description': 'Presence-based lighting'
+    "presence_to_light": {
+        "trigger_domain": "device_tracker",
+        "action_domain": "light",
+        "benefit_score": 0.7,
+        "complexity": "low",
+        "description": "Presence-based lighting",
     },
-    'presence_to_climate': {
-        'trigger_domain': 'device_tracker',
-        'action_domain': 'climate',
-        'benefit_score': 0.6,
-        'complexity': 'medium',
-        'description': 'Presence-based climate control'
+    "presence_to_climate": {
+        "trigger_domain": "device_tracker",
+        "action_domain": "climate",
+        "benefit_score": 0.6,
+        "complexity": "medium",
+        "description": "Presence-based climate control",
     },
-    'light_to_switch': {
-        'trigger_domain': 'light',
-        'action_domain': 'switch',
-        'benefit_score': 0.5,
-        'complexity': 'low',
-        'description': 'Light triggers switch'
+    "light_to_switch": {
+        "trigger_domain": "light",
+        "action_domain": "switch",
+        "benefit_score": 0.5,
+        "complexity": "low",
+        "description": "Light triggers switch",
     },
-    'door_to_notify': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'door',
-        'action_domain': 'notify',
-        'benefit_score': 0.8,  # Security
-        'complexity': 'low',
-        'description': 'Door open triggers notification'
+    "door_to_notify": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "door",
+        "action_domain": "notify",
+        "benefit_score": 0.8,  # Security
+        "complexity": "low",
+        "description": "Door open triggers notification",
     },
-    'motion_to_switch': {
-        'trigger_domain': 'binary_sensor',
-        'trigger_device_class': 'motion',
-        'action_domain': 'switch',
-        'benefit_score': 0.6,
-        'complexity': 'low',
-        'description': 'Motion-activated switch'
-    }
+    "motion_to_switch": {
+        "trigger_domain": "binary_sensor",
+        "trigger_device_class": "motion",
+        "action_domain": "switch",
+        "benefit_score": 0.6,
+        "complexity": "low",
+        "description": "Motion-activated switch",
+    },
 }
 
 
 class DeviceSynergyDetector:
     """
     Detects cross-device synergy opportunities for automation suggestions.
-    
+
     Analyzes device relationships to find unconnected pairs that could
     work together (e.g., motion sensor + light in same area).
-    
+
     Story AI3.1: Device Synergy Detector Foundation
     """
 
@@ -156,11 +156,11 @@ class DeviceSynergyDetector:
         ha_client=None,
         influxdb_client=None,
         min_confidence: float = 0.7,
-        same_area_required: bool = True
+        same_area_required: bool = True,
     ):
         """
         Initialize synergy detector.
-        
+
         Args:
             data_api_client: Client for querying devices from data-api
             ha_client: Optional HA client for checking existing automations
@@ -197,13 +197,13 @@ class DeviceSynergyDetector:
 
         logger.info(
             f"DeviceSynergyDetector initialized: "
-            f"min_confidence={min_confidence}, same_area_required={same_area_required}"
+            f"min_confidence={min_confidence}, same_area_required={same_area_required}",
         )
 
     async def detect_synergies(self) -> list[dict]:
         """
         Detect all synergy opportunities.
-        
+
         Returns:
             List of synergy opportunity dictionaries
         """
@@ -226,7 +226,7 @@ class DeviceSynergyDetector:
 
             if getattr(settings, "enable_pdl_workflows", False):
                 try:
-                    from ..pdl.runtime import PDLExecutionError, PDLInterpreter
+                    from src.pdl.runtime import PDLExecutionError, PDLInterpreter
 
                     script_path = Path(__file__).resolve().parent.parent / "pdl" / "scripts" / "synergy_guardrails.yaml"
                     interpreter = PDLInterpreter.from_file(script_path, logger)
@@ -236,10 +236,10 @@ class DeviceSynergyDetector:
                             "max_supported_depth": 4,
                             "candidate_device_count": len(devices),
                             "max_device_capacity": 150,  # Single-home practical ceiling
-                        }
+                        },
                     )
                 except PDLExecutionError as pdl_exc:
-                    logger.error("❌ Synergy guardrail violation: %s", pdl_exc)
+                    logger.exception("❌ Synergy guardrail violation: %s", pdl_exc)
                     return []
                 except Exception as pdl_exc:  # pragma: no cover - defensive logging
                     logger.warning(
@@ -275,7 +275,7 @@ class DeviceSynergyDetector:
             # Step 6: Filter by confidence threshold
             pairwise_synergies = [
                 s for s in ranked_synergies
-                if s['confidence'] >= self.min_confidence
+                if s["confidence"] >= self.min_confidence
             ]
 
             # Step 7: Detect 3-device chains (Phase 3)
@@ -292,7 +292,7 @@ class DeviceSynergyDetector:
             final_synergies = pairwise_synergies + chains_3 + chains_4
 
             # Re-sort all synergies by impact score
-            final_synergies.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
+            final_synergies.sort(key=lambda x: x.get("impact_score", 0), reverse=True)
 
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
@@ -302,25 +302,25 @@ class DeviceSynergyDetector:
                 f"   3-device chains: {len(chains_3)}\n"
                 f"   4-device chains: {len(chains_4)}\n"
                 f"   Total opportunities: {len(final_synergies)}\n"
-                f"   Above confidence threshold ({self.min_confidence}): {len(final_synergies)}"
+                f"   Above confidence threshold ({self.min_confidence}): {len(final_synergies)}",
             )
 
             # Log top 3 opportunities
             if final_synergies:
                 logger.info("🏆 Top 3 synergy opportunities:")
                 for i, synergy in enumerate(final_synergies[:3], 1):
-                    synergy_type = synergy.get('synergy_type', 'device_pair')
-                    if synergy_type == 'device_chain':
-                        chain_path = synergy.get('chain_path', '?')
-                        depth = len(synergy.get('devices', []))
+                    synergy_type = synergy.get("synergy_type", "device_pair")
+                    if synergy_type == "device_chain":
+                        chain_path = synergy.get("chain_path", "?")
+                        depth = len(synergy.get("devices", []))
                         logger.info(
                             f"   {i}. {depth}-chain: {chain_path} "
-                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
+                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})",
                         )
                     else:
                         logger.info(
                             f"   {i}. {synergy['relationship']} in {synergy.get('area', 'unknown')} "
-                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
+                            f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})",
                         )
 
             return final_synergies
@@ -338,7 +338,7 @@ class DeviceSynergyDetector:
             self._device_cache = await self.data_api.fetch_devices()
             return self._device_cache
         except Exception as e:
-            logger.error(f"Failed to fetch devices: {e}")
+            logger.exception(f"Failed to fetch devices: {e}")
             return []
 
     async def _get_entities(self) -> list[dict]:
@@ -350,21 +350,21 @@ class DeviceSynergyDetector:
             self._entity_cache = await self.data_api.fetch_entities()
             return self._entity_cache
         except Exception as e:
-            logger.error(f"Failed to fetch entities: {e}")
+            logger.exception(f"Failed to fetch entities: {e}")
             return []
 
     def _find_device_pairs_by_area(
         self,
         devices: list[dict],
-        entities: list[dict]
+        entities: list[dict],
     ) -> list[dict]:
         """
         Find device pairs in the same area, or without areas.
-        
+
         Args:
             devices: List of devices from data-api
             entities: List of entities from data-api
-        
+
         Returns:
             List of potential device pairs
         """
@@ -372,7 +372,7 @@ class DeviceSynergyDetector:
         entities_by_area = {}
         entities_without_area = []
         for entity in entities:
-            area = entity.get('area_id')
+            area = entity.get("area_id")
             if area:
                 if area not in entities_by_area:
                     entities_by_area[area] = []
@@ -387,19 +387,19 @@ class DeviceSynergyDetector:
             for i, entity1 in enumerate(area_entities):
                 for entity2 in area_entities[i+1:]:
                     # Don't pair entity with itself
-                    if entity1['entity_id'] == entity2['entity_id']:
+                    if entity1["entity_id"] == entity2["entity_id"]:
                         continue
 
-                    domain1 = entity1['entity_id'].split('.')[0]
-                    domain2 = entity2['entity_id'].split('.')[0]
+                    domain1 = entity1["entity_id"].split(".")[0]
+                    domain2 = entity2["entity_id"].split(".")[0]
 
                     # Create potential pair
                     pairs.append({
-                        'entity1': entity1,
-                        'entity2': entity2,
-                        'area': area,
-                        'domain1': domain1,
-                        'domain2': domain2
+                        "entity1": entity1,
+                        "entity2": entity2,
+                        "area": area,
+                        "domain1": domain1,
+                        "domain2": domain2,
                     })
 
         # Also pair entities without areas (cross-area or no-area synergies)
@@ -410,15 +410,15 @@ class DeviceSynergyDetector:
             # Get compatible domain pairs from relationship configs
             compatible_domain_pairs = set()
             for rel_config in COMPATIBLE_RELATIONSHIPS.values():
-                trigger_domain = rel_config['trigger_domain']
-                action_domain = rel_config['action_domain']
+                trigger_domain = rel_config["trigger_domain"]
+                action_domain = rel_config["action_domain"]
                 compatible_domain_pairs.add((trigger_domain, action_domain))
                 compatible_domain_pairs.add((action_domain, trigger_domain))  # Bidirectional
 
             # Group entities by domain for efficient pairing
             entities_by_domain = {}
             for entity in entities_without_area:
-                domain = entity['entity_id'].split('.')[0]
+                domain = entity["entity_id"].split(".")[0]
                 if domain not in entities_by_domain:
                     entities_by_domain[domain] = []
                 entities_by_domain[domain].append(entity)
@@ -435,15 +435,15 @@ class DeviceSynergyDetector:
                     for entity1 in entities1:
                         for entity2 in entities2:
                             # Don't pair entity with itself
-                            if entity1['entity_id'] == entity2['entity_id']:
+                            if entity1["entity_id"] == entity2["entity_id"]:
                                 continue
 
                             pairs.append({
-                                'entity1': entity1,
-                                'entity2': entity2,
-                                'area': entity1.get('area_id') or entity2.get('area_id') or None,
-                                'domain1': domain1,
-                                'domain2': domain2
+                                "entity1": entity1,
+                                "entity2": entity2,
+                                "area": entity1.get("area_id") or entity2.get("area_id") or None,
+                                "domain1": domain1,
+                                "domain2": domain2,
                             })
                             processed_pairs += 1
 
@@ -454,42 +454,42 @@ class DeviceSynergyDetector:
     def _filter_compatible_pairs(self, pairs: list[dict]) -> list[dict]:
         """
         Filter device pairs for compatible relationships.
-        
+
         Args:
             pairs: List of potential device pairs
-        
+
         Returns:
             List of compatible pairs with relationship metadata
         """
         compatible = []
 
         for pair in pairs:
-            entity1 = pair['entity1']
-            entity2 = pair['entity2']
-            domain1 = pair['domain1']
-            domain2 = pair['domain2']
+            entity1 = pair["entity1"]
+            entity2 = pair["entity2"]
+            domain1 = pair["domain1"]
+            domain2 = pair["domain2"]
 
             # Check each relationship type
             for rel_type, rel_config in COMPATIBLE_RELATIONSHIPS.items():
-                trigger_domain = rel_config['trigger_domain']
-                action_domain = rel_config['action_domain']
+                trigger_domain = rel_config["trigger_domain"]
+                action_domain = rel_config["action_domain"]
 
                 # Check if pair matches this relationship (either direction)
                 match = None
                 if domain1 == trigger_domain and domain2 == action_domain:
                     # Check device class if required
-                    if 'trigger_device_class' in rel_config:
-                        device_class1 = entity1.get('device_class', entity1.get('original_device_class'))
-                        if device_class1 == rel_config['trigger_device_class']:
+                    if "trigger_device_class" in rel_config:
+                        device_class1 = entity1.get("device_class", entity1.get("original_device_class"))
+                        if device_class1 == rel_config["trigger_device_class"]:
                             match = (entity1, entity2)
                     else:
                         match = (entity1, entity2)
 
                 elif domain2 == trigger_domain and domain1 == action_domain:
                     # Reverse direction
-                    if 'trigger_device_class' in rel_config:
-                        device_class2 = entity2.get('device_class', entity2.get('original_device_class'))
-                        if device_class2 == rel_config['trigger_device_class']:
+                    if "trigger_device_class" in rel_config:
+                        device_class2 = entity2.get("device_class", entity2.get("original_device_class"))
+                        if device_class2 == rel_config["trigger_device_class"]:
                             match = (entity2, entity1)
                     else:
                         match = (entity2, entity1)
@@ -497,31 +497,31 @@ class DeviceSynergyDetector:
                 if match:
                     trigger_entity, action_entity = match
                     compatible.append({
-                        'trigger_entity': trigger_entity['entity_id'],
-                        'trigger_name': trigger_entity.get('friendly_name', trigger_entity['entity_id']),
-                        'action_entity': action_entity['entity_id'],
-                        'action_name': action_entity.get('friendly_name', action_entity['entity_id']),
-                        'area': pair['area'],
-                        'relationship_type': rel_type,
-                        'relationship_config': rel_config
+                        "trigger_entity": trigger_entity["entity_id"],
+                        "trigger_name": trigger_entity.get("friendly_name", trigger_entity["entity_id"]),
+                        "action_entity": action_entity["entity_id"],
+                        "action_name": action_entity.get("friendly_name", action_entity["entity_id"]),
+                        "area": pair["area"],
+                        "relationship_type": rel_type,
+                        "relationship_config": rel_config,
                     })
 
         return compatible
 
     async def _filter_existing_automations(
         self,
-        compatible_pairs: list[dict]
+        compatible_pairs: list[dict],
     ) -> list[dict]:
         """
         Filter out pairs that already have automations.
-        
+
         Stories:
         - AI3.3: Unconnected Relationship Analysis
         - AI4.3: Relationship Checker (Enhanced with automation parser)
-        
+
         Args:
             compatible_pairs: List of compatible device pairs
-        
+
         Returns:
             List of pairs without existing automations
         """
@@ -532,7 +532,7 @@ class DeviceSynergyDetector:
 
         try:
             # Story AI4.3: Use new automation parser for efficient filtering
-            from ..clients.automation_parser import AutomationParser
+            from src.clients.automation_parser import AutomationParser
 
             # Get and parse automations
             logger.info("   → Fetching automation configurations from HA...")
@@ -553,8 +553,8 @@ class DeviceSynergyDetector:
             filtered_pairs = []
 
             for pair in compatible_pairs:
-                trigger_entity = pair.get('trigger_entity')
-                action_entity = pair.get('action_entity')
+                trigger_entity = pair.get("trigger_entity")
+                action_entity = pair.get("action_entity")
 
                 # O(1) hash table lookup (Context7: sets provide O(1) membership testing)
                 if parser.has_relationship(trigger_entity, action_entity):
@@ -563,12 +563,12 @@ class DeviceSynergyDetector:
                     automation_names = [rel.automation_alias for rel in relationships]
                     logger.debug(
                         f"   ⏭️  Filtering: {trigger_entity} → {action_entity} "
-                        f"(already automated by: {', '.join(automation_names)})"
+                        f"(already automated by: {', '.join(automation_names)})",
                     )
                     filtered_pairs.append({
-                        'trigger': trigger_entity,
-                        'action': action_entity,
-                        'existing_automations': automation_names
+                        "trigger": trigger_entity,
+                        "action": action_entity,
+                        "existing_automations": automation_names,
                     })
                 else:
                     new_pairs.append(pair)
@@ -576,7 +576,7 @@ class DeviceSynergyDetector:
             filtered_count = len(filtered_pairs)
             logger.info(
                 f"✅ Filtered {filtered_count} pairs with existing automations, "
-                f"{len(new_pairs)} new opportunities remain"
+                f"{len(new_pairs)} new opportunities remain",
             )
 
             if filtered_pairs and len(filtered_pairs) <= 5:
@@ -593,74 +593,74 @@ class DeviceSynergyDetector:
     def _rank_opportunities(self, synergies: list[dict]) -> list[dict]:
         """
         Rank and score synergy opportunities.
-        
+
         Args:
             synergies: List of synergy opportunities
-        
+
         Returns:
             List of ranked opportunities with scores
         """
         scored_synergies = []
 
         for synergy in synergies:
-            rel_config = synergy['relationship_config']
+            rel_config = synergy["relationship_config"]
 
             # Calculate scores
-            benefit_score = rel_config['benefit_score']
-            complexity = rel_config['complexity']
+            benefit_score = rel_config["benefit_score"]
+            complexity = rel_config["complexity"]
 
             # Complexity penalty
             complexity_penalty = {
-                'low': 0.0,
-                'medium': 0.1,
-                'high': 0.3
+                "low": 0.0,
+                "medium": 0.1,
+                "high": 0.3,
             }.get(complexity, 0.1)
 
             # Impact score (benefit - complexity penalty)
             impact_score = benefit_score * (1 - complexity_penalty)
 
             # Confidence (for same-area matches, high confidence)
-            confidence = 0.9 if synergy.get('area') else 0.7
+            confidence = 0.9 if synergy.get("area") else 0.7
 
             # Add synergy_id and scores
             scored_synergies.append({
-                'synergy_id': str(uuid.uuid4()),
-                'synergy_type': 'device_pair',
-                'devices': [synergy['trigger_entity'], synergy['action_entity']],
-                'trigger_entity': synergy['trigger_entity'],
-                'trigger_name': synergy['trigger_name'],
-                'action_entity': synergy['action_entity'],
-                'action_name': synergy['action_name'],
-                'relationship': synergy['relationship_type'],
-                'area': synergy.get('area', 'unknown'),
-                'impact_score': round(impact_score, 2),
-                'complexity': complexity,
-                'confidence': confidence,
-                'rationale': f"{rel_config['description']} - {synergy['trigger_name']} and {synergy['action_name']} in {synergy.get('area', 'same area')} with no automation",
+                "synergy_id": str(uuid.uuid4()),
+                "synergy_type": "device_pair",
+                "devices": [synergy["trigger_entity"], synergy["action_entity"]],
+                "trigger_entity": synergy["trigger_entity"],
+                "trigger_name": synergy["trigger_name"],
+                "action_entity": synergy["action_entity"],
+                "action_name": synergy["action_name"],
+                "relationship": synergy["relationship_type"],
+                "area": synergy.get("area", "unknown"),
+                "impact_score": round(impact_score, 2),
+                "complexity": complexity,
+                "confidence": confidence,
+                "rationale": f"{rel_config['description']} - {synergy['trigger_name']} and {synergy['action_name']} in {synergy.get('area', 'same area')} with no automation",
                 # Epic AI-4: N-level synergy fields
-                'synergy_depth': 2,
-                'chain_devices': [synergy['trigger_entity'], synergy['action_entity']]
+                "synergy_depth": 2,
+                "chain_devices": [synergy["trigger_entity"], synergy["action_entity"]],
             })
 
         # Sort by impact_score descending
-        scored_synergies.sort(key=lambda x: x['impact_score'], reverse=True)
+        scored_synergies.sort(key=lambda x: x["impact_score"], reverse=True)
 
         return scored_synergies
 
     async def _rank_opportunities_advanced(
         self,
         synergies: list[dict],
-        entities: list[dict]
+        entities: list[dict],
     ) -> list[dict]:
         """
         Rank opportunities with advanced impact scoring using usage data.
-        
+
         Story AI3.2: Same-Area Device Pair Detection
-        
+
         Args:
             synergies: List of synergy opportunities
             entities: List of entities for area lookup
-        
+
         Returns:
             List of ranked synergies with advanced scores
         """
@@ -669,7 +669,7 @@ class DeviceSynergyDetector:
         # Group synergies by area for area-specific normalization
         synergies_by_area = {}
         for s in synergies:
-            area = s.get('area', 'unknown')
+            area = s.get("area", "unknown")
             if area not in synergies_by_area:
                 synergies_by_area[area] = []
             synergies_by_area[area].append(s)
@@ -679,51 +679,51 @@ class DeviceSynergyDetector:
         # Calculate scores with area context for normalization
         for synergy in synergies:
             try:
-                area = synergy.get('area', 'unknown')
+                area = synergy.get("area", "unknown")
                 area_synergies = synergies_by_area.get(area, [synergy])
 
                 # Get advanced impact score from DevicePairAnalyzer with area context
                 advanced_impact = await self.pair_analyzer.calculate_advanced_impact_score(
                     synergy,
                     entities,
-                    all_synergies_in_area=area_synergies if len(area_synergies) > 1 else None
+                    all_synergies_in_area=area_synergies if len(area_synergies) > 1 else None,
                 )
 
                 # Create scored synergy with advanced impact
                 scored_synergy = synergy.copy()
-                scored_synergy['impact_score'] = advanced_impact
+                scored_synergy["impact_score"] = advanced_impact
                 scored_synergies.append(scored_synergy)
 
             except Exception as e:
                 logger.warning(f"Failed advanced scoring for synergy, using basic score: {e}")
                 # Ensure synergy has confidence if advanced scoring failed
-                if 'confidence' not in synergy:
-                    synergy['confidence'] = 0.9 if synergy.get('area') else 0.7
+                if "confidence" not in synergy:
+                    synergy["confidence"] = 0.9 if synergy.get("area") else 0.7
                 # Ensure synergy has impact_score if advanced scoring failed
-                if 'impact_score' not in synergy:
-                    rel_config = synergy.get('relationship_config', {})
+                if "impact_score" not in synergy:
+                    rel_config = synergy.get("relationship_config", {})
                     if isinstance(rel_config, dict):
-                        benefit_score = rel_config.get('benefit_score', 0.7)
-                        complexity = rel_config.get('complexity', 'medium')
-                        complexity_penalty = {'low': 0.0, 'medium': 0.1, 'high': 0.3}.get(complexity, 0.1)
-                        synergy['impact_score'] = benefit_score * (1 - complexity_penalty)
+                        benefit_score = rel_config.get("benefit_score", 0.7)
+                        complexity = rel_config.get("complexity", "medium")
+                        complexity_penalty = {"low": 0.0, "medium": 0.1, "high": 0.3}.get(complexity, 0.1)
+                        synergy["impact_score"] = benefit_score * (1 - complexity_penalty)
                     else:
-                        synergy['impact_score'] = 0.7
+                        synergy["impact_score"] = 0.7
                 scored_synergies.append(synergy)
 
         # Sort by advanced impact score descending
-        scored_synergies.sort(key=lambda x: x['impact_score'], reverse=True)
+        scored_synergies.sort(key=lambda x: x["impact_score"], reverse=True)
 
         if scored_synergies:
-            top_score = scored_synergies[0]['impact_score']
+            top_score = scored_synergies[0]["impact_score"]
             # Log score distribution for debugging
             if len(scored_synergies) > 1:
-                unique_scores = len(set(round(s['impact_score'], 4) for s in scored_synergies))
-                score_range = max(s['impact_score'] for s in scored_synergies) - min(s['impact_score'] for s in scored_synergies)
+                unique_scores = len({round(s["impact_score"], 4) for s in scored_synergies})
+                score_range = max(s["impact_score"] for s in scored_synergies) - min(s["impact_score"] for s in scored_synergies)
                 logger.info(
                     f"✅ Advanced scoring complete: top impact = {top_score:.4f}, "
                     f"unique scores (4 dec) = {unique_scores}/{len(scored_synergies)}, "
-                    f"score range = {score_range:.4f}"
+                    f"score range = {score_range:.4f}",
                 )
             else:
                 logger.info(f"✅ Advanced scoring complete: top impact = {top_score:.4f}")
@@ -736,21 +736,21 @@ class DeviceSynergyDetector:
         self,
         pairwise_synergies: list[dict],
         devices: list[dict],
-        entities: list[dict]
+        entities: list[dict],
     ) -> list[dict]:
         """
         Detect 3-device chains by connecting pairs.
-        
+
         Simple approach: For each pair A→B, find pairs B→C.
         Result: Chains A→B→C
-        
+
         Phase 3: Simple 3-device chain detection (no graph DB needed)
-        
+
         Args:
             pairwise_synergies: List of 2-device synergy opportunities
             devices: List of devices
             entities: List of entities
-        
+
         Returns:
             List of 3-device chain synergies
         """
@@ -767,7 +767,7 @@ class DeviceSynergyDetector:
         # Build lookup: action_device -> list of pairs where it's the action
         action_lookup = {}
         for synergy in pairwise_synergies:
-            action_entity = synergy.get('action_entity')
+            action_entity = synergy.get("action_entity")
             if action_entity:
                 if action_entity not in action_lookup:
                     action_lookup[action_entity] = []
@@ -781,20 +781,20 @@ class DeviceSynergyDetector:
             if len(chains) >= MAX_CHAINS:
                 logger.info(f"   → Reached chain limit ({MAX_CHAINS}), stopping chain detection")
                 break
-            trigger_entity = synergy.get('trigger_entity')
-            action_entity = synergy.get('action_entity')
+            trigger_entity = synergy.get("trigger_entity")
+            action_entity = synergy.get("action_entity")
 
             # Find pairs where action_entity is the trigger (B→C)
             if action_entity in action_lookup:
                 for next_synergy in action_lookup[action_entity]:
-                    next_action = next_synergy.get('action_entity')
+                    next_action = next_synergy.get("action_entity")
 
                     # Skip if same device (A→B→A is not useful)
                     if next_action == trigger_entity:
                         continue
 
                     # Skip if devices not in same area (unless beneficial)
-                    if synergy.get('area') != next_synergy.get('area'):
+                    if synergy.get("area") != next_synergy.get("area"):
                         # Only allow cross-area if it makes sense
                         if not self._is_valid_cross_area_chain(trigger_entity, action_entity, next_action, entities):
                             continue
@@ -809,22 +809,22 @@ class DeviceSynergyDetector:
 
                     # Create chain synergy
                     chain = {
-                        'synergy_id': str(uuid.uuid4()),
-                        'synergy_type': 'device_chain',
-                        'devices': [trigger_entity, action_entity, next_action],
-                        'chain_path': f"{trigger_entity} → {action_entity} → {next_action}",
-                        'trigger_entity': trigger_entity,
-                        'action_entity': next_action,
-                        'impact_score': round((synergy.get('impact_score', 0) +
-                                             next_synergy.get('impact_score', 0)) / 2, 2),
-                        'confidence': min(synergy.get('confidence', 0.7),
-                                        next_synergy.get('confidence', 0.7)),
-                        'complexity': 'medium',
-                        'area': synergy.get('area'),
-                        'rationale': f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}",
+                        "synergy_id": str(uuid.uuid4()),
+                        "synergy_type": "device_chain",
+                        "devices": [trigger_entity, action_entity, next_action],
+                        "chain_path": f"{trigger_entity} → {action_entity} → {next_action}",
+                        "trigger_entity": trigger_entity,
+                        "action_entity": next_action,
+                        "impact_score": round((synergy.get("impact_score", 0) +
+                                             next_synergy.get("impact_score", 0)) / 2, 2),
+                        "confidence": min(synergy.get("confidence", 0.7),
+                                        next_synergy.get("confidence", 0.7)),
+                        "complexity": "medium",
+                        "area": synergy.get("area"),
+                        "rationale": f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}",
                         # Epic AI-4: N-level synergy fields
-                        'synergy_depth': 3,
-                        'chain_devices': [trigger_entity, action_entity, next_action]
+                        "synergy_depth": 3,
+                        "chain_devices": [trigger_entity, action_entity, next_action],
                     }
 
                     # Cache if available
@@ -857,23 +857,23 @@ class DeviceSynergyDetector:
         three_level_chains: list[dict],
         pairwise_synergies: list[dict],
         devices: list[dict],
-        entities: list[dict]
+        entities: list[dict],
     ) -> list[dict]:
         """
         Detect 4-device chains by extending 3-level chains.
-        
+
         Simple approach: For each 3-chain A→B→C, find pairs C→D.
         Result: Chains A→B→C→D
-        
+
         Epic AI-4: N-Level Synergy Detection (4-level implementation)
         Single home focus: Simple extension, no over-engineering
-        
+
         Args:
             three_level_chains: List of 3-device chain synergies
             pairwise_synergies: List of 2-device synergy opportunities
             devices: List of devices
             entities: List of entities
-        
+
         Returns:
             List of 4-device chain synergies
         """
@@ -884,7 +884,7 @@ class DeviceSynergyDetector:
         if len(three_level_chains) > MAX_3CHAINS_FOR_4:
             logger.info(
                 f"   → Skipping 4-device chain detection: {len(three_level_chains)} 3-chains "
-                f"(limit: {MAX_3CHAINS_FOR_4})"
+                f"(limit: {MAX_3CHAINS_FOR_4})",
             )
             return []
 
@@ -897,7 +897,7 @@ class DeviceSynergyDetector:
         # Build lookup: action_device -> list of pairs where it's the action
         action_lookup = {}
         for synergy in pairwise_synergies:
-            action_entity = synergy.get('action_entity')
+            action_entity = synergy.get("action_entity")
             if action_entity:
                 if action_entity not in action_lookup:
                     action_lookup[action_entity] = []
@@ -911,7 +911,7 @@ class DeviceSynergyDetector:
                 logger.info(f"   → Reached 4-level chain limit ({MAX_CHAINS}), stopping detection")
                 break
 
-            chain_devices = three_chain.get('devices', [])
+            chain_devices = three_chain.get("devices", [])
             if len(chain_devices) != 3:
                 continue
 
@@ -920,7 +920,7 @@ class DeviceSynergyDetector:
             # Find pairs where C is the trigger (C→D)
             if c in action_lookup:
                 for next_synergy in action_lookup[c]:
-                    d = next_synergy.get('action_entity')
+                    d = next_synergy.get("action_entity")
 
                     # Skip if D already in chain (prevent circular paths)
                     if d in chain_devices:
@@ -931,7 +931,7 @@ class DeviceSynergyDetector:
                         continue
 
                     # Skip if devices not in same area (unless beneficial)
-                    if three_chain.get('area') != next_synergy.get('area'):
+                    if three_chain.get("area") != next_synergy.get("area"):
                         # Use same cross-area validation as 3-level chains
                         if not self._is_valid_cross_area_chain(a, b, c, entities):
                             continue
@@ -949,29 +949,29 @@ class DeviceSynergyDetector:
 
                     # Create 4-chain synergy
                     chain = {
-                        'synergy_id': str(uuid.uuid4()),
-                        'synergy_type': 'device_chain',
-                        'devices': [a, b, c, d],
-                        'chain_path': f"{a} → {b} → {c} → {d}",
-                        'trigger_entity': a,
-                        'action_entity': d,
-                        'impact_score': round((
-                            three_chain.get('impact_score', 0) +
-                            next_synergy.get('impact_score', 0)
+                        "synergy_id": str(uuid.uuid4()),
+                        "synergy_type": "device_chain",
+                        "devices": [a, b, c, d],
+                        "chain_path": f"{a} → {b} → {c} → {d}",
+                        "trigger_entity": a,
+                        "action_entity": d,
+                        "impact_score": round((
+                            three_chain.get("impact_score", 0) +
+                            next_synergy.get("impact_score", 0)
                         ) / 2, 2),
-                        'confidence': min(
-                            three_chain.get('confidence', 0.7),
-                            next_synergy.get('confidence', 0.7)
+                        "confidence": min(
+                            three_chain.get("confidence", 0.7),
+                            next_synergy.get("confidence", 0.7),
                         ),
-                        'complexity': 'medium',
-                        'area': three_chain.get('area'),
-                        'rationale': (
+                        "complexity": "medium",
+                        "area": three_chain.get("area"),
+                        "rationale": (
                             f"4-device chain: {three_chain.get('rationale', '')} "
                             f"then {next_synergy.get('rationale', '')}"
                         ),
                         # Epic AI-4: N-level synergy fields
-                        'synergy_depth': 4,
-                        'chain_devices': [a, b, c, d]
+                        "synergy_depth": 4,
+                        "chain_devices": [a, b, c, d],
                     }
 
                     # Cache if available
@@ -997,7 +997,7 @@ class DeviceSynergyDetector:
             if processed_count % 50 == 0:
                 logger.debug(
                     f"   → Processed {processed_count}/{len(three_level_chains)} 3-chains for 4-level, "
-                    f"found {len(chains)} 4-chains"
+                    f"found {len(chains)} 4-chains",
                 )
 
         return chains
@@ -1007,11 +1007,11 @@ class DeviceSynergyDetector:
         device1: str,
         device2: str,
         device3: str,
-        entities: list[dict]
+        entities: list[dict],
     ) -> bool:
         """
         Check if cross-area chain makes sense (simple heuristic).
-        
+
         For now, allow cross-area chains (can be enhanced later).
         """
         # Simple rule: Allow cross-area chains (common pattern like bedroom → hallway → kitchen)

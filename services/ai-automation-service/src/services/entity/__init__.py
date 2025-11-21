@@ -16,9 +16,9 @@ from .resolver import EntityResolver
 from .validator import EntityValidator
 
 __all__ = [
-    'EntityExtractor',
-    'EntityValidator',
-    'EntityEnricher',
-    'EntityResolver'
+    "EntityEnricher",
+    "EntityExtractor",
+    "EntityResolver",
+    "EntityValidator",
 ]
 

@@ -30,7 +30,7 @@ class ResolutionResult:
 class EntityResolver:
     """
     Resolves user text to canonical Home Assistant entity IDs.
-    
+
     Handles:
     - Exact entity ID matches
     - Friendly name matches
@@ -43,11 +43,11 @@ class EntityResolver:
         self,
         entity_validator=None,
         data_api_client=None,
-        ha_client=None
+        ha_client=None,
     ):
         """
         Initialize entity resolver.
-        
+
         Args:
             entity_validator: EntityValidator instance (optional)
             data_api_client: DataAPIClient instance (optional)
@@ -62,15 +62,15 @@ class EntityResolver:
     async def resolve(
         self,
         user_text: str,
-        domain_hint: str | None = None
+        domain_hint: str | None = None,
     ) -> ResolutionResult:
         """
         Resolve user text to canonical entity_id.
-        
+
         Args:
             user_text: User-provided text (entity_id, friendly name, alias)
             domain_hint: Optional domain hint (e.g., "light", "switch")
-            
+
         Returns:
             ResolutionResult with canonical entity_id or alternatives
         """
@@ -78,7 +78,7 @@ class EntityResolver:
         user_text = user_text.strip()
 
         # Try exact match first (if already in entity_id format)
-        if '.' in user_text:
+        if "." in user_text:
             result = await self._resolve_exact(user_text)
             if result.resolved:
                 return result
@@ -99,21 +99,21 @@ class EntityResolver:
             resolved=False,
             confidence=0.0,
             alternatives=[],
-            resolution_method="none"
+            resolution_method="none",
         )
 
     async def resolve_multiple(
         self,
         user_texts: list[str],
-        domain_hint: str | None = None
+        domain_hint: str | None = None,
     ) -> dict[str, ResolutionResult]:
         """
         Resolve multiple user texts to entity IDs.
-        
+
         Args:
             user_texts: List of user-provided texts
             domain_hint: Optional domain hint
-            
+
         Returns:
             Dict mapping user_text -> ResolutionResult
         """
@@ -133,7 +133,7 @@ class EntityResolver:
                 resolved=True,
                 confidence=1.0,
                 resolution_method="exact",
-                capability_deltas=await self._check_capabilities(entity)
+                capability_deltas=await self._check_capabilities(entity),
             )
 
         return ResolutionResult(resolved=False)
@@ -145,7 +145,7 @@ class EntityResolver:
 
         try:
             # Check aliases (if entity_validator supports it)
-            if hasattr(self.entity_validator, '_check_aliases'):
+            if hasattr(self.entity_validator, "_check_aliases"):
                 entity_id = await self.entity_validator._check_aliases(user_text)
                 if entity_id:
                     await self._ensure_entity_cache()
@@ -156,7 +156,7 @@ class EntityResolver:
                             resolved=True,
                             confidence=0.9,
                             resolution_method="alias",
-                            capability_deltas=await self._check_capabilities(entity)
+                            capability_deltas=await self._check_capabilities(entity),
                         )
         except Exception as e:
             logger.debug(f"Alias resolution failed: {e}")
@@ -166,7 +166,7 @@ class EntityResolver:
     async def _resolve_fuzzy(
         self,
         user_text: str,
-        domain_hint: str | None = None
+        domain_hint: str | None = None,
     ) -> ResolutionResult:
         """Resolve via fuzzy matching on friendly names"""
         await self._ensure_entity_cache()
@@ -177,12 +177,11 @@ class EntityResolver:
         # Search through entity cache
         for entity_id, entity_data in self._entity_cache.items():
             # Apply domain filter if hint provided
-            if domain_hint:
-                if not entity_id.startswith(f"{domain_hint}."):
-                    continue
+            if domain_hint and not entity_id.startswith(f"{domain_hint}."):
+                continue
 
             # Check friendly name
-            friendly_name = entity_data.get('friendly_name', '')
+            friendly_name = entity_data.get("friendly_name", "")
             if friendly_name:
                 friendly_lower = friendly_name.lower()
                 # Exact match
@@ -211,7 +210,7 @@ class EntityResolver:
                 confidence=confidence,
                 alternatives=alternatives,
                 resolution_method="fuzzy",
-                capability_deltas=await self._check_capabilities(entity)
+                capability_deltas=await self._check_capabilities(entity),
             )
 
         return ResolutionResult(resolved=False)
@@ -219,20 +218,20 @@ class EntityResolver:
     async def _check_capabilities(self, entity: dict[str, Any]) -> dict[str, Any]:
         """
         Check entity capabilities and return deltas.
-        
+
         Returns:
             Dict with missing/unknown capabilities
         """
         # Basic capability check (can be extended)
         capability_deltas = {
             "missing": [],
-            "unknown": []
+            "unknown": [],
         }
 
         # Check if entity has required capabilities
         # This is a placeholder - can be extended with device intelligence integration
-        domain = entity.get('domain', '')
-        if domain in ['light', 'switch', 'fan']:
+        domain = entity.get("domain", "")
+        if domain in ["light", "switch", "fan"]:
             # These domains should have turn_on/turn_off
             pass  # Assume present for now
 
@@ -243,7 +242,7 @@ class EntityResolver:
         if not self._entity_cache and self.data_api_client:
             try:
                 entities = await self.data_api_client.fetch_entities(limit=1000)
-                self._entity_cache = {e['entity_id']: e for e in entities}
+                self._entity_cache = {e["entity_id"]: e for e in entities}
                 logger.debug(f"Cached {len(self._entity_cache)} entities")
             except Exception as e:
                 logger.warning(f"Failed to cache entities: {e}")

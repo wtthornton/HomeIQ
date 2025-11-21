@@ -15,17 +15,17 @@ class TokenValidator:
     def __init__(self):
         # Home Assistant token format: JWT tokens can be quite long (200+ characters)
         # Support both traditional tokens and JWT format tokens
-        self.token_pattern = re.compile(r'^[a-zA-Z0-9._-]+$')
+        self.token_pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
         self.min_length = 32
         self.max_length = 300  # Increased to support JWT tokens
 
     def validate_token_format(self, token: str) -> tuple[bool, str]:
         """
         Validate token format
-        
+
         Args:
             token: The token to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -49,10 +49,10 @@ class TokenValidator:
     def mask_token(self, token: str) -> str:
         """
         Mask token for logging (show only last 4 characters)
-        
+
         Args:
             token: The token to mask
-            
+
         Returns:
             Masked token string
         """
@@ -64,10 +64,10 @@ class TokenValidator:
     def validate_token(self, token: str) -> tuple[bool, str]:
         """
         Complete token validation
-        
+
         Args:
             token: The token to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -85,10 +85,10 @@ class TokenValidator:
     def get_token_info(self, token: str) -> dict:
         """
         Get information about the token
-        
+
         Args:
             token: The token to analyze
-            
+
         Returns:
             Dictionary with token information
         """
@@ -99,5 +99,5 @@ class TokenValidator:
             "error_message": error_msg if not is_valid else None,
             "length": len(token) if token else 0,
             "masked_token": self.mask_token(token) if token else "****",
-            "validation_timestamp": datetime.now().isoformat()
+            "validation_timestamp": datetime.now().isoformat(),
         }

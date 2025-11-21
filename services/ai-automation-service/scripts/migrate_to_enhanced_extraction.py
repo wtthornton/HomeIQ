@@ -22,7 +22,7 @@ async def test_enhanced_extraction():
         "Turn on kitchen lights at sunset",
         "Create a bedtime routine for the bedroom",
         "Monitor garage door and send alerts",
-        "Use LED notifications for door status"
+        "Use LED notifications for door status",
     ]
 
     print("🚀 Testing Enhanced Entity Extraction")
@@ -40,8 +40,8 @@ async def test_enhanced_extraction():
 
         print(f"Found {len(entities)} entities:")
         for entity in entities:
-            if entity.get('extraction_method') == 'device_intelligence':
-                capabilities = [cap['feature'] for cap in entity.get('capabilities', []) if cap.get('supported')]
+            if entity.get("extraction_method") == "device_intelligence":
+                capabilities = [cap["feature"] for cap in entity.get("capabilities", []) if cap.get("supported")]
                 print(f"  ✅ {entity['name']} ({entity.get('manufacturer', 'Unknown')} {entity.get('model', 'Unknown')})")
                 print(f"     Entity: {entity.get('entity_id', 'N/A')}")
                 print(f"     Health: {entity.get('health_score', 'N/A')}")
@@ -83,10 +83,10 @@ async def test_device_intelligence_connectivity():
 
         # Test device details
         if devices:
-            device_id = devices[0]['id']
+            device_id = devices[0]["id"]
             device_details = await client.get_device_details(device_id)
             if device_details:
-                capabilities = device_details.get('capabilities', [])
+                capabilities = device_details.get("capabilities", [])
                 print(f"Device Details Test: ✅ {len(capabilities)} capabilities found")
             else:
                 print("Device Details Test: ❌ No details found")

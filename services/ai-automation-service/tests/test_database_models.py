@@ -28,7 +28,7 @@ async def db_engine():
     """Create in-memory SQLite database for testing"""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        echo=False
+        echo=False,
     )
 
     # Create all tables
@@ -47,7 +47,7 @@ async def db_session(db_engine):
     async_session = async_sessionmaker(
         db_engine,
         class_=AsyncSession,
-        expire_on_commit=False
+        expire_on_commit=False,
     )
 
     async with async_session() as session:
@@ -71,9 +71,9 @@ class TestDeviceCapabilityModel:
             description="Red Series Dimmer Switch",
             capabilities={
                 "light_control": {"type": "composite"},
-                "smart_bulb_mode": {"type": "enum"}
+                "smart_bulb_mode": {"type": "enum"},
             },
-            mqtt_exposes=[{"type": "light"}]
+            mqtt_exposes=[{"type": "light"}],
         )
 
         assert capability.device_model == "VZM31-SN"
@@ -93,7 +93,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Inovelli",
             description="Version 1",
             capabilities={"light_control": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         # Second upsert with same model (should update)
@@ -103,7 +103,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Inovelli",
             description="Version 2 Updated",  # Updated description
             capabilities={"light_control": {}, "smart_bulb_mode": {}},  # Added capability
-            mqtt_exposes=[{"type": "light"}]
+            mqtt_exposes=[{"type": "light"}],
         )
 
         # Should be same record (same primary key)
@@ -127,7 +127,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Aqara",
             description="Contact Sensor",
             capabilities={"contact": {}, "vibration": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         # Retrieve it
@@ -155,7 +155,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Inovelli",
             description="Switch",
             capabilities={"light": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
         await upsert_device_capability(
             db=db_session,
@@ -163,7 +163,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Aqara",
             description="Sensor",
             capabilities={"contact": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         capabilities = await get_all_capabilities(db_session)
@@ -180,7 +180,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Inovelli",
             description="Switch",
             capabilities={"light": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
         await upsert_device_capability(
             db=db_session,
@@ -188,7 +188,7 @@ class TestDeviceCapabilityModel:
             manufacturer="Aqara",
             description="Sensor",
             capabilities={"contact": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
         await upsert_device_capability(
             db=db_session,
@@ -196,7 +196,7 @@ class TestDeviceCapabilityModel:
             manufacturer="IKEA",
             description="Bulb",
             capabilities={"light": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         # Filter by Inovelli
@@ -225,13 +225,13 @@ class TestDeviceFeatureUsageModel:
         usage_records = await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen_switch",
-            features=features
+            features=features,
         )
 
         assert len(usage_records) == 3
 
         # All should be unconfigured initially
-        assert all(u.configured == False for u in usage_records)
+        assert all(not u.configured for u in usage_records)
 
         # All should have same device_id
         assert all(u.device_id == "light.kitchen_switch" for u in usage_records)
@@ -248,7 +248,7 @@ class TestDeviceFeatureUsageModel:
         await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen_switch",
-            features=features
+            features=features,
         )
 
         # Retrieve usage
@@ -264,14 +264,14 @@ class TestDeviceFeatureUsageModel:
         await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen",
-            features=["led_notifications"]
+            features=["led_notifications"],
         )
 
         # Initialize again (should merge, not duplicate)
         await initialize_feature_usage(
             db=db_session,
             device_id="light.kitchen",
-            features=["led_notifications"]
+            features=["led_notifications"],
         )
 
         # Should still only have 1 record
@@ -290,7 +290,7 @@ class TestDeviceIntelligenceDatabaseIntegration:
     async def test_full_capability_storage_workflow(self, db_session):
         """
         Test complete workflow: Store capability → Query capability
-        
+
         Simulates what happens when MQTTCapabilityListener receives
         a device from Zigbee2MQTT bridge.
         """
@@ -304,9 +304,9 @@ class TestDeviceIntelligenceDatabaseIntegration:
                 "light_control": {"type": "composite"},
                 "smart_bulb_mode": {"type": "enum"},
                 "auto_off_timer": {"type": "numeric"},
-                "led_notifications": {"type": "composite"}
+                "led_notifications": {"type": "composite"},
             },
-            mqtt_exposes=[{"type": "light"}, {"type": "enum", "name": "smartBulbMode"}]
+            mqtt_exposes=[{"type": "light"}, {"type": "enum", "name": "smartBulbMode"}],
         )
 
         assert len(capability.capabilities) == 4
@@ -328,7 +328,7 @@ class TestDeviceIntelligenceDatabaseIntegration:
             manufacturer="Inovelli",
             description="Switch",
             capabilities={"light": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
         await upsert_device_capability(
             db=db_session,
@@ -336,7 +336,7 @@ class TestDeviceIntelligenceDatabaseIntegration:
             manufacturer="Inovelli",
             description="Fan Switch",
             capabilities={"fan": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
         await upsert_device_capability(
             db=db_session,
@@ -344,24 +344,24 @@ class TestDeviceIntelligenceDatabaseIntegration:
             manufacturer="Aqara",
             description="Sensor",
             capabilities={"contact": {}},
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         # Initialize some feature usage
         await initialize_feature_usage(
             db=db_session,
             device_id="switch1",
-            features=["light", "timer"]
+            features=["light", "timer"],
         )
 
         # Get stats
         stats = await get_capability_stats(db_session)
 
-        assert stats['total_models'] == 3
-        assert stats['by_manufacturer']['Inovelli'] == 2
-        assert stats['by_manufacturer']['Aqara'] == 1
-        assert stats['total_usage_records'] == 2
-        assert stats['unconfigured_features'] == 2  # All initially unconfigured
+        assert stats["total_models"] == 3
+        assert stats["by_manufacturer"]["Inovelli"] == 2
+        assert stats["by_manufacturer"]["Aqara"] == 1
+        assert stats["total_usage_records"] == 2
+        assert stats["unconfigured_features"] == 2  # All initially unconfigured
 
 
 # ============================================================================
@@ -384,7 +384,7 @@ class TestDeviceIntelligenceDatabasePerformance:
             manufacturer="Inovelli",
             description="Switch",
             capabilities={"light": {}, "mode": {}, "timer": {}},
-            mqtt_exposes=[{"type": "light"}]
+            mqtt_exposes=[{"type": "light"}],
         )
 
         duration = time.time() - start
@@ -407,7 +407,7 @@ class TestDeviceIntelligenceDatabasePerformance:
                 manufacturer="Manufacturer",
                 description=f"Device {i}",
                 capabilities={"light": {}},
-                mqtt_exposes=[]
+                mqtt_exposes=[],
             )
 
         duration = time.time() - start
@@ -431,7 +431,7 @@ class TestDeviceIntelligenceDatabasePerformance:
                 manufacturer="Inovelli",
                 description="Device",
                 capabilities={"light": {}},
-                mqtt_exposes=[]
+                mqtt_exposes=[],
             )
         for i in range(50):
             await upsert_device_capability(
@@ -440,7 +440,7 @@ class TestDeviceIntelligenceDatabasePerformance:
                 manufacturer="Aqara",
                 description="Sensor",
                 capabilities={"contact": {}},
-                mqtt_exposes=[]
+                mqtt_exposes=[],
             )
 
         import time
@@ -464,7 +464,7 @@ class TestMultiManufacturerSupport:
     """Test database handles multiple manufacturers correctly"""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("manufacturer,model,capabilities", [
+    @pytest.mark.parametrize(("manufacturer", "model", "capabilities"), [
         ("Inovelli", "VZM31-SN", {"light": {}, "mode": {}}),
         ("Aqara", "MCCGQ11LM", {"contact": {}, "vibration": {}}),
         ("IKEA", "LED1624G9", {"light": {}, "color_temp": {}}),
@@ -479,7 +479,7 @@ class TestMultiManufacturerSupport:
             manufacturer=manufacturer,
             description="Test Device",
             capabilities=capabilities,
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         assert capability.device_model == model
@@ -506,7 +506,7 @@ class TestMultiManufacturerSupport:
                 manufacturer=manuf,
                 description="Device",
                 capabilities={"test": {}},
-                mqtt_exposes=[]
+                mqtt_exposes=[],
             )
 
         # Query by manufacturer
@@ -535,13 +535,13 @@ class TestJSONCapabilitiesColumn:
                 "mqtt_name": "led_effect",
                 "description": "7 individually addressable RGB LEDs",
                 "complexity": "medium",
-                "features": ["color", "brightness", "effect"]
+                "features": ["color", "brightness", "effect"],
             },
             "smart_bulb_mode": {
                 "type": "enum",
                 "mqtt_name": "smartBulbMode",
                 "values": ["Disabled", "Enabled"],
-                "complexity": "easy"
+                "complexity": "easy",
             },
             "auto_off_timer": {
                 "type": "numeric",
@@ -549,8 +549,8 @@ class TestJSONCapabilitiesColumn:
                 "min": 0,
                 "max": 32767,
                 "unit": "seconds",
-                "complexity": "medium"
-            }
+                "complexity": "medium",
+            },
         }
 
         capability = await upsert_device_capability(
@@ -559,7 +559,7 @@ class TestJSONCapabilitiesColumn:
             manufacturer="Inovelli",
             description="Switch",
             capabilities=complex_capabilities,
-            mqtt_exposes=[]
+            mqtt_exposes=[],
         )
 
         # Verify JSON structure preserved
@@ -573,7 +573,7 @@ class TestJSONCapabilitiesColumn:
         """Test raw MQTT exposes are stored correctly"""
         mqtt_exposes = [
             {"type": "light", "features": [{"name": "state"}, {"name": "brightness"}]},
-            {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]}
+            {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]},
         ]
 
         capability = await upsert_device_capability(
@@ -582,7 +582,7 @@ class TestJSONCapabilitiesColumn:
             manufacturer="Inovelli",
             description="Switch",
             capabilities={"light": {}},
-            mqtt_exposes=mqtt_exposes
+            mqtt_exposes=mqtt_exposes,
         )
 
         # Verify raw exposes preserved

@@ -30,14 +30,14 @@ action:
 RATIONALE: This automation activates the bedroom light at 7 AM based on consistent usage patterns observed 28 times with 93% confidence.
 CATEGORY: convenience
 PRIORITY: medium
-"""
-            )
-        )
+""",
+            ),
+        ),
     ]
     response.usage = MagicMock(
         prompt_tokens=250,
         completion_tokens=200,
-        total_tokens=450
+        total_tokens=450,
     )
     return response
 
@@ -63,46 +63,46 @@ class TestOpenAIClient:
     async def test_generate_time_of_day_suggestion(self, openai_client, mock_openai_response):
         """Test successful suggestion generation for time-of-day pattern"""
         pattern = {
-            'device_id': 'light.bedroom',
-            'pattern_type': 'time_of_day',
-            'hour': 7,
-            'minute': 0,
-            'occurrences': 28,
-            'confidence': 0.93,
-            'metadata': {}
+            "device_id": "light.bedroom",
+            "pattern_type": "time_of_day",
+            "hour": 7,
+            "minute": 0,
+            "occurrences": 28,
+            "confidence": 0.93,
+            "metadata": {},
         }
 
         # Use AsyncMock for async method
-        with patch.object(openai_client.client.chat.completions, 'create', new=AsyncMock(return_value=mock_openai_response)):
+        with patch.object(openai_client.client.chat.completions, "create", new=AsyncMock(return_value=mock_openai_response)):
             suggestion = await openai_client.generate_automation_suggestion(pattern)
 
             assert isinstance(suggestion, AutomationSuggestion)
-            assert 'Morning' in suggestion.alias or 'Bedroom' in suggestion.alias
-            assert 'light.bedroom' in suggestion.automation_yaml
-            assert suggestion.category in ['energy', 'comfort', 'security', 'convenience']
-            assert suggestion.priority in ['high', 'medium', 'low']
+            assert "Morning" in suggestion.alias or "Bedroom" in suggestion.alias
+            assert "light.bedroom" in suggestion.automation_yaml
+            assert suggestion.category in ["energy", "comfort", "security", "convenience"]
+            assert suggestion.priority in ["high", "medium", "low"]
             assert suggestion.confidence == 0.93
 
             call_kwargs = openai_client.client.chat.completions.create.call_args.kwargs
-            messages = call_kwargs['messages']
-            roles = [message['role'] for message in messages]
-            assert 'developer' in roles
-            developer_message = next(msg for msg in messages if msg['role'] == 'developer')
-            assert 'Pattern Summary' in developer_message['content']
+            messages = call_kwargs["messages"]
+            roles = [message["role"] for message in messages]
+            assert "developer" in roles
+            developer_message = next(msg for msg in messages if msg["role"] == "developer")
+            assert "Pattern Summary" in developer_message["content"]
 
     @pytest.mark.asyncio
     async def test_generate_co_occurrence_suggestion(self, openai_client):
         """Test suggestion generation for co-occurrence pattern"""
         pattern = {
-            'device_id': 'motion.hallway+light.hallway',
-            'device1': 'binary_sensor.motion_hallway',
-            'device2': 'light.hallway',
-            'pattern_type': 'co_occurrence',
-            'occurrences': 42,
-            'confidence': 0.95,
-            'metadata': {
-                'avg_time_delta_seconds': 25.0
-            }
+            "device_id": "motion.hallway+light.hallway",
+            "device1": "binary_sensor.motion_hallway",
+            "device2": "light.hallway",
+            "pattern_type": "co_occurrence",
+            "occurrences": 42,
+            "confidence": 0.95,
+            "metadata": {
+                "avg_time_delta_seconds": 25.0,
+            },
         }
 
         mock_response = MagicMock()
@@ -126,32 +126,32 @@ action:
 RATIONALE: Motion sensor and hallway light are used together 42 times with 95% confidence.
 CATEGORY: convenience
 PRIORITY: medium
-"""
-                )
-            )
+""",
+                ),
+            ),
         ]
         mock_response.usage = MagicMock(prompt_tokens=300, completion_tokens=250, total_tokens=550)
 
-        with patch.object(openai_client.client.chat.completions, 'create', new=AsyncMock(return_value=mock_response)):
+        with patch.object(openai_client.client.chat.completions, "create", new=AsyncMock(return_value=mock_response)):
             suggestion = await openai_client.generate_automation_suggestion(pattern)
 
             assert isinstance(suggestion, AutomationSuggestion)
-            assert 'motion' in suggestion.alias.lower() or 'hallway' in suggestion.alias.lower()
-            assert 'binary_sensor.motion_hallway' in suggestion.automation_yaml
-            assert 'light.hallway' in suggestion.automation_yaml
+            assert "motion" in suggestion.alias.lower() or "hallway" in suggestion.alias.lower()
+            assert "binary_sensor.motion_hallway" in suggestion.automation_yaml
+            assert "light.hallway" in suggestion.automation_yaml
 
     @pytest.mark.asyncio
     async def test_tracks_token_usage(self, openai_client, mock_openai_response):
         """Test token usage tracking"""
         pattern = {
-            'device_id': 'light.test',
-            'pattern_type': 'time_of_day',
-            'hour': 7,
-            'occurrences': 10,
-            'confidence': 0.8
+            "device_id": "light.test",
+            "pattern_type": "time_of_day",
+            "hour": 7,
+            "occurrences": 10,
+            "confidence": 0.8,
         }
 
-        with patch.object(openai_client.client.chat.completions, 'create', new=AsyncMock(return_value=mock_openai_response)):
+        with patch.object(openai_client.client.chat.completions, "create", new=AsyncMock(return_value=mock_openai_response)):
             await openai_client.generate_automation_suggestion(pattern)
 
             assert openai_client.total_tokens_used == 450
@@ -162,11 +162,11 @@ PRIORITY: medium
     async def test_retry_on_api_error(self, openai_client, mock_openai_response):
         """Test retry logic on API failures"""
         pattern = {
-            'device_id': 'light.test',
-            'pattern_type': 'time_of_day',
-            'hour': 7,
-            'occurrences': 10,
-            'confidence': 0.8
+            "device_id": "light.test",
+            "pattern_type": "time_of_day",
+            "hour": 7,
+            "occurrences": 10,
+            "confidence": 0.8,
         }
 
         # Create async mock with side effects
@@ -174,10 +174,10 @@ PRIORITY: medium
         async_mock.side_effect = [
             Exception("Rate limit error"),
             Exception("Timeout error"),
-            mock_openai_response
+            mock_openai_response,
         ]
 
-        with patch.object(openai_client.client.chat.completions, 'create', new=async_mock):
+        with patch.object(openai_client.client.chat.completions, "create", new=async_mock):
             suggestion = await openai_client.generate_automation_suggestion(pattern)
 
             # Should have retried 3 times
@@ -188,23 +188,23 @@ PRIORITY: medium
     async def test_get_usage_stats(self, openai_client, mock_openai_response):
         """Test usage statistics retrieval"""
         pattern = {
-            'device_id': 'light.test',
-            'pattern_type': 'time_of_day',
-            'hour': 7,
-            'occurrences': 10,
-            'confidence': 0.8
+            "device_id": "light.test",
+            "pattern_type": "time_of_day",
+            "hour": 7,
+            "occurrences": 10,
+            "confidence": 0.8,
         }
 
-        with patch.object(openai_client.client.chat.completions, 'create', new=AsyncMock(return_value=mock_openai_response)):
+        with patch.object(openai_client.client.chat.completions, "create", new=AsyncMock(return_value=mock_openai_response)):
             await openai_client.generate_automation_suggestion(pattern)
 
             stats = openai_client.get_usage_stats()
 
-            assert stats['total_tokens'] == 450
-            assert stats['input_tokens'] == 250
-            assert stats['output_tokens'] == 200
-            assert 'estimated_cost_usd' in stats
-            assert stats['model'] == 'gpt-4o-mini'
+            assert stats["total_tokens"] == 450
+            assert stats["input_tokens"] == 250
+            assert stats["output_tokens"] == 200
+            assert "estimated_cost_usd" in stats
+            assert stats["model"] == "gpt-4o-mini"
 
     def test_reset_usage_stats(self, openai_client):
         """Test usage statistics reset"""
@@ -220,21 +220,21 @@ PRIORITY: medium
 
     def test_infer_category_light(self, openai_client):
         """Test category inference for light devices"""
-        pattern = {'device_id': 'light.bedroom', 'pattern_type': 'time_of_day'}
+        pattern = {"device_id": "light.bedroom", "pattern_type": "time_of_day"}
         category = openai_client._infer_category(pattern)
-        assert category == 'convenience'
+        assert category == "convenience"
 
     def test_infer_category_climate(self, openai_client):
         """Test category inference for climate devices"""
-        pattern = {'device_id': 'climate.living_room', 'pattern_type': 'time_of_day'}
+        pattern = {"device_id": "climate.living_room", "pattern_type": "time_of_day"}
         category = openai_client._infer_category(pattern)
-        assert category == 'comfort'
+        assert category == "comfort"
 
     def test_infer_category_security(self, openai_client):
         """Test category inference for security devices"""
-        pattern = {'device_id': 'binary_sensor.motion_hallway', 'pattern_type': 'co_occurrence'}
+        pattern = {"device_id": "binary_sensor.motion_hallway", "pattern_type": "co_occurrence"}
         category = openai_client._infer_category(pattern)
-        assert category == 'security'
+        assert category == "security"
 
     def test_extract_alias(self, openai_client):
         """Test alias extraction from LLM response"""
@@ -253,7 +253,7 @@ action:
 ```"""
         yaml_content = openai_client._extract_yaml(text)
         assert 'alias: "Test Automation"' in yaml_content
-        assert 'trigger:' in yaml_content
+        assert "trigger:" in yaml_content
 
     def test_extract_rationale(self, openai_client):
         """Test rationale extraction from LLM response"""
@@ -276,37 +276,37 @@ action:
     def test_generate_fallback_yaml_time_of_day(self, openai_client):
         """Test fallback YAML generation for time-of-day pattern"""
         pattern = {
-            'device_id': 'light.bedroom',
-            'pattern_type': 'time_of_day',
-            'hour': 7,
-            'minute': 30,
-            'confidence': 0.8
+            "device_id": "light.bedroom",
+            "pattern_type": "time_of_day",
+            "hour": 7,
+            "minute": 30,
+            "confidence": 0.8,
         }
 
         yaml_content = openai_client._generate_fallback_yaml(pattern)
 
-        assert 'alias:' in yaml_content
-        assert 'light.bedroom' in yaml_content
-        assert '07:30:00' in yaml_content
-        assert 'trigger:' in yaml_content
-        assert 'action:' in yaml_content
+        assert "alias:" in yaml_content
+        assert "light.bedroom" in yaml_content
+        assert "07:30:00" in yaml_content
+        assert "trigger:" in yaml_content
+        assert "action:" in yaml_content
 
     def test_generate_fallback_yaml_co_occurrence(self, openai_client):
         """Test fallback YAML generation for co-occurrence pattern"""
         pattern = {
-            'pattern_type': 'co_occurrence',
-            'device1': 'binary_sensor.motion',
-            'device2': 'light.hallway',
-            'confidence': 0.9
+            "pattern_type": "co_occurrence",
+            "device1": "binary_sensor.motion",
+            "device2": "light.hallway",
+            "confidence": 0.9,
         }
 
         yaml_content = openai_client._generate_fallback_yaml(pattern)
 
-        assert 'alias:' in yaml_content
-        assert 'binary_sensor.motion' in yaml_content
-        assert 'light.hallway' in yaml_content
-        assert 'trigger:' in yaml_content
-        assert 'action:' in yaml_content
+        assert "alias:" in yaml_content
+        assert "binary_sensor.motion" in yaml_content
+        assert "light.hallway" in yaml_content
+        assert "trigger:" in yaml_content
+        assert "action:" in yaml_content
 
 
 class TestCostTracker:
@@ -341,13 +341,13 @@ class TestCostTracker:
         # 10 suggestions per day, 800 tokens average
         estimate = CostTracker.estimate_monthly_cost(
             suggestions_per_day=10,
-            avg_tokens_per_suggestion=800
+            avg_tokens_per_suggestion=800,
         )
 
-        assert estimate['suggestions_per_day'] == 10
-        assert estimate['monthly_cost_usd'] > 0
-        assert estimate['monthly_cost_usd'] < 5.0  # Should be well under $5/month
-        assert 'assumptions' in estimate
+        assert estimate["suggestions_per_day"] == 10
+        assert estimate["monthly_cost_usd"] > 0
+        assert estimate["monthly_cost_usd"] < 5.0  # Should be well under $5/month
+        assert "assumptions" in estimate
 
     def test_check_budget_alert_ok(self):
         """Test budget alert when usage is low"""
@@ -355,10 +355,10 @@ class TestCostTracker:
 
         alert = CostTracker.check_budget_alert(total_cost=2.0, budget=10.0)
 
-        assert alert['alert_level'] == 'ok'
-        assert alert['usage_percent'] == 20.0
-        assert alert['remaining_usd'] == 8.0
-        assert alert['should_alert'] is False
+        assert alert["alert_level"] == "ok"
+        assert alert["usage_percent"] == 20.0
+        assert alert["remaining_usd"] == 8.0
+        assert alert["should_alert"] is False
 
     def test_check_budget_alert_warning(self):
         """Test budget alert when usage is at warning level"""
@@ -366,9 +366,9 @@ class TestCostTracker:
 
         alert = CostTracker.check_budget_alert(total_cost=8.0, budget=10.0)
 
-        assert alert['alert_level'] == 'warning'
-        assert alert['usage_percent'] == 80.0
-        assert alert['should_alert'] is True
+        assert alert["alert_level"] == "warning"
+        assert alert["usage_percent"] == 80.0
+        assert alert["should_alert"] is True
 
     def test_check_budget_alert_critical(self):
         """Test budget alert when usage is critical"""
@@ -376,9 +376,9 @@ class TestCostTracker:
 
         alert = CostTracker.check_budget_alert(total_cost=9.5, budget=10.0)
 
-        assert alert['alert_level'] == 'critical'
-        assert alert['usage_percent'] == 95.0
-        assert alert['should_alert'] is True
+        assert alert["alert_level"] == "critical"
+        assert alert["usage_percent"] == 95.0
+        assert alert["should_alert"] is True
 
 
 @pytest.mark.integration
@@ -390,20 +390,20 @@ async def test_real_openai_api():
     """
     import os
 
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("OPENAI_API_KEY not set")
 
     client = OpenAIClient(api_key=api_key, model="gpt-4o-mini")
 
     pattern = {
-        'device_id': 'light.test',
-        'pattern_type': 'time_of_day',
-        'hour': 7,
-        'minute': 0,
-        'occurrences': 20,
-        'confidence': 0.9,
-        'metadata': {}
+        "device_id": "light.test",
+        "pattern_type": "time_of_day",
+        "hour": 7,
+        "minute": 0,
+        "occurrences": 20,
+        "confidence": 0.9,
+        "metadata": {},
     }
 
     try:
@@ -413,14 +413,14 @@ async def test_real_openai_api():
         assert isinstance(suggestion, AutomationSuggestion)
         assert len(suggestion.alias) > 0
         assert len(suggestion.automation_yaml) > 0
-        assert 'alias:' in suggestion.automation_yaml
-        assert 'trigger:' in suggestion.automation_yaml
+        assert "alias:" in suggestion.automation_yaml
+        assert "trigger:" in suggestion.automation_yaml
         assert len(suggestion.rationale) > 10
 
         # Verify token tracking
         stats = client.get_usage_stats()
-        assert stats['total_tokens'] > 0
-        assert stats['estimated_cost_usd'] > 0
+        assert stats["total_tokens"] > 0
+        assert stats["estimated_cost_usd"] > 0
 
         print("\n✅ Real OpenAI test successful:")
         print(f"   Tokens: {stats['total_tokens']}")

@@ -27,13 +27,13 @@ async def test_conversation_create_flash_automation_request_only():
     """
     ha_url = _get_env("HA_URL") or _get_env("HOME_ASSISTANT_URL")
     ha_token = _get_env("HA_TOKEN") or _get_env("HOME_ASSISTANT_TOKEN")
-    office_light = _get_env("OFFICE_LIGHT_ENTITY", "")  # unused; keep natural language
+    _get_env("OFFICE_LIGHT_ENTITY", "")  # unused; keep natural language
     agent_id = _get_env("HA_CONVERSATION_AGENT_ID", "")  # optional
 
     if not ha_url or not ha_token:
         pytest.skip("HA_URL and HA_TOKEN must be set in environment/.env for this test")
 
-    client = HomeAssistantClient(ha_url=ha_url, access_token=ha_token)
+    HomeAssistantClient(ha_url=ha_url, access_token=ha_token)
 
     prompts = [
         "Create an automation in Home Assistant named 'Test Flash Office' that flashes the office lights for 10 seconds and then restores their previous state. Enable it when done.",
@@ -41,13 +41,13 @@ async def test_conversation_create_flash_automation_request_only():
         "Set up an automation to flash the office lights for 10 seconds and restore the prior state.",
         "Please create a new automation called 'Test Flash Office' to flash the office lights for 10 seconds, then restore previous state.",
         "In Home Assistant, create an automation to flash the office lights for 10 seconds and then restore their previous state. Enable it.",
-        "Make a new automation that flashes the office lights for 10 seconds and then sets them back to their prior settings."
+        "Make a new automation that flashes the office lights for 10 seconds and then sets them back to their prior settings.",
     ]
 
     conversation_id = None
     headers = {
         "Authorization": f"Bearer {ha_token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     async with aiohttp.ClientSession() as session:

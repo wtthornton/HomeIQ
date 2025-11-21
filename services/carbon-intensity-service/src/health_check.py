@@ -56,7 +56,7 @@ class HealthCheckHandler:
             "token_refresh_count": self.token_refresh_count,
             "success_rate": (self.total_fetches - self.failed_fetches) / self.total_fetches if self.total_fetches > 0 else 0,
             "credentials_configured": not self.credentials_missing,  # NEW: Flag for frontend
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         return web.json_response(status, status=200 if healthy else 503)

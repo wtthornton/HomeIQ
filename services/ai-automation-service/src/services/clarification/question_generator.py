@@ -17,7 +17,7 @@ class QuestionGenerator:
     def __init__(self, openai_client):
         """
         Initialize question generator.
-        
+
         Args:
             openai_client: OpenAI client instance
         """
@@ -29,18 +29,18 @@ class QuestionGenerator:
         query: str,
         context: dict[str, Any],
         previous_qa: list[dict[str, Any]] | None = None,  # NEW: Previous Q&A pairs
-        asked_questions: list['ClarificationQuestion'] | None = None  # NEW: Previously asked questions
+        asked_questions: list["ClarificationQuestion"] | None = None,  # NEW: Previously asked questions
     ) -> list[ClarificationQuestion]:
         """
         Generate questions based on detected ambiguities.
-        
+
         Uses OpenAI to create natural, contextual questions.
-        
+
         Args:
             ambiguities: List of detected ambiguities
             query: Original user query
             context: Additional context (devices, entities, etc.)
-            
+
         Returns:
             List of ClarificationQuestion objects
         """
@@ -51,7 +51,7 @@ class QuestionGenerator:
         prioritized_ambiguities = sorted(
             ambiguities,
             key=lambda a: (a.severity == AmbiguitySeverity.CRITICAL, a.severity == AmbiguitySeverity.IMPORTANT),
-            reverse=True
+            reverse=True,
         )
 
         # Limit to top 3 ambiguities to avoid overwhelming user
@@ -59,7 +59,7 @@ class QuestionGenerator:
 
         # Build prompt for OpenAI
         prompt = self._build_question_generation_prompt(
-            top_ambiguities, query, context, previous_qa, asked_questions
+            top_ambiguities, query, context, previous_qa, asked_questions,
         )
 
         try:
@@ -69,16 +69,16 @@ class QuestionGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a Home Assistant automation assistant helping users clarify their automation requests. Generate natural, helpful clarification questions. Respond ONLY with JSON, no markdown formatting."
+                        "content": "You are a Home Assistant automation assistant helping users clarify their automation requests. Generate natural, helpful clarification questions. Respond ONLY with JSON, no markdown formatting.",
                     },
                     {
                         "role": "user",
-                        "content": prompt
-                    }
+                        "content": prompt,
+                    },
                 ],
                 temperature=0.3,  # Consistent with existing patterns
                 max_completion_tokens=400,  # Use max_completion_tokens for newer models
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             content = response.choices[0].message.content
@@ -101,7 +101,7 @@ class QuestionGenerator:
         query: str,
         context: dict[str, Any],
         previous_qa: list[dict[str, Any]] | None = None,
-        asked_questions: list['ClarificationQuestion'] | None = None
+        asked_questions: list["ClarificationQuestion"] | None = None,
     ) -> str:
         """Build prompt for OpenAI question generation"""
 
@@ -110,14 +110,14 @@ class QuestionGenerator:
         for amb in ambiguities:
             amb_text = f"- {amb.type.value.upper()}: {amb.description}"
             if amb.context:
-                if 'matches' in amb.context:
-                    matches = amb.context['matches']
+                if "matches" in amb.context:
+                    matches = amb.context["matches"]
                     if isinstance(matches, list) and matches:
                         amb_text += f"\n  Found: {len(matches)} matching entities"
                         for match in matches[:5]:  # Show first 5
-                            name = match.get('name', match.get('entity_id', 'unknown'))
+                            name = match.get("name", match.get("entity_id", "unknown"))
                             amb_text += f"\n    - {name}"
-                if 'suggestion' in amb.context:
+                if "suggestion" in amb.context:
                     amb_text += f"\n  Suggestion: {amb.context['suggestion']}"
             ambiguities_text.append(amb_text)
 
@@ -128,7 +128,7 @@ class QuestionGenerator:
             for i, qa in enumerate(previous_qa, 1):
                 previous_qa_section += f"{i}. Q: {qa.get('question', '')}\n"
                 previous_qa_section += f"   A: {qa.get('answer', '')}\n"
-                if qa.get('selected_entities'):
+                if qa.get("selected_entities"):
                     previous_qa_section += f"   Selected entities: {', '.join(qa['selected_entities'])}\n"
             previous_qa_section += "\n⚠️ IMPORTANT: Do NOT ask questions that are similar to the ones above. Build on the user's answers to ask NEW questions about remaining ambiguities.\n"
 
@@ -142,22 +142,22 @@ class QuestionGenerator:
 
         # Format available devices summary
         devices_summary = "Available devices:\n"
-        if 'devices' in context:
-            devices = context['devices']
+        if "devices" in context:
+            devices = context["devices"]
             if isinstance(devices, list):
                 for device in devices[:10]:  # Show first 10
-                    device_name = device.get('name', device.get('friendly_name', 'unknown'))
-                    device_id = device.get('entity_id', device.get('id', 'unknown'))
+                    device_name = device.get("name", device.get("friendly_name", "unknown"))
+                    device_id = device.get("entity_id", device.get("id", "unknown"))
                     devices_summary += f"- {device_name} ({device_id})\n"
-        elif 'entities_by_domain' in context:
-            entities_by_domain = context['entities_by_domain']
+        elif "entities_by_domain" in context:
+            entities_by_domain = context["entities_by_domain"]
             for domain, entities in list(entities_by_domain.items())[:5]:
                 devices_summary += f"\n{domain.upper()}:\n"
                 for entity in entities[:5]:
-                    name = entity.get('friendly_name', entity.get('entity_id', 'unknown'))
+                    name = entity.get("friendly_name", entity.get("entity_id", "unknown"))
                     devices_summary += f"  - {name}\n"
 
-        prompt = f"""You are a Home Assistant automation assistant helping users clarify their automation requests.
+        return f"""You are a Home Assistant automation assistant helping users clarify their automation requests.
 
 **User Query:**
 "{query}"
@@ -206,65 +206,64 @@ Generate 1-3 NEW clarification questions that will help clarify the REMAINING am
 
 Generate questions now (respond ONLY with JSON, no other text):"""
 
-        return prompt
 
     def _parse_questions(
         self,
         questions_data: dict[str, Any],
-        ambiguities: list[Ambiguity]
+        ambiguities: list[Ambiguity],
     ) -> list[ClarificationQuestion]:
         """Parse questions from OpenAI response"""
         questions = []
 
-        if 'questions' not in questions_data:
+        if "questions" not in questions_data:
             logger.warning("No 'questions' field in OpenAI response")
             return []
 
         # Create ambiguity lookup by type
-        ambiguity_by_type = {amb.type: amb for amb in ambiguities}
+        {amb.type: amb for amb in ambiguities}
 
-        for i, q_data in enumerate(questions_data['questions']):
+        for i, q_data in enumerate(questions_data["questions"]):
             try:
                 # Map question type string to enum
-                question_type_str = q_data.get('question_type', 'text').lower()
-                if question_type_str == 'multiple_choice':
+                question_type_str = q_data.get("question_type", "text").lower()
+                if question_type_str == "multiple_choice":
                     question_type = QuestionType.MULTIPLE_CHOICE
-                elif question_type_str == 'entity_selection':
+                elif question_type_str == "entity_selection":
                     question_type = QuestionType.ENTITY_SELECTION
-                elif question_type_str == 'boolean':
+                elif question_type_str == "boolean":
                     question_type = QuestionType.BOOLEAN
                 else:
                     question_type = QuestionType.TEXT
 
                 # Find related ambiguity
                 ambiguity_id = None
-                category = q_data.get('category', 'unknown')
+                category = q_data.get("category", "unknown")
                 for amb in ambiguities:
                     if amb.type.value == category:
                         ambiguity_id = amb.id
                         break
 
                 question = ClarificationQuestion(
-                    id=q_data.get('id', f'q{i+1}'),
+                    id=q_data.get("id", f"q{i+1}"),
                     category=category,
-                    question_text=q_data.get('question_text', ''),
+                    question_text=q_data.get("question_text", ""),
                     question_type=question_type,
-                    options=q_data.get('options'),
-                    context=q_data.get('context', {}),
-                    priority=q_data.get('priority', 2),
-                    related_entities=q_data.get('related_entities'),
-                    ambiguity_id=ambiguity_id
+                    options=q_data.get("options"),
+                    context=q_data.get("context", {}),
+                    priority=q_data.get("priority", 2),
+                    related_entities=q_data.get("related_entities"),
+                    ambiguity_id=ambiguity_id,
                 )
                 questions.append(question)
             except Exception as e:
-                logger.error(f"Failed to parse question {i}: {e}")
+                logger.exception(f"Failed to parse question {i}: {e}")
                 continue
 
         return questions
 
     def _generate_fallback_questions(
         self,
-        ambiguities: list[Ambiguity]
+        ambiguities: list[Ambiguity],
     ) -> list[ClarificationQuestion]:
         """Generate simple fallback questions when OpenAI fails"""
         questions = []
@@ -272,8 +271,8 @@ Generate questions now (respond ONLY with JSON, no other text):"""
         for i, amb in enumerate(ambiguities[:3]):  # Max 3
             if amb.type == AmbiguityType.DEVICE:
                 question_text = f"Which device did you mean? {amb.description}"
-                if amb.context.get('matches'):
-                    matches = amb.context['matches']
+                if amb.context.get("matches"):
+                    matches = amb.context["matches"]
                     options = [f"{m.get('name', m.get('entity_id', 'unknown'))}" for m in matches[:5]]
                     question_type = QuestionType.MULTIPLE_CHOICE
                 else:
@@ -289,14 +288,14 @@ Generate questions now (respond ONLY with JSON, no other text):"""
                 options = None
 
             question = ClarificationQuestion(
-                id=f'q{i+1}',
+                id=f"q{i+1}",
                 category=amb.type.value,
                 question_text=question_text,
                 question_type=question_type,
                 options=options,
                 priority=1 if amb.severity == AmbiguitySeverity.CRITICAL else 2,
                 related_entities=amb.related_entities,
-                ambiguity_id=amb.id
+                ambiguity_id=amb.id,
             )
             questions.append(question)
 

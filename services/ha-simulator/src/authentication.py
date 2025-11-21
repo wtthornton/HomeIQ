@@ -23,13 +23,13 @@ class AuthenticationManager:
         """Send auth_required message to client"""
         auth_required = {
             "type": "auth_required",
-            "ha_version": self.config.get("simulator", {}).get("version", "2025.10.1")
+            "ha_version": self.config.get("simulator", {}).get("version", "2025.10.1"),
         }
         try:
             await ws.send_str(json.dumps(auth_required))
             logger.info("Sent auth_required to client")
         except Exception as e:
-            logger.error(f"Error sending auth_required: {e}")
+            logger.exception(f"Error sending auth_required: {e}")
 
     async def handle_auth(self, ws: WebSocketResponse, message: dict[str, Any]) -> bool:
         """Handle authentication message"""
@@ -49,7 +49,7 @@ class AuthenticationManager:
         self.authenticated_clients[ws] = {
             "authenticated": True,
             "token": access_token,
-            "authenticated_at": json.dumps({"timestamp": "now"})  # Simplified for demo
+            "authenticated_at": json.dumps({"timestamp": "now"}),  # Simplified for demo
         }
         logger.info("Client authenticated successfully")
         return True
@@ -58,25 +58,25 @@ class AuthenticationManager:
         """Send auth_ok message"""
         auth_ok = {
             "type": "auth_ok",
-            "ha_version": self.config.get("simulator", {}).get("version", "2025.10.1")
+            "ha_version": self.config.get("simulator", {}).get("version", "2025.10.1"),
         }
         try:
             await ws.send_str(json.dumps(auth_ok))
             logger.info("Sent auth_ok to client")
         except Exception as e:
-            logger.error(f"Error sending auth_ok: {e}")
+            logger.exception(f"Error sending auth_ok: {e}")
 
     async def send_auth_invalid(self, ws: WebSocketResponse, message: str):
         """Send auth_invalid message"""
         auth_invalid = {
             "type": "auth_invalid",
-            "message": message
+            "message": message,
         }
         try:
             await ws.send_str(json.dumps(auth_invalid))
             logger.warning(f"Sent auth_invalid to client: {message}")
         except Exception as e:
-            logger.error(f"Error sending auth_invalid: {e}")
+            logger.exception(f"Error sending auth_invalid: {e}")
 
     def is_authenticated(self, ws: WebSocketResponse) -> bool:
         """Check if client is authenticated"""

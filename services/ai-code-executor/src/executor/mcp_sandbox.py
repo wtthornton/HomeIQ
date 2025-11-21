@@ -6,7 +6,8 @@ import asyncio
 import logging
 from typing import Any
 
-from ..mcp.homeiq_tools import HomeIQMCPTools
+from src.mcp.homeiq_tools import HomeIQMCPTools
+
 from .sandbox import ExecutionResult, PythonSandbox, SandboxConfig
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class MCPSandbox(PythonSandbox):
     async def execute_with_mcp(
         self,
         code: str,
-        context: dict[str, Any] = None,
+        context: dict[str, Any] | None = None,
     ) -> ExecutionResult:
         """Execute code with optional MCP context within concurrency guard."""
         if not self._initialized:

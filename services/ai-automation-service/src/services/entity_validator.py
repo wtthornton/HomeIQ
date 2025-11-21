@@ -87,7 +87,7 @@ class EntityValidationResult:
 class EntityValidator:
     """
     Validates entities against real Home Assistant entities.
-    
+
     This service ensures that automations use actual entities that exist
     in the Home Assistant instance, preventing "Entity not found" errors.
     """
@@ -95,7 +95,7 @@ class EntityValidator:
     def __init__(self, data_api_client=None, enable_full_chain: bool = True, db_session=None, ha_client=None):
         """
         Initialize EntityValidator.
-        
+
         Args:
             data_api_client: Data API client for fetching entities (cached fallback)
             enable_full_chain: Enable full model chain (embeddings, NER, etc.)
@@ -130,18 +130,18 @@ class EntityValidator:
     async def _check_aliases(
         self,
         query_term: str,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> str | None:
         """
         Check if query matches any user-defined alias.
         Returns entity_id if alias found, None otherwise.
-        
+
         Priority: Exact alias match (fast, high confidence)
-        
+
         Args:
             query_term: Query string to check
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             Entity ID if alias found, None otherwise
         """
@@ -162,10 +162,10 @@ class EntityValidator:
     async def validate_entities(self, entity_ids: list[str]) -> dict[str, EntityValidationResult]:
         """
         Validate a list of entity IDs against real Home Assistant entities.
-        
+
         Args:
             entity_ids: List of entity IDs to validate
-            
+
         Returns:
             Dictionary mapping entity_id to validation result
         """
@@ -185,19 +185,19 @@ class EntityValidator:
         domain: str | None = None,
         area_id: str | None = None,
         integration: str | None = None,
-        use_realtime: bool = True
+        use_realtime: bool = True,
     ) -> list[dict[str, Any]]:
         """
         Get available entities with optional filtering.
-        
+
         Priority: Real-time HA API query (if ha_client available) > Cached database query
-        
+
         Args:
             domain: Optional domain filter (e.g., "light", "switch")
             area_id: Optional area filter for location-based blocking
             integration: Optional integration filter for brand-based blocking
             use_realtime: If True, prefer real-time HA API query (default: True)
-            
+
         Returns:
             List of entity dictionaries
         """
@@ -206,11 +206,11 @@ class EntityValidator:
             try:
                 logger.info(
                     f"🔍 Fetching entities from HA API (real-time) "
-                    f"(domain={domain}, area_id={area_id})"
+                    f"(domain={domain}, area_id={area_id})",
                 )
                 entities = await self.ha_client.get_entities_by_area_and_domain(
                     area_id=area_id,
-                    domain=domain
+                    domain=domain,
                 )
 
                 if entities:
@@ -218,12 +218,11 @@ class EntityValidator:
                     if len(entities) > 0:
                         logger.info(f"First 3 entities: {[e.get('entity_id') for e in entities[:3]]}")
                     return entities
-                else:
-                    logger.warning("⚠️ No entities found from HA API, falling back to database")
+                logger.warning("⚠️ No entities found from HA API, falling back to database")
             except Exception as e:
                 logger.warning(
                     f"⚠️ Error fetching entities from HA API (real-time): {e}, "
-                    f"falling back to database"
+                    f"falling back to database",
                 )
                 # Fall through to database query
 
@@ -232,20 +231,19 @@ class EntityValidator:
             if self.data_api_client:
                 logger.info(
                     f"🔍 Fetching entities from data-api (cached) "
-                    f"(domain={domain}, area_id={area_id}, integration={integration})"
+                    f"(domain={domain}, area_id={area_id}, integration={integration})",
                 )
                 entities = await self.data_api_client.fetch_entities(
                     domain=domain,
                     area_id=area_id,
-                    platform=integration  # Note: data API uses 'platform' for integration
+                    platform=integration,  # Note: data API uses 'platform' for integration
                 )
                 logger.info(f"✅ Fetched {len(entities)} entities from data-api (cached)")
                 if len(entities) > 0:
                     logger.info(f"First 3 entities: {[e.get('entity_id') for e in entities[:3]]}")
                 return entities
-            else:
-                logger.warning("Data API client not available, using empty entity list")
-                return []
+            logger.warning("Data API client not available, using empty entity list")
+            return []
         except Exception as e:
             logger.error(f"Error fetching entities from data-api: {e}", exc_info=True)
             return []
@@ -253,11 +251,11 @@ class EntityValidator:
     async def _validate_single_entity(self, entity_id: str, available_entities: list[dict[str, Any]]) -> EntityValidationResult:
         """
         Validate a single entity ID.
-        
+
         Args:
             entity_id: Entity ID to validate
             available_entities: List of available entities
-            
+
         Returns:
             EntityValidationResult with validation details
         """
@@ -270,7 +268,7 @@ class EntityValidator:
                 entity_id=entity_id,
                 exists=True,
                 suggested_alternatives=sibling_alternatives,
-                confidence_score=1.0
+                confidence_score=1.0,
             )
 
         # Find alternatives using similarity
@@ -289,55 +287,55 @@ class EntityValidator:
             entity_id=entity_id,
             exists=False,
             suggested_alternatives=alternatives,
-            confidence_score=0.0
+            confidence_score=0.0,
         )
 
     def _find_exact_match(self, entity_id: str, available_entities: list[dict[str, Any]]) -> dict[str, Any] | None:
         """Find exact match for entity ID"""
         for entity in available_entities:
-            if entity.get('entity_id') == entity_id:
+            if entity.get("entity_id") == entity_id:
                 return entity
         return None
 
     def _find_alternatives(self, entity_id: str, available_entities: list[dict[str, Any]]) -> list[str]:
         """
         Find alternative entity IDs based on similarity.
-        
+
         Args:
             entity_id: Entity ID to find alternatives for
             available_entities: List of available entities
-            
+
         Returns:
             List of alternative entity IDs
         """
         alternatives = []
 
         # Extract domain and name parts
-        if '.' in entity_id:
-            domain, name = entity_id.split('.', 1)
+        if "." in entity_id:
+            domain, name = entity_id.split(".", 1)
         else:
-            domain = 'unknown'
+            domain = "unknown"
             name = entity_id
 
         # Find entities with same domain
         same_domain = [
             entity for entity in available_entities
-            if entity.get('domain') == domain
+            if entity.get("domain") == domain
         ]
 
         # Find entities with similar names
-        name_words = set(re.findall(r'\w+', name.lower()))
+        name_words = set(re.findall(r"\w+", name.lower()))
 
         for entity in same_domain:
-            entity_name = entity.get('entity_id', '').split('.', 1)[1] if '.' in entity.get('entity_id', '') else ''
-            entity_words = set(re.findall(r'\w+', entity_name.lower()))
+            entity_name = entity.get("entity_id", "").split(".", 1)[1] if "." in entity.get("entity_id", "") else ""
+            entity_words = set(re.findall(r"\w+", entity_name.lower()))
 
             # Calculate similarity
             common_words = name_words.intersection(entity_words)
             if common_words:
                 similarity = len(common_words) / len(name_words.union(entity_words))
                 if similarity > 0.3:  # 30% similarity threshold
-                    alternatives.append(entity.get('entity_id'))
+                    alternatives.append(entity.get("entity_id"))
 
         # Limit to top 5 alternatives
         return alternatives[:5]
@@ -345,12 +343,12 @@ class EntityValidator:
     async def _get_sibling_entity_alternatives(self, entity_id: str) -> list[str]:
         """
         Get sibling entities (entities from same device) as alternatives.
-        
+
         Uses relationship query endpoint to fetch sibling entities.
-        
+
         Args:
             entity_id: Entity ID to get siblings for
-            
+
         Returns:
             List of sibling entity IDs
         """
@@ -361,7 +359,7 @@ class EntityValidator:
             import aiohttp
 
             # Get base URL for data-api
-            data_api_url = getattr(self.data_api_client, 'base_url', 'http://data-api:8006')
+            data_api_url = getattr(self.data_api_client, "base_url", "http://data-api:8006")
 
             # Fetch sibling entities
             siblings_url = f"{data_api_url}/api/entities/{entity_id}/siblings"
@@ -369,13 +367,12 @@ class EntityValidator:
                 async with session.get(siblings_url, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
                     if response.status == 200:
                         siblings_data = await response.json()
-                        siblings = siblings_data.get('siblings', [])
-                        sibling_ids = [s.get('entity_id') for s in siblings if s.get('entity_id') and s.get('entity_id') != entity_id]
+                        siblings = siblings_data.get("siblings", [])
+                        sibling_ids = [s.get("entity_id") for s in siblings if s.get("entity_id") and s.get("entity_id") != entity_id]
                         logger.debug(f"Found {len(sibling_ids)} sibling entities for {entity_id}")
                         return sibling_ids[:5]  # Limit to 5 siblings
-                    else:
-                        logger.debug(f"Could not fetch sibling entities for {entity_id}: HTTP {response.status}")
-                        return []
+                    logger.debug(f"Could not fetch sibling entities for {entity_id}: HTTP {response.status}")
+                    return []
         except Exception as e:
             logger.debug(f"Error fetching sibling entities for {entity_id}: {e}")
             return []
@@ -383,16 +380,16 @@ class EntityValidator:
     def _extract_location_from_query(self, query: str) -> str | None:
         """
         Extract location/area name from query.
-        
+
         Examples:
             "office light" -> "office"
             "living room lamp" -> "living room"
             "garage door" -> "garage"
             "bedroom ewlight 1" -> "bedroom"
-        
+
         Args:
             query: User query
-            
+
         Returns:
             Location/area name or None if not found
         """
@@ -400,58 +397,58 @@ class EntityValidator:
 
         # Common location patterns
         location_patterns = [
-            r'\b(living room|livingroom)\b',
-            r'\b(bedroom|bed room)\b',
-            r'\b(kitchen)\b',
-            r'\b(bathroom|bath room)\b',
-            r'\b(office)\b',
-            r'\b(garage)\b',
-            r'\b(entry|entryway|entry way)\b',
-            r'\b(dining room|diningroom)\b',
-            r'\b(family room|familyroom)\b',
-            r'\b(basement)\b',
-            r'\b(attic)\b',
-            r'\b(patio|deck|porch)\b',
+            r"\b(living room|livingroom)\b",
+            r"\b(bedroom|bed room)\b",
+            r"\b(kitchen)\b",
+            r"\b(bathroom|bath room)\b",
+            r"\b(office)\b",
+            r"\b(garage)\b",
+            r"\b(entry|entryway|entry way)\b",
+            r"\b(dining room|diningroom)\b",
+            r"\b(family room|familyroom)\b",
+            r"\b(basement)\b",
+            r"\b(attic)\b",
+            r"\b(patio|deck|porch)\b",
         ]
 
         import re
         for pattern in location_patterns:
             match = re.search(pattern, query_lower)
             if match:
-                location = match.group(1).replace(' ', '_').replace('-', '_')
+                location = match.group(1).replace(" ", "_").replace("-", "_")
                 logger.debug(f"Extracted location from query: '{location}'")
                 return location
 
         # Try to extract single-word location before common device words
         # "office light", "garage door", "bedroom fan"
-        device_keywords = ['light', 'lamp', 'door', 'fan', 'switch', 'sensor', 'camera', 'thermostat']
+        device_keywords = ["light", "lamp", "door", "fan", "switch", "sensor", "camera", "thermostat"]
         words = query_lower.split()
         for i, word in enumerate(words):
             if word in device_keywords and i > 0:
                 # Previous word might be location
                 potential_location = words[i-1]
                 # Filter out numbers and common words
-                if potential_location.isdigit() or potential_location in ['the', 'a', 'an', 'my', 'this', 'that']:
+                if potential_location.isdigit() or potential_location in ["the", "a", "an", "my", "this", "that"]:
                     continue
                 logger.debug(f"Potential location from word order: '{potential_location}'")
-                return potential_location.replace('-', '_')
+                return potential_location.replace("-", "_")
 
         return None
 
     def _extract_domain_from_query(self, query: str) -> str | None:
         """
         Extract device domain from query keywords.
-        
+
         Examples:
             "turn on light" -> "light"
             "dim the lamp" -> "light"
             "switch on" -> "switch"
             "set temperature" -> "climate"
             "open garage door" -> "cover"
-        
+
         Args:
             query: User query
-            
+
         Returns:
             Domain name (e.g., "light", "switch", "climate") or None if not found
         """
@@ -480,14 +477,14 @@ class EntityValidator:
     def _extract_all_domains_from_query(self, query: str) -> list[str]:
         """
         Extract ALL device domains from query keywords (not just one).
-        
+
         Examples:
             "presence sensor triggers lights" -> ["binary_sensor", "light"]
             "turn on office lights when door opens" -> ["light", "binary_sensor"]
-        
+
         Args:
             query: User query
-            
+
         Returns:
             List of domain names found in query
         """
@@ -517,13 +514,13 @@ class EntityValidator:
     def _extract_quantity_and_category(self, query: str) -> list[tuple[int | None, str, list[str]]]:
         """
         Extract quantity and category patterns from query.
-        
+
         Examples:
         - "4 ceiling lights" → (4, "ceiling light", ["ceiling", "light"])
         - "wled sprit" → (None, "wled sprit", ["wled", "sprit"])
         - "all lights" → (None, "light", ["light"])
         - "ceiling lights" → (None, "ceiling light", ["ceiling", "light"])
-        
+
         Returns:
             List of tuples: (quantity, category, search_terms)
         """
@@ -533,12 +530,12 @@ class EntityValidator:
 
         # Pattern 1: Numbered quantity (e.g., "4 ceiling lights", "2 lights")
         # Matches: number + optional words + light/device type
-        numbered_pattern = r'(\d+)\s+((?:ceiling|wall|floor|desk|table|bedroom|living|kitchen|office|garage|bathroom|dining|hall|entry|front|back|left|right|north|south|east|west)\s+)?(lights?|light|sensors?|switches?|devices?)'
+        numbered_pattern = r"(\d+)\s+((?:ceiling|wall|floor|desk|table|bedroom|living|kitchen|office|garage|bathroom|dining|hall|entry|front|back|left|right|north|south|east|west)\s+)?(lights?|light|sensors?|switches?|devices?)"
         matches = re.finditer(numbered_pattern, query_lower)
         for match in matches:
             quantity = int(match.group(1))
             location = match.group(2).strip() if match.group(2) else ""
-            device_type = match.group(3).rstrip('s') if match.group(3) else ""  # Remove plural 's'
+            device_type = match.group(3).rstrip("s") if match.group(3) else ""  # Remove plural 's'
             category = f"{location} {device_type}".strip() if location else device_type
             search_terms = [t for t in [location.strip(), device_type] if t]
             patterns.append((quantity, category, search_terms))
@@ -547,11 +544,11 @@ class EntityValidator:
         # Pattern 2: Category without quantity (e.g., "ceiling lights", "wled sprit")
         # Match common device categories
         category_patterns = [
-            (r'wled\s+sprit', 'wled sprit', ['wled', 'sprit']),
-            (r'ceiling\s+lights?', 'ceiling light', ['ceiling', 'light']),
-            (r'wall\s+lights?', 'wall light', ['wall', 'light']),
-            (r'floor\s+lights?', 'floor light', ['floor', 'light']),
-            (r'all\s+lights?', 'light', ['light']),
+            (r"wled\s+sprit", "wled sprit", ["wled", "sprit"]),
+            (r"ceiling\s+lights?", "ceiling light", ["ceiling", "light"]),
+            (r"wall\s+lights?", "wall light", ["wall", "light"]),
+            (r"floor\s+lights?", "floor light", ["floor", "light"]),
+            (r"all\s+lights?", "light", ["light"]),
         ]
 
         for pattern, category, search_terms in category_patterns:
@@ -568,20 +565,20 @@ class EntityValidator:
         category: str,
         search_terms: list[str],
         quantity: int | None,
-        query: str
+        query: str,
     ) -> list[dict[str, Any]]:
         """
         Query database for all entities matching a category.
-        
+
         Uses regular logic (database queries) combined with AI understanding.
         Searches by domain, name patterns, and friendly_name.
-        
+
         Args:
             category: Category name (e.g., "ceiling light")
             search_terms: List of search terms to match
             quantity: Optional quantity limit
             query: Original query for context
-            
+
         Returns:
             List of matching entity dictionaries
         """
@@ -593,18 +590,18 @@ class EntityValidator:
             # Extract domain from category (e.g., "ceiling light" → "light")
             domain = None
             for term in search_terms:
-                if term in ['light', 'sensor', 'switch', 'device', 'wled']:
+                if term in ["light", "sensor", "switch", "device", "wled"]:
                     domain = term
                     break
 
             # If no domain found, try to infer from category
             if not domain:
-                if 'light' in category:
-                    domain = 'light'
-                elif 'sensor' in category:
-                    domain = 'sensor'
-                elif 'switch' in category:
-                    domain = 'switch'
+                if "light" in category:
+                    domain = "light"
+                elif "sensor" in category:
+                    domain = "sensor"
+                elif "switch" in category:
+                    domain = "switch"
 
             # Query all entities with matching domain
             logger.info(f"🔍 Querying entities by domain={domain} for category '{category}'")
@@ -619,9 +616,9 @@ class EntityValidator:
             # Filter entities by search terms
             matching_entities = []
             for entity in all_entities:
-                entity_id = entity.get('entity_id', '').lower()
-                friendly_name = entity.get('friendly_name', '').lower() if entity.get('friendly_name') else ''
-                entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+                entity_id = entity.get("entity_id", "").lower()
+                friendly_name = entity.get("friendly_name", "").lower() if entity.get("friendly_name") else ""
+                entity_name_part = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
                 # Score entity based on how many search terms match
                 score = 0
@@ -631,7 +628,7 @@ class EntityValidator:
                     if term_lower in entity_id or term_lower in friendly_name or term_lower in entity_name_part:
                         score += 1
                     # Also check for partial matches (e.g., "ceiling" matches "ceiling_light")
-                    if any(term_lower in word for word in entity_name_part.split('_') if word):
+                    if any(term_lower in word for word in entity_name_part.split("_") if word):
                         score += 0.5
 
                 # Entity matches if it has at least one search term match
@@ -662,17 +659,17 @@ class EntityValidator:
     async def map_query_to_entities(self, query: str, entities: list[str]) -> dict[str, str]:
         """
         Map query terms to actual entity IDs.
-        
+
         Enhanced to use area_id/location context for better matching.
         Only matches entities in the correct room/area when location is mentioned.
-        
+
         NEW: Detects quantities and categories (e.g., "4 ceiling lights") and queries
         database for ALL matching entities, not just one.
-        
+
         Args:
             query: Original user query
             entities: List of entities mentioned in query
-            
+
         Returns:
             Dictionary mapping query terms to actual entity IDs
             For quantities, returns multiple mappings (e.g., "ceiling light 1", "ceiling light 2", ...)
@@ -701,14 +698,14 @@ class EntityValidator:
                     category=category,
                     search_terms=search_terms,
                     quantity=quantity,
-                    query=query
+                    query=query,
                 )
 
                 if matching_entities:
                     logger.info(f"✅ Found {len(matching_entities)} matching entities for '{category}'")
                     # Map each entity to a unique key
                     for idx, entity in enumerate(matching_entities[:quantity] if quantity else matching_entities):
-                        entity_id = entity.get('entity_id')
+                        entity_id = entity.get("entity_id")
                         if entity_id:
                             # Create unique mapping key (e.g., "ceiling light 1", "ceiling light 2")
                             if quantity and quantity > 1:
@@ -724,11 +721,11 @@ class EntityValidator:
                         # For quantities > 1, store all entity IDs as a comma-separated list
                         # The YAML generator can split this to create multiple actions
                         if quantity and quantity > 1:
-                            all_entity_ids = ','.join([e.get('entity_id') for e in matching_entities[:quantity] if e.get('entity_id')])
+                            all_entity_ids = ",".join([e.get("entity_id") for e in matching_entities[:quantity] if e.get("entity_id")])
                             mapping[category] = all_entity_ids
                             logger.info(f"  → Mapped category '{category}' to all {quantity} entities: {all_entity_ids}")
                         else:
-                            mapping[category] = matching_entities[0].get('entity_id')
+                            mapping[category] = matching_entities[0].get("entity_id")
                 else:
                     logger.warning(f"⚠️ No entities found for category '{category}' with search terms: {search_terms}")
 
@@ -758,7 +755,7 @@ class EntityValidator:
         metrics.domain_filter_ms = domain_filter_time
         logger.info(
             f"🔍 BLOCKING: Domain filter ({query_domain or 'all'}) "
-            f"→ {total_entities_after_domain} entities ({domain_filter_time:.1f}ms)"
+            f"→ {total_entities_after_domain} entities ({domain_filter_time:.1f}ms)",
         )
 
         # Level 2: Location filter (if location found, reduces ~500 → ~50 entities)
@@ -772,7 +769,7 @@ class EntityValidator:
                 # Re-fetch with both domain and location for optimal blocking
                 available_entities = await self._get_available_entities(
                     domain=query_domain,
-                    area_id=query_location
+                    area_id=query_location,
                 )
             else:
                 # Only location filter
@@ -783,7 +780,7 @@ class EntityValidator:
             metrics.location_filter_ms = location_filter_time
             logger.info(
                 f"🔍 BLOCKING: Location filter ({query_location}) "
-                f"→ {total_entities_after_location} entities ({location_filter_time:.1f}ms)"
+                f"→ {total_entities_after_location} entities ({location_filter_time:.1f}ms)",
             )
         else:
             location_filter_time = 0
@@ -798,7 +795,7 @@ class EntityValidator:
         )
         logger.info(
             f"🔍 BLOCKING SUMMARY: {total_entities_after_location} entities after blocking "
-            f"(~{reduction_percentage:.0f}% reduction), total blocking time: {blocking_time:.1f}ms"
+            f"(~{reduction_percentage:.0f}% reduction), total blocking time: {blocking_time:.1f}ms",
         )
 
         # If entities list is empty, try to extract from query directly
@@ -808,58 +805,58 @@ class EntityValidator:
             query_lower = query.lower()
 
             # Look for living room-related entities
-            if 'living room' in query_lower or 'livingroom' in query_lower:
-                living_room_entities = [e for e in available_entities if 'living' in e.get('entity_id', '').lower() and 'room' in e.get('entity_id', '').lower()]
+            if "living room" in query_lower or "livingroom" in query_lower:
+                living_room_entities = [e for e in available_entities if "living" in e.get("entity_id", "").lower() and "room" in e.get("entity_id", "").lower()]
                 if living_room_entities:
                     # Prefer lights for living room
-                    living_room_lights = [e for e in living_room_entities if e.get('domain') == 'light']
+                    living_room_lights = [e for e in living_room_entities if e.get("domain") == "light"]
                     if living_room_lights:
-                        mapping['living room'] = living_room_lights[0]['entity_id']
-                        mapping['lights'] = living_room_lights[0]['entity_id']
+                        mapping["living room"] = living_room_lights[0]["entity_id"]
+                        mapping["lights"] = living_room_lights[0]["entity_id"]
                         logger.info(f"Mapped 'living room' to {living_room_lights[0]['entity_id']}")
 
             # Look for office-related entities
-            if 'office' in query_lower:
-                office_entities = [e for e in available_entities if 'office' in e.get('entity_id', '').lower()]
+            if "office" in query_lower:
+                office_entities = [e for e in available_entities if "office" in e.get("entity_id", "").lower()]
                 if office_entities:
                     # Prefer lights for office
-                    office_lights = [e for e in office_entities if e.get('domain') == 'light']
+                    office_lights = [e for e in office_entities if e.get("domain") == "light"]
                     if office_lights:
-                        mapping['office'] = office_lights[0]['entity_id']
+                        mapping["office"] = office_lights[0]["entity_id"]
                         logger.info(f"Mapped 'office' to {office_lights[0]['entity_id']}")
 
             # Look for door-related entities
-            if 'door' in query_lower or 'front' in query_lower:
-                door_entities = [e for e in available_entities if 'door' in e.get('entity_id', '').lower()]
+            if "door" in query_lower or "front" in query_lower:
+                door_entities = [e for e in available_entities if "door" in e.get("entity_id", "").lower()]
                 if door_entities:
                     # Prefer binary sensors for doors
-                    door_sensors = [e for e in door_entities if e.get('domain') == 'binary_sensor']
+                    door_sensors = [e for e in door_entities if e.get("domain") == "binary_sensor"]
                     if door_sensors:
-                        mapping['door'] = door_sensors[0]['entity_id']
+                        mapping["door"] = door_sensors[0]["entity_id"]
                         logger.info(f"Mapped 'door' to {door_sensors[0]['entity_id']}")
                     else:
                         # Fallback to any door entity
-                        mapping['door'] = door_entities[0]['entity_id']
+                        mapping["door"] = door_entities[0]["entity_id"]
                         logger.info(f"Mapped 'door' to {door_entities[0]['entity_id']}")
 
             # Look for light-related entities
-            if 'light' in query_lower or 'flash' in query_lower:
-                light_entities = [e for e in available_entities if e.get('domain') == 'light']
+            if "light" in query_lower or "flash" in query_lower:
+                light_entities = [e for e in available_entities if e.get("domain") == "light"]
                 if light_entities:
                     # Prefer living room lights if query mentions living room
-                    living_room_lights = [e for e in light_entities if 'living' in e.get('entity_id', '').lower() and 'room' in e.get('entity_id', '').lower()]
+                    living_room_lights = [e for e in light_entities if "living" in e.get("entity_id", "").lower() and "room" in e.get("entity_id", "").lower()]
                     if living_room_lights:
-                        mapping['lights'] = living_room_lights[0]['entity_id']
+                        mapping["lights"] = living_room_lights[0]["entity_id"]
                         logger.info(f"Mapped 'lights' to living room light: {living_room_lights[0]['entity_id']}")
                     else:
                         # Prefer office lights if available
-                        office_lights = [e for e in light_entities if 'office' in e.get('entity_id', '').lower()]
+                        office_lights = [e for e in light_entities if "office" in e.get("entity_id", "").lower()]
                         if office_lights:
-                            mapping['lights'] = office_lights[0]['entity_id']
+                            mapping["lights"] = office_lights[0]["entity_id"]
                             logger.info(f"Mapped 'lights' to {office_lights[0]['entity_id']}")
                         else:
                             # Use any light
-                            mapping['lights'] = light_entities[0]['entity_id']
+                            mapping["lights"] = light_entities[0]["entity_id"]
                             logger.info(f"Mapped 'lights' to {light_entities[0]['entity_id']}")
         else:
             # Use the provided entities list
@@ -870,7 +867,7 @@ class EntityValidator:
 
                 # STEP 0: Check aliases FIRST (before full chain matching)
                 # This provides fast, high-confidence matches for user-defined nicknames
-                alias_entity_id = await self._check_aliases(entity, user_id=getattr(self, 'user_id', 'anonymous'))
+                alias_entity_id = await self._check_aliases(entity, user_id=getattr(self, "user_id", "anonymous"))
                 if alias_entity_id:
                     # Alias found - skip ML matching and return immediately
                     mapping[entity] = alias_entity_id
@@ -880,9 +877,9 @@ class EntityValidator:
                 # If query mentions "light", prefer light entities
                 entity_lower = entity.lower()
                 filtered_entities = available_entities
-                if 'light' in entity_lower or 'flash' in entity_lower:
+                if "light" in entity_lower or "flash" in entity_lower:
                     # Try to find lights first
-                    light_entities = [e for e in available_entities if e.get('domain') == 'light']
+                    light_entities = [e for e in available_entities if e.get("domain") == "light"]
                     if light_entities:
                         filtered_entities = light_entities
 
@@ -893,23 +890,23 @@ class EntityValidator:
                 # Filter by location if we have location context
                 location_filtered_entities = filtered_entities
                 if location_to_use:
-                    location_normalized = location_to_use.replace(' ', '_').replace('-', '_').lower()
+                    location_normalized = location_to_use.replace(" ", "_").replace("-", "_").lower()
 
                     # Check if any entities have area_id set (entity or device area_id after enrichment)
                     # Note: area_id check happens after enrichment in full chain, so for now we pass all entities
                     # and let the full chain handle location filtering with device_area_id
-                    entities_with_area = [e for e in filtered_entities if e.get('area_id')]
+                    entities_with_area = [e for e in filtered_entities if e.get("area_id")]
 
                     if entities_with_area:
                         # Try filtering by area_id (entity area_id only - device_area_id will be checked in full chain)
                         location_filtered = [
                             e for e in filtered_entities
-                            if e.get('area_id') and location_normalized in e.get('area_id', '').lower()
+                            if e.get("area_id") and location_normalized in e.get("area_id", "").lower()
                         ]
                         if location_filtered:
                             logger.info(
                                 f"Filtered to {len(location_filtered)} entities in area '{location_to_use}' "
-                                f"(from {len(filtered_entities)} total {entity_lower} entities)"
+                                f"(from {len(filtered_entities)} total {entity_lower} entities)",
                             )
                             location_filtered_entities = location_filtered
                         else:
@@ -917,13 +914,13 @@ class EntityValidator:
                             # Pass all entities to full chain which will check device_area_id
                             logger.debug(
                                 f"No entities found with entity area_id '{location_to_use}' for '{entity}', "
-                                f"will check device_area_id in full chain"
+                                f"will check device_area_id in full chain",
                             )
                     else:
                         # No area_ids available - skip area filtering and use entity_id matching
                         logger.debug(
                             f"No area_id data available for entities, using entity_id-based matching "
-                            f"for '{entity}' with location context '{location_to_use}'"
+                            f"for '{entity}' with location context '{location_to_use}'",
                         )
                         # location_filtered_entities remains as filtered_entities (all entities)
                         # The _find_best_match will use entity_id patterns and location context for scoring
@@ -931,7 +928,7 @@ class EntityValidator:
                 # Use full chain if enabled, otherwise fallback to simple matching
                 if self.enable_full_chain:
                     best_match, confidence = await self._find_best_match_full_chain(
-                        entity, location_filtered_entities, query, location_context=location_to_use
+                        entity, location_filtered_entities, query, location_context=location_to_use,
                     )
                     if best_match:
                         logger.info(f"Mapped '{entity}' to {best_match['entity_id']} (confidence: {confidence:.2f})")
@@ -949,12 +946,12 @@ class EntityValidator:
                     if is_numbered_query and confidence is not None and confidence < 0.15:
                         logger.warning(
                             f"Very low confidence ({confidence:.2f}) for numbered device '{entity}' -> {best_match['entity_id']}. "
-                            f"Skipping mapping - no match found for '{entity}' (will be addressed on system cleanup page)"
+                            f"Skipping mapping - no match found for '{entity}' (will be addressed on system cleanup page)",
                         )
                         # Don't map - let system cleanup page handle it
                     else:
-                        mapping[entity] = best_match['entity_id']
-                        match_area = best_match.get('area_id') or best_match.get('device_area_id', 'unknown')
+                        mapping[entity] = best_match["entity_id"]
+                        match_area = best_match.get("area_id") or best_match.get("device_area_id", "unknown")
                         logger.info(f"Mapped '{entity}' to {best_match['entity_id']} (area: {match_area})")
                         metrics.matches_found += 1
                 else:
@@ -962,7 +959,7 @@ class EntityValidator:
 
         # Record total time and enrichment stats
         metrics.total_resolution_ms = (time.time() - blocking_start) * 1000
-        metrics.enrichment_count = len(location_filtered_entities) if 'location_filtered_entities' in locals() else len(available_entities)
+        metrics.enrichment_count = len(location_filtered_entities) if "location_filtered_entities" in locals() else len(available_entities)
         metrics.matching_ms = metrics.total_resolution_ms - metrics.domain_filter_ms - metrics.location_filter_ms
 
         # Log performance summary
@@ -974,25 +971,25 @@ class EntityValidator:
     def _find_binary_sensor_fuzzy(self, query_term: str, available_entities: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         Find binary sensor with fuzzy matching for presence/motion/occupancy patterns.
-        
+
         Handles common binary sensor naming variations:
         - {location}_{type} (e.g., office_desk_presence)
         - {type}_{location} (e.g., presence_office_desk)
         - {location}_{device}_{type} (e.g., office_desk_occupancy)
         - {location}_{type}_{device} (e.g., office_presence_desk)
-        
+
         Args:
             query_term: Query term like "office desk presence" or "desk presence"
             available_entities: List of available entities (filtered by binary_sensor domain)
-            
+
         Returns:
             Best matching binary sensor entity or None
         """
         query_lower = query_term.lower()
-        query_words = set(re.findall(r'\w+', query_lower))
+        query_words = set(re.findall(r"\w+", query_lower))
 
         # Common binary sensor type keywords
-        sensor_types = {'presence', 'motion', 'occupancy', 'contact', 'door', 'window'}
+        sensor_types = {"presence", "motion", "occupancy", "contact", "door", "window"}
         query_has_sensor_type = any(st in query_words for st in sensor_types)
 
         # Extract location and sensor type from query
@@ -1002,12 +999,12 @@ class EntityValidator:
         candidates = []
 
         for entity in available_entities:
-            entity_id = entity.get('entity_id', '')
-            if not entity_id.startswith('binary_sensor.'):
+            entity_id = entity.get("entity_id", "")
+            if not entity_id.startswith("binary_sensor."):
                 continue
 
-            entity_name = entity_id.replace('binary_sensor.', '').lower()
-            entity_words = set(re.findall(r'\w+', entity_name))
+            entity_name = entity_id.replace("binary_sensor.", "").lower()
+            entity_words = set(re.findall(r"\w+", entity_name))
 
             # Calculate multiple similarity scores
             scores = []
@@ -1066,32 +1063,32 @@ class EntityValidator:
         self,
         query_term: str,
         available_entities: list[dict[str, Any]],
-        location_context: str | None = None
+        location_context: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Find the best matching entity for a query term.
-        
+
         Enhanced to:
         - Handle numbered devices (e.g., "Office light 1" -> "light.office_1")
         - Use location/area context to prefer entities in the correct room
         - Fuzzy matching for binary sensors (presence, motion, occupancy)
-        
+
         Args:
             query_term: Term from user query (e.g., "office light" or "office light 1")
             available_entities: List of available entities (should already be filtered by domain/location)
             location_context: Optional location/area name from query (e.g., "office", "living_room")
-            
+
         Returns:
             Best matching entity or None
         """
-        query_words = set(re.findall(r'\w+', query_term.lower()))
+        query_words = set(re.findall(r"\w+", query_term.lower()))
         logger.debug(f"_find_best_match for '{query_term}' with {len(query_words)} words: {query_words}")
 
         # SPECIAL HANDLING: Try fuzzy matching for binary sensors first
         # Check if query mentions presence/motion/occupancy/door/window
-        binary_sensor_keywords = {'presence', 'motion', 'occupancy', 'door', 'window', 'contact', 'sensor'}
+        binary_sensor_keywords = {"presence", "motion", "occupancy", "door", "window", "contact", "sensor"}
         if any(keyword in query_term.lower() for keyword in binary_sensor_keywords):
-            binary_sensors = [e for e in available_entities if e.get('entity_id', '').startswith('binary_sensor.')]
+            binary_sensors = [e for e in available_entities if e.get("entity_id", "").startswith("binary_sensor.")]
             if binary_sensors:
                 fuzzy_match = self._find_binary_sensor_fuzzy(query_term, binary_sensors)
                 if fuzzy_match:
@@ -1108,11 +1105,11 @@ class EntityValidator:
             # Try to find domain from available entities
             domain = None
             for entity in available_entities:
-                entity_id = entity.get('entity_id', '')
-                if '.' in entity_id:
-                    potential_domain = entity_id.split('.', 1)[0]
+                entity_id = entity.get("entity_id", "")
+                if "." in entity_id:
+                    potential_domain = entity_id.split(".", 1)[0]
                     # Use domain if it appears multiple times (likely correct)
-                    if sum(1 for e in available_entities if e.get('entity_id', '').startswith(f"{potential_domain}.")) > 1:
+                    if sum(1 for e in available_entities if e.get("entity_id", "").startswith(f"{potential_domain}.")) > 1:
                         domain = potential_domain
                         break
 
@@ -1123,7 +1120,7 @@ class EntityValidator:
             # Search for exact numbered matches first
             for pattern in patterns:
                 for entity in available_entities:
-                    entity_id = entity.get('entity_id', '').lower()
+                    entity_id = entity.get("entity_id", "").lower()
                     # Check if entity_id ends with the pattern or contains it
                     if entity_id.endswith(pattern.lower()) or pattern.lower() in entity_id:
                         logger.debug(f"Found numbered match: {entity.get('entity_id')} matches pattern '{pattern}'")
@@ -1137,15 +1134,15 @@ class EntityValidator:
         best_score = 0.5 if numbered_match else 0  # Prioritize numbered matches
 
         for entity in available_entities:
-            entity_id = entity.get('entity_id', '')
-            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            entity_id = entity.get("entity_id", "")
+            entity_name = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
             # Split on underscores and hyphens to handle "living_room" -> ["living", "room"]
             entity_words = set()
-            for word in re.findall(r'\w+', entity_name.lower()):
+            for word in re.findall(r"\w+", entity_name.lower()):
                 # Also split underscores and hyphens
-                entity_words.update(word.split('_'))
-                entity_words.update(word.split('-'))
+                entity_words.update(word.split("_"))
+                entity_words.update(word.split("-"))
 
             # Calculate word overlap score
             common_words = query_words.intersection(entity_words)
@@ -1159,10 +1156,10 @@ class EntityValidator:
 
                 # Boost score if location matches (CRITICAL for correct room matching)
                 if location_context:
-                    location_normalized = location_context.replace(' ', '_').replace('-', '_').lower()
+                    location_normalized = location_context.replace(" ", "_").replace("-", "_").lower()
 
                     # Check area_id first (preferred method)
-                    entity_area = entity.get('area_id', '').lower() if entity.get('area_id') else ''
+                    entity_area = entity.get("area_id", "").lower() if entity.get("area_id") else ""
                     location_in_area = location_normalized in entity_area if entity_area else False
 
                     # Also check entity_id for location match (fallback when area_id not available)
@@ -1180,34 +1177,34 @@ class EntityValidator:
                 if score > best_score:
                     best_score = score
                     best_match = entity
-                    entity_area = entity.get('area_id', 'unknown')
+                    entity_area = entity.get("area_id", "unknown")
                     logger.debug(
                         f"Better match: {entity_id} (score: {score:.2f}, area: {entity_area}, "
-                        f"common: {common_words})"
+                        f"common: {common_words})",
                     )
 
         # Lower threshold to 25% to catch "Living Room Light" -> "light.living_room"
-        result_entity_id = best_match.get('entity_id') if best_match else 'NONE'
+        result_entity_id = best_match.get("entity_id") if best_match else "NONE"
         logger.debug(f"Best match: {result_entity_id} (score: {best_score:.2f})")
         return best_match if best_score >= 0.25 else None
 
     def _extract_number_from_query(self, query_term: str) -> tuple | None:
         """
         Extract number and base term from query.
-        
+
         Examples:
             "Office light 1" -> ("office light", "1")
             "Bedroom lamp 3" -> ("bedroom lamp", "3")
             "Office light" -> None (no number)
-        
+
         Args:
             query_term: Query term that may contain a number
-            
+
         Returns:
             Tuple of (base_term, number) or None if no number found
         """
         # Match numbers at the end: "office light 1", "light 2", etc.
-        match = re.search(r'(.+?)\s+(\d+)\s*$', query_term.strip())
+        match = re.search(r"(.+?)\s+(\d+)\s*$", query_term.strip())
         if match:
             base_term = match.group(1).strip().lower()
             number = match.group(2)
@@ -1217,25 +1214,25 @@ class EntityValidator:
     def _build_numbered_entity_patterns(self, base_term: str, number: str, domain: str | None = None) -> list[str]:
         """
         Build entity ID patterns to search for numbered entities.
-        
+
         Args:
             base_term: Base term without number (e.g., "office light")
             number: Number to append (e.g., "1")
             domain: Optional domain prefix (e.g., "light")
-            
+
         Returns:
             List of entity ID patterns to search for
         """
         patterns = []
 
         # Split base term into words
-        base_words = re.findall(r'\w+', base_term.lower())
+        base_words = re.findall(r"\w+", base_term.lower())
 
         # Common patterns:
         # light.office_1, light.office_lamp_1, light.office_light_1
         if len(base_words) >= 2:
             # office light -> office_1, office_lamp_1, office_light_1
-            base_joined = '_'.join(base_words)
+            base_joined = "_".join(base_words)
             patterns.append(f"{base_joined}_{number}")
 
             # For multi-word, try variations
@@ -1257,10 +1254,10 @@ class EntityValidator:
     async def validate_automation_yaml(self, yaml_content: str) -> dict[str, Any]:
         """
         Validate all entities in an automation YAML.
-        
+
         Args:
             yaml_content: Automation YAML content
-            
+
         Returns:
             Validation result with entity status
         """
@@ -1272,7 +1269,7 @@ class EntityValidator:
             return {
                 "valid": False,
                 "error": f"Invalid YAML: {e}",
-                "entity_results": {}
+                "entity_results": {},
             }
 
         # Extract entity IDs from YAML
@@ -1290,7 +1287,7 @@ class EntityValidator:
             "invalid_entities": [
                 entity_id for entity_id, result in validation_results.items()
                 if not result.exists
-            ]
+            ],
         }
 
     def _extract_entity_ids_from_yaml(self, automation_data: dict[str, Any]) -> list[str]:
@@ -1299,8 +1296,8 @@ class EntityValidator:
 
         def extract_from_dict(data):
             if isinstance(data, dict):
-                if 'entity_id' in data:
-                    entity_id = data['entity_id']
+                if "entity_id" in data:
+                    entity_id = data["entity_id"]
                     if isinstance(entity_id, str):
                         entity_ids.add(entity_id)
                     elif isinstance(entity_id, list):
@@ -1327,10 +1324,10 @@ class EntityValidator:
         if self._embedding_model is None:
             try:
                 logger.info("Loading sentence-transformers model for entity matching...")
-                self._embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+                self._embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
                 logger.info("Embedding model loaded successfully")
             except Exception as e:
-                logger.error(f"Failed to load embedding model: {e}")
+                logger.exception(f"Failed to load embedding model: {e}")
                 self._embedding_model = None
         return self._embedding_model
 
@@ -1345,23 +1342,23 @@ class EntityValidator:
                 self._ner_pipeline = transformers_pipeline("ner", model="dslim/bert-base-NER")
                 logger.info("NER pipeline loaded successfully")
             except Exception as e:
-                logger.error(f"Failed to load NER pipeline: {e}")
+                logger.exception(f"Failed to load NER pipeline: {e}")
                 self._ner_pipeline = None
         return self._ner_pipeline
 
     async def _enrich_entity_with_metadata(self, entity: dict[str, Any]) -> dict[str, Any]:
         """
         Enrich entity with device metadata and friendly_name.
-        
+
         Adds:
         - device_name: From device registry (via device_id)
         - friendly_name: From entity attributes or metadata
         - device_manufacturer: From device registry
         - device_model: From device registry
-        
+
         Args:
             entity: Entity dict with entity_id, device_id, etc.
-            
+
         Returns:
             Enriched entity dict
         """
@@ -1371,7 +1368,7 @@ class EntityValidator:
             return enriched
 
         # Fetch device metadata if device_id exists
-        device_id = entity.get('device_id')
+        device_id = entity.get("device_id")
         if device_id and device_id not in self._device_metadata_cache:
             try:
                 device_metadata = await self.data_api_client.get_device_metadata(device_id)
@@ -1383,30 +1380,30 @@ class EntityValidator:
         if device_id and device_id in self._device_metadata_cache:
             device_metadata = self._device_metadata_cache[device_id]
             # Priority: name_by_user > name > entity_id parts
-            enriched['device_name'] = device_metadata.get('name_by_user') or device_metadata.get('name', '')
-            enriched['name_by_user'] = device_metadata.get('name_by_user', '')
-            enriched['device_manufacturer'] = device_metadata.get('manufacturer', '')
-            enriched['device_model'] = device_metadata.get('model', '')
-            enriched['device_area_id'] = device_metadata.get('area_id', '')  # Always store device_area_id
-            enriched['suggested_area'] = device_metadata.get('suggested_area', '')
-            enriched['integration'] = device_metadata.get('integration', '')
+            enriched["device_name"] = device_metadata.get("name_by_user") or device_metadata.get("name", "")
+            enriched["name_by_user"] = device_metadata.get("name_by_user", "")
+            enriched["device_manufacturer"] = device_metadata.get("manufacturer", "")
+            enriched["device_model"] = device_metadata.get("model", "")
+            enriched["device_area_id"] = device_metadata.get("area_id", "")  # Always store device_area_id
+            enriched["suggested_area"] = device_metadata.get("suggested_area", "")
+            enriched["integration"] = device_metadata.get("integration", "")
             # Use device area_id if entity area_id is missing (for location matching)
-            if not enriched.get('area_id') and device_metadata.get('area_id'):
-                enriched['area_id'] = device_metadata.get('area_id')
+            if not enriched.get("area_id") and device_metadata.get("area_id"):
+                enriched["area_id"] = device_metadata.get("area_id")
             # Fallback to suggested_area if area_id still missing
-            if not enriched.get('area_id') and device_metadata.get('suggested_area'):
-                enriched['area_id'] = device_metadata.get('suggested_area')
+            if not enriched.get("area_id") and device_metadata.get("suggested_area"):
+                enriched["area_id"] = device_metadata.get("suggested_area")
 
         # Try to get friendly_name from entity metadata
-        entity_id = entity.get('entity_id')
+        entity_id = entity.get("entity_id")
         if entity_id:
             try:
                 entity_metadata = await self.data_api_client.get_entity_metadata(entity_id)
                 if entity_metadata:
                     # Extract friendly_name from metadata or attributes
-                    friendly_name = entity_metadata.get('friendly_name') or entity_metadata.get('name')
+                    friendly_name = entity_metadata.get("friendly_name") or entity_metadata.get("name")
                     if friendly_name:
-                        enriched['friendly_name'] = friendly_name
+                        enriched["friendly_name"] = friendly_name
             except Exception as e:
                 logger.debug(f"Failed to fetch entity metadata for {entity_id}: {e}")
 
@@ -1432,7 +1429,7 @@ class EntityValidator:
         query_term: str,
         available_entities: list[dict[str, Any]],
         full_query: str,
-        location_context: str | None = None
+        location_context: str | None = None,
     ) -> tuple[dict[str, Any] | None, float]:
         """
         Full model chain for entity matching:
@@ -1441,13 +1438,13 @@ class EntityValidator:
         3. Embedding-Based Matching (semantic similarity)
         4. Hybrid Scoring (combines all signals)
         5. Confidence Scoring
-        
+
         Args:
             query_term: Specific term to match (e.g., "Office light 1")
             available_entities: List of candidate entities
             full_query: Full user query for context
             location_context: Optional location/area name
-            
+
         Returns:
             Tuple of (best_match_entity, confidence_score)
         """
@@ -1471,20 +1468,20 @@ class EntityValidator:
             search_terms = []
 
             # Priority order: friendly_name > name_by_user > device_name > entity_id
-            if entity.get('friendly_name'):
-                search_terms.append(entity['friendly_name'])
-            if entity.get('name_by_user'):
-                search_terms.append(entity['name_by_user'])
-            if entity.get('device_name'):
-                search_terms.append(entity['device_name'])
+            if entity.get("friendly_name"):
+                search_terms.append(entity["friendly_name"])
+            if entity.get("name_by_user"):
+                search_terms.append(entity["name_by_user"])
+            if entity.get("device_name"):
+                search_terms.append(entity["device_name"])
 
             # Also include entity_id parts
-            entity_id = entity.get('entity_id', '')
-            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            entity_id = entity.get("entity_id", "")
+            entity_name = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
             search_terms.append(entity_name)
 
             # Combine all terms
-            candidate_string = ' '.join(search_terms)
+            candidate_string = " ".join(search_terms)
             candidate_strings.append(candidate_string)
 
         # STEP 4: Embedding-based semantic matching
@@ -1517,7 +1514,7 @@ class EntityValidator:
         best_score = 0.0
 
         logger.debug(
-            f"🔍 SCORING DEBUG: Starting scoring for query '{query_term}' with location_context='{location_context}'"
+            f"🔍 SCORING DEBUG: Starting scoring for query '{query_term}' with location_context='{location_context}'",
         )
         logger.debug(f"🔍 SCORING DEBUG: Numbered info: {numbered_info}")
         logger.debug(f"🔍 SCORING DEBUG: Evaluating {len(enriched_entities)} entities")
@@ -1529,17 +1526,17 @@ class EntityValidator:
             score = 0.0
             score_details = {}
 
-            entity_id = entity.get('entity_id', '')
-            friendly_name = entity.get('friendly_name', '').lower()
-            name_by_user = entity.get('name_by_user', '').lower()
-            device_name = entity.get('device_name', '').lower()
-            entity_name = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id.lower()
+            entity_id = entity.get("entity_id", "")
+            friendly_name = entity.get("friendly_name", "").lower()
+            name_by_user = entity.get("name_by_user", "").lower()
+            device_name = entity.get("device_name", "").lower()
+            entity_name = entity_id.split(".", 1)[1] if "." in entity_id else entity_id.lower()
 
             # Log entity metadata for debugging (only for top candidates)
             if i < 3:  # Only log first 3 candidates
-                entity_area = entity.get('area_id', '') or 'None'
-                device_area = entity.get('device_area_id', '') or 'None'
-                suggested_area = entity.get('suggested_area', '') or 'None'
+                entity_area = entity.get("area_id", "") or "None"
+                device_area = entity.get("device_area_id", "") or "None"
+                suggested_area = entity.get("suggested_area", "") or "None"
                 logger.debug(
                     f"🔍 SCORING DEBUG [{i}] Entity: {entity_id}\n"
                     f"  - friendly_name: {friendly_name or 'None'}\n"
@@ -1547,14 +1544,14 @@ class EntityValidator:
                     f"  - device_name: {device_name or 'None'}\n"
                     f"  - entity_area_id: {entity_area}\n"
                     f"  - device_area_id: {device_area}\n"
-                    f"  - suggested_area: {suggested_area}"
+                    f"  - suggested_area: {suggested_area}",
                 )
 
             # Signal 1: Embedding similarity (0.0 - 1.0) - Weight: 35% (reduced from 40%)
             if i in embedding_scores:
                 embedding_score = embedding_scores[i]
                 score += embedding_score * 0.35
-                score_details['embedding'] = embedding_score
+                score_details["embedding"] = embedding_score
 
             # Signal 2: Exact name matches (highest priority) - Weight: 30%
             # Priority: friendly_name > name_by_user > device_name
@@ -1562,15 +1559,15 @@ class EntityValidator:
             if friendly_name and query_lower == friendly_name:
                 score += 1.0 * 0.3
                 exact_match = True
-                score_details['exact_friendly_name'] = True
+                score_details["exact_friendly_name"] = True
             elif name_by_user and query_lower == name_by_user:
                 score += 1.0 * 0.3
                 exact_match = True
-                score_details['exact_name_by_user'] = True
+                score_details["exact_name_by_user"] = True
             elif device_name and query_lower == device_name:
                 score += 1.0 * 0.3
                 exact_match = True
-                score_details['exact_device_name'] = True
+                score_details["exact_device_name"] = True
 
             # Signal 2.5: Fuzzy string matching (for typos/abbreviations) - Weight: 15%
             # Only use if exact match failed (don't penalize exact matches)
@@ -1592,7 +1589,7 @@ class EntityValidator:
                     # Only add fuzzy score if it's above threshold (e.g., >0.6 for meaningful match)
                     if max_fuzzy > 0.6:
                         score += max_fuzzy * 0.15
-                        score_details['fuzzy_match'] = max_fuzzy
+                        score_details["fuzzy_match"] = max_fuzzy
 
             # Signal 3: Numbered device matching - Weight: 15% (reduced from 20%)
             if numbered_info:
@@ -1615,7 +1612,7 @@ class EntityValidator:
                 if exact_number_match:
                     # Full points for exact number match (weight adjusted to 15%)
                     score += 0.5 * 0.15
-                    score_details['numbered_match'] = True
+                    score_details["numbered_match"] = True
                     logger.debug(f"🔍 NUMBERED MATCH: Exact number '{number}' found in {entity_id}")
 
                     # Extra boost if base term also matches (proportionally reduced)
@@ -1628,20 +1625,20 @@ class EntityValidator:
                     all_words = friendly_words | name_by_user_words | device_words | entity_words
                     base_match = len(base_words.intersection(all_words)) / len(base_words) if base_words else 0
                     score += base_match * 0.10  # Reduced proportionally
-                    score_details['numbered_base_match'] = base_match
+                    score_details["numbered_base_match"] = base_match
                 elif is_group_entity:
                     # When a numbered device is requested, heavily penalize group entities
                     # e.g., "Office light 1" should NOT match "light.office" (group)
                     score *= 0.1  # Reduce to 10% of current score
-                    score_details['group_penalty'] = True
+                    score_details["group_penalty"] = True
                     logger.debug(f"Penalized group entity {entity_id} for numbered query '{query_term}'")
                 else:
                     # Entity has a different number or no number - don't give credit
                     # This prevents "Office light 3" from matching "light.office_light_2"
-                    score_details['number_mismatch'] = True
+                    score_details["number_mismatch"] = True
                     logger.debug(
                         f"🔍 NUMBERED MISMATCH: Query asks for number '{number}', "
-                        f"but {entity_id} doesn't match (friendly: {friendly_name}, device: {device_name})"
+                        f"but {entity_id} doesn't match (friendly: {friendly_name}, device: {device_name})",
                     )
 
             # Signal 3.5: Attribute-based scoring (is_hue_group detection, etc.) - Weight: 5%
@@ -1657,19 +1654,19 @@ class EntityValidator:
                             self._attribute_cache[entity_id] = enriched
 
                     attributes = self._attribute_cache.get(entity_id, {})
-                    is_group = attributes.get('is_group', False)
+                    is_group = attributes.get("is_group", False)
 
                     # Boost group entities when query suggests a group
-                    if 'all' in query_lower or 'group' in query_lower or 'room' in query_lower:
+                    if "all" in query_lower or "group" in query_lower or "room" in query_lower:
                         if is_group:
                             score += 0.3 * 0.05
-                            score_details['group_attribute_match'] = True
+                            score_details["group_attribute_match"] = True
                             if i < 3:
                                 logger.debug(f"🔍 ATTRIBUTE DEBUG [{i}] {entity_id}: Group boost (query suggests group)")
                     # Penalize group entities when query suggests an individual device
                     elif is_group and numbered_info:
                         score *= 0.7  # Reduce score by 30% for group when numbered device requested
-                        score_details['group_attribute_penalty'] = True
+                        score_details["group_attribute_penalty"] = True
                         if i < 3:
                             logger.debug(f"🔍 ATTRIBUTE DEBUG [{i}] {entity_id}: Group penalty (numbered device requested)")
                 except Exception as e:
@@ -1677,12 +1674,12 @@ class EntityValidator:
 
             # Signal 4: Location matching - Weight: 5% (reduced from 10%, but with heavy penalty for mismatches)
             if location_context:
-                location_normalized = location_context.replace(' ', '_').replace('-', '_').lower()
+                location_normalized = location_context.replace(" ", "_").replace("-", "_").lower()
 
                 # Check all possible area_id sources (entity area_id + device area_id + suggested_area)
-                entity_area = entity.get('area_id', '').lower() if entity.get('area_id') else ''
-                device_area = entity.get('device_area_id', '').lower() if entity.get('device_area_id') else ''
-                suggested_area = entity.get('suggested_area', '').lower() if entity.get('suggested_area') else ''
+                entity_area = entity.get("area_id", "").lower() if entity.get("area_id") else ""
+                device_area = entity.get("device_area_id", "").lower() if entity.get("device_area_id") else ""
+                suggested_area = entity.get("suggested_area", "").lower() if entity.get("suggested_area") else ""
                 combined_area = f"{entity_area} {device_area} {suggested_area}".strip()
 
                 location_in_area = location_normalized in combined_area if combined_area else False
@@ -1697,57 +1694,56 @@ class EntityValidator:
                         f"  - location_context: '{location_context}' -> normalized: '{location_normalized}'\n"
                         f"  - entity_area: '{entity_area}' (match: {location_normalized in entity_area if entity_area else False})\n"
                         f"  - device_area: '{device_area}' (match: {location_normalized in device_area if device_area else False})\n"
-                        f"  - combined_area: '{combined_area}'"
+                        f"  - combined_area: '{combined_area}'",
                     )
 
                 score_before_location = score
 
                 if location_in_area or location_in_friendly or location_in_device or location_in_entity_id:
                     score += 0.5 * 0.05  # Weight reduced to 5%
-                    score_details['location_match'] = True
+                    score_details["location_match"] = True
                     if i < 3:  # Only log for top candidates
                         logger.debug(
                             f"🔍 LOCATION DEBUG [{i}] {entity_id}: ✅ Location MATCH "
-                            f"(score: {score_before_location:.3f} -> {score:.3f})"
+                            f"(score: {score_before_location:.3f} -> {score:.3f})",
                         )
                 else:
                     # CRITICAL: If location is specified but doesn't match, heavily penalize
                     # This prevents "Office light 3" from matching master_bedroom lights
-                    score_before_penalty = score
                     score *= 0.05  # Reduce to 5% of current score (very heavy penalty)
-                    score_details['location_mismatch_penalty'] = True
+                    score_details["location_mismatch_penalty"] = True
                     # Track mismatch for summary logging
                     location_mismatches.append({
-                        'entity_id': entity_id,
-                        'entity_area': entity_area,
-                        'device_area': device_area
+                        "entity_id": entity_id,
+                        "entity_area": entity_area,
+                        "device_area": device_area,
                     })
 
             # Track best match (only log for top 3 candidates)
             if i < 3:
                 logger.debug(
-                    f"🔍 SCORING DEBUG [{i}] {entity_id}: Final score = {score:.3f}"
+                    f"🔍 SCORING DEBUG [{i}] {entity_id}: Final score = {score:.3f}",
                 )
 
             if score > best_score:
                 best_score = score
                 best_match = entity
                 logger.debug(
-                    f"🔍 NEW BEST MATCH [{i}] {entity_id}: score = {score:.3f}"
+                    f"🔍 NEW BEST MATCH [{i}] {entity_id}: score = {score:.3f}",
                 )
 
         # Log location mismatch summary
         if location_mismatches and location_context:
             unique_areas = set()
             for mismatch in location_mismatches:
-                if mismatch['entity_area']:
-                    unique_areas.add(mismatch['entity_area'])
-                if mismatch['device_area']:
-                    unique_areas.add(mismatch['device_area'])
+                if mismatch["entity_area"]:
+                    unique_areas.add(mismatch["entity_area"])
+                if mismatch["device_area"]:
+                    unique_areas.add(mismatch["device_area"])
 
             logger.debug(
                 f"📍 Location mismatch summary: {len(location_mismatches)} entities in wrong location "
-                f"('{location_context}' not found in areas: {sorted(unique_areas)})"
+                f"('{location_context}' not found in areas: {sorted(unique_areas)})",
             )
 
         # Confidence calculation: normalize to 0.0-1.0 and consider margin
@@ -1761,21 +1757,21 @@ class EntityValidator:
 
         logger.info(
             f"🔍 SCORING RESULT: '{query_term}' -> {best_match.get('entity_id') if best_match else 'NONE'} "
-            f"(confidence: {confidence:.3f}, best_score: {best_score:.3f})"
+            f"(confidence: {confidence:.3f}, best_score: {best_score:.3f})",
         )
 
         if best_match:
-            result_area = best_match.get('area_id') or best_match.get('device_area_id', 'unknown')
+            result_area = best_match.get("area_id") or best_match.get("device_area_id", "unknown")
             logger.info(
                 f"🔍 SCORING RESULT: Matched entity area: {result_area}, "
-                f"location_context: {location_context}"
+                f"location_context: {location_context}",
             )
 
             # Warn if location mismatch but still matched
             if location_context and confidence < 0.3:
                 logger.warning(
                     f"🔍 SCORING WARNING: Low confidence ({confidence:.3f}) for '{query_term}' -> "
-                    f"{best_match.get('entity_id')} - may be location mismatch issue"
+                    f"{best_match.get('entity_id')} - may be location mismatch issue",
                 )
 
         return best_match, confidence
@@ -1783,14 +1779,14 @@ class EntityValidator:
     def _number_matches_exactly(self, number: str, text: str) -> bool:
         """
         Check if a number appears as an exact match in text (word boundary matching).
-        
+
         This ensures "2" matches "light_2" but not "light_20" or "light_12".
         Uses word boundaries to prevent partial number matches.
-        
+
         Args:
             number: The number to search for (e.g., "2", "3")
             text: The text to search in (entity_id, friendly_name, device_name)
-        
+
         Returns:
             True if number appears as exact match (word boundary), False otherwise
         """
@@ -1805,23 +1801,23 @@ class EntityValidator:
         # Matches: "light_2", "light_2_2", "light.2", "light 2", but not "light_20" or "light_12"
         # Handles entity IDs like "light.hue_color_downlight_1_6" (number "1" after underscore)
         # Pattern: number preceded by start/underscore/dot/space, followed by underscore/dot/space/end
-        pattern = r'(^|[._\s])' + re.escape(number_lower) + r'([._\s]|$)'
+        pattern = r"(^|[._\s])" + re.escape(number_lower) + r"([._\s]|$)"
         return bool(re.search(pattern, text_lower))
 
     def _fuzzy_match_score(self, query: str, candidate: str) -> float:
         """
         Calculate fuzzy string similarity score (0.0-1.0) for typo and abbreviation handling.
-        
+
         Uses rapidfuzz token_sort_ratio for order-independent matching.
         Handles:
         - Typos: "office lite" vs "office light"
         - Abbreviations: "LR light" vs "Living Room Light"
         - Partial matches: "kitchen" vs "Kitchen Light"
-        
+
         Args:
             query: Query string to match
             candidate: Candidate string to match against
-            
+
         Returns:
             Similarity score between 0.0 (no match) and 1.0 (perfect match)
         """
@@ -1832,8 +1828,7 @@ class EntityValidator:
             from rapidfuzz import fuzz
             # Use token_sort_ratio for order-independent matching
             # This handles "living room light" vs "light living room"
-            score = fuzz.token_sort_ratio(query.lower(), candidate.lower()) / 100.0
-            return score
+            return fuzz.token_sort_ratio(query.lower(), candidate.lower()) / 100.0
         except ImportError:
             logger.warning("rapidfuzz not available, fuzzy matching disabled")
             return 0.0
@@ -1841,33 +1836,33 @@ class EntityValidator:
     def _is_group_entity(self, entity: dict[str, Any]) -> bool:
         """
         Detect if an entity is a group/zone entity (e.g., light.office controls all office lights).
-        
+
         Group entities typically:
         - Don't have device_id (they're virtual/group entities, not physical devices)
         - Have simple names like "light.office", "light.living_room"
         - Don't contain numbers in entity_id
         - May have friendly_name matching area/room name
-        
+
         Args:
             entity: Entity dictionary
-            
+
         Returns:
             True if this appears to be a group entity
         """
-        entity_id = entity.get('entity_id', '').lower()
-        device_id = entity.get('device_id')
-        friendly_name = entity.get('friendly_name', '').lower() if entity.get('friendly_name') else ''
+        entity_id = entity.get("entity_id", "").lower()
+        device_id = entity.get("device_id")
+        friendly_name = entity.get("friendly_name", "").lower() if entity.get("friendly_name") else ""
 
         # Heuristic 1: No device_id often indicates a group/zone entity
         if not device_id:
             # Check if entity_id is simple (just domain + area name, no numbers)
-            entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+            entity_name_part = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
             # Common group patterns: light.office, light.living_room, etc.
             # Exclude entities with numbers, underscores with numbers, or complex names
             import re
-            has_number = bool(re.search(r'\d', entity_name_part))
-            has_complex_naming = '_' in entity_name_part and len(entity_name_part.split('_')) > 2
+            has_number = bool(re.search(r"\d", entity_name_part))
+            has_complex_naming = "_" in entity_name_part and len(entity_name_part.split("_")) > 2
 
             if not has_number and not has_complex_naming:
                 # Likely a group entity
@@ -1876,15 +1871,15 @@ class EntityValidator:
 
         # Heuristic 2: Entity ID matches common group patterns
         # e.g., light.office, light.living_room (simple area names)
-        common_area_names = ['office', 'living_room', 'bedroom', 'kitchen', 'garage', 'bathroom']
-        entity_name_part = entity_id.split('.', 1)[1] if '.' in entity_id else entity_id
+        common_area_names = ["office", "living_room", "bedroom", "kitchen", "garage", "bathroom"]
+        entity_name_part = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         if entity_name_part in common_area_names:
             logger.debug(f"Detected group entity: {entity_id} (matches area name pattern)")
             return True
 
         # Heuristic 3: Friendly name matches entity ID exactly (often groups)
         if friendly_name:
-            friendly_normalized = friendly_name.replace(' ', '_').replace('-', '_').lower()
+            friendly_normalized = friendly_name.replace(" ", "_").replace("-", "_").lower()
             if friendly_normalized == entity_name_part:
                 logger.debug(f"Detected group entity: {entity_id} (friendly_name matches entity_id)")
                 return True

@@ -19,7 +19,7 @@ def rl_calibrator():
     config = RLCalibrationConfig(
         learning_rate=0.01,
         min_samples_for_training=10,  # Lower for testing
-        update_frequency=5
+        update_frequency=5,
     )
     return RLConfidenceCalibrator(config=config)
 
@@ -71,7 +71,7 @@ def test_extract_features(rl_calibrator):
         ambiguity_count=2,
         critical_ambiguity_count=1,
         rounds=2,
-        answer_count=3
+        answer_count=3,
     )
 
     assert len(features) == 6
@@ -163,12 +163,12 @@ def test_get_stats(rl_calibrator):
     """Test statistics retrieval."""
     stats = rl_calibrator.get_stats()
 
-    assert 'is_trained' in stats
-    assert 'training_samples' in stats
-    assert 'total_samples' in stats
-    assert 'avg_reward' in stats
-    assert stats['is_trained'] is False
-    assert stats['total_samples'] == 0
+    assert "is_trained" in stats
+    assert "training_samples" in stats
+    assert "total_samples" in stats
+    assert "avg_reward" in stats
+    assert stats["is_trained"] is False
+    assert stats["total_samples"] == 0
 
 
 def test_get_stats_with_feedback(rl_calibrator):
@@ -178,9 +178,9 @@ def test_get_stats_with_feedback(rl_calibrator):
 
     stats = rl_calibrator.get_stats()
 
-    assert stats['total_samples'] == 2
-    assert 'avg_reward' in stats
-    assert stats['adjustment_weights'] is None  # Not trained yet
+    assert stats["total_samples"] == 2
+    assert "avg_reward" in stats
+    assert stats["adjustment_weights"] is None  # Not trained yet
 
 
 def test_auto_train_trigger(rl_calibrator, sample_feedback):
@@ -217,6 +217,6 @@ def test_save_and_load(rl_calibrator, sample_feedback, tmp_path):
     assert new_calibrator.training_samples == rl_calibrator.training_samples
     np.testing.assert_array_almost_equal(
         new_calibrator.adjustment_weights,
-        rl_calibrator.adjustment_weights
+        rl_calibrator.adjustment_weights,
     )
 

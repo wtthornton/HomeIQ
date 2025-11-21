@@ -10,7 +10,8 @@ from typing import Any
 from openai import AsyncOpenAI
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from ..contracts.models import AutomationMetadata, AutomationPlan
+from src.contracts.models import AutomationMetadata, AutomationPlan
+
 from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(BaseProvider):
     """
     OpenAI provider using JSON mode for schema-enforced outputs.
-    
+
     Uses OpenAI's response_format={"type": "json_object"} to ensure
     JSON-only responses that can be validated against schema.
     """
@@ -27,7 +28,7 @@ class OpenAIProvider(BaseProvider):
     def __init__(self, api_key: str, model: str = "gpt-4o"):
         """
         Initialize OpenAI provider.
-        
+
         Args:
             api_key: OpenAI API key
             model: Model identifier (default: gpt-4o - latest and best model)
@@ -47,7 +48,7 @@ class OpenAIProvider(BaseProvider):
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((Exception,)),
-        reraise=True
+        reraise=True,
     )
     async def generate_json(
         self,
@@ -56,24 +57,24 @@ class OpenAIProvider(BaseProvider):
         prompt: str,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
         """
         Generate JSON output using OpenAI's JSON mode.
-        
+
         Uses response_format={"type": "json_object"} to enforce JSON-only responses.
         Validates output against schema before returning.
-        
+
         Args:
             schema: JSON Schema definition
             prompt: User prompt (should include schema requirement)
             tools: Not used (OpenAI JSON mode doesn't support tools)
             temperature: Sampling temperature
             max_tokens: Maximum tokens
-            
+
         Returns:
             Validated JSON dict conforming to schema
-            
+
         Raises:
             ValueError: If output doesn't conform to schema
             RuntimeError: If API call fails
@@ -99,29 +100,32 @@ CRITICAL RULES:
                 model=self._model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=temperature,
                 max_completion_tokens=max_tokens,  # Use max_completion_tokens for newer models (gpt-4o+)
-                response_format={"type": "json_object"}  # JSON mode enforcement
+                response_format={"type": "json_object"},  # JSON mode enforcement
             )
 
             content = response.choices[0].message.content
             if not content:
-                raise ValueError("Empty response from OpenAI API")
+                msg = "Empty response from OpenAI API"
+                raise ValueError(msg)
 
             # Parse JSON
             try:
                 result = json.loads(content)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON from OpenAI: {e}. Content: {content[:200]}") from e
+                msg = f"Invalid JSON from OpenAI: {e}. Content: {content[:200]}"
+                raise ValueError(msg) from e
 
             # Validate against schema (basic validation - full validation in contracts)
             # Check required fields
             required_fields = schema.get("required", [])
             for field in required_fields:
                 if field not in result:
-                    raise ValueError(f"Missing required field: {field}")
+                    msg = f"Missing required field: {field}"
+                    raise ValueError(msg)
 
             # Check no extra fields if additionalProperties is false
             if schema.get("additionalProperties") is False:
@@ -129,7 +133,8 @@ CRITICAL RULES:
                 result_props = set(result.keys())
                 extra_props = result_props - allowed_props
                 if extra_props:
-                    raise ValueError(f"Extra fields not allowed: {extra_props}")
+                    msg = f"Extra fields not allowed: {extra_props}"
+                    raise ValueError(msg)
 
             logger.info(f"✅ OpenAI generated valid JSON with {len(result)} fields")
             return result
@@ -138,32 +143,33 @@ CRITICAL RULES:
             # Re-raise validation errors
             raise
         except Exception as e:
-            logger.error(f"❌ OpenAI API error: {e}")
-            raise RuntimeError(f"OpenAI API call failed: {e}") from e
+            logger.exception(f"❌ OpenAI API error: {e}")
+            msg = f"OpenAI API call failed: {e}"
+            raise RuntimeError(msg) from e
 
     async def generate_automation_plan(
         self,
         *,
         prompt: str,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> AutomationPlan:
         """
         Generate AutomationPlan using OpenAI with schema enforcement.
-        
+
         This is a convenience method that:
         1. Loads the automation schema
         2. Calls generate_json with the schema
         3. Validates and returns AutomationPlan
-        
+
         Args:
             prompt: User prompt for automation generation
             temperature: Sampling temperature
             max_tokens: Maximum tokens
-            
+
         Returns:
             Validated AutomationPlan
-            
+
         Raises:
             ValueError: If output doesn't conform to schema
         """
@@ -180,19 +186,19 @@ CRITICAL RULES:
             schema=schema,
             prompt=prompt,
             temperature=temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
 
         # Create metadata
         metadata = AutomationMetadata(
             provider_id=self.provider_id(),
             model_id=self.model_id(),
-            prompt_pack_id=None  # Can be set by caller
+            prompt_pack_id=None,  # Can be set by caller
         )
 
         # Validate and return AutomationPlan
         return AutomationPlan.from_json(
             json_lib.dumps(json_result),
-            metadata=metadata
+            metadata=metadata,
         )
 

@@ -44,7 +44,7 @@ async def sample_automation(test_db):
             source="discourse",
             source_id="test123",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         await repo.save_automation(metadata)
@@ -59,8 +59,8 @@ async def test_health_endpoint():
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] in ['healthy', 'unhealthy']
-        assert data['service'] == 'automation-miner'
+        assert data["status"] in ["healthy", "unhealthy"]
+        assert data["service"] == "automation-miner"
 
 
 @pytest.mark.asyncio
@@ -71,8 +71,8 @@ async def test_root_endpoint():
 
         assert response.status_code == 200
         data = response.json()
-        assert 'message' in data
-        assert 'version' in data
+        assert "message" in data
+        assert "version" in data
 
 
 @pytest.mark.asyncio
@@ -81,14 +81,14 @@ async def test_search_endpoint(sample_automation):
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get(
             "/api/automation-miner/corpus/search",
-            params={"device": "light", "min_quality": 0.7, "limit": 10}
+            params={"device": "light", "min_quality": 0.7, "limit": 10},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert 'automations' in data
-        assert 'count' in data
-        assert data['count'] >= 0
+        assert "automations" in data
+        assert "count" in data
+        assert data["count"] >= 0
 
 
 @pytest.mark.asyncio
@@ -99,11 +99,11 @@ async def test_stats_endpoint(sample_automation):
 
         assert response.status_code == 200
         data = response.json()
-        assert 'total' in data
-        assert 'avg_quality' in data
-        assert 'device_count' in data
+        assert "total" in data
+        assert "avg_quality" in data
+        assert "device_count" in data
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 

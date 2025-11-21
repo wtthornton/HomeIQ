@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[5]  # Go up to project root
 except Exception:
@@ -40,13 +40,12 @@ from exceptions import NetworkError, ServiceError, ValidationError
 
 class ActionExecutionError(ServiceError):
     """Base exception for action execution failures"""
-    pass
 
 
 class ServiceCallError(NetworkError):
     """HTTP service call failures"""
 
-    def __init__(self, message: str, status_code: int = None, response_data: dict = None, context: dict = None):
+    def __init__(self, message: str, status_code: int | None = None, response_data: dict | None = None, context: dict | None = None):
         super().__init__(message, context=context)
         self.status_code = status_code
         self.response_data = response_data
@@ -60,13 +59,12 @@ class ServiceCallError(NetworkError):
 
 class ActionParseError(ValidationError):
     """YAML parsing failures"""
-    pass
 
 
 class RetryExhaustedError(ServiceError):
     """All retries failed"""
 
-    def __init__(self, message: str, attempts: int = None, last_error: Exception = None, context: dict = None):
+    def __init__(self, message: str, attempts: int | None = None, last_error: Exception | None = None, context: dict | None = None):
         ctx = context or {}
         if attempts is not None:
             ctx["attempts"] = attempts
@@ -79,5 +77,4 @@ class RetryExhaustedError(ServiceError):
 
 class InvalidActionError(ValidationError):
     """Invalid action structure or format"""
-    pass
 

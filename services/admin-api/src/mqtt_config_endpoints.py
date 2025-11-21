@@ -68,11 +68,13 @@ class MqttConfig(BaseModel):
     def validate_broker(cls, value: str) -> str:
         """Ensure broker URL uses a supported scheme."""
         if not value:
-            raise ValueError("MQTT_BROKER cannot be empty")
+            msg = "MQTT_BROKER cannot be empty"
+            raise ValueError(msg)
         allowed_prefixes = ("mqtt://", "mqtts://", "ws://", "wss://")
         if not value.startswith(allowed_prefixes):
+            msg = "MQTT_BROKER must start with one of: mqtt://, mqtts://, ws://, wss://"
             raise ValueError(
-                "MQTT_BROKER must start with one of: mqtt://, mqtts://, ws://, wss://"
+                msg,
             )
         return value
 
@@ -81,7 +83,8 @@ class MqttConfig(BaseModel):
     def validate_base_topic(cls, value: str) -> str:
         """Ensure Zigbee base topic is not empty and trimmed."""
         if not value or not value.strip():
-            raise ValueError("ZIGBEE2MQTT_BASE_TOPIC cannot be empty")
+            msg = "ZIGBEE2MQTT_BASE_TOPIC cannot be empty"
+            raise ValueError(msg)
         return value.strip()
 
 

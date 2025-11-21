@@ -15,7 +15,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         assert policy.name == "test"
@@ -32,7 +32,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=7,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         base_date = datetime(2024, 1, 10)
@@ -47,7 +47,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=2,
-            retention_unit=RetentionPeriod.WEEKS
+            retention_unit=RetentionPeriod.WEEKS,
         )
 
         base_date = datetime(2024, 1, 10)
@@ -62,7 +62,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=6,
-            retention_unit=RetentionPeriod.MONTHS
+            retention_unit=RetentionPeriod.MONTHS,
         )
 
         base_date = datetime(2024, 7, 10)
@@ -77,7 +77,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=1,
-            retention_unit=RetentionPeriod.YEARS
+            retention_unit=RetentionPeriod.YEARS,
         )
 
         base_date = datetime(2024, 1, 10)
@@ -92,7 +92,7 @@ class TestRetentionPolicy:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         policy_dict = policy.to_dict()
@@ -114,7 +114,7 @@ class TestRetentionPolicy:
             "retention_unit": "days",
             "enabled": True,
             "created_at": "2024-01-01T00:00:00",
-            "updated_at": "2024-01-01T00:00:00"
+            "updated_at": "2024-01-01T00:00:00",
         }
 
         policy = RetentionPolicy.from_dict(policy_data)
@@ -144,7 +144,7 @@ class TestRetentionPolicyManager:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         manager.add_policy(policy)
@@ -160,7 +160,7 @@ class TestRetentionPolicyManager:
             name="default",
             description="Duplicate policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         with pytest.raises(ValueError, match="Policy 'default' already exists"):
@@ -174,7 +174,7 @@ class TestRetentionPolicyManager:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         manager.add_policy(policy)
@@ -194,7 +194,7 @@ class TestRetentionPolicyManager:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         manager.add_policy(policy)
@@ -237,7 +237,7 @@ class TestRetentionPolicyManager:
             description="Test policy",
             retention_period=30,
             retention_unit=RetentionPeriod.DAYS,
-            enabled=False
+            enabled=False,
         )
 
         manager.add_policy(policy)
@@ -255,7 +255,7 @@ class TestRetentionPolicyManager:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         errors = manager.validate_policy(valid_policy)
@@ -266,7 +266,7 @@ class TestRetentionPolicyManager:
             name="",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
         errors = manager.validate_policy(invalid_policy)
@@ -282,7 +282,7 @@ class TestRetentionPolicyManager:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
         manager.add_policy(policy)
 

@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 class EventOpportunityDetector:
     """
     Detects event-based automation opportunities.
-    
+
     Uses sports schedule and calendar data to suggest scene activations
     and entertainment system automations.
-    
+
     Story AI3.7: Sports/Event Context Integration
     """
 
@@ -31,7 +31,7 @@ class EventOpportunityDetector:
     async def detect_opportunities(self) -> list[dict]:
         """
         Detect event-based automation opportunities.
-        
+
         Returns:
             List of event opportunity dictionaries
         """
@@ -53,28 +53,28 @@ class EventOpportunityDetector:
 
             for device in entertainment_devices:
                 opportunities.append({
-                    'synergy_id': str(uuid.uuid4()),
-                    'synergy_type': 'event_context',
-                    'devices': [device['entity_id']],
-                    'action_entity': device['entity_id'],
-                    'area': device.get('area_id', 'unknown'),
-                    'relationship': 'gametime_scene',
-                    'impact_score': 0.65,  # Medium - convenience
-                    'complexity': 'medium',
-                    'confidence': 0.70,
-                    'opportunity_metadata': {
-                        'action_name': device.get('friendly_name', device['entity_id']),
-                        'event_context': 'Sports schedule available',
-                        'suggested_action': 'Activate game-time scene when team plays',
-                        'rationale': f"Automate {device.get('friendly_name', device['entity_id'])} for game-time entertainment"
-                    }
+                    "synergy_id": str(uuid.uuid4()),
+                    "synergy_type": "event_context",
+                    "devices": [device["entity_id"]],
+                    "action_entity": device["entity_id"],
+                    "area": device.get("area_id", "unknown"),
+                    "relationship": "gametime_scene",
+                    "impact_score": 0.65,  # Medium - convenience
+                    "complexity": "medium",
+                    "confidence": 0.70,
+                    "opportunity_metadata": {
+                        "action_name": device.get("friendly_name", device["entity_id"]),
+                        "event_context": "Sports schedule available",
+                        "suggested_action": "Activate game-time scene when team plays",
+                        "rationale": f"Automate {device.get('friendly_name', device['entity_id'])} for game-time entertainment",
+                    },
                 })
 
             logger.info(f"✅ Event opportunities: {len(opportunities)}")
             return opportunities
 
         except Exception as e:
-            logger.error(f"❌ Event opportunity detection failed: {e}")
+            logger.exception(f"❌ Event opportunity detection failed: {e}")
             return []
 
     async def _get_entertainment_devices(self) -> list[dict]:
@@ -85,11 +85,11 @@ class EventOpportunityDetector:
             # Filter for entertainment devices
             entertainment = [
                 e for e in entities
-                if any(keyword in e['entity_id'].lower() for keyword in [
-                    'tv', 'media_player', 'living_room', 'theater',
-                    'sound', 'speaker', 'receiver'
+                if any(keyword in e["entity_id"].lower() for keyword in [
+                    "tv", "media_player", "living_room", "theater",
+                    "sound", "speaker", "receiver",
                 ])
-                and e['entity_id'].startswith(('light.', 'media_player.', 'switch.'))
+                and e["entity_id"].startswith(("light.", "media_player.", "switch."))
             ]
 
             return entertainment[:5]  # Limit to avoid too many suggestions

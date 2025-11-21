@@ -48,7 +48,7 @@ class ConversationContext:
 class ConversationContextManager:
     """
     Manages conversation context across multiple turns.
-    
+
     Tracks:
     - Conversation history
     - Extracted entities
@@ -70,13 +70,13 @@ class ConversationContextManager:
         self,
         conversation_id: str,
         user_id: str,
-        initial_query: str
+        initial_query: str,
     ) -> ConversationContext:
         """Create new conversation context"""
         context = ConversationContext(
             conversation_id=conversation_id,
             user_id=user_id,
-            initial_query=initial_query
+            initial_query=initial_query,
         )
         self._contexts[conversation_id] = context
         logger.info(f"Created context for conversation: {conversation_id}")
@@ -85,7 +85,7 @@ class ConversationContextManager:
     def update_from_turn(
         self,
         conversation_id: str,
-        turn: dict[str, Any]
+        turn: dict[str, Any],
     ):
         """Update context from conversation turn"""
         context = self.get_context(conversation_id)
@@ -93,12 +93,12 @@ class ConversationContextManager:
             context.add_turn(turn)
 
             # Update entities if present
-            if 'extracted_entities' in turn:
-                context.update_entities(turn['extracted_entities'])
+            if "extracted_entities" in turn:
+                context.update_entities(turn["extracted_entities"])
 
             # Update validated entities if present
-            if 'validated_entities' in turn:
-                context.update_validated_entities(turn['validated_entities'])
+            if "validated_entities" in turn:
+                context.update_validated_entities(turn["validated_entities"])
         else:
             logger.warning(f"Context not found for conversation: {conversation_id}")
 
@@ -118,7 +118,7 @@ class ConversationContextManager:
             "ambiguities": context.ambiguities,
             "clarification_answers": context.clarification_answers,
             "created_at": context.created_at.isoformat(),
-            "updated_at": context.updated_at.isoformat()
+            "updated_at": context.updated_at.isoformat(),
         }
 
     def clear_context(self, conversation_id: str):

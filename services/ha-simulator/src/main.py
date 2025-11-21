@@ -22,7 +22,7 @@ from websocket_server import HASimulatorWebSocketServer
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class HASimulatorService:
                 await asyncio.sleep(1)
 
         except Exception as e:
-            logger.error(f"❌ Failed to start HA Simulator Service: {e}")
+            logger.exception(f"❌ Failed to start HA Simulator Service: {e}")
             raise
 
     async def stop(self):
@@ -99,7 +99,7 @@ async def main():
     except KeyboardInterrupt:
         logger.info("🛑 Interrupted by user")
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+        logger.exception(f"❌ Unexpected error: {e}")
         sys.exit(1)
     finally:
         await service.stop()

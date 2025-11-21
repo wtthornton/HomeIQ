@@ -56,13 +56,13 @@ class UnifiedDevice:
     def __post_init__(self):
         """Initialize mutable defaults after dataclass init."""
         if self.capabilities is None:
-            object.__setattr__(self, 'capabilities', [])
+            object.__setattr__(self, "capabilities", [])
         if self.entities is None:
-            object.__setattr__(self, 'entities', [])
+            object.__setattr__(self, "entities", [])
         if self.created_at is None:
-            object.__setattr__(self, 'created_at', datetime.now(timezone.utc))
+            object.__setattr__(self, "created_at", datetime.now(timezone.utc))
         if self.updated_at is None:
-            object.__setattr__(self, 'updated_at', datetime.now(timezone.utc))
+            object.__setattr__(self, "updated_at", datetime.now(timezone.utc))
 
 
 class DeviceParser:
@@ -87,7 +87,7 @@ class DeviceParser:
         self,
         ha_devices: list[HADevice],
         ha_entities: list[HAEntity],
-        zigbee_devices: dict[str, ZigbeeDevice]
+        zigbee_devices: dict[str, ZigbeeDevice],
     ) -> list[UnifiedDevice]:
         """Parse and normalize devices from multiple sources."""
         logger.info(f"🔄 Parsing {len(ha_devices)} HA devices, {len(ha_entities)} entities, {len(zigbee_devices)} Zigbee devices")
@@ -102,7 +102,7 @@ class DeviceParser:
                     unified_devices.append(unified_device)
                     self.devices[unified_device.id] = unified_device
             except Exception as e:
-                logger.error(f"❌ Error parsing HA device {ha_device.id}: {e}")
+                logger.exception(f"❌ Error parsing HA device {ha_device.id}: {e}")
 
         # Process standalone Zigbee devices (not in HA)
         for zigbee_device in zigbee_devices.values():
@@ -113,7 +113,7 @@ class DeviceParser:
                         unified_devices.append(unified_device)
                         self.devices[unified_device.id] = unified_device
                 except Exception as e:
-                    logger.error(f"❌ Error parsing standalone Zigbee device {zigbee_device.ieee_address}: {e}")
+                    logger.exception(f"❌ Error parsing standalone Zigbee device {zigbee_device.ieee_address}: {e}")
 
         logger.info(f"✅ Parsed {len(unified_devices)} unified devices")
         return unified_devices
@@ -122,7 +122,7 @@ class DeviceParser:
         self,
         ha_device: HADevice,
         ha_entities: list[HAEntity],
-        zigbee_devices: dict[str, ZigbeeDevice]
+        zigbee_devices: dict[str, ZigbeeDevice],
     ) -> UnifiedDevice | None:
         """Parse a Home Assistant device into unified format."""
 
@@ -152,7 +152,7 @@ class DeviceParser:
         device_class = self._extract_device_class(device_entities)
 
         # Create unified device
-        unified_device = UnifiedDevice(
+        return UnifiedDevice(
             id=ha_device.id,
             name=ha_device.name_by_user or ha_device.name,  # Prefer user-customized name
             manufacturer=ha_device.manufacturer or zigbee_device.manufacturer if zigbee_device else "Unknown",
@@ -173,10 +173,9 @@ class DeviceParser:
             last_seen=zigbee_device.last_seen if zigbee_device else None,
             health_score=self._calculate_health_score(ha_device, zigbee_device, device_entities),
             created_at=ha_device.created_at,
-            updated_at=max(ha_device.updated_at, zigbee_device.last_seen if zigbee_device and zigbee_device.last_seen else datetime.min.replace(tzinfo=timezone.utc))
+            updated_at=max(ha_device.updated_at, zigbee_device.last_seen if zigbee_device and zigbee_device.last_seen else datetime.min.replace(tzinfo=timezone.utc)),
         )
 
-        return unified_device
 
     def _parse_zigbee_device(self, zigbee_device: ZigbeeDevice) -> UnifiedDevice | None:
         """Parse a standalone Zigbee device into unified format."""
@@ -188,7 +187,7 @@ class DeviceParser:
         device_class = self._extract_device_class_from_zigbee(zigbee_device)
 
         # Create unified device
-        unified_device = UnifiedDevice(
+        return UnifiedDevice(
             id=f"zigbee_{zigbee_device.ieee_address}",
             name=zigbee_device.friendly_name,
             manufacturer=zigbee_device.manufacturer,
@@ -209,15 +208,14 @@ class DeviceParser:
             last_seen=zigbee_device.last_seen,
             health_score=self._calculate_health_score(None, zigbee_device, []),
             created_at=zigbee_device.last_seen or datetime.now(timezone.utc),
-            updated_at=zigbee_device.last_seen or datetime.now(timezone.utc)
+            updated_at=zigbee_device.last_seen or datetime.now(timezone.utc),
         )
 
-        return unified_device
 
     def _find_matching_zigbee_device(
         self,
         ha_device: HADevice,
-        zigbee_devices: dict[str, ZigbeeDevice]
+        zigbee_devices: dict[str, ZigbeeDevice],
     ) -> ZigbeeDevice | None:
         """Find matching Zigbee device for HA device."""
 
@@ -242,7 +240,7 @@ class DeviceParser:
     def _is_zigbee_device_in_ha(
         self,
         zigbee_device: ZigbeeDevice,
-        ha_devices: list[HADevice]
+        ha_devices: list[HADevice],
     ) -> bool:
         """Check if Zigbee device is already represented in HA."""
 
@@ -293,7 +291,7 @@ class DeviceParser:
                 "properties": expose.get("properties", {}),
                 "exposed": True,
                 "configured": True,
-                "source": "zigbee2mqtt"
+                "source": "zigbee2mqtt",
             }
             capabilities.append(capability)
 
@@ -304,7 +302,7 @@ class DeviceParser:
         capabilities = []
 
         # Extract unique domains from entities
-        domains = set(e.domain for e in entities)
+        domains = {e.domain for e in entities}
 
         # Map domains to common capabilities
         domain_capabilities = {
@@ -314,7 +312,7 @@ class DeviceParser:
                 "properties": {"value_min": 0, "value_max": 255},
                 "exposed": True,
                 "configured": True,
-                "source": "inferred"
+                "source": "inferred",
             },
             "fan": {
                 "name": "speed",
@@ -322,7 +320,7 @@ class DeviceParser:
                 "properties": {"values": ["off", "low", "medium", "high"]},
                 "exposed": True,
                 "configured": True,
-                "source": "inferred"
+                "source": "inferred",
             },
             "climate": {
                 "name": "temperature",
@@ -330,7 +328,7 @@ class DeviceParser:
                 "properties": {"value_min": 16, "value_max": 30, "unit": "celsius"},
                 "exposed": True,
                 "configured": True,
-                "source": "inferred"
+                "source": "inferred",
             },
             "cover": {
                 "name": "position",
@@ -338,8 +336,8 @@ class DeviceParser:
                 "properties": {"value_min": 0, "value_max": 100},
                 "exposed": True,
                 "configured": True,
-                "source": "inferred"
-            }
+                "source": "inferred",
+            },
         }
 
         # Add capabilities based on domains present
@@ -360,12 +358,12 @@ class DeviceParser:
             "entity_category": entity.entity_category,
             "unique_id": entity.unique_id,
             "created_at": entity.created_at.isoformat(),
-            "updated_at": entity.updated_at.isoformat()
+            "updated_at": entity.updated_at.isoformat(),
         }
 
     def _extract_device_class(self, entities: list[HAEntity]) -> str | None:
         """Extract device class from entity domains."""
-        domain_priority = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover', 'lock', 'fan']
+        domain_priority = ["light", "switch", "sensor", "binary_sensor", "climate", "cover", "lock", "fan"]
 
         # Try to find a device class from entity domains
         for domain in domain_priority:
@@ -382,24 +380,24 @@ class DeviceParser:
 
         # Map common Zigbee capability types to device classes
         capability_to_class = {
-            'light': 'light',
-            'switch': 'switch',
-            'occupancy': 'sensor',
-            'temperature': 'sensor',
-            'humidity': 'sensor',
-            'battery': 'sensor',
-            'cover': 'cover',
-            'lock': 'lock',
-            'fan': 'fan',
-            'climate': 'climate'
+            "light": "light",
+            "switch": "switch",
+            "occupancy": "sensor",
+            "temperature": "sensor",
+            "humidity": "sensor",
+            "battery": "sensor",
+            "cover": "cover",
+            "lock": "lock",
+            "fan": "fan",
+            "climate": "climate",
         }
 
         for expose in zigbee_device.exposes:
             if isinstance(expose, dict):
-                expose_type = expose.get('type', '').lower()
+                expose_type = expose.get("type", "").lower()
                 if expose_type in capability_to_class:
                     return capability_to_class[expose_type]
-                expose_name = expose.get('name', '').lower()
+                expose_name = expose.get("name", "").lower()
                 if expose_name in capability_to_class:
                     return capability_to_class[expose_name]
 
@@ -409,7 +407,7 @@ class DeviceParser:
         self,
         ha_device: HADevice | None,
         zigbee_device: ZigbeeDevice | None,
-        entities: list[HAEntity]
+        entities: list[HAEntity],
     ) -> int:
         """Calculate device health score (0-100)."""
         score = 100

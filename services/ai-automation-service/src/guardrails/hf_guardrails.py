@@ -20,7 +20,7 @@ class GuardrailResult:
         return {
             "label": self.label,
             "score": self.score,
-            "flagged": self.flagged
+            "flagged": self.flagged,
         }
 
 
@@ -40,7 +40,7 @@ class HuggingFaceGuardrail:
                 model=model_name,
                 truncation=True,
                 max_length=256,
-                device=-1
+                device=-1,
             )
             logger.info("Guardrail pipeline initialised with model %s", model_name)
         except Exception as exc:
@@ -80,7 +80,7 @@ class HuggingFaceGuardrail:
             for _ in source_texts
         ]
 
-        for idx, (text, item) in zip(mapping, zip(cleaned_texts, raw)):
+        for idx, (text, item) in zip(mapping, zip(cleaned_texts, raw, strict=False), strict=False):
             label = item.get("label", "SAFE")
             score = float(item.get("score", 0.0))
             flagged = label.lower() not in {"safe", "non_toxic"} and score >= self.threshold
@@ -101,9 +101,6 @@ def get_guardrail_checker(model_name: str, threshold: float) -> HuggingFaceGuard
 
     _guardrail_initialized = True
     checker = HuggingFaceGuardrail(model_name=model_name, threshold=threshold)
-    if checker.is_ready:
-        _guardrail_singleton = checker
-    else:
-        _guardrail_singleton = None
+    _guardrail_singleton = checker if checker.is_ready else None
     return _guardrail_singleton
 

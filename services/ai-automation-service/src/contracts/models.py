@@ -41,7 +41,7 @@ class Trigger(BaseModel):
     """Automation trigger"""
     platform: Literal[
         "state", "time", "time_pattern", "numeric_state", "sun",
-        "event", "mqtt", "webhook", "zone", "geo_location", "device"
+        "event", "mqtt", "webhook", "zone", "geo_location", "device",
     ] = Field(..., description="Trigger platform")
     entity_id: str | list[str] | None = None
     to: str | list[str] | None = None
@@ -74,7 +74,7 @@ class Condition(BaseModel):
     """Automation condition"""
     condition: Literal[
         "state", "numeric_state", "time", "sun", "template",
-        "zone", "and", "or", "not", "device"
+        "zone", "and", "or", "not", "device",
     ] = Field(..., description="Condition type")
     entity_id: str | list[str] | None = None
     state: str | list[str] | None = None
@@ -132,7 +132,7 @@ Action.model_rebuild()
 class AutomationPlan(BaseModel):
     """
     Complete automation plan with strict schema enforcement.
-    
+
     This is the contract that all LLM outputs must conform to.
     Rejects any extra fields or invalid structures.
     """
@@ -155,24 +155,28 @@ class AutomationPlan(BaseModel):
     @classmethod
     def validate_triggers(cls, v):
         if not isinstance(v, list):
-            raise ValueError("triggers must be a list")
+            msg = "triggers must be a list"
+            raise ValueError(msg)
         if len(v) == 0:
-            raise ValueError("triggers must have at least one item")
+            msg = "triggers must have at least one item"
+            raise ValueError(msg)
         return v
 
     @field_validator("actions", mode="before")
     @classmethod
     def validate_actions(cls, v):
         if not isinstance(v, list):
-            raise ValueError("actions must be a list")
+            msg = "actions must be a list"
+            raise ValueError(msg)
         if len(v) == 0:
-            raise ValueError("actions must have at least one item")
+            msg = "actions must have at least one item"
+            raise ValueError(msg)
         return v
 
     def to_yaml(self) -> str:
         """
         Convert automation plan to Home Assistant YAML format.
-        
+
         Returns:
             YAML string ready for Home Assistant
         """
@@ -199,21 +203,22 @@ class AutomationPlan(BaseModel):
     def from_json(cls, json_str: str, metadata: AutomationMetadata | None = None) -> "AutomationPlan":
         """
         Parse JSON string into AutomationPlan with strict validation.
-        
+
         Args:
             json_str: JSON string from LLM
             metadata: Optional metadata to attach
-            
+
         Returns:
             Validated AutomationPlan
-            
+
         Raises:
             ValidationError: If JSON doesn't conform to schema
         """
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON: {e}") from e
+            msg = f"Invalid JSON: {e}"
+            raise ValueError(msg) from e
 
         # Attach metadata if provided
         if metadata:

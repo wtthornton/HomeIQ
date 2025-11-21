@@ -17,19 +17,19 @@ class ConfigManager:
     def __init__(self, config_dir: str = "infrastructure"):
         """
         Initialize config manager
-        
+
         Args:
             config_dir: Directory containing .env files
         """
         self.config_dir = Path(config_dir)
-        self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
+        self.allow_secret_writes = os.getenv("ADMIN_API_ALLOW_SECRET_WRITES", "false").lower() == "true"
         if not self.config_dir.exists():
             logger.warning(f"Config directory {config_dir} does not exist")
 
     def list_services(self) -> list[str]:
         """
         List all available service configurations
-        
+
         Returns:
             List of service names
         """
@@ -51,20 +51,21 @@ class ConfigManager:
     def read_config(self, service: str) -> dict[str, str]:
         """
         Read configuration for a service
-        
+
         Args:
             service: Service name (e.g., 'websocket', 'weather')
-            
+
         Returns:
             Dictionary of configuration key-value pairs
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist
         """
         env_file = self.config_dir / f".env.{service}"
 
         if not env_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {env_file}")
+            msg = f"Configuration file not found: {env_file}"
+            raise FileNotFoundError(msg)
 
         config = {}
         with open(env_file) as f:
@@ -72,16 +73,16 @@ class ConfigManager:
                 line = line.strip()
 
                 # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Parse key=value
-                if '=' in line:
-                    key, value = line.split('=', 1)
+                if "=" in line:
+                    key, value = line.split("=", 1)
                     config[key.strip()] = value.strip()
                 else:
                     logger.warning(
-                        f"Invalid line {line_num} in {env_file}: {line}"
+                        f"Invalid line {line_num} in {env_file}: {line}",
                     )
 
         logger.info(f"Read {len(config)} settings for {service}")
@@ -91,32 +92,34 @@ class ConfigManager:
         self,
         service: str,
         updates: dict[str, str],
-        create_if_missing: bool = False
+        create_if_missing: bool = False,
     ) -> dict[str, str]:
         """
         Update configuration for a service
-        
+
         Args:
             service: Service name
             updates: Dictionary of key-value pairs to update
             create_if_missing: Create file if it doesn't exist
-            
+
         Returns:
             Updated configuration dictionary
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist and create_if_missing=False
         """
         env_file = self.config_dir / f".env.{service}"
 
         if not env_file.exists() and not create_if_missing:
-            raise FileNotFoundError(f"Configuration file not found: {env_file}")
+            msg = f"Configuration file not found: {env_file}"
+            raise FileNotFoundError(msg)
 
         if not self.allow_secret_writes:
             blocked = [key for key in updates if self._is_sensitive_key(key)]
             if blocked:
+                msg = f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"
                 raise PermissionError(
-                    f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"
+                    msg,
                 )
 
         # Read existing config if file exists
@@ -133,13 +136,13 @@ class ConfigManager:
             stripped = line.strip()
 
             # Keep comments and empty lines as-is
-            if not stripped or stripped.startswith('#'):
+            if not stripped or stripped.startswith("#"):
                 new_lines.append(line)
                 continue
 
             # Update existing key
-            if '=' in stripped:
-                key = stripped.split('=')[0].strip()
+            if "=" in stripped:
+                key = stripped.split("=")[0].strip()
                 if key in updates:
                     new_lines.append(f"{key}={updates[key]}\n")
                     updated_keys.add(key)
@@ -155,7 +158,7 @@ class ConfigManager:
                 updated_keys.add(key)
 
         # Write back
-        with open(env_file, 'w') as f:
+        with open(env_file, "w") as f:
             f.writelines(new_lines)
 
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes
@@ -168,7 +171,7 @@ class ConfigManager:
             logger.warning(f"Could not change permissions for {env_file}: {e}")
 
         logger.info(
-            f"Updated {len(updated_keys)} settings for {service}"
+            f"Updated {len(updated_keys)} settings for {service}",
         )
 
         # Return updated config
@@ -177,28 +180,28 @@ class ConfigManager:
     def validate_config(self, service: str, config: dict[str, str]) -> dict[str, list[str]]:
         """
         Validate service configuration against service-specific rules and requirements.
-        
+
         Performs comprehensive validation including URL format checking, required field
         verification, numeric range validation, and service-specific business rules.
         Returns detailed validation results with categorized errors and warnings.
-        
+
         Complexity: C (19) - High complexity due to service-specific validation rules
-        
+
         Args:
             service (str): Service identifier (e.g., 'websocket', 'weather', 'influxdb')
             config (Dict[str, str]): Configuration dictionary with key-value pairs
-            
+
         Returns:
             Dict[str, List[str]]: Validation result containing:
                 - 'errors' (List[str]): Blocking validation errors that prevent service start
                 - 'warnings' (List[str]): Non-blocking issues that should be addressed
                 - 'valid' (bool): True if no errors found
-        
+
         Service-Specific Validation Rules:
             - websocket: Validates HA_URL (ws://), HA_TOKEN (min length 10)
             - weather: Validates API key, latitude (-90 to 90), longitude (-180 to 180)
             - influxdb: Validates URL (http://), token, org, bucket presence
-        
+
         Example:
             >>> manager = ConfigManager()
             >>> result = manager.validate_config("websocket", {
@@ -209,7 +212,7 @@ class ConfigManager:
             ...     print("Configuration is valid")
             >>> else:
             ...     print(f"Errors: {result['errors']}")
-        
+
         Note:
             High complexity arises from:
             - Multiple service types with different validation rules
@@ -269,16 +272,16 @@ class ConfigManager:
         return {
             "errors": errors,
             "warnings": warnings,
-            "valid": len(errors) == 0
+            "valid": len(errors) == 0,
         }
 
     def get_config_template(self, service: str) -> dict[str, dict[str, str]]:
         """
         Get configuration template with field metadata
-        
+
         Args:
             service: Service name
-            
+
         Returns:
             Dictionary with field definitions
         """
@@ -290,7 +293,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Home Assistant WebSocket URL",
                     "placeholder": "ws://192.168.1.100:8123/api/websocket",
-                    "default": ""
+                    "default": "",
                 },
                 "HA_TOKEN": {
                     "type": "password",
@@ -298,22 +301,22 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "Home Assistant Long-Lived Access Token",
                     "placeholder": "Your HA access token",
-                    "default": ""
+                    "default": "",
                 },
                 "HA_SSL_VERIFY": {
                     "type": "boolean",
                     "required": False,
                     "sensitive": False,
                     "description": "Verify SSL certificates",
-                    "default": "true"
+                    "default": "true",
                 },
                 "HA_RECONNECT_DELAY": {
                     "type": "number",
                     "required": False,
                     "sensitive": False,
                     "description": "Reconnect delay in seconds",
-                    "default": "5"
-                }
+                    "default": "5",
+                },
             },
             "weather": {
                 "WEATHER_API_KEY": {
@@ -322,7 +325,7 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "OpenWeatherMap API Key",
                     "placeholder": "Your OpenWeatherMap API key",
-                    "default": ""
+                    "default": "",
                 },
                 "WEATHER_LAT": {
                     "type": "number",
@@ -330,7 +333,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Latitude",
                     "placeholder": "51.5074",
-                    "default": "51.5074"
+                    "default": "51.5074",
                 },
                 "WEATHER_LON": {
                     "type": "number",
@@ -338,7 +341,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Longitude",
                     "placeholder": "-0.1278",
-                    "default": "-0.1278"
+                    "default": "-0.1278",
                 },
                 "WEATHER_UNITS": {
                     "type": "select",
@@ -346,15 +349,15 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Temperature units",
                     "options": ["metric", "imperial"],
-                    "default": "metric"
+                    "default": "metric",
                 },
                 "WEATHER_CACHE_SECONDS": {
                     "type": "number",
                     "required": False,
                     "sensitive": False,
                     "description": "Cache duration in seconds",
-                    "default": "300"
-                }
+                    "default": "300",
+                },
             },
             "influxdb": {
                 "INFLUXDB_URL": {
@@ -363,7 +366,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "InfluxDB URL",
                     "placeholder": "http://influxdb:8086",
-                    "default": "http://influxdb:8086"
+                    "default": "http://influxdb:8086",
                 },
                 "INFLUXDB_TOKEN": {
                     "type": "password",
@@ -371,23 +374,23 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "InfluxDB Access Token",
                     "placeholder": "Your InfluxDB token",
-                    "default": ""
+                    "default": "",
                 },
                 "INFLUXDB_ORG": {
                     "type": "text",
                     "required": True,
                     "sensitive": False,
                     "description": "InfluxDB Organization",
-                    "default": "home-assistant"
+                    "default": "home-assistant",
                 },
                 "INFLUXDB_BUCKET": {
                     "type": "text",
                     "required": True,
                     "sensitive": False,
                     "description": "InfluxDB Bucket",
-                    "default": "ha_events"
-                }
-            }
+                    "default": "ha_events",
+                },
+            },
         }
 
         return templates.get(service, {})

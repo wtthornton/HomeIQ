@@ -182,7 +182,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "total_events_received": 100,
                 "events_by_type": {"state_changed": 90, "service_registered": 10},
                 "last_event_time": datetime.now().isoformat(),
-                "subscription_start_time": mock_subscription.subscription_start_time.isoformat()
+                "subscription_start_time": mock_subscription.subscription_start_time.isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -221,7 +221,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "active_subscriptions": 0,
                 "total_events_received": 0,
                 "events_by_type": {},
-                "last_event_time": None
+                "last_event_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -257,7 +257,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "active_subscriptions": 1,
                 "total_events_received": 0,
                 "events_by_type": {},
-                "last_event_time": None
+                "last_event_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -296,7 +296,7 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "total_events_received": 50,  # Current session
                 "events_by_type": {"state_changed": 50},
                 "last_event_time": datetime.now().isoformat(),
-                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat()
+                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -339,7 +339,7 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "total_events_received": 50,
                 "events_by_type": {"state_changed": 50},
                 "last_event_time": datetime.now().isoformat(),
-                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat()
+                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -373,7 +373,8 @@ class TestHealthCheckHandlerErrorHandling:
 
         # Make get_subscription_status raise an exception
         def raise_error():
-            raise Exception("Test error")
+            msg = "Test error"
+            raise Exception(msg)
 
         mock_subscription = Mock()
         mock_subscription.get_subscription_status = raise_error
@@ -433,7 +434,7 @@ class TestHealthCheckHandlerEventRate:
                 "total_events_received": 100,
                 "events_by_type": {"state_changed": 100},
                 "last_event_time": last_event_time.isoformat(),
-                "subscription_start_time": start_time.isoformat()
+                "subscription_start_time": start_time.isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -469,7 +470,7 @@ class TestHealthCheckHandlerEventRate:
                 "total_events_received": 0,
                 "events_by_type": {},
                 "last_event_time": None,
-                "subscription_start_time": None
+                "subscription_start_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status

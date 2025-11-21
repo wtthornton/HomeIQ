@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[2]  # Go up to project root
 except Exception:
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 class WebSocketIngestionServiceContainer(BaseServiceContainer):
     """
     Service container for WebSocket Ingestion service.
-    
+
     Manages dependencies like ConnectionManager, BatchProcessor, etc.
     """
 

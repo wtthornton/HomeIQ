@@ -13,7 +13,8 @@ import logging
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from ...services.service_container import ServiceContainer, get_service_container
+from src.services.service_container import ServiceContainer, get_service_container
+
 from .models import MessageRequest
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,11 @@ router = APIRouter(prefix="/api/v2/conversations", tags=["Conversations v2 - Str
 async def stream_conversation_turn(
     conversation_id: str,
     request: MessageRequest,
-    container: ServiceContainer = Depends(get_service_container)
+    container: ServiceContainer = Depends(get_service_container),
 ):
     """
     Stream conversation turn responses using Server-Sent Events.
-    
+
     Provides real-time updates as:
     - Entities are extracted
     - Suggestions are generated
@@ -69,7 +70,7 @@ async def stream_conversation_turn(
                 query=request.message,
                 entities=entities,
                 ambiguities=[],
-                validation_result={}
+                validation_result={},
             )
 
             yield f"data: {json.dumps({'event': 'confidence', 'confidence': confidence.overall, 'explanation': confidence.explanation})}\n\n"
@@ -87,7 +88,7 @@ async def stream_conversation_turn(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"  # Disable nginx buffering
-        }
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
     )
 

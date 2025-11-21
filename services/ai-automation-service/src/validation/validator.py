@@ -9,9 +9,10 @@ from typing import Any
 
 import yaml
 
-from ..contracts.models import AutomationPlan
-from ..policy.engine import PolicyEngine, PolicyVerdict
-from ..safety_validator import SafetyValidator
+from src.contracts.models import AutomationPlan
+from src.policy.engine import PolicyEngine, PolicyVerdict
+from src.safety_validator import SafetyValidator
+
 from .diffs import generate_yaml_diff
 from .resolver import EntityResolver, ResolutionResult
 
@@ -43,7 +44,7 @@ class ValidationResult:
 class AutomationValidator:
     """
     Unified validation pipeline for automation plans.
-    
+
     Pipeline:
     1. Schema validation (contract enforcement)
     2. Entity resolution (user text → canonical entity_id)
@@ -57,11 +58,11 @@ class AutomationValidator:
         self,
         entity_resolver: EntityResolver | None = None,
         policy_engine: PolicyEngine | None = None,
-        safety_validator: SafetyValidator | None = None
+        safety_validator: SafetyValidator | None = None,
     ):
         """
         Initialize validator.
-        
+
         Args:
             entity_resolver: EntityResolver instance (optional)
             policy_engine: PolicyEngine instance (optional)
@@ -76,16 +77,16 @@ class AutomationValidator:
         self,
         automation_input: Any,  # Can be AutomationPlan, dict, or YAML string
         original_automation: Any | None = None,
-        overrides: dict[str, bool] | None = None
+        overrides: dict[str, bool] | None = None,
     ) -> ValidationResult:
         """
         Validate automation plan through full pipeline.
-        
+
         Args:
             automation_input: Automation plan (AutomationPlan, dict, or YAML string)
             original_automation: Optional original automation for diff generation
             overrides: Optional policy overrides
-            
+
         Returns:
             ValidationResult with verdict, reasons, fixes, and diff
         """
@@ -109,7 +110,7 @@ class AutomationValidator:
                     ok=False,
                     verdict="deny",
                     reasons=["Invalid automation input type"],
-                    fixes=[]
+                    fixes=[],
                 )
 
             schema_valid = True
@@ -119,7 +120,7 @@ class AutomationValidator:
                 verdict="deny",
                 reasons=[f"Schema validation failed: {e}"],
                 fixes=["Ensure automation conforms to schema (triggers, conditions, actions required)"],
-                schema_valid=False
+                schema_valid=False,
             )
 
         # Step 2: Entity resolution
@@ -175,9 +176,9 @@ class AutomationValidator:
                 logger.warning(f"Diff generation error: {e}")
 
         # Determine overall verdict
-        if not schema_valid or policy_verdict.verdict.value == "deny" or any(not r.resolved for r in entity_resolutions.values()) or safety_score is not None and safety_score < 60:
+        if not schema_valid or policy_verdict.verdict.value == "deny" or any(not r.resolved for r in entity_resolutions.values()) or (safety_score is not None and safety_score < 60):
             verdict = "deny"
-        elif policy_verdict.verdict.value == "warn" or safety_score is not None and safety_score < 80:
+        elif policy_verdict.verdict.value == "warn" or (safety_score is not None and safety_score < 80):
             verdict = "warn"
         else:
             verdict = "allow"
@@ -193,7 +194,7 @@ class AutomationValidator:
             entity_resolutions=entity_resolutions,
             policy_verdict=policy_verdict,
             safety_score=safety_score,
-            schema_valid=schema_valid
+            schema_valid=schema_valid,
         )
 
     def _extract_entity_texts(self, automation: dict[str, Any]) -> list[str]:

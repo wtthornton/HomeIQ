@@ -62,38 +62,47 @@ def _estimate_payload_bytes(num_points: int, num_dimensions: int) -> int:
 
 def _validate_data_matrix(data: list[list[float]]) -> tuple[int, int]:
     if not isinstance(data, list) or not data:
-        raise ValueError("Data must contain at least one row.")
+        msg = "Data must contain at least one row."
+        raise ValueError(msg)
 
     first_row_length = len(data[0])
     if first_row_length == 0:
-        raise ValueError("Data rows must contain at least one feature.")
+        msg = "Data rows must contain at least one feature."
+        raise ValueError(msg)
     if first_row_length > MAX_DIMENSIONS:
-        raise ValueError(f"Maximum supported dimensions is {MAX_DIMENSIONS}.")
+        msg = f"Maximum supported dimensions is {MAX_DIMENSIONS}."
+        raise ValueError(msg)
 
     num_points = len(data)
     if num_points > MAX_DATA_POINTS:
-        raise ValueError(f"Maximum supported data points is {MAX_DATA_POINTS}.")
+        msg = f"Maximum supported data points is {MAX_DATA_POINTS}."
+        raise ValueError(msg)
 
-    for index, row in enumerate(data):
+    for _index, row in enumerate(data):
         if not isinstance(row, list):
-            raise ValueError("Each data row must be a list of floats.")
+            msg = "Each data row must be a list of floats."
+            raise ValueError(msg)
         if len(row) != first_row_length:
-            raise ValueError("All rows must have the same number of features.")
+            msg = "All rows must have the same number of features."
+            raise ValueError(msg)
         for value in row:
             if not isinstance(value, (int, float)):
-                raise ValueError("All feature values must be numbers.")
+                msg = "All feature values must be numbers."
+                raise ValueError(msg)
 
     estimated_size = _estimate_payload_bytes(num_points, first_row_length)
     if estimated_size > MAX_PAYLOAD_BYTES:
         max_mb = MAX_PAYLOAD_BYTES / (1024 * 1024)
-        raise ValueError(f"Payload exceeds the maximum allowed size of {max_mb:.1f}MB.")
+        msg = f"Payload exceeds the maximum allowed size of {max_mb:.1f}MB."
+        raise ValueError(msg)
 
     return num_points, first_row_length
 
 
 def _validate_contamination(contamination: float) -> None:
     if contamination <= 0 or contamination >= 0.5:
-        raise ValueError("Contamination must be between 0 and 0.5 (exclusive).")
+        msg = "Contamination must be between 0 and 0.5 (exclusive)."
+        raise ValueError(msg)
 
 
 async def _run_cpu_bound(func, *args, **kwargs):
@@ -105,7 +114,7 @@ async def _run_cpu_bound(func, *args, **kwargs):
             timeout=ALGORITHM_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError as exc:
-        logger.error("Operation timed out: %s", getattr(func, "__name__", "unknown"))
+        logger.exception("Operation timed out: %s", getattr(func, "__name__", "unknown"))
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Processing timed out. Reduce data size or complexity and try again.",
@@ -127,7 +136,7 @@ async def lifespan(app: FastAPI):
         anomaly_manager = AnomalyDetectionManager()
         logger.info("✅ ML Service started successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to start ML Service: {e}")
+        logger.exception(f"❌ Failed to start ML Service: {e}")
         raise
 
     yield
@@ -140,7 +149,7 @@ app = FastAPI(
     title="ML Service",
     description="Classical machine learning algorithms for pattern detection",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware (restricted origins for single-home deployment)
@@ -196,8 +205,8 @@ async def health_check():
         "service": "ml-service",
         "algorithms_available": {
             "clustering": ["kmeans", "dbscan"],
-            "anomaly_detection": ["isolation_forest"]
-        }
+            "anomaly_detection": ["isolation_forest"],
+        },
     }
 
 @app.get("/algorithms/status")
@@ -206,11 +215,11 @@ async def get_algorithm_status():
     return {
         "clustering": {
             "kmeans": "available",
-            "dbscan": "available"
+            "dbscan": "available",
         },
         "anomaly_detection": {
-            "isolation_forest": "available"
-        }
+            "isolation_forest": "available",
+        },
     }
 
 @app.post("/cluster", response_model=ClusteringResponse)
@@ -376,7 +385,7 @@ async def batch_process(request: BatchProcessRequest):
                         "algorithm": algorithm,
                         "labels": labels,
                         "n_clusters": n_clusters,
-                    }
+                    },
                 )
 
             elif op_type == "anomaly":
@@ -400,7 +409,7 @@ async def batch_process(request: BatchProcessRequest):
                         "labels": labels,
                         "scores": scores,
                         "n_anomalies": sum(1 for label in labels if label == -1),
-                    }
+                    },
                 )
 
             else:

@@ -152,7 +152,8 @@ class AlertManager:
 
     def update_rule(self, rule: AlertRule) -> None:
         if rule.name not in self.rules:
-            raise ValueError(f"Rule '{rule.name}' does not exist.")
+            msg = f"Rule '{rule.name}' does not exist."
+            raise ValueError(msg)
         self.rules[rule.name] = rule
 
     def _evaluate_condition(self, value: float, operator: str, threshold: float) -> bool:
@@ -302,7 +303,8 @@ class AlertingService:
         elif channel_type == "slack":
             channel = SlackNotificationChannel(name, config)
         else:
-            raise ValueError(f"Unsupported channel type '{channel_type}'")
+            msg = f"Unsupported channel type '{channel_type}'"
+            raise ValueError(msg)
         self.alert_manager.add_notification_channel(name, channel)
 
     async def evaluate_metrics(self, metrics: dict[str, float]) -> None:

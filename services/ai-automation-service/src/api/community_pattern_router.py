@@ -10,9 +10,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..clients.data_api_client import DataAPIClient
-from ..database import get_db
-from ..suggestion_generation.community_learner import CommunityPatternLearner
+from src.clients.data_api_client import DataAPIClient
+from src.database import get_db
+from src.suggestion_generation.community_learner import CommunityPatternLearner
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,11 @@ community_learner = CommunityPatternLearner()
 async def match_community_patterns(
     limit: int = Query(default=10, ge=1, le=50, description="Maximum patterns to return"),
     category: str | None = Query(default=None, description="Filter by category"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Match community patterns to user's devices.
-    
+
     Returns community-proven automation patterns that can be applied
     to the user's Home Assistant setup.
     """
@@ -44,12 +44,12 @@ async def match_community_patterns(
         matched = community_learner.match_patterns_to_user(
             user_devices=devices or [],
             user_entities=entities or [],
-            user_context=None
+            user_context=None,
         )
 
         # Filter by category if specified
         if category:
-            matched = [p for p in matched if p.get('category') == category]
+            matched = [p for p in matched if p.get("category") == category]
 
         # Limit results
         matched = matched[:limit]
@@ -58,27 +58,27 @@ async def match_community_patterns(
             "success": True,
             "data": {
                 "patterns": matched,
-                "count": len(matched)
+                "count": len(matched),
             },
-            "message": f"Matched {len(matched)} community patterns"
+            "message": f"Matched {len(matched)} community patterns",
         }
 
     except Exception as e:
         logger.error(f"Failed to match community patterns: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to match community patterns: {str(e)}"
+            detail=f"Failed to match community patterns: {e!s}",
         )
 
 
 @router.get("/list")
 async def list_community_patterns(
     category: str | None = Query(default=None, description="Filter by category"),
-    limit: int = Query(default=20, ge=1, le=100, description="Maximum patterns to return")
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum patterns to return"),
 ) -> dict[str, Any]:
     """
     List available community patterns.
-    
+
     Returns all community patterns, optionally filtered by category.
     """
     try:
@@ -86,7 +86,7 @@ async def list_community_patterns(
 
         # Filter by category if specified
         if category:
-            patterns = [p for p in patterns if p.get('category') == category]
+            patterns = [p for p in patterns if p.get("category") == category]
 
         # Limit results
         patterns = patterns[:limit]
@@ -95,21 +95,21 @@ async def list_community_patterns(
             "success": True,
             "data": {
                 "patterns": patterns,
-                "count": len(patterns)
-            }
+                "count": len(patterns),
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to list community patterns: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list community patterns: {str(e)}"
+            detail=f"Failed to list community patterns: {e!s}",
         )
 
 
 @router.get("/top")
 async def get_top_patterns(
-    limit: int = Query(default=10, ge=1, le=50, description="Number of top patterns")
+    limit: int = Query(default=10, ge=1, le=50, description="Number of top patterns"),
 ) -> dict[str, Any]:
     """
     Get top N most popular community patterns.
@@ -121,15 +121,15 @@ async def get_top_patterns(
             "success": True,
             "data": {
                 "patterns": top_patterns,
-                "count": len(top_patterns)
-            }
+                "count": len(top_patterns),
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to get top patterns: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get top patterns: {str(e)}"
+            detail=f"Failed to get top patterns: {e!s}",
         )
 
 

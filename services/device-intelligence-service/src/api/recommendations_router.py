@@ -40,7 +40,7 @@ async def get_all_recommendations(
     priority: str | None = Query(default=None, description="Filter by priority level"),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0, description="Minimum confidence score"),
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Get all optimization recommendations with optional filtering."""
     try:
@@ -65,7 +65,7 @@ async def get_all_recommendations(
                         "usage_frequency": latest_metric.usage_frequency or 0.5,
                         "cpu_usage": latest_metric.cpu_usage or 0,
                         "memory_usage": latest_metric.memory_usage or 0,
-                        "temperature": latest_metric.temperature or 25
+                        "temperature": latest_metric.temperature or 25,
                     }
 
                     # Convert historical metrics
@@ -80,31 +80,31 @@ async def get_all_recommendations(
                             "cpu_usage": metric.cpu_usage or 0,
                             "memory_usage": metric.memory_usage or 0,
                             "temperature": metric.temperature or 25,
-                            "timestamp": metric.timestamp
+                            "timestamp": metric.timestamp,
                         })
                 else:
                     # Default metrics
                     current_metrics = {
                         "response_time": 0, "error_rate": 0, "battery_level": 100,
                         "signal_strength": -50, "usage_frequency": 0.5, "cpu_usage": 0,
-                        "memory_usage": 0, "temperature": 25
+                        "memory_usage": 0, "temperature": 25,
                     }
                     historical_metrics = []
 
                 # Calculate health score
                 health_score = await health_scorer.calculate_health_score(
-                    device.id, current_metrics, historical_metrics
+                    device.id, current_metrics, historical_metrics,
                 )
 
                 # Generate recommendations
                 device_recommendations = await recommendation_engine.generate_recommendations(
-                    device.id, health_score, current_metrics, historical_metrics
+                    device.id, health_score, current_metrics, historical_metrics,
                 )
 
                 all_recommendations.extend(device_recommendations)
 
             except Exception as e:
-                logger.error(f"❌ Error processing device {device.id}: {e}")
+                logger.exception(f"❌ Error processing device {device.id}: {e}")
                 continue
 
         # Apply filters
@@ -143,12 +143,12 @@ async def get_all_recommendations(
                 "prerequisites": rec.prerequisites,
                 "created_at": rec.created_at.isoformat(),
                 "expires_at": rec.expires_at.isoformat() if rec.expires_at else None,
-                "status": rec.status
+                "status": rec.status,
             })
 
         # Get impact analysis
         impact_analysis = await recommendation_engine.get_recommendation_impact_analysis(
-            filtered_recommendations
+            filtered_recommendations,
         )
 
         return {
@@ -160,14 +160,14 @@ async def get_all_recommendations(
                 "limit": limit,
                 "category": category,
                 "priority": priority,
-                "min_confidence": min_confidence
+                "min_confidence": min_confidence,
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.exception(f"❌ Error getting recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {e!s}")
 
 
 @router.get("/{device_id}")
@@ -177,7 +177,7 @@ async def get_device_recommendations(
     priority: str | None = Query(default=None, description="Filter by priority level"),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0, description="Minimum confidence score"),
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Get optimization recommendations for a specific device."""
     try:
@@ -200,7 +200,7 @@ async def get_device_recommendations(
                 "usage_frequency": latest_metric.usage_frequency or 0.5,
                 "cpu_usage": latest_metric.cpu_usage or 0,
                 "memory_usage": latest_metric.memory_usage or 0,
-                "temperature": latest_metric.temperature or 25
+                "temperature": latest_metric.temperature or 25,
             }
 
             # Convert historical metrics
@@ -215,25 +215,25 @@ async def get_device_recommendations(
                     "cpu_usage": metric.cpu_usage or 0,
                     "memory_usage": metric.memory_usage or 0,
                     "temperature": metric.temperature or 25,
-                    "timestamp": metric.timestamp
+                    "timestamp": metric.timestamp,
                 })
         else:
             # Default metrics
             current_metrics = {
                 "response_time": 0, "error_rate": 0, "battery_level": 100,
                 "signal_strength": -50, "usage_frequency": 0.5, "cpu_usage": 0,
-                "memory_usage": 0, "temperature": 25
+                "memory_usage": 0, "temperature": 25,
             }
             historical_metrics = []
 
         # Calculate health score
         health_score = await health_scorer.calculate_health_score(
-            device_id, current_metrics, historical_metrics
+            device_id, current_metrics, historical_metrics,
         )
 
         # Generate recommendations
         recommendations = await recommendation_engine.generate_recommendations(
-            device_id, health_score, current_metrics, historical_metrics
+            device_id, health_score, current_metrics, historical_metrics,
         )
 
         # Apply filters
@@ -269,12 +269,12 @@ async def get_device_recommendations(
                 "prerequisites": rec.prerequisites,
                 "created_at": rec.created_at.isoformat(),
                 "expires_at": rec.expires_at.isoformat() if rec.expires_at else None,
-                "status": rec.status
+                "status": rec.status,
             })
 
         # Get impact analysis
         impact_analysis = await recommendation_engine.get_recommendation_impact_analysis(
-            filtered_recommendations
+            filtered_recommendations,
         )
 
         return {
@@ -286,16 +286,16 @@ async def get_device_recommendations(
             "filters_applied": {
                 "category": category,
                 "priority": priority,
-                "min_confidence": min_confidence
+                "min_confidence": min_confidence,
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.exception(f"❌ Error getting recommendations for device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {e!s}")
 
 
 @router.get("/categories/{category}")
@@ -306,44 +306,43 @@ async def get_recommendations_by_category(
     priority: str | None = Query(default=None, description="Filter by priority level"),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0, description="Minimum confidence score"),
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Get recommendations filtered by category."""
     try:
         # Validate category
         try:
-            category_enum = RecommendationCategory(category)
+            RecommendationCategory(category)
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid category. Must be one of: {[c.value for c in RecommendationCategory]}"
+                detail=f"Invalid category. Must be one of: {[c.value for c in RecommendationCategory]}",
             )
 
         # Get all recommendations with category filter
-        response = await get_all_recommendations(
+        return await get_all_recommendations(
             skip=skip, limit=limit, category=category, priority=priority,
-            min_confidence=min_confidence, session=session, repository=repository
+            min_confidence=min_confidence, session=session, repository=repository,
         )
 
-        return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations by category {category}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.exception(f"❌ Error getting recommendations by category {category}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {e!s}")
 
 
 @router.get("/impact/analysis")
 async def get_recommendation_impact_analysis(
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Get comprehensive impact analysis of all recommendations."""
     try:
         # Get all recommendations
         response = await get_all_recommendations(
-            skip=0, limit=1000, session=session, repository=repository
+            skip=0, limit=1000, session=session, repository=repository,
         )
 
         # Extract recommendations for analysis
@@ -359,7 +358,7 @@ async def get_recommendation_impact_analysis(
                 confidence_score=rec_data["confidence_score"],
                 estimated_impact=rec_data["estimated_impact"],
                 implementation_steps=rec_data["implementation_steps"],
-                prerequisites=rec_data["prerequisites"]
+                prerequisites=rec_data["prerequisites"],
             )
             recommendations.append(rec)
 
@@ -369,19 +368,19 @@ async def get_recommendation_impact_analysis(
         return {
             "impact_analysis": impact_analysis,
             "total_recommendations": len(recommendations),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting impact analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting impact analysis: {str(e)}")
+        logger.exception(f"❌ Error getting impact analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting impact analysis: {e!s}")
 
 
 @router.post("/apply")
 async def apply_recommendation(
     recommendation_id: str,
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Apply a recommendation (placeholder for future implementation)."""
     try:
@@ -397,9 +396,9 @@ async def apply_recommendation(
             "message": "Recommendation application is not yet implemented",
             "recommendation_id": recommendation_id,
             "status": "pending_implementation",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"❌ Error applying recommendation {recommendation_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error applying recommendation: {str(e)}")
+        logger.exception(f"❌ Error applying recommendation {recommendation_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error applying recommendation: {e!s}")

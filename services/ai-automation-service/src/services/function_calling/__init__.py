@@ -9,5 +9,5 @@ Created: Phase 4 - Function Calling & Device Context
 
 from .registry import FunctionRegistry
 
-__all__ = ['FunctionRegistry']
+__all__ = ["FunctionRegistry"]
 

@@ -23,7 +23,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -35,7 +35,7 @@ class TestEventProcessor:
         """Test validation of event missing event_type"""
         event_data = {
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -56,7 +56,7 @@ class TestEventProcessor:
         """Test validation of state_changed event missing new_state"""
         event_data = {
             "event_type": "state_changed",
-            "old_state": {"state": "off"}
+            "old_state": {"state": "off"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -69,7 +69,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "invalid_entity_id"}
+            "new_state": {"state": "on", "entity_id": "invalid_entity_id"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -82,7 +82,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": 123, "entity_id": "light.living_room"}
+            "new_state": {"state": 123, "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -95,7 +95,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off", "attributes": {"brightness": 0}},
-            "new_state": {"state": "on", "entity_id": "light.living_room", "attributes": {"brightness": 255}}
+            "new_state": {"state": "on", "entity_id": "light.living_room", "attributes": {"brightness": 255}},
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -114,7 +114,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "on", "entity_id": "sensor.kitchen_motion"},
-            "new_state": None
+            "new_state": None,
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -131,7 +131,7 @@ class TestEventProcessor:
             "domain": "light",
             "service": "turn_on",
             "service_data": {"brightness": 255},
-            "entity_id": "light.living_room"
+            "entity_id": "light.living_room",
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -146,7 +146,7 @@ class TestEventProcessor:
         """Test extracting data from generic event"""
         event_data = {
             "event_type": "custom_event",
-            "custom_field": "custom_value"
+            "custom_field": "custom_value",
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -159,7 +159,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         processed = self.processor.process_event(event_data)
@@ -174,7 +174,7 @@ class TestEventProcessor:
         """Test processing invalid event"""
         event_data = {
             "event_type": "state_changed",
-            "old_state": {"state": "off"}
+            "old_state": {"state": "off"},
             # Missing new_state
         }
 
@@ -231,7 +231,7 @@ class TestEventProcessor:
             "event_type": "call_service",
             "domain": "light",
             "service": "turn_on",
-            "service_data": {"brightness": 255}
+            "service_data": {"brightness": 255},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -243,7 +243,7 @@ class TestEventProcessor:
         """Test validation of call_service event missing required fields"""
         event_data = {
             "event_type": "call_service",
-            "domain": "light"
+            "domain": "light",
             # Missing service and service_data
         }
 

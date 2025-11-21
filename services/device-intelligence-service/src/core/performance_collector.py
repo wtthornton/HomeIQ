@@ -5,6 +5,7 @@ Collects and aggregates device performance metrics for analysis.
 """
 
 import asyncio
+import contextlib
 import logging
 import statistics
 from collections import defaultdict, deque
@@ -33,10 +34,8 @@ class PerformanceCollector:
         """Stop the cleanup task."""
         if self._cleanup_task:
             self._cleanup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._cleanup_task
-            except asyncio.CancelledError:
-                pass
             self._cleanup_task = None
 
     async def collect_device_metrics(self, device_id: str, metrics: dict[str, Any]):
@@ -46,7 +45,7 @@ class PerformanceCollector:
         metric_entry = {
             "timestamp": current_time,
             "device_id": device_id,
-            **metrics
+            **metrics,
         }
 
         # Store in history
@@ -81,7 +80,7 @@ class PerformanceCollector:
             "total_measurements": len(metrics_list),
             "time_range": {
                 "start": metrics_list[0]["timestamp"].isoformat(),
-                "end": metrics_list[-1]["timestamp"].isoformat()
+                "end": metrics_list[-1]["timestamp"].isoformat(),
             },
             "response_time": {
                 "avg": statistics.mean(response_times) if response_times else 0,
@@ -89,51 +88,51 @@ class PerformanceCollector:
                 "max": max(response_times) if response_times else 0,
                 "median": statistics.median(response_times) if response_times else 0,
                 "p95": self._percentile(response_times, 95) if response_times else 0,
-                "count": len(response_times)
+                "count": len(response_times),
             },
             "error_rate": {
                 "avg": statistics.mean(error_rates) if error_rates else 0,
                 "min": min(error_rates) if error_rates else 0,
                 "max": max(error_rates) if error_rates else 0,
                 "median": statistics.median(error_rates) if error_rates else 0,
-                "count": len(error_rates)
+                "count": len(error_rates),
             },
             "battery_level": {
                 "avg": statistics.mean(battery_levels) if battery_levels else 100,
                 "min": min(battery_levels) if battery_levels else 100,
                 "max": max(battery_levels) if battery_levels else 100,
                 "median": statistics.median(battery_levels) if battery_levels else 100,
-                "count": len(battery_levels)
+                "count": len(battery_levels),
             },
             "signal_strength": {
                 "avg": statistics.mean(signal_strengths) if signal_strengths else -50,
                 "min": min(signal_strengths) if signal_strengths else -50,
                 "max": max(signal_strengths) if signal_strengths else -50,
                 "median": statistics.median(signal_strengths) if signal_strengths else -50,
-                "count": len(signal_strengths)
+                "count": len(signal_strengths),
             },
             "cpu_usage": {
                 "avg": statistics.mean(cpu_usage) if cpu_usage else 0,
                 "min": min(cpu_usage) if cpu_usage else 0,
                 "max": max(cpu_usage) if cpu_usage else 0,
                 "median": statistics.median(cpu_usage) if cpu_usage else 0,
-                "count": len(cpu_usage)
+                "count": len(cpu_usage),
             },
             "memory_usage": {
                 "avg": statistics.mean(memory_usage) if memory_usage else 0,
                 "min": min(memory_usage) if memory_usage else 0,
                 "max": max(memory_usage) if memory_usage else 0,
                 "median": statistics.median(memory_usage) if memory_usage else 0,
-                "count": len(memory_usage)
+                "count": len(memory_usage),
             },
             "temperature": {
                 "avg": statistics.mean(temperatures) if temperatures else 25,
                 "min": min(temperatures) if temperatures else 25,
                 "max": max(temperatures) if temperatures else 25,
                 "median": statistics.median(temperatures) if temperatures else 25,
-                "count": len(temperatures)
+                "count": len(temperatures),
             },
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     def _percentile(self, data: list[float], percentile: int) -> float:
@@ -159,12 +158,11 @@ class PerformanceCollector:
         metrics_list = list(self.metrics_history[device_id])
 
         # Filter by time range
-        filtered_metrics = [
+        return [
             m for m in metrics_list
             if m["timestamp"] >= cutoff_time
         ]
 
-        return filtered_metrics
 
     async def get_device_metrics_trend(self, device_id: str, metric_name: str, hours: int = 24) -> dict[str, Any]:
         """Get trend analysis for specific metric."""
@@ -189,10 +187,7 @@ class PerformanceCollector:
         avg_first = statistics.mean(first_half)
         avg_second = statistics.mean(second_half)
 
-        if avg_first == 0:
-            change_percent = 0
-        else:
-            change_percent = ((avg_second - avg_first) / avg_first) * 100
+        change_percent = 0 if avg_first == 0 else (avg_second - avg_first) / avg_first * 100
 
         # Determine trend direction
         if abs(change_percent) < 5:
@@ -207,7 +202,7 @@ class PerformanceCollector:
             "change_percent": round(change_percent, 2),
             "first_half_avg": round(avg_first, 2),
             "second_half_avg": round(avg_second, 2),
-            "data_points": len(values)
+            "data_points": len(values),
         }
 
     async def get_all_devices_performance(self) -> dict[str, dict[str, Any]]:
@@ -223,8 +218,8 @@ class PerformanceCollector:
                 "avg_response_time": 0,
                 "avg_error_rate": 0,
                 "avg_battery_level": 0,
-                "avg_signal_strength": 0
-            }
+                "avg_signal_strength": 0,
+            },
         }
 
         response_times = []
@@ -283,7 +278,7 @@ class PerformanceCollector:
                 logger.debug("Cleaned up old metrics data")
 
             except Exception as e:
-                logger.error(f"Error during metrics cleanup: {e}")
+                logger.exception(f"Error during metrics cleanup: {e}")
 
     def get_stats(self) -> dict[str, Any]:
         """Get performance collector statistics."""
@@ -295,7 +290,7 @@ class PerformanceCollector:
             "total_metrics_points": total_metrics_points,
             "retention_hours": self.retention_hours,
             "max_points_per_device": self.max_points_per_device,
-            "devices_with_data": list(self.metrics_history.keys())
+            "devices_with_data": list(self.metrics_history.keys()),
         }
 
 

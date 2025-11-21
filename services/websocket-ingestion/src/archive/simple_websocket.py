@@ -16,7 +16,7 @@ from aiohttp import web
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class SimpleHAWebSocketService:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to Home Assistant: {e}")
+            logger.exception(f"❌ Failed to connect to Home Assistant: {e}")
             return False
 
     async def _authenticate(self) -> bool:
@@ -83,7 +83,7 @@ class SimpleHAWebSocketService:
             # Send authentication
             auth_msg = {
                 "type": "auth",
-                "access_token": self.ha_token
+                "access_token": self.ha_token,
             }
             await self.ws.send_json(auth_msg)
 
@@ -95,19 +95,18 @@ class SimpleHAWebSocketService:
                 self.is_authenticated = True
                 logger.info("✅ Authentication successful")
                 return True
-            else:
-                logger.error(f"❌ Authentication failed: {auth_response}")
-                return False
+            logger.error(f"❌ Authentication failed: {auth_response}")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Authentication error: {e}")
+            logger.exception(f"❌ Authentication error: {e}")
             return False
 
     async def _subscribe_to_events(self):
         """Subscribe to all Home Assistant events"""
         subscribe_msg = {
             "id": 1,
-            "type": "subscribe_events"
+            "type": "subscribe_events",
         }
         await self.ws.send_json(subscribe_msg)
 
@@ -133,7 +132,7 @@ class SimpleHAWebSocketService:
                     # No message received, continue
                     continue
                 except Exception as e:
-                    logger.error(f"❌ Error processing message: {e}")
+                    logger.exception(f"❌ Error processing message: {e}")
 
         except KeyboardInterrupt:
             logger.info("🛑 Interrupted by user")
@@ -208,11 +207,10 @@ class SimpleHAWebSocketService:
 
                         logger.debug("🌤️ Event enriched with weather data")
                         return enriched_event
-                    else:
-                        logger.warning(f"⚠️ Weather service returned {response.status}")
+                    logger.warning(f"⚠️ Weather service returned {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Weather enrichment failed: {e}")
+            logger.exception(f"❌ Weather enrichment failed: {e}")
 
         # Return original event if enrichment fails
         return event_data
@@ -223,7 +221,7 @@ class SimpleHAWebSocketService:
             async with aiohttp.ClientSession() as session, session.post(
                 f"{self.enrichment_service_url}/events",
                 json=event_data,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             ) as response:
                 if response.status == 200:
                     logger.debug("📤 Event sent to enrichment pipeline")
@@ -231,7 +229,7 @@ class SimpleHAWebSocketService:
                     logger.warning(f"⚠️ Enrichment pipeline returned {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to send event to enrichment pipeline: {e}")
+            logger.exception(f"❌ Failed to send event to enrichment pipeline: {e}")
 
     def get_health_status(self) -> dict[str, Any]:
         """Get health status for health check endpoint"""
@@ -245,10 +243,10 @@ class SimpleHAWebSocketService:
                 "enabled": self.weather_enrichment_enabled,
                 "api_calls": self.weather_api_calls,
                 "cache_hits": self.weather_cache_hits,
-                "enrichments": self.weather_enrichments
+                "enrichments": self.weather_enrichments,
             },
             "uptime": str(datetime.now() - self.start_time) if self.start_time else "0:00:00",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
 # Global service instance
@@ -272,11 +270,11 @@ async def start_service():
     if await websocket_service.connect():
         # Start HTTP server for health checks
         app = web.Application()
-        app.router.add_get('/health', health_check)
+        app.router.add_get("/health", health_check)
 
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', 8000)
+        site = web.TCPSite(runner, "0.0.0.0", 8000)
         await site.start()
 
         logger.info("🌐 Health check server started on port 8000")
@@ -284,16 +282,15 @@ async def start_service():
         # Start event processing
         await websocket_service.start_event_processing()
         return True
-    else:
-        logger.error("❌ Failed to connect to Home Assistant")
-        return False
+    logger.error("❌ Failed to connect to Home Assistant")
+    return False
 
 async def main():
     """Main function"""
     try:
         await start_service()
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+        logger.exception(f"❌ Unexpected error: {e}")
     finally:
         await websocket_service.stop()
 

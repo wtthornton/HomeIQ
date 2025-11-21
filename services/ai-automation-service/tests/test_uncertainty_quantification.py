@@ -39,7 +39,7 @@ def test_confidence_with_uncertainty_init():
         lower_bound=0.7,
         upper_bound=0.9,
         distribution="normal",
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert uncertainty.mean == 0.8
@@ -81,7 +81,7 @@ def test_bootstrap_no_historical_data(quantifier_bootstrap):
     uncertainty = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=np.array([]),
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert uncertainty.mean == 0.8
@@ -97,7 +97,7 @@ def test_bootstrap_with_historical_data(quantifier_bootstrap, sample_historical_
     uncertainty = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert 0.0 <= uncertainty.mean <= 1.0
@@ -114,7 +114,7 @@ def test_bootstrap_confidence_intervals(quantifier_bootstrap, sample_historical_
     uncertainty = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     # Mean should be within bounds
@@ -129,7 +129,7 @@ def test_bayesian_no_historical_data(quantifier_bayesian):
     uncertainty = quantifier_bayesian.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=np.array([]),
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert 0.0 <= uncertainty.mean <= 1.0
@@ -145,7 +145,7 @@ def test_bayesian_with_historical_data(quantifier_bayesian, sample_historical_da
     uncertainty = quantifier_bayesian.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert 0.0 <= uncertainty.mean <= 1.0
@@ -161,7 +161,7 @@ def test_bayesian_confidence_intervals(quantifier_bayesian, sample_historical_da
     uncertainty = quantifier_bayesian.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     # Mean should be within bounds
@@ -176,13 +176,13 @@ def test_different_confidence_levels(quantifier_bootstrap, sample_historical_dat
     uncertainty_90 = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     uncertainty_95 = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.95
+        confidence_level=0.95,
     )
 
     # 95% CI should be wider than 90% CI
@@ -197,7 +197,7 @@ def test_get_uncertainty_summary(quantifier_bootstrap, sample_historical_data):
     uncertainty = quantifier_bootstrap.calculate_uncertainty(
         raw_confidence=0.8,
         historical_data=sample_historical_data,
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     summary = quantifier_bootstrap.get_uncertainty_summary(uncertainty)
@@ -222,7 +222,7 @@ def test_bootstrap_n_samples(quantifier_bootstrap, sample_historical_data):
         raw_confidence=0.8,
         historical_data=sample_historical_data,
         n_samples=500,  # Smaller for faster tests
-        confidence_level=0.90
+        confidence_level=0.90,
     )
 
     assert 0.0 <= uncertainty.mean <= 1.0

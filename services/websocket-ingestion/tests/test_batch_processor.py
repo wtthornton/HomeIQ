@@ -240,7 +240,8 @@ class TestBatchProcessorErrorHandling:
 
         async def failing_handler(batch):
             attempt_count.append(1)
-            raise Exception("Handler error")
+            msg = "Handler error"
+            raise Exception(msg)
 
         processor.add_batch_handler(failing_handler)
 
@@ -263,7 +264,8 @@ class TestBatchProcessorErrorHandling:
         async def flaky_handler(batch):
             attempt_count.append(1)
             if len(attempt_count) < 2:
-                raise Exception("Temporary error")
+                msg = "Temporary error"
+                raise Exception(msg)
             # Success on second attempt
 
         processor.add_batch_handler(flaky_handler)
@@ -412,7 +414,8 @@ class TestBatchProcessorStatistics:
                 pass
             else:
                 # Second batch fails all retries
-                raise Exception("Error")
+                msg = "Error"
+                raise Exception(msg)
 
         processor.add_batch_handler(flaky_handler)
         processor.configure_retry_settings(attempts=1, delay=0.01)

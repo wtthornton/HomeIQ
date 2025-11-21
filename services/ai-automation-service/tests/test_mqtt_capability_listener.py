@@ -25,7 +25,7 @@ class TestMQTTCapabilityListener:
         self.listener = MQTTCapabilityListener(
             mqtt_client=self.mock_mqtt_client,
             db_session=self.mock_db_session,
-            parser=self.mock_parser
+            parser=self.mock_parser,
         )
 
     # =========================================================================
@@ -39,7 +39,7 @@ class TestMQTTCapabilityListener:
 
         # Should subscribe to bridge devices topic
         self.mock_mqtt_client.subscribe.assert_called_once_with(
-            "zigbee2mqtt/bridge/devices"
+            "zigbee2mqtt/bridge/devices",
         )
 
         # Should set message callback
@@ -78,7 +78,7 @@ class TestMQTTCapabilityListener:
         # Mock parser to return capabilities
         self.mock_parser.parse_exposes.return_value = {
             "light_control": {"type": "composite"},
-            "smart_bulb_mode": {"type": "enum"}
+            "smart_bulb_mode": {"type": "enum"},
         }
 
         devices = [
@@ -90,10 +90,10 @@ class TestMQTTCapabilityListener:
                     "description": "Red Series Dimmer Switch",
                     "exposes": [
                         {"type": "light", "features": [{"name": "state"}]},
-                        {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]}
-                    ]
-                }
-            }
+                        {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]},
+                    ],
+                },
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -112,8 +112,8 @@ class TestMQTTCapabilityListener:
         devices = [
             {
                 "friendly_name": "coordinator",
-                "definition": None  # No definition = coordinator
-            }
+                "definition": None,  # No definition = coordinator
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -132,9 +132,9 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Unknown",
                     "model": "Router",
-                    "exposes": []  # No exposes
-                }
-            }
+                    "exposes": [],  # No exposes
+                },
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -154,8 +154,8 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Manufacturer",
                     "model": f"Model{i}",
-                    "exposes": [{"type": "light"}]
-                }
+                    "exposes": [{"type": "light"}],
+                },
             }
             for i in range(5)
         ]
@@ -183,9 +183,9 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Test",
                     "model": "Test-1",
-                    "exposes": [{"type": "switch"}]
-                }
-            }
+                    "exposes": [{"type": "switch"}],
+                },
+            },
         ])
 
         # Call message handler
@@ -222,7 +222,7 @@ class TestMQTTCapabilityListener:
         mock_message.topic = "other/topic"
         mock_message.payload = b"data"
 
-        with patch('asyncio.create_task') as mock_task:
+        with patch("asyncio.create_task") as mock_task:
             self.listener._on_message(None, None, mock_message)
 
             # Should NOT create task for other topics
@@ -243,9 +243,9 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Test",
                     "model": "Test-1",
-                    "exposes": [{"type": "unknown"}]
-                }
-            }
+                    "exposes": [{"type": "unknown"}],
+                },
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -265,9 +265,9 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Test",
                     "model": "Test-1",
-                    "exposes": [{"type": "light"}]
-                }
-            }
+                    "exposes": [{"type": "light"}],
+                },
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -326,8 +326,8 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Manufacturer",
                     "model": f"Model{i}",
-                    "exposes": [{"type": "light"}]
-                }
+                    "exposes": [{"type": "light"}],
+                },
             }
             for i in range(100)
         ]
@@ -356,13 +356,13 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Inovelli",
                     "model": "VZM31-SN",
-                    "exposes": [{"type": "light"}]
-                }
+                    "exposes": [{"type": "light"}],
+                },
             },
             # Coordinator (no definition)
             {
                 "friendly_name": "coordinator",
-                "definition": None
+                "definition": None,
             },
             # Router (no exposes)
             {
@@ -370,8 +370,8 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Router",
                     "model": "Router-1",
-                    "exposes": []
-                }
+                    "exposes": [],
+                },
             },
             # Another valid device
             {
@@ -379,9 +379,9 @@ class TestMQTTCapabilityListener:
                 "definition": {
                     "vendor": "Aqara",
                     "model": "MCCGQ11LM",
-                    "exposes": [{"type": "binary"}]
-                }
-            }
+                    "exposes": [{"type": "binary"}],
+                },
+            },
         ]
 
         await self.listener._process_devices(devices)
@@ -411,7 +411,7 @@ class TestMQTTCapabilityListener:
         self.mock_parser.parse_exposes.side_effect = [
             {"light": {}},  # Success
             Exception("Parse error"),  # Error
-            {"switch": {}}  # Success
+            {"switch": {}},  # Success
         ]
 
         devices = [

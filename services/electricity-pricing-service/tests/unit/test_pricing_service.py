@@ -20,14 +20,14 @@ class TestDataFetching:
         THEN: Should return pricing data with timestamp
         """
         # Mock provider fetch
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = {
-                'current_price': sample_pricing_data['current_price'],
-                'currency': sample_pricing_data['currency'],
-                'peak_period': sample_pricing_data['peak_period'],
-                'cheapest_hours': sample_pricing_data['cheapest_hours'],
-                'most_expensive_hours': sample_pricing_data['most_expensive_hours'],
-                'forecast_24h': sample_pricing_data['forecast_24h']
+                "current_price": sample_pricing_data["current_price"],
+                "currency": sample_pricing_data["currency"],
+                "peak_period": sample_pricing_data["peak_period"],
+                "cheapest_hours": sample_pricing_data["cheapest_hours"],
+                "most_expensive_hours": sample_pricing_data["most_expensive_hours"],
+                "forecast_24h": sample_pricing_data["forecast_24h"],
             }
 
             # Initialize session
@@ -36,10 +36,10 @@ class TestDataFetching:
             data = await service_instance.fetch_pricing()
 
             assert data is not None
-            assert data['current_price'] == 0.285
-            assert data['currency'] == 'EUR'
-            assert 'timestamp' in data
-            assert data['provider'] == 'awattar'
+            assert data["current_price"] == 0.285
+            assert data["currency"] == "EUR"
+            assert "timestamp" in data
+            assert data["provider"] == "awattar"
 
     @pytest.mark.asyncio
     async def test_fetch_pricing_updates_cache(self, service_instance, sample_pricing_data):
@@ -48,7 +48,7 @@ class TestDataFetching:
         WHEN: Fetch completes successfully
         THEN: Should update cached_data and last_fetch_time
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
@@ -56,12 +56,12 @@ class TestDataFetching:
             assert service_instance.cached_data is None
             assert service_instance.last_fetch_time is None
 
-            data = await service_instance.fetch_pricing()
+            await service_instance.fetch_pricing()
 
             # Cache should be updated
             assert service_instance.cached_data is not None
             assert service_instance.last_fetch_time is not None
-            assert service_instance.cached_data['current_price'] == 0.285
+            assert service_instance.cached_data["current_price"] == 0.285
 
     @pytest.mark.asyncio
     async def test_fetch_pricing_updates_health_stats(self, service_instance, sample_pricing_data):
@@ -70,7 +70,7 @@ class TestDataFetching:
         WHEN: Fetch succeeds
         THEN: Should increment total_fetches and update last_successful_fetch
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
@@ -88,7 +88,7 @@ class TestDataFetching:
         WHEN: Fetch pricing
         THEN: Should increment failed_fetches counter
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
             service_instance.session = AsyncMock()
 
@@ -109,7 +109,7 @@ class TestDataFetching:
         # Set up cached data
         service_instance.cached_data = sample_pricing_data.copy()
 
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
             service_instance.session = AsyncMock()
 
@@ -129,14 +129,14 @@ class TestDataCaching:
         WHEN: Successful fetch
         THEN: Cache should be populated
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
             await service_instance.fetch_pricing()
 
             assert service_instance.cached_data is not None
-            assert 'current_price' in service_instance.cached_data
+            assert "current_price" in service_instance.cached_data
 
     @pytest.mark.asyncio
     async def test_cache_updated_on_new_fetch(self, service_instance, sample_pricing_data, sample_cheap_pricing):
@@ -145,18 +145,18 @@ class TestDataCaching:
         WHEN: New fetch with different data
         THEN: Cache should be updated with new data
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             service_instance.session = AsyncMock()
 
             # First fetch
             mock_fetch.return_value = sample_pricing_data.copy()
             await service_instance.fetch_pricing()
-            assert service_instance.cached_data['current_price'] == 0.285
+            assert service_instance.cached_data["current_price"] == 0.285
 
             # Second fetch with different price
             mock_fetch.return_value = sample_cheap_pricing.copy()
             await service_instance.fetch_pricing()
-            assert service_instance.cached_data['current_price'] == 0.18
+            assert service_instance.cached_data["current_price"] == 0.18
 
     @pytest.mark.asyncio
     async def test_last_fetch_time_updated(self, service_instance, sample_pricing_data):
@@ -165,7 +165,7 @@ class TestDataCaching:
         WHEN: Fetch completes
         THEN: last_fetch_time should be updated
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
@@ -238,12 +238,11 @@ class TestAPIEndpoints:
 
         # Mock request
         request = MagicMock()
-        request.query = {'hours': '4'}
+        request.query = {"hours": "4"}
 
         response = await service_instance.get_cheapest_hours(request)
 
         assert response.status == 200
-        data = response.body
         # Response should contain cheapest_hours
 
     @pytest.mark.asyncio
@@ -273,7 +272,7 @@ class TestAPIEndpoints:
         service_instance.cached_data = None
 
         request = MagicMock()
-        request.query = {'hours': '4'}
+        request.query = {"hours": "4"}
 
         response = await service_instance.get_cheapest_hours(request)
 
@@ -290,7 +289,7 @@ class TestAPIEndpoints:
         service_instance.last_fetch_time = datetime.now()
 
         request = MagicMock()
-        request.query = {'hours': '2'}
+        request.query = {"hours": "2"}
 
         response = await service_instance.get_cheapest_hours(request)
 
@@ -365,7 +364,7 @@ class TestHealthHandler:
         WHEN: Fetch succeeds
         THEN: Health handler should be updated
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
@@ -383,7 +382,7 @@ class TestHealthHandler:
         WHEN: Fetch fails
         THEN: Health handler should track failure
         """
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service_instance.provider, "fetch_pricing", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
             service_instance.session = AsyncMock()
 

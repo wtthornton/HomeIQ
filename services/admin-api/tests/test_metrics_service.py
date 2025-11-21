@@ -20,7 +20,7 @@ class TestMetricValue:
         value = MetricValue(
             timestamp="2024-01-01T00:00:00Z",
             value=42.5,
-            labels={"service": "test"}
+            labels={"service": "test"},
         )
 
         assert value.timestamp == "2024-01-01T00:00:00Z"
@@ -32,7 +32,7 @@ class TestMetricValue:
         value = MetricValue(
             timestamp="2024-01-01T00:00:00Z",
             value=42.5,
-            labels={"service": "test"}
+            labels={"service": "test"},
         )
 
         data = value.to_dict()
@@ -52,7 +52,7 @@ class TestMetric:
             type=MetricType.GAUGE,
             description="Test metric",
             unit="count",
-            values=[]
+            values=[],
         )
 
         assert metric.name == "test_metric"
@@ -70,7 +70,7 @@ class TestMetric:
             description="Test metric",
             unit="count",
             values=[value],
-            labels={"service": "test"}
+            labels={"service": "test"},
         )
 
         data = metric.to_dict()
@@ -103,7 +103,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         assert "test_metric" in collector.metrics
@@ -121,7 +121,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         collector.record_value("test_metric", 42.5, {"service": "test"})
@@ -139,7 +139,7 @@ class TestMetricsCollector:
             name="test_counter",
             metric_type=MetricType.COUNTER,
             description="Test counter",
-            unit="count"
+            unit="count",
         )
 
         # First increment
@@ -158,7 +158,7 @@ class TestMetricsCollector:
             name="test_gauge",
             metric_type=MetricType.GAUGE,
             description="Test gauge",
-            unit="count"
+            unit="count",
         )
 
         collector.set_gauge("test_gauge", 42.5)
@@ -175,7 +175,7 @@ class TestMetricsCollector:
             name="test_timer",
             metric_type=MetricType.TIMER,
             description="Test timer",
-            unit="seconds"
+            unit="seconds",
         )
 
         collector.record_timer("test_timer", 1.5, {"operation": "test"})
@@ -193,7 +193,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         # No values yet
@@ -214,7 +214,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         # Add values with different labels
@@ -233,7 +233,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         metric = collector.get_metric("test_metric")
@@ -310,7 +310,7 @@ class TestPerformanceTracker:
             name="operation_duration_seconds",
             metric_type=MetricType.TIMER,
             description="Operation duration",
-            unit="seconds"
+            unit="seconds",
         )
 
         # Start operation

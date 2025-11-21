@@ -16,7 +16,7 @@ from aiohttp import web
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class EnhancedHAWebSocketService:
                 name="Primary (HA Simulator)",
                 url=primary_url,
                 token=primary_token,
-                priority=1
+                priority=1,
             ))
 
         # Nabu Casa fallback connection
@@ -94,7 +94,7 @@ class EnhancedHAWebSocketService:
                 name="Nabu Casa Fallback",
                 url=nabu_casa_url,
                 token=nabu_casa_token,
-                priority=2
+                priority=2,
             ))
 
         # Additional fallback connections can be added here
@@ -107,7 +107,7 @@ class EnhancedHAWebSocketService:
                 name="Local Home Assistant",
                 url=local_ha_url,
                 token=local_ha_token,
-                priority=3
+                priority=3,
             ))
 
         # Sort by priority
@@ -154,12 +154,13 @@ class EnhancedHAWebSocketService:
                 self.session = aiohttp.ClientSession()
                 self.ws = await self.session.ws_connect(
                     connection.ws_url,
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    timeout=aiohttp.ClientTimeout(total=30),
                 )
 
                 # Authenticate
                 if not await self._authenticate(connection):
-                    raise Exception("Authentication failed")
+                    msg = "Authentication failed"
+                    raise Exception(msg)
 
                 # Subscribe to events
                 await self._subscribe_to_events()
@@ -181,7 +182,7 @@ class EnhancedHAWebSocketService:
                 return True
 
             except Exception as e:
-                logger.error(f"❌ Failed to connect to {connection.name}: {e}")
+                logger.exception(f"❌ Failed to connect to {connection.name}: {e}")
                 connection.failure_count += 1
                 connection.is_available = False
 
@@ -212,7 +213,7 @@ class EnhancedHAWebSocketService:
             # Send authentication
             auth_msg = {
                 "type": "auth",
-                "access_token": connection.token
+                "access_token": connection.token,
             }
             await self.ws.send_json(auth_msg)
 
@@ -224,12 +225,11 @@ class EnhancedHAWebSocketService:
                 self.is_authenticated = True
                 logger.info(f"✅ Authentication successful with {connection.name}")
                 return True
-            else:
-                logger.error(f"❌ Authentication failed with {connection.name}: {auth_response}")
-                return False
+            logger.error(f"❌ Authentication failed with {connection.name}: {auth_response}")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Authentication error with {connection.name}: {e}")
+            logger.exception(f"❌ Authentication error with {connection.name}: {e}")
             return False
 
     async def _subscribe_to_events(self):
@@ -237,7 +237,7 @@ class EnhancedHAWebSocketService:
         try:
             subscribe_msg = {
                 "id": 1,
-                "type": "subscribe_events"
+                "type": "subscribe_events",
             }
             await self.ws.send_json(subscribe_msg)
 
@@ -248,10 +248,11 @@ class EnhancedHAWebSocketService:
             if response.get("type") == "result" and response.get("success"):
                 logger.info("✅ Event subscription successful")
             else:
-                raise Exception(f"Event subscription failed: {response}")
+                msg = f"Event subscription failed: {response}"
+                raise Exception(msg)
 
         except Exception as e:
-            logger.error(f"❌ Event subscription error: {e}")
+            logger.exception(f"❌ Event subscription error: {e}")
             raise
 
     async def _reconnect_with_fallback(self):
@@ -292,7 +293,7 @@ class EnhancedHAWebSocketService:
                     logger.debug(f"📨 Received message: {message}")
 
             except Exception as e:
-                logger.error(f"❌ Error processing events: {e}")
+                logger.exception(f"❌ Error processing events: {e}")
                 self.is_connected = False
                 await asyncio.sleep(5)
 
@@ -313,7 +314,7 @@ class EnhancedHAWebSocketService:
             await self._send_to_enrichment_pipeline(event)
 
         except Exception as e:
-            logger.error(f"❌ Error handling event: {e}")
+            logger.exception(f"❌ Error handling event: {e}")
 
     async def _enrich_with_weather(self, event: dict[str, Any]):
         """Enrich event with weather data"""
@@ -335,7 +336,7 @@ class EnhancedHAWebSocketService:
                         logger.warning(f"⚠️  Weather API unavailable: {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Weather enrichment error: {e}")
+            logger.exception(f"❌ Weather enrichment error: {e}")
 
     async def _send_to_enrichment_pipeline(self, event: dict[str, Any]):
         """Send event to enrichment pipeline"""
@@ -343,7 +344,7 @@ class EnhancedHAWebSocketService:
             async with aiohttp.ClientSession() as session, session.post(
                 f"{self.enrichment_service_url}/enrich",
                 json=event,
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 200:
                     logger.debug("📤 Event sent to enrichment pipeline")
@@ -351,7 +352,7 @@ class EnhancedHAWebSocketService:
                     logger.warning(f"⚠️  Enrichment pipeline error: {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Enrichment pipeline error: {e}")
+            logger.exception(f"❌ Enrichment pipeline error: {e}")
 
     async def start_health_server(self):
         """Start health check server"""
@@ -368,15 +369,15 @@ class EnhancedHAWebSocketService:
                 "weather_enrichments": self.weather_enrichments,
                 "uptime_seconds": (datetime.now() - self.start_time).seconds if self.start_time else 0,
                 "available_connections": len([c for c in self.connections if c.is_available]),
-                "total_connections": len(self.connections)
+                "total_connections": len(self.connections),
             }
             return web.json_response(stats)
 
-        app.router.add_get('/health', health_check)
+        app.router.add_get("/health", health_check)
 
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', 8000)
+        site = web.TCPSite(runner, "0.0.0.0", 8000)
         await site.start()
         logger.info("🌐 Health check server started on port 8000")
 
@@ -400,7 +401,7 @@ class EnhancedHAWebSocketService:
         except KeyboardInterrupt:
             logger.info("🛑 Service stopped by user")
         except Exception as e:
-            logger.error(f"❌ Service error: {e}")
+            logger.exception(f"❌ Service error: {e}")
         finally:
             await self.cleanup()
 

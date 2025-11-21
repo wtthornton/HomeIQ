@@ -81,7 +81,7 @@ async def test_rerank_endpoint(wired_manager):
     expected_top = max(
         request.candidates,
         key=lambda candidate: cosine_similarity(
-            query_vec, deterministic_embedding(candidate["description"])
+            query_vec, deterministic_embedding(candidate["description"]),
         ),
     )
     assert response.ranked_candidates[0]["id"] == expected_top["id"]

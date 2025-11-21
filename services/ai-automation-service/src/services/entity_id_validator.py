@@ -23,13 +23,13 @@ class ValidationResult:
 class EntityIDValidator:
     """
     Validates entity_id values in YAML structure.
-    
+
     Recursively checks all entity_id values to ensure they are:
     - Not None
     - Not empty strings
     - String type
     - Valid format (domain.entity)
-    
+
     Can also auto-fix incomplete entity IDs using validated entities.
     """
 
@@ -37,16 +37,16 @@ class EntityIDValidator:
         self,
         yaml_data: dict,
         validated_entities: list[str] | None = None,
-        auto_fix: bool = True
+        auto_fix: bool = True,
     ) -> ValidationResult:
         """
         Recursively validate all entity_id values in YAML.
-        
+
         Args:
             yaml_data: Parsed YAML dictionary
             validated_entities: List of validated entity IDs for auto-fixing
             auto_fix: Whether to attempt auto-fixing incomplete entity IDs
-            
+
         Returns:
             ValidationResult with validation status and errors
         """
@@ -67,8 +67,8 @@ class EntityIDValidator:
         if validated_entities and auto_fix:
             logger.debug(f"🔍 Building maps from {len(validated_entities)} validated entities: {validated_entities[:5]}")
             for entity_id in validated_entities:
-                if isinstance(entity_id, str) and '.' in entity_id:
-                    domain, name = entity_id.split('.', 1)
+                if isinstance(entity_id, str) and "." in entity_id:
+                    domain, name = entity_id.split(".", 1)
 
                     # Domain map: domain -> [entity_ids]
                     if domain not in domain_map:
@@ -82,7 +82,7 @@ class EntityIDValidator:
 
                     # Entity name parts map: partial matches
                     # Add each word in the name (split by underscore)
-                    name_parts = name.split('_')
+                    name_parts = name.split("_")
                     for part in name_parts:
                         if part:
                             if part not in entity_name_parts_map:
@@ -113,12 +113,12 @@ class EntityIDValidator:
             if not isinstance(entity_id, str):
                 errors.append(
                     f"❌ {location}: entity_id is {type(entity_id).__name__}, "
-                    f"expected string, got: {entity_id}"
+                    f"expected string, got: {entity_id}",
                 )
                 continue
 
             # Check format (domain.entity)
-            if '.' not in entity_id:
+            if "." not in entity_id:
                 # AUTO-FIX: Try to complete incomplete entity IDs using validated entities
                 # entity_id might be just a domain (e.g., 'wled') or entity name
                 if auto_fix and validated_entities:
@@ -146,8 +146,8 @@ class EntityIDValidator:
                     # Strategy 4: Substring matching - check if entity_id is contained in domain or entity name
                     if not candidates:
                         for valid_id in validated_entities:
-                            if isinstance(valid_id, str) and '.' in valid_id:
-                                domain, name = valid_id.split('.', 1)
+                            if isinstance(valid_id, str) and "." in valid_id:
+                                domain, name = valid_id.split(".", 1)
                                 domain_lower = domain.lower()
                                 name_lower = name.lower()
 
@@ -162,8 +162,8 @@ class EntityIDValidator:
                     if not candidates:
                         # Simple fuzzy match: check character similarity
                         for valid_id in validated_entities:
-                            if isinstance(valid_id, str) and '.' in valid_id:
-                                domain, name = valid_id.split('.', 1)
+                            if isinstance(valid_id, str) and "." in valid_id:
+                                domain, name = valid_id.split(".", 1)
                                 # Check if entity_id is similar to domain or name (at least 70% match)
                                 if self._fuzzy_match(entity_id_lower, domain.lower(), threshold=0.7) or self._fuzzy_match(entity_id_lower, name.lower(), threshold=0.7):
                                     candidates.append(valid_id)
@@ -180,8 +180,7 @@ class EntityIDValidator:
                             # Re-extract entity IDs after fix to update the loop
                             entity_ids = self._extract_all_entity_ids(yaml_data)
                             continue
-                        else:
-                            logger.warning(f"⚠️ Could not apply fix to {location}")
+                        logger.warning(f"⚠️ Could not apply fix to {location}")
                     elif len(candidates) > 1:
                         # Multiple matches - use the first one but warn
                         fixed_id = candidates[0]
@@ -189,62 +188,61 @@ class EntityIDValidator:
                             fixes_applied.append(f"{location}: '{entity_id}' → '{fixed_id}' (selected from {len(candidates)} matches)")
                             warnings.append(
                                 f"⚠️ {location}: entity_id '{entity_id}' matched {len(candidates)} entities. "
-                                f"Using: {fixed_id}. Other candidates: {', '.join(candidates[1:3])}"
+                                f"Using: {fixed_id}. Other candidates: {', '.join(candidates[1:3])}",
                             )
                             logger.info(f"🔧 Auto-fixed {location}: '{entity_id}' → '{fixed_id}' (from {len(candidates)} candidates)")
                             # Re-extract entity IDs after fix to update the loop
                             entity_ids = self._extract_all_entity_ids(yaml_data)
                             continue
-                        else:
-                            logger.warning(f"⚠️ Could not apply fix to {location}")
+                        logger.warning(f"⚠️ Could not apply fix to {location}")
                     else:
                         logger.warning(f"⚠️ No candidates found for incomplete entity_id '{entity_id}' in validated entities: {validated_entities[:10]}")
 
                 errors.append(
                     f"❌ {location}: entity_id '{entity_id}' doesn't contain '.' "
-                    f"(required format: domain.entity)"
+                    f"(required format: domain.entity)",
                 )
                 continue
 
-            if entity_id.count('.') != 1:
+            if entity_id.count(".") != 1:
                 errors.append(
                     f"❌ {location}: entity_id '{entity_id}' has {entity_id.count('.')} dots, "
-                    f"expected exactly 1 (format: domain.entity)"
+                    f"expected exactly 1 (format: domain.entity)",
                 )
                 continue
 
             # Check domain is valid (not empty, doesn't start with digit)
-            domain, entity_name = entity_id.split('.', 1)
+            domain, entity_name = entity_id.split(".", 1)
             if not domain or not domain.strip():
                 errors.append(
-                    f"❌ {location}: Invalid domain in entity_id '{entity_id}' (domain is empty)"
+                    f"❌ {location}: Invalid domain in entity_id '{entity_id}' (domain is empty)",
                 )
             elif domain[0].isdigit():
                 errors.append(
-                    f"❌ {location}: Invalid domain in entity_id '{entity_id}' (domain starts with digit)"
+                    f"❌ {location}: Invalid domain in entity_id '{entity_id}' (domain starts with digit)",
                 )
-            elif not all(c.islower() or c.isdigit() or c == '_' for c in domain):
+            elif not all(c.islower() or c.isdigit() or c == "_" for c in domain):
                 errors.append(
                     f"❌ {location}: Invalid domain in entity_id '{entity_id}' "
-                    f"(domain must be lowercase letters, numbers, and underscores only)"
+                    f"(domain must be lowercase letters, numbers, and underscores only)",
                 )
 
             if not entity_name or not entity_name.strip():
                 errors.append(
-                    f"❌ {location}: Invalid entity name in entity_id '{entity_id}' (name is empty)"
+                    f"❌ {location}: Invalid entity name in entity_id '{entity_id}' (name is empty)",
                 )
             else:
                 # Check entity name follows HA naming conventions
                 entity_name_stripped = entity_name.strip()
-                if entity_name_stripped.startswith('_') or entity_name_stripped.endswith('_'):
+                if entity_name_stripped.startswith("_") or entity_name_stripped.endswith("_"):
                     errors.append(
                         f"❌ {location}: Invalid entity name in entity_id '{entity_id}' "
-                        f"(name cannot start or end with underscore per HA requirements)"
+                        f"(name cannot start or end with underscore per HA requirements)",
                     )
-                elif not all(c.islower() or c.isdigit() or c == '_' for c in entity_name_stripped):
+                elif not all(c.islower() or c.isdigit() or c == "_" for c in entity_name_stripped):
                     errors.append(
                         f"❌ {location}: Invalid entity name in entity_id '{entity_id}' "
-                        f"(name must be lowercase letters, numbers, and underscores only per HA requirements)"
+                        f"(name must be lowercase letters, numbers, and underscores only per HA requirements)",
                     )
 
         if fixes_applied:
@@ -254,13 +252,13 @@ class EntityIDValidator:
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def _extract_all_entity_ids(self, yaml_data: dict) -> list[tuple[str, str]]:
         """
         Recursively extract all entity_id values with their locations.
-        
+
         Returns:
             List of tuples: (entity_id, location_path)
         """
@@ -271,15 +269,15 @@ class EntityIDValidator:
             if not isinstance(eid, str):
                 return str(eid) if eid is not None else None
             # Remove trailing commas and whitespace
-            cleaned = eid.rstrip(', ').strip()
+            cleaned = eid.rstrip(", ").strip()
             return cleaned if cleaned else None
 
         # Check triggers
-        triggers = yaml_data.get('trigger', yaml_data.get('triggers', []))
+        triggers = yaml_data.get("trigger", yaml_data.get("triggers", []))
         if isinstance(triggers, list):
             for i, trigger in enumerate(triggers):
                 if isinstance(trigger, dict):
-                    entity_id = trigger.get('entity_id')
+                    entity_id = trigger.get("entity_id")
                     if entity_id is not None:
                         if isinstance(entity_id, list):
                             for j, eid in enumerate(entity_id):
@@ -292,16 +290,16 @@ class EntityIDValidator:
                                 entity_ids.append((cleaned_eid, f"trigger[{i}].entity_id"))
 
         # Check actions (recursive)
-        actions = yaml_data.get('action', yaml_data.get('actions', []))
+        actions = yaml_data.get("action", yaml_data.get("actions", []))
         if actions:
             entity_ids.extend(self._extract_from_actions(actions, "action"))
 
         # Check conditions
-        conditions = yaml_data.get('condition', yaml_data.get('conditions', []))
+        conditions = yaml_data.get("condition", yaml_data.get("conditions", []))
         if isinstance(conditions, list):
             for i, condition in enumerate(conditions):
                 if isinstance(condition, dict):
-                    entity_id = condition.get('entity_id')
+                    entity_id = condition.get("entity_id")
                     if entity_id is not None:
                         if isinstance(entity_id, list):
                             for j, eid in enumerate(entity_id):
@@ -340,13 +338,13 @@ class EntityIDValidator:
             if not isinstance(eid, str):
                 return str(eid) if eid is not None else None
             # Remove trailing commas and whitespace
-            cleaned = eid.rstrip(', ').strip()
+            cleaned = eid.rstrip(", ").strip()
             return cleaned if cleaned else None
 
         # Check target.entity_id (single or list)
-        target = action.get('target', {})
+        target = action.get("target", {})
         if isinstance(target, dict):
-            entity_id = target.get('entity_id')
+            entity_id = target.get("entity_id")
             if entity_id is not None:
                 if isinstance(entity_id, str):
                     cleaned_eid = _clean_entity_id(entity_id)
@@ -359,7 +357,7 @@ class EntityIDValidator:
                             entity_ids.append((cleaned_eid, f"{path}.target.entity_id[{j}]"))
 
         # Check direct entity_id
-        entity_id = action.get('entity_id')
+        entity_id = action.get("entity_id")
         if entity_id is not None:
             if isinstance(entity_id, str):
                 cleaned_eid = _clean_entity_id(entity_id)
@@ -372,41 +370,41 @@ class EntityIDValidator:
                         entity_ids.append((cleaned_eid, f"{path}.entity_id[{j}]"))
 
         # Check sequence (nested)
-        if 'sequence' in action:
-            sequence = action['sequence']
+        if "sequence" in action:
+            sequence = action["sequence"]
             if sequence:  # Only if sequence exists and is not empty
                 entity_ids.extend(self._extract_from_actions(sequence, f"{path}.sequence"))
 
         # Check repeat.sequence (nested)
-        if 'repeat' in action:
-            repeat = action['repeat']
-            if isinstance(repeat, dict) and 'sequence' in repeat:
-                sequence = repeat['sequence']
+        if "repeat" in action:
+            repeat = action["repeat"]
+            if isinstance(repeat, dict) and "sequence" in repeat:
+                sequence = repeat["sequence"]
                 if sequence:
                     entity_ids.extend(self._extract_from_actions(sequence, f"{path}.repeat.sequence"))
 
         # Check choose branches
-        if 'choose' in action:
-            choose = action['choose']
+        if "choose" in action:
+            choose = action["choose"]
             if isinstance(choose, list):
                 for i, branch in enumerate(choose):
-                    if isinstance(branch, dict) and 'sequence' in branch:
-                        sequence = branch['sequence']
+                    if isinstance(branch, dict) and "sequence" in branch:
+                        sequence = branch["sequence"]
                         if sequence:
                             entity_ids.extend(
-                                self._extract_from_actions(sequence, f"{path}.choose[{i}].sequence")
+                                self._extract_from_actions(sequence, f"{path}.choose[{i}].sequence"),
                             )
 
         return entity_ids
 
     def _fuzzy_match(self, str1: str, str2: str, threshold: float = 0.7) -> bool:
         """Simple fuzzy matching based on character similarity
-        
+
         Args:
             str1: First string to compare
             str2: Second string to compare
             threshold: Minimum similarity ratio (0.0 to 1.0)
-            
+
         Returns:
             True if strings are similar enough (above threshold)
         """
@@ -439,9 +437,9 @@ class EntityIDValidator:
 
     def _apply_fix_to_yaml(self, yaml_data: dict, location: str, old_id: str, new_id: str) -> bool:
         """Apply a fix to the YAML data structure by updating entity_id at the given location
-        
+
         Handles complex nested paths like: action[0].sequence[1].repeat.sequence[0].target.entity_id
-        
+
         Returns:
             True if fix was applied successfully, False otherwise
         """
@@ -451,11 +449,11 @@ class EntityIDValidator:
             # Becomes: [('action', 0), ('sequence', 1), ('repeat', None), ('sequence', 0), ('target', None), ('entity_id', None)]
 
             segments = []
-            for segment in location.split('.'):
-                if '[' in segment:
+            for segment in location.split("."):
+                if "[" in segment:
                     # Array access: action[0] or sequence[1]
-                    key, index_str = segment.split('[', 1)
-                    index = int(index_str.rstrip(']'))
+                    key, index_str = segment.split("[", 1)
+                    index = int(index_str.rstrip("]"))
                     segments.append((key, index))
                 else:
                     # Dictionary access: target, entity_id
@@ -500,15 +498,14 @@ class EntityIDValidator:
                 current[target_key][target_index] = new_id
                 logger.debug(f"✅ Fixed {location}: '{old_id}' → '{new_id}'")
                 return True
-            else:
-                # Target is a direct dictionary key: entity_id
-                if not isinstance(current, dict):
-                    logger.warning(f"Path {location}: Parent is not a dict for '{target_key}'")
-                    return False
+            # Target is a direct dictionary key: entity_id
+            if not isinstance(current, dict):
+                logger.warning(f"Path {location}: Parent is not a dict for '{target_key}'")
+                return False
 
-                current[target_key] = new_id
-                logger.debug(f"✅ Fixed {location}: '{old_id}' → '{new_id}'")
-                return True
+            current[target_key] = new_id
+            logger.debug(f"✅ Fixed {location}: '{old_id}' → '{new_id}'")
+            return True
 
         except (KeyError, IndexError, ValueError, AttributeError, TypeError) as e:
             logger.warning(f"Could not apply fix to {location}: {e}", exc_info=True)

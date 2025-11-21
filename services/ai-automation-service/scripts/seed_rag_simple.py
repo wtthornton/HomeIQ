@@ -10,15 +10,15 @@ from datetime import datetime
 from pathlib import Path
 
 # Fix Windows encoding
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Database path
 db_path = Path(__file__).parent.parent / "data" / "ai_automation.db"
 
 if not db_path.exists():
     print(f"❌ Database not found: {db_path}")
-    exit(1)
+    sys.exit(1)
 
 conn = sqlite3.connect(str(db_path))
 cursor = conn.cursor()
@@ -29,7 +29,7 @@ if not cursor.fetchone():
     print("❌ Table 'semantic_knowledge' does not exist")
     print("   Run: python scripts/create_rag_table.py")
     conn.close()
-    exit(1)
+    sys.exit(1)
 
 # Check for existing entries
 cursor.execute("SELECT COUNT(*) FROM semantic_knowledge")
@@ -38,9 +38,9 @@ existing_count = cursor.fetchone()[0]
 if existing_count > 0:
     print(f"⚠️  Knowledge base already has {existing_count} entries")
     response = input("Continue seeding? (y/n): ")
-    if response.lower() != 'y':
+    if response.lower() != "y":
         conn.close()
-        exit(0)
+        sys.exit(0)
 
 # Try to import patterns
 try:
@@ -61,22 +61,22 @@ try:
 
             # Store pattern
             cursor.execute("""
-                INSERT INTO semantic_knowledge 
+                INSERT INTO semantic_knowledge
                 (text, embedding, knowledge_type, knowledge_metadata, success_score, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 pattern_text,
                 embedding_placeholder,
-                'pattern',
+                "pattern",
                 json.dumps({
-                    'pattern_id': pattern_id,
-                    'category': pattern.category,
-                    'keywords': pattern.keywords,
-                    'priority': pattern.priority
+                    "pattern_id": pattern_id,
+                    "category": pattern.category,
+                    "keywords": pattern.keywords,
+                    "priority": pattern.priority,
                 }),
                 0.9,  # Patterns are high-quality, hand-crafted
                 datetime.utcnow().isoformat(),
-                datetime.utcnow().isoformat()
+                datetime.utcnow().isoformat(),
             ))
             count += 1
 

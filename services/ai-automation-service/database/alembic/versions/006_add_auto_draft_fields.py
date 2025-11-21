@@ -30,8 +30,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # Revision identifiers
-revision = '006_auto_draft_expert_mode'
-down_revision = '20251020_add_pattern_synergy_integration'
+revision = "006_auto_draft_expert_mode"
+down_revision = "20251020_add_pattern_synergy_integration"
 branch_labels = None
 depends_on = None
 
@@ -44,23 +44,23 @@ def upgrade():
     # ========================================================================
 
     # Add yaml_generated_at timestamp
-    op.add_column('suggestions',
-        sa.Column('yaml_generated_at', sa.DateTime(), nullable=True,
-                  comment='Timestamp when YAML was auto-generated')
+    op.add_column("suggestions",
+        sa.Column("yaml_generated_at", sa.DateTime(), nullable=True,
+                  comment="Timestamp when YAML was auto-generated"),
     )
 
     # Add yaml_generation_error for failure tracking
-    op.add_column('suggestions',
-        sa.Column('yaml_generation_error', sa.Text(), nullable=True,
-                  comment='Error message if YAML auto-generation failed')
+    op.add_column("suggestions",
+        sa.Column("yaml_generation_error", sa.Text(), nullable=True,
+                  comment="Error message if YAML auto-generation failed"),
     )
 
     # Add yaml_generation_method to track how YAML was created
     # Values: 'auto_draft', 'auto_draft_async', 'on_approval', 'on_approval_regenerated',
     #         'expert_manual', 'expert_manual_edited'
-    op.add_column('suggestions',
-        sa.Column('yaml_generation_method', sa.String(50), nullable=True,
-                  comment='Method used for YAML generation')
+    op.add_column("suggestions",
+        sa.Column("yaml_generation_method", sa.String(50), nullable=True,
+                  comment="Method used for YAML generation"),
     )
 
     # ========================================================================
@@ -69,21 +69,21 @@ def upgrade():
 
     # Add mode field to track suggestion mode
     # Values: 'auto_draft' (default), 'expert'
-    op.add_column('suggestions',
-        sa.Column('mode', sa.String(20), nullable=True, server_default='auto_draft',
-                  comment='Suggestion mode: auto_draft or expert')
+    op.add_column("suggestions",
+        sa.Column("mode", sa.String(20), nullable=True, server_default="auto_draft",
+                  comment="Suggestion mode: auto_draft or expert"),
     )
 
     # Add yaml_edited_at timestamp for manual edits
-    op.add_column('suggestions',
-        sa.Column('yaml_edited_at', sa.DateTime(), nullable=True,
-                  comment='Timestamp when YAML was manually edited in expert mode')
+    op.add_column("suggestions",
+        sa.Column("yaml_edited_at", sa.DateTime(), nullable=True,
+                  comment="Timestamp when YAML was manually edited in expert mode"),
     )
 
     # Add yaml_edit_count to track number of manual edits
-    op.add_column('suggestions',
-        sa.Column('yaml_edit_count', sa.Integer(), nullable=True, server_default='0',
-                  comment='Number of manual YAML edits made in expert mode')
+    op.add_column("suggestions",
+        sa.Column("yaml_edit_count", sa.Integer(), nullable=True, server_default="0",
+                  comment="Number of manual YAML edits made in expert mode"),
     )
 
     # ========================================================================
@@ -92,32 +92,32 @@ def upgrade():
 
     # Auto-draft indexes
     op.create_index(
-        'ix_suggestions_yaml_generated_at',
-        'suggestions',
-        ['yaml_generated_at'],
-        unique=False
+        "ix_suggestions_yaml_generated_at",
+        "suggestions",
+        ["yaml_generated_at"],
+        unique=False,
     )
 
     op.create_index(
-        'ix_suggestions_status_yaml_generated',
-        'suggestions',
-        ['status', 'yaml_generated_at'],
-        unique=False
+        "ix_suggestions_status_yaml_generated",
+        "suggestions",
+        ["status", "yaml_generated_at"],
+        unique=False,
     )
 
     # Expert mode indexes
     op.create_index(
-        'ix_suggestions_mode',
-        'suggestions',
-        ['mode'],
-        unique=False
+        "ix_suggestions_mode",
+        "suggestions",
+        ["mode"],
+        unique=False,
     )
 
     op.create_index(
-        'ix_suggestions_yaml_edited_at',
-        'suggestions',
-        ['yaml_edited_at'],
-        unique=False
+        "ix_suggestions_yaml_edited_at",
+        "suggestions",
+        ["yaml_edited_at"],
+        unique=False,
     )
 
 
@@ -125,17 +125,17 @@ def downgrade():
     """Remove auto-draft and expert mode fields"""
 
     # Drop indexes first
-    op.drop_index('ix_suggestions_yaml_edited_at', 'suggestions')
-    op.drop_index('ix_suggestions_mode', 'suggestions')
-    op.drop_index('ix_suggestions_status_yaml_generated', 'suggestions')
-    op.drop_index('ix_suggestions_yaml_generated_at', 'suggestions')
+    op.drop_index("ix_suggestions_yaml_edited_at", "suggestions")
+    op.drop_index("ix_suggestions_mode", "suggestions")
+    op.drop_index("ix_suggestions_status_yaml_generated", "suggestions")
+    op.drop_index("ix_suggestions_yaml_generated_at", "suggestions")
 
     # Drop expert mode columns
-    op.drop_column('suggestions', 'yaml_edit_count')
-    op.drop_column('suggestions', 'yaml_edited_at')
-    op.drop_column('suggestions', 'mode')
+    op.drop_column("suggestions", "yaml_edit_count")
+    op.drop_column("suggestions", "yaml_edited_at")
+    op.drop_column("suggestions", "mode")
 
     # Drop auto-draft columns
-    op.drop_column('suggestions', 'yaml_generation_method')
-    op.drop_column('suggestions', 'yaml_generation_error')
-    op.drop_column('suggestions', 'yaml_generated_at')
+    op.drop_column("suggestions", "yaml_generation_method")
+    op.drop_column("suggestions", "yaml_generation_error")
+    op.drop_column("suggestions", "yaml_generated_at")

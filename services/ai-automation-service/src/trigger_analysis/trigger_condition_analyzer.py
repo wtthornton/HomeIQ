@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TriggerConditionAnalyzer:
     """
     Analyzes queries to identify trigger conditions that require sensors.
-    
+
     Example:
         query = "When I sit at my desk, turn on the lights"
         conditions = await analyzer.analyze_trigger_conditions(query, entities)
@@ -32,35 +32,35 @@ class TriggerConditionAnalyzer:
 
     # Trigger type patterns
     PRESENCE_PATTERNS = [
-        r'\b(presence|occupancy|detected|someone|anyone|person)\b',
-        r'\b(sit|sit down|sitting|arrive|arrives|arrival)\b',
-        r'\b(present|arrive|enter)\b'
+        r"\b(presence|occupancy|detected|someone|anyone|person)\b",
+        r"\b(sit|sit down|sitting|arrive|arrives|arrival)\b",
+        r"\b(present|arrive|enter)\b",
     ]
 
     MOTION_PATTERNS = [
-        r'\b(motion|movement|moving|moves|moved)\b',
-        r'\b(walk|walks|walking|enter|enters|entering)\b'
+        r"\b(motion|movement|moving|moves|moved)\b",
+        r"\b(walk|walks|walking|enter|enters|entering)\b",
     ]
 
     DOOR_PATTERNS = [
-        r'\b(door|doors)\b.*\b(open|opens|opened|close|closes|closed)\b',
-        r'\b(open|opens|opened|close|closes|closed).* door'
+        r"\b(door|doors)\b.*\b(open|opens|opened|close|closes|closed)\b",
+        r"\b(open|opens|opened|close|closes|closed).* door",
     ]
 
     WINDOW_PATTERNS = [
-        r'\b(window|windows)\b.*\b(open|opens|opened|close|closes|closed)\b',
-        r'\b(open|opens|opened|close|closes|closed).* window'
+        r"\b(window|windows)\b.*\b(open|opens|opened|close|closes|closed)\b",
+        r"\b(open|opens|opened|close|closes|closed).* window",
     ]
 
     TEMPERATURE_PATTERNS = [
-        r'\b(temperature|temp|hot|cold|cooler|warmer)\b',
-        r'\b(above|below|over|under).*\b(degrees?|°)\b'
+        r"\b(temperature|temp|hot|cold|cooler|warmer)\b",
+        r"\b(above|below|over|under).*\b(degrees?|°)\b",
     ]
 
     # Location extraction patterns
     LOCATION_PATTERNS = [
-        r'\b(at|in|near|inside|outside)\s+([a-zA-Z\s]+?)(?:\s|,|$)',
-        r'\b(desk|office|bedroom|kitchen|living room|bathroom|garage|hallway|entrance)\b'
+        r"\b(at|in|near|inside|outside)\s+([a-zA-Z\s]+?)(?:\s|,|$)",
+        r"\b(desk|office|bedroom|kitchen|living room|bathroom|garage|hallway|entrance)\b",
     ]
 
     def __init__(self):
@@ -76,15 +76,15 @@ class TriggerConditionAnalyzer:
     async def analyze_trigger_conditions(
         self,
         query: str,
-        extracted_entities: list[dict[str, Any]] | None = None
+        extracted_entities: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Analyze query to identify trigger conditions.
-        
+
         Args:
             query: Natural language query string
             extracted_entities: Already extracted entities (optional, for location context)
-            
+
         Returns:
             List of trigger condition dictionaries with:
             - trigger_type: 'presence', 'motion', 'door', 'window', 'temperature'
@@ -134,18 +134,18 @@ class TriggerConditionAnalyzer:
         self,
         query: str,
         query_lower: str,
-        location: str | None
+        location: str | None,
     ) -> dict[str, Any] | None:
         """Check if query contains presence trigger condition."""
         for pattern in self.presence_re:
             if pattern.search(query_lower):
                 return {
-                    'trigger_type': 'presence',
-                    'required_device_class': 'occupancy',
-                    'required_sensor_type': 'binary_sensor',
-                    'location': location,
-                    'confidence': 0.85,
-                    'matched_text': pattern.search(query_lower).group(0)
+                    "trigger_type": "presence",
+                    "required_device_class": "occupancy",
+                    "required_sensor_type": "binary_sensor",
+                    "location": location,
+                    "confidence": 0.85,
+                    "matched_text": pattern.search(query_lower).group(0),
                 }
         return None
 
@@ -153,18 +153,18 @@ class TriggerConditionAnalyzer:
         self,
         query: str,
         query_lower: str,
-        location: str | None
+        location: str | None,
     ) -> dict[str, Any] | None:
         """Check if query contains motion trigger condition."""
         for pattern in self.motion_re:
             if pattern.search(query_lower):
                 return {
-                    'trigger_type': 'motion',
-                    'required_device_class': 'motion',
-                    'required_sensor_type': 'binary_sensor',
-                    'location': location,
-                    'confidence': 0.80,
-                    'matched_text': pattern.search(query_lower).group(0)
+                    "trigger_type": "motion",
+                    "required_device_class": "motion",
+                    "required_sensor_type": "binary_sensor",
+                    "location": location,
+                    "confidence": 0.80,
+                    "matched_text": pattern.search(query_lower).group(0),
                 }
         return None
 
@@ -172,18 +172,18 @@ class TriggerConditionAnalyzer:
         self,
         query: str,
         query_lower: str,
-        location: str | None
+        location: str | None,
     ) -> dict[str, Any] | None:
         """Check if query contains door trigger condition."""
         for pattern in self.door_re:
             if pattern.search(query_lower):
                 return {
-                    'trigger_type': 'door',
-                    'required_device_class': 'door',
-                    'required_sensor_type': 'binary_sensor',
-                    'location': location,
-                    'confidence': 0.90,
-                    'matched_text': pattern.search(query_lower).group(0)
+                    "trigger_type": "door",
+                    "required_device_class": "door",
+                    "required_sensor_type": "binary_sensor",
+                    "location": location,
+                    "confidence": 0.90,
+                    "matched_text": pattern.search(query_lower).group(0),
                 }
         return None
 
@@ -191,18 +191,18 @@ class TriggerConditionAnalyzer:
         self,
         query: str,
         query_lower: str,
-        location: str | None
+        location: str | None,
     ) -> dict[str, Any] | None:
         """Check if query contains window trigger condition."""
         for pattern in self.window_re:
             if pattern.search(query_lower):
                 return {
-                    'trigger_type': 'window',
-                    'required_device_class': 'window',
-                    'required_sensor_type': 'binary_sensor',
-                    'location': location,
-                    'confidence': 0.90,
-                    'matched_text': pattern.search(query_lower).group(0)
+                    "trigger_type": "window",
+                    "required_device_class": "window",
+                    "required_sensor_type": "binary_sensor",
+                    "location": location,
+                    "confidence": 0.90,
+                    "matched_text": pattern.search(query_lower).group(0),
                 }
         return None
 
@@ -210,41 +210,41 @@ class TriggerConditionAnalyzer:
         self,
         query: str,
         query_lower: str,
-        location: str | None
+        location: str | None,
     ) -> dict[str, Any] | None:
         """Check if query contains temperature trigger condition."""
         for pattern in self.temp_re:
             if pattern.search(query_lower):
                 return {
-                    'trigger_type': 'temperature',
-                    'required_device_class': 'temperature',
-                    'required_sensor_type': 'sensor',
-                    'location': location,
-                    'confidence': 0.85,
-                    'matched_text': pattern.search(query_lower).group(0)
+                    "trigger_type": "temperature",
+                    "required_device_class": "temperature",
+                    "required_sensor_type": "sensor",
+                    "location": location,
+                    "confidence": 0.85,
+                    "matched_text": pattern.search(query_lower).group(0),
                 }
         return None
 
     def _extract_location(
         self,
         query: str,
-        extracted_entities: list[dict[str, Any]] | None = None
+        extracted_entities: list[dict[str, Any]] | None = None,
     ) -> str | None:
         """
         Extract location context from query or entities.
-        
+
         Args:
             query: Natural language query
             extracted_entities: Already extracted entities
-            
+
         Returns:
             Location string or None
         """
         # First, try to get location from extracted entities (area entities)
         if extracted_entities:
             for entity in extracted_entities:
-                if entity.get('type') == 'area':
-                    area_name = entity.get('name') or entity.get('area_name')
+                if entity.get("type") == "area":
+                    area_name = entity.get("name") or entity.get("area_name")
                     if area_name:
                         return area_name.lower()
 
@@ -253,9 +253,9 @@ class TriggerConditionAnalyzer:
 
         # Common location keywords
         locations = [
-            'desk', 'office', 'bedroom', 'kitchen', 'living room',
-            'bathroom', 'garage', 'hallway', 'entrance', 'dining room',
-            'study', 'workshop', 'basement', 'attic'
+            "desk", "office", "bedroom", "kitchen", "living room",
+            "bathroom", "garage", "hallway", "entrance", "dining room",
+            "study", "workshop", "basement", "attic",
         ]
 
         for location in locations:
@@ -270,7 +270,7 @@ class TriggerConditionAnalyzer:
                 if len(match.groups()) >= 2:
                     location_text = match.group(2).strip()
                     # Clean up common prepositions
-                    location_text = re.sub(r'^(at|in|near|inside|outside)\s+', '', location_text, flags=re.IGNORECASE)
+                    location_text = re.sub(r"^(at|in|near|inside|outside)\s+", "", location_text, flags=re.IGNORECASE)
                     if location_text:
                         return location_text.lower()
 

@@ -8,12 +8,12 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 
-from ..clients.data_api_client import DataAPIClient
-from ..config import settings
-from ..policy.engine import PolicyEngine
-from ..safety_validator import get_safety_validator
-from ..validation.resolver import EntityResolver
-from ..validation.validator import AutomationValidator
+from src.clients.data_api_client import DataAPIClient
+from src.config import settings
+from src.policy.engine import PolicyEngine
+from src.safety_validator import get_safety_validator
+from src.validation.resolver import EntityResolver
+from src.validation.validator import AutomationValidator
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,11 @@ router = APIRouter(prefix="/api/v1/validate", tags=["validation"])
 data_api_client = DataAPIClient(base_url=settings.data_api_url)
 entity_resolver = EntityResolver(data_api_client=data_api_client)
 policy_engine = PolicyEngine()
-safety_validator = get_safety_validator(getattr(settings, 'safety_level', 'moderate'))
+safety_validator = get_safety_validator(getattr(settings, "safety_level", "moderate"))
 validator = AutomationValidator(
     entity_resolver=entity_resolver,
     policy_engine=policy_engine,
-    safety_validator=safety_validator
+    safety_validator=safety_validator,
 )
 
 
@@ -54,14 +54,14 @@ class ValidateResponse(BaseModel):
 async def validate_automation(request: ValidateRequest = Body(...)):
     """
     Validate automation plan through validation wall.
-    
+
     Validates:
     - Schema conformance
     - Entity resolution
     - Capability checks
     - Policy rules
     - Safety constraints
-    
+
     Returns:
         ValidationResult with verdict, reasons, fixes, and diff
     """
@@ -69,7 +69,7 @@ async def validate_automation(request: ValidateRequest = Body(...)):
         result = await validator.validate(
             automation_input=request.automation,
             original_automation=request.original_automation,
-            overrides=request.overrides
+            overrides=request.overrides,
         )
 
         # Convert entity resolutions to dict for JSON serialization
@@ -81,7 +81,7 @@ async def validate_automation(request: ValidateRequest = Body(...)):
                     "resolved": resolution.resolved,
                     "confidence": resolution.confidence,
                     "alternatives": resolution.alternatives,
-                    "resolution_method": resolution.resolution_method
+                    "resolution_method": resolution.resolution_method,
                 }
 
         return ValidateResponse(
@@ -92,10 +92,10 @@ async def validate_automation(request: ValidateRequest = Body(...)):
             diff=result.diff,
             entity_resolutions=entity_resolutions_dict,
             safety_score=result.safety_score,
-            schema_valid=result.schema_valid
+            schema_valid=result.schema_valid,
         )
 
     except Exception as e:
         logger.error(f"Validation error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Validation failed: {e!s}")
 

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class EntityContextCache:
     """
     Cache for enriched entity context data.
-    
+
     Reduces token usage by caching entity enrichment results for a configurable TTL.
     Entity data rarely changes during a session, making caching highly effective.
     """
@@ -25,7 +25,7 @@ class EntityContextCache:
     def __init__(self, ttl_seconds: int = 300):
         """
         Initialize entity context cache.
-        
+
         Args:
             ttl_seconds: Time to live for cached entries in seconds (default: 5 minutes)
         """
@@ -36,10 +36,10 @@ class EntityContextCache:
     def _generate_key(self, entity_ids: set[str]) -> str:
         """
         Generate cache key from entity IDs.
-        
+
         Args:
             entity_ids: Set of entity IDs
-        
+
         Returns:
             Cache key string
         """
@@ -52,10 +52,10 @@ class EntityContextCache:
     def get(self, entity_ids: set[str]) -> dict[str, Any] | None:
         """
         Get cached entity context for given entity IDs.
-        
+
         Args:
             entity_ids: Set of entity IDs to look up
-        
+
         Returns:
             Cached entity data dictionary or None if not found/expired
         """
@@ -81,7 +81,7 @@ class EntityContextCache:
     def set(self, entity_ids: set[str], entity_data: dict[str, Any]) -> None:
         """
         Store entity context in cache.
-        
+
         Args:
             entity_ids: Set of entity IDs being cached
             entity_data: Enriched entity data dictionary
@@ -103,7 +103,7 @@ class EntityContextCache:
     def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
-        
+
         Returns:
             Dictionary with cache stats (size, hit rate, etc.)
         """
@@ -112,23 +112,23 @@ class EntityContextCache:
         valid_entries = 0
 
         now = datetime.now()
-        for key, (value, timestamp) in self.cache.items():
+        for _key, (_value, timestamp) in self.cache.items():
             if now - timestamp > timedelta(seconds=self.ttl_seconds):
                 expired_entries += 1
             else:
                 valid_entries += 1
 
         return {
-            'total_entries': total_entries,
-            'valid_entries': valid_entries,
-            'expired_entries': expired_entries,
-            'ttl_seconds': self.ttl_seconds
+            "total_entries": total_entries,
+            "valid_entries": valid_entries,
+            "expired_entries": expired_entries,
+            "ttl_seconds": self.ttl_seconds,
         }
 
     def cleanup_expired(self) -> int:
         """
         Remove expired entries from cache.
-        
+
         Returns:
             Number of entries removed
         """
@@ -154,10 +154,10 @@ _entity_cache: EntityContextCache | None = None
 def get_entity_cache(ttl_seconds: int = 300) -> EntityContextCache:
     """
     Get or create global entity context cache instance.
-    
+
     Args:
         ttl_seconds: Time to live for cached entries
-    
+
     Returns:
         EntityContextCache instance
     """

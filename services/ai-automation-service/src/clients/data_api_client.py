@@ -28,11 +28,11 @@ class DataAPIClient:
         influxdb_url: str = "http://influxdb:8086",
         influxdb_token: str = "homeiq-token",
         influxdb_org: str = "homeiq",
-        influxdb_bucket: str = "home_assistant_events"
+        influxdb_bucket: str = "home_assistant_events",
     ):
         """
         Initialize Data API client.
-        
+
         Args:
             base_url: Base URL for Data API (default: http://data-api:8006)
             influxdb_url: InfluxDB URL for direct event queries
@@ -40,7 +40,7 @@ class DataAPIClient:
             influxdb_org: InfluxDB organization
             influxdb_bucket: InfluxDB bucket name
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         # Optional API key for authenticated Data API access
         api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
         default_headers = {}
@@ -51,7 +51,7 @@ class DataAPIClient:
             timeout=30.0,
             follow_redirects=True,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            headers=default_headers
+            headers=default_headers,
         )
 
         # Initialize InfluxDB client for direct event queries
@@ -59,7 +59,7 @@ class DataAPIClient:
             url=influxdb_url,
             token=influxdb_token,
             org=influxdb_org,
-            bucket=influxdb_bucket
+            bucket=influxdb_bucket,
         )
 
         # Initialize capability parser
@@ -72,7 +72,7 @@ class DataAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def fetch_events(
         self,
@@ -81,11 +81,11 @@ class DataAPIClient:
         entity_id: str | None = None,
         device_id: str | None = None,
         event_type: str | None = None,
-        limit: int = 10000
+        limit: int = 10000,
     ) -> pd.DataFrame:
         """
         Fetch historical events from Data API.
-        
+
         Args:
             start_time: Start datetime (default: 30 days ago)
             end_time: End datetime (default: now)
@@ -93,10 +93,10 @@ class DataAPIClient:
             device_id: Optional filter for specific device
             event_type: Optional filter for event type (e.g., 'state_changed')
             limit: Maximum number of events to return
-        
+
         Returns:
             pandas DataFrame with columns: timestamp, entity_id, event_type, old_state, new_state, attributes, tags
-        
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -111,7 +111,7 @@ class DataAPIClient:
             params: dict[str, Any] = {
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
-                "limit": limit
+                "limit": limit,
             }
 
             if entity_id:
@@ -128,7 +128,7 @@ class DataAPIClient:
                 # Build query params
                 # Data API supports start_time and end_time as ISO strings
                 params = {
-                    "limit": limit
+                    "limit": limit,
                 }
                 if start_time:
                     params["start_time"] = start_time.isoformat()
@@ -144,7 +144,7 @@ class DataAPIClient:
                 # Query Data API endpoint
                 response = await self.client.get(
                     f"{self.base_url}/api/v1/events",
-                    params=params
+                    params=params,
                 )
                 response.raise_for_status()
 
@@ -189,7 +189,7 @@ class DataAPIClient:
                         "state": state,
                         "event_type": event.get("event_type", "state_changed"),
                         "domain": entity_id_val.split(".")[0] if "." in entity_id_val else "",
-                        "friendly_name": event.get("friendly_name", entity_id_val)
+                        "friendly_name": event.get("friendly_name", entity_id_val),
                     })
 
                 df = pd.DataFrame(df_data)
@@ -203,7 +203,7 @@ class DataAPIClient:
                     start_time=start_time,
                     end_time=end_time,
                     entity_id=entity_id,
-                    limit=limit
+                    limit=limit,
                 )
 
                 if df.empty:
@@ -214,37 +214,37 @@ class DataAPIClient:
                 return df
 
         except httpx.HTTPError as e:
-            logger.error(f"❌ Failed to fetch events from Data API: {e}")
+            logger.exception(f"❌ Failed to fetch events from Data API: {e}")
             raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error fetching events: {e}")
+            logger.exception(f"❌ Unexpected error fetching events: {e}")
             raise
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def fetch_devices(
         self,
         manufacturer: str | None = None,
         model: str | None = None,
         area_id: str | None = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """
         Fetch all devices from Data API.
-        
+
         Args:
             manufacturer: Optional filter by manufacturer
             model: Optional filter by model
             area_id: Optional filter by area/room
             limit: Maximum number of devices to return
-        
+
         Returns:
             List of device dictionaries with keys: device_id, name, manufacturer, model, area_id, entity_count
-        
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -262,7 +262,7 @@ class DataAPIClient:
 
             response = await self.client.get(
                 f"{self.base_url}/api/devices",
-                params=params
+                params=params,
             )
             response.raise_for_status()
 
@@ -281,16 +281,16 @@ class DataAPIClient:
             return devices
 
         except httpx.HTTPError as e:
-            logger.error(f"❌ Failed to fetch devices from Data API: {e}")
+            logger.exception(f"❌ Failed to fetch devices from Data API: {e}")
             raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error fetching devices: {e}")
+            logger.exception(f"❌ Unexpected error fetching devices: {e}")
             raise
 
     async def get_all_devices(self) -> list[dict[str, Any]]:
         """
         Get all devices from Data API (alias for fetch_devices with no filters).
-        
+
         Returns:
             List of all device dictionaries
         """
@@ -300,7 +300,7 @@ class DataAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def fetch_entities(
         self,
@@ -308,21 +308,21 @@ class DataAPIClient:
         domain: str | None = None,
         platform: str | None = None,
         area_id: str | None = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """
         Fetch all entities from Data API.
-        
+
         Args:
             device_id: Optional filter by device ID
             domain: Optional filter by domain (light, sensor, switch, etc)
             platform: Optional filter by integration platform
             area_id: Optional filter by area/room
             limit: Maximum number of entities to return
-        
+
         Returns:
             List of entity dictionaries with keys: entity_id, device_id, domain, platform, area_id, disabled
-        
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -342,7 +342,7 @@ class DataAPIClient:
 
             response = await self.client.get(
                 f"{self.base_url}/api/entities",
-                params=params
+                params=params,
             )
             response.raise_for_status()
 
@@ -361,19 +361,19 @@ class DataAPIClient:
             return entities
 
         except httpx.HTTPError as e:
-            logger.error(f"❌ Failed to fetch entities from Data API: {e}")
+            logger.exception(f"❌ Failed to fetch entities from Data API: {e}")
             raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error fetching entities: {e}")
+            logger.exception(f"❌ Unexpected error fetching entities: {e}")
             raise
 
     async def health_check(self) -> dict[str, Any]:
         """
         Check Data API health status.
-        
+
         Returns:
             Health status dictionary
-        
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -382,140 +382,134 @@ class DataAPIClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
-            logger.error(f"❌ Data API health check failed: {e}")
+            logger.exception(f"❌ Data API health check failed: {e}")
             raise
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=5),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def get_entity_metadata(self, entity_id: str) -> dict[str, Any] | None:
         """
         Fetch entity metadata including friendly name and device info.
-        
+
         Args:
             entity_id: Entity ID to lookup (e.g., 'light.office_lamp')
-        
+
         Returns:
             Dictionary with entity metadata including friendly_name, or None if not found
         """
         try:
             # Query data-api for entity metadata
             response = await self.client.get(
-                f"{self.base_url}/api/entities/{entity_id}"
+                f"{self.base_url}/api/entities/{entity_id}",
             )
 
             if response.status_code == 200:
                 data = response.json()
                 logger.debug(f"Retrieved metadata for {entity_id}: {data.get('friendly_name', entity_id)}")
                 return data
-            elif response.status_code == 404:
+            if response.status_code == 404:
                 logger.warning(f"Entity {entity_id} not found in metadata")
                 return None
-            else:
-                logger.warning(f"Unexpected status {response.status_code} fetching entity {entity_id}")
-                return None
+            logger.warning(f"Unexpected status {response.status_code} fetching entity {entity_id}")
+            return None
 
         except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch entity metadata for {entity_id}: {e}")
+            logger.exception(f"Failed to fetch entity metadata for {entity_id}: {e}")
             return None
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=5),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def get_device_metadata(self, device_id: str) -> dict[str, Any] | None:
         """
         Fetch device metadata including name, manufacturer, model, and area.
-        
+
         Args:
             device_id: Device ID to lookup
-        
+
         Returns:
             Dictionary with device metadata, or None if not found
         """
         try:
             response = await self.client.get(
-                f"{self.base_url}/api/devices/{device_id}"
+                f"{self.base_url}/api/devices/{device_id}",
             )
 
             if response.status_code == 200:
                 data = response.json()
                 logger.debug(f"Retrieved device metadata for {device_id}: {data.get('name', device_id)}")
                 return data
-            elif response.status_code == 404:
+            if response.status_code == 404:
                 logger.warning(f"Device {device_id} not found in metadata")
                 return None
-            else:
-                logger.warning(f"Unexpected status {response.status_code} fetching device {device_id}")
-                return None
+            logger.warning(f"Unexpected status {response.status_code} fetching device {device_id}")
+            return None
 
         except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch device metadata for {device_id}: {e}")
+            logger.exception(f"Failed to fetch device metadata for {device_id}: {e}")
             return None
 
     def extract_friendly_name(self, entity_id: str, metadata: dict | None = None) -> str:
         """
         Extract friendly name from entity metadata or generate from entity_id.
-        
+
         Args:
             entity_id: Entity ID (e.g., 'light.office_lamp')
             metadata: Optional entity metadata dict
-        
+
         Returns:
             User-friendly name (e.g., 'Office Lamp' instead of 'light.office_lamp')
         """
         # Try to get from metadata first
-        if metadata and 'friendly_name' in metadata:
-            return metadata['friendly_name']
+        if metadata and "friendly_name" in metadata:
+            return metadata["friendly_name"]
 
-        if metadata and 'name' in metadata:
-            return metadata['name']
+        if metadata and "name" in metadata:
+            return metadata["name"]
 
         # Fallback: Generate from entity_id
         # Remove domain prefix (e.g., 'light.', 'switch.')
-        if '.' in entity_id:
-            name = entity_id.split('.', 1)[1]
-        else:
-            name = entity_id
+        name = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
         # Replace underscores with spaces and title case
-        friendly = name.replace('_', ' ').title()
+        return name.replace("_", " ").title()
 
-        return friendly
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=5),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False
+        reraise=False,
     )
     async def fetch_device_capabilities(
         self,
         entity_id: str,
         use_cache: bool = True,
-        cache_ttl_seconds: int = 3600
+        cache_ttl_seconds: int = 3600,
     ) -> dict:
         """
         Fetch device capabilities for conversational suggestions.
-        
+
         Story AI1.23 Phase 2: Description-Only Generation
-        
+
         This method fetches device metadata and parses supported features
         to provide user-friendly capability information for:
         - Showing users what's possible ("This light can also...")
         - Validating refinement requests ("Can change RGB color? Yes/No")
         - Building better prompts for OpenAI
-        
+
         Args:
             entity_id: Entity ID (e.g., 'light.living_room')
             use_cache: Whether to use cached capabilities (default: True)
             cache_ttl_seconds: Cache TTL in seconds (default: 3600 = 1 hour)
-        
+
         Returns:
             Dictionary with parsed capabilities:
             {
@@ -544,7 +538,7 @@ class DataAPIClient:
 
             # Fetch entity metadata from data-api
             response = await self.client.get(
-                f"{self.base_url}/api/entities/{entity_id}"
+                f"{self.base_url}/api/entities/{entity_id}",
             )
 
             if response.status_code == 404:
@@ -562,59 +556,59 @@ class DataAPIClient:
 
             logger.info(
                 f"✅ Fetched capabilities for {entity_id}: "
-                f"{len(capabilities['friendly_capabilities'])} features"
+                f"{len(capabilities['friendly_capabilities'])} features",
             )
 
             return capabilities
 
         except Exception as e:
-            logger.error(f"Error fetching capabilities for {entity_id}: {e}")
+            logger.exception(f"Error fetching capabilities for {entity_id}: {e}")
             return self._empty_capabilities(entity_id)
 
     def _parse_capabilities(self, entity_id: str, entity_data: dict) -> dict:
         """
         Parse entity metadata into structured capabilities.
-        
+
         Uses the new bitmask parser to eliminate hardcoded elif chains.
-        
+
         Args:
             entity_id: Entity ID
             entity_data: Raw entity metadata from data-api
-            
+
         Returns:
             Parsed capabilities dictionary
         """
-        domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
-        attributes = entity_data.get('attributes', {})
+        domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
+        attributes = entity_data.get("attributes", {})
 
         # Extract basic info
         capabilities = {
             "entity_id": entity_id,
-            "friendly_name": entity_data.get('friendly_name', entity_data.get('name', entity_id)),
+            "friendly_name": entity_data.get("friendly_name", entity_data.get("name", entity_id)),
             "domain": domain,
-            "area": entity_data.get('area_id', entity_data.get('area', '')),
+            "area": entity_data.get("area_id", entity_data.get("area", "")),
             "supported_features": {},
             "friendly_capabilities": [],
-            "cached": False
+            "cached": False,
         }
 
         # Use new bitmask parser (replaces hardcoded elif chains)
-        supported_features_bitmask = attributes.get('supported_features', 0)
+        supported_features_bitmask = attributes.get("supported_features", 0)
         parsed_caps = self.capability_parser.parse_capabilities(
             domain=domain,
             supported_features=supported_features_bitmask,
-            attributes=attributes
+            attributes=attributes,
         )
 
         # Merge parsed capabilities
-        capabilities['supported_features'] = parsed_caps.get('supported_features', {})
-        capabilities['friendly_capabilities'] = parsed_caps.get('friendly_capabilities', [])
+        capabilities["supported_features"] = parsed_caps.get("supported_features", {})
+        capabilities["friendly_capabilities"] = parsed_caps.get("friendly_capabilities", [])
 
         return capabilities
 
     def _empty_capabilities(self, entity_id: str) -> dict:
         """Return empty capabilities structure for unknown/error cases"""
-        domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+        domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
 
         return {
             "entity_id": entity_id,
@@ -623,13 +617,13 @@ class DataAPIClient:
             "area": "",
             "supported_features": {},
             "friendly_capabilities": [],
-            "cached": False
+            "cached": False,
         }
 
     async def get_weather_entities(self) -> list[dict[str, Any]]:
         """
         Get all weather-related entities from Home Assistant.
-        
+
         Returns:
             List of weather entity dictionaries
         """
@@ -643,8 +637,8 @@ class DataAPIClient:
             # Filter sensor entities for weather-related ones
             weather_sensors = [
                 entity for entity in sensor_entities
-                if any(keyword in entity.get('entity_id', '').lower()
-                      for keyword in ['weather', 'temperature', 'humidity', 'pressure', 'wind', 'precipitation', 'sun'])
+                if any(keyword in entity.get("entity_id", "").lower()
+                      for keyword in ["weather", "temperature", "humidity", "pressure", "wind", "precipitation", "sun"])
             ]
 
             # Combine weather domain and weather-related sensors
@@ -654,7 +648,7 @@ class DataAPIClient:
             return all_weather_entities
 
         except Exception as e:
-            logger.error(f"Failed to get weather entities: {e}")
+            logger.exception(f"Failed to get weather entities: {e}")
             return []
 
     async def close(self):

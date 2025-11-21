@@ -27,7 +27,7 @@ ha_token = os.environ.get("HA_TOKEN") or os.environ.get("HOME_ASSISTANT_TOKEN", 
 
 headers = {
     "Authorization": f"Bearer {ha_token}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # Try integrations endpoint
@@ -37,7 +37,7 @@ try:
     if response.status_code == 200:
         entries = response.json()
         print(f"Found {len(entries)} config entries")
-        conversation_entries = [e for e in entries if 'conversation' in e.get('domain', '').lower() or 'assist' in e.get('domain', '').lower() or 'assistant' in e.get('title', '').lower()]
+        conversation_entries = [e for e in entries if "conversation" in e.get("domain", "").lower() or "assist" in e.get("domain", "").lower() or "assistant" in e.get("title", "").lower()]
         if conversation_entries:
             print("\nConversation/Assist related entries:")
             for entry in conversation_entries:
@@ -62,13 +62,13 @@ try:
         f"{ha_url}/api/conversation/process",
         headers=headers,
         json={"text": "test", "language": "en"},
-        timeout=10
+        timeout=10,
     )
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
         print(f"Response keys: {list(data.keys())}")
-        if 'response' in data:
+        if "response" in data:
             print(f"Response type: {data['response'].get('response_type', 'Unknown')}")
     else:
         print(f"Response: {response.text[:300]}")

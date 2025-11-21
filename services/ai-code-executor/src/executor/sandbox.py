@@ -34,18 +34,21 @@ def _safe_import_factory(allowed_modules: set[str]):
 
     def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
         if level != 0:
-            raise ImportError("Relative imports are not permitted inside the sandbox")
+            msg = "Relative imports are not permitted inside the sandbox"
+            raise ImportError(msg)
 
         root_name = name.split(".")[0]
         if root_name not in allowed:
-            raise ImportError(f"Import '{root_name}' is not allowed in sandbox")
+            msg = f"Import '{root_name}' is not allowed in sandbox"
+            raise ImportError(msg)
 
         module = importlib.import_module(name)
 
         if fromlist:
             for attr in fromlist:
                 if attr.startswith("_"):
-                    raise ImportError("Access to private attributes is blocked")
+                    msg = "Access to private attributes is blocked"
+                    raise ImportError(msg)
 
         return module
 
@@ -117,7 +120,8 @@ def _apply_resource_limits(config: dict[str, Any]):
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
     except Exception as exc:
         # The sandbox will still run, but we log the failure in the parent
-        raise RuntimeError(f"Failed to set resource limits: {exc}") from exc
+        msg = f"Failed to set resource limits: {exc}"
+        raise RuntimeError(msg) from exc
 
 
 def _sandbox_process_worker(
@@ -146,7 +150,7 @@ def _sandbox_process_worker(
                 "execution_time": execution_time,
                 "memory_used_mb": memory_used,
                 "error": error,
-            }
+            },
         )
 
     try:
@@ -228,7 +232,7 @@ class PythonSandbox:
         self.config = config or SandboxConfig()
         self._mp_context = multiprocessing.get_context("spawn")
 
-    async def execute(self, code: str, context: dict[str, Any] = None) -> ExecutionResult:
+    async def execute(self, code: str, context: dict[str, Any] | None = None) -> ExecutionResult:
         """
         Execute Python code in sandbox.
 
@@ -240,7 +244,8 @@ class PythonSandbox:
             ExecutionResult with output, errors, metrics
         """
         if sys.platform != "linux":
-            raise RuntimeError("Sandbox execution is only supported on Linux hosts")
+            msg = "Sandbox execution is only supported on Linux hosts"
+            raise RuntimeError(msg)
 
         sanitized_context = self._sanitize_context(context or {})
 
@@ -251,7 +256,7 @@ class PythonSandbox:
                 sanitized_context,
             )
         except Exception as exc:
-            logger.error("Sandbox execution error: %s\n%s", exc, traceback.format_exc())
+            logger.exception("Sandbox execution error: %s\n%s", exc, traceback.format_exc())
             return ExecutionResult(
                 success=False,
                 stdout="",
@@ -277,7 +282,8 @@ class PythonSandbox:
 
         def _sanitize(value: Any, depth: int = 0):
             if depth > MAX_CONTEXT_DEPTH:
-                raise ValueError("Context nesting exceeds allowed depth")
+                msg = "Context nesting exceeds allowed depth"
+                raise ValueError(msg)
 
             if isinstance(value, SAFE_VALUE_TYPES):
                 return value
@@ -289,16 +295,19 @@ class PythonSandbox:
                 sanitized_dict = {}
                 for key, val in value.items():
                     if not isinstance(key, str):
-                        raise ValueError("Context dictionary keys must be strings")
+                        msg = "Context dictionary keys must be strings"
+                        raise ValueError(msg)
                     sanitized_dict[key] = _sanitize(val, depth + 1)
                 return sanitized_dict
 
-            raise ValueError("Only JSON-serializable context values are permitted")
+            msg = "Only JSON-serializable context values are permitted"
+            raise ValueError(msg)
 
         sanitized: dict[str, Any] = {}
         for key, value in context.items():
             if key in {"__builtins__", "__name__", "__package__"}:
-                raise ValueError(f"Context key '{key}' is reserved")
+                msg = f"Context key '{key}' is reserved"
+                raise ValueError(msg)
             sanitized[key] = _sanitize(value)
 
         return sanitized
@@ -320,12 +329,14 @@ class PythonSandbox:
         if process.is_alive():
             process.terminate()
             process.join()
-            raise TimeoutError(f"Execution exceeded {self.config.timeout_seconds}s timeout")
+            msg = f"Execution exceeded {self.config.timeout_seconds}s timeout"
+            raise TimeoutError(msg)
 
         try:
             result_payload = result_queue.get_nowait()
         except queue.Empty as exc:
-            raise RuntimeError("Sandbox process produced no output") from exc
+            msg = "Sandbox process produced no output"
+            raise RuntimeError(msg) from exc
         finally:
             result_queue.close()
 

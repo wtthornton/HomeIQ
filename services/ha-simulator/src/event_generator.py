@@ -39,7 +39,7 @@ class EventGenerator:
         # Start generation tasks
         for entity_id, entity_config in self.patterns["entities"].items():
             task = asyncio.create_task(
-                self._generate_entity_events(entity_id, entity_config)
+                self._generate_entity_events(entity_id, entity_config),
             )
             self.generation_tasks[entity_id] = task
 
@@ -62,7 +62,7 @@ class EventGenerator:
         self.entity_states[entity_id] = {
             "state": self._generate_initial_value(entity_config),
             "last_updated": datetime.now(timezone.utc),
-            "attributes": self._generate_attributes(entity_config)
+            "attributes": self._generate_attributes(entity_config),
         }
 
     def _generate_initial_value(self, entity_config: dict[str, Any]) -> str:
@@ -76,15 +76,14 @@ class EventGenerator:
         if isinstance(base_value, (int, float)):
             value = base_value + random.uniform(-variance, variance)
             return f"{value:.1f}"
-        else:
-            return str(base_value)
+        return str(base_value)
 
     def _generate_attributes(self, entity_config: dict[str, Any]) -> dict[str, Any]:
         """Generate entity attributes"""
         attributes = {
             "friendly_name": entity_config.get("friendly_name", entity_config["entity_id"]),
             "device_class": entity_config.get("device_class"),
-            "unit_of_measurement": entity_config.get("unit_of_measurement")
+            "unit_of_measurement": entity_config.get("unit_of_measurement"),
         }
 
         # Remove None values
@@ -115,7 +114,7 @@ class EventGenerator:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error generating events for {entity_id}: {e}")
+                logger.exception(f"Error generating events for {entity_id}: {e}")
 
     def _generate_new_state(self, entity_id: str, entity_config: dict[str, Any]) -> str:
         """Generate new state value"""
@@ -154,7 +153,7 @@ class EventGenerator:
             try:
                 await client.send_str(json.dumps(event))
             except Exception as e:
-                logger.error(f"Error sending event to client: {e}")
+                logger.exception(f"Error sending event to client: {e}")
                 disconnected_clients.append(client)
 
         # Remove disconnected clients
@@ -181,7 +180,7 @@ class EventGenerator:
                 "context": {
                     "id": f"sim_{int(now.timestamp() * 1000)}",
                     "parent_id": None,
-                    "user_id": None
+                    "user_id": None,
                 },
                 "data": {
                     "entity_id": entity_id,
@@ -190,17 +189,17 @@ class EventGenerator:
                         "state": old_state,
                         "attributes": self.entity_states[entity_id]["attributes"],
                         "last_changed": self.entity_states[entity_id]["last_updated"].isoformat(),
-                        "last_updated": self.entity_states[entity_id]["last_updated"].isoformat()
+                        "last_updated": self.entity_states[entity_id]["last_updated"].isoformat(),
                     },
                     "new_state": {
                         "entity_id": entity_id,
                         "state": new_state,
                         "attributes": self.entity_states[entity_id]["attributes"],
                         "last_changed": now.isoformat(),
-                        "last_updated": now.isoformat()
-                    }
-                }
-            }
+                        "last_updated": now.isoformat(),
+                    },
+                },
+            },
         }
 
     def get_stats(self) -> dict[str, Any]:
@@ -210,6 +209,6 @@ class EventGenerator:
             "entities": len(self.entity_states),
             "active_tasks": len(self.generation_tasks),
             "events_generated": self.event_counter,
-            "clients": len(self.clients)
+            "clients": len(self.clients),
         }
 

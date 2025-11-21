@@ -15,8 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import settings
-from ..database import (
+from src.config import settings
+from src.database import (
     create_training_run,
     get_active_training_run,
     get_db,
@@ -24,7 +24,8 @@ from ..database import (
     list_training_runs,
     update_training_run,
 )
-from ..database.models import Suggestion, get_db_session
+from src.database.models import Suggestion, get_db_session
+
 from .ask_ai_router import (
     get_guardrail_checker_instance,
     get_soft_prompt,
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/v1/admin",
     tags=["Admin"],
-    dependencies=[Depends(require_admin_user)]
+    dependencies=[Depends(require_admin_user)],
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -214,34 +215,33 @@ async def get_admin_overview(db: AsyncSession = Depends(get_db)) -> AdminOvervie
         total_suggestions = total_result.scalar_one() or 0
 
         active_result = await db.execute(
-            select(func.count(Suggestion.id)).where(Suggestion.status == 'deployed')
+            select(func.count(Suggestion.id)).where(Suggestion.status == "deployed"),
         )
         active_automations = active_result.scalar_one() or 0
 
         health = await health_check()
-        system_status = health.get('status', 'unknown')
-        api_status = 'online'
+        system_status = health.get("status", "unknown")
+        api_status = "online"
 
         settings_record = await get_system_settings(db)
 
         soft_prompt_adapter = get_soft_prompt()
         guardrail_checker = get_guardrail_checker_instance()
 
-        response = AdminOverviewResponse(
+        return AdminOverviewResponse(
             totalSuggestions=total_suggestions,
             activeAutomations=active_automations,
             systemStatus=system_status,
             apiStatus=api_status,
             softPromptEnabled=settings_record.soft_prompt_enabled,
             softPromptLoaded=bool(soft_prompt_adapter and soft_prompt_adapter.is_ready),
-            softPromptModelId=getattr(soft_prompt_adapter, 'model_id', None),
+            softPromptModelId=getattr(soft_prompt_adapter, "model_id", None),
             guardrailEnabled=settings_record.guardrail_enabled,
             guardrailLoaded=bool(guardrail_checker and guardrail_checker.is_ready),
-            guardrailModelName=getattr(guardrail_checker, 'model_name', settings_record.guardrail_model_name),
+            guardrailModelName=getattr(guardrail_checker, "model_name", settings_record.guardrail_model_name),
             updatedAt=settings_record.updated_at,
         )
 
-        return response
     except Exception as exc:
         logger.error("Failed to build admin overview: %s", exc, exc_info=True)
         raise HTTPException(
@@ -330,7 +330,7 @@ async def trigger_training_run(db: AsyncSession = Depends(get_db)) -> TrainingRu
                 base_output_dir,
                 run_directory,
                 script_path,
-            )
+            ),
         )
 
         return TrainingRunResponse.model_validate(run_record, from_attributes=True)

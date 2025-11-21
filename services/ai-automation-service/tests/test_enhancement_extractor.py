@@ -25,32 +25,32 @@ class TestEnhancementExtractor:
     def sample_automation(self):
         """Sample community automation"""
         return {
-            'id': 1,
-            'title': 'Motion-activated lighting',
-            'devices': ['motion_sensor', 'light'],
-            'integrations': ['mqtt'],
-            'triggers': [
-                {'type': 'state', 'entity': 'binary_sensor.motion'},
-                {'type': 'time', 'after': 'sunset', 'offset': '-00:30:00'}
+            "id": 1,
+            "title": "Motion-activated lighting",
+            "devices": ["motion_sensor", "light"],
+            "integrations": ["mqtt"],
+            "triggers": [
+                {"type": "state", "entity": "binary_sensor.motion"},
+                {"type": "time", "after": "sunset", "offset": "-00:30:00"},
             ],
-            'conditions': [
-                {'type': 'state', 'entity': 'sun.sun', 'state': 'below_horizon'}
+            "conditions": [
+                {"type": "state", "entity": "sun.sun", "state": "below_horizon"},
             ],
-            'actions': [
-                {'service': 'light.turn_on', 'data': {'brightness': 50}}
+            "actions": [
+                {"service": "light.turn_on", "data": {"brightness": 50}},
             ],
-            'quality_score': 0.85
+            "quality_score": 0.85,
         }
 
     def test_extract_no_enhancements_no_automations(self, extractor):
         """Test extraction with no automations"""
-        enhancements = extractor.extract_enhancements([], ['light'])
+        enhancements = extractor.extract_enhancements([], ["light"])
 
         assert enhancements == []
 
     def test_extract_condition_enhancements(self, extractor, sample_automation):
         """Test extracting condition enhancements"""
-        user_devices = ['motion_sensor', 'light']
+        user_devices = ["motion_sensor", "light"]
 
         enhancements = extractor.extract_enhancements([sample_automation], user_devices)
 
@@ -60,47 +60,47 @@ class TestEnhancementExtractor:
     def test_extract_timing_enhancements(self, extractor):
         """Test extracting timing enhancements"""
         automation = {
-            'triggers': [
-                {'type': 'time', 'offset': '-00:30:00'}  # Offset trigger
+            "triggers": [
+                {"type": "time", "offset": "-00:30:00"},  # Offset trigger
             ],
-            'devices': ['light'],
-            'quality_score': 0.9
+            "devices": ["light"],
+            "quality_score": 0.9,
         }
 
-        user_devices = ['light']
+        user_devices = ["light"]
         enhancements = extractor.extract_enhancements([automation], user_devices)
 
         # Should extract timing enhancement
-        timing_enhancements = [e for e in enhancements if e.type == 'timing']
+        timing_enhancements = [e for e in enhancements if e.type == "timing"]
         assert len(timing_enhancements) > 0
 
     def test_extract_action_enhancements(self, extractor):
         """Test extracting action enhancements"""
         automation = {
-            'actions': [
-                {'service': 'light.turn_on', 'data': {'brightness': 50, 'color_temp': 2700}}
+            "actions": [
+                {"service": "light.turn_on", "data": {"brightness": 50, "color_temp": 2700}},
             ],
-            'devices': ['light'],
-            'quality_score': 0.85
+            "devices": ["light"],
+            "quality_score": 0.85,
         }
 
-        user_devices = ['light']
+        user_devices = ["light"]
         enhancements = extractor.extract_enhancements([automation], user_devices)
 
         # Should extract action enhancements (brightness or color)
-        action_enhancements = [e for e in enhancements if e.type == 'action']
+        action_enhancements = [e for e in enhancements if e.type == "action"]
         assert len(action_enhancements) > 0
 
     def test_applicability_filtering(self, extractor):
         """Test that enhancements are filtered by user's devices"""
         automation = {
-            'devices': ['motion_sensor', 'light'],
-            'conditions': [{'type': 'state'}],
-            'quality_score': 0.9
+            "devices": ["motion_sensor", "light"],
+            "conditions": [{"type": "state"}],
+            "quality_score": 0.9,
         }
 
         # User doesn't have motion_sensor
-        user_devices = ['switch']
+        user_devices = ["switch"]
         enhancements = extractor.extract_enhancements([automation], user_devices)
 
         # Should not extract enhancements for unavailable devices
@@ -111,18 +111,18 @@ class TestEnhancementExtractor:
         """Test enhancements are ranked by frequency × quality"""
         automations = [
             {
-                'conditions': [{'type': 'time'}],
-                'devices': ['light'],
-                'quality_score': 0.9
+                "conditions": [{"type": "time"}],
+                "devices": ["light"],
+                "quality_score": 0.9,
             },
             {
-                'conditions': [{'type': 'time'}],  # Same condition type
-                'devices': ['light'],
-                'quality_score': 0.8
-            }
+                "conditions": [{"type": "time"}],  # Same condition type
+                "devices": ["light"],
+                "quality_score": 0.8,
+            },
         ]
 
-        user_devices = ['light']
+        user_devices = ["light"]
         enhancements = extractor.extract_enhancements(automations, user_devices)
 
         if enhancements:
@@ -130,6 +130,6 @@ class TestEnhancementExtractor:
             assert enhancements[0].frequency * enhancements[0].quality_score >= 0
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 

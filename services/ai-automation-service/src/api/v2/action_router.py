@@ -12,7 +12,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends
 
-from ...services.service_container import ServiceContainer, get_service_container
+from src.services.service_container import ServiceContainer, get_service_container
+
 from .models import ActionRequest, ActionResult
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,11 @@ router = APIRouter(prefix="/api/v2/actions", tags=["Immediate Actions"])
 @router.post("/execute", response_model=ActionResult)
 async def execute_immediate_action(
     request: ActionRequest,
-    container: ServiceContainer = Depends(get_service_container)
+    container: ServiceContainer = Depends(get_service_container),
 ) -> ActionResult:
     """
     Execute immediate actions like 'turn on office lights'.
-    
+
     Uses function calling to execute HA services directly.
     """
     start_time = datetime.utcnow()
@@ -47,11 +48,10 @@ async def execute_immediate_action(
                 entity_id=None,
                 result={},
                 message="Query does not appear to be an immediate action. Use /api/v2/conversations for automation creation.",
-                execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
             )
 
         # Resolve entities
-        entity_resolver = container.entity_resolver
         if entities:
             # Extract entity IDs from entities
             entity_ids = [e.get("entity_id") for e in entities if e.get("entity_id")]
@@ -75,7 +75,7 @@ async def execute_immediate_action(
                 elif "brightness" in query_lower or "dim" in query_lower:
                     # Extract brightness value
                     import re
-                    brightness_match = re.search(r'(\d+)%', request.query)
+                    brightness_match = re.search(r"(\d+)%", request.query)
                     if brightness_match:
                         brightness = int((int(brightness_match.group(1)) / 100) * 255)
                         params["brightness"] = brightness
@@ -94,7 +94,7 @@ async def execute_immediate_action(
                         entity_id=entity_ids[0],
                         result=result.get("result", {}),
                         message=f"Action executed: {function_name}" if result.get("success") else f"Action failed: {result.get('error', 'Unknown error')}",
-                        execution_time_ms=execution_time
+                        execution_time_ms=execution_time,
                     )
 
         # Fallback: couldn't determine action
@@ -104,7 +104,7 @@ async def execute_immediate_action(
             entity_id=None,
             result={},
             message="Could not determine action to execute. Please be more specific.",
-            execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
         )
 
     except Exception as e:
@@ -118,6 +118,6 @@ async def execute_immediate_action(
             entity_id=None,
             result={"error": error_response.message, "recovery_actions": error_response.recovery_actions},
             message=error_response.message,
-            execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
         )
 

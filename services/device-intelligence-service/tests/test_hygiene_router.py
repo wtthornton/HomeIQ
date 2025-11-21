@@ -112,7 +112,7 @@ async def test_apply_action_uses_home_assistant_client(test_client):
     # Verify database updated
     async for session in get_db_session():
         result = await session.execute(
-            select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == "duplicate_name:device-1")
+            select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == "duplicate_name:device-1"),
         )
         issue = result.scalar_one()
         assert issue.status == "resolved"

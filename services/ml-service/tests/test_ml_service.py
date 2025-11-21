@@ -29,8 +29,7 @@ class TestMLService:
         cluster2 = np.random.normal([3, 3], 0.5, (20, 2))
         cluster3 = np.random.normal([-3, 3], 0.5, (20, 2))
 
-        data = np.vstack([cluster1, cluster2, cluster3]).tolist()
-        return data
+        return np.vstack([cluster1, cluster2, cluster3]).tolist()
 
     @pytest.mark.asyncio
     async def test_health_check(self, client):
@@ -64,8 +63,8 @@ class TestMLService:
             json={
                 "data": sample_data,
                 "algorithm": "kmeans",
-                "n_clusters": 3
-            }
+                "n_clusters": 3,
+            },
         )
 
         assert response.status_code == 200
@@ -88,8 +87,8 @@ class TestMLService:
             json={
                 "data": sample_data,
                 "algorithm": "dbscan",
-                "eps": 0.5
-            }
+                "eps": 0.5,
+            },
         )
 
         assert response.status_code == 200
@@ -110,8 +109,8 @@ class TestMLService:
             f"{ML_SERVICE_URL}/anomaly",
             json={
                 "data": sample_data,
-                "contamination": 0.1
-            }
+                "contamination": 0.1,
+            },
         )
 
         assert response.status_code == 200
@@ -135,23 +134,23 @@ class TestMLService:
                 "data": {
                     "data": sample_data,
                     "algorithm": "kmeans",
-                    "n_clusters": 3
-                }
+                    "n_clusters": 3,
+                },
             },
             {
                 "type": "anomaly",
                 "data": {
                     "data": sample_data,
-                    "contamination": 0.1
-                }
-            }
+                    "contamination": 0.1,
+                },
+            },
         ]
 
         response = await client.post(
             f"{ML_SERVICE_URL}/batch/process",
             json={
-                "operations": operations
-            }
+                "operations": operations,
+            },
         )
 
         assert response.status_code == 200
@@ -183,8 +182,8 @@ class TestMLService:
             json={
                 "data": [],
                 "algorithm": "kmeans",
-                "n_clusters": 3
-            }
+                "n_clusters": 3,
+            },
         )
 
         # Should handle empty input gracefully
@@ -202,8 +201,8 @@ class TestMLService:
             json={
                 "data": large_data,
                 "algorithm": "kmeans",
-                "n_clusters": 5
-            }
+                "n_clusters": 5,
+            },
         )
 
         assert response.status_code == 200

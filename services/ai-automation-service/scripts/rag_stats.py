@@ -25,7 +25,7 @@ from src.database.models import SemanticKnowledge
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,8 @@ async def get_rag_statistics(db: AsyncSession):
     type_result = await db.execute(
         select(
             SemanticKnowledge.knowledge_type,
-            func.count(SemanticKnowledge.id).label('count')
-        ).group_by(SemanticKnowledge.knowledge_type)
+            func.count(SemanticKnowledge.id).label("count"),
+        ).group_by(SemanticKnowledge.knowledge_type),
     )
     type_counts = type_result.all()
 
@@ -55,7 +55,7 @@ async def get_rag_statistics(db: AsyncSession):
     recent_result = await db.execute(
         select(SemanticKnowledge)
         .order_by(desc(SemanticKnowledge.updated_at))
-        .limit(1)
+        .limit(1),
     )
     most_recent = recent_result.scalar_one_or_none()
 
@@ -63,13 +63,13 @@ async def get_rag_statistics(db: AsyncSession):
     oldest_result = await db.execute(
         select(SemanticKnowledge)
         .order_by(SemanticKnowledge.created_at)
-        .limit(1)
+        .limit(1),
     )
     oldest = oldest_result.scalar_one_or_none()
 
     # Average success score
     avg_score_result = await db.execute(
-        select(func.avg(SemanticKnowledge.success_score))
+        select(func.avg(SemanticKnowledge.success_score)),
     )
     avg_score = avg_score_result.scalar()
 
@@ -116,7 +116,7 @@ async def main():
     logger.info("Querying RAG knowledge base statistics...")
 
     # Initialize database
-    engine, async_session = await init_database()
+    _engine, async_session = await init_database()
 
     async with async_session() as db:
         await get_rag_statistics(db)

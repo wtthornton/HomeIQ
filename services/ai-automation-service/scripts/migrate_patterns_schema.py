@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Database URL - try multiple possible paths
@@ -57,41 +57,41 @@ DATABASE_URL = get_database_url()
 # Columns to add
 COLUMNS_TO_ADD = [
     {
-        'name': 'updated_at',
-        'type': 'DATETIME',
-        'default': "datetime('now')",
-        'nullable': True
+        "name": "updated_at",
+        "type": "DATETIME",
+        "default": "datetime('now')",
+        "nullable": True,
     },
     {
-        'name': 'first_seen',
-        'type': 'DATETIME',
-        'default': "datetime('now')",
-        'nullable': False
+        "name": "first_seen",
+        "type": "DATETIME",
+        "default": "datetime('now')",
+        "nullable": False,
     },
     {
-        'name': 'last_seen',
-        'type': 'DATETIME',
-        'default': "datetime('now')",
-        'nullable': False
+        "name": "last_seen",
+        "type": "DATETIME",
+        "default": "datetime('now')",
+        "nullable": False,
     },
     {
-        'name': 'confidence_history_count',
-        'type': 'INTEGER',
-        'default': '1',
-        'nullable': False
+        "name": "confidence_history_count",
+        "type": "INTEGER",
+        "default": "1",
+        "nullable": False,
     },
     {
-        'name': 'trend_direction',
-        'type': 'VARCHAR(20)',
-        'default': 'NULL',
-        'nullable': True
+        "name": "trend_direction",
+        "type": "VARCHAR(20)",
+        "default": "NULL",
+        "nullable": True,
     },
     {
-        'name': 'trend_strength',
-        'type': 'FLOAT',
-        'default': '0.0',
-        'nullable': False
-    }
+        "name": "trend_strength",
+        "type": "FLOAT",
+        "default": "0.0",
+        "nullable": False,
+    },
 ]
 
 
@@ -102,34 +102,33 @@ async def get_existing_columns(engine):
         result = await conn.execute(text("""
             SELECT name FROM pragma_table_info('patterns')
         """))
-        columns = [row[0] for row in result.fetchall()]
-        return columns
+        return [row[0] for row in result.fetchall()]
 
 
 async def add_column_if_missing(conn, column_def):
     """Add a column to patterns table if it doesn't exist"""
-    column_name = column_def['name']
-    column_type = column_def['type']
-    default = column_def.get('default', 'NULL')
+    column_name = column_def["name"]
+    column_type = column_def["type"]
+    default = column_def.get("default", "NULL")
 
     # SQLite doesn't support adding NOT NULL columns with defaults easily
     # So we'll add as nullable first, then update existing rows
-    nullable_clause = "" if column_def['nullable'] else ""
+    "" if column_def["nullable"] else ""
 
     try:
         # ALTER TABLE ADD COLUMN
         sql = f"ALTER TABLE patterns ADD COLUMN {column_name} {column_type}"
-        if default and default != 'NULL':
+        if default and default != "NULL":
             sql += f" DEFAULT {default}"
 
         await conn.execute(text(sql))
         logger.info(f"✅ Added column: {column_name}")
 
         # If column is NOT NULL and has existing rows, update them
-        if not column_def['nullable'] and default and default != 'NULL':
+        if not column_def["nullable"] and default and default != "NULL":
             await conn.execute(text(f"""
-                UPDATE patterns 
-                SET {column_name} = {default} 
+                UPDATE patterns
+                SET {column_name} = {default}
                 WHERE {column_name} IS NULL
             """))
             logger.info(f"✅ Updated existing rows for {column_name}")
@@ -139,9 +138,8 @@ async def add_column_if_missing(conn, column_def):
         if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
             logger.info(f"⏭️  Column {column_name} already exists, skipping")
             return False
-        else:
-            logger.error(f"❌ Error adding column {column_name}: {e}")
-            raise
+        logger.exception(f"❌ Error adding column {column_name}: {e}")
+        raise
 
 
 async def migrate():
@@ -160,14 +158,14 @@ async def migrate():
         # Check if patterns table exists
         async with engine.begin() as conn:
             result = await conn.execute(text("""
-                SELECT name FROM sqlite_master 
+                SELECT name FROM sqlite_master
                 WHERE type='table' AND name='patterns'
             """))
             if not result.fetchone():
                 logger.warning("⚠️  Patterns table does not exist. Creating it from models...")
                 # Import models and create tables
                 from database.models import Base
-                await conn.run_sync(Base.metadata.create_all, tables=[Base.metadata.tables['patterns']])
+                await conn.run_sync(Base.metadata.create_all, tables=[Base.metadata.tables["patterns"]])
                 logger.info("✅ Created patterns table from models")
                 # Refresh existing columns after table creation
                 existing_columns = await get_existing_columns(engine)
@@ -176,7 +174,7 @@ async def migrate():
         async with engine.begin() as conn:
             added_count = 0
             for column_def in COLUMNS_TO_ADD:
-                if column_def['name'] not in existing_columns:
+                if column_def["name"] not in existing_columns:
                     if await add_column_if_missing(conn, column_def):
                         added_count += 1
                 else:

@@ -22,7 +22,7 @@ class TestBackupInfo:
             created_at=datetime.utcnow(),
             size_bytes=1024,
             file_path="/backups/test_backup.tar.gz",
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
 
         assert backup_info.backup_id == "test_backup"
@@ -40,7 +40,7 @@ class TestBackupInfo:
             created_at=now,
             size_bytes=1024,
             file_path="/backups/test_backup.tar.gz",
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
 
         result = backup_info.to_dict()
@@ -90,7 +90,7 @@ class TestBackupRestoreService:
             backup_type="full",
             include_data=True,
             include_config=True,
-            include_logs=False
+            include_logs=False,
         )
 
         assert backup_info.backup_id.startswith("full_")
@@ -110,7 +110,7 @@ class TestBackupRestoreService:
             backup_type="config",
             include_data=False,
             include_config=True,
-            include_logs=False
+            include_logs=False,
         )
 
         assert backup_info.backup_type == "config"
@@ -125,7 +125,7 @@ class TestBackupRestoreService:
             backup_type="full",
             include_data=True,
             include_config=True,
-            include_logs=True
+            include_logs=True,
         )
 
         assert backup_info.success is True
@@ -203,12 +203,11 @@ class TestBackupRestoreService:
             config_file = temp_path / "test_config.yaml"
             config_file.write_text("test: config")
 
-            with patch('os.path.exists', return_value=True):
-                with patch('shutil.copy2') as mock_copy:
-                    await service._backup_config(temp_path, metadata)
+            with patch("os.path.exists", return_value=True), patch("shutil.copy2") as mock_copy:
+                await service._backup_config(temp_path, metadata)
 
-                    assert "config_files" in metadata
-                    mock_copy.assert_called()
+                assert "config_files" in metadata
+                mock_copy.assert_called()
 
     @pytest.mark.asyncio
     async def test_backup_logs(self, service):
@@ -221,9 +220,9 @@ class TestBackupRestoreService:
             log_file = temp_path / "test.log"
             log_file.write_text("test log content")
 
-            with patch('os.path.exists', return_value=True):
-                with patch('os.walk', return_value=[(str(temp_path), [], ["test.log"])]):
-                    with patch('shutil.copy2') as mock_copy:
+            with patch("os.path.exists", return_value=True):
+                with patch("os.walk", return_value=[(str(temp_path), [], ["test.log"])]):
+                    with patch("shutil.copy2") as mock_copy:
                         await service._backup_logs(temp_path, metadata)
 
                         assert "log_files" in metadata
@@ -261,12 +260,12 @@ class TestBackupRestoreService:
                         "measurement": "home_assistant_event",
                         "field": "temperature",
                         "value": 20.5,
-                        "tags": {"entity_id": "sensor.temp"}
-                    }
-                ]
+                        "tags": {"entity_id": "sensor.temp"},
+                    },
+                ],
             }
 
-            with open(data_file, 'w') as f:
+            with open(data_file, "w") as f:
                 json.dump(mock_data, f)
 
             # Should not raise exception with mock implementation
@@ -293,12 +292,12 @@ class TestBackupRestoreService:
                         "measurement": "home_assistant_event",
                         "field": "temperature",
                         "value": 20.5,
-                        "tags": {"entity_id": "sensor.temp"}
-                    }
-                ]
+                        "tags": {"entity_id": "sensor.temp"},
+                    },
+                ],
             }
 
-            with open(data_file, 'w') as f:
+            with open(data_file, "w") as f:
                 json.dump(mock_data, f)
 
             await service._restore_data(temp_path)
@@ -318,7 +317,7 @@ class TestBackupRestoreService:
             config_file = config_dir / "test_config.yaml"
             config_file.write_text("test: config")
 
-            with patch('shutil.copy2') as mock_copy:
+            with patch("shutil.copy2") as mock_copy:
                 await service._restore_config(temp_path)
                 mock_copy.assert_called()
 
@@ -334,7 +333,7 @@ class TestBackupRestoreService:
             log_file = logs_dir / "test.log"
             log_file.write_text("test log content")
 
-            with patch('shutil.copy2') as mock_copy:
+            with patch("shutil.copy2") as mock_copy:
                 await service._restore_logs(temp_path)
                 mock_copy.assert_called()
 
@@ -378,7 +377,7 @@ class TestBackupRestoreService:
         service.backup_history = [
             BackupInfo("backup1", "full", datetime.utcnow(), 1000, "/path1", {}),
             BackupInfo("backup2", "config", datetime.utcnow(), 500, "/path2", {}),
-            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {})
+            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {}),
         ]
 
         history = service.get_backup_history(limit=2)
@@ -392,7 +391,7 @@ class TestBackupRestoreService:
         service.backup_history = [
             BackupInfo("backup1", "full", datetime.utcnow(), 1000, "/path1", {}, True),
             BackupInfo("backup2", "config", datetime.utcnow(), 500, "/path2", {}, True),
-            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {}, False, "Error")
+            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {}, False, "Error"),
         ]
 
         stats = service.get_backup_statistics()
@@ -435,16 +434,16 @@ class TestBackupRestoreService:
         recent_time = (datetime.utcnow() - timedelta(days=5)).timestamp()
 
         # Mock the Path.stat method
-        with patch('pathlib.Path.stat') as mock_stat:
+        with patch("pathlib.Path.stat") as mock_stat:
             def stat_side_effect():
                 mock_stat_result = Mock()
                 # Get the path from the calling context
                 import inspect
                 frame = inspect.currentframe()
                 while frame:
-                    if 'backup_file' in frame.f_locals:
-                        path_str = str(frame.f_locals['backup_file'])
-                        if 'old_backup' in path_str:
+                    if "backup_file" in frame.f_locals:
+                        path_str = str(frame.f_locals["backup_file"])
+                        if "old_backup" in path_str:
                             mock_stat_result.st_mtime = old_time
                         else:
                             mock_stat_result.st_mtime = recent_time
@@ -465,7 +464,7 @@ class TestBackupRestoreService:
     @pytest.mark.asyncio
     async def test_backup_error_handling(self, service):
         """Test backup error handling."""
-        with patch('tarfile.open', side_effect=Exception("Test error")):
+        with patch("tarfile.open", side_effect=Exception("Test error")):
             backup_info = await service.create_backup("full")
 
             assert backup_info.success is False
@@ -480,6 +479,6 @@ class TestBackupRestoreService:
         assert backup_info.success
 
         # Mock restore to fail
-        with patch.object(service, '_restore_data', side_effect=Exception("Test error")):
+        with patch.object(service, "_restore_data", side_effect=Exception("Test error")):
             result = await service.restore_backup(backup_info.backup_id)
             assert result is False

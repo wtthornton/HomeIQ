@@ -12,9 +12,10 @@ from openai import AsyncOpenAI
 from spacy import load as spacy_load
 from transformers import pipeline
 
-from ..clients.device_intelligence_client import DeviceIntelligenceClient
-from ..trigger_analysis.trigger_condition_analyzer import TriggerConditionAnalyzer
-from ..trigger_analysis.trigger_device_discovery import TriggerDeviceDiscovery
+from src.clients.device_intelligence_client import DeviceIntelligenceClient
+from src.trigger_analysis.trigger_condition_analyzer import TriggerConditionAnalyzer
+from src.trigger_analysis.trigger_device_discovery import TriggerDeviceDiscovery
+
 from .pattern_extractor import extract_entities_from_query
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class MultiModelEntityExtractor:
     """
     Hybrid entity extraction using multiple models for optimal performance.
-    
+
     Strategy:
     1. Primary: Hugging Face NER (90% of queries, FREE, 50ms)
     2. Fallback: OpenAI GPT-4o-mini (10% of queries, $0.0004, 1-2s)
@@ -36,7 +37,7 @@ class MultiModelEntityExtractor:
                  openai_model: str = "gpt-5.1"):
         """
         Initialize multi-model entity extractor.
-        
+
         Args:
             openai_api_key: OpenAI API key for complex queries
             device_intelligence_client: Optional device intelligence client
@@ -64,22 +65,22 @@ class MultiModelEntityExtractor:
 
         # Performance tracking
         self.stats = {
-            'total_queries': 0,
-            'ner_success': 0,
-            'openai_success': 0,
-            'pattern_fallback': 0,
-            'avg_processing_time': 0.0,
-            'trigger_devices_discovered': 0
+            "total_queries": 0,
+            "ner_success": 0,
+            "openai_success": 0,
+            "pattern_fallback": 0,
+            "avg_processing_time": 0.0,
+            "trigger_devices_discovered": 0,
         }
 
         # Call pattern tracking
         self.call_stats = {
-            'direct_calls': 0,
-            'orchestrated_calls': 0,  # Reserved for future orchestrated workflows
-            'avg_direct_latency': 0.0,
-            'avg_orch_latency': 0.0,
-            'total_direct_time': 0.0,
-            'total_orch_time': 0.0
+            "direct_calls": 0,
+            "orchestrated_calls": 0,  # Reserved for future orchestrated workflows
+            "avg_direct_latency": 0.0,
+            "avg_orch_latency": 0.0,
+            "total_direct_time": 0.0,
+            "total_orch_time": 0.0,
         }
 
         logger.info(f"MultiModelEntityExtractor initialized with NER model: {ner_model}")
@@ -92,7 +93,7 @@ class MultiModelEntityExtractor:
                 self._ner_pipeline = pipeline("ner", model=self.ner_model)
                 logger.info("NER pipeline loaded successfully")
             except Exception as e:
-                logger.error(f"Failed to load NER model: {e}")
+                logger.exception(f"Failed to load NER model: {e}")
                 self._ner_pipeline = None
         return self._ner_pipeline
 
@@ -103,7 +104,7 @@ class MultiModelEntityExtractor:
                 self._openai_client = AsyncOpenAI(api_key=self.openai_api_key)
                 logger.info("OpenAI client initialized")
             except Exception as e:
-                logger.error(f"Failed to initialize OpenAI client: {e}")
+                logger.exception(f"Failed to initialize OpenAI client: {e}")
                 self._openai_client = None
         return self._openai_client
 
@@ -114,7 +115,7 @@ class MultiModelEntityExtractor:
                 self._spacy_model = spacy_load("en_core_web_sm")
                 logger.info("spaCy model loaded")
             except Exception as e:
-                logger.error(f"Failed to load spaCy model: {e}")
+                logger.exception(f"Failed to load spaCy model: {e}")
                 self._spacy_model = None
         return self._spacy_model
 
@@ -124,22 +125,22 @@ class MultiModelEntityExtractor:
             return False
 
         # Check if we have entities with high scores
-        high_confidence_entities = [e for e in entities if e.get('score', 0) > 0.8]
+        high_confidence_entities = [e for e in entities if e.get("score", 0) > 0.8]
         return len(high_confidence_entities) > 0
 
     def _is_complex_query(self, query: str) -> bool:
         """Determine if query is complex and needs OpenAI"""
         complex_indicators = [
             # Ambiguous references
-            r'\b(the|this|that|my|our)\s+(thing|stuff|device|light|sensor)\b',
+            r"\b(the|this|that|my|our)\s+(thing|stuff|device|light|sensor)\b",
             # Complex relationships
-            r'\b(when|if|unless|after|before)\s+',
+            r"\b(when|if|unless|after|before)\s+",
             # Multiple actions
-            r'\b(and|then|also|plus)\s+',
+            r"\b(and|then|also|plus)\s+",
             # Conditional logic
-            r'\b(unless|except|but|however)\s+',
+            r"\b(unless|except|but|however)\s+",
             # Vague descriptions
-            r'\b(something|anything|everything|nothing)\b'
+            r"\b(something|anything|everything|nothing)\b",
         ]
 
         query_lower = query.lower()
@@ -148,7 +149,7 @@ class MultiModelEntityExtractor:
 
         # Also consider query length and complexity
         word_count = len(query.split())
-        has_question = '?' in query
+        has_question = "?" in query
 
         return complexity_score >= 2 or (word_count > 15 and has_question)
 
@@ -160,10 +161,9 @@ class MultiModelEntityExtractor:
             return []
 
         try:
-            entities = ner_pipeline(query)
-            return entities
+            return ner_pipeline(query)
         except Exception as e:
-            logger.error(f"NER extraction failed: {e}")
+            logger.exception(f"NER extraction failed: {e}")
             return []
 
     async def _extract_with_openai(self, query: str) -> list[dict[str, Any]]:
@@ -175,7 +175,7 @@ class MultiModelEntityExtractor:
         try:
             prompt = f"""
             Extract entities from this Home Assistant automation query: "{query}"
-            
+
             Return JSON with:
             {{
                 "areas": ["office", "kitchen", "bedroom"],
@@ -191,7 +191,7 @@ class MultiModelEntityExtractor:
                 "actions": ["turn on", "flash", "monitor"],
                 "intent": "automation"
             }}
-            
+
             Focus on:
             - Room/area names
             - Action devices (devices that will be controlled: lights, switches, etc.)
@@ -209,10 +209,10 @@ class MultiModelEntityExtractor:
                 model=self.openai_model,
                 messages=[
                     {"role": "system", "content": "You are a Home Assistant entity extraction expert. Extract entities from user queries for home automation."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.1,
-                max_completion_tokens=300  # Use max_completion_tokens for newer models
+                max_completion_tokens=300,  # Use max_completion_tokens for newer models
             )
 
             # Parse OpenAI response
@@ -223,7 +223,7 @@ class MultiModelEntityExtractor:
             return entities
 
         except Exception as e:
-            logger.error(f"OpenAI extraction failed: {e}")
+            logger.exception(f"OpenAI extraction failed: {e}")
             return []
 
     def _parse_openai_response(self, content: str) -> list[dict[str, Any]]:
@@ -231,51 +231,51 @@ class MultiModelEntityExtractor:
         try:
             import json
             # Extract JSON from response
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
 
                 entities = []
                 # Convert OpenAI format to our entity format
-                for area in data.get('areas', []):
+                for area in data.get("areas", []):
                     entities.append({
-                        'name': area,
-                        'type': 'area',
-                        'domain': 'unknown',
-                        'confidence': 0.9,
-                        'extraction_method': 'openai'
+                        "name": area,
+                        "type": "area",
+                        "domain": "unknown",
+                        "confidence": 0.9,
+                        "extraction_method": "openai",
                     })
 
                 # Handle both 'devices' and 'action_devices' for backward compatibility
-                devices = data.get('action_devices', []) or data.get('devices', [])
+                devices = data.get("action_devices", []) or data.get("devices", [])
                 for device in devices:
                     entities.append({
-                        'name': device,
-                        'type': 'device',
-                        'domain': 'unknown',
-                        'confidence': 0.9,
-                        'extraction_method': 'openai'
+                        "name": device,
+                        "type": "device",
+                        "domain": "unknown",
+                        "confidence": 0.9,
+                        "extraction_method": "openai",
                     })
 
                 # Store trigger_conditions in a special format for later processing
                 # They will be processed by trigger condition analyzer
-                trigger_conditions = data.get('trigger_conditions', [])
+                trigger_conditions = data.get("trigger_conditions", [])
                 if trigger_conditions:
                     # Store as metadata for trigger discovery
                     for condition in trigger_conditions:
                         entities.append({
-                            'name': condition.get('condition', ''),
-                            'type': 'trigger_condition',
-                            'trigger_type': condition.get('trigger_type'),
-                            'location': condition.get('location'),
-                            'required_device_class': condition.get('required_device_class'),
-                            'confidence': 0.9,
-                            'extraction_method': 'openai'
+                            "name": condition.get("condition", ""),
+                            "type": "trigger_condition",
+                            "trigger_type": condition.get("trigger_type"),
+                            "location": condition.get("location"),
+                            "required_device_class": condition.get("required_device_class"),
+                            "confidence": 0.9,
+                            "extraction_method": "openai",
                         })
 
                 return entities
         except Exception as e:
-            logger.error(f"Failed to parse OpenAI response: {e}")
+            logger.exception(f"Failed to parse OpenAI response: {e}")
 
         return []
 
@@ -285,9 +285,9 @@ class MultiModelEntityExtractor:
             return entities
 
         # Separate areas and devices
-        area_entities = [e for e in entities if e.get('type') == 'area']
-        device_entities = [e for e in entities if e.get('type') == 'device']
-        unknown_entities = [e for e in entities if e.get('type') not in ['area', 'device']]
+        area_entities = [e for e in entities if e.get("type") == "area"]
+        device_entities = [e for e in entities if e.get("type") == "device"]
+        unknown_entities = [e for e in entities if e.get("type") not in ["area", "device"]]
 
         enhanced_entities = []
         added_device_ids = set()  # Track to avoid duplicates
@@ -295,7 +295,7 @@ class MultiModelEntityExtractor:
         # Process area entities (existing logic)
         for entity in area_entities:
             try:
-                area_name = entity['name']
+                area_name = entity["name"]
                 devices = await self.device_intel_client.get_devices_by_area(area_name)
 
                 for device in devices:
@@ -303,7 +303,7 @@ class MultiModelEntityExtractor:
                     if isinstance(device, str):
                         device_id = device
                     elif isinstance(device, dict):
-                        device_id = device.get('id') or device.get('device_id')
+                        device_id = device.get("id") or device.get("device_id")
                     else:
                         logger.warning(f"Unexpected device type: {type(device)}, skipping")
                         continue
@@ -335,9 +335,9 @@ class MultiModelEntityExtractor:
                     # Handle case where entity might be a string or dict
                     if isinstance(entity, str):
                         device_name = entity
-                        entity = {'name': entity, 'type': 'device'}  # Convert to dict for consistency
+                        entity = {"name": entity, "type": "device"}  # Convert to dict for consistency
                     else:
-                        device_name = entity.get('name') if isinstance(entity, dict) else str(entity)
+                        device_name = entity.get("name") if isinstance(entity, dict) else str(entity)
 
                     # Search for device by name (fuzzy matching)
                     matching_devices = self._find_matching_devices(device_name, all_devices)
@@ -347,7 +347,7 @@ class MultiModelEntityExtractor:
                         if isinstance(device, str):
                             device_id = device
                         elif isinstance(device, dict):
-                            device_id = device.get('id') or device.get('device_id')
+                            device_id = device.get("id") or device.get("device_id")
                         else:
                             continue
 
@@ -378,13 +378,13 @@ class MultiModelEntityExtractor:
                         if isinstance(d, str):
                             matching_device_ids.append(d)
                         elif isinstance(d, dict):
-                            matching_device_ids.append(d.get('id') or d.get('device_id'))
+                            matching_device_ids.append(d.get("id") or d.get("device_id"))
 
                     if not any(did in added_device_ids for did in matching_device_ids if did):
                         enhanced_entities.append(entity)
 
             except Exception as e:
-                logger.error(f"Failed to enhance device entities: {e}")
+                logger.exception(f"Failed to enhance device entities: {e}")
                 # Add unenhanced device entities as fallback
                 enhanced_entities.extend(device_entities)
 
@@ -396,16 +396,16 @@ class MultiModelEntityExtractor:
     async def extract_entities(self, query: str) -> list[dict[str, Any]]:
         """
         Extract entities using multi-model approach.
-        
+
         Args:
             query: User query string
-            
+
         Returns:
             List of extracted entities with metadata
         """
         import time
         start_time = time.time()
-        self.stats['total_queries'] += 1
+        self.stats["total_queries"] += 1
 
         try:
             # Step 1: Try NER first (90% of queries)
@@ -415,17 +415,17 @@ class MultiModelEntityExtractor:
 
             if self._is_high_confidence(ner_entities):
                 logger.debug("High confidence NER results, using NER")
-                self.stats['ner_success'] += 1
+                self.stats["ner_success"] += 1
 
                 # Convert NER format to our format
                 converted_entities = []
                 for entity in ner_entities:
                     converted_entities.append({
-                        'name': entity['word'],
-                        'type': 'device' if entity['entity'] in ['B-DEVICE', 'I-DEVICE'] else 'area',
-                        'domain': 'unknown',
-                        'confidence': entity['score'],
-                        'extraction_method': 'ner'
+                        "name": entity["word"],
+                        "type": "device" if entity["entity"] in ["B-DEVICE", "I-DEVICE"] else "area",
+                        "domain": "unknown",
+                        "confidence": entity["score"],
+                        "extraction_method": "ner",
                     })
 
                 # Enhance with device intelligence
@@ -435,17 +435,17 @@ class MultiModelEntityExtractor:
                 all_entities = await self._discover_trigger_devices(query, enhanced_entities)
 
                 processing_time = time.time() - start_time
-                self.stats['avg_processing_time'] = (
-                    (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time)
-                    / self.stats['total_queries']
+                self.stats["avg_processing_time"] = (
+                    (self.stats["avg_processing_time"] * (self.stats["total_queries"] - 1) + processing_time)
+                    / self.stats["total_queries"]
                 )
 
                 # Track direct call pattern
                 processing_time_ms = processing_time * 1000
-                self.call_stats['direct_calls'] += 1
-                self.call_stats['total_direct_time'] += processing_time_ms
-                self.call_stats['avg_direct_latency'] = (
-                    self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                self.call_stats["direct_calls"] += 1
+                self.call_stats["total_direct_time"] += processing_time_ms
+                self.call_stats["avg_direct_latency"] = (
+                    self.call_stats["total_direct_time"] / self.call_stats["direct_calls"]
                 )
                 logger.info(f"SERVICE_CALL: pattern=direct, service=ner, latency={processing_time_ms:.2f}ms, success=True")
 
@@ -457,24 +457,24 @@ class MultiModelEntityExtractor:
                 openai_entities = await self._extract_with_openai(query)
 
                 if openai_entities:
-                    self.stats['openai_success'] += 1
+                    self.stats["openai_success"] += 1
                     enhanced_entities = await self._enhance_with_device_intelligence(openai_entities)
 
                     # Discover trigger devices
                     all_entities = await self._discover_trigger_devices(query, enhanced_entities)
 
                     processing_time = time.time() - start_time
-                    self.stats['avg_processing_time'] = (
-                        (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time)
-                        / self.stats['total_queries']
+                    self.stats["avg_processing_time"] = (
+                        (self.stats["avg_processing_time"] * (self.stats["total_queries"] - 1) + processing_time)
+                        / self.stats["total_queries"]
                     )
 
                     # Track direct call pattern
                     processing_time_ms = processing_time * 1000
-                    self.call_stats['direct_calls'] += 1
-                    self.call_stats['total_direct_time'] += processing_time_ms
-                    self.call_stats['avg_direct_latency'] = (
-                        self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+                    self.call_stats["direct_calls"] += 1
+                    self.call_stats["total_direct_time"] += processing_time_ms
+                    self.call_stats["avg_direct_latency"] = (
+                        self.call_stats["total_direct_time"] / self.call_stats["direct_calls"]
                     )
                     logger.info(f"SERVICE_CALL: pattern=direct, service=openai, latency={processing_time_ms:.2f}ms, success=True")
 
@@ -482,7 +482,7 @@ class MultiModelEntityExtractor:
 
             # Step 3: Fallback to pattern matching (0% of queries)
             logger.debug("Using pattern matching fallback")
-            self.stats['pattern_fallback'] += 1
+            self.stats["pattern_fallback"] += 1
 
             pattern_entities = extract_entities_from_query(query)
             enhanced_entities = await self._enhance_with_device_intelligence(pattern_entities)
@@ -491,39 +491,39 @@ class MultiModelEntityExtractor:
             all_entities = await self._discover_trigger_devices(query, enhanced_entities)
 
             processing_time = time.time() - start_time
-            self.stats['avg_processing_time'] = (
-                (self.stats['avg_processing_time'] * (self.stats['total_queries'] - 1) + processing_time)
-                / self.stats['total_queries']
+            self.stats["avg_processing_time"] = (
+                (self.stats["avg_processing_time"] * (self.stats["total_queries"] - 1) + processing_time)
+                / self.stats["total_queries"]
             )
 
             # Track direct call pattern
             processing_time_ms = processing_time * 1000
-            self.call_stats['direct_calls'] += 1
-            self.call_stats['total_direct_time'] += processing_time_ms
-            self.call_stats['avg_direct_latency'] = (
-                self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+            self.call_stats["direct_calls"] += 1
+            self.call_stats["total_direct_time"] += processing_time_ms
+            self.call_stats["avg_direct_latency"] = (
+                self.call_stats["total_direct_time"] / self.call_stats["direct_calls"]
             )
             logger.info(f"SERVICE_CALL: pattern=direct, service=pattern_fallback, latency={processing_time_ms:.2f}ms, success=True")
 
             return all_entities
 
         except Exception as e:
-            logger.error(f"Entity extraction failed: {e}")
+            logger.exception(f"Entity extraction failed: {e}")
             # Emergency fallback to pattern matching
             return extract_entities_from_query(query)
 
     async def _discover_trigger_devices(
         self,
         query: str,
-        enhanced_entities: list[dict[str, Any]]
+        enhanced_entities: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """
         Discover trigger devices based on trigger conditions in the query.
-        
+
         Args:
             query: User query string
             enhanced_entities: Already extracted and enhanced entities
-            
+
         Returns:
             Combined list of enhanced entities and discovered trigger devices
         """
@@ -536,33 +536,33 @@ class MultiModelEntityExtractor:
             # Check if OpenAI already extracted trigger conditions
             openai_trigger_conditions = [
                 e for e in enhanced_entities
-                if e.get('type') == 'trigger_condition' and e.get('extraction_method') == 'openai'
+                if e.get("type") == "trigger_condition" and e.get("extraction_method") == "openai"
             ]
 
             # Filter out trigger_condition entities from enhanced_entities (they're metadata, not real entities)
             action_entities = [
                 e for e in enhanced_entities
-                if e.get('type') != 'trigger_condition'
+                if e.get("type") != "trigger_condition"
             ]
 
             # If OpenAI extracted trigger conditions, use those
             if openai_trigger_conditions:
                 trigger_conditions = [
                     {
-                        'type': 'trigger_condition',
-                        'trigger_type': tc.get('trigger_type'),
-                        'condition_text': tc.get('name', ''),
-                        'location': tc.get('location'),
-                        'required_device_class': tc.get('required_device_class'),
-                        'confidence': tc.get('confidence', 0.9),
-                        'extraction_method': 'openai'
+                        "type": "trigger_condition",
+                        "trigger_type": tc.get("trigger_type"),
+                        "condition_text": tc.get("name", ""),
+                        "location": tc.get("location"),
+                        "required_device_class": tc.get("required_device_class"),
+                        "confidence": tc.get("confidence", 0.9),
+                        "extraction_method": "openai",
                     }
                     for tc in openai_trigger_conditions
                 ]
             else:
                 # Analyze trigger conditions using pattern matching
                 trigger_conditions = await self.trigger_condition_analyzer.analyze_trigger_conditions(
-                    query, action_entities
+                    query, action_entities,
                 )
 
             if not trigger_conditions:
@@ -571,57 +571,56 @@ class MultiModelEntityExtractor:
 
             # Discover trigger devices
             trigger_devices = await self.trigger_device_discovery.discover_trigger_devices(
-                trigger_conditions
+                trigger_conditions,
             )
 
             if trigger_devices:
-                self.stats['trigger_devices_discovered'] += len(trigger_devices)
+                self.stats["trigger_devices_discovered"] += len(trigger_devices)
                 logger.info(
                     f"Discovered {len(trigger_devices)} trigger devices: "
-                    f"{[d.get('name', 'unknown') for d in trigger_devices]}"
+                    f"{[d.get('name', 'unknown') for d in trigger_devices]}",
                 )
                 # Combine entities (action entities + trigger devices, excluding trigger_condition metadata)
                 return action_entities + trigger_devices
-            else:
-                logger.debug("No trigger devices discovered")
-                return action_entities
+            logger.debug("No trigger devices discovered")
+            return action_entities
 
         except Exception as e:
             logger.error(f"Error discovering trigger devices: {e}", exc_info=True)
             # On error, return original entities (graceful degradation)
             # Filter out trigger_condition metadata entities
-            return [e for e in enhanced_entities if e.get('type') != 'trigger_condition']
+            return [e for e in enhanced_entities if e.get("type") != "trigger_condition"]
 
     def get_stats(self) -> dict[str, Any]:
         """Get performance statistics with model names and cost information"""
-        total = self.stats['total_queries']
+        total = self.stats["total_queries"]
         if total == 0:
             return {
                 **self.stats,
-                'models': {
-                    'ner': {
-                        'model_name': self.ner_model,
-                        'calls': 0,
-                        'success_rate': 0.0,
-                        'cost_usd': 0.0
+                "models": {
+                    "ner": {
+                        "model_name": self.ner_model,
+                        "calls": 0,
+                        "success_rate": 0.0,
+                        "cost_usd": 0.0,
                     },
-                    'openai': {
-                        'model_name': self.openai_model,
-                        'calls': 0,
-                        'success_rate': 0.0,
-                        'cost_usd': 0.0
+                    "openai": {
+                        "model_name": self.openai_model,
+                        "calls": 0,
+                        "success_rate": 0.0,
+                        "cost_usd": 0.0,
                     },
-                    'pattern': {
-                        'model_name': 'pattern_matching',
-                        'calls': 0,
-                        'success_rate': 0.0,
-                        'cost_usd': 0.0
-                    }
-                }
+                    "pattern": {
+                        "model_name": "pattern_matching",
+                        "calls": 0,
+                        "success_rate": 0.0,
+                        "cost_usd": 0.0,
+                    },
+                },
             }
 
         # Calculate model-specific stats
-        from ..llm.cost_tracker import CostTracker
+        from src.llm.cost_tracker import CostTracker
 
         # Estimate costs (we don't track exact tokens for NER/pattern, so estimate)
         # NER and pattern matching are free (local models)
@@ -635,66 +634,67 @@ class MultiModelEntityExtractor:
 
         return {
             **self.stats,
-            'ner_success_rate': self.stats['ner_success'] / total if total > 0 else 0.0,
-            'openai_success_rate': self.stats['openai_success'] / total if total > 0 else 0.0,
-            'pattern_fallback_rate': self.stats['pattern_fallback'] / total if total > 0 else 0.0,
-            'models': {
-                'ner': {
-                    'model_name': self.ner_model,
-                    'calls': self.stats['ner_success'],
-                    'success_rate': self.stats['ner_success'] / total if total > 0 else 0.0,
-                    'cost_usd': ner_cost,
-                    'is_local': CostTracker.is_local_model(self.ner_model)
+            "ner_success_rate": self.stats["ner_success"] / total if total > 0 else 0.0,
+            "openai_success_rate": self.stats["openai_success"] / total if total > 0 else 0.0,
+            "pattern_fallback_rate": self.stats["pattern_fallback"] / total if total > 0 else 0.0,
+            "models": {
+                "ner": {
+                    "model_name": self.ner_model,
+                    "calls": self.stats["ner_success"],
+                    "success_rate": self.stats["ner_success"] / total if total > 0 else 0.0,
+                    "cost_usd": ner_cost,
+                    "is_local": CostTracker.is_local_model(self.ner_model),
                 },
-                'openai': {
-                    'model_name': self.openai_model,
-                    'calls': self.stats['openai_success'],
-                    'success_rate': self.stats['openai_success'] / total if total > 0 else 0.0,
-                    'cost_usd': openai_cost,  # Would need token tracking for accurate cost
-                    'is_local': CostTracker.is_local_model(self.openai_model)
+                "openai": {
+                    "model_name": self.openai_model,
+                    "calls": self.stats["openai_success"],
+                    "success_rate": self.stats["openai_success"] / total if total > 0 else 0.0,
+                    "cost_usd": openai_cost,  # Would need token tracking for accurate cost
+                    "is_local": CostTracker.is_local_model(self.openai_model),
                 },
-                'pattern': {
-                    'model_name': 'pattern_matching',
-                    'calls': self.stats['pattern_fallback'],
-                    'success_rate': self.stats['pattern_fallback'] / total if total > 0 else 0.0,
-                    'cost_usd': pattern_cost,
-                    'is_local': True
-                }
-            }
+                "pattern": {
+                    "model_name": "pattern_matching",
+                    "calls": self.stats["pattern_fallback"],
+                    "success_rate": self.stats["pattern_fallback"] / total if total > 0 else 0.0,
+                    "cost_usd": pattern_cost,
+                    "is_local": True,
+                },
+            },
         }
 
     def _build_enhanced_entity(
         self,
         device_details: dict[str, Any],
-        area: str | None = None
+        area: str | None = None,
     ) -> dict[str, Any]:
         """Build enhanced entity from device details."""
         # ✅ FIX: Defensive check - ensure device_details is a dict
         if not isinstance(device_details, dict):
             logger.error(f"❌ _build_enhanced_entity received non-dict type: {type(device_details).__name__}")
-            raise ValueError(f"device_details must be a dict, got {type(device_details).__name__}")
+            msg = f"device_details must be a dict, got {type(device_details).__name__}"
+            raise ValueError(msg)
 
-        entities_list = device_details.get('entities', [])
-        entity_id = entities_list[0]['entity_id'] if entities_list else None
-        domain = entities_list[0]['domain'] if entities_list else 'unknown'
+        entities_list = device_details.get("entities", [])
+        entity_id = entities_list[0]["entity_id"] if entities_list else None
+        domain = entities_list[0]["domain"] if entities_list else "unknown"
 
         return {
-            'name': device_details['name'],
-            'entity_id': entity_id,
-            'domain': domain,
-            'area': area or device_details.get('area_name', 'Unknown'),
-            'manufacturer': device_details.get('manufacturer', 'Unknown'),
-            'model': device_details.get('model', 'Unknown'),
-            'health_score': device_details.get('health_score', 0),
-            'capabilities': device_details.get('capabilities', []),
-            'extraction_method': 'device_intelligence',
-            'confidence': 0.9
+            "name": device_details["name"],
+            "entity_id": entity_id,
+            "domain": domain,
+            "area": area or device_details.get("area_name", "Unknown"),
+            "manufacturer": device_details.get("manufacturer", "Unknown"),
+            "model": device_details.get("model", "Unknown"),
+            "health_score": device_details.get("health_score", 0),
+            "capabilities": device_details.get("capabilities", []),
+            "extraction_method": "device_intelligence",
+            "confidence": 0.9,
         }
 
     def _find_matching_devices(
         self,
         search_name: str,
-        all_devices: list[dict[str, Any]]
+        all_devices: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """Find devices matching search name (fuzzy, case-insensitive)."""
         search_name_lower = search_name.lower().strip()
@@ -706,7 +706,7 @@ class MultiModelEntityExtractor:
                 logger.debug(f"Skipping non-dict device entry during match: {device!r}")
                 continue
 
-            device_name = device.get('name', '').lower()
+            device_name = device.get("name", "").lower()
 
             # Exact match
             if device_name == search_name_lower:

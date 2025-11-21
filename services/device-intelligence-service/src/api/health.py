@@ -44,7 +44,7 @@ class ServiceStatus(BaseModel):
 async def health_check(settings: Settings = Depends(lambda: Settings())) -> HealthResponse:
     """
     Basic health check endpoint.
-    
+
     Returns:
         HealthResponse: Service health status and basic metrics
     """
@@ -65,7 +65,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
         "sqlite": "connected",  # TODO: Actually test database connection
         "redis": "connected",    # TODO: Actually test Redis connection
         "home_assistant": "connected",  # TODO: Actually test HA connection
-        "mqtt": "connected"      # TODO: Actually test MQTT connection
+        "mqtt": "connected",      # TODO: Actually test MQTT connection
     }
 
     return HealthResponse(
@@ -77,9 +77,9 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
         memory_usage={
             "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
             "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
-            "percent": round(process.memory_percent(), 2)
+            "percent": round(process.memory_percent(), 2),
         },
-        dependencies=dependencies
+        dependencies=dependencies,
     )
 
 
@@ -87,7 +87,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
 async def service_status(settings: Settings = Depends(lambda: Settings())) -> ServiceStatus:
     """
     Detailed service status endpoint.
-    
+
     Returns:
         ServiceStatus: Detailed service information and configuration
     """
@@ -100,7 +100,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         "database": "operational",
         "cache": "operational",
         "home_assistant": "operational",
-        "mqtt_broker": "operational"
+        "mqtt_broker": "operational",
     }
 
     return ServiceStatus(
@@ -110,7 +110,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         port=settings.DEVICE_INTELLIGENCE_PORT,
         host=settings.DEVICE_INTELLIGENCE_HOST,
         environment=environment,
-        dependencies=dependencies
+        dependencies=dependencies,
     )
 
 
@@ -118,7 +118,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
 async def readiness_check() -> dict[str, Any]:
     """
     Kubernetes-style readiness check.
-    
+
     Returns:
         Dict[str, Any]: Readiness status
     """
@@ -134,8 +134,8 @@ async def readiness_check() -> dict[str, Any]:
         "checks": {
             "database": "ok",
             "cache": "ok",
-            "external_services": "ok"
-        }
+            "external_services": "ok",
+        },
     }
 
 
@@ -143,12 +143,12 @@ async def readiness_check() -> dict[str, Any]:
 async def liveness_check() -> dict[str, Any]:
     """
     Kubernetes-style liveness check.
-    
+
     Returns:
         Dict[str, Any]: Liveness status
     """
     return {
         "status": "alive",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "service": "Device Intelligence Service"
+        "service": "Device Intelligence Service",
     }

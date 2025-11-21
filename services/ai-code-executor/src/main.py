@@ -22,7 +22,7 @@ from .security.code_validator import (
 # Setup logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
                 max_bytes=settings.max_code_bytes,
                 max_ast_nodes=settings.max_ast_nodes,
                 allowed_imports=sandbox_config.allowed_imports,
-            )
+            ),
         )
         logger.info(
             "✅ Code validator ready (max_bytes=%s, max_ast_nodes=%s)",
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
             settings.max_ast_nodes,
         )
     except Exception as e:
-        logger.error(f"❌ Failed to initialize sandbox: {e}")
+        logger.exception(f"❌ Failed to initialize sandbox: {e}")
         raise
 
     yield
@@ -90,7 +90,7 @@ app = FastAPI(
     title="AI Code Executor Service",
     description="Secure Python code execution for MCP code execution pattern",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware with explicit allow-list
@@ -123,7 +123,7 @@ class ExecuteRequest(BaseModel):
     code: str = Field(..., description="Python code to execute")
     context: dict[str, Any] | None = Field(
         default=None,
-        description="Context variables available to code"
+        description="Context variables available to code",
     )
 
 
@@ -145,7 +145,7 @@ async def health_check():
         "status": "healthy",
         "service": settings.service_name,
         "version": "1.0.0",
-        "mcp_initialized": sandbox is not None and sandbox._initialized
+        "mcp_initialized": sandbox is not None and sandbox._initialized,
     }
 
 
@@ -181,7 +181,7 @@ async def execute_code(request: ExecuteRequest):
         logger.info(
             f"Execution complete: success={result.success}, "
             f"time={result.execution_time:.3f}s, "
-            f"memory={result.memory_used_mb:.2f}MB"
+            f"memory={result.memory_used_mb:.2f}MB",
         )
 
         if not result.success:
@@ -194,7 +194,7 @@ async def execute_code(request: ExecuteRequest):
             return_value=result.return_value,
             execution_time=result.execution_time,
             memory_used_mb=result.memory_used_mb,
-            error=result.error
+            error=result.error,
         )
 
     except Exception as e:
@@ -208,5 +208,5 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=settings.service_port,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )

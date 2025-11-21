@@ -36,18 +36,18 @@ class DeviceListResponse(BaseModel):
 async def get_devices(
     skip: int = 0,
     limit: int = 100,
-    area_id: str = None,
-    integration: str = None
+    area_id: str | None = None,
+    integration: str | None = None,
 ) -> DeviceListResponse:
     """
     Get all devices (placeholder implementation).
-    
+
     Args:
         skip: Number of devices to skip
         limit: Maximum number of devices to return
         area_id: Filter by area ID
         integration: Filter by integration type
-        
+
     Returns:
         DeviceListResponse: List of devices with pagination
     """
@@ -63,7 +63,7 @@ async def get_devices(
             area_id="living_room",
             integration="zigbee2mqtt",
             capabilities=["on_off", "brightness"],
-            health_score=95
+            health_score=95,
         ),
         Device(
             id="placeholder-device-2",
@@ -73,8 +73,8 @@ async def get_devices(
             area_id="bedroom",
             integration="homeassistant",
             capabilities=["temperature", "humidity"],
-            health_score=88
-        )
+            health_score=88,
+        ),
     ]
 
     # Apply filters (placeholder logic)
@@ -93,7 +93,7 @@ async def get_devices(
         devices=paginated_devices,
         total=len(filtered_devices),
         page=skip // limit + 1,
-        per_page=limit
+        per_page=limit,
     )
 
 
@@ -101,13 +101,13 @@ async def get_devices(
 async def get_device(device_id: str) -> Device:
     """
     Get specific device by ID (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Device: Device information
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -123,7 +123,7 @@ async def get_device(device_id: str) -> Device:
             area_id="living_room",
             integration="zigbee2mqtt",
             capabilities=["on_off", "brightness"],
-            health_score=95
+            health_score=95,
         )
 
     raise HTTPException(status_code=404, detail="Device not found")
@@ -133,13 +133,13 @@ async def get_device(device_id: str) -> Device:
 async def get_device_capabilities(device_id: str) -> dict[str, Any]:
     """
     Get device capabilities (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Dict[str, Any]: Device capabilities
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -155,16 +155,16 @@ async def get_device_capabilities(device_id: str) -> dict[str, Any]:
                     "type": "switch",
                     "properties": {"state": "on"},
                     "exposed": True,
-                    "configured": True
+                    "configured": True,
                 },
                 {
                     "name": "brightness",
                     "type": "light",
                     "properties": {"brightness": 255},
                     "exposed": True,
-                    "configured": True
-                }
-            ]
+                    "configured": True,
+                },
+            ],
         }
 
     raise HTTPException(status_code=404, detail="Device not found")
@@ -174,13 +174,13 @@ async def get_device_capabilities(device_id: str) -> dict[str, Any]:
 async def get_device_health(device_id: str) -> dict[str, Any]:
     """
     Get device health metrics (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Dict[str, Any]: Device health information
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -196,11 +196,11 @@ async def get_device_health(device_id: str) -> dict[str, Any]:
                 "error_rate": 95,
                 "battery_level": 100,
                 "signal_strength": 92,
-                "usage_pattern": 90
+                "usage_pattern": 90,
             },
             "health_status": "excellent",
             "recommendations": [],
-            "last_updated": "2025-01-24T08:00:00Z"
+            "last_updated": "2025-01-24T08:00:00Z",
         }
 
     raise HTTPException(status_code=404, detail="Device not found")

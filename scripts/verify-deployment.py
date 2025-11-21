@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Verify deployment status"""
 
-import requests
 import sys
 
-if sys.platform == 'win32':
+import requests
+
+if sys.platform == "win32":
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
 
 print("🔍 Verifying Deployment Status")
 print("=" * 60)

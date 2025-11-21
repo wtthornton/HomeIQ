@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timezone
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from event_parser import CalendarEventParser
 
@@ -92,7 +92,7 @@ class TestParseHAEvent:
             "start": {"dateTime": "2025-10-16T14:00:00-07:00"},
             "end": {"dateTime": "2025-10-16T15:00:00-07:00"},
             "location": "Conference Room",
-            "description": "Weekly sync"
+            "description": "Weekly sync",
         }
 
         result = CalendarEventParser.parse_ha_event(event)
@@ -109,7 +109,7 @@ class TestParseHAEvent:
         event = {
             "summary": "Holiday",
             "start": {"date": "2025-10-16"},
-            "end": {"date": "2025-10-17"}
+            "end": {"date": "2025-10-17"},
         }
 
         result = CalendarEventParser.parse_ha_event(event)
@@ -123,7 +123,7 @@ class TestParseHAEvent:
         """Test parsing event with minimal fields"""
         event = {
             "start": {"dateTime": "2025-10-16T14:00:00Z"},
-            "end": {"dateTime": "2025-10-16T15:00:00Z"}
+            "end": {"dateTime": "2025-10-16T15:00:00Z"},
         }
 
         result = CalendarEventParser.parse_ha_event(event)
@@ -137,7 +137,7 @@ class TestParseHAEvent:
         event = {
             "summary": "Test",
             "start": {"dateTime": "2025-10-16T14:00:00Z"},
-            "end": {"dateTime": "2025-10-16T15:00:00Z"}
+            "end": {"dateTime": "2025-10-16T15:00:00Z"},
         }
 
         result = CalendarEventParser.parse_ha_event(event)
@@ -154,7 +154,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "WFH Day",
             "location": "",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -168,7 +168,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "Work From Home",
             "location": "",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -181,7 +181,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "Meeting",
             "location": "Home Office",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -194,7 +194,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "Client Meeting",
             "location": "Office Downtown",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -207,7 +207,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "Business Trip",
             "location": "",
-            "description": "Travel to NYC"
+            "description": "Travel to NYC",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -219,7 +219,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "Dentist Appointment",
             "location": "123 Main St",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -234,7 +234,7 @@ class TestDetectOccupancyIndicators:
         event = {
             "summary": "WFH - Office Meetings",
             "location": "Home",
-            "description": ""
+            "description": "",
         }
 
         indicators = CalendarEventParser.detect_occupancy_indicators(event)
@@ -253,7 +253,7 @@ class TestParseAndEnrichEvent:
             "summary": "WFH Day",
             "start": {"dateTime": "2025-10-16T09:00:00-07:00"},
             "end": {"dateTime": "2025-10-16T17:00:00-07:00"},
-            "location": "Home"
+            "location": "Home",
         }
 
         result = CalendarEventParser.parse_and_enrich_event(event)
@@ -273,13 +273,13 @@ class TestParseMultipleEvents:
             {
                 "summary": "Meeting 1",
                 "start": {"dateTime": "2025-10-16T09:00:00Z"},
-                "end": {"dateTime": "2025-10-16T10:00:00Z"}
+                "end": {"dateTime": "2025-10-16T10:00:00Z"},
             },
             {
                 "summary": "Meeting 2",
                 "start": {"dateTime": "2025-10-16T14:00:00Z"},
-                "end": {"dateTime": "2025-10-16T15:00:00Z"}
-            }
+                "end": {"dateTime": "2025-10-16T15:00:00Z"},
+            },
         ]
 
         results = CalendarEventParser.parse_multiple_events(events)
@@ -294,12 +294,12 @@ class TestParseMultipleEvents:
             {
                 "summary": "Valid Event",
                 "start": {"dateTime": "2025-10-16T09:00:00Z"},
-                "end": {"dateTime": "2025-10-16T10:00:00Z"}
+                "end": {"dateTime": "2025-10-16T10:00:00Z"},
             },
             {
                 "summary": "Invalid Event",
-                "start": "not a valid format"
-            }
+                "start": "not a valid format",
+            },
         ]
 
         # Should skip invalid event and continue
@@ -321,13 +321,13 @@ class TestFilterEventsByTime:
             {
                 "summary": "Past Event",
                 "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Future Event",
                 "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         filtered = CalendarEventParser.filter_events_by_time(events, start_time=now)
@@ -343,13 +343,13 @@ class TestFilterEventsByTime:
             {
                 "summary": "Morning Event",
                 "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Afternoon Event",
                 "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         filtered = CalendarEventParser.filter_events_by_time(events, end_time=cutoff)
@@ -369,18 +369,18 @@ class TestGetCurrentEvents:
             {
                 "summary": "Current Event",
                 "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Past Event",
                 "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Future Event",
                 "start": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 17, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 17, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         current = CalendarEventParser.get_current_events(events, now)
@@ -396,8 +396,8 @@ class TestGetCurrentEvents:
             {
                 "summary": "Future Event",
                 "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         current = CalendarEventParser.get_current_events(events, now)
@@ -416,18 +416,18 @@ class TestGetUpcomingEvents:
             {
                 "summary": "Past Event",
                 "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "First Upcoming",
                 "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Second Upcoming",
                 "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         upcoming = CalendarEventParser.get_upcoming_events(events, now)
@@ -444,18 +444,18 @@ class TestGetUpcomingEvents:
             {
                 "summary": "Event 1",
                 "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Event 2",
                 "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Event 3",
                 "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         upcoming = CalendarEventParser.get_upcoming_events(events, now, limit=2)
@@ -473,13 +473,13 @@ class TestGetUpcomingEvents:
             {
                 "summary": "Later Event",
                 "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc),
             },
             {
                 "summary": "Earlier Event",
                 "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
-            }
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
+            },
         ]
 
         upcoming = CalendarEventParser.get_upcoming_events(events, now)

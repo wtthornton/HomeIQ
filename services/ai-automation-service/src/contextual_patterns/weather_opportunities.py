@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 class WeatherOpportunityDetector:
     """
     Detects weather-aware automation opportunities.
-    
+
     Uses weather data from InfluxDB (already flowing via enrichment-pipeline)
     to suggest climate automations like frost protection, pre-heating/cooling.
-    
+
     Story AI3.5: Weather Context Integration
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     """
@@ -31,11 +31,11 @@ class WeatherOpportunityDetector:
         data_api_client,
         frost_threshold_f: float = 32.0,
         heat_threshold_f: float = 85.0,
-        min_confidence: float = 0.7
+        min_confidence: float = 0.7,
     ):
         """
         Initialize weather opportunity detector.
-        
+
         Args:
             influxdb_client: InfluxDB client for weather queries
             data_api_client: Data API client for device queries
@@ -55,16 +55,16 @@ class WeatherOpportunityDetector:
 
         logger.info(
             f"WeatherOpportunityDetector initialized: "
-            f"frost_threshold={frost_threshold_f}°F, heat_threshold={heat_threshold_f}°F"
+            f"frost_threshold={frost_threshold_f}°F, heat_threshold={heat_threshold_f}°F",
         )
 
     async def detect_opportunities(self, days: int = 7) -> list[dict]:
         """
         Detect all weather-aware automation opportunities.
-        
+
         Args:
             days: Days of weather history to analyze (default: 7)
-        
+
         Returns:
             List of weather opportunity dictionaries
         """
@@ -110,15 +110,15 @@ class WeatherOpportunityDetector:
             # This ensures weather-aware automations are suggested even with minimal data
             if not opportunities and (weather_data or climate_devices):
                 generic_opp = {
-                    'synergy_id': str(uuid.uuid4()),
-                    'synergy_type': 'weather_context',
-                    'devices': [d.get('entity_id', 'unknown') for d in climate_devices[:2]] if climate_devices else ['weather.forecast_home'],
-                    'relationship': 'weather_aware_automation',
-                    'area': 'home',
-                    'impact_score': 0.6,
-                    'complexity': 'medium',
-                    'confidence': 0.7,
-                    'rationale': 'Weather-aware automation opportunity based on available climate devices and weather patterns'
+                    "synergy_id": str(uuid.uuid4()),
+                    "synergy_type": "weather_context",
+                    "devices": [d.get("entity_id", "unknown") for d in climate_devices[:2]] if climate_devices else ["weather.forecast_home"],
+                    "relationship": "weather_aware_automation",
+                    "area": "home",
+                    "impact_score": 0.6,
+                    "complexity": "medium",
+                    "confidence": 0.7,
+                    "rationale": "Weather-aware automation opportunity based on available climate devices and weather patterns",
                 }
                 opportunities.append(generic_opp)
                 logger.info("   🌤️  Created generic weather opportunity")
@@ -127,7 +127,7 @@ class WeatherOpportunityDetector:
 
             logger.info(
                 f"✅ Weather opportunity detection complete in {duration:.1f}s\n"
-                f"   Total opportunities: {len(opportunities)}"
+                f"   Total opportunities: {len(opportunities)}",
             )
 
             return opportunities
@@ -139,10 +139,10 @@ class WeatherOpportunityDetector:
     async def _get_weather_data(self, days: int) -> list[dict]:
         """
         Get weather data from normalized Home Assistant events in InfluxDB.
-        
+
         Args:
             days: Days of history to query
-        
+
         Returns:
             List of weather records
         """
@@ -152,12 +152,12 @@ class WeatherOpportunityDetector:
         try:
             # Query normalized HA weather events from InfluxDB
             # Weather data is stored as HA events with domain="weather" and domain="sensor" for weather sensors
-            query = f'''
+            query = f"""
             import "strings"
-            
+
             from(bucket: "home_assistant_events")
               |> range(start: -{days}d)
-              |> filter(fn: (r) => r["domain"] == "weather" or 
+              |> filter(fn: (r) => r["domain"] == "weather" or
                         (r["domain"] == "sensor" and (
                           strings.containsStr(v: r["entity_id"], substr: "weather") or
                           strings.containsStr(v: r["entity_id"], substr: "temperature") or
@@ -169,7 +169,7 @@ class WeatherOpportunityDetector:
               |> filter(fn: (r) => r["_field"] == "state")
               |> sort(columns: ["_time"])
               |> limit(n: 500)
-            '''
+            """
 
             result = self.influxdb.query_api.query(query, org=self.influxdb.org)
 
@@ -180,12 +180,12 @@ class WeatherOpportunityDetector:
             for table in result:
                 for record in table.records:
                     weather_records.append({
-                        'time': record.get_time(),
-                        'entity_id': record.values.get('entity_id'),
-                        'domain': record.values.get('domain'),
-                        'field': record.values.get('_field', 'state'),
-                        'value': record.get_value(),
-                        'location': record.values.get('area_id', 'home')
+                        "time": record.get_time(),
+                        "entity_id": record.values.get("entity_id"),
+                        "domain": record.values.get("domain"),
+                        "field": record.values.get("_field", "state"),
+                        "value": record.get_value(),
+                        "location": record.values.get("area_id", "home"),
                     })
 
             self._weather_cache = weather_records
@@ -204,7 +204,7 @@ class WeatherOpportunityDetector:
 
         try:
             # Get all devices
-            all_devices = await self.data_api.fetch_devices()
+            await self.data_api.fetch_devices()
 
             # Get all entities
             all_entities = await self.data_api.fetch_entities()
@@ -212,7 +212,7 @@ class WeatherOpportunityDetector:
             # Filter for climate entities
             climate_entities = [
                 e for e in all_entities
-                if e['entity_id'].startswith('climate.')
+                if e["entity_id"].startswith("climate.")
             ]
 
             self._climate_devices_cache = climate_entities
@@ -227,11 +227,11 @@ class WeatherOpportunityDetector:
     async def _detect_frost_protection(
         self,
         weather_data: list[dict],
-        climate_devices: list[dict]
+        climate_devices: list[dict],
     ) -> list[dict]:
         """
         Detect frost protection opportunities.
-        
+
         Triggered when forecast shows temps below freezing.
         """
         opportunities = []
@@ -239,14 +239,14 @@ class WeatherOpportunityDetector:
         # Get recent low temperatures
         low_temps = [
             r for r in weather_data
-            if r['field'] == 'forecast_low' or (r['field'] == 'temperature' and r['value'] < 40)
+            if r["field"] == "forecast_low" or (r["field"] == "temperature" and r["value"] < 40)
         ]
 
         if not low_temps:
             return []
 
         # Check if any temps below frost threshold
-        min_temp = min(r['value'] for r in low_temps)
+        min_temp = min(r["value"] for r in low_temps)
 
         if min_temp < self.frost_threshold:
             logger.info(f"❄️  Frost risk detected: {min_temp:.1f}°F (threshold: {self.frost_threshold}°F)")
@@ -254,24 +254,24 @@ class WeatherOpportunityDetector:
             # Create opportunity for each climate device
             for device in climate_devices:
                 opportunities.append({
-                    'synergy_id': str(uuid.uuid4()),
-                    'synergy_type': 'weather_context',
-                    'devices': [device['entity_id']],
-                    'trigger_entity': 'weather.forecast',
-                    'action_entity': device['entity_id'],
-                    'area': device.get('area_id', 'unknown'),
-                    'relationship': 'frost_protection',
-                    'impact_score': 0.88,  # High - prevents damage
-                    'complexity': 'medium',
-                    'confidence': 0.85,
-                    'opportunity_metadata': {
-                        'trigger_name': 'Weather Forecast',
-                        'action_name': device.get('friendly_name', device['entity_id']),
-                        'weather_condition': f'Temperature below {self.frost_threshold}°F',
-                        'current_low': min_temp,
-                        'suggested_action': 'Set minimum temperature to 62°F overnight',
-                        'rationale': f"Forecast shows {min_temp:.1f}°F - enable frost protection to prevent frozen pipes"
-                    }
+                    "synergy_id": str(uuid.uuid4()),
+                    "synergy_type": "weather_context",
+                    "devices": [device["entity_id"]],
+                    "trigger_entity": "weather.forecast",
+                    "action_entity": device["entity_id"],
+                    "area": device.get("area_id", "unknown"),
+                    "relationship": "frost_protection",
+                    "impact_score": 0.88,  # High - prevents damage
+                    "complexity": "medium",
+                    "confidence": 0.85,
+                    "opportunity_metadata": {
+                        "trigger_name": "Weather Forecast",
+                        "action_name": device.get("friendly_name", device["entity_id"]),
+                        "weather_condition": f"Temperature below {self.frost_threshold}°F",
+                        "current_low": min_temp,
+                        "suggested_action": "Set minimum temperature to 62°F overnight",
+                        "rationale": f"Forecast shows {min_temp:.1f}°F - enable frost protection to prevent frozen pipes",
+                    },
                 })
 
         return opportunities
@@ -279,11 +279,11 @@ class WeatherOpportunityDetector:
     async def _detect_precooling(
         self,
         weather_data: list[dict],
-        climate_devices: list[dict]
+        climate_devices: list[dict],
     ) -> list[dict]:
         """
         Detect pre-cooling opportunities.
-        
+
         Triggered when forecast shows hot afternoon temps.
         """
         opportunities = []
@@ -291,14 +291,14 @@ class WeatherOpportunityDetector:
         # Get high temperatures
         high_temps = [
             r for r in weather_data
-            if r['field'] == 'forecast_high'
+            if r["field"] == "forecast_high"
         ]
 
         if not high_temps:
             return []
 
         # Check for hot days
-        max_temp = max(r['value'] for r in high_temps)
+        max_temp = max(r["value"] for r in high_temps)
 
         if max_temp > self.heat_threshold:
             logger.info(f"🔥 Hot day detected: {max_temp:.1f}°F (threshold: {self.heat_threshold}°F)")
@@ -306,24 +306,24 @@ class WeatherOpportunityDetector:
             # Create opportunity for each climate device
             for device in climate_devices:
                 opportunities.append({
-                    'synergy_id': str(uuid.uuid4()),
-                    'synergy_type': 'weather_context',
-                    'devices': [device['entity_id']],
-                    'trigger_entity': 'weather.forecast',
-                    'action_entity': device['entity_id'],
-                    'area': device.get('area_id', 'unknown'),
-                    'relationship': 'precooling',
-                    'impact_score': 0.75,  # Medium-high - energy savings
-                    'complexity': 'medium',
-                    'confidence': 0.78,
-                    'opportunity_metadata': {
-                        'trigger_name': 'Weather Forecast',
-                        'action_name': device.get('friendly_name', device['entity_id']),
-                        'weather_condition': f'High temperature {max_temp:.1f}°F',
-                        'current_high': max_temp,
-                        'suggested_action': 'Pre-cool before peak heat (save 15-20% energy)',
-                        'rationale': f"Forecast shows {max_temp:.1f}°F - pre-cool early to reduce energy costs"
-                    }
+                    "synergy_id": str(uuid.uuid4()),
+                    "synergy_type": "weather_context",
+                    "devices": [device["entity_id"]],
+                    "trigger_entity": "weather.forecast",
+                    "action_entity": device["entity_id"],
+                    "area": device.get("area_id", "unknown"),
+                    "relationship": "precooling",
+                    "impact_score": 0.75,  # Medium-high - energy savings
+                    "complexity": "medium",
+                    "confidence": 0.78,
+                    "opportunity_metadata": {
+                        "trigger_name": "Weather Forecast",
+                        "action_name": device.get("friendly_name", device["entity_id"]),
+                        "weather_condition": f"High temperature {max_temp:.1f}°F",
+                        "current_high": max_temp,
+                        "suggested_action": "Pre-cool before peak heat (save 15-20% energy)",
+                        "rationale": f"Forecast shows {max_temp:.1f}°F - pre-cool early to reduce energy costs",
+                    },
                 })
 
         return opportunities

@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 class FunctionRegistry:
     """
     Registry of callable Home Assistant functions.
-    
+
     Maps function names to HA service calls for immediate action execution.
     """
 
     def __init__(self, ha_client: HomeAssistantClient):
         """
         Initialize function registry.
-        
+
         Args:
             ha_client: Home Assistant client for service calls
         """
@@ -52,16 +52,17 @@ class FunctionRegistry:
     async def call_function(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
         """
         Execute function by name.
-        
+
         Args:
             name: Function name
             params: Function parameters
-        
+
         Returns:
             Function result dictionary
         """
         if name not in self.functions:
-            raise ValueError(f"Unknown function: {name}")
+            msg = f"Unknown function: {name}"
+            raise ValueError(msg)
 
         try:
             func = self.functions[name]
@@ -69,27 +70,28 @@ class FunctionRegistry:
             return {
                 "success": True,
                 "result": result,
-                "function_name": name
+                "function_name": name,
             }
         except Exception as e:
             logger.error(f"Function call failed: {name} - {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
-                "function_name": name
+                "function_name": name,
             }
 
     async def _turn_on_light(self, params: dict[str, Any]) -> dict[str, Any]:
         """Turn on a light"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="light",
             service="turn_on",
             entity_id=entity_id,
-            service_data=params.get("service_data", {})
+            service_data=params.get("service_data", {}),
         )
 
         return {"entity_id": entity_id, "action": "turned_on"}
@@ -98,12 +100,13 @@ class FunctionRegistry:
         """Turn off a light"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="light",
             service="turn_off",
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         return {"entity_id": entity_id, "action": "turned_off"}
@@ -114,13 +117,14 @@ class FunctionRegistry:
         brightness = params.get("brightness")
 
         if not entity_id or brightness is None:
-            raise ValueError("entity_id and brightness required")
+            msg = "entity_id and brightness required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="light",
             service="turn_on",
             entity_id=entity_id,
-            service_data={"brightness": brightness}
+            service_data={"brightness": brightness},
         )
 
         return {"entity_id": entity_id, "brightness": brightness}
@@ -129,12 +133,13 @@ class FunctionRegistry:
         """Turn on a switch"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="switch",
             service="turn_on",
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         return {"entity_id": entity_id, "action": "turned_on"}
@@ -143,12 +148,13 @@ class FunctionRegistry:
         """Turn off a switch"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="switch",
             service="turn_off",
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         return {"entity_id": entity_id, "action": "turned_off"}
@@ -157,7 +163,8 @@ class FunctionRegistry:
         """Get entity state"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         state = await self.ha_client.get_entity_state(entity_id)
         return {"entity_id": entity_id, "state": state}
@@ -168,13 +175,14 @@ class FunctionRegistry:
         temperature = params.get("temperature")
 
         if not entity_id or temperature is None:
-            raise ValueError("entity_id and temperature required")
+            msg = "entity_id and temperature required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="climate",
             service="set_temperature",
             entity_id=entity_id,
-            service_data={"temperature": temperature}
+            service_data={"temperature": temperature},
         )
 
         return {"entity_id": entity_id, "temperature": temperature}
@@ -183,12 +191,13 @@ class FunctionRegistry:
         """Lock a door"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="lock",
             service="lock",
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         return {"entity_id": entity_id, "action": "locked"}
@@ -197,12 +206,13 @@ class FunctionRegistry:
         """Unlock a door"""
         entity_id = params.get("entity_id")
         if not entity_id:
-            raise ValueError("entity_id required")
+            msg = "entity_id required"
+            raise ValueError(msg)
 
         await self.ha_client.call_service(
             domain="lock",
             service="unlock",
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         return {"entity_id": entity_id, "action": "unlocked"}

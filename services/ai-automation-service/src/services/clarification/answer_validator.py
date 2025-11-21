@@ -15,22 +15,21 @@ class AnswerValidator:
 
     def __init__(self):
         """Initialize answer validator"""
-        pass
 
     async def validate_answer(
         self,
         answer: ClarificationAnswer,
         question: ClarificationQuestion,
-        available_entities: list[dict[str, Any]] | None = None
+        available_entities: list[dict[str, Any]] | None = None,
     ) -> ClarificationAnswer:
         """
         Validate a user's answer to a clarification question.
-        
+
         Args:
             answer: User's answer
             question: The question being answered
             available_entities: List of available entities for validation
-            
+
         Returns:
             Validated ClarificationAnswer with validation results
         """
@@ -39,14 +38,14 @@ class AnswerValidator:
             answer_text=answer.answer_text,
             selected_entities=answer.selected_entities,
             confidence=0.0,
-            validated=False
+            validated=False,
         )
 
         try:
             # Validate based on question type
             if question.question_type.value == "entity_selection":
                 validated_answer = await self._validate_entity_selection(
-                    answer, question, available_entities
+                    answer, question, available_entities,
                 )
             elif question.question_type.value == "multiple_choice":
                 validated_answer = self._validate_multiple_choice(answer, question)
@@ -57,7 +56,7 @@ class AnswerValidator:
 
             # Calculate confidence based on validation
             validated_answer.confidence = self._calculate_confidence(
-                validated_answer, question
+                validated_answer, question,
             )
 
         except Exception as e:
@@ -71,14 +70,14 @@ class AnswerValidator:
         self,
         answer: ClarificationAnswer,
         question: ClarificationQuestion,
-        available_entities: list[dict[str, Any]] | None
+        available_entities: list[dict[str, Any]] | None,
     ) -> ClarificationAnswer:
         """Validate entity selection answer"""
         validated_answer = ClarificationAnswer(
             question_id=answer.question_id,
             answer_text=answer.answer_text,
             selected_entities=answer.selected_entities or [],
-            validated=False
+            validated=False,
         )
 
         # If entities were selected, validate they exist
@@ -87,7 +86,7 @@ class AnswerValidator:
             invalid_entities = []
 
             if available_entities:
-                entity_ids = {e.get('entity_id') for e in available_entities if e.get('entity_id')}
+                entity_ids = {e.get("entity_id") for e in available_entities if e.get("entity_id")}
 
                 for entity_id in validated_answer.selected_entities:
                     if entity_id in entity_ids:
@@ -102,54 +101,53 @@ class AnswerValidator:
 
             if invalid_entities:
                 validated_answer.validation_errors = [
-                    f"Invalid entities: {', '.join(invalid_entities)}"
+                    f"Invalid entities: {', '.join(invalid_entities)}",
                 ]
                 validated_answer.validated = False
             else:
                 validated_answer.validated = True
-        else:
-            # Try to extract entity IDs from answer text
-            if available_entities:
-                entity_ids = {e.get('entity_id') for e in available_entities if e.get('entity_id')}
-                entity_names = {e.get('friendly_name', e.get('name', '')): e.get('entity_id')
-                               for e in available_entities if e.get('entity_id')}
+        # Try to extract entity IDs from answer text
+        elif available_entities:
+            entity_ids = {e.get("entity_id") for e in available_entities if e.get("entity_id")}
+            entity_names = {e.get("friendly_name", e.get("name", "")): e.get("entity_id")
+                           for e in available_entities if e.get("entity_id")}
 
-                # Look for entity mentions in answer
-                answer_lower = answer.answer_text.lower()
-                found_entities = []
+            # Look for entity mentions in answer
+            answer_lower = answer.answer_text.lower()
+            found_entities = []
 
-                for entity_id in entity_ids:
-                    if entity_id.lower() in answer_lower:
-                        found_entities.append(entity_id)
+            for entity_id in entity_ids:
+                if entity_id.lower() in answer_lower:
+                    found_entities.append(entity_id)
 
-                for name, entity_id in entity_names.items():
-                    if name.lower() in answer_lower and entity_id not in found_entities:
-                        found_entities.append(entity_id)
+            for name, entity_id in entity_names.items():
+                if name.lower() in answer_lower and entity_id not in found_entities:
+                    found_entities.append(entity_id)
 
-                if found_entities:
-                    validated_answer.selected_entities = found_entities
-                    validated_answer.validated = True
-                else:
-                    validated_answer.validation_errors = [
-                        "Could not find matching entities in your answer"
-                    ]
-                    validated_answer.validated = False
-            else:
-                # No way to validate, assume valid
+            if found_entities:
+                validated_answer.selected_entities = found_entities
                 validated_answer.validated = True
+            else:
+                validated_answer.validation_errors = [
+                    "Could not find matching entities in your answer",
+                ]
+                validated_answer.validated = False
+        else:
+            # No way to validate, assume valid
+            validated_answer.validated = True
 
         return validated_answer
 
     def _validate_multiple_choice(
         self,
         answer: ClarificationAnswer,
-        question: ClarificationQuestion
+        question: ClarificationQuestion,
     ) -> ClarificationAnswer:
         """Validate multiple choice answer"""
         validated_answer = ClarificationAnswer(
             question_id=answer.question_id,
             answer_text=answer.answer_text,
-            validated=False
+            validated=False,
         )
 
         if not question.options:
@@ -170,7 +168,7 @@ class AnswerValidator:
             validated_answer.answer_text = matching_options[0]
         else:
             validated_answer.validation_errors = [
-                f"Answer doesn't match any option. Options: {', '.join(question.options)}"
+                f"Answer doesn't match any option. Options: {', '.join(question.options)}",
             ]
             validated_answer.validated = False
 
@@ -179,20 +177,20 @@ class AnswerValidator:
     def _validate_boolean(
         self,
         answer: ClarificationAnswer,
-        question: ClarificationQuestion
+        question: ClarificationQuestion,
     ) -> ClarificationAnswer:
         """Validate boolean answer"""
         validated_answer = ClarificationAnswer(
             question_id=answer.question_id,
             answer_text=answer.answer_text,
-            validated=False
+            validated=False,
         )
 
         answer_lower = answer.answer_text.lower().strip()
 
         # Check for yes/no patterns
-        yes_patterns = ['yes', 'y', 'true', '1', 'sure', 'ok', 'okay', 'correct']
-        no_patterns = ['no', 'n', 'false', '0', 'not', 'incorrect']
+        yes_patterns = ["yes", "y", "true", "1", "sure", "ok", "okay", "correct"]
+        no_patterns = ["no", "n", "false", "0", "not", "incorrect"]
 
         if any(pattern in answer_lower for pattern in yes_patterns):
             validated_answer.answer_text = "yes"
@@ -202,7 +200,7 @@ class AnswerValidator:
             validated_answer.validated = True
         else:
             validated_answer.validation_errors = [
-                "Please answer with yes or no"
+                "Please answer with yes or no",
             ]
             validated_answer.validated = False
 
@@ -211,13 +209,13 @@ class AnswerValidator:
     def _validate_text(
         self,
         answer: ClarificationAnswer,
-        question: ClarificationQuestion
+        question: ClarificationQuestion,
     ) -> ClarificationAnswer:
         """Validate text answer (minimal validation)"""
         validated_answer = ClarificationAnswer(
             question_id=answer.question_id,
             answer_text=answer.answer_text.strip(),
-            validated=True  # Text answers are generally valid if not empty
+            validated=True,  # Text answers are generally valid if not empty
         )
 
         if not validated_answer.answer_text:
@@ -229,7 +227,7 @@ class AnswerValidator:
     def _calculate_confidence(
         self,
         answer: ClarificationAnswer,
-        question: ClarificationQuestion
+        question: ClarificationQuestion,
     ) -> float:
         """Calculate confidence in answer interpretation"""
         if not answer.validated:

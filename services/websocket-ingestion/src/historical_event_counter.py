@@ -17,23 +17,23 @@ class HistoricalEventCounter:
     def __init__(self, influxdb_manager: InfluxDBConnectionManager):
         """
         Initialize historical event counter
-        
+
         Args:
             influxdb_manager: InfluxDB connection manager
         """
         self.influxdb_manager = influxdb_manager
         self.historical_totals = {
-            'total_events_received': 0,
-            'total_events_processed': 0,
-            'events_by_type': {},
-            'last_updated': None
+            "total_events_received": 0,
+            "total_events_processed": 0,
+            "events_by_type": {},
+            "last_updated": None,
         }
         self._initialized = False
 
     async def initialize_historical_totals(self) -> dict[str, Any]:
         """
         Query InfluxDB for historical event totals and initialize counters
-        
+
         Returns:
             Dictionary with historical totals
         """
@@ -45,23 +45,23 @@ class HistoricalEventCounter:
             logger.info("🔍 Querying InfluxDB for historical event totals...")
 
             # Query total events from InfluxDB - count all records
-            total_events_query = '''
+            total_events_query = """
                 from(bucket: "home_assistant_events")
                 |> range(start: 0)
                 |> filter(fn: (r) => r._measurement == "home_assistant_events")
                 |> count()
                 |> group()
                 |> sum(column: "_value")
-            '''
+            """
 
             # Query events by type
-            events_by_type_query = '''
+            events_by_type_query = """
                 from(bucket: "home_assistant_events")
                 |> range(start: 0)
                 |> filter(fn: (r) => r._measurement == "home_assistant_events")
                 |> group(columns: ["event_type"])
                 |> count()
-            '''
+            """
 
             # Execute queries
             total_result = await self._execute_influx_query(total_events_query)
@@ -73,10 +73,10 @@ class HistoricalEventCounter:
 
             # Update historical totals
             self.historical_totals = {
-                'total_events_received': total_events,
-                'total_events_processed': total_events,  # Assuming all received events are processed
-                'events_by_type': events_by_type,
-                'last_updated': datetime.now()
+                "total_events_received": total_events,
+                "total_events_processed": total_events,  # Assuming all received events are processed
+                "events_by_type": events_by_type,
+                "last_updated": datetime.now(),
             }
 
             self._initialized = True
@@ -87,13 +87,13 @@ class HistoricalEventCounter:
             return self.historical_totals
 
         except Exception as e:
-            logger.error(f"❌ Failed to initialize historical totals: {e}")
+            logger.exception(f"❌ Failed to initialize historical totals: {e}")
             # Return zeros as fallback
             self.historical_totals = {
-                'total_events_received': 0,
-                'total_events_processed': 0,
-                'events_by_type': {},
-                'last_updated': datetime.now()
+                "total_events_received": 0,
+                "total_events_processed": 0,
+                "events_by_type": {},
+                "last_updated": datetime.now(),
             }
             self._initialized = True
             return self.historical_totals
@@ -107,12 +107,11 @@ class HistoricalEventCounter:
 
             # Use the org from the connection manager
             import asyncio
-            result = await asyncio.to_thread(
+            return await asyncio.to_thread(
                 self.influxdb_manager.query_api.query,
                 query,
-                org=self.influxdb_manager.org
+                org=self.influxdb_manager.org,
             )
-            return result
 
         except Exception as e:
             # Handle 401 Unauthorized errors gracefully - InfluxDB might not be fully initialized yet
@@ -120,7 +119,7 @@ class HistoricalEventCounter:
             if "401" in error_str or "unauthorized" in error_str.lower() or "Unauthorized" in error_str:
                 logger.warning(f"InfluxDB authentication failed (likely during startup): {error_str}. Will retry on next initialization.")
                 return None
-            logger.error(f"Failed to execute InfluxDB query: {e}")
+            logger.exception(f"Failed to execute InfluxDB query: {e}")
             return None
 
     def _parse_count_result(self, result) -> int:
@@ -137,7 +136,7 @@ class HistoricalEventCounter:
                     # Try to get the count value from the record
                     try:
                         # Check if record has the _value field
-                        if hasattr(record, 'get_value'):
+                        if hasattr(record, "get_value"):
                             value = record.get_value()
                             if value is not None:
                                 total_count += int(value)
@@ -167,13 +166,13 @@ class HistoricalEventCounter:
             for table in result:
                 # Get event_type from table's group key
                 event_type_key = None
-                if hasattr(table, 'group_key') and isinstance(table.group_key, dict) and 'event_type' in table.group_key:
-                    event_type_key = str(table.group_key['event_type'])
+                if hasattr(table, "group_key") and isinstance(table.group_key, dict) and "event_type" in table.group_key:
+                    event_type_key = str(table.group_key["event_type"])
 
                 # Get the count value from records
                 for record in table.records:
                     try:
-                        if hasattr(record, 'get_value'):
+                        if hasattr(record, "get_value"):
                             value = record.get_value()
                             if value is not None:
                                 count = int(value)
@@ -186,7 +185,7 @@ class HistoricalEventCounter:
             return events_by_type
 
         except Exception as e:
-            logger.error(f"Error parsing grouped count result: {e}")
+            logger.exception(f"Error parsing grouped count result: {e}")
             return {}
 
     def get_historical_totals(self) -> dict[str, Any]:
@@ -199,22 +198,22 @@ class HistoricalEventCounter:
             logger.warning("Historical totals not initialized, cannot add to totals")
             return
 
-        self.historical_totals['total_events_received'] += events_received
-        self.historical_totals['total_events_processed'] += events_processed
-        self.historical_totals['last_updated'] = datetime.now()
+        self.historical_totals["total_events_received"] += events_received
+        self.historical_totals["total_events_processed"] += events_processed
+        self.historical_totals["last_updated"] = datetime.now()
 
         # Update events by type
         for event_type, count in events_by_type.items():
-            current_count = self.historical_totals['events_by_type'].get(event_type, 0)
-            self.historical_totals['events_by_type'][event_type] = current_count + count
+            current_count = self.historical_totals["events_by_type"].get(event_type, 0)
+            self.historical_totals["events_by_type"][event_type] = current_count + count
 
     def get_total_events_received(self) -> int:
         """Get total events received (historical + current session)"""
-        return self.historical_totals.get('total_events_received', 0)
+        return self.historical_totals.get("total_events_received", 0)
 
     def get_total_events_processed(self) -> int:
         """Get total events processed (historical + current session)"""
-        return self.historical_totals.get('total_events_processed', 0)
+        return self.historical_totals.get("total_events_processed", 0)
 
     def is_initialized(self) -> bool:
         """Check if historical totals are initialized"""

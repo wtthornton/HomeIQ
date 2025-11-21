@@ -7,6 +7,7 @@ Context7 Best Practices Applied:
 - Graceful shutdown handling
 """
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -24,7 +25,7 @@ settings = get_settings()
 class ContinuousHealthMonitor:
     """
     Background service for continuous health monitoring
-    
+
     Features:
     - Scheduled health checks every 60 seconds
     - Integration checks every 5 minutes
@@ -35,7 +36,7 @@ class ContinuousHealthMonitor:
     def __init__(
         self,
         health_service: HealthMonitoringService,
-        integration_checker: IntegrationHealthChecker
+        integration_checker: IntegrationHealthChecker,
     ):
         self.health_service = health_service
         self.integration_checker = integration_checker
@@ -68,10 +69,8 @@ class ContinuousHealthMonitor:
         self.running = False
         if self.task:
             self.task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.task
-            except asyncio.CancelledError:
-                pass
 
         print("✅ Continuous health monitoring stopped")
 
@@ -134,7 +133,7 @@ class ContinuousHealthMonitor:
                     await self._send_alert(
                         "CRITICAL: Environment Health Critical",
                         f"Health score: {health_result.health_score}/100. "
-                        f"Issues: {', '.join(health_result.issues_detected)}"
+                        f"Issues: {', '.join(health_result.issues_detected)}",
                     )
 
                 print(f"✅ Health check complete - Score: {health_result.health_score}/100")
@@ -162,18 +161,18 @@ class ContinuousHealthMonitor:
                         is_connected=result.is_connected,
                         error_message=result.error_message,
                         last_check=result.last_check,
-                        check_details=result.check_details
+                        check_details=result.check_details,
                     )
                     db.add(integration_health)
 
                 await db.commit()
 
                 # Check for critical integration issues
-                error_integrations = [r for r in check_results if r.status.value == 'error']
+                error_integrations = [r for r in check_results if r.status.value == "error"]
                 if error_integrations:
                     await self._send_alert(
                         "WARNING: Integration Issues Detected",
-                        f"Integrations with errors: {', '.join([r.integration_name for r in error_integrations])}"
+                        f"Integrations with errors: {', '.join([r.integration_name for r in error_integrations])}",
                     )
 
                 print(f"✅ Integration check complete - "
@@ -185,7 +184,7 @@ class ContinuousHealthMonitor:
     async def _send_alert(self, title: str, message: str):
         """
         Send alert for critical issues
-        
+
         Placeholder for future alerting implementation
         Currently logs to console
         """
@@ -200,15 +199,15 @@ class ContinuousHealthMonitor:
     async def get_health_trends(
         self,
         db: AsyncSession,
-        hours: int = 24
+        hours: int = 24,
     ) -> dict:
         """
         Get health trends over specified time period
-        
+
         Args:
             db: Database session
             hours: Number of hours to analyze
-            
+
         Returns:
             Trend data including average score, score changes, issue frequency
         """
@@ -217,7 +216,7 @@ class ContinuousHealthMonitor:
 
             # Get health metrics from database
             stmt = select(EnvironmentHealth).where(
-                EnvironmentHealth.timestamp >= cutoff_time
+                EnvironmentHealth.timestamp >= cutoff_time,
             ).order_by(EnvironmentHealth.timestamp.asc())
 
             result = await db.execute(stmt)
@@ -230,7 +229,7 @@ class ContinuousHealthMonitor:
                     "average_score": 0,
                     "min_score": 0,
                     "max_score": 0,
-                    "trend": "no_data"
+                    "trend": "no_data",
                 }
 
             # Calculate statistics
@@ -266,10 +265,10 @@ class ContinuousHealthMonitor:
                     {
                         "timestamp": m.timestamp.isoformat(),
                         "score": m.health_score,
-                        "status": m.ha_status
+                        "status": m.ha_status,
                     }
                     for m in health_metrics
-                ]
+                ],
             }
 
         except Exception as e:
@@ -277,6 +276,6 @@ class ContinuousHealthMonitor:
             return {
                 "period_hours": hours,
                 "data_points": 0,
-                "error": str(e)
+                "error": str(e),
             }
 

@@ -65,7 +65,7 @@ try:
     url = f"{ha_url.rstrip('/')}/api/conversation/agents"
     headers = {
         "Authorization": f"Bearer {ha_token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     print(f"🔍 Querying: {url}", file=sys.stderr)
@@ -89,8 +89,8 @@ try:
             "agents": [],
             "summary": {
                 "total_agents": len(agents),
-                "ha_url": ha_url
-            }
+                "ha_url": ha_url,
+            },
         }
 
         for idx, agent in enumerate(agents, start=1):
@@ -108,7 +108,7 @@ try:
                 "id": agent_id,
                 "type": agent_type,
                 "pipeline_id": pipeline_id,
-                "raw_data": agent
+                "raw_data": agent,
             }
             output["agents"].append(agent_info)
 
@@ -150,7 +150,7 @@ try:
             print(json.dumps({
                 "text": "Turn on the living room lights",
                 "language": "en",
-                "pipeline": agent["pipeline_id"] if agent["pipeline_id"] != "N/A" else None
+                "pipeline": agent["pipeline_id"] if agent["pipeline_id"] != "N/A" else None,
             }, indent=2))
 
         print("\n" + "="*80)
@@ -179,7 +179,7 @@ async def call_assistant(pipeline_id, text):
             config_response = requests.get(
                 f"{ha_url.rstrip('/')}/api/config",
                 headers=headers,
-                timeout=10
+                timeout=10,
             )
             if config_response.status_code == 200:
                 config = config_response.json()
@@ -258,16 +258,15 @@ async def call_assistant(pipeline_id, text):
                         else:
                             print("⚠️  No Assist/Conversation integrations found", file=sys.stderr)
                             print("You may need to install and configure the Assist integration first.", file=sys.stderr)
-                    else:
-                        # For other endpoints, try to parse as agents
-                        if isinstance(data, list) and data:
-                            print(f"\n✅ Found {len(data)} item(s) in {alt_endpoint}:\n")
-                            for idx, item in enumerate(data[:10], start=1):  # Limit to first 10
-                                if isinstance(item, dict):
-                                    print(f"{idx}. {item}")
-                                else:
-                                    print(f"{idx}. {str(item)[:100]}")
-                            sys.exit(0)
+                    # For other endpoints, try to parse as agents
+                    elif isinstance(data, list) and data:
+                        print(f"\n✅ Found {len(data)} item(s) in {alt_endpoint}:\n")
+                        for idx, item in enumerate(data[:10], start=1):  # Limit to first 10
+                            if isinstance(item, dict):
+                                print(f"{idx}. {item}")
+                            else:
+                                print(f"{idx}. {str(item)[:100]}")
+                        sys.exit(0)
                 else:
                     print(f"⚠️  {alt_endpoint} returned {alt_response.status_code}", file=sys.stderr)
             except Exception as e:

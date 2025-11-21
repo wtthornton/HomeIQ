@@ -28,7 +28,7 @@ class AuthManager:
     def __init__(self, api_key: str | None = None, enable_auth: bool = True):
         """
         Initialize authentication manager
-        
+
         Args:
             api_key: API key for authentication
             enable_auth: Whether to enable authentication
@@ -43,7 +43,7 @@ class AuthManager:
         self.default_user = User(
             username="admin",
             permissions=["read", "write", "admin"],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         # Session management
@@ -55,13 +55,13 @@ class AuthManager:
     async def get_current_user(self, credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
         """
         Get current authenticated user
-        
+
         Args:
             credentials: HTTP authorization credentials
-            
+
         Returns:
             User object
-            
+
         Raises:
             HTTPException: If authentication fails
         """
@@ -91,10 +91,10 @@ class AuthManager:
     def _validate_api_key(self, api_key: str) -> bool:
         """
         Validate API key
-        
+
         Args:
             api_key: API key to validate
-            
+
         Returns:
             True if valid, False otherwise
         """
@@ -107,7 +107,7 @@ class AuthManager:
     def generate_api_key(self) -> str:
         """
         Generate a new API key
-        
+
         Returns:
             New API key
         """
@@ -116,10 +116,10 @@ class AuthManager:
     def create_session(self, user: User) -> str:
         """
         Create a new session
-        
+
         Args:
             user: User to create session for
-            
+
         Returns:
             Session token
         """
@@ -128,7 +128,7 @@ class AuthManager:
         self.sessions[session_token] = {
             "user": user,
             "created_at": datetime.now(),
-            "expires_at": datetime.now() + timedelta(seconds=self.session_timeout)
+            "expires_at": datetime.now() + timedelta(seconds=self.session_timeout),
         }
 
         logger.debug(f"Created session for user {user.username}")
@@ -137,10 +137,10 @@ class AuthManager:
     def validate_session(self, session_token: str) -> User | None:
         """
         Validate session token
-        
+
         Args:
             session_token: Session token to validate
-            
+
         Returns:
             User if valid, None otherwise
         """
@@ -159,7 +159,7 @@ class AuthManager:
     def revoke_session(self, session_token: str):
         """
         Revoke a session
-        
+
         Args:
             session_token: Session token to revoke
         """
@@ -199,13 +199,13 @@ class AuthManager:
             "active_sessions": active_sessions,
             "expired_sessions": expired_sessions,
             "session_timeout": self.session_timeout,
-            "authentication_enabled": self.enable_auth
+            "authentication_enabled": self.enable_auth,
         }
 
     def configure_auth(self, api_key: str | None, enable_auth: bool):
         """
         Configure authentication settings
-        
+
         Args:
             api_key: New API key
             enable_auth: Whether to enable authentication
@@ -217,12 +217,13 @@ class AuthManager:
     def configure_session_timeout(self, timeout: int):
         """
         Configure session timeout
-        
+
         Args:
             timeout: Session timeout in seconds
         """
         if timeout <= 0:
-            raise ValueError("Session timeout must be positive")
+            msg = "Session timeout must be positive"
+            raise ValueError(msg)
 
         self.session_timeout = timeout
         logger.info(f"Updated session timeout to {timeout} seconds")

@@ -26,5 +26,5 @@ def sanitize_flux_value(value: str | None) -> str:
     if value is None:
         return ""
 
-    sanitized = re.sub(r'[^\w\s.\-]', '', str(value))
+    sanitized = re.sub(r"[^\w\s.\-]", "", str(value))
     return sanitized.replace('"', '\\"')

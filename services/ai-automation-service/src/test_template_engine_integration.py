@@ -21,10 +21,10 @@ async def test_template_engine():
     mock_ha_client = MagicMock(spec=HomeAssistantClient)
     mock_ha_client.get_states = AsyncMock(return_value=[
         {
-            'entity_id': 'sensor.temperature',
-            'state': '22.5',
-            'attributes': {}
-        }
+            "entity_id": "sensor.temperature",
+            "state": "22.5",
+            "attributes": {},
+        },
     ])
 
     engine = TemplateEngine(mock_ha_client)
@@ -40,7 +40,7 @@ async def test_template_engine():
     print("  ✓ Template with filter")
 
     # Test validation
-    is_valid, error = await engine.validate_template("Temperature: {{ states('sensor.temp') }}")
+    is_valid, _error = await engine.validate_template("Temperature: {{ states('sensor.temp') }}")
     assert is_valid
     print("  ✓ Template validation")
 
@@ -56,15 +56,15 @@ async def test_condition_evaluator():
     mock_ha_client = MagicMock(spec=HomeAssistantClient)
     mock_ha_client.get_states = AsyncMock(return_value=[
         {
-            'entity_id': 'light.office',
-            'state': 'on',
-            'attributes': {}
+            "entity_id": "light.office",
+            "state": "on",
+            "attributes": {},
         },
         {
-            'entity_id': 'sensor.temperature',
-            'state': '22.5',
-            'attributes': {}
-        }
+            "entity_id": "sensor.temperature",
+            "state": "22.5",
+            "attributes": {},
+        },
     ])
 
     template_engine = TemplateEngine(mock_ha_client)
@@ -72,9 +72,9 @@ async def test_condition_evaluator():
 
     # Test state condition
     condition = {
-        'condition': 'state',
-        'entity_id': 'light.office',
-        'state': 'on'
+        "condition": "state",
+        "entity_id": "light.office",
+        "state": "on",
     }
     result = await evaluator.evaluate(condition)
     assert result is True
@@ -82,11 +82,11 @@ async def test_condition_evaluator():
 
     # Test AND condition
     and_condition = {
-        'condition': 'and',
-        'conditions': [
-            {'condition': 'state', 'entity_id': 'light.office', 'state': 'on'},
-            {'condition': 'numeric_state', 'entity_id': 'sensor.temperature', 'above': 20.0}
-        ]
+        "condition": "and",
+        "conditions": [
+            {"condition": "state", "entity_id": "light.office", "state": "on"},
+            {"condition": "numeric_state", "entity_id": "sensor.temperature", "above": 20.0},
+        ],
     }
     result = await evaluator.evaluate(and_condition)
     assert result is True
@@ -94,11 +94,11 @@ async def test_condition_evaluator():
 
     # Test OR condition
     or_condition = {
-        'condition': 'or',
-        'conditions': [
-            {'condition': 'state', 'entity_id': 'light.office', 'state': 'on'},
-            {'condition': 'state', 'entity_id': 'light.kitchen', 'state': 'on'}
-        ]
+        "condition": "or",
+        "conditions": [
+            {"condition": "state", "entity_id": "light.office", "state": "on"},
+            {"condition": "state", "entity_id": "light.kitchen", "state": "on"},
+        ],
     }
     result = await evaluator.evaluate(or_condition)
     assert result is True
@@ -106,10 +106,10 @@ async def test_condition_evaluator():
 
     # Test NOT condition
     not_condition = {
-        'condition': 'not',
-        'conditions': [
-            {'condition': 'state', 'entity_id': 'light.office', 'state': 'off'}
-        ]
+        "condition": "not",
+        "conditions": [
+            {"condition": "state", "entity_id": "light.office", "state": "off"},
+        ],
     }
     result = await evaluator.evaluate(not_condition)
     assert result is True  # Office is on, so NOT(off) is True
@@ -134,9 +134,8 @@ async def main():
     if success:
         print("✅ All integration tests passed!")
         return 0
-    else:
-        print("❌ Some tests failed")
-        return 1
+    print("❌ Some tests failed")
+    return 1
 
 
 if __name__ == "__main__":

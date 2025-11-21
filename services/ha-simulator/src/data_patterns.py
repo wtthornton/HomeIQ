@@ -43,23 +43,23 @@ class HADataPatternAnalyzer:
             return self._generate_patterns()
 
         except Exception as e:
-            logger.error(f"Error analyzing log file: {e}")
+            logger.exception(f"Error analyzing log file: {e}")
             return self._generate_default_patterns()
 
     def _parse_log_line(self, line: str):
         """Parse a single log line"""
         # Extract timestamp
-        timestamp_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
+        timestamp_match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})", line)
         if not timestamp_match:
             return
 
         try:
-            timestamp = datetime.strptime(timestamp_match.group(1), '%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.strptime(timestamp_match.group(1), "%Y-%m-%d %H:%M:%S")
         except ValueError:
             return
 
         # Extract entity information
-        entity_match = re.search(r'Entity: ([a-zA-Z_\.]+)', line)
+        entity_match = re.search(r"Entity: ([a-zA-Z_\.]+)", line)
         if entity_match:
             entity_id = entity_match.group(1)
             self.temporal_patterns[entity_id].append(timestamp)
@@ -72,7 +72,7 @@ class HADataPatternAnalyzer:
             "event_frequencies": dict(self.event_frequencies),
             "temporal_patterns": {},
             "generated_at": datetime.now().isoformat(),
-            "source": "log_analysis"
+            "source": "log_analysis",
         }
 
         for entity_id, timestamps in self.temporal_patterns.items():
@@ -92,7 +92,7 @@ class HADataPatternAnalyzer:
             avg_interval = sum(intervals) / len(intervals)
 
             # Determine entity type and default values
-            domain = entity_id.split('.')[0]
+            domain = entity_id.split(".")[0]
             device_class = self._infer_device_class(entity_id)
             base_value, variance = self._infer_value_range(entity_id, device_class)
 
@@ -107,7 +107,7 @@ class HADataPatternAnalyzer:
                 "first_seen": timestamps[0].isoformat(),
                 "last_seen": timestamps[-1].isoformat(),
                 "unit_of_measurement": self._infer_unit(entity_id, device_class),
-                "friendly_name": self._generate_friendly_name(entity_id)
+                "friendly_name": self._generate_friendly_name(entity_id),
             }
 
         logger.info(f"Generated patterns for {len(patterns['entities'])} entities")
@@ -117,72 +117,66 @@ class HADataPatternAnalyzer:
         """Infer device class from entity ID"""
         entity_lower = entity_id.lower()
 
-        if 'temperature' in entity_lower or 'temp' in entity_lower:
-            return 'temperature'
-        elif 'current' in entity_lower:
-            return 'current'
-        elif 'speed' in entity_lower:
-            return 'data_rate'
-        elif 'cpu' in entity_lower or 'percent' in entity_lower:
+        if "temperature" in entity_lower or "temp" in entity_lower:
+            return "temperature"
+        if "current" in entity_lower:
+            return "current"
+        if "speed" in entity_lower:
+            return "data_rate"
+        if "cpu" in entity_lower or "percent" in entity_lower:
             return None  # No specific device class
-        elif entity_id == 'sun.sun':
+        if entity_id == "sun.sun":
             return None
-        else:
-            return None
+        return None
 
     def _infer_value_range(self, entity_id: str, device_class: str | None) -> tuple:
         """Infer base value and variance from entity ID and device class"""
         entity_lower = entity_id.lower()
 
-        if device_class == 'temperature':
-            if 'chip' in entity_lower or 'coordinator' in entity_lower:
+        if device_class == "temperature":
+            if "chip" in entity_lower or "coordinator" in entity_lower:
                 return 45.0, 5.0  # Chip temperature
-            else:
-                return 22.0, 2.0  # Room temperature
-        elif device_class == 'current':
+            return 22.0, 2.0  # Room temperature
+        if device_class == "current":
             return 0.5, 0.2  # Current in Amperes
-        elif device_class == 'data_rate':
-            if 'download' in entity_lower:
+        if device_class == "data_rate":
+            if "download" in entity_lower:
                 return 100.0, 50.0  # Download speed
-            elif 'upload' in entity_lower:
+            if "upload" in entity_lower:
                 return 50.0, 25.0  # Upload speed
-            else:
-                return 75.0, 25.0  # Generic data rate
-        elif 'cpu' in entity_lower or 'percent' in entity_lower:
+            return 75.0, 25.0  # Generic data rate
+        if "cpu" in entity_lower or "percent" in entity_lower:
             return 15.0, 10.0  # CPU percentage
-        elif entity_id == 'sun.sun':
-            return 'above_horizon', None  # Sun state
-        else:
-            return 0.0, 1.0  # Default numeric value
+        if entity_id == "sun.sun":
+            return "above_horizon", None  # Sun state
+        return 0.0, 1.0  # Default numeric value
 
     def _infer_unit(self, entity_id: str, device_class: str | None) -> str | None:
         """Infer unit of measurement from entity ID and device class"""
-        if device_class == 'temperature':
-            return '°C'
-        elif device_class == 'current':
-            return 'A'
-        elif device_class == 'data_rate':
-            return 'Mbit/s'
-        elif 'percent' in entity_id.lower() or 'cpu' in entity_id.lower():
-            return '%'
-        else:
-            return None
+        if device_class == "temperature":
+            return "°C"
+        if device_class == "current":
+            return "A"
+        if device_class == "data_rate":
+            return "Mbit/s"
+        if "percent" in entity_id.lower() or "cpu" in entity_id.lower():
+            return "%"
+        return None
 
     def _generate_friendly_name(self, entity_id: str) -> str:
         """Generate friendly name from entity ID"""
         # Convert entity_id to friendly name
-        parts = entity_id.split('.')
+        parts = entity_id.split(".")
         if len(parts) < 2:
             return entity_id
 
-        domain = parts[0]
-        name_parts = parts[1].split('_')
+        parts[0]
+        name_parts = parts[1].split("_")
 
         # Capitalize each word
         friendly_parts = [part.capitalize() for part in name_parts]
-        friendly_name = ' '.join(friendly_parts)
+        return " ".join(friendly_parts)
 
-        return friendly_name
 
     def _generate_default_patterns(self) -> dict[str, Any]:
         """Generate default patterns when no log data available"""
@@ -197,7 +191,7 @@ class HADataPatternAnalyzer:
                     "base_value": 22.0,
                     "variance": 2.0,
                     "unit_of_measurement": "°C",
-                    "friendly_name": "Living Room Temperature"
+                    "friendly_name": "Living Room Temperature",
                 },
                 "sensor.wled_estimated_current": {
                     "entity_id": "sensor.wled_estimated_current",
@@ -207,7 +201,7 @@ class HADataPatternAnalyzer:
                     "base_value": 0.5,
                     "variance": 0.2,
                     "unit_of_measurement": "A",
-                    "friendly_name": "WLED Estimated Current"
+                    "friendly_name": "WLED Estimated Current",
                 },
                 "sensor.bar_estimated_current": {
                     "entity_id": "sensor.bar_estimated_current",
@@ -217,7 +211,7 @@ class HADataPatternAnalyzer:
                     "base_value": 0.3,
                     "variance": 0.1,
                     "unit_of_measurement": "A",
-                    "friendly_name": "Bar Estimated Current"
+                    "friendly_name": "Bar Estimated Current",
                 },
                 "sensor.archer_be800_download_speed": {
                     "entity_id": "sensor.archer_be800_download_speed",
@@ -227,7 +221,7 @@ class HADataPatternAnalyzer:
                     "base_value": 100.0,
                     "variance": 50.0,
                     "unit_of_measurement": "Mbit/s",
-                    "friendly_name": "Archer BE800 Download Speed"
+                    "friendly_name": "Archer BE800 Download Speed",
                 },
                 "sensor.archer_be800_upload_speed": {
                     "entity_id": "sensor.archer_be800_upload_speed",
@@ -237,7 +231,7 @@ class HADataPatternAnalyzer:
                     "base_value": 50.0,
                     "variance": 25.0,
                     "unit_of_measurement": "Mbit/s",
-                    "friendly_name": "Archer BE800 Upload Speed"
+                    "friendly_name": "Archer BE800 Upload Speed",
                 },
                 "sun.sun": {
                     "entity_id": "sun.sun",
@@ -247,7 +241,7 @@ class HADataPatternAnalyzer:
                     "base_value": "above_horizon",
                     "variance": None,
                     "unit_of_measurement": None,
-                    "friendly_name": "Sun"
+                    "friendly_name": "Sun",
                 },
                 "sensor.slzb_06p7_coordinator_zigbee_chip_temp": {
                     "entity_id": "sensor.slzb_06p7_coordinator_zigbee_chip_temp",
@@ -257,7 +251,7 @@ class HADataPatternAnalyzer:
                     "base_value": 45.0,
                     "variance": 5.0,
                     "unit_of_measurement": "°C",
-                    "friendly_name": "SLZB-06P7 Coordinator Zigbee Chip Temperature"
+                    "friendly_name": "SLZB-06P7 Coordinator Zigbee Chip Temperature",
                 },
                 "sensor.home_assistant_core_cpu_percent": {
                     "entity_id": "sensor.home_assistant_core_cpu_percent",
@@ -267,8 +261,8 @@ class HADataPatternAnalyzer:
                     "base_value": 15.0,
                     "variance": 10.0,
                     "unit_of_measurement": "%",
-                    "friendly_name": "Home Assistant Core CPU Percent"
-                }
+                    "friendly_name": "Home Assistant Core CPU Percent",
+                },
             },
             "event_frequencies": {
                 "sensor.living_room_temperature": 10,
@@ -278,9 +272,9 @@ class HADataPatternAnalyzer:
                 "sensor.archer_be800_upload_speed": 10,
                 "sun.sun": 2,
                 "sensor.slzb_06p7_coordinator_zigbee_chip_temp": 1,
-                "sensor.home_assistant_core_cpu_percent": 1
+                "sensor.home_assistant_core_cpu_percent": 1,
             },
             "generated_at": datetime.now().isoformat(),
-            "source": "default_patterns"
+            "source": "default_patterns",
         }
 

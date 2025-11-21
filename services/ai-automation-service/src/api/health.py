@@ -36,11 +36,11 @@ def set_multi_model_extractor(extractor):
 async def health_check():
     """
     Health check endpoint for service monitoring.
-    
+
     Epic AI-1: Service health
     Epic AI-2: Device Intelligence stats (Story AI2.1)
     Phase 9: v2 API health status
-    
+
     Returns:
         Service health status with Device Intelligence metrics and v2 API status
     """
@@ -48,7 +48,7 @@ async def health_check():
         "status": "healthy",
         "service": "ai-automation-service",
         "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
     # Add Device Intelligence stats (Epic AI-2 - Story AI2.1)
@@ -66,12 +66,12 @@ async def health_check():
                 "yaml_generator": container.yaml_generator is not None,
                 "intent_matcher": container.intent_matcher is not None,
                 "function_registry": container.function_registry is not None,
-            }
+            },
         }
     except Exception as e:
         health["v2_api"] = {
             "status": "error",
-            "error": str(e)
+            "error": str(e),
         }
 
     return health
@@ -81,9 +81,9 @@ async def health_check():
 async def health_check_v2():
     """
     v2 API specific health check endpoint.
-    
+
     Phase 9: v2 API health monitoring
-    
+
     Returns:
         Detailed v2 API service health status
     """
@@ -99,11 +99,11 @@ async def health_check_v2():
         db_status = "unknown"
         try:
             async for db in get_db():
-                result = await db.execute(text("SELECT 1 FROM conversations LIMIT 1"))
+                await db.execute(text("SELECT 1 FROM conversations LIMIT 1"))
                 db_status = "connected"
                 break
         except Exception as e:
-            db_status = f"error: {str(e)}"
+            db_status = f"error: {e!s}"
 
         # Check service initialization
         services_status = {
@@ -135,15 +135,15 @@ async def health_check_v2():
             "timestamp": datetime.utcnow().isoformat(),
             "database": {
                 "status": db_status,
-                "v2_tables": "available" if db_status == "connected" else "unavailable"
+                "v2_tables": "available" if db_status == "connected" else "unavailable",
             },
             "services": services_status,
             "endpoints": {
                 "conversations": "/api/v2/conversations",
                 "automations": "/api/v2/automations",
                 "actions": "/api/v2/actions",
-                "streaming": "/api/v2/conversations/{id}/stream"
-            }
+                "streaming": "/api/v2/conversations/{id}/stream",
+            },
         }
     except Exception as e:
         return {
@@ -151,7 +151,7 @@ async def health_check_v2():
             "service": "ai-automation-service-v2",
             "version": "2.0.0",
             "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -162,7 +162,7 @@ async def root():
         "service": "AI Automation Service",
         "version": "1.0.0",
         "description": "AI-powered Home Assistant automation suggestion system",
-        "docs": "/docs"
+        "docs": "/docs",
     }
 
 
@@ -197,7 +197,7 @@ async def get_event_rate():
         success_rate = 95.0
 
         # Build response
-        response_data = {
+        return {
             "service": "ai-automation-service",
             "events_per_second": round(events_per_second, 2),
             "events_per_hour": round(events_per_hour, 2),
@@ -216,7 +216,7 @@ async def get_event_rate():
                 "queue_maxsize": 500,
                 "uptime_seconds": uptime_seconds,
                 "last_processing_time": current_time.isoformat(),
-                "event_handlers_count": 4
+                "event_handlers_count": 4,
             },
             "connection_stats": {
                 "is_connected": True,
@@ -226,23 +226,22 @@ async def get_event_rate():
                     "pattern_detection": int(processed_events * 0.4),
                     "suggestion_generation": int(processed_events * 0.3),
                     "nl_generation": int(processed_events * 0.2),
-                    "conversational": int(processed_events * 0.1)
+                    "conversational": int(processed_events * 0.1),
                 },
-                "last_event_time": current_time.isoformat()
+                "last_event_time": current_time.isoformat(),
             },
-            "timestamp": current_time.isoformat()
+            "timestamp": current_time.isoformat(),
         }
 
-        return response_data
 
     except Exception as e:
-        logger.error(f"Error getting event rate: {e}")
+        logger.exception(f"Error getting event rate: {e}")
         return {
             "service": "ai-automation-service",
             "error": str(e),
             "events_per_second": 0,
             "events_per_hour": 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -250,42 +249,42 @@ async def get_event_rate():
 async def get_call_statistics():
     """
     Get AI service call pattern statistics.
-    
+
     Returns:
         Call pattern statistics including direct vs orchestrated calls,
         latency metrics, and model usage statistics
     """
     # Try multi-model extractor first (currently active)
-    if _multi_model_extractor and hasattr(_multi_model_extractor, 'call_stats'):
+    if _multi_model_extractor and hasattr(_multi_model_extractor, "call_stats"):
         return {
             "call_patterns": {
-                "direct_calls": _multi_model_extractor.call_stats.get('direct_calls', 0),
-                "orchestrated_calls": _multi_model_extractor.call_stats.get('orchestrated_calls', 0)
+                "direct_calls": _multi_model_extractor.call_stats.get("direct_calls", 0),
+                "orchestrated_calls": _multi_model_extractor.call_stats.get("orchestrated_calls", 0),
             },
             "performance": {
-                "avg_direct_latency_ms": _multi_model_extractor.call_stats.get('avg_direct_latency', 0.0),
-                "avg_orch_latency_ms": _multi_model_extractor.call_stats.get('avg_orch_latency', 0.0)
+                "avg_direct_latency_ms": _multi_model_extractor.call_stats.get("avg_direct_latency", 0.0),
+                "avg_orch_latency_ms": _multi_model_extractor.call_stats.get("avg_orch_latency", 0.0),
             },
-            "model_usage": _multi_model_extractor.stats if hasattr(_multi_model_extractor, 'stats') else {}
+            "model_usage": _multi_model_extractor.stats if hasattr(_multi_model_extractor, "stats") else {},
         }
 
     # Fallback to model orchestrator (if configured)
-    if _model_orchestrator and hasattr(_model_orchestrator, 'call_stats'):
+    if _model_orchestrator and hasattr(_model_orchestrator, "call_stats"):
         return {
             "call_patterns": {
-                "direct_calls": _model_orchestrator.call_stats.get('direct_calls', 0),
-                "orchestrated_calls": _model_orchestrator.call_stats.get('orchestrated_calls', 0)
+                "direct_calls": _model_orchestrator.call_stats.get("direct_calls", 0),
+                "orchestrated_calls": _model_orchestrator.call_stats.get("orchestrated_calls", 0),
             },
             "performance": {
-                "avg_direct_latency_ms": _model_orchestrator.call_stats.get('avg_direct_latency', 0.0),
-                "avg_orch_latency_ms": _model_orchestrator.call_stats.get('avg_orch_latency', 0.0)
+                "avg_direct_latency_ms": _model_orchestrator.call_stats.get("avg_direct_latency", 0.0),
+                "avg_orch_latency_ms": _model_orchestrator.call_stats.get("avg_orch_latency", 0.0),
             },
-            "model_usage": _model_orchestrator.stats
+            "model_usage": _model_orchestrator.stats,
         }
 
     return {
         "error": "No extractor initialized",
         "call_patterns": {},
         "performance": {},
-        "model_usage": {}
+        "model_usage": {},
     }

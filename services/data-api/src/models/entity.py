@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 
-from ..database import Base
+from src.database import Base
 
 
 class Entity(Base):
@@ -63,11 +63,11 @@ class Entity(Base):
 
 
 # Indexes for common queries
-Index('idx_entity_device', Entity.device_id)
-Index('idx_entity_domain', Entity.domain)
-Index('idx_entity_area', Entity.area_id)
-Index('idx_entity_friendly_name', Entity.friendly_name)
-Index('idx_entity_supported_features', Entity.supported_features)
-Index('idx_entity_device_class', Entity.device_class)
-Index('idx_entity_config_entry', Entity.config_entry_id)
+Index("idx_entity_device", Entity.device_id)
+Index("idx_entity_domain", Entity.domain)
+Index("idx_entity_area", Entity.area_id)
+Index("idx_entity_friendly_name", Entity.friendly_name)
+Index("idx_entity_supported_features", Entity.supported_features)
+Index("idx_entity_device_class", Entity.device_class)
+Index("idx_entity_config_entry", Entity.config_entry_id)
 

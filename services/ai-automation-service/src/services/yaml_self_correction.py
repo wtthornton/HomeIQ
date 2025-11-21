@@ -52,14 +52,14 @@ class SelfCorrectionResponse:
 class YAMLSelfCorrectionService:
     """
     Self-correcting YAML generation with reverse engineering.
-    
+
     Iterative Process:
     1. Generate YAML from prompt
     2. Reverse engineer YAML back to natural language
     3. Compare reverse-engineered text to original prompt
     4. Calculate semantic similarity
     5. Provide feedback and refine until convergence
-    
+
     Based on research:
     - Self-Refine (arxiv.org/abs/2303.17651)
     - RPE - Reverse Prompt Engineering (learnprompting.org/docs/language-model-inversion/reverse-prompt-engineering)
@@ -72,7 +72,7 @@ class YAMLSelfCorrectionService:
         model: str = "gpt-4o-mini",
         similarity_model: str = "all-MiniLM-L6-v2",
         ha_client: Any | None = None,
-        device_intelligence_client: Any | None = None
+        device_intelligence_client: Any | None = None,
     ):
         self.openai_client = openai_client
         self.model = model
@@ -95,17 +95,17 @@ class YAMLSelfCorrectionService:
         user_prompt: str,
         generated_yaml: str,
         context: dict | None = None,
-        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None,
     ) -> SelfCorrectionResponse:
         """
         Main self-correction loop.
-        
+
         Args:
             user_prompt: Original user request
             generated_yaml: Initial YAML to refine
             context: Optional context (devices, entities, etc.)
             comprehensive_enriched_data: Optional comprehensive enriched entity data
-        
+
         Returns:
             SelfCorrectionResponse with refined YAML and history
         """
@@ -118,7 +118,7 @@ class YAMLSelfCorrectionService:
         enhanced_context = context.copy() if context else {}
         if comprehensive_enriched_data:
             from .comprehensive_entity_enrichment import format_comprehensive_enrichment_for_prompt
-            enhanced_context['comprehensive_entity_data'] = format_comprehensive_enrichment_for_prompt(comprehensive_enriched_data)
+            enhanced_context["comprehensive_entity_data"] = format_comprehensive_enrichment_for_prompt(comprehensive_enriched_data)
             logger.info(f"✅ Added comprehensive entity data to reverse engineering context ({len(comprehensive_enriched_data)} entities)")
 
         # Calculate INITIAL similarity (before reverse engineering) for comparison
@@ -129,7 +129,7 @@ class YAMLSelfCorrectionService:
             result = await self._reverse_engineer_yaml(
                 generated_yaml,
                 enhanced_context,
-                comprehensive_enriched_data=comprehensive_enriched_data
+                comprehensive_enriched_data=comprehensive_enriched_data,
             )
             # Handle both old format (string) and new format (tuple)
             if isinstance(result, tuple):
@@ -155,7 +155,7 @@ class YAMLSelfCorrectionService:
             result = await self._reverse_engineer_yaml(
                 current_yaml,
                 enhanced_context,
-                comprehensive_enriched_data=comprehensive_enriched_data
+                comprehensive_enriched_data=comprehensive_enriched_data,
             )
             # Handle both old format (string) and new format (tuple)
             if isinstance(result, tuple):
@@ -167,7 +167,7 @@ class YAMLSelfCorrectionService:
             # Step 2: Calculate semantic similarity
             similarity_score = await self._calculate_similarity(
                 user_prompt,
-                reverse_engineered_prompt
+                reverse_engineered_prompt,
             )
 
             # Step 3: Check convergence
@@ -175,7 +175,7 @@ class YAMLSelfCorrectionService:
 
             logger.info(
                 f"Iteration {iteration}: Similarity = {similarity_score:.2%}, "
-                f"Improvement = {improvement:.2%}"
+                f"Improvement = {improvement:.2%}",
             )
 
             # Step 4: Store iteration result
@@ -186,7 +186,7 @@ class YAMLSelfCorrectionService:
                 reverse_engineered_prompt=reverse_engineered_prompt,
                 yaml_content=current_yaml,
                 correction_feedback="",
-                improvement_actions=[]
+                improvement_actions=[],
             )
 
             # Step 5: Check if we should stop
@@ -201,7 +201,7 @@ class YAMLSelfCorrectionService:
             # Check if improvement is minimal
             if iteration > 1 and improvement < self.improvement_threshold:
                 logger.warning(
-                    f"⚠️ Minimal improvement ({improvement:.2%}) - near convergence"
+                    f"⚠️ Minimal improvement ({improvement:.2%}) - near convergence",
                 )
                 correction_result.correction_feedback = (
                     "Minimal improvement detected - likely at optimal level"
@@ -214,7 +214,7 @@ class YAMLSelfCorrectionService:
                 user_prompt,
                 reverse_engineered_prompt,
                 similarity_score,
-                current_yaml
+                current_yaml,
             )
             total_tokens += feedback_tokens
 
@@ -228,7 +228,7 @@ class YAMLSelfCorrectionService:
                     current_yaml,
                     feedback_and_actions,
                     enhanced_context,
-                    comprehensive_enriched_data=comprehensive_enriched_data
+                    comprehensive_enriched_data=comprehensive_enriched_data,
                 )
                 current_yaml = refined_yaml
             else:
@@ -253,7 +253,7 @@ class YAMLSelfCorrectionService:
             f"(+{similarity_improvement:.2%}, {improvement_percentage:+.1f}%), "
             f"{len(iteration_history)} iterations, "
             f"{total_processing_time_ms}ms, "
-            f"{total_tokens} tokens"
+            f"{total_tokens} tokens",
         )
 
         # Add initial similarity and timing to response (for metrics storage)
@@ -264,7 +264,7 @@ class YAMLSelfCorrectionService:
             max_iterations=self.max_iterations,
             convergence_achieved=final_similarity >= self.min_similarity_threshold,
             iteration_history=iteration_history,
-            total_tokens_used=total_tokens
+            total_tokens_used=total_tokens,
         )
 
         # Attach additional metrics for tracking
@@ -282,7 +282,7 @@ class YAMLSelfCorrectionService:
     def _extract_entity_ids_from_yaml(self, parsed_yaml: dict) -> set[str]:
         """
         Recursively extract all entity IDs from YAML structure.
-        
+
         Searches in triggers, conditions, and actions (including nested structures).
         """
         entity_ids: set[str] = set()
@@ -291,8 +291,8 @@ class YAMLSelfCorrectionService:
             """Recursively extract entity_id values"""
             if isinstance(value, dict):
                 # Check for entity_id key
-                if 'entity_id' in value:
-                    entity_id = value['entity_id']
+                if "entity_id" in value:
+                    entity_id = value["entity_id"]
                     if isinstance(entity_id, str):
                         entity_ids.add(entity_id)
                     elif isinstance(entity_id, list):
@@ -306,19 +306,19 @@ class YAMLSelfCorrectionService:
                     extract_from_value(item)
 
         # Extract from triggers
-        triggers = parsed_yaml.get('trigger', [])
+        triggers = parsed_yaml.get("trigger", [])
         if isinstance(triggers, list):
             for trigger in triggers:
                 extract_from_value(trigger)
 
         # Extract from conditions
-        conditions = parsed_yaml.get('condition', [])
+        conditions = parsed_yaml.get("condition", [])
         if isinstance(conditions, list):
             for condition in conditions:
                 extract_from_value(condition)
 
         # Extract from actions
-        actions = parsed_yaml.get('action', [])
+        actions = parsed_yaml.get("action", [])
         if isinstance(actions, list):
             for action in actions:
                 extract_from_value(action)
@@ -328,7 +328,7 @@ class YAMLSelfCorrectionService:
     async def _get_device_friendly_names(self, entity_ids: set[str]) -> dict[str, str]:
         """
         Query device database to get friendly names for entity IDs.
-        
+
         Returns a mapping of entity_id -> friendly_name.
         """
         entity_to_name: dict[str, str] = {}
@@ -346,8 +346,8 @@ class YAMLSelfCorrectionService:
                         state = await self.ha_client.get_entity_state(entity_id)
                         if state:
                             # Try to get friendly_name from attributes
-                            attributes = state.get('attributes', {})
-                            friendly_name = attributes.get('friendly_name') or attributes.get('name')
+                            attributes = state.get("attributes", {})
+                            friendly_name = attributes.get("friendly_name") or attributes.get("name")
                             if friendly_name:
                                 entity_to_name[entity_id] = friendly_name
                                 logger.debug(f"📋 Found friendly name from HA: {entity_id} -> {friendly_name}")
@@ -370,9 +370,9 @@ class YAMLSelfCorrectionService:
                     # Try to find device that matches this entity
                     for device in all_devices:
                         if isinstance(device, dict):
-                            device_entities = device.get('entities', []) or device.get('entity_ids', [])
+                            device_entities = device.get("entities", []) or device.get("entity_ids", [])
                             if entity_id in device_entities:
-                                friendly_name = device.get('friendly_name') or device.get('name') or device.get('device_name')
+                                friendly_name = device.get("friendly_name") or device.get("name") or device.get("device_name")
                                 if friendly_name:
                                     entity_to_name[entity_id] = friendly_name
                                     logger.debug(f"📋 Found friendly name from device DB: {entity_id} -> {friendly_name}")
@@ -384,8 +384,8 @@ class YAMLSelfCorrectionService:
         for entity_id in entity_ids:
             if entity_id not in entity_to_name:
                 # Use a readable version of entity_id (e.g., "light.office" -> "office light")
-                domain, name = entity_id.split('.', 1) if '.' in entity_id else (entity_id, '')
-                readable_name = name.replace('_', ' ').title() if name else entity_id
+                _domain, name = entity_id.split(".", 1) if "." in entity_id else (entity_id, "")
+                readable_name = name.replace("_", " ").title() if name else entity_id
                 entity_to_name[entity_id] = readable_name
 
         logger.info(f"📋 Resolved {len(entity_to_name)}/{len(entity_ids)} entity friendly names for reverse engineering")
@@ -395,11 +395,11 @@ class YAMLSelfCorrectionService:
         self,
         yaml_content: str,
         context: dict | None = None,
-        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None,
     ) -> tuple[str, int]:
         """
         Reverse engineer YAML back to natural language description.
-        
+
         Uses Reverse Prompt Engineering (RPE) techniques to reconstruct intent.
         Now includes device database lookup for accurate device names.
         """
@@ -407,7 +407,7 @@ class YAMLSelfCorrectionService:
         try:
             parsed_yaml = yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
-            logger.error(f"Invalid YAML in reverse engineering: {e}")
+            logger.exception(f"Invalid YAML in reverse engineering: {e}")
             return "Invalid YAML configuration"
 
         if not parsed_yaml:
@@ -463,7 +463,7 @@ Your task: Write a clear, concise paragraph describing:
 3. What actions are performed
 4. Any special features (delays, repeats, sequences, etc.)
 
-IMPORTANT: 
+IMPORTANT:
 - Use the friendly device names and comprehensive data from above (e.g., "Office Light" instead of "light.office")
 - Include relevant device details when appropriate (location, capabilities, manufacturer, model)
 - This makes the description more natural and matches how users think about their devices
@@ -477,15 +477,15 @@ Write as if explaining to a user who asked for this automation."""
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a Home Assistant expert who explains automations clearly in plain English using friendly device names."
+                        "content": "You are a Home Assistant expert who explains automations clearly in plain English using friendly device names.",
                     },
                     {
                         "role": "user",
-                        "content": reverse_engineering_prompt
-                    }
+                        "content": reverse_engineering_prompt,
+                    },
                 ],
                 temperature=0.3,  # Low temperature for consistency
-                max_completion_tokens=300  # Use max_completion_tokens for newer models
+                max_completion_tokens=300,  # Use max_completion_tokens for newer models
             )
 
             # Track tokens
@@ -497,30 +497,30 @@ Write as if explaining to a user who asked for this automation."""
             return reverse_description, tokens_used
 
         except Exception as e:
-            logger.error(f"Reverse engineering failed: {e}")
+            logger.exception(f"Reverse engineering failed: {e}")
             return "Failed to analyze YAML", 0
 
     async def _calculate_similarity(
         self,
         original_prompt: str,
-        reverse_engineered: str
+        reverse_engineered: str,
     ) -> float:
         """
         Calculate semantic similarity between two texts using embeddings.
-        
+
         Uses SentenceTransformers for fast, accurate comparison.
         """
         try:
             # Generate embeddings
             embeddings = self.similarity_model.encode(
-                [original_prompt, reverse_engineered]
+                [original_prompt, reverse_engineered],
             )
 
             # Calculate cosine similarity
             from sklearn.metrics.pairwise import cosine_similarity
             similarity_matrix = cosine_similarity(
                 embeddings[0:1],
-                embeddings[1:2]
+                embeddings[1:2],
             )
 
             similarity_score = float(similarity_matrix[0][0])
@@ -532,7 +532,7 @@ Write as if explaining to a user who asked for this automation."""
             return similarity_score
 
         except Exception as e:
-            logger.error(f"Similarity calculation failed: {e}")
+            logger.exception(f"Similarity calculation failed: {e}")
             return 0.0
 
     async def _generate_correction_feedback(
@@ -540,11 +540,11 @@ Write as if explaining to a user who asked for this automation."""
         original_prompt: str,
         reverse_engineered: str,
         similarity_score: float,
-        current_yaml: str
+        current_yaml: str,
     ) -> tuple[dict[str, list[str]], int]:
         """
         Generate actionable feedback for improving YAML.
-        
+
         Uses ProActive Self-Refinement (PASR) techniques.
         """
         feedback_prompt = f"""Analyze why these two descriptions differ and provide actionable corrections.
@@ -574,15 +574,15 @@ ACTION 2: [specific change needed]
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert at identifying discrepancies in automation logic and providing precise corrections."
+                        "content": "You are an expert at identifying discrepancies in automation logic and providing precise corrections.",
                     },
                     {
                         "role": "user",
-                        "content": feedback_prompt
-                    }
+                        "content": feedback_prompt,
+                    },
                 ],
                 temperature=0.5,
-                max_completion_tokens=400  # Use max_completion_tokens for newer models
+                max_completion_tokens=400,  # Use max_completion_tokens for newer models
             )
 
             # Track tokens (will be added to total_tokens by caller)
@@ -605,14 +605,14 @@ ACTION 2: [specific change needed]
 
             return {
                 "feedback": feedback or "No specific feedback generated",
-                "actions": actions if actions else ["Review and adjust YAML manually"]
+                "actions": actions if actions else ["Review and adjust YAML manually"],
             }, tokens_used
 
         except Exception as e:
-            logger.error(f"Feedback generation failed: {e}")
+            logger.exception(f"Feedback generation failed: {e}")
             return {
-                "feedback": f"Error generating feedback: {str(e)}",
-                "actions": ["Manual review recommended"]
+                "feedback": f"Error generating feedback: {e!s}",
+                "actions": ["Manual review recommended"],
             }, 0
 
     async def _refine_yaml(
@@ -621,11 +621,11 @@ ACTION 2: [specific change needed]
         current_yaml: str,
         feedback: dict[str, list[str]],
         context: dict | None = None,
-        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None,
     ) -> tuple[str, int]:
         """
         Refine YAML based on feedback.
-        
+
         Uses the feedback to generate improved YAML that better matches the original intent.
         """
         context_section = ""
@@ -665,15 +665,15 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a Home Assistant expert who refines YAML automations based on feedback."
+                        "content": "You are a Home Assistant expert who refines YAML automations based on feedback.",
                     },
                     {
                         "role": "user",
-                        "content": refinement_prompt
-                    }
+                        "content": refinement_prompt,
+                    },
                 ],
                 temperature=0.2,  # Low temperature for consistency
-                max_completion_tokens=1500  # Use max_completion_tokens for newer models
+                max_completion_tokens=1500,  # Use max_completion_tokens for newer models
             )
 
             # Track tokens
@@ -693,19 +693,19 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                 yaml.safe_load(refined_yaml_text)
                 logger.debug("Refined YAML syntax is valid")
             except yaml.YAMLError as e:
-                logger.error(f"Refined YAML has syntax error: {e}")
+                logger.exception(f"Refined YAML has syntax error: {e}")
                 return current_yaml, 0  # Return original if refinement is invalid
 
             # Post-refinement validation: Check and fix entity IDs against available entities
             if comprehensive_enriched_data:
                 refined_yaml_text = await self._sanitize_entity_ids(
-                    refined_yaml_text, comprehensive_enriched_data
+                    refined_yaml_text, comprehensive_enriched_data,
                 )
 
             return refined_yaml_text, tokens_used
 
         except Exception as e:
-            logger.error(f"YAML refinement failed: {e}")
+            logger.exception(f"YAML refinement failed: {e}")
             return current_yaml, 0
 
     def _format_context(self, context: dict) -> str:
@@ -723,21 +723,21 @@ Generate the improved YAML that addresses these issues while maintaining valid H
     async def _sanitize_entity_ids(
         self,
         yaml_text: str,
-        comprehensive_enriched_data: dict[str, dict[str, Any]]
+        comprehensive_enriched_data: dict[str, dict[str, Any]],
     ) -> str:
         """
         Sanitize entity IDs in YAML by replacing invalid ones with closest valid matches.
-        
+
         This is a generic post-refinement validator that:
         1. Extracts all entity IDs from the YAML
         2. Checks each against available entities
         3. Finds best match if invalid
         4. Replaces in YAML
-        
+
         Args:
             yaml_text: The YAML to sanitize
             comprehensive_enriched_data: Dict of entity_id -> enriched entity data
-            
+
         Returns:
             Sanitized YAML with invalid entity IDs replaced
         """
@@ -761,7 +761,7 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                     async with session.get(url) as response:
                         if response.status == 200:
                             all_states = await response.json()
-                            ha_entity_ids = {state['entity_id'] for state in all_states if 'entity_id' in state}
+                            ha_entity_ids = {state["entity_id"] for state in all_states if "entity_id" in state}
                             available_entity_ids.update(ha_entity_ids)
 
                             logger.debug(f"🔍 Expanded entity pool to {len(available_entity_ids)} entities for sanitization")
@@ -773,11 +773,11 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                                         state = await self.ha_client.get_entity_state(entity_id)
                                         if state:
                                             comprehensive_enriched_data[entity_id] = {
-                                                'entity_id': entity_id,
-                                                'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
-                                                'friendly_name': state.get('attributes', {}).get('friendly_name'),
-                                                'area_id': state.get('attributes', {}).get('area_id'),
-                                                'state': state.get('state')
+                                                "entity_id": entity_id,
+                                                "domain": entity_id.split(".")[0] if "." in entity_id else "unknown",
+                                                "friendly_name": state.get("attributes", {}).get("friendly_name"),
+                                                "area_id": state.get("attributes", {}).get("area_id"),
+                                                "state": state.get("state"),
                                             }
                                     except Exception:
                                         pass  # Skip enrichment errors
@@ -795,7 +795,7 @@ Generate the improved YAML that addresses these issues while maintaining valid H
 
                     # Find best match
                     best_match = self._find_best_entity_match(
-                        entity_id, available_entity_ids, comprehensive_enriched_data
+                        entity_id, available_entity_ids, comprehensive_enriched_data,
                     )
 
                     if best_match:
@@ -809,7 +809,7 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                 sanitized_yaml = yaml_text
                 for old_id, new_id in replacements.items():
                     # Replace with word boundaries to avoid partial matches
-                    pattern = r'\b' + re.escape(old_id) + r'\b'
+                    pattern = r"\b" + re.escape(old_id) + r"\b"
                     sanitized_yaml = re.sub(pattern, new_id, sanitized_yaml)
 
                 logger.info(f"✅ Sanitized {len(replacements)} entity IDs in refined YAML")
@@ -818,29 +818,29 @@ Generate the improved YAML that addresses these issues while maintaining valid H
             return yaml_text
 
         except Exception as e:
-            logger.error(f"Entity sanitization failed: {e}")
+            logger.exception(f"Entity sanitization failed: {e}")
             return yaml_text  # Return original on error
 
     def _find_best_entity_match(
         self,
         invalid_entity_id: str,
         available_entity_ids: set[str],
-        comprehensive_enriched_data: dict[str, dict[str, Any]]
+        comprehensive_enriched_data: dict[str, dict[str, Any]],
     ) -> str | None:
         """
         Find the best matching entity ID for an invalid one.
-        
+
         Uses generic matching based on:
         - Domain matching
         - Location/area matching
         - Entity name similarity
         - Device name similarity
-        
+
         Args:
             invalid_entity_id: The invalid entity ID to match
             available_entity_ids: Set of valid entity IDs
             comprehensive_enriched_data: Entity data for matching
-            
+
         Returns:
             Best matching entity ID or None
         """
@@ -848,10 +848,10 @@ Generate the improved YAML that addresses these issues while maintaining valid H
             return None
 
         # Parse invalid entity ID
-        if '.' not in invalid_entity_id:
+        if "." not in invalid_entity_id:
             return None
 
-        invalid_domain, invalid_name = invalid_entity_id.split('.', 1)
+        invalid_domain, invalid_name = invalid_entity_id.split(".", 1)
 
         # Try to extract location from invalid entity ID
         invalid_location = self._extract_location_from_entity_id(invalid_entity_id)
@@ -871,21 +871,21 @@ Generate the improved YAML that addresses these issues while maintaining valid H
             # Location matching (higher weight)
             entity_data = comprehensive_enriched_data.get(entity_id, {})
             entity_location = (
-                entity_data.get('area_id', '') or
-                entity_data.get('device_area_id', '') or
+                entity_data.get("area_id", "") or
+                entity_data.get("device_area_id", "") or
                 self._extract_location_from_entity_id(entity_id)
             )
 
             if invalid_location and entity_location:
                 if invalid_location in entity_location or entity_location in invalid_location:
                     score += 2.0
-                elif any(part in entity_location for part in invalid_location.split('_') if len(part) > 2):
+                elif any(part in entity_location for part in invalid_location.split("_") if len(part) > 2):
                     score += 1.0
 
             # Name similarity
-            if '.' in entity_id:
-                _, entity_name = entity_id.split('.', 1)
-                common_parts = set(invalid_name.split('_')) & set(entity_name.split('_'))
+            if "." in entity_id:
+                _, entity_name = entity_id.split(".", 1)
+                common_parts = set(invalid_name.split("_")) & set(entity_name.split("_"))
                 if common_parts:
                     score += len(common_parts) * 0.5
 
@@ -897,14 +897,14 @@ Generate the improved YAML that addresses these issues while maintaining valid H
 
     def _extract_location_from_entity_id(self, entity_id: str) -> str | None:
         """Extract potential location from entity ID"""
-        if '.' not in entity_id:
+        if "." not in entity_id:
             return None
 
-        _, name = entity_id.split('.', 1)
+        _, name = entity_id.split(".", 1)
 
         # Try common location patterns in entity names
-        location_keywords = ['office', 'living_room', 'kitchen', 'bedroom', 'bathroom',
-                            'garage', 'attic', 'basement', 'outdoor', 'patio', 'deck']
+        location_keywords = ["office", "living_room", "kitchen", "bedroom", "bathroom",
+                            "garage", "attic", "basement", "outdoor", "patio", "deck"]
 
         for keyword in location_keywords:
             if keyword in name.lower():

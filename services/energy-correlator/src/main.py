@@ -12,7 +12,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from shared.logging_config import log_error_with_context, log_with_context, setup_logging
 
@@ -29,20 +29,20 @@ class EnergyCorrelatorService:
 
     def __init__(self):
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
         # Service configuration
-        self.processing_interval = int(os.getenv('PROCESSING_INTERVAL', '60'))  # 1 minute
-        self.lookback_minutes = int(os.getenv('LOOKBACK_MINUTES', '5'))  # Process last 5 minutes
-        self.max_events_per_interval = int(os.getenv('MAX_EVENTS_PER_INTERVAL', '500'))
-        self.max_retry_queue_size = int(os.getenv('MAX_RETRY_QUEUE_SIZE', '250'))
-        self.retry_window_minutes = int(os.getenv('RETRY_WINDOW_MINUTES', str(self.lookback_minutes)))
-        self.correlation_window_seconds = int(os.getenv('CORRELATION_WINDOW_SECONDS', '10'))
-        self.power_lookup_padding_seconds = int(os.getenv('POWER_LOOKUP_PADDING_SECONDS', '30'))
-        self.min_power_delta = float(os.getenv('MIN_POWER_DELTA', '10.0'))
+        self.processing_interval = int(os.getenv("PROCESSING_INTERVAL", "60"))  # 1 minute
+        self.lookback_minutes = int(os.getenv("LOOKBACK_MINUTES", "5"))  # Process last 5 minutes
+        self.max_events_per_interval = int(os.getenv("MAX_EVENTS_PER_INTERVAL", "500"))
+        self.max_retry_queue_size = int(os.getenv("MAX_RETRY_QUEUE_SIZE", "250"))
+        self.retry_window_minutes = int(os.getenv("RETRY_WINDOW_MINUTES", str(self.lookback_minutes)))
+        self.correlation_window_seconds = int(os.getenv("CORRELATION_WINDOW_SECONDS", "10"))
+        self.power_lookup_padding_seconds = int(os.getenv("POWER_LOOKUP_PADDING_SECONDS", "30"))
+        self.min_power_delta = float(os.getenv("MIN_POWER_DELTA", "10.0"))
 
         # Components
         self.correlator = EnergyEventCorrelator(
@@ -55,18 +55,19 @@ class EnergyCorrelatorService:
             max_events_per_interval=self.max_events_per_interval,
             power_lookup_padding_seconds=self.power_lookup_padding_seconds,
             max_retry_queue_size=self.max_retry_queue_size,
-            retry_window_minutes=self.retry_window_minutes
+            retry_window_minutes=self.retry_window_minutes,
         )
 
         self.health_handler = HealthCheckHandler()
 
         # Validate configuration
         if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN environment variable is required")
+            msg = "INFLUXDB_TOKEN environment variable is required"
+            raise ValueError(msg)
 
         logger.info(
             f"Service configured: interval={self.processing_interval}s, "
-            f"lookback={self.lookback_minutes}m"
+            f"lookback={self.lookback_minutes}m",
         )
 
     async def startup(self):
@@ -81,7 +82,7 @@ class EnergyCorrelatorService:
                 logger,
                 "Failed to initialize service",
                 service="energy-correlator",
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -93,7 +94,7 @@ class EnergyCorrelatorService:
             await self.correlator.shutdown()
             logger.info("Energy Correlator Service shut down successfully")
         except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
+            logger.exception(f"Error during shutdown: {e}")
 
     async def run_continuous(self):
         """Run continuous correlation processing"""
@@ -103,14 +104,14 @@ class EnergyCorrelatorService:
             f"Starting correlation loop (every {self.processing_interval}s)",
             service="energy-correlator",
             interval=self.processing_interval,
-            lookback_minutes=self.lookback_minutes
+            lookback_minutes=self.lookback_minutes,
         )
 
         while True:
             try:
                 # Process events from last N minutes
                 await self.correlator.process_recent_events(
-                    lookback_minutes=self.lookback_minutes
+                    lookback_minutes=self.lookback_minutes,
                 )
 
                 # Update health check
@@ -125,7 +126,7 @@ class EnergyCorrelatorService:
                     logger,
                     "Error in correlation loop",
                     service="energy-correlator",
-                    error=str(e)
+                    error=str(e),
                 )
                 self.health_handler.failed_fetches += 1
 
@@ -138,7 +139,7 @@ async def create_app(service: EnergyCorrelatorService):
     app = web.Application()
 
     # Health check endpoint
-    app.router.add_get('/health', service.health_handler.handle)
+    app.router.add_get("/health", service.health_handler.handle)
 
     # Statistics endpoint
     async def get_statistics(request):
@@ -146,7 +147,7 @@ async def create_app(service: EnergyCorrelatorService):
         stats = service.correlator.get_statistics()
         return web.json_response(stats)
 
-    app.router.add_get('/statistics', get_statistics)
+    app.router.add_get("/statistics", get_statistics)
 
     # Reset statistics endpoint
     async def reset_statistics(request):
@@ -154,7 +155,7 @@ async def create_app(service: EnergyCorrelatorService):
         service.correlator.reset_statistics()
         return web.json_response({"message": "Statistics reset"})
 
-    app.router.add_post('/statistics/reset', reset_statistics)
+    app.router.add_post("/statistics/reset", reset_statistics)
 
     return app
 
@@ -178,8 +179,8 @@ async def main():
         await runner.setup()
 
         # Start HTTP server
-        port = int(os.getenv('SERVICE_PORT', '8017'))
-        site = web.TCPSite(runner, '0.0.0.0', port)
+        port = int(os.getenv("SERVICE_PORT", "8017"))
+        site = web.TCPSite(runner, "0.0.0.0", port)
         await site.start()
 
         logger.info(f"Service running on port {port}")
@@ -195,7 +196,7 @@ async def main():
             logger,
             "Fatal error in main",
             service="energy-correlator",
-            error=str(e)
+            error=str(e),
         )
         raise
     finally:
@@ -213,6 +214,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Service stopped by user")
     except Exception as e:
-        logger.error(f"Service failed: {e}")
+        logger.exception(f"Service failed: {e}")
         sys.exit(1)
 

@@ -10,7 +10,7 @@ from pathlib import Path
 # Load environment variables
 try:
     from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent / 'infrastructure' / 'env.ai-automation'
+    env_path = Path(__file__).parent.parent / "infrastructure" / "env.ai-automation"
     load_dotenv(env_path)
 except ImportError:
     print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
@@ -25,7 +25,7 @@ except ImportError:
     sys.exit(1)
 
 # Configuration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 print("=" * 60)
 print("🧪 Testing OpenAI API Connection")
@@ -41,9 +41,9 @@ if not OPENAI_API_KEY:
 
 # Test results
 test_results = {
-    'api_key_valid': False,
-    'basic_completion': False,
-    'cost_tracking': False
+    "api_key_valid": False,
+    "basic_completion": False,
+    "cost_tracking": False,
 }
 
 # Create client
@@ -52,28 +52,28 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # Test 1: Simple completion
 try:
     print("\n⏳ Test 1: Testing basic API call...")
-    
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Say 'Hello' if you can read this."}
+            {"role": "user", "content": "Say 'Hello' if you can read this."},
         ],
         max_tokens=10,
-        temperature=0
+        temperature=0,
     )
-    
+
     content = response.choices[0].message.content
     tokens_used = response.usage.total_tokens
-    
-    print(f"✅ API call successful!")
+
+    print("✅ API call successful!")
     print(f"   Response: {content}")
     print(f"   Tokens used: {tokens_used}")
-    
-    test_results['api_key_valid'] = True
-    test_results['basic_completion'] = True
-    test_results['cost_tracking'] = True
-    
+
+    test_results["api_key_valid"] = True
+    test_results["basic_completion"] = True
+    test_results["cost_tracking"] = True
+
 except Exception as e:
     if "invalid_api_key" in str(e).lower() or "unauthorized" in str(e).lower():
         print("❌ Invalid API key")
@@ -88,16 +88,16 @@ except Exception as e:
 # Test 2: Test automation generation (realistic use case)
 try:
     print("\n⏳ Test 2: Testing automation generation prompt...")
-    
+
     test_pattern = {
-        'device_id': 'light.bedroom',
-        'hour': 7,
-        'minute': 0,
-        'occurrences': 28,
-        'confidence': 0.93
+        "device_id": "light.bedroom",
+        "hour": 7,
+        "minute": 0,
+        "occurrences": 28,
+        "confidence": 0.93,
     }
-    
-    prompt = f"""
+
+    prompt = """
 Create a simple Home Assistant automation for this pattern:
 
 PATTERN: light.bedroom turns on at 07:00 consistently
@@ -116,35 +116,35 @@ action:
 
 Explain in 1 sentence why this automation makes sense.
 """
-    
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a home automation expert."},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         max_tokens=300,
-        temperature=0.7
+        temperature=0.7,
     )
-    
+
     automation = response.choices[0].message.content
     tokens_used = response.usage.total_tokens
-    
+
     # Calculate cost (GPT-4o-mini pricing)
     input_cost = (response.usage.prompt_tokens / 1_000_000) * 0.15
     output_cost = (response.usage.completion_tokens / 1_000_000) * 0.60
     total_cost = input_cost + output_cost
-    
-    print(f"✅ Automation generation successful!")
+
+    print("✅ Automation generation successful!")
     print(f"   Tokens used: {tokens_used} (input: {response.usage.prompt_tokens}, output: {response.usage.completion_tokens})")
     print(f"   Cost: ${total_cost:.4f} per suggestion")
     print(f"   Estimated monthly cost (50 suggestions): ${total_cost * 50:.2f}")
-    
+
     print("\n📝 Generated Automation Preview:")
     print("-" * 60)
     print(automation[:300] + "..." if len(automation) > 300 else automation)
     print("-" * 60)
-    
+
 except Exception as e:
     print(f"⚠️  Automation generation error: {e}")
 
@@ -161,10 +161,10 @@ if all(test_results.values()):
     print("\n🎉 All OpenAI API tests passed!")
     print("\n✅ OpenAI API connection verified and ready")
     print("\n💰 Estimated Costs:")
-    print(f"   Per suggestion: ~$0.001-0.002")
-    print(f"   Per batch (10 suggestions): ~$0.01-0.02")
-    print(f"   Per month (50 suggestions): ~$0.05-0.10")
-    print(f"   Well within $10/month budget! ✅")
+    print("   Per suggestion: ~$0.001-0.002")
+    print("   Per batch (10 suggestions): ~$0.01-0.02")
+    print("   Per month (50 suggestions): ~$0.05-0.10")
+    print("   Well within $10/month budget! ✅")
     sys.exit(0)
 else:
     print("\n⚠️  Some tests failed. Review errors above.")

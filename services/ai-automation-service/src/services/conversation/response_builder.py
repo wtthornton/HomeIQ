@@ -28,7 +28,7 @@ class ResponseType(str, Enum):
 class ResponseBuilder:
     """
     Builds structured responses for conversation turns.
-    
+
     Creates responses with:
     - Response type
     - Content
@@ -52,11 +52,11 @@ class ResponseBuilder:
         clarification_questions: list[dict[str, Any]] | None = None,
         confidence: float | None = None,
         processing_time_ms: int = 0,
-        next_actions: list[str] | None = None
+        next_actions: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         Build structured response.
-        
+
         Args:
             response_type: Type of response
             content: Response content text
@@ -67,7 +67,7 @@ class ResponseBuilder:
             confidence: Optional confidence score
             processing_time_ms: Processing time in milliseconds
             next_actions: Optional suggested next actions
-        
+
         Returns:
             Structured response dictionary
         """
@@ -77,7 +77,7 @@ class ResponseBuilder:
             "response_type": response_type.value,
             "content": content,
             "processing_time_ms": processing_time_ms,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         if suggestions:
@@ -103,31 +103,30 @@ class ResponseBuilder:
             return [
                 "Review the automation suggestions",
                 "Test an automation before deploying",
-                "Refine the automation if needed"
+                "Refine the automation if needed",
             ]
-        elif response_type == ResponseType.CLARIFICATION_NEEDED:
+        if response_type == ResponseType.CLARIFICATION_NEEDED:
             return [
                 "Answer the clarification questions",
-                "Provide more details about your request"
+                "Provide more details about your request",
             ]
-        elif response_type == ResponseType.ACTION_DONE:
+        if response_type == ResponseType.ACTION_DONE:
             return [
                 "Check if the action was successful",
-                "Create an automation for this action"
+                "Create an automation for this action",
             ]
-        elif response_type == ResponseType.INFORMATION_PROVIDED:
+        if response_type == ResponseType.INFORMATION_PROVIDED:
             return [
                 "Ask follow-up questions",
-                "Create an automation based on this information"
+                "Create an automation based on this information",
             ]
-        elif response_type == ResponseType.ERROR:
+        if response_type == ResponseType.ERROR:
             return [
                 "Try rephrasing your request",
-                "Check device names and try again"
+                "Check device names and try again",
             ]
-        else:
-            return [
-                "Try rephrasing your request",
-                "Provide more details"
-            ]
+        return [
+            "Try rephrasing your request",
+            "Provide more details",
+        ]
 

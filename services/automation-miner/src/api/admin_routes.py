@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..jobs.weekly_refresh import WeeklyRefreshJob
-from ..miner.database import get_db_session
+from src.jobs.weekly_refresh import WeeklyRefreshJob
+from src.miner.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def trigger_manual_refresh(background_tasks: BackgroundTasks):
     """
     Manually trigger corpus refresh
-    
+
     Runs the weekly refresh job immediately in the background.
     Useful for testing or recovering from failed scheduled runs.
     """
@@ -35,7 +35,7 @@ async def trigger_manual_refresh(background_tasks: BackgroundTasks):
     return {
         "status": "triggered",
         "message": "Weekly refresh job started in background",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -43,10 +43,10 @@ async def trigger_manual_refresh(background_tasks: BackgroundTasks):
 async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
     """
     Get weekly refresh job status
-    
+
     Returns information about the last refresh and next scheduled run.
     """
-    from ..miner.repository import CorpusRepository
+    from src.miner.repository import CorpusRepository
 
     try:
         repo = CorpusRepository(db)
@@ -83,12 +83,12 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
             "last_refresh": last_crawl.isoformat() if last_crawl else None,
             "days_since_refresh": days_since,
             "next_refresh": next_refresh,
-            "corpus_total": stats['total'],
-            "corpus_quality": stats['avg_quality'],
-            "status": "healthy" if (not last_crawl or days_since <= 7) else "stale"
+            "corpus_total": stats["total"],
+            "corpus_quality": stats["avg_quality"],
+            "status": "healthy" if (not last_crawl or days_since <= 7) else "stale",
         }
 
     except Exception as e:
-        logger.error(f"Failed to get refresh status: {e}")
+        logger.exception(f"Failed to get refresh status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

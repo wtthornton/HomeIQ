@@ -27,6 +27,7 @@ class HomeIQMCPTools:
             logger.info("MCP network tools disabled; no remote services exposed to sandboxed code")
             return {}
 
+        msg = "Network-enabled MCP tools are temporarily disabled pending new security controls"
         raise RuntimeError(
-            "Network-enabled MCP tools are temporarily disabled pending new security controls"
+            msg,
         )

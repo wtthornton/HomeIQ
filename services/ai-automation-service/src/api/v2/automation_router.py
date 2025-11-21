@@ -14,8 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
-from ...services.service_container import ServiceContainer, get_service_container
+from src.database import get_db
+from src.services.service_container import ServiceContainer, get_service_container
+
 from .models import (
     AutomationGenerationRequest,
     AutomationGenerationResponse,
@@ -35,7 +36,7 @@ router = APIRouter(prefix="/api/v2/automations", tags=["Automations v2"])
 async def generate_automation(
     request: AutomationGenerationRequest,
     container: ServiceContainer = Depends(get_service_container),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> AutomationGenerationResponse:
     """Generate automation YAML from suggestion"""
     # Get suggestion from database
@@ -49,7 +50,7 @@ async def generate_automation(
     if not suggestion_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Suggestion {request.suggestion_id} not found"
+            detail=f"Suggestion {request.suggestion_id} not found",
         )
 
     # Generate YAML
@@ -67,13 +68,13 @@ async def generate_automation(
     suggestion_dict = {
         "title": suggestion_row[1],  # title
         "description": suggestion_row[2],  # description
-        "validated_entities": validated_entities
+        "validated_entities": validated_entities,
     }
 
     automation_yaml = await yaml_generator.generate(
         suggestion=suggestion_dict,
         original_query=suggestion_row[2],  # description
-        validated_entities=validated_entities
+        validated_entities=validated_entities,
     )
 
     # Validate YAML
@@ -88,7 +89,7 @@ async def generate_automation(
     """), {
         "suggestion_id": request.suggestion_id,
         "yaml": automation_yaml,
-        "updated_at": datetime.utcnow().isoformat()
+        "updated_at": datetime.utcnow().isoformat(),
     })
 
     await db.commit()
@@ -98,9 +99,9 @@ async def generate_automation(
         automation_yaml=automation_yaml,
         validation_result={
             "valid": validation_result.valid,
-            "stages": [{"name": s.name, "valid": s.valid} for s in validation_result.stages]
+            "stages": [{"name": s.name, "valid": s.valid} for s in validation_result.stages],
         },
-        confidence=suggestion_row[4] if len(suggestion_row) > 4 else 0.5  # confidence
+        confidence=suggestion_row[4] if len(suggestion_row) > 4 else 0.5,  # confidence
     )
 
 
@@ -109,14 +110,14 @@ async def test_automation(
     suggestion_id: str,
     request: TestRequest,
     container: ServiceContainer = Depends(get_service_container),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> TestResult:
     """Test automation before deployment"""
     test_executor = container.test_executor
 
     start_time = datetime.utcnow()
     result = await test_executor.execute_test(
-        automation_yaml=request.automation_yaml
+        automation_yaml=request.automation_yaml,
     )
 
     execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -126,7 +127,7 @@ async def test_automation(
         state_changes=result.get("state_changes", {}),
         errors=result.get("errors", []),
         warnings=result.get("warnings", []),
-        execution_time_ms=execution_time
+        execution_time_ms=execution_time,
     )
 
 
@@ -135,14 +136,14 @@ async def deploy_automation(
     suggestion_id: str,
     request: DeploymentRequest,
     container: ServiceContainer = Depends(get_service_container),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> DeploymentResult:
     """Deploy automation to Home Assistant"""
     deployer = container.deployer
 
     result = await deployer.deploy(
         automation_yaml=request.automation_yaml,
-        automation_id=request.automation_id
+        automation_id=request.automation_id,
     )
 
     # Update suggestion status
@@ -152,7 +153,7 @@ async def deploy_automation(
         WHERE suggestion_id = :suggestion_id
     """), {
         "suggestion_id": suggestion_id,
-        "updated_at": datetime.utcnow().isoformat()
+        "updated_at": datetime.utcnow().isoformat(),
     })
 
     await db.commit()
@@ -161,7 +162,7 @@ async def deploy_automation(
         success=result.get("success", False),
         automation_id=result.get("automation_id", ""),
         message=result.get("message", "Deployment completed"),
-        deployed_at=datetime.utcnow().isoformat()
+        deployed_at=datetime.utcnow().isoformat(),
     )
 
 
@@ -169,7 +170,7 @@ async def deploy_automation(
 async def list_automations(
     conversation_id: str | None = None,
     status: str | None = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> list[AutomationSummary]:
     """List automations with optional filters"""
     query = "SELECT * FROM automation_suggestions WHERE 1=1"
@@ -197,7 +198,7 @@ async def list_automations(
             status=row[10] if len(row) > 10 else "draft",  # status
             confidence=row[8] if len(row) > 8 else 0.5,  # confidence
             created_at=row[11].isoformat() if len(row) > 11 and row[11] else datetime.utcnow().isoformat(),  # created_at
-            updated_at=row[12].isoformat() if len(row) > 12 and row[12] else datetime.utcnow().isoformat()  # updated_at
+            updated_at=row[12].isoformat() if len(row) > 12 and row[12] else datetime.utcnow().isoformat(),  # updated_at
         ))
 
     return summaries

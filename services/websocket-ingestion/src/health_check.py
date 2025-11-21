@@ -34,21 +34,21 @@ class HealthCheckHandler:
                 "status": "healthy",
                 "service": "websocket-ingestion",
                 "uptime": str(datetime.now() - self.start_time),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Add minimal connection status without blocking operations
             if self.connection_manager:
                 # Only access simple attributes that won't block
                 health_data["connection"] = {
-                    "is_running": getattr(self.connection_manager, 'is_running', False),
-                    "connection_attempts": getattr(self.connection_manager, 'connection_attempts', 0),
-                    "successful_connections": getattr(self.connection_manager, 'successful_connections', 0),
-                    "failed_connections": getattr(self.connection_manager, 'failed_connections', 0)
+                    "is_running": getattr(self.connection_manager, "is_running", False),
+                    "connection_attempts": getattr(self.connection_manager, "connection_attempts", 0),
+                    "successful_connections": getattr(self.connection_manager, "successful_connections", 0),
+                    "failed_connections": getattr(self.connection_manager, "failed_connections", 0),
                 }
 
                 # Add subscription status
-                event_subscription = getattr(self.connection_manager, 'event_subscription', None)
+                event_subscription = getattr(self.connection_manager, "event_subscription", None)
                 if event_subscription:
                     sub_status = event_subscription.get_subscription_status()
 
@@ -70,7 +70,7 @@ class HealthCheckHandler:
                         "session_events_received": session_total,  # Current session only
                         "historical_events_received": historical_total,  # Historical only
                         "events_by_type": sub_status.get("events_by_type", {}),
-                        "last_event_time": sub_status.get("last_event_time")
+                        "last_event_time": sub_status.get("last_event_time"),
                     }
 
                     # Calculate event rate (events per minute)
@@ -91,14 +91,14 @@ class HealthCheckHandler:
                         "status": "not_initialized",
                         "is_subscribed": False,
                         "total_events_received": 0,
-                        "event_rate_per_minute": 0
+                        "event_rate_per_minute": 0,
                     }
 
                 # Enhanced health determination
-                if not getattr(self.connection_manager, 'is_running', False):
+                if not getattr(self.connection_manager, "is_running", False):
                     health_data["status"] = "unhealthy"
                     health_data["reason"] = "Connection manager not running"
-                elif getattr(self.connection_manager, 'failed_connections', 0) > 5:
+                elif getattr(self.connection_manager, "failed_connections", 0) > 5:
                     health_data["status"] = "degraded"
                     health_data["reason"] = "Multiple connection failures"
                 elif event_subscription and not event_subscription.is_subscribed:
@@ -125,14 +125,14 @@ class HealthCheckHandler:
             return web.json_response(health_data, status=200)
 
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
+            logger.exception(f"Health check failed: {e}")
             # Return 200 even on error to avoid service being marked as down
             return web.json_response(
                 {
                     "status": "unhealthy",
                     "service": "websocket-ingestion",
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 },
-                status=200
+                status=200,
             )

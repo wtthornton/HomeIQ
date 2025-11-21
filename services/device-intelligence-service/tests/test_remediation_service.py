@@ -21,19 +21,22 @@ class FakeHaClient:
     async def update_device_registry_entry(self, device_id: str, **fields):
         self.calls.append(("device_update", device_id, fields))
         if not self.succeed:
-            raise RuntimeError("update failed")
+            msg = "update failed"
+            raise RuntimeError(msg)
         return {"id": device_id, **fields}
 
     async def update_entity_registry_entry(self, entity_id: str, **fields):
         self.calls.append(("entity_update", entity_id, fields))
         if not self.succeed:
-            raise RuntimeError("entity update failed")
+            msg = "entity update failed"
+            raise RuntimeError(msg)
         return {"entity_id": entity_id, **fields}
 
     async def start_config_flow(self, handler: str, data=None):
         self.calls.append(("config_flow", handler, data))
         if not self.succeed:
-            raise RuntimeError("config flow failed")
+            msg = "config flow failed"
+            raise RuntimeError(msg)
         return {"handler": handler}
 
 

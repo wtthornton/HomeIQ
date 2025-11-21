@@ -12,7 +12,7 @@ import docker
 from aiohttp import web
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from shared.logging_config import setup_logging
 
@@ -35,7 +35,7 @@ class LogAggregator:
             self.docker_client.ping()
             logger.info("✅ Docker client initialized successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Docker client: {e}")
+            logger.exception(f"❌ Failed to initialize Docker client: {e}")
             logger.debug("Check that /var/run/docker.sock is mounted and accessible")
             self.docker_client = None
 
@@ -57,31 +57,31 @@ class LogAggregator:
                     container_logs = container.logs(
                         tail=100,
                         timestamps=True,
-                        stream=False
-                    ).decode('utf-8', errors='ignore')
+                        stream=False,
+                    ).decode("utf-8", errors="ignore")
 
                     # Parse log lines
-                    for line in container_logs.split('\n'):
+                    for line in container_logs.split("\n"):
                         if not line.strip():
                             continue
 
                         try:
                             # Try to parse as JSON log
                             log_entry = json.loads(line.strip())
-                            log_entry['container_name'] = container.name
-                            log_entry['container_id'] = container.short_id
+                            log_entry["container_name"] = container.name
+                            log_entry["container_id"] = container.short_id
                             logs.append(log_entry)
                         except json.JSONDecodeError:
                             # Handle non-JSON logs
                             # Docker logs format: "timestamp log_message"
-                            parts = line.strip().split(' ', 1)
+                            parts = line.strip().split(" ", 1)
                             if len(parts) == 2:
                                 log_entry = {
-                                    'timestamp': parts[0],
-                                    'message': parts[1],
-                                    'container_name': container.name,
-                                    'container_id': container.short_id,
-                                    'level': 'INFO'
+                                    "timestamp": parts[0],
+                                    "message": parts[1],
+                                    "container_name": container.name,
+                                    "container_id": container.short_id,
+                                    "level": "INFO",
                                 }
                                 logs.append(log_entry)
 
@@ -100,7 +100,7 @@ class LogAggregator:
             return logs
 
         except Exception as e:
-            logger.error(f"Error collecting logs: {e}")
+            logger.exception(f"Error collecting logs: {e}")
             return []
 
     async def get_recent_logs(self, service: str | None = None,
@@ -111,14 +111,14 @@ class LogAggregator:
 
         # Filter by service
         if service:
-            logs = [log for log in logs if log.get('service') == service]
+            logs = [log for log in logs if log.get("service") == service]
 
         # Filter by level
         if level:
-            logs = [log for log in logs if log.get('level') == level.upper()]
+            logs = [log for log in logs if log.get("level") == level.upper()]
 
         # Sort by timestamp (most recent first)
-        logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
         # Return limited results
         return logs[:limit]
@@ -128,11 +128,11 @@ class LogAggregator:
         logs = []
 
         for log in self.aggregated_logs:
-            if query.lower() in log.get('message', '').lower():
+            if query.lower() in log.get("message", "").lower():
                 logs.append(log)
 
         # Sort by timestamp (most recent first)
-        logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
         return logs[:limit]
 
@@ -145,14 +145,14 @@ async def health_check(request: web.Request) -> web.Response:
         "status": "healthy",
         "service": "log-aggregator",
         "timestamp": datetime.utcnow().isoformat(),
-        "logs_collected": len(log_aggregator.aggregated_logs)
+        "logs_collected": len(log_aggregator.aggregated_logs),
     })
 
 async def get_logs(request: web.Request) -> web.Response:
     """Get recent logs with optional filtering"""
-    service = request.query.get('service')
-    level = request.query.get('level')
-    limit = int(request.query.get('limit', 100))
+    service = request.query.get("service")
+    level = request.query.get("level")
+    limit = int(request.query.get("limit", 100))
 
     logs = await log_aggregator.get_recent_logs(service, level, limit)
 
@@ -162,18 +162,18 @@ async def get_logs(request: web.Request) -> web.Response:
         "filters": {
             "service": service,
             "level": level,
-            "limit": limit
-        }
+            "limit": limit,
+        },
     })
 
 async def search_logs(request: web.Request) -> web.Response:
     """Search logs by query"""
-    query = request.query.get('q', '')
-    limit = int(request.query.get('limit', 100))
+    query = request.query.get("q", "")
+    limit = int(request.query.get("limit", 100))
 
     if not query:
         return web.json_response({
-            "error": "Query parameter 'q' is required"
+            "error": "Query parameter 'q' is required",
         }, status=400)
 
     logs = await log_aggregator.search_logs(query, limit)
@@ -182,7 +182,7 @@ async def search_logs(request: web.Request) -> web.Response:
         "logs": logs,
         "count": len(logs),
         "query": query,
-        "limit": limit
+        "limit": limit,
     })
 
 async def collect_logs(request: web.Request) -> web.Response:
@@ -192,7 +192,7 @@ async def collect_logs(request: web.Request) -> web.Response:
     return web.json_response({
         "message": f"Collected {len(logs)} log entries",
         "logs_collected": len(logs),
-        "total_logs": len(log_aggregator.aggregated_logs)
+        "total_logs": len(log_aggregator.aggregated_logs),
     })
 
 async def get_log_stats(request: web.Request) -> web.Response:
@@ -202,16 +202,16 @@ async def get_log_stats(request: web.Request) -> web.Response:
         "services": {},
         "levels": {},
         "recent_logs": len([log for log in log_aggregator.aggregated_logs
-                           if (datetime.utcnow() - datetime.fromisoformat(log.get('timestamp', '1970-01-01T00:00:00Z').replace('Z', '+00:00'))).total_seconds() < 3600])
+                           if (datetime.utcnow() - datetime.fromisoformat(log.get("timestamp", "1970-01-01T00:00:00Z").replace("Z", "+00:00"))).total_seconds() < 3600]),
     }
 
     # Count by service and level
     for log in log_aggregator.aggregated_logs:
-        service = log.get('service', 'unknown')
-        level = log.get('level', 'unknown')
+        service = log.get("service", "unknown")
+        level = log.get("level", "unknown")
 
-        stats['services'][service] = stats['services'].get(service, 0) + 1
-        stats['levels'][level] = stats['levels'].get(level, 0) + 1
+        stats["services"][service] = stats["services"].get(service, 0) + 1
+        stats["levels"][level] = stats["levels"].get(level, 0) + 1
 
     return web.json_response(stats)
 
@@ -222,7 +222,7 @@ async def background_log_collection():
             await log_aggregator.collect_logs()
             await asyncio.sleep(30)  # Collect logs every 30 seconds
         except Exception as e:
-            logger.error(f"Error in background log collection: {e}")
+            logger.exception(f"Error in background log collection: {e}")
             await asyncio.sleep(60)  # Wait longer on error
 
 async def main():
@@ -238,22 +238,22 @@ async def main():
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
-            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
         ),
         "http://localhost:3001": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
-            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+            allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
         ),
     })
 
     # Add routes
-    app.router.add_get('/health', health_check)
-    app.router.add_get('/api/v1/logs', get_logs)
-    app.router.add_get('/api/v1/logs/search', search_logs)
-    app.router.add_post('/api/v1/logs/collect', collect_logs)
-    app.router.add_get('/api/v1/logs/stats', get_log_stats)
+    app.router.add_get("/health", health_check)
+    app.router.add_get("/api/v1/logs", get_logs)
+    app.router.add_get("/api/v1/logs/search", search_logs)
+    app.router.add_post("/api/v1/logs/collect", collect_logs)
+    app.router.add_get("/api/v1/logs/stats", get_log_stats)
 
     # Configure CORS for all routes
     for route in list(app.router.routes()):
@@ -263,11 +263,11 @@ async def main():
     asyncio.create_task(background_log_collection())
 
     # Start web server
-    port = int(os.getenv('PORT', '8015'))
+    port = int(os.getenv("PORT", "8015"))
     runner = web.AppRunner(app)
     await runner.setup()
 
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
     logger.info(f"Log aggregation service started on port {port}")

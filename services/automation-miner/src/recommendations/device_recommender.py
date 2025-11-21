@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from ..miner.repository import CorpusRepository
+from src.miner.repository import CorpusRepository
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,8 @@ class DeviceRecommendation(BaseModel):
                 "cost_estimate_usd": [15, 35],
                 "roi_score": 2.77,
                 "compatible_integrations": ["mqtt", "zigbee2mqtt", "zha"],
-                "example_automations": []
-            }
+                "example_automations": [],
+            },
         }
 
 
@@ -52,7 +52,7 @@ class DeviceRecommender:
     def __init__(self, corpus_repo: CorpusRepository):
         """
         Initialize device recommender
-        
+
         Args:
             corpus_repo: CorpusRepository for querying automations
         """
@@ -62,7 +62,7 @@ class DeviceRecommender:
     def _load_device_costs(self) -> dict[str, tuple[int, int]]:
         """
         Load device cost estimates from JSON file
-        
+
         Returns:
             Dictionary mapping device types to (min_cost, max_cost) tuples
             Falls back to default costs if file cannot be loaded
@@ -74,7 +74,7 @@ class DeviceRecommender:
             return {}
 
         try:
-            with open(costs_file, encoding='utf-8') as f:
+            with open(costs_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Validate and convert to tuple format
@@ -97,7 +97,7 @@ class DeviceRecommender:
             return costs
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse device costs JSON file {costs_file}: {e}. Using default costs.")
+            logger.exception(f"Failed to parse device costs JSON file {costs_file}: {e}. Using default costs.")
             return {}
         except Exception as e:
             logger.error(f"Failed to load device costs from {costs_file}: {e}. Using default costs.", exc_info=True)
@@ -107,16 +107,16 @@ class DeviceRecommender:
         self,
         user_devices: list[str],
         user_integrations: list[str],
-        limit: int = 10
+        limit: int = 10,
     ) -> list[DeviceRecommendation]:
         """
         Recommend devices to purchase based on automation potential
-        
+
         Args:
             user_devices: List of device types user currently has
             user_integrations: List of integrations user has configured
             limit: Maximum recommendations to return
-        
+
         Returns:
             List of DeviceRecommendation objects, sorted by ROI score
         """
@@ -132,7 +132,7 @@ class DeviceRecommender:
 
         for auto in all_automations:
             # Check if user can already do this automation
-            auto_devices = auto.devices if hasattr(auto, 'devices') else []
+            auto_devices = auto.devices if hasattr(auto, "devices") else []
 
             if all(d in user_devices for d in auto_devices):
                 continue  # User can already do this
@@ -156,7 +156,7 @@ class DeviceRecommender:
 
             # Average quality of unlocked automations
             total_quality = sum(
-                auto.quality_score if hasattr(auto, 'quality_score') else 0.0
+                auto.quality_score if hasattr(auto, "quality_score") else 0.0
                 for auto in unlocked_autos
             )
             avg_quality = total_quality / len(unlocked_autos) if unlocked_autos else 0.0
@@ -175,7 +175,7 @@ class DeviceRecommender:
             # Extract use cases
             use_cases = []
             for auto in unlocked_autos:
-                if hasattr(auto, 'use_case'):
+                if hasattr(auto, "use_case"):
                     use_cases.append(auto.use_case)
             use_case_counter = Counter(use_cases)
             top_use_cases = [uc for uc, count in use_case_counter.most_common(3)]
@@ -183,22 +183,22 @@ class DeviceRecommender:
             # Compatible integrations
             integrations = set()
             for auto in unlocked_autos:
-                if hasattr(auto, 'integrations'):
+                if hasattr(auto, "integrations"):
                     integrations.update(auto.integrations)
 
             # Top 3 example automations
             sorted_examples = sorted(
                 unlocked_autos,
-                key=lambda a: a.quality_score if hasattr(a, 'quality_score') else 0,
-                reverse=True
+                key=lambda a: a.quality_score if hasattr(a, "quality_score") else 0,
+                reverse=True,
             )[:3]
 
             example_automations = []
             for auto in sorted_examples:
                 example_automations.append({
-                    'title': auto.title if hasattr(auto, 'title') else 'Unknown',
-                    'quality_score': auto.quality_score if hasattr(auto, 'quality_score') else 0.0,
-                    'use_case': auto.use_case if hasattr(auto, 'use_case') else 'unknown'
+                    "title": auto.title if hasattr(auto, "title") else "Unknown",
+                    "quality_score": auto.quality_score if hasattr(auto, "quality_score") else 0.0,
+                    "use_case": auto.use_case if hasattr(auto, "use_case") else "unknown",
                 })
 
             recommendations.append(DeviceRecommendation(
@@ -207,8 +207,8 @@ class DeviceRecommender:
                 example_use_cases=top_use_cases,
                 cost_estimate_usd=cost_range,
                 roi_score=round(roi, 2),
-                compatible_integrations=sorted(list(integrations)),
-                example_automations=example_automations
+                compatible_integrations=sorted(integrations),
+                example_automations=example_automations,
             ))
 
         # Sort by ROI descending
@@ -221,15 +221,15 @@ class DeviceRecommender:
     async def get_device_possibilities(
         self,
         device_type: str,
-        user_devices: list[str]
+        user_devices: list[str],
     ) -> list[dict[str, Any]]:
         """
         Get automation possibilities for a specific device type
-        
+
         Args:
             device_type: Device type (e.g., "motion_sensor")
             user_devices: List of devices user currently has
-        
+
         Returns:
             List of automation possibilities grouped by use case
         """
@@ -237,9 +237,9 @@ class DeviceRecommender:
 
         # Query corpus for automations using this device
         automations = await self.repo.search({
-            'device': device_type,
-            'min_quality': 0.5,
-            'limit': 100
+            "device": device_type,
+            "min_quality": 0.5,
+            "limit": 100,
         })
 
         logger.info(f"Found {len(automations)} automations using {device_type}")
@@ -247,7 +247,7 @@ class DeviceRecommender:
         # Group by use case
         by_use_case = {}
         for auto in automations:
-            use_case = auto.get('use_case', 'convenience')
+            use_case = auto.get("use_case", "convenience")
             if use_case not in by_use_case:
                 by_use_case[use_case] = []
             by_use_case[use_case].append(auto)
@@ -261,7 +261,7 @@ class DeviceRecommender:
             optional_devices = set()
 
             for auto in autos:
-                auto_devices = auto.get('devices', [])
+                auto_devices = auto.get("devices", [])
                 for device in auto_devices:
                     if device != device_type:
                         if device in user_devices:
@@ -270,28 +270,28 @@ class DeviceRecommender:
                             optional_devices.add(device)
 
             # Average quality
-            avg_quality = sum(a.get('quality_score', 0) for a in autos) / len(autos) if autos else 0
+            avg_quality = sum(a.get("quality_score", 0) for a in autos) / len(autos) if autos else 0
 
             # Difficulty based on required devices
             if len(required_devices) == 0:
-                difficulty = 'low'
+                difficulty = "low"
             elif len(required_devices) <= 2:
-                difficulty = 'medium'
+                difficulty = "medium"
             else:
-                difficulty = 'high'
+                difficulty = "high"
 
             possibilities.append({
-                'use_case': use_case,
-                'automation_count': len(autos),
-                'required_devices': sorted(list(required_devices)),
-                'optional_enhancements': sorted(list(optional_devices)),
-                'example_automations': autos[:3],  # Top 3
-                'difficulty': difficulty,
-                'avg_quality': round(avg_quality, 2)
+                "use_case": use_case,
+                "automation_count": len(autos),
+                "required_devices": sorted(required_devices),
+                "optional_enhancements": sorted(optional_devices),
+                "example_automations": autos[:3],  # Top 3
+                "difficulty": difficulty,
+                "avg_quality": round(avg_quality, 2),
             })
 
         # Sort by automation count descending
-        possibilities.sort(key=lambda p: p['automation_count'], reverse=True)
+        possibilities.sort(key=lambda p: p["automation_count"], reverse=True)
 
         return possibilities
 

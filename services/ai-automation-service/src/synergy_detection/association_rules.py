@@ -27,7 +27,7 @@ class AssociationRule:
         consequent: frozenset[str],
         support: float,
         confidence: float,
-        lift: float
+        lift: float,
     ):
         """
         Initialize association rule.
@@ -70,7 +70,7 @@ class AprioriMiner:
         min_support: float = 0.05,
         min_confidence: float = 0.7,
         min_lift: float = 1.5,
-        max_itemset_size: int = 4
+        max_itemset_size: int = 4,
     ):
         """
         Initialize Apriori miner.
@@ -88,12 +88,12 @@ class AprioriMiner:
 
         logger.info(
             f"AprioriMiner initialized: support={min_support}, "
-            f"confidence={min_confidence}, lift={min_lift}, max_size={max_itemset_size}"
+            f"confidence={min_confidence}, lift={min_lift}, max_size={max_itemset_size}",
         )
 
     def mine_frequent_itemsets(
         self,
-        transactions: list[set[str]]
+        transactions: list[set[str]],
     ) -> dict[frozenset[str], float]:
         """
         Mine frequent itemsets using Apriori algorithm.
@@ -164,7 +164,7 @@ class AprioriMiner:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         logger.info(
             f"✅ Mining complete in {duration:.2f}s: "
-            f"{len(frequent_itemsets)} frequent itemsets found"
+            f"{len(frequent_itemsets)} frequent itemsets found",
         )
 
         return frequent_itemsets
@@ -172,7 +172,7 @@ class AprioriMiner:
     def _generate_candidates(
         self,
         previous_itemsets: set[frozenset[str]],
-        k: int
+        k: int,
     ) -> set[frozenset[str]]:
         """
         Generate k-itemset candidates from (k-1)-itemsets.
@@ -189,7 +189,7 @@ class AprioriMiner:
         candidates = set()
 
         # Convert to sorted lists for efficient joining
-        itemsets_list = [sorted(list(itemset)) for itemset in previous_itemsets]
+        itemsets_list = [sorted(itemset) for itemset in previous_itemsets]
 
         # Self-join: merge itemsets that differ by only one item
         for i, itemset1 in enumerate(itemsets_list):
@@ -211,7 +211,7 @@ class AprioriMiner:
     def _has_frequent_subsets(
         self,
         itemset: frozenset[str],
-        frequent_itemsets: set[frozenset[str]]
+        frequent_itemsets: set[frozenset[str]],
     ) -> bool:
         """
         Check if all (k-1) subsets of itemset are frequent.
@@ -240,7 +240,7 @@ class AprioriMiner:
 
     def generate_association_rules(
         self,
-        frequent_itemsets: dict[frozenset[str], float]
+        frequent_itemsets: dict[frozenset[str], float],
     ) -> list[AssociationRule]:
         """
         Generate association rules from frequent itemsets.
@@ -306,7 +306,7 @@ class AprioriMiner:
                         consequent=consequent,
                         support=support,
                         confidence=confidence,
-                        lift=lift
+                        lift=lift,
                     )
 
                     rules.append(rule)
@@ -329,7 +329,7 @@ class TransactionBuilder:
     def __init__(
         self,
         time_window_seconds: int = 60,
-        min_transaction_size: int = 2
+        min_transaction_size: int = 2,
     ):
         """
         Initialize transaction builder.
@@ -343,14 +343,14 @@ class TransactionBuilder:
 
         logger.info(
             f"TransactionBuilder initialized: window={time_window_seconds}s, "
-            f"min_size={min_transaction_size}"
+            f"min_size={min_transaction_size}",
         )
 
     def build_transactions(
         self,
         events_df: pd.DataFrame,
         start_time: datetime | None = None,
-        end_time: datetime | None = None
+        end_time: datetime | None = None,
     ) -> list[set[str]]:
         """
         Build transactions from events DataFrame.
@@ -370,22 +370,22 @@ class TransactionBuilder:
         """
         logger.info("🔨 Building transactions from events...")
 
-        if events_df.empty or 'time' not in events_df.columns or 'entity_id' not in events_df.columns:
+        if events_df.empty or "time" not in events_df.columns or "entity_id" not in events_df.columns:
             logger.warning("Invalid events DataFrame for transaction building")
             return []
 
         # Filter by time range
         df = events_df.copy()
         if start_time:
-            df = df[df['time'] >= start_time]
+            df = df[df["time"] >= start_time]
         if end_time:
-            df = df[df['time'] <= end_time]
+            df = df[df["time"] <= end_time]
 
         if df.empty:
             return []
 
         # Sort by time
-        df = df.sort_values('time').reset_index(drop=True)
+        df = df.sort_values("time").reset_index(drop=True)
 
         # Build transactions using sliding window
         transactions = []
@@ -393,15 +393,15 @@ class TransactionBuilder:
         total_events = len(df)
 
         while i < total_events:
-            window_start = df.loc[i, 'time']
+            window_start = df.loc[i, "time"]
             window_end = window_start + timedelta(seconds=self.time_window_seconds)
 
             # Collect all entities in this window
             window_entities = set()
             j = i
 
-            while j < total_events and df.loc[j, 'time'] <= window_end:
-                entity_id = df.loc[j, 'entity_id']
+            while j < total_events and df.loc[j, "time"] <= window_end:
+                entity_id = df.loc[j, "entity_id"]
                 window_entities.add(entity_id)
                 j += 1
 
@@ -414,7 +414,7 @@ class TransactionBuilder:
 
         logger.info(
             f"✅ Built {len(transactions)} transactions from {total_events} events "
-            f"(avg {len(transactions)/max(total_events, 1):.2f} transactions per event)"
+            f"(avg {len(transactions)/max(total_events, 1):.2f} transactions per event)",
         )
 
         return transactions

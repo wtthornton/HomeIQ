@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 class BM25Retriever:
     """
     BM25 (Best Matching 25) keyword-based retrieval.
-    
+
     BM25 is a ranking function used to rank documents based on query terms.
     It's particularly good for exact name matching and handling typos.
-    
+
     Parameters:
         k1: Term frequency saturation parameter (default: 1.5)
         b: Length normalization parameter (default: 0.75)
@@ -29,7 +29,7 @@ class BM25Retriever:
     def __init__(self, k1: float = 1.5, b: float = 0.75):
         """
         Initialize BM25 retriever.
-        
+
         Args:
             k1: Term frequency saturation parameter (higher = more weight to term frequency)
             b: Length normalization parameter (higher = more penalty for long documents)
@@ -42,10 +42,10 @@ class BM25Retriever:
         self.avg_doc_length: float = 0.0
         self._indexed = False
 
-    def index(self, documents: list[dict[str, Any]], text_field: str = 'text'):
+    def index(self, documents: list[dict[str, Any]], text_field: str = "text"):
         """
         Index documents for BM25 retrieval.
-        
+
         Args:
             documents: List of document dictionaries
             text_field: Field name containing text to index
@@ -61,7 +61,7 @@ class BM25Retriever:
         total_length = 0
 
         for doc in documents:
-            text = doc.get(text_field, '')
+            text = doc.get(text_field, "")
             tokens = self._tokenize(text)
             doc_tokens.append(tokens)
             total_length += len(tokens)
@@ -89,10 +89,10 @@ class BM25Retriever:
     def _tokenize(self, text: str) -> list[str]:
         """
         Tokenize text into words (lowercase, alphanumeric).
-        
+
         Args:
             text: Text to tokenize
-            
+
         Returns:
             List of tokens
         """
@@ -100,25 +100,24 @@ class BM25Retriever:
             return []
 
         # Extract words (alphanumeric sequences)
-        tokens = re.findall(r'\b\w+\b', text.lower())
-        return tokens
+        return re.findall(r"\b\w+\b", text.lower())
 
     def search(
         self,
         query: str,
         top_k: int = 10,
         min_score: float = 0.0,
-        text_field: str = 'text'
+        text_field: str = "text",
     ) -> list[dict[str, Any]]:
         """
         Search documents using BM25 scoring.
-        
+
         Args:
             query: Query text
             top_k: Number of results to return
             min_score: Minimum BM25 score threshold
             text_field: Field name containing text to search
-            
+
         Returns:
             List of documents with BM25 scores, sorted by score (descending)
         """
@@ -136,7 +135,7 @@ class BM25Retriever:
         scores: list[tuple] = []
 
         for i, doc in enumerate(self.documents):
-            doc_text = doc.get(text_field, '')
+            doc_text = doc.get(text_field, "")
             doc_tokens = self._tokenize(doc_text)
             doc_length = len(doc_tokens)
 
@@ -170,7 +169,7 @@ class BM25Retriever:
         results = []
         for score, doc_idx in scores[:top_k]:
             doc = self.documents[doc_idx].copy()
-            doc['bm25_score'] = float(score)
+            doc["bm25_score"] = float(score)
             results.append(doc)
 
         logger.debug(f"BM25 search returned {len(results)} results for query: {query[:50]}...")
@@ -183,11 +182,11 @@ class BM25Retriever:
         top_k: int = 10,
         dense_weight: float = 0.6,
         sparse_weight: float = 0.4,
-        text_field: str = 'text'
+        text_field: str = "text",
     ) -> list[dict[str, Any]]:
         """
         Hybrid search combining dense (embedding) and sparse (BM25) results.
-        
+
         Args:
             query: Query text
             dense_results: Results from dense retrieval (with 'similarity' scores)
@@ -195,7 +194,7 @@ class BM25Retriever:
             dense_weight: Weight for dense retrieval scores (default: 0.6)
             sparse_weight: Weight for sparse retrieval scores (default: 0.4)
             text_field: Field name containing text
-            
+
         Returns:
             Combined and reranked results
         """
@@ -209,12 +208,12 @@ class BM25Retriever:
         sparse_scores: dict[str, float] = {}
         for result in sparse_results:
             # Use text as key (or id if available)
-            key = result.get('id') or result.get(text_field, '')
-            sparse_scores[key] = result.get('bm25_score', 0.0)
+            key = result.get("id") or result.get(text_field, "")
+            sparse_scores[key] = result.get("bm25_score", 0.0)
 
         # Normalize scores to [0, 1] range
-        max_dense_score = max((r.get('similarity', 0.0) for r in dense_results), default=1.0)
-        max_sparse_score = max((r.get('bm25_score', 0.0) for r in sparse_results), default=1.0)
+        max_dense_score = max((r.get("similarity", 0.0) for r in dense_results), default=1.0)
+        max_sparse_score = max((r.get("bm25_score", 0.0) for r in sparse_results), default=1.0)
 
         # Combine scores
         combined_results = []
@@ -222,8 +221,8 @@ class BM25Retriever:
 
         # Process dense results
         for result in dense_results:
-            result_id = result.get('id') or result.get(text_field, '')
-            dense_score = result.get('similarity', 0.0)
+            result_id = result.get("id") or result.get(text_field, "")
+            dense_score = result.get("similarity", 0.0)
             sparse_score = sparse_scores.get(result_id, 0.0)
 
             # Normalize scores
@@ -234,29 +233,29 @@ class BM25Retriever:
             combined_score = (dense_weight * norm_dense) + (sparse_weight * norm_sparse)
 
             combined_result = result.copy()
-            combined_result['hybrid_score'] = combined_score
-            combined_result['bm25_score'] = sparse_score
+            combined_result["hybrid_score"] = combined_score
+            combined_result["bm25_score"] = sparse_score
             combined_results.append(combined_result)
             seen_ids.add(result_id)
 
         # Add sparse-only results (if any)
         for result in sparse_results:
-            result_id = result.get('id') or result.get(text_field, '')
+            result_id = result.get("id") or result.get(text_field, "")
             if result_id not in seen_ids:
-                sparse_score = result.get('bm25_score', 0.0)
+                sparse_score = result.get("bm25_score", 0.0)
                 norm_sparse = sparse_score / max_sparse_score if max_sparse_score > 0 else 0.0
 
                 combined_result = result.copy()
-                combined_result['hybrid_score'] = sparse_weight * norm_sparse
-                combined_result['similarity'] = 0.0  # No dense score
+                combined_result["hybrid_score"] = sparse_weight * norm_sparse
+                combined_result["similarity"] = 0.0  # No dense score
                 combined_results.append(combined_result)
 
         # Sort by hybrid score and return top_k
-        combined_results.sort(key=lambda x: x.get('hybrid_score', 0.0), reverse=True)
+        combined_results.sort(key=lambda x: x.get("hybrid_score", 0.0), reverse=True)
 
         logger.debug(
             f"Hybrid search: {len(dense_results)} dense + {len(sparse_results)} sparse → "
-            f"{len(combined_results)} combined results"
+            f"{len(combined_results)} combined results",
         )
 
         return combined_results[:top_k]

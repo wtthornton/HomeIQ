@@ -84,7 +84,8 @@ class MetricsCollector:
     def record_value(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric:
-            raise ValueError(f"Metric '{name}' not registered")
+            msg = f"Metric '{name}' not registered"
+            raise ValueError(msg)
         metric.values.append(MetricValue(timestamp=_utc_iso_now(), value=value, labels=labels or {}))
         if len(metric.values) > self.max_values_per_metric:
             metric.values = metric.values[-self.max_values_per_metric :]
@@ -92,20 +93,23 @@ class MetricsCollector:
     def increment_counter(self, name: str, value: float = 1.0, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.COUNTER:
-            raise ValueError(f"Counter metric '{name}' not registered")
+            msg = f"Counter metric '{name}' not registered"
+            raise ValueError(msg)
         current = self.get_latest_value(name, labels)
         self.record_value(name, current + value, labels)
 
     def set_gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.GAUGE:
-            raise ValueError(f"Gauge metric '{name}' not registered")
+            msg = f"Gauge metric '{name}' not registered"
+            raise ValueError(msg)
         self.record_value(name, value, labels)
 
     def record_timer(self, name: str, value_seconds: float, labels: dict[str, str] | None = None) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.TIMER:
-            raise ValueError(f"Timer metric '{name}' not registered")
+            msg = f"Timer metric '{name}' not registered"
+            raise ValueError(msg)
         self.record_value(name, value_seconds, labels)
 
     def get_latest_value(self, name: str, labels: dict[str, str] | None = None) -> float:

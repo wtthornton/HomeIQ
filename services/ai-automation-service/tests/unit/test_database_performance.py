@@ -23,8 +23,8 @@ async def db_engine():
         echo=False,
         pool_pre_ping=True,
         connect_args={
-            "timeout": 30.0
-        }
+            "timeout": 30.0,
+        },
     )
 
     # Configure SQLite pragmas for optimal performance (same as production)
@@ -60,7 +60,7 @@ async def db_session(db_engine):
     async_session = async_sessionmaker(
         db_engine,
         class_=AsyncSession,
-        expire_on_commit=False
+        expire_on_commit=False,
     )
 
     async with async_session() as session:
@@ -132,11 +132,11 @@ class TestBatchSuggestionStorage:
         """Test batch storage of multiple suggestions in single transaction"""
         suggestions = [
             {
-                'title': f'Test Suggestion {i}',
-                'description': f'Test description {i}',
-                'confidence': 0.8,
-                'category': 'convenience',
-                'priority': 'medium'
+                "title": f"Test Suggestion {i}",
+                "description": f"Test description {i}",
+                "confidence": 0.8,
+                "category": "convenience",
+                "priority": "medium",
             }
             for i in range(10)
         ]
@@ -163,9 +163,9 @@ class TestBatchSuggestionStorage:
     async def test_batch_storage_with_error_handling(self, db_session):
         """Test batch storage continues on error"""
         suggestions = [
-            {'title': 'Valid 1', 'description': 'test', 'confidence': 0.8},
-            {'title': 'Valid 2', 'description': 'test', 'confidence': 0.8},
-            {'title': 'Valid 3', 'description': 'test', 'confidence': 0.8},
+            {"title": "Valid 1", "description": "test", "confidence": 0.8},
+            {"title": "Valid 2", "description": "test", "confidence": 0.8},
+            {"title": "Valid 3", "description": "test", "confidence": 0.8},
         ]
 
         stored_count = 0
@@ -190,12 +190,12 @@ class TestBatchSuggestionStorage:
         # First, create one suggestion normally
         await store_suggestion(
             db_session,
-            {'title': 'Test', 'description': 'test', 'confidence': 0.8}
+            {"title": "Test", "description": "test", "confidence": 0.8},
         )
 
         # Now try to batch store more with a violation
         suggestions = [
-            {'title': 'Valid', 'description': 'test', 'confidence': 0.8},
+            {"title": "Valid", "description": "test", "confidence": 0.8},
         ]
 
         stored_count = 0
@@ -233,7 +233,7 @@ class TestDatabasePerformance:
 
         # Test individual storage (old way)
         suggestions = [
-            {'title': f'Test {i}', 'description': 'test', 'confidence': 0.8}
+            {"title": f"Test {i}", "description": "test", "confidence": 0.8}
             for i in range(10)
         ]
 
@@ -264,7 +264,7 @@ class TestDatabasePerformance:
         # Create a suggestion
         await store_suggestion(
             db_session,
-            {'title': 'Test', 'description': 'test', 'confidence': 0.8}
+            {"title": "Test", "description": "test", "confidence": 0.8},
         )
 
         # WAL mode should allow concurrent reads

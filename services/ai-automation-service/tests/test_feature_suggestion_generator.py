@@ -28,7 +28,7 @@ class TestFeatureSuggestionGenerator:
         self.generator = FeatureSuggestionGenerator(
             llm_client=self.mock_llm_client,
             feature_analyzer=self.mock_analyzer,
-            db_session=self.mock_db_session
+            db_session=self.mock_db_session,
         )
 
     # =========================================================================
@@ -49,9 +49,9 @@ class TestFeatureSuggestionGenerator:
                     "feature_name": "led_notifications",
                     "feature_type": "composite",
                     "complexity": "medium",
-                    "impact": "high"
-                }
-            ]
+                    "impact": "high",
+                },
+            ],
         })
 
         # Mock OpenAI response
@@ -79,7 +79,7 @@ class TestFeatureSuggestionGenerator:
     async def test_generate_suggestions_no_opportunities(self):
         """Test when no opportunities found"""
         self.mock_analyzer.analyze_all_devices = AsyncMock(return_value={
-            "opportunities": []  # No opportunities
+            "opportunities": [],  # No opportunities
         })
 
         suggestions = await self.generator.generate_suggestions()
@@ -99,13 +99,13 @@ class TestFeatureSuggestionGenerator:
                 "feature_name": f"feature_{i}",
                 "feature_type": "test",
                 "complexity": "easy",
-                "impact": "medium"
+                "impact": "medium",
             }
             for i in range(20)
         ]
 
         self.mock_analyzer.analyze_all_devices = AsyncMock(return_value={
-            "opportunities": opportunities
+            "opportunities": opportunities,
         })
 
         # Mock OpenAI response
@@ -197,7 +197,7 @@ class TestFeatureSuggestionGenerator:
             "feature_name": "led_notifications",
             "feature_type": "composite",
             "complexity": "medium",
-            "impact": "high"
+            "impact": "high",
         }
 
         prompt = self.generator._build_feature_prompt(opp)
@@ -228,13 +228,13 @@ class TestFeatureSuggestionGenerator:
                 "feature_name": f"feature_{i}",
                 "feature_type": "test",
                 "complexity": "easy",
-                "impact": "medium"
+                "impact": "medium",
             }
             for i in range(10)
         ]
 
         self.mock_analyzer.analyze_all_devices = AsyncMock(return_value={
-            "opportunities": opportunities
+            "opportunities": opportunities,
         })
 
         # Mock OpenAI response
@@ -269,7 +269,7 @@ class TestFeatureSuggestionGenerator:
         ]
 
         self.mock_analyzer.analyze_all_devices = AsyncMock(return_value={
-            "opportunities": opportunities
+            "opportunities": opportunities,
         })
 
         # First call fails, second succeeds
@@ -284,8 +284,8 @@ class TestFeatureSuggestionGenerator:
         self.mock_llm_client.client.chat.completions.create = AsyncMock(
             side_effect=[
                 Exception("API Error"),  # First fails
-                mock_response_success   # Second succeeds
-            ]
+                mock_response_success,   # Second succeeds
+            ],
         )
 
         suggestions = await self.generator.generate_suggestions()

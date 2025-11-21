@@ -7,5 +7,5 @@ Provides unified prompt building capabilities with device intelligence integrati
 from .unified_prompt_builder import UnifiedPromptBuilder
 
 __all__ = [
-    "UnifiedPromptBuilder"
+    "UnifiedPromptBuilder",
 ]

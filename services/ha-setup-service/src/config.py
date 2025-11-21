@@ -41,7 +41,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         # Allow reading from environment variables with different names
-        env_file_encoding = 'utf-8'
+        env_file_encoding = "utf-8"
 
     @field_validator("ha_url", mode="after")
     @classmethod

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class AutomationTestExecutor:
     """
     Executes automation tests before deployment.
-    
+
     Uses ActionExecutor to execute actions directly without creating
     temporary automations. Captures entity states, executes actions,
     and validates expected state changes.
@@ -33,11 +33,11 @@ class AutomationTestExecutor:
     def __init__(
         self,
         ha_client: HomeAssistantClient,
-        action_executor: ActionExecutor | None = None
+        action_executor: ActionExecutor | None = None,
     ):
         """
         Initialize test executor.
-        
+
         Args:
             ha_client: Home Assistant client for test execution
             action_executor: Optional ActionExecutor instance (will create if not provided)
@@ -52,16 +52,16 @@ class AutomationTestExecutor:
         self,
         automation_yaml: str,
         expected_changes: dict[str, Any] | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Execute automation test using ActionExecutor.
-        
+
         Args:
             automation_yaml: Automation YAML to test
             expected_changes: Optional expected state changes
             context: Optional test context (query_id, suggestion_id, etc.)
-        
+
         Returns:
             Test result dictionary with execution summary and state validation
         """
@@ -77,7 +77,7 @@ class AutomationTestExecutor:
                     "success": False,
                     "message": "No actions found in automation YAML",
                     "state_changes": {},
-                    "errors": ["No actions to execute"]
+                    "errors": ["No actions to execute"],
                 }
 
             logger.info(f"Parsed {len(actions)} actions from YAML")
@@ -97,7 +97,7 @@ class AutomationTestExecutor:
                 template_engine = TemplateEngine(ha_client=self.ha_client)
                 executor = ActionExecutor(
                     ha_client=self.ha_client,
-                    template_engine=template_engine
+                    template_engine=template_engine,
                 )
                 await executor.start()
                 try:
@@ -117,14 +117,14 @@ class AutomationTestExecutor:
             state_validation = await self._validate_state_changes(
                 before_states,
                 entity_ids,
-                wait_timeout=5.0
+                wait_timeout=5.0,
             )
 
             # Calculate execution time
             execution_time_ms = (time.time() - start_time) * 1000
 
             # Build result
-            success = summary.successful == summary.total_actions and state_validation.get('summary', {}).get('all_changed', False)
+            success = summary.successful == summary.total_actions and state_validation.get("summary", {}).get("all_changed", False)
 
             result = {
                 "success": success,
@@ -133,12 +133,12 @@ class AutomationTestExecutor:
                     "total_actions": summary.total_actions,
                     "successful": summary.successful,
                     "failed": summary.failed,
-                    "execution_time_ms": summary.total_time_ms
+                    "execution_time_ms": summary.total_time_ms,
                 },
-                "state_changes": state_validation.get('results', {}),
-                "state_validation": state_validation.get('summary', {}),
+                "state_changes": state_validation.get("results", {}),
+                "state_validation": state_validation.get("summary", {}),
                 "errors": summary.errors,
-                "execution_time_ms": execution_time_ms
+                "execution_time_ms": execution_time_ms,
             }
 
             logger.info(f"Test execution complete: {summary.successful}/{summary.total_actions} actions successful")
@@ -148,10 +148,10 @@ class AutomationTestExecutor:
             logger.error(f"❌ Test execution failed: {e}", exc_info=True)
             return {
                 "success": False,
-                "message": f"Test execution failed: {str(e)}",
+                "message": f"Test execution failed: {e!s}",
                 "state_changes": {},
                 "errors": [str(e)],
-                "execution_time_ms": (time.time() - start_time) * 1000
+                "execution_time_ms": (time.time() - start_time) * 1000,
             }
 
     def _extract_entity_ids(self, actions: list[dict[str, Any]]) -> list[str]:
@@ -159,17 +159,17 @@ class AutomationTestExecutor:
         entity_ids = []
 
         for action in actions:
-            if action.get('type') == 'service_call':
-                target = action.get('target', {})
+            if action.get("type") == "service_call":
+                target = action.get("target", {})
                 if isinstance(target, dict):
-                    entity_id = target.get('entity_id')
+                    entity_id = target.get("entity_id")
                     if entity_id:
                         if isinstance(entity_id, list):
                             entity_ids.extend(entity_id)
                         else:
                             entity_ids.append(entity_id)
-            elif action.get('type') == 'sequence' or action.get('type') == 'parallel':
-                entity_ids.extend(self._extract_entity_ids(action.get('actions', [])))
+            elif action.get("type") == "sequence" or action.get("type") == "parallel":
+                entity_ids.extend(self._extract_entity_ids(action.get("actions", [])))
 
         # Remove duplicates
         return list(set(entity_ids))
@@ -177,7 +177,7 @@ class AutomationTestExecutor:
     async def _capture_entity_states(
         self,
         entity_ids: list[str],
-        timeout: float = 5.0
+        timeout: float = 5.0,
     ) -> dict[str, dict[str, Any]]:
         """Capture current state of entities"""
         states = {}
@@ -189,7 +189,7 @@ class AutomationTestExecutor:
                     states[entity_id] = state
             except Exception as e:
                 logger.warning(f"Failed to capture state for {entity_id}: {e}")
-                states[entity_id] = {'state': 'unknown', 'error': str(e)}
+                states[entity_id] = {"state": "unknown", "error": str(e)}
 
         return states
 
@@ -198,7 +198,7 @@ class AutomationTestExecutor:
         before_states: dict[str, dict[str, Any]],
         entity_ids: list[str],
         wait_timeout: float = 5.0,
-        check_interval: float = 0.5
+        check_interval: float = 0.5,
     ) -> dict[str, Any]:
         """Validate that state changes occurred after execution"""
         validation_results = {}
@@ -207,68 +207,68 @@ class AutomationTestExecutor:
         # Wait and poll for state changes
         while (time.time() - start_time) < wait_timeout:
             for entity_id in entity_ids:
-                if entity_id not in validation_results or validation_results[entity_id].get('pending'):
+                if entity_id not in validation_results or validation_results[entity_id].get("pending"):
                     try:
                         after_state = await self.ha_client.get_entity_state(entity_id)
                         before_state_data = before_states.get(entity_id, {})
-                        before_state = before_state_data.get('state')
+                        before_state = before_state_data.get("state")
 
                         if after_state:
-                            after_state_value = after_state.get('state')
+                            after_state_value = after_state.get("state")
 
                             # Check if state changed
                             if before_state != after_state_value:
                                 validation_results[entity_id] = {
-                                    'success': True,
-                                    'before_state': before_state,
-                                    'after_state': after_state_value,
-                                    'changed': True,
-                                    'timestamp': datetime.now().isoformat()
+                                    "success": True,
+                                    "before_state": before_state,
+                                    "after_state": after_state_value,
+                                    "changed": True,
+                                    "timestamp": datetime.now().isoformat(),
                                 }
                             elif before_state == after_state_value:
                                 # Check for attribute changes
-                                before_attrs = before_state_data.get('attributes', {})
-                                after_attrs = after_state.get('attributes', {})
+                                before_attrs = before_state_data.get("attributes", {})
+                                after_attrs = after_state.get("attributes", {})
 
                                 changed_attrs = {}
-                                for key in ['brightness', 'color_name', 'rgb_color', 'temperature']:
+                                for key in ["brightness", "color_name", "rgb_color", "temperature"]:
                                     if before_attrs.get(key) != after_attrs.get(key):
                                         changed_attrs[key] = {
-                                            'before': before_attrs.get(key),
-                                            'after': after_attrs.get(key)
+                                            "before": before_attrs.get(key),
+                                            "after": after_attrs.get(key),
                                         }
 
                                 if changed_attrs:
                                     validation_results[entity_id] = {
-                                        'success': True,
-                                        'before_state': before_state,
-                                        'after_state': after_state_value,
-                                        'changed': True,
-                                        'attribute_changes': changed_attrs,
-                                        'timestamp': datetime.now().isoformat()
+                                        "success": True,
+                                        "before_state": before_state,
+                                        "after_state": after_state_value,
+                                        "changed": True,
+                                        "attribute_changes": changed_attrs,
+                                        "timestamp": datetime.now().isoformat(),
                                     }
                                 elif entity_id not in validation_results:
                                     validation_results[entity_id] = {
-                                        'success': False,
-                                        'before_state': before_state,
-                                        'after_state': after_state_value,
-                                        'changed': False,
-                                        'pending': True,
-                                        'timestamp': datetime.now().isoformat()
+                                        "success": False,
+                                        "before_state": before_state,
+                                        "after_state": after_state_value,
+                                        "changed": False,
+                                        "pending": True,
+                                        "timestamp": datetime.now().isoformat(),
                                     }
 
                     except Exception as e:
                         logger.warning(f"Error validating state for {entity_id}: {e}")
                         if entity_id not in validation_results:
                             validation_results[entity_id] = {
-                                'success': False,
-                                'error': str(e),
-                                'timestamp': datetime.now().isoformat()
+                                "success": False,
+                                "error": str(e),
+                                "timestamp": datetime.now().isoformat(),
                             }
 
             # Check if all entities have been validated
             all_validated = all(
-                entity_id in validation_results and validation_results[entity_id].get('changed', False)
+                entity_id in validation_results and validation_results[entity_id].get("changed", False)
                 for entity_id in entity_ids
             )
 
@@ -282,31 +282,31 @@ class AutomationTestExecutor:
             if entity_id not in validation_results:
                 before_state_data = before_states.get(entity_id, {})
                 validation_results[entity_id] = {
-                    'success': False,
-                    'before_state': before_state_data.get('state'),
-                    'after_state': None,
-                    'changed': False,
-                    'timestamp': datetime.now().isoformat()
+                    "success": False,
+                    "before_state": before_state_data.get("state"),
+                    "after_state": None,
+                    "changed": False,
+                    "timestamp": datetime.now().isoformat(),
                 }
 
         # Calculate summary
         all_changed = all(
-            validation_results.get(entity_id, {}).get('changed', False)
+            validation_results.get(entity_id, {}).get("changed", False)
             for entity_id in entity_ids
         )
 
         changed_count = sum(
             1 for entity_id in entity_ids
-            if validation_results.get(entity_id, {}).get('changed', False)
+            if validation_results.get(entity_id, {}).get("changed", False)
         )
 
         return {
-            'results': validation_results,
-            'summary': {
-                'all_changed': all_changed,
-                'changed_count': changed_count,
-                'total_count': len(entity_ids),
-                'validation_time_ms': (time.time() - start_time) * 1000
-            }
+            "results": validation_results,
+            "summary": {
+                "all_changed": all_changed,
+                "changed_count": changed_count,
+                "total_count": len(entity_ids),
+                "validation_time_ms": (time.time() - start_time) * 1000,
+            },
         }
 

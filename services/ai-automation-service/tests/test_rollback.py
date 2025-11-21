@@ -23,7 +23,7 @@ class TestRollbackFunctions:
             db_session,
             automation_id="automation.test_1",
             yaml_content="alias: Test\ntrigger: []\naction: []",
-            safety_score=95
+            safety_score=95,
         )
 
         assert version.id is not None
@@ -77,7 +77,7 @@ class TestRollbackFunctions:
         ha_client = AsyncMock()
         ha_client.deploy_automation = AsyncMock(return_value={
             "success": True,
-            "automation_id": automation_id
+            "automation_id": automation_id,
         })
 
         safety_validator = AsyncMock()
@@ -85,7 +85,7 @@ class TestRollbackFunctions:
             passed=True,
             safety_score=95,
             issues=[],
-            summary="✅ Passed"
+            summary="✅ Passed",
         ))
 
         # Rollback
@@ -93,7 +93,7 @@ class TestRollbackFunctions:
             db_session,
             automation_id,
             ha_client,
-            safety_validator
+            safety_validator,
         )
 
         assert result["success"] is True
@@ -103,7 +103,7 @@ class TestRollbackFunctions:
         # Verify HA client was called with previous version
         ha_client.deploy_automation.assert_called_once()
         call_args = ha_client.deploy_automation.call_args
-        assert "yaml_v1" in call_args.kwargs['automation_yaml']
+        assert "yaml_v1" in call_args.kwargs["automation_yaml"]
 
     @pytest.mark.asyncio
     async def test_rollback_fails_if_no_previous_version(self, db_session):
@@ -123,7 +123,7 @@ class TestRollbackFunctions:
                 db_session,
                 automation_id,
                 ha_client,
-                safety_validator
+                safety_validator,
             )
 
     @pytest.mark.asyncio
@@ -144,7 +144,7 @@ class TestRollbackFunctions:
             passed=False,
             safety_score=40,
             issues=[],
-            summary="❌ Failed"
+            summary="❌ Failed",
         ))
 
         # Attempt rollback
@@ -153,7 +153,7 @@ class TestRollbackFunctions:
                 db_session,
                 automation_id,
                 ha_client,
-                safety_validator
+                safety_validator,
             )
 
     @pytest.mark.asyncio
@@ -169,14 +169,14 @@ class TestRollbackFunctions:
         ha_client = AsyncMock()
         ha_client.deploy_automation = AsyncMock(return_value={
             "success": True,
-            "automation_id": automation_id
+            "automation_id": automation_id,
         })
 
         safety_validator = AsyncMock()
         safety_validator.validate = AsyncMock(return_value=MagicMock(
             passed=True,
             safety_score=95,
-            issues=[]
+            issues=[],
         ))
 
         # Rollback
@@ -195,7 +195,7 @@ async def db_engine():
     """Create in-memory SQLite database engine for testing"""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        echo=False
+        echo=False,
     )
 
     # Create all tables
@@ -214,7 +214,7 @@ async def db_session(db_engine):
     async_session = async_sessionmaker(
         db_engine,
         class_=AsyncSession,
-        expire_on_commit=False
+        expire_on_commit=False,
     )
 
     async with async_session() as session:

@@ -101,7 +101,7 @@ class TestConnectionManagerEnhanced:
             base_delay=2.0,
             max_delay=30.0,
             backoff_multiplier=1.5,
-            jitter_range=0.2
+            jitter_range=0.2,
         )
 
         assert self.connection_manager.max_retries == 5
@@ -112,7 +112,6 @@ class TestConnectionManagerEnhanced:
 
     def test_configure_retry_parameters_partial(self):
         """Test configuring only some retry parameters"""
-        original_max_retries = self.connection_manager.max_retries
         original_base_delay = self.connection_manager.base_delay
 
         self.connection_manager.configure_retry_parameters(max_retries=15)
@@ -158,16 +157,14 @@ class TestConnectionManagerEnhanced:
 
         async def mock_connect():
             connection_attempts.append(len(connection_attempts) + 1)
-            if len(connection_attempts) < 3:
-                return False
-            return True
+            return not len(connection_attempts) < 3
 
         self.connection_manager._connect = mock_connect
         self.connection_manager.is_running = True
         self.connection_manager.max_retries = 5
 
         # Start reconnection loop
-        task = asyncio.create_task(self.connection_manager._reconnect_loop())
+        asyncio.create_task(self.connection_manager._reconnect_loop())
 
         # Wait for completion
         await asyncio.sleep(0.1)  # Give it time to complete
@@ -198,7 +195,8 @@ class TestConnectionManagerEnhanced:
         """Test error handling during connection"""
         # Mock connection to raise an exception
         async def mock_connect():
-            raise ConnectionError("Connection failed")
+            msg = "Connection failed"
+            raise ConnectionError(msg)
 
         self.connection_manager._connect = mock_connect
 
@@ -214,7 +212,8 @@ class TestConnectionManagerEnhanced:
         """Test error handling during reconnection"""
         # Mock reconnection to raise an exception
         async def mock_connect():
-            raise TimeoutError("Connection timeout")
+            msg = "Connection timeout"
+            raise TimeoutError(msg)
 
         self.connection_manager._connect = mock_connect
         self.connection_manager.is_running = True
@@ -232,7 +231,8 @@ class TestConnectionManagerEnhanced:
         """Test that error context is properly logged"""
         # Mock connection to raise an exception
         async def mock_connect():
-            raise ConnectionError("Connection failed")
+            msg = "Connection failed"
+            raise ConnectionError(msg)
 
         self.connection_manager._connect = mock_connect
         self.connection_manager.connection_attempts = 5

@@ -21,7 +21,7 @@ async def enrich_entities_comprehensively(
     device_intelligence_client: Any | None = None,
     data_api_client: Any | None = None,
     include_historical: bool = False,
-    enrichment_context: dict[str, Any] | None = None
+    enrichment_context: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """
     Comprehensive entity enrichment using ALL available data sources.
@@ -64,7 +64,7 @@ async def enrich_entities_comprehensively(
             try:
                 ha_enriched = await asyncio.wait_for(
                     attribute_service.enrich_multiple_entities(list(entity_ids)),
-                    timeout=10.0  # 10 second timeout for HA enrichment
+                    timeout=10.0,  # 10 second timeout for HA enrichment
                 )
                 logger.info(f"✅ HA enrichment: {len(ha_enriched)} entities")
             except asyncio.TimeoutError:
@@ -78,7 +78,7 @@ async def enrich_entities_comprehensively(
     if device_intelligence_client:
         try:
             device_intel_data = await _get_device_intelligence_for_entities(
-                entity_ids, ha_enriched, device_intelligence_client
+                entity_ids, ha_enriched, device_intelligence_client,
             )
             logger.info(f"✅ Device Intelligence enrichment: {len(device_intel_data)} entities")
         except Exception as e:
@@ -89,7 +89,7 @@ async def enrich_entities_comprehensively(
     if data_api_client:
         try:
             relationship_data = await _get_relationship_data_for_entities(
-                entity_ids, data_api_client
+                entity_ids, data_api_client,
             )
             logger.info(f"✅ Relationship data enrichment: {len(relationship_data)} entities")
         except Exception as e:
@@ -100,7 +100,7 @@ async def enrich_entities_comprehensively(
     if include_historical and data_api_client:
         try:
             historical_data = await _get_historical_patterns_for_entities(
-                entity_ids, data_api_client
+                entity_ids, data_api_client,
             )
             logger.info(f"✅ Historical data enrichment: {len(historical_data)} entities")
         except Exception as e:
@@ -109,108 +109,108 @@ async def enrich_entities_comprehensively(
     # Step 5: Combine all data sources for each entity
     for entity_id in entity_ids:
         combined = {
-            'entity_id': entity_id,
-            'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
+            "entity_id": entity_id,
+            "domain": entity_id.split(".")[0] if "." in entity_id else "unknown",
             # HA Attributes data
-            'friendly_name': None,
-            'icon': None,
-            'device_class': None,
-            'unit_of_measurement': None,
-            'state': 'unknown',
-            'last_changed': None,
-            'last_updated': None,
-            'attributes': {},
-            'is_group': False,
-            'integration': 'unknown',
-            'supported_features': None,
-            'device_id': None,
-            'area_id': None,
+            "friendly_name": None,
+            "icon": None,
+            "device_class": None,
+            "unit_of_measurement": None,
+            "state": "unknown",
+            "last_changed": None,
+            "last_updated": None,
+            "attributes": {},
+            "is_group": False,
+            "integration": "unknown",
+            "supported_features": None,
+            "device_id": None,
+            "area_id": None,
             # Device Intelligence data
-            'device_name': None,
-            'manufacturer': None,
-            'model': None,
-            'sw_version': None,
-            'hw_version': None,
-            'power_source': None,
-            'area_name': None,
-            'capabilities': [],
-            'health_score': None,
-            'last_seen': None,
-            'device_class_from_intel': None,
+            "device_name": None,
+            "manufacturer": None,
+            "model": None,
+            "sw_version": None,
+            "hw_version": None,
+            "power_source": None,
+            "area_name": None,
+            "capabilities": [],
+            "health_score": None,
+            "last_seen": None,
+            "device_class_from_intel": None,
             # Historical patterns (if requested)
-            'usage_frequency': None,
-            'common_states': [],
-            'typical_usage_times': [],
-            'recent_activity': None,
+            "usage_frequency": None,
+            "common_states": [],
+            "typical_usage_times": [],
+            "recent_activity": None,
             # Relationship data
-            'related_entities': [],  # Sibling entities from same device
-            'config_entry_id': None,  # Source tracking
-            'via_device': None  # Parent device (from device relationship)
+            "related_entities": [],  # Sibling entities from same device
+            "config_entry_id": None,  # Source tracking
+            "via_device": None,  # Parent device (from device relationship)
         }
 
         # Merge HA enrichment data
         if entity_id in ha_enriched:
             ha_data = ha_enriched[entity_id]
             combined.update({
-                'friendly_name': ha_data.get('friendly_name'),
-                'icon': ha_data.get('icon'),
-                'device_class': ha_data.get('device_class'),
-                'unit_of_measurement': ha_data.get('unit_of_measurement'),
-                'state': ha_data.get('state', 'unknown'),
-                'last_changed': ha_data.get('last_changed'),
-                'last_updated': ha_data.get('last_updated'),
-                'attributes': ha_data.get('attributes', {}),
-                'is_group': ha_data.get('is_group', False),
-                'integration': ha_data.get('integration', 'unknown'),
-                'supported_features': ha_data.get('supported_features'),
-                'device_id': ha_data.get('device_id'),
-                'area_id': ha_data.get('area_id')
+                "friendly_name": ha_data.get("friendly_name"),
+                "icon": ha_data.get("icon"),
+                "device_class": ha_data.get("device_class"),
+                "unit_of_measurement": ha_data.get("unit_of_measurement"),
+                "state": ha_data.get("state", "unknown"),
+                "last_changed": ha_data.get("last_changed"),
+                "last_updated": ha_data.get("last_updated"),
+                "attributes": ha_data.get("attributes", {}),
+                "is_group": ha_data.get("is_group", False),
+                "integration": ha_data.get("integration", "unknown"),
+                "supported_features": ha_data.get("supported_features"),
+                "device_id": ha_data.get("device_id"),
+                "area_id": ha_data.get("area_id"),
             })
 
         # Merge Device Intelligence data
         if entity_id in device_intel_data:
             intel_data = device_intel_data[entity_id]
             combined.update({
-                'device_name': intel_data.get('device_name'),
-                'manufacturer': intel_data.get('manufacturer'),
-                'model': intel_data.get('model'),
-                'sw_version': intel_data.get('sw_version'),
-                'hw_version': intel_data.get('hw_version'),
-                'power_source': intel_data.get('power_source'),
-                'area_name': intel_data.get('area_name'),
-                'capabilities': intel_data.get('capabilities', []),
-                'health_score': intel_data.get('health_score'),
-                'last_seen': intel_data.get('last_seen'),
-                'device_class_from_intel': intel_data.get('device_class')
+                "device_name": intel_data.get("device_name"),
+                "manufacturer": intel_data.get("manufacturer"),
+                "model": intel_data.get("model"),
+                "sw_version": intel_data.get("sw_version"),
+                "hw_version": intel_data.get("hw_version"),
+                "power_source": intel_data.get("power_source"),
+                "area_name": intel_data.get("area_name"),
+                "capabilities": intel_data.get("capabilities", []),
+                "health_score": intel_data.get("health_score"),
+                "last_seen": intel_data.get("last_seen"),
+                "device_class_from_intel": intel_data.get("device_class"),
             })
             # Use device intelligence area_name if HA area_id is missing
-            if not combined.get('area_id') and intel_data.get('area_name'):
-                combined['area_id'] = intel_data.get('area_id')
+            if not combined.get("area_id") and intel_data.get("area_name"):
+                combined["area_id"] = intel_data.get("area_id")
 
         # Merge relationship data
         if entity_id in relationship_data:
             rel_data = relationship_data[entity_id]
             combined.update({
-                'related_entities': rel_data.get('related_entities', []),
-                'config_entry_id': rel_data.get('config_entry_id'),
-                'via_device': rel_data.get('via_device')
+                "related_entities": rel_data.get("related_entities", []),
+                "config_entry_id": rel_data.get("config_entry_id"),
+                "via_device": rel_data.get("via_device"),
             })
 
         # Merge historical patterns
         if entity_id in historical_data:
             hist_data = historical_data[entity_id]
             combined.update({
-                'usage_frequency': hist_data.get('usage_frequency'),
-                'common_states': hist_data.get('common_states', []),
-                'typical_usage_times': hist_data.get('typical_usage_times', []),
-                'recent_activity': hist_data.get('recent_activity')
+                "usage_frequency": hist_data.get("usage_frequency"),
+                "common_states": hist_data.get("common_states", []),
+                "typical_usage_times": hist_data.get("typical_usage_times", []),
+                "recent_activity": hist_data.get("recent_activity"),
             })
 
         enriched[entity_id] = combined
 
     # Add enrichment context as special key (if provided)
     if enrichment_context:
-        enriched['_enrichment_context'] = enrichment_context
+        enriched["_enrichment_context"] = enrichment_context
         logger.info(f"✅ Added {len(enrichment_context)} enrichment types: {list(enrichment_context.keys())}")
 
     logger.info(f"✅ Comprehensive enrichment complete: {len([k for k in enriched if not k.startswith('_')])}/{len(entity_ids)} entities")
@@ -220,11 +220,11 @@ async def enrich_entities_comprehensively(
 async def _get_device_intelligence_for_entities(
     entity_ids: set[str],
     ha_enriched: dict[str, dict[str, Any]],
-    device_intelligence_client: Any
+    device_intelligence_client: Any,
 ) -> dict[str, dict[str, Any]]:
     """
     Get device intelligence data for entities.
-    
+
     Uses entity_id → device_id mapping from HA enrichment, then queries device intelligence.
     """
     device_intel_data = {}
@@ -235,7 +235,7 @@ async def _get_device_intelligence_for_entities(
         try:
             all_devices = await asyncio.wait_for(
                 device_intelligence_client.get_all_devices(limit=200),  # Reduced from 500 to 200 for performance
-                timeout=5.0  # 5 second timeout for get_all_devices
+                timeout=5.0,  # 5 second timeout for get_all_devices
             )
         except asyncio.TimeoutError:
             logger.warning("⚠️ get_all_devices timed out after 5s, skipping device intelligence enrichment")
@@ -246,7 +246,7 @@ async def _get_device_intelligence_for_entities(
 
         # Method 1: Use device_id from HA enrichment
         for entity_id, ha_data in ha_enriched.items():
-            device_id = ha_data.get('device_id')
+            device_id = ha_data.get("device_id")
             if device_id:
                 entity_to_device[entity_id] = device_id
 
@@ -255,14 +255,14 @@ async def _get_device_intelligence_for_entities(
             if not isinstance(device, dict):
                 continue
 
-            device_entities = device.get('entities', []) or device.get('entity_ids', [])
-            device_id = device.get('id') or device.get('device_id')
+            device_entities = device.get("entities", []) or device.get("entity_ids", [])
+            device_id = device.get("id") or device.get("device_id")
 
             if not device_id:
                 continue
 
             for entity in device_entities:
-                entity_id = entity if isinstance(entity, str) else entity.get('entity_id') if isinstance(entity, dict) else None
+                entity_id = entity if isinstance(entity, str) else entity.get("entity_id") if isinstance(entity, dict) else None
                 if entity_id and entity_id in entity_ids and entity_id not in entity_to_device:
                     entity_to_device[entity_id] = device_id
 
@@ -276,13 +276,13 @@ async def _get_device_intelligence_for_entities(
                 if not isinstance(device, dict):
                     continue
 
-                device_id = device.get('id') or device.get('device_id')
-                device_name = device.get('name') or device.get('device_name') or ''
-                device_entities = device.get('entities', []) or device.get('entity_ids', [])
+                device_id = device.get("id") or device.get("device_id")
+                device.get("name") or device.get("device_name") or ""
+                device_entities = device.get("entities", []) or device.get("entity_ids", [])
 
                 # Check if entity_id matches any device entity
                 for ent in device_entities:
-                    ent_id = ent if isinstance(ent, str) else ent.get('entity_id') if isinstance(ent, dict) else None
+                    ent_id = ent if isinstance(ent, str) else ent.get("entity_id") if isinstance(ent, dict) else None
                     if ent_id == entity_id:
                         entity_to_device[entity_id] = device_id
                         break
@@ -299,32 +299,32 @@ async def _get_device_intelligence_for_entities(
                 device_details = await device_intelligence_client.get_device_details(device_id)
                 if device_details:
                     # Extract entity-specific info if device has multiple entities
-                    device_entities = device_details.get('entities', [])
+                    device_entities = device_details.get("entities", [])
                     entity_info = None
                     for ent in device_entities:
-                        if isinstance(ent, dict) and ent.get('entity_id') == entity_id:
+                        if isinstance(ent, dict) and ent.get("entity_id") == entity_id:
                             entity_info = ent
                             break
-                        elif isinstance(ent, str) and ent == entity_id:
-                            entity_info = {'entity_id': entity_id}
+                        if isinstance(ent, str) and ent == entity_id:
+                            entity_info = {"entity_id": entity_id}
                             break
 
                     return (entity_id, {
-                        'device_name': device_details.get('name_by_user') or device_details.get('name') or device_details.get('friendly_name'),
-                        'manufacturer': device_details.get('manufacturer'),
-                        'model': device_details.get('model'),
-                        'sw_version': device_details.get('sw_version'),
-                        'hw_version': device_details.get('hw_version'),
-                        'power_source': device_details.get('power_source'),
-                        'area_name': device_details.get('area_name'),
-                        'area_id': device_details.get('area_id'),
-                        'capabilities': device_details.get('capabilities', []),
-                        'health_score': device_details.get('health_score'),
-                        'last_seen': device_details.get('last_seen'),
-                        'device_class': device_details.get('device_class'),
-                        'integration': device_details.get('integration'),
-                        'entity_state': entity_info.get('state') if entity_info else None,
-                        'entity_attributes': entity_info.get('attributes', {}) if entity_info and isinstance(entity_info, dict) else {}
+                        "device_name": device_details.get("name_by_user") or device_details.get("name") or device_details.get("friendly_name"),
+                        "manufacturer": device_details.get("manufacturer"),
+                        "model": device_details.get("model"),
+                        "sw_version": device_details.get("sw_version"),
+                        "hw_version": device_details.get("hw_version"),
+                        "power_source": device_details.get("power_source"),
+                        "area_name": device_details.get("area_name"),
+                        "area_id": device_details.get("area_id"),
+                        "capabilities": device_details.get("capabilities", []),
+                        "health_score": device_details.get("health_score"),
+                        "last_seen": device_details.get("last_seen"),
+                        "device_class": device_details.get("device_class"),
+                        "integration": device_details.get("integration"),
+                        "entity_state": entity_info.get("state") if entity_info else None,
+                        "entity_attributes": entity_info.get("attributes", {}) if entity_info and isinstance(entity_info, dict) else {},
                     })
                 return (entity_id, None)
             except Exception as e:
@@ -343,7 +343,7 @@ async def _get_device_intelligence_for_entities(
             try:
                 results = await asyncio.wait_for(
                     asyncio.gather(*fetch_tasks, return_exceptions=True),
-                    timeout=10.0  # 10 second timeout for all parallel fetches
+                    timeout=10.0,  # 10 second timeout for all parallel fetches
                 )
 
                 # Process results
@@ -370,11 +370,11 @@ async def _get_device_intelligence_for_entities(
 
 async def _get_relationship_data_for_entities(
     entity_ids: set[str],
-    data_api_client: Any
+    data_api_client: Any,
 ) -> dict[str, dict[str, Any]]:
     """
     Get relationship data for entities (sibling entities, config_entry_id, via_device).
-    
+
     Uses data-api relationship query endpoints to fetch sibling entities and device hierarchy.
     """
     relationship_data = {}
@@ -388,7 +388,7 @@ async def _get_relationship_data_for_entities(
         import aiohttp
 
         # Get base URL for data-api
-        data_api_url = getattr(data_api_client, 'base_url', 'http://data-api:8006')
+        data_api_url = getattr(data_api_client, "base_url", "http://data-api:8006")
 
         async def fetch_relationship_data(entity_id: str) -> tuple:
             """Fetch relationship data for a single entity"""
@@ -399,8 +399,8 @@ async def _get_relationship_data_for_entities(
                     async with session.get(siblings_url, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
                         if response.status == 200:
                             siblings_data = await response.json()
-                            siblings = siblings_data.get('siblings', [])
-                            related_entity_ids = [s.get('entity_id') for s in siblings if s.get('entity_id')]
+                            siblings = siblings_data.get("siblings", [])
+                            related_entity_ids = [s.get("entity_id") for s in siblings if s.get("entity_id")]
                         else:
                             related_entity_ids = []
 
@@ -411,29 +411,29 @@ async def _get_relationship_data_for_entities(
                         via_device = None
                         if response.status == 200:
                             entity_data = await response.json()
-                            config_entry_id = entity_data.get('config_entry_id')
+                            config_entry_id = entity_data.get("config_entry_id")
 
                             # Get device to fetch via_device
-                            device_id = entity_data.get('device_id')
+                            device_id = entity_data.get("device_id")
                             if device_id:
                                 device_url = f"{data_api_url}/api/entities/{entity_id}/device"
                                 async with session.get(device_url, timeout=aiohttp.ClientTimeout(total=2.0)) as device_response:
                                     if device_response.status == 200:
                                         device_data = await device_response.json()
-                                        device_info = device_data.get('device', {})
-                                        via_device = device_info.get('via_device')
+                                        device_info = device_data.get("device", {})
+                                        via_device = device_info.get("via_device")
 
                 return (entity_id, {
-                    'related_entities': related_entity_ids,
-                    'config_entry_id': config_entry_id,
-                    'via_device': via_device
+                    "related_entities": related_entity_ids,
+                    "config_entry_id": config_entry_id,
+                    "via_device": via_device,
                 })
             except Exception as e:
                 logger.debug(f"Could not get relationship data for {entity_id}: {e}")
                 return (entity_id, {
-                    'related_entities': [],
-                    'config_entry_id': None,
-                    'via_device': None
+                    "related_entities": [],
+                    "config_entry_id": None,
+                    "via_device": None,
                 })
 
         # Fetch relationship data for all entities in parallel
@@ -447,7 +447,7 @@ async def _get_relationship_data_for_entities(
             try:
                 results = await asyncio.wait_for(
                     asyncio.gather(*fetch_tasks, return_exceptions=True),
-                    timeout=5.0  # 5 second timeout for all parallel fetches
+                    timeout=5.0,  # 5 second timeout for all parallel fetches
                 )
 
                 # Process results
@@ -474,11 +474,11 @@ async def _get_relationship_data_for_entities(
 
 async def _get_historical_patterns_for_entities(
     entity_ids: set[str],
-    data_api_client: Any
+    data_api_client: Any,
 ) -> dict[str, dict[str, Any]]:
     """
     Get historical usage patterns for entities (optional, for advanced context).
-    
+
     This provides usage frequency, common states, typical usage times, etc.
     """
     historical_data = {}
@@ -489,7 +489,7 @@ async def _get_historical_patterns_for_entities(
         from datetime import datetime, timedelta
 
         end_time = datetime.now()
-        start_time = end_time - timedelta(days=7)
+        end_time - timedelta(days=7)
 
         for entity_id in entity_ids:
             try:
@@ -523,8 +523,8 @@ def format_enrichment_context_for_prompt(enrichment_context: dict[str, Any]) -> 
     sections = ["## Environmental Context\n"]
 
     # Weather
-    if 'weather' in enrichment_context:
-        weather = enrichment_context['weather']
+    if "weather" in enrichment_context:
+        weather = enrichment_context["weather"]
         sections.append("**Weather:**")
         sections.append(f"  - Temperature: {weather.get('current_temperature', 0):.1f}°F (feels like {weather.get('feels_like', 0):.1f}°F)")
         sections.append(f"  - Condition: {weather.get('condition', 'Unknown')}")
@@ -532,10 +532,10 @@ def format_enrichment_context_for_prompt(enrichment_context: dict[str, Any]) -> 
         sections.append(f"  - Wind: {weather.get('wind_speed', 0):.1f} mph")
 
     # Carbon Intensity
-    if 'carbon' in enrichment_context:
-        carbon = enrichment_context['carbon']
-        carbon_val = carbon.get('carbon_intensity', 0)
-        renewable_pct = carbon.get('renewable_percentage', 0)
+    if "carbon" in enrichment_context:
+        carbon = enrichment_context["carbon"]
+        carbon_val = carbon.get("carbon_intensity", 0)
+        renewable_pct = carbon.get("renewable_percentage", 0)
         sections.append("\n**Grid Carbon Intensity:**")
         sections.append(f"  - Current: {carbon_val:.0f} gCO2/kWh")
         sections.append(f"  - Renewable energy: {renewable_pct:.1f}%")
@@ -550,10 +550,10 @@ def format_enrichment_context_for_prompt(enrichment_context: dict[str, Any]) -> 
             sections.append("  - Status: LOW carbon (clean energy)")
 
     # Energy Pricing
-    if 'energy' in enrichment_context:
-        energy = enrichment_context['energy']
-        price = energy.get('current_price', 0)
-        peak = energy.get('peak_period', False)
+    if "energy" in enrichment_context:
+        energy = enrichment_context["energy"]
+        price = energy.get("current_price", 0)
+        peak = energy.get("peak_period", False)
         sections.append("\n**Electricity Pricing:**")
         sections.append(f"  - Current rate: ${price:.3f}/kWh")
         sections.append(f"  - Period: {'PEAK (expensive)' if peak else 'OFF-PEAK (cheaper)'}")
@@ -563,10 +563,10 @@ def format_enrichment_context_for_prompt(enrichment_context: dict[str, Any]) -> 
             sections.append("  - Opportunity: Delay high-power devices to off-peak hours for cost savings")
 
     # Air Quality
-    if 'air_quality' in enrichment_context:
-        air = enrichment_context['air_quality']
-        aqi = air.get('aqi', 0)
-        category = air.get('category', 'Unknown')
+    if "air_quality" in enrichment_context:
+        air = enrichment_context["air_quality"]
+        aqi = air.get("aqi", 0)
+        category = air.get("category", "Unknown")
         sections.append("\n**Air Quality:**")
         sections.append(f"  - AQI: {aqi} ({category})")
         sections.append(f"  - PM2.5: {air.get('pm25', 0)} μg/m³")
@@ -584,7 +584,7 @@ def format_enrichment_context_for_prompt(enrichment_context: dict[str, Any]) -> 
 
 
 def format_comprehensive_enrichment_for_prompt(
-    enriched_entities: dict[str, dict[str, Any]]
+    enriched_entities: dict[str, dict[str, Any]],
 ) -> str:
     """
     Format comprehensive enrichment data for LLM prompts.
@@ -598,7 +598,7 @@ def format_comprehensive_enrichment_for_prompt(
     sections = []
 
     # Extract and format enrichment context first (if present)
-    enrichment_context = enriched_entities.get('_enrichment_context')
+    enrichment_context = enriched_entities.get("_enrichment_context")
     if enrichment_context:
         context_section = format_enrichment_context_for_prompt(enrichment_context)
         if context_section:
@@ -607,58 +607,58 @@ def format_comprehensive_enrichment_for_prompt(
 
     for entity_id, data in enriched_entities.items():
         # Skip special keys
-        if entity_id.startswith('_'):
+        if entity_id.startswith("_"):
             continue
         entity_section = []
 
         # Entity identification
-        friendly_name = data.get('friendly_name') or data.get('device_name') or entity_id
+        friendly_name = data.get("friendly_name") or data.get("device_name") or entity_id
         entity_section.append(f"**{friendly_name}** ({entity_id})")
 
         # Basic info
-        if data.get('device_class'):
+        if data.get("device_class"):
             entity_section.append(f"  Type: {data['device_class']}")
-        if data.get('domain'):
+        if data.get("domain"):
             entity_section.append(f"  Domain: {data['domain']}")
-        if data.get('state') and data.get('state') != 'unknown':
+        if data.get("state") and data.get("state") != "unknown":
             entity_section.append(f"  Current State: {data['state']}")
 
         # Location
         area_info = []
-        if data.get('area_name'):
-            area_info.append(data['area_name'])
-        elif data.get('area_id'):
-            area_info.append(data['area_id'])
+        if data.get("area_name"):
+            area_info.append(data["area_name"])
+        elif data.get("area_id"):
+            area_info.append(data["area_id"])
         if area_info:
             entity_section.append(f"  Location: {', '.join(area_info)}")
 
         # Device information
         device_info = []
-        if data.get('manufacturer'):
-            device_info.append(data['manufacturer'])
-        if data.get('model'):
-            device_info.append(data['model'])
+        if data.get("manufacturer"):
+            device_info.append(data["manufacturer"])
+        if data.get("model"):
+            device_info.append(data["model"])
         if device_info:
             entity_section.append(f"  Device: {' '.join(device_info)}")
 
-        if data.get('integration') and data.get('integration') != 'unknown':
+        if data.get("integration") and data.get("integration") != "unknown":
             entity_section.append(f"  Integration: {data['integration']}")
 
         # Health and status
-        if data.get('health_score') is not None:
-            health_status = "Excellent" if data['health_score'] > 80 else "Good" if data['health_score'] > 60 else "Fair"
+        if data.get("health_score") is not None:
+            health_status = "Excellent" if data["health_score"] > 80 else "Good" if data["health_score"] > 60 else "Fair"
             entity_section.append(f"  Health: {data['health_score']}/100 ({health_status})")
 
         # Capabilities (detailed)
-        capabilities = data.get('capabilities', [])
+        capabilities = data.get("capabilities", [])
         if capabilities:
             cap_list = []
             for cap in capabilities:
                 if isinstance(cap, dict):
-                    feature = cap.get('feature', 'unknown')
-                    supported = cap.get('supported', False)
+                    feature = cap.get("feature", "unknown")
+                    supported = cap.get("supported", False)
                     if supported:
-                        cap_type = cap.get('type', '')
+                        cap_type = cap.get("type", "")
                         if cap_type:
                             cap_list.append(f"{feature} ({cap_type})")
                         else:
@@ -669,19 +669,19 @@ def format_comprehensive_enrichment_for_prompt(
                 entity_section.append(f"  Capabilities: {', '.join(cap_list[:5])}" + (f" (+{len(cap_list) - 5} more)" if len(cap_list) > 5 else ""))
 
         # Supported features (for lights, etc.)
-        if data.get('supported_features'):
+        if data.get("supported_features"):
             entity_section.append(f"  Supported Features: {data['supported_features']}")
 
         # Group indicator
-        if data.get('is_group'):
+        if data.get("is_group"):
             entity_section.append("  ⚠️ This is a GROUP entity (controls multiple devices)")
 
         # Software version (if available)
-        if data.get('sw_version'):
+        if data.get("sw_version"):
             entity_section.append(f"  Software Version: {data['sw_version']}")
 
         # Last seen (device intelligence)
-        if data.get('last_seen'):
+        if data.get("last_seen"):
             entity_section.append(f"  Last Seen: {data['last_seen']}")
 
         sections.append("\n".join(entity_section))

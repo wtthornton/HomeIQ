@@ -12,7 +12,7 @@ from src.clients.automation_parser import AutomationParser, EntityRelationship
 class TestAutomationParser:
     """
     Test suite for AutomationParser
-    
+
     Story AI4.2: Tests configuration parsing, relationship extraction, and efficient lookup
     """
 
@@ -31,30 +31,30 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'morning_lights',
-            'alias': 'Morning Lights',
-            'trigger': {
-                'platform': 'state',
-                'entity_id': 'binary_sensor.motion_sensor_living_room',
-                'to': 'on'
+            "id": "morning_lights",
+            "alias": "Morning Lights",
+            "trigger": {
+                "platform": "state",
+                "entity_id": "binary_sensor.motion_sensor_living_room",
+                "to": "on",
             },
-            'action': {
-                'service': 'light.turn_on',
-                'entity_id': 'light.living_room'
-            }
+            "action": {
+                "service": "light.turn_on",
+                "entity_id": "light.living_room",
+            },
         }
 
         count = parser.parse_automations([automation])
 
         assert count == 1
-        assert 'morning_lights' in parser._relationships
+        assert "morning_lights" in parser._relationships
 
-        rel = parser._relationships['morning_lights']
-        assert rel.automation_id == 'morning_lights'
-        assert rel.automation_alias == 'Morning Lights'
-        assert 'binary_sensor.motion_sensor_living_room' in rel.trigger_entities
-        assert 'light.living_room' in rel.action_entities
-        assert rel.automation_type == 'state_based'
+        rel = parser._relationships["morning_lights"]
+        assert rel.automation_id == "morning_lights"
+        assert rel.automation_alias == "Morning Lights"
+        assert "binary_sensor.motion_sensor_living_room" in rel.trigger_entities
+        assert "light.living_room" in rel.action_entities
+        assert rel.automation_type == "state_based"
 
     def test_parse_multiple_triggers_actions(self):
         """
@@ -63,48 +63,48 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'security_alert',
-            'alias': 'Security Alert',
-            'triggers': [
+            "id": "security_alert",
+            "alias": "Security Alert",
+            "triggers": [
                 {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.door_sensor_front',
-                    'to': 'on'
+                    "platform": "state",
+                    "entity_id": "binary_sensor.door_sensor_front",
+                    "to": "on",
                 },
                 {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.door_sensor_back',
-                    'to': 'on'
-                }
+                    "platform": "state",
+                    "entity_id": "binary_sensor.door_sensor_back",
+                    "to": "on",
+                },
             ],
-            'actions': [
+            "actions": [
                 {
-                    'service': 'light.turn_on',
-                    'target': {'entity_id': 'light.outdoor_front'}
+                    "service": "light.turn_on",
+                    "target": {"entity_id": "light.outdoor_front"},
                 },
                 {
-                    'service': 'light.turn_on',
-                    'target': {'entity_id': 'light.outdoor_back'}
+                    "service": "light.turn_on",
+                    "target": {"entity_id": "light.outdoor_back"},
                 },
                 {
-                    'service': 'notify.send',
-                    'data': {'message': 'Door opened!'}
-                }
-            ]
+                    "service": "notify.send",
+                    "data": {"message": "Door opened!"},
+                },
+            ],
         }
 
         count = parser.parse_automations([automation])
 
         assert count == 1
-        rel = parser._relationships['security_alert']
+        rel = parser._relationships["security_alert"]
 
         assert len(rel.trigger_entities) == 2
-        assert 'binary_sensor.door_sensor_front' in rel.trigger_entities
-        assert 'binary_sensor.door_sensor_back' in rel.trigger_entities
+        assert "binary_sensor.door_sensor_front" in rel.trigger_entities
+        assert "binary_sensor.door_sensor_back" in rel.trigger_entities
 
         assert len(rel.action_entities) == 2
-        assert 'light.outdoor_front' in rel.action_entities
-        assert 'light.outdoor_back' in rel.action_entities
+        assert "light.outdoor_front" in rel.action_entities
+        assert "light.outdoor_back" in rel.action_entities
 
     def test_parse_time_based_automation(self):
         """
@@ -113,27 +113,27 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'morning_routine',
-            'alias': 'Morning Routine',
-            'trigger': {
-                'platform': 'time',
-                'at': '07:00:00'
+            "id": "morning_routine",
+            "alias": "Morning Routine",
+            "trigger": {
+                "platform": "time",
+                "at": "07:00:00",
             },
-            'action': {
-                'service': 'light.turn_on',
-                'entity_id': ['light.bedroom', 'light.kitchen']
-            }
+            "action": {
+                "service": "light.turn_on",
+                "entity_id": ["light.bedroom", "light.kitchen"],
+            },
         }
 
         count = parser.parse_automations([automation])
 
         assert count == 1
-        rel = parser._relationships['morning_routine']
+        rel = parser._relationships["morning_routine"]
 
-        assert rel.automation_type == 'time_based'
+        assert rel.automation_type == "time_based"
         assert len(rel.action_entities) == 2
-        assert 'light.bedroom' in rel.action_entities
-        assert 'light.kitchen' in rel.action_entities
+        assert "light.bedroom" in rel.action_entities
+        assert "light.kitchen" in rel.action_entities
 
     def test_entity_pair_indexing(self):
         """
@@ -143,17 +143,17 @@ class TestAutomationParser:
 
         automations = [
             {
-                'id': 'auto1',
-                'alias': 'Auto 1',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.temp'},
-                'action': {'service': 'climate.set_temperature', 'entity_id': 'climate.living_room'}
+                "id": "auto1",
+                "alias": "Auto 1",
+                "trigger": {"platform": "state", "entity_id": "sensor.temp"},
+                "action": {"service": "climate.set_temperature", "entity_id": "climate.living_room"},
             },
             {
-                'id': 'auto2',
-                'alias': 'Auto 2',
-                'trigger': {'platform': 'state', 'entity_id': 'binary_sensor.motion'},
-                'action': {'service': 'light.turn_on', 'entity_id': 'light.hallway'}
-            }
+                "id": "auto2",
+                "alias": "Auto 2",
+                "trigger": {"platform": "state", "entity_id": "binary_sensor.motion"},
+                "action": {"service": "light.turn_on", "entity_id": "light.hallway"},
+            },
         ]
 
         count = parser.parse_automations(automations)
@@ -168,20 +168,20 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'test_auto',
-            'alias': 'Test Auto',
-            'trigger': {'platform': 'state', 'entity_id': 'sensor.motion'},
-            'action': {'service': 'light.turn_on', 'entity_id': 'light.room'}
+            "id": "test_auto",
+            "alias": "Test Auto",
+            "trigger": {"platform": "state", "entity_id": "sensor.motion"},
+            "action": {"service": "light.turn_on", "entity_id": "light.room"},
         }
 
         parser.parse_automations([automation])
 
         # Should find relationship in both directions
-        assert parser.has_relationship('sensor.motion', 'light.room')
-        assert parser.has_relationship('light.room', 'sensor.motion')
+        assert parser.has_relationship("sensor.motion", "light.room")
+        assert parser.has_relationship("light.room", "sensor.motion")
 
         # Should not find non-existent relationship
-        assert not parser.has_relationship('sensor.motion', 'light.other')
+        assert not parser.has_relationship("sensor.motion", "light.other")
 
     def test_get_relationships_for_pair(self):
         """
@@ -191,31 +191,31 @@ class TestAutomationParser:
 
         automations = [
             {
-                'id': 'auto1',
-                'alias': 'Auto 1',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.motion'},
-                'action': {'service': 'light.turn_on', 'entity_id': 'light.room'}
+                "id": "auto1",
+                "alias": "Auto 1",
+                "trigger": {"platform": "state", "entity_id": "sensor.motion"},
+                "action": {"service": "light.turn_on", "entity_id": "light.room"},
             },
             {
-                'id': 'auto2',
-                'alias': 'Auto 2  - Different pair',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.other'},
-                'action': {'service': 'light.turn_on', 'entity_id': 'light.other'}
-            }
+                "id": "auto2",
+                "alias": "Auto 2  - Different pair",
+                "trigger": {"platform": "state", "entity_id": "sensor.other"},
+                "action": {"service": "light.turn_on", "entity_id": "light.other"},
+            },
         ]
 
         parser.parse_automations(automations)
 
         # Get relationships for specific pair
-        rels = parser.get_relationships_for_pair('sensor.motion', 'light.room')
+        rels = parser.get_relationships_for_pair("sensor.motion", "light.room")
 
         assert len(rels) == 1
-        assert rels[0].automation_id == 'auto1'
+        assert rels[0].automation_id == "auto1"
 
         # Check bidirectional
-        rels_reverse = parser.get_relationships_for_pair('light.room', 'sensor.motion')
+        rels_reverse = parser.get_relationships_for_pair("light.room", "sensor.motion")
         assert len(rels_reverse) == 1
-        assert rels_reverse[0].automation_id == 'auto1'
+        assert rels_reverse[0].automation_id == "auto1"
 
     def test_parse_with_conditions(self):
         """
@@ -224,19 +224,19 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'conditional_auto',
-            'alias': 'Conditional Auto',
-            'trigger': {'platform': 'state', 'entity_id': 'sensor.motion'},
-            'condition': [
-                {'condition': 'state', 'entity_id': 'sun.sun', 'state': 'below_horizon'}
+            "id": "conditional_auto",
+            "alias": "Conditional Auto",
+            "trigger": {"platform": "state", "entity_id": "sensor.motion"},
+            "condition": [
+                {"condition": "state", "entity_id": "sun.sun", "state": "below_horizon"},
             ],
-            'action': {'service': 'light.turn_on', 'entity_id': 'light.room'}
+            "action": {"service": "light.turn_on", "entity_id": "light.room"},
         }
 
         count = parser.parse_automations([automation])
 
         assert count == 1
-        rel = parser._relationships['conditional_auto']
+        rel = parser._relationships["conditional_auto"]
         assert rel.conditions is not None
         assert len(rel.conditions) == 1
 
@@ -245,36 +245,36 @@ class TestAutomationParser:
         Test EntityRelationship.get_entity_pairs()
         """
         rel = EntityRelationship(
-            automation_id='test',
-            automation_alias='Test',
-            trigger_entities={'sensor.1', 'sensor.2'},
-            action_entities={'light.1', 'light.2'},
-            automation_type='state_based'
+            automation_id="test",
+            automation_alias="Test",
+            trigger_entities={"sensor.1", "sensor.2"},
+            action_entities={"light.1", "light.2"},
+            automation_type="state_based",
         )
 
         pairs = rel.get_entity_pairs()
 
         assert len(pairs) == 4  # 2 triggers x 2 actions
-        assert ('sensor.1', 'light.1') in pairs
-        assert ('sensor.1', 'light.2') in pairs
-        assert ('sensor.2', 'light.1') in pairs
-        assert ('sensor.2', 'light.2') in pairs
+        assert ("sensor.1", "light.1") in pairs
+        assert ("sensor.1", "light.2") in pairs
+        assert ("sensor.2", "light.1") in pairs
+        assert ("sensor.2", "light.2") in pairs
 
     def test_entity_relationship_involves_entities(self):
         """
         Test EntityRelationship.involves_entities()
         """
         rel = EntityRelationship(
-            automation_id='test',
-            automation_alias='Test',
-            trigger_entities={'sensor.motion'},
-            action_entities={'light.room'},
-            automation_type='state_based'
+            automation_id="test",
+            automation_alias="Test",
+            trigger_entities={"sensor.motion"},
+            action_entities={"light.room"},
+            automation_type="state_based",
         )
 
-        assert rel.involves_entities('sensor.motion', 'light.room')
-        assert rel.involves_entities('light.room', 'sensor.motion')
-        assert not rel.involves_entities('sensor.motion', 'light.other')
+        assert rel.involves_entities("sensor.motion", "light.room")
+        assert rel.involves_entities("light.room", "sensor.motion")
+        assert not rel.involves_entities("sensor.motion", "light.other")
 
     def test_parse_malformed_automation(self):
         """
@@ -284,31 +284,31 @@ class TestAutomationParser:
 
         automations = [
             {
-                'id': 'good_auto',
-                'alias': 'Good Auto',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.temp'},
-                'action': {'service': 'climate.set_temperature', 'entity_id': 'climate.room'}
+                "id": "good_auto",
+                "alias": "Good Auto",
+                "trigger": {"platform": "state", "entity_id": "sensor.temp"},
+                "action": {"service": "climate.set_temperature", "entity_id": "climate.room"},
             },
             {
-                'id': 'bad_auto',
-                'alias': 'Bad Auto',
+                "id": "bad_auto",
+                "alias": "Bad Auto",
                 # Missing trigger and action
             },
             {
-                'id': 'another_good',
-                'alias': 'Another Good',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.motion'},
-                'action': {'service': 'light.turn_on', 'entity_id': 'light.room'}
-            }
+                "id": "another_good",
+                "alias": "Another Good",
+                "trigger": {"platform": "state", "entity_id": "sensor.motion"},
+                "action": {"service": "light.turn_on", "entity_id": "light.room"},
+            },
         ]
 
         count = parser.parse_automations(automations)
 
         # Should parse the 2 good automations, skip the bad one
         assert count == 2
-        assert 'good_auto' in parser._relationships
-        assert 'another_good' in parser._relationships
-        assert 'bad_auto' not in parser._relationships
+        assert "good_auto" in parser._relationships
+        assert "another_good" in parser._relationships
+        assert "bad_auto" not in parser._relationships
 
     def test_get_stats(self):
         """
@@ -318,27 +318,27 @@ class TestAutomationParser:
 
         automations = [
             {
-                'id': 'state_auto',
-                'alias': 'State Auto',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.temp'},
-                'action': {'service': 'climate.set_temperature', 'entity_id': 'climate.room'}
+                "id": "state_auto",
+                "alias": "State Auto",
+                "trigger": {"platform": "state", "entity_id": "sensor.temp"},
+                "action": {"service": "climate.set_temperature", "entity_id": "climate.room"},
             },
             {
-                'id': 'state_auto2',
-                'alias': 'State Auto 2',
-                'trigger': {'platform': 'state', 'entity_id': 'sensor.motion'},
-                'action': {'service': 'light.turn_on', 'entity_id': 'light.room'}
-            }
+                "id": "state_auto2",
+                "alias": "State Auto 2",
+                "trigger": {"platform": "state", "entity_id": "sensor.motion"},
+                "action": {"service": "light.turn_on", "entity_id": "light.room"},
+            },
         ]
 
         parser.parse_automations(automations)
 
         stats = parser.get_stats()
 
-        assert stats['total_automations'] == 2
-        assert stats['entity_pairs_indexed'] == 4  # 2 pairs x 2 directions
-        assert 'state_based' in stats['automation_types']
-        assert stats['last_parse_time'] is not None
+        assert stats["total_automations"] == 2
+        assert stats["entity_pairs_indexed"] == 4  # 2 pairs x 2 directions
+        assert "state_based" in stats["automation_types"]
+        assert stats["last_parse_time"] is not None
 
     def test_numeric_state_trigger(self):
         """
@@ -347,26 +347,26 @@ class TestAutomationParser:
         parser = AutomationParser()
 
         automation = {
-            'id': 'temp_control',
-            'alias': 'Temperature Control',
-            'trigger': {
-                'platform': 'numeric_state',
-                'entity_id': 'sensor.temperature',
-                'above': 25
+            "id": "temp_control",
+            "alias": "Temperature Control",
+            "trigger": {
+                "platform": "numeric_state",
+                "entity_id": "sensor.temperature",
+                "above": 25,
             },
-            'action': {
-                'service': 'climate.turn_on',
-                'entity_id': 'climate.ac'
-            }
+            "action": {
+                "service": "climate.turn_on",
+                "entity_id": "climate.ac",
+            },
         }
 
         count = parser.parse_automations([automation])
 
         assert count == 1
-        rel = parser._relationships['temp_control']
-        assert 'sensor.temperature' in rel.trigger_entities
-        assert 'climate.ac' in rel.action_entities
-        assert rel.automation_type == 'state_based'
+        rel = parser._relationships["temp_control"]
+        assert "sensor.temperature" in rel.trigger_entities
+        assert "climate.ac" in rel.action_entities
+        assert rel.automation_type == "state_based"
 
     def test_parse_multiple_automations(self):
         """
@@ -376,10 +376,10 @@ class TestAutomationParser:
 
         automations = [
             {
-                'id': f'auto_{i}',
-                'alias': f'Auto {i}',
-                'trigger': {'platform': 'state', 'entity_id': f'sensor.{i}'},
-                'action': {'service': 'light.turn_on', 'entity_id': f'light.{i}'}
+                "id": f"auto_{i}",
+                "alias": f"Auto {i}",
+                "trigger": {"platform": "state", "entity_id": f"sensor.{i}"},
+                "action": {"service": "light.turn_on", "entity_id": f"light.{i}"},
             }
             for i in range(10)
         ]
@@ -409,17 +409,17 @@ async def test_get_all_relationships():
 
     automations = [
         {
-            'id': 'auto1',
-            'alias': 'Auto 1',
-            'trigger': {'platform': 'state', 'entity_id': 'sensor.1'},
-            'action': {'service': 'light.turn_on', 'entity_id': 'light.1'}
+            "id": "auto1",
+            "alias": "Auto 1",
+            "trigger": {"platform": "state", "entity_id": "sensor.1"},
+            "action": {"service": "light.turn_on", "entity_id": "light.1"},
         },
         {
-            'id': 'auto2',
-            'alias': 'Auto 2',
-            'trigger': {'platform': 'state', 'entity_id': 'sensor.2'},
-            'action': {'service': 'light.turn_on', 'entity_id': 'light.2'}
-        }
+            "id": "auto2",
+            "alias": "Auto 2",
+            "trigger": {"platform": "state", "entity_id": "sensor.2"},
+            "action": {"service": "light.turn_on", "entity_id": "light.2"},
+        },
     ]
 
     parser.parse_automations(automations)

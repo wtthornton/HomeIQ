@@ -29,7 +29,7 @@ class PredictiveAutomationGenerator:
     def __init__(self, min_repetitions: int = 5, min_energy_waste_hours: float = 2.0):
         """
         Initialize predictive automation generator.
-        
+
         Args:
             min_repetitions: Minimum repetitions to suggest automation
             min_energy_waste_hours: Minimum hours of waste to suggest optimization
@@ -41,15 +41,15 @@ class PredictiveAutomationGenerator:
     def generate_predictive_suggestions(
         self,
         events_df: pd.DataFrame,
-        devices: list[dict] | None = None
+        devices: list[dict] | None = None,
     ) -> list[dict]:
         """
         Generate predictive automation suggestions.
-        
+
         Args:
             events_df: Events DataFrame
             devices: Optional list of devices
-            
+
         Returns:
             List of predictive suggestion dictionaries
         """
@@ -80,9 +80,9 @@ class PredictiveAutomationGenerator:
         # Group by device and action
         device_actions = defaultdict(list)
         for _, event in events_df.iterrows():
-            device_id = event.get('entity_id') or event.get('device_id')
-            state = event.get('state', '')
-            time = event.get('time') or event.get('timestamp')
+            device_id = event.get("entity_id") or event.get("device_id")
+            state = event.get("state", "")
+            time = event.get("time") or event.get("timestamp")
 
             if device_id and state and time:
                 key = (device_id, state)
@@ -93,7 +93,7 @@ class PredictiveAutomationGenerator:
             if len(times) >= self.min_repetitions:
                 # Check if times are clustered (same time pattern)
                 times_sorted = sorted([pd.to_datetime(t) for t in times])
-                time_diffs = [(times_sorted[i+1] - times_sorted[i]).total_seconds()
+                [(times_sorted[i+1] - times_sorted[i]).total_seconds()
                              for i in range(len(times_sorted)-1)]
 
                 # If most actions happen within same hour window, it's repetitive
@@ -102,11 +102,11 @@ class PredictiveAutomationGenerator:
 
                 if count >= self.min_repetitions:
                     repetitive.append({
-                        'device_id': device_id,
-                        'state': state,
-                        'occurrences': len(times),
-                        'most_common_hour': most_common_hour,
-                        'pattern_type': 'repetitive_manual'
+                        "device_id": device_id,
+                        "state": state,
+                        "occurrences": len(times),
+                        "most_common_hour": most_common_hour,
+                        "pattern_type": "repetitive_manual",
                     })
 
         return repetitive
@@ -116,23 +116,23 @@ class PredictiveAutomationGenerator:
         suggestions = []
 
         for action in repetitive:
-            device_id = action['device_id']
-            hour = action['most_common_hour']
-            occurrences = action['occurrences']
+            device_id = action["device_id"]
+            hour = action["most_common_hour"]
+            occurrences = action["occurrences"]
 
             suggestions.append({
-                'type': 'repetitive_action',
-                'title': f"Automate {device_id} at {hour:02d}:00",
-                'description': f"You manually turn on {device_id} {occurrences} times around {hour:02d}:00. "
+                "type": "repetitive_action",
+                "title": f"Automate {device_id} at {hour:02d}:00",
+                "description": f"You manually turn on {device_id} {occurrences} times around {hour:02d}:00. "
                               f"Consider automating this action.",
-                'confidence': 0.85,
-                'priority': 'high',
-                'device_id': device_id,
-                'metadata': {
-                    'occurrences': occurrences,
-                    'suggested_time': f"{hour:02d}:00",
-                    'pattern_type': 'repetitive_manual'
-                }
+                "confidence": 0.85,
+                "priority": "high",
+                "device_id": device_id,
+                "metadata": {
+                    "occurrences": occurrences,
+                    "suggested_time": f"{hour:02d}:00",
+                    "pattern_type": "repetitive_manual",
+                },
             })
 
         return suggestions
@@ -142,34 +142,34 @@ class PredictiveAutomationGenerator:
         waste = []
 
         # Find devices that stay on for extended periods
-        device_states = defaultdict(lambda: {'on_time': None, 'total_on_hours': 0.0})
+        device_states = defaultdict(lambda: {"on_time": None, "total_on_hours": 0.0})
 
-        sorted_events = events_df.sort_values('time' if 'time' in events_df.columns else 'timestamp')
+        sorted_events = events_df.sort_values("time" if "time" in events_df.columns else "timestamp")
 
         for _, event in sorted_events.iterrows():
-            device_id = event.get('entity_id') or event.get('device_id')
-            state = str(event.get('state', '')).lower()
-            time = pd.to_datetime(event.get('time') or event.get('timestamp'))
+            device_id = event.get("entity_id") or event.get("device_id")
+            state = str(event.get("state", "")).lower()
+            time = pd.to_datetime(event.get("time") or event.get("timestamp"))
 
             if not device_id:
                 continue
 
-            if state in ['on', 'open', 'active']:
-                device_states[device_id]['on_time'] = time
-            elif state in ['off', 'closed', 'inactive'] and device_states[device_id]['on_time']:
-                on_time = device_states[device_id]['on_time']
+            if state in ["on", "open", "active"]:
+                device_states[device_id]["on_time"] = time
+            elif state in ["off", "closed", "inactive"] and device_states[device_id]["on_time"]:
+                on_time = device_states[device_id]["on_time"]
                 hours = (time - on_time).total_seconds() / 3600.0
                 if hours >= self.min_energy_waste_hours:
-                    device_states[device_id]['total_on_hours'] += hours
-                device_states[device_id]['on_time'] = None
+                    device_states[device_id]["total_on_hours"] += hours
+                device_states[device_id]["on_time"] = None
 
         # Check for devices with significant waste
         for device_id, state_info in device_states.items():
-            if state_info['total_on_hours'] >= self.min_energy_waste_hours:
+            if state_info["total_on_hours"] >= self.min_energy_waste_hours:
                 waste.append({
-                    'device_id': device_id,
-                    'waste_hours': state_info['total_on_hours'],
-                    'pattern_type': 'energy_waste'
+                    "device_id": device_id,
+                    "waste_hours": state_info["total_on_hours"],
+                    "pattern_type": "energy_waste",
                 })
 
         return waste
@@ -179,21 +179,21 @@ class PredictiveAutomationGenerator:
         suggestions = []
 
         for item in waste:
-            device_id = item['device_id']
-            waste_hours = item['waste_hours']
+            device_id = item["device_id"]
+            waste_hours = item["waste_hours"]
 
             suggestions.append({
-                'type': 'energy_optimization',
-                'title': f"Auto-off for {device_id}",
-                'description': f"{device_id} was left on for {waste_hours:.1f} hours. "
+                "type": "energy_optimization",
+                "title": f"Auto-off for {device_id}",
+                "description": f"{device_id} was left on for {waste_hours:.1f} hours. "
                               f"Consider adding an auto-off timer or motion-based control.",
-                'confidence': 0.90,
-                'priority': 'medium',
-                'device_id': device_id,
-                'metadata': {
-                    'waste_hours': waste_hours,
-                    'pattern_type': 'energy_waste'
-                }
+                "confidence": 0.90,
+                "priority": "medium",
+                "device_id": device_id,
+                "metadata": {
+                    "waste_hours": waste_hours,
+                    "pattern_type": "energy_waste",
+                },
             })
 
         return suggestions
@@ -201,7 +201,7 @@ class PredictiveAutomationGenerator:
     def _detect_convenience_opportunities(
         self,
         events_df: pd.DataFrame,
-        devices: list[dict] | None
+        devices: list[dict] | None,
     ) -> list[dict]:
         """Detect convenience opportunities (multiple devices used together)."""
         opportunities = []
@@ -214,28 +214,28 @@ class PredictiveAutomationGenerator:
         time_window = timedelta(minutes=5)
         device_groups = defaultdict(set)
 
-        sorted_events = events_df.sort_values('time' if 'time' in events_df.columns else 'timestamp')
+        sorted_events = events_df.sort_values("time" if "time" in events_df.columns else "timestamp")
 
-        for i, event in sorted_events.iterrows():
-            device_id = event.get('entity_id') or event.get('device_id')
-            time = pd.to_datetime(event.get('time') or event.get('timestamp'))
-            state = str(event.get('state', '')).lower()
+        for _i, event in sorted_events.iterrows():
+            device_id = event.get("entity_id") or event.get("device_id")
+            time = pd.to_datetime(event.get("time") or event.get("timestamp"))
+            state = str(event.get("state", "")).lower()
 
-            if not device_id or state not in ['on', 'open', 'active']:
+            if not device_id or state not in ["on", "open", "active"]:
                 continue
 
             # Find other devices activated within time window
             window_end = time + time_window
             window_events = sorted_events[
-                (sorted_events['time' if 'time' in sorted_events.columns else 'timestamp'] >= time) &
-                (sorted_events['time' if 'time' in sorted_events.columns else 'timestamp'] <= window_end)
+                (sorted_events["time" if "time" in sorted_events.columns else "timestamp"] >= time) &
+                (sorted_events["time" if "time" in sorted_events.columns else "timestamp"] <= window_end)
             ]
 
             for _, other_event in window_events.iterrows():
-                other_device = other_event.get('entity_id') or other_event.get('device_id')
-                other_state = str(other_event.get('state', '')).lower()
+                other_device = other_event.get("entity_id") or other_event.get("device_id")
+                other_state = str(other_event.get("state", "")).lower()
 
-                if other_device and other_device != device_id and other_state in ['on', 'open', 'active']:
+                if other_device and other_device != device_id and other_state in ["on", "open", "active"]:
                     pair = tuple(sorted([device_id, other_device]))
                     device_groups[pair].add(time)
 
@@ -243,10 +243,10 @@ class PredictiveAutomationGenerator:
         for (device1, device2), times in device_groups.items():
             if len(times) >= self.min_repetitions:
                 opportunities.append({
-                    'device1': device1,
-                    'device2': device2,
-                    'occurrences': len(times),
-                    'pattern_type': 'convenience_opportunity'
+                    "device1": device1,
+                    "device2": device2,
+                    "occurrences": len(times),
+                    "pattern_type": "convenience_opportunity",
                 })
 
         return opportunities
@@ -256,23 +256,23 @@ class PredictiveAutomationGenerator:
         suggestions = []
 
         for opp in opportunities:
-            device1 = opp['device1']
-            device2 = opp['device2']
-            occurrences = opp['occurrences']
+            device1 = opp["device1"]
+            device2 = opp["device2"]
+            occurrences = opp["occurrences"]
 
             suggestions.append({
-                'type': 'convenience_opportunity',
-                'title': f"Automate {device1} and {device2} together",
-                'description': f"{device1} and {device2} are used together {occurrences} times. "
+                "type": "convenience_opportunity",
+                "title": f"Automate {device1} and {device2} together",
+                "description": f"{device1} and {device2} are used together {occurrences} times. "
                               f"Consider creating a scene or automation to activate both together.",
-                'confidence': 0.80,
-                'priority': 'medium',
-                'device1': device1,
-                'device2': device2,
-                'metadata': {
-                    'occurrences': occurrences,
-                    'pattern_type': 'convenience_opportunity'
-                }
+                "confidence": 0.80,
+                "priority": "medium",
+                "device1": device1,
+                "device2": device2,
+                "metadata": {
+                    "occurrences": occurrences,
+                    "pattern_type": "convenience_opportunity",
+                },
             })
 
         return suggestions

@@ -26,14 +26,14 @@ async def get_devices():
         return {
             "success": True,
             "devices": devices,
-            "count": len(devices)
+            "count": len(devices),
         }
     except Exception as e:
-        logger.error(f"Failed to fetch devices from Device Intelligence Service: {e}")
+        logger.exception(f"Failed to fetch devices from Device Intelligence Service: {e}")
         return {
             "success": False,
             "devices": [],
             "count": 0,
-            "error": str(e)
+            "error": str(e),
         }
 

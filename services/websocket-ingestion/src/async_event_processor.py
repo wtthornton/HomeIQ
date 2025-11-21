@@ -3,6 +3,7 @@ Async Event Processor for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -20,7 +21,7 @@ class AsyncEventProcessor:
     def __init__(self, max_workers: int = 10, processing_rate_limit: int = 1000):
         """
         Initialize async event processor
-        
+
         Args:
             max_workers: Maximum number of concurrent processing workers
             processing_rate_limit: Maximum events per second to process
@@ -59,7 +60,7 @@ class AsyncEventProcessor:
 
         try:
             # Transition to starting state
-            if current_state == ProcessingState.STOPPED or current_state == ProcessingState.ERROR:
+            if current_state in (ProcessingState.STOPPED, ProcessingState.ERROR):
                 self.state_machine.transition(ProcessingState.STARTING)
 
             self.processing_start_time = datetime.now()
@@ -74,7 +75,7 @@ class AsyncEventProcessor:
 
             logger.info(f"Started async event processor with {self.max_workers} workers")
         except InvalidStateTransition as e:
-            logger.error(f"Cannot start event processor from state {current_state.value}: {e}")
+            logger.exception(f"Cannot start event processor from state {current_state.value}: {e}")
 
     async def stop(self):
         """Stop the async event processor"""
@@ -107,10 +108,10 @@ class AsyncEventProcessor:
     async def process_event(self, event_data: dict[str, Any]) -> bool:
         """
         Queue an event for processing
-        
+
         Args:
             event_data: Event data to process
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -128,7 +129,7 @@ class AsyncEventProcessor:
             logger.warning("Event queue is full, dropping event")
             return False
         except Exception as e:
-            logger.error(f"Error queuing event: {e}")
+            logger.exception(f"Error queuing event: {e}")
             return False
 
     async def _worker(self, worker_name: str):
@@ -141,7 +142,7 @@ class AsyncEventProcessor:
                 # Get event from queue with timeout
                 event_data = await asyncio.wait_for(
                     self.event_queue.get(),
-                    timeout=1.0
+                    timeout=1.0,
                 )
 
                 # Process the event
@@ -162,17 +163,13 @@ class AsyncEventProcessor:
                 logger.debug(f"Worker {worker_name} cancelled")
                 break
             except Exception as e:
-                logger.error(f"Worker {worker_name} error: {e}")
+                logger.exception(f"Worker {worker_name} error: {e}")
                 self.failed_events += 1
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.ERROR)
-                except InvalidStateTransition:
-                    pass
                 # Try to recover
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.RUNNING)
-                except InvalidStateTransition:
-                    pass
 
             # Update current state for loop condition
             current_state = self.state_machine.get_state()
@@ -187,13 +184,13 @@ class AsyncEventProcessor:
                 try:
                     await handler(event_data)
                 except Exception as e:
-                    logger.error(f"Error in event handler: {e}")
+                    logger.exception(f"Error in event handler: {e}")
 
             self.processed_events += 1
             self.last_processing_time = datetime.now()
 
         except Exception as e:
-            logger.error(f"Error processing event: {e}")
+            logger.exception(f"Error processing event: {e}")
             self.failed_events += 1
 
     def add_event_handler(self, handler: Callable):
@@ -256,7 +253,7 @@ class AsyncEventProcessor:
             "queue_maxsize": self.event_queue.maxsize,
             "uptime_seconds": round(uptime, 2),
             "last_processing_time": self.last_processing_time.isoformat() if self.last_processing_time else None,
-            "event_handlers_count": len(self.event_handlers)
+            "event_handlers_count": len(self.event_handlers),
         }
 
     def reset_statistics(self):
@@ -276,7 +273,7 @@ class RateLimiter:
     def __init__(self, rate_limit: int):
         """
         Initialize rate limiter
-        
+
         Args:
             rate_limit: Maximum events per second
         """
@@ -288,7 +285,7 @@ class RateLimiter:
     async def acquire(self) -> bool:
         """
         Acquire a token for processing
-        
+
         Returns:
             True if token was acquired, False if rate limit exceeded
         """

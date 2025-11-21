@@ -26,7 +26,7 @@ ha_token = os.environ.get("HA_TOKEN") or os.environ.get("HOME_ASSISTANT_TOKEN", 
 
 headers = {
     "Authorization": f"Bearer {ha_token}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # Test various endpoints

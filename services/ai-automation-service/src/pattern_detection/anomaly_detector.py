@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class AnomalyDetector(MLPatternDetector):
     """
     Detects anomaly patterns in device behavior.
-    
+
     Analyzes patterns based on:
     - Statistical outliers
     - Unusual timing patterns
@@ -42,11 +42,11 @@ class AnomalyDetector(MLPatternDetector):
         enable_behavioral_analysis: bool = True,
         enable_device_analysis: bool = True,
         aggregate_client=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize anomaly detector.
-        
+
         Args:
             contamination: Expected proportion of anomalies (0.0 to 0.5)
             min_anomaly_occurrences: Minimum occurrences for valid anomalies
@@ -71,10 +71,10 @@ class AnomalyDetector(MLPatternDetector):
     def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect anomaly patterns in events.
-        
+
         Args:
             events_df: Events DataFrame with time, entity_id, state columns
-            
+
         Returns:
             List of anomaly pattern dictionaries
         """
@@ -122,8 +122,8 @@ class AnomalyDetector(MLPatternDetector):
 
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
-        self.detection_stats['total_patterns'] += len(patterns)
-        self.detection_stats['processing_time'] += processing_time
+        self.detection_stats["total_patterns"] += len(patterns)
+        self.detection_stats["processing_time"] += processing_time
 
         logger.info(f"Detected {len(patterns)} anomaly patterns in {processing_time:.2f}s")
 
@@ -136,33 +136,33 @@ class AnomalyDetector(MLPatternDetector):
     def _store_daily_aggregates(self, patterns: list[dict], events_df: pd.DataFrame) -> None:
         """
         Store daily aggregates to InfluxDB.
-        
+
         Story AI5.3: Incremental pattern processing with aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events_df: Original events DataFrame
         """
         try:
             # Get date from events
-            if events_df.empty or 'time' not in events_df.columns:
+            if events_df.empty or "time" not in events_df.columns:
                 logger.warning("Cannot determine date from events for aggregate storage")
                 return
 
             # Use the date of the first event (assuming 24h window)
-            date = pd.to_datetime(events_df['time'].min()).date()
+            date = pd.to_datetime(events_df["time"].min()).date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing daily aggregates for {date_str}")
 
             for pattern in patterns:
-                entity_id = pattern.get('entity_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
-                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                entity_id = pattern.get("entity_id", pattern.get("devices", ["unknown"])[0] if pattern.get("devices") else "unknown")
+                domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
 
                 # Calculate metrics
-                occurrences = pattern.get('occurrences', 0)
-                confidence = pattern.get('confidence', 0.0)
-                anomaly_score = pattern.get('metadata', {}).get('anomaly_score', 0.0)
+                occurrences = pattern.get("occurrences", 0)
+                confidence = pattern.get("confidence", 0.0)
+                anomaly_score = pattern.get("metadata", {}).get("anomaly_score", 0.0)
 
                 # Store aggregate
                 try:
@@ -172,7 +172,7 @@ class AnomalyDetector(MLPatternDetector):
                         domain=domain,
                         occurrences=occurrences,
                         confidence=confidence,
-                        anomaly_score=anomaly_score
+                        anomaly_score=anomaly_score,
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
@@ -185,52 +185,52 @@ class AnomalyDetector(MLPatternDetector):
     def _add_anomaly_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Add anomaly features to events DataFrame.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             DataFrame with anomaly features
         """
         df = events_df.copy()
 
         # Time-based features
-        df['hour'] = df['time'].dt.hour
-        df['dayofweek'] = df['time'].dt.dayofweek
-        df['dayofyear'] = df['time'].dt.dayofyear
-        df['is_weekend'] = df['dayofweek'].isin([5, 6])
-        df['is_night'] = (df['hour'] >= 22) | (df['hour'] <= 6)
-        df['is_work_hours'] = (df['hour'] >= 9) & (df['hour'] <= 17)
+        df["hour"] = df["time"].dt.hour
+        df["dayofweek"] = df["time"].dt.dayofweek
+        df["dayofyear"] = df["time"].dt.dayofyear
+        df["is_weekend"] = df["dayofweek"].isin([5, 6])
+        df["is_night"] = (df["hour"] >= 22) | (df["hour"] <= 6)
+        df["is_work_hours"] = (df["hour"] >= 9) & (df["hour"] <= 17)
 
         # Event frequency features
-        df['events_per_hour'] = df.groupby(df['time'].dt.floor('H'))['entity_id'].transform('count')
-        df['events_per_day'] = df.groupby(df['time'].dt.date)['entity_id'].transform('count')
+        df["events_per_hour"] = df.groupby(df["time"].dt.floor("H"))["entity_id"].transform("count")
+        df["events_per_day"] = df.groupby(df["time"].dt.date)["entity_id"].transform("count")
 
         # Device activity features
-        df['device_activity_count'] = df.groupby('entity_id')['entity_id'].transform('count')
-        df['device_daily_activity'] = df.groupby(['entity_id', df['time'].dt.date])['entity_id'].transform('count')
+        df["device_activity_count"] = df.groupby("entity_id")["entity_id"].transform("count")
+        df["device_daily_activity"] = df.groupby(["entity_id", df["time"].dt.date])["entity_id"].transform("count")
 
         # State change features
-        df['state_changes'] = df.groupby('entity_id')['state'].transform(lambda x: (x != x.shift()).sum())
-        df['unique_states'] = df.groupby('entity_id')['state'].transform('nunique')
+        df["state_changes"] = df.groupby("entity_id")["state"].transform(lambda x: (x != x.shift()).sum())
+        df["unique_states"] = df.groupby("entity_id")["state"].transform("nunique")
 
         # Temporal features
-        df['time_since_last_event'] = df.groupby('entity_id')['time'].diff().dt.total_seconds()
-        df['time_since_last_event'] = df['time_since_last_event'].fillna(0)
+        df["time_since_last_event"] = df.groupby("entity_id")["time"].diff().dt.total_seconds()
+        df["time_since_last_event"] = df["time_since_last_event"].fillna(0)
 
         # Interaction features
-        df['concurrent_events'] = df.groupby(df['time'].dt.floor('min'))['entity_id'].transform('count')
-        df['device_interactions'] = df.groupby('entity_id')['concurrent_events'].transform('mean')
+        df["concurrent_events"] = df.groupby(df["time"].dt.floor("min"))["entity_id"].transform("count")
+        df["device_interactions"] = df.groupby("entity_id")["concurrent_events"].transform("mean")
 
         return df
 
     def _detect_statistical_outliers(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect statistical outliers using Isolation Forest.
-        
+
         Args:
             events_df: Events DataFrame with anomaly features
-            
+
         Returns:
             List of statistical outlier patterns
         """
@@ -238,9 +238,9 @@ class AnomalyDetector(MLPatternDetector):
 
         # Extract numerical features for outlier detection
         feature_columns = [
-            'hour', 'dayofweek', 'events_per_hour', 'events_per_day',
-            'device_activity_count', 'device_daily_activity', 'state_changes',
-            'unique_states', 'time_since_last_event', 'concurrent_events'
+            "hour", "dayofweek", "events_per_hour", "events_per_day",
+            "device_activity_count", "device_daily_activity", "state_changes",
+            "unique_states", "time_since_last_event", "concurrent_events",
         ]
 
         # Filter out non-numeric columns and handle missing values
@@ -258,7 +258,7 @@ class AnomalyDetector(MLPatternDetector):
             # Use Isolation Forest for outlier detection
             isolation_forest = IsolationForest(
                 contamination=self.contamination,
-                random_state=42
+                random_state=42,
             )
 
             outlier_labels = isolation_forest.fit_predict(features)
@@ -271,33 +271,33 @@ class AnomalyDetector(MLPatternDetector):
                 return patterns
 
             # Group outliers by entity
-            for entity_id, entity_outliers in outlier_events.groupby('entity_id'):
+            for entity_id, entity_outliers in outlier_events.groupby("entity_id"):
                 if len(entity_outliers) < self.min_anomaly_occurrences:
                     continue
 
                 # Calculate anomaly characteristics
-                anomaly_analysis = self._analyze_anomaly_characteristics(entity_outliers, 'statistical_outlier')
+                anomaly_analysis = self._analyze_anomaly_characteristics(entity_outliers, "statistical_outlier")
 
                 # Calculate confidence
                 confidence = self._calculate_anomaly_confidence(anomaly_analysis, outlier_scores[outlier_labels == -1])
 
                 if confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='statistical_outlier',
-                        pattern_id=self._generate_pattern_id('statistical_outlier'),
+                        pattern_type="statistical_outlier",
+                        pattern_id=self._generate_pattern_id("statistical_outlier"),
                         confidence=confidence,
                         occurrences=len(entity_outliers),
                         devices=[entity_id],
                         metadata={
-                            'anomaly_type': 'statistical_outlier',
-                            'outlier_count': len(entity_outliers),
-                            'avg_outlier_score': np.mean(outlier_scores[outlier_labels == -1]),
-                            'min_outlier_score': np.min(outlier_scores[outlier_labels == -1]),
-                            'max_outlier_score': np.max(outlier_scores[outlier_labels == -1]),
-                            'anomaly_characteristics': anomaly_analysis,
-                            'first_occurrence': entity_outliers['time'].min().isoformat(),
-                            'last_occurrence': entity_outliers['time'].max().isoformat()
-                        }
+                            "anomaly_type": "statistical_outlier",
+                            "outlier_count": len(entity_outliers),
+                            "avg_outlier_score": np.mean(outlier_scores[outlier_labels == -1]),
+                            "min_outlier_score": np.min(outlier_scores[outlier_labels == -1]),
+                            "max_outlier_score": np.max(outlier_scores[outlier_labels == -1]),
+                            "anomaly_characteristics": anomaly_analysis,
+                            "first_occurrence": entity_outliers["time"].min().isoformat(),
+                            "last_occurrence": entity_outliers["time"].max().isoformat(),
+                        },
                     )
                     patterns.append(pattern)
 
@@ -309,17 +309,17 @@ class AnomalyDetector(MLPatternDetector):
     def _detect_timing_anomalies(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect timing anomalies.
-        
+
         Args:
             events_df: Events DataFrame with timing features
-            
+
         Returns:
             List of timing anomaly patterns
         """
         patterns = []
 
         # Group by entity and analyze timing patterns
-        for entity_id, entity_events in events_df.groupby('entity_id'):
+        for entity_id, entity_events in events_df.groupby("entity_id"):
             if len(entity_events) < 10:
                 continue
 
@@ -337,19 +337,19 @@ class AnomalyDetector(MLPatternDetector):
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='timing_anomaly',
-                    pattern_id=self._generate_pattern_id('timing_anomaly'),
+                    pattern_type="timing_anomaly",
+                    pattern_id=self._generate_pattern_id("timing_anomaly"),
                     confidence=confidence,
                     occurrences=len(timing_anomalies),
                     devices=[entity_id],
                     metadata={
-                        'anomaly_type': 'timing_anomaly',
-                        'anomaly_count': len(timing_anomalies),
-                        'timing_analysis': timing_analysis,
-                        'anomaly_details': timing_anomalies.to_dict('records'),
-                        'first_occurrence': timing_anomalies['time'].min().isoformat(),
-                        'last_occurrence': timing_anomalies['time'].max().isoformat()
-                    }
+                        "anomaly_type": "timing_anomaly",
+                        "anomaly_count": len(timing_anomalies),
+                        "timing_analysis": timing_analysis,
+                        "anomaly_details": timing_anomalies.to_dict("records"),
+                        "first_occurrence": timing_anomalies["time"].min().isoformat(),
+                        "last_occurrence": timing_anomalies["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -358,17 +358,17 @@ class AnomalyDetector(MLPatternDetector):
     def _detect_behavioral_anomalies(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect behavioral anomalies.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of behavioral anomaly patterns
         """
         patterns = []
 
         # Group by entity and analyze behavioral patterns
-        for entity_id, entity_events in events_df.groupby('entity_id'):
+        for entity_id, entity_events in events_df.groupby("entity_id"):
             if len(entity_events) < 10:
                 continue
 
@@ -386,19 +386,19 @@ class AnomalyDetector(MLPatternDetector):
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='behavioral_anomaly',
-                    pattern_id=self._generate_pattern_id('behavioral_anomaly'),
+                    pattern_type="behavioral_anomaly",
+                    pattern_id=self._generate_pattern_id("behavioral_anomaly"),
                     confidence=confidence,
                     occurrences=len(behavioral_anomalies),
                     devices=[entity_id],
                     metadata={
-                        'anomaly_type': 'behavioral_anomaly',
-                        'anomaly_count': len(behavioral_anomalies),
-                        'behavioral_analysis': behavioral_analysis,
-                        'anomaly_details': behavioral_anomalies.to_dict('records'),
-                        'first_occurrence': behavioral_anomalies['time'].min().isoformat(),
-                        'last_occurrence': behavioral_anomalies['time'].max().isoformat()
-                    }
+                        "anomaly_type": "behavioral_anomaly",
+                        "anomaly_count": len(behavioral_anomalies),
+                        "behavioral_analysis": behavioral_analysis,
+                        "anomaly_details": behavioral_anomalies.to_dict("records"),
+                        "first_occurrence": behavioral_anomalies["time"].min().isoformat(),
+                        "last_occurrence": behavioral_anomalies["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -407,10 +407,10 @@ class AnomalyDetector(MLPatternDetector):
     def _detect_device_anomalies(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect device anomalies.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of device anomaly patterns
         """
@@ -423,7 +423,7 @@ class AnomalyDetector(MLPatternDetector):
         unusual_combinations = self._identify_unusual_device_combinations(device_interactions)
 
         for combination, anomaly_data in unusual_combinations.items():
-            if anomaly_data['count'] < self.min_anomaly_occurrences:
+            if anomaly_data["count"] < self.min_anomaly_occurrences:
                 continue
 
             # Calculate confidence
@@ -431,19 +431,19 @@ class AnomalyDetector(MLPatternDetector):
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='device_anomaly',
-                    pattern_id=self._generate_pattern_id('device_anomaly'),
+                    pattern_type="device_anomaly",
+                    pattern_id=self._generate_pattern_id("device_anomaly"),
                     confidence=confidence,
-                    occurrences=anomaly_data['count'],
-                    devices=anomaly_data['devices'],
+                    occurrences=anomaly_data["count"],
+                    devices=anomaly_data["devices"],
                     metadata={
-                        'anomaly_type': 'device_anomaly',
-                        'anomaly_count': anomaly_data['count'],
-                        'device_combination': combination,
-                        'interaction_analysis': anomaly_data['analysis'],
-                        'first_occurrence': anomaly_data['first_occurrence'],
-                        'last_occurrence': anomaly_data['last_occurrence']
-                    }
+                        "anomaly_type": "device_anomaly",
+                        "anomaly_count": anomaly_data["count"],
+                        "device_combination": combination,
+                        "interaction_analysis": anomaly_data["analysis"],
+                        "first_occurrence": anomaly_data["first_occurrence"],
+                        "last_occurrence": anomaly_data["last_occurrence"],
+                    },
                 )
                 patterns.append(pattern)
 
@@ -452,10 +452,10 @@ class AnomalyDetector(MLPatternDetector):
     def _detect_ml_anomalies(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect ML-based anomalies using advanced algorithms.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of ML anomaly patterns
         """
@@ -479,7 +479,7 @@ class AnomalyDetector(MLPatternDetector):
                 return patterns
 
             # Group anomalies by entity
-            for entity_id, entity_anomalies in noise_points.groupby('entity_id'):
+            for entity_id, entity_anomalies in noise_points.groupby("entity_id"):
                 if len(entity_anomalies) < self.min_anomaly_occurrences:
                     continue
 
@@ -491,18 +491,18 @@ class AnomalyDetector(MLPatternDetector):
 
                 if confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='ml_anomaly',
-                        pattern_id=self._generate_pattern_id('ml_anomaly'),
+                        pattern_type="ml_anomaly",
+                        pattern_id=self._generate_pattern_id("ml_anomaly"),
                         confidence=confidence,
                         occurrences=len(entity_anomalies),
                         devices=[entity_id],
                         metadata={
-                            'anomaly_type': 'ml_anomaly',
-                            'anomaly_count': len(entity_anomalies),
-                            'ml_analysis': ml_analysis,
-                            'first_occurrence': entity_anomalies['time'].min().isoformat(),
-                            'last_occurrence': entity_anomalies['time'].max().isoformat()
-                        }
+                            "anomaly_type": "ml_anomaly",
+                            "anomaly_count": len(entity_anomalies),
+                            "ml_analysis": ml_analysis,
+                            "first_occurrence": entity_anomalies["time"].min().isoformat(),
+                            "last_occurrence": entity_anomalies["time"].max().isoformat(),
+                        },
                     )
                     patterns.append(pattern)
 
@@ -514,114 +514,114 @@ class AnomalyDetector(MLPatternDetector):
     def _analyze_anomaly_characteristics(self, anomaly_events: pd.DataFrame, anomaly_type: str) -> dict[str, Any]:
         """
         Analyze anomaly characteristics.
-        
+
         Args:
             anomaly_events: Anomaly events
             anomaly_type: Type of anomaly
-            
+
         Returns:
             Anomaly analysis
         """
         # Basic statistics
         event_count = len(anomaly_events)
-        device_count = anomaly_events['entity_id'].nunique()
+        device_count = anomaly_events["entity_id"].nunique()
 
         # Time analysis
-        time_span_hours = (anomaly_events['time'].max() - anomaly_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (anomaly_events["time"].max() - anomaly_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # State analysis
-        unique_states = anomaly_events['state'].nunique()
-        state_distribution = anomaly_events['state'].value_counts().to_dict()
+        unique_states = anomaly_events["state"].nunique()
+        state_distribution = anomaly_events["state"].value_counts().to_dict()
 
         # Timing analysis
-        hourly_distribution = anomaly_events['time'].dt.hour.value_counts().to_dict()
+        hourly_distribution = anomaly_events["time"].dt.hour.value_counts().to_dict()
         peak_hour = max(hourly_distribution, key=hourly_distribution.get) if hourly_distribution else 0
 
         # Weekend analysis
-        weekend_events = anomaly_events[anomaly_events['is_weekend']]
+        weekend_events = anomaly_events[anomaly_events["is_weekend"]]
         weekend_ratio = len(weekend_events) / max(event_count, 1)
 
         # Night analysis
-        night_events = anomaly_events[anomaly_events['is_night']]
+        night_events = anomaly_events[anomaly_events["is_night"]]
         night_ratio = len(night_events) / max(event_count, 1)
 
         return {
-            'event_count': event_count,
-            'device_count': device_count,
-            'activity_intensity': activity_intensity,
-            'unique_states': unique_states,
-            'state_distribution': state_distribution,
-            'peak_hour': peak_hour,
-            'weekend_ratio': weekend_ratio,
-            'night_ratio': night_ratio
+            "event_count": event_count,
+            "device_count": device_count,
+            "activity_intensity": activity_intensity,
+            "unique_states": unique_states,
+            "state_distribution": state_distribution,
+            "peak_hour": peak_hour,
+            "weekend_ratio": weekend_ratio,
+            "night_ratio": night_ratio,
         }
 
     def _analyze_timing_patterns(self, entity_events: pd.DataFrame) -> dict[str, Any]:
         """
         Analyze timing patterns for an entity.
-        
+
         Args:
             entity_events: Events for entity
-            
+
         Returns:
             Timing analysis
         """
         # Hourly patterns
-        hourly_counts = entity_events['time'].dt.hour.value_counts()
+        hourly_counts = entity_events["time"].dt.hour.value_counts()
         peak_hours = hourly_counts.head(3).index.tolist()
 
         # Daily patterns
-        daily_counts = entity_events['time'].dt.dayofweek.value_counts()
+        daily_counts = entity_events["time"].dt.dayofweek.value_counts()
         peak_days = daily_counts.head(3).index.tolist()
 
         # Time between events
-        time_diffs = entity_events['time'].diff().dt.total_seconds()
+        time_diffs = entity_events["time"].diff().dt.total_seconds()
         avg_time_between = time_diffs.mean()
         std_time_between = time_diffs.std()
 
         # Weekend vs weekday
-        weekend_events = entity_events[entity_events['is_weekend']]
-        weekday_events = entity_events[~entity_events['is_weekend']]
+        weekend_events = entity_events[entity_events["is_weekend"]]
+        weekday_events = entity_events[~entity_events["is_weekend"]]
 
         weekend_ratio = len(weekend_events) / max(len(entity_events), 1)
         weekday_ratio = len(weekday_events) / max(len(entity_events), 1)
 
         return {
-            'peak_hours': peak_hours,
-            'peak_days': peak_days,
-            'avg_time_between': avg_time_between,
-            'std_time_between': std_time_between,
-            'weekend_ratio': weekend_ratio,
-            'weekday_ratio': weekday_ratio
+            "peak_hours": peak_hours,
+            "peak_days": peak_days,
+            "avg_time_between": avg_time_between,
+            "std_time_between": std_time_between,
+            "weekend_ratio": weekend_ratio,
+            "weekday_ratio": weekday_ratio,
         }
 
     def _identify_timing_anomalies(self, entity_events: pd.DataFrame, timing_analysis: dict[str, Any]) -> pd.DataFrame:
         """
         Identify timing anomalies based on analysis.
-        
+
         Args:
             entity_events: Events for entity
             timing_analysis: Timing analysis results
-            
+
         Returns:
             DataFrame of timing anomalies
         """
         anomalies = []
 
         # Identify events outside peak hours
-        peak_hours = set(timing_analysis['peak_hours'])
-        non_peak_events = entity_events[~entity_events['time'].dt.hour.isin(peak_hours)]
+        peak_hours = set(timing_analysis["peak_hours"])
+        non_peak_events = entity_events[~entity_events["time"].dt.hour.isin(peak_hours)]
 
         if len(non_peak_events) > 0:
             anomalies.append(non_peak_events)
 
         # Identify events with unusual timing
-        avg_time_between = timing_analysis['avg_time_between']
-        std_time_between = timing_analysis['std_time_between']
+        avg_time_between = timing_analysis["avg_time_between"]
+        std_time_between = timing_analysis["std_time_between"]
 
         if not pd.isna(avg_time_between) and not pd.isna(std_time_between):
-            time_diffs = entity_events['time'].diff().dt.total_seconds()
+            time_diffs = entity_events["time"].diff().dt.total_seconds()
             unusual_timing = entity_events[
                 (time_diffs < (avg_time_between - 2 * std_time_between)) |
                 (time_diffs > (avg_time_between + 2 * std_time_between))
@@ -633,73 +633,72 @@ class AnomalyDetector(MLPatternDetector):
         # Combine all anomalies
         if anomalies:
             return pd.concat(anomalies).drop_duplicates()
-        else:
-            return pd.DataFrame()
+        return pd.DataFrame()
 
     def _analyze_behavioral_patterns(self, entity_events: pd.DataFrame) -> dict[str, Any]:
         """
         Analyze behavioral patterns for an entity.
-        
+
         Args:
             entity_events: Events for entity
-            
+
         Returns:
             Behavioral analysis
         """
         # State patterns
-        state_counts = entity_events['state'].value_counts()
-        most_common_state = state_counts.index[0] if len(state_counts) > 0 else 'unknown'
+        state_counts = entity_events["state"].value_counts()
+        most_common_state = state_counts.index[0] if len(state_counts) > 0 else "unknown"
         state_diversity = len(state_counts)
 
         # State transitions
-        state_transitions = entity_events['state'].ne(entity_events['state'].shift()).sum()
+        state_transitions = entity_events["state"].ne(entity_events["state"].shift()).sum()
         transition_rate = state_transitions / max(len(entity_events), 1)
 
         # Activity patterns
-        daily_activity = entity_events.groupby(entity_events['time'].dt.date).size()
+        daily_activity = entity_events.groupby(entity_events["time"].dt.date).size()
         avg_daily_activity = daily_activity.mean()
         std_daily_activity = daily_activity.std()
 
         # Concurrent activity
-        concurrent_events = entity_events['concurrent_events'].mean()
-        max_concurrent = entity_events['concurrent_events'].max()
+        concurrent_events = entity_events["concurrent_events"].mean()
+        max_concurrent = entity_events["concurrent_events"].max()
 
         return {
-            'most_common_state': most_common_state,
-            'state_diversity': state_diversity,
-            'transition_rate': transition_rate,
-            'avg_daily_activity': avg_daily_activity,
-            'std_daily_activity': std_daily_activity,
-            'concurrent_events': concurrent_events,
-            'max_concurrent': max_concurrent
+            "most_common_state": most_common_state,
+            "state_diversity": state_diversity,
+            "transition_rate": transition_rate,
+            "avg_daily_activity": avg_daily_activity,
+            "std_daily_activity": std_daily_activity,
+            "concurrent_events": concurrent_events,
+            "max_concurrent": max_concurrent,
         }
 
     def _identify_behavioral_anomalies(self, entity_events: pd.DataFrame, behavioral_analysis: dict[str, Any]) -> pd.DataFrame:
         """
         Identify behavioral anomalies based on analysis.
-        
+
         Args:
             entity_events: Events for entity
             behavioral_analysis: Behavioral analysis results
-            
+
         Returns:
             DataFrame of behavioral anomalies
         """
         anomalies = []
 
         # Identify unusual state patterns
-        most_common_state = behavioral_analysis['most_common_state']
-        unusual_states = entity_events[entity_events['state'] != most_common_state]
+        most_common_state = behavioral_analysis["most_common_state"]
+        unusual_states = entity_events[entity_events["state"] != most_common_state]
 
         if len(unusual_states) > 0:
             anomalies.append(unusual_states)
 
         # Identify unusual activity levels
-        avg_daily_activity = behavioral_analysis['avg_daily_activity']
-        std_daily_activity = behavioral_analysis['std_daily_activity']
+        avg_daily_activity = behavioral_analysis["avg_daily_activity"]
+        std_daily_activity = behavioral_analysis["std_daily_activity"]
 
         if not pd.isna(avg_daily_activity) and not pd.isna(std_daily_activity):
-            daily_activity = entity_events.groupby(entity_events['time'].dt.date).size()
+            daily_activity = entity_events.groupby(entity_events["time"].dt.date).size()
             unusual_activity = daily_activity[
                 (daily_activity < (avg_daily_activity - 2 * std_daily_activity)) |
                 (daily_activity > (avg_daily_activity + 2 * std_daily_activity))
@@ -708,30 +707,29 @@ class AnomalyDetector(MLPatternDetector):
             if len(unusual_activity) > 0:
                 # Get events for unusual activity days
                 unusual_days = unusual_activity.index
-                unusual_events = entity_events[entity_events['time'].dt.date.isin(unusual_days)]
+                unusual_events = entity_events[entity_events["time"].dt.date.isin(unusual_days)]
                 anomalies.append(unusual_events)
 
         # Combine all anomalies
         if anomalies:
             return pd.concat(anomalies).drop_duplicates()
-        else:
-            return pd.DataFrame()
+        return pd.DataFrame()
 
     def _analyze_device_interactions(self, events_df: pd.DataFrame) -> dict[str, Any]:
         """
         Analyze device interactions.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             Device interaction analysis
         """
         interactions = defaultdict(list)
 
         # Group events by time windows
-        for time_window, window_events in events_df.groupby(events_df['time'].dt.floor('min')):
-            devices = window_events['entity_id'].unique()
+        for time_window, window_events in events_df.groupby(events_df["time"].dt.floor("min")):
+            devices = window_events["entity_id"].unique()
 
             # Record device combinations
             for i, device1 in enumerate(devices):
@@ -743,11 +741,11 @@ class AnomalyDetector(MLPatternDetector):
         interaction_analysis = {}
         for combination, timestamps in interactions.items():
             interaction_analysis[combination] = {
-                'count': len(timestamps),
-                'devices': list(combination),
-                'first_occurrence': min(timestamps).isoformat(),
-                'last_occurrence': max(timestamps).isoformat(),
-                'frequency': len(timestamps) / max(len(events_df), 1)
+                "count": len(timestamps),
+                "devices": list(combination),
+                "first_occurrence": min(timestamps).isoformat(),
+                "last_occurrence": max(timestamps).isoformat(),
+                "frequency": len(timestamps) / max(len(events_df), 1),
             }
 
         return interaction_analysis
@@ -755,17 +753,17 @@ class AnomalyDetector(MLPatternDetector):
     def _identify_unusual_device_combinations(self, device_interactions: dict[str, Any]) -> dict[str, Any]:
         """
         Identify unusual device combinations.
-        
+
         Args:
             device_interactions: Device interaction analysis
-            
+
         Returns:
             Dictionary of unusual combinations
         """
         unusual_combinations = {}
 
         # Calculate interaction frequencies
-        frequencies = [data['frequency'] for data in device_interactions.values()]
+        frequencies = [data["frequency"] for data in device_interactions.values()]
         if not frequencies:
             return unusual_combinations
 
@@ -773,7 +771,7 @@ class AnomalyDetector(MLPatternDetector):
         threshold = np.percentile(frequencies, 10)  # Bottom 10% as unusual
 
         for combination, data in device_interactions.items():
-            if data['frequency'] < threshold and data['count'] >= self.min_anomaly_occurrences:
+            if data["frequency"] < threshold and data["count"] >= self.min_anomaly_occurrences:
                 unusual_combinations[combination] = data
 
         return unusual_combinations
@@ -781,32 +779,32 @@ class AnomalyDetector(MLPatternDetector):
     def _extract_ml_anomaly_features(self, events_df: pd.DataFrame) -> np.ndarray:
         """
         Extract features for ML anomaly detection.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             Feature matrix for ML anomaly detection
         """
         features = []
 
         # Group by entity and extract features
-        for entity_id, entity_events in events_df.groupby('entity_id'):
+        for _entity_id, entity_events in events_df.groupby("entity_id"):
             if len(entity_events) < 3:
                 continue
 
             # Extract entity-level features
             feature_vector = [
                 len(entity_events),  # Event count
-                entity_events['state'].nunique(),  # State diversity
-                entity_events['time'].dt.hour.nunique(),  # Active hours
-                entity_events['is_weekend'].mean(),  # Weekend ratio
-                entity_events['is_night'].mean(),  # Night ratio
-                entity_events['concurrent_events'].mean(),  # Concurrent events
-                entity_events['time_since_last_event'].mean(),  # Avg time between events
-                entity_events['device_activity_count'].iloc[0],  # Total device activity
-                entity_events['state_changes'].iloc[0],  # State changes
-                entity_events['unique_states'].iloc[0]  # Unique states
+                entity_events["state"].nunique(),  # State diversity
+                entity_events["time"].dt.hour.nunique(),  # Active hours
+                entity_events["is_weekend"].mean(),  # Weekend ratio
+                entity_events["is_night"].mean(),  # Night ratio
+                entity_events["concurrent_events"].mean(),  # Concurrent events
+                entity_events["time_since_last_event"].mean(),  # Avg time between events
+                entity_events["device_activity_count"].iloc[0],  # Total device activity
+                entity_events["state_changes"].iloc[0],  # State changes
+                entity_events["unique_states"].iloc[0],  # Unique states
             ]
 
             features.append(feature_vector)
@@ -816,41 +814,41 @@ class AnomalyDetector(MLPatternDetector):
     def _analyze_ml_anomaly_characteristics(self, anomaly_events: pd.DataFrame) -> dict[str, Any]:
         """
         Analyze ML anomaly characteristics.
-        
+
         Args:
             anomaly_events: ML anomaly events
-            
+
         Returns:
             ML anomaly analysis
         """
         # Basic statistics
         event_count = len(anomaly_events)
-        device_count = anomaly_events['entity_id'].nunique()
+        device_count = anomaly_events["entity_id"].nunique()
 
         # Feature analysis
         feature_analysis = {
-            'avg_concurrent_events': anomaly_events['concurrent_events'].mean(),
-            'max_concurrent_events': anomaly_events['concurrent_events'].max(),
-            'avg_time_between_events': anomaly_events['time_since_last_event'].mean(),
-            'state_diversity': anomaly_events['state'].nunique(),
-            'weekend_ratio': anomaly_events['is_weekend'].mean(),
-            'night_ratio': anomaly_events['is_night'].mean()
+            "avg_concurrent_events": anomaly_events["concurrent_events"].mean(),
+            "max_concurrent_events": anomaly_events["concurrent_events"].max(),
+            "avg_time_between_events": anomaly_events["time_since_last_event"].mean(),
+            "state_diversity": anomaly_events["state"].nunique(),
+            "weekend_ratio": anomaly_events["is_weekend"].mean(),
+            "night_ratio": anomaly_events["is_night"].mean(),
         }
 
         return {
-            'event_count': event_count,
-            'device_count': device_count,
-            'feature_analysis': feature_analysis
+            "event_count": event_count,
+            "device_count": device_count,
+            "feature_analysis": feature_analysis,
         }
 
     def _calculate_anomaly_confidence(self, anomaly_analysis: dict[str, Any], outlier_scores: np.ndarray) -> float:
         """
         Calculate confidence for anomaly patterns.
-        
+
         Args:
             anomaly_analysis: Anomaly analysis results
             outlier_scores: Outlier scores from ML model
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -858,10 +856,10 @@ class AnomalyDetector(MLPatternDetector):
         base_confidence = np.mean(np.abs(outlier_scores))
 
         # Activity intensity bonus
-        activity_bonus = min(anomaly_analysis['activity_intensity'] / 5.0, 0.3)
+        activity_bonus = min(anomaly_analysis["activity_intensity"] / 5.0, 0.3)
 
         # State diversity bonus
-        diversity_bonus = min(anomaly_analysis['unique_states'] / 5.0, 0.2)
+        diversity_bonus = min(anomaly_analysis["unique_states"] / 5.0, 0.2)
 
         total_confidence = base_confidence + activity_bonus + diversity_bonus
 
@@ -870,11 +868,11 @@ class AnomalyDetector(MLPatternDetector):
     def _calculate_timing_anomaly_confidence(self, timing_anomalies: pd.DataFrame, timing_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for timing anomalies.
-        
+
         Args:
             timing_anomalies: Timing anomaly events
             timing_analysis: Timing analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -882,8 +880,8 @@ class AnomalyDetector(MLPatternDetector):
         base_confidence = min(len(timing_anomalies) / 10.0, 1.0)
 
         # Weekend/night ratio bonus
-        weekend_bonus = timing_analysis['weekend_ratio'] * 0.2
-        night_bonus = timing_analysis['night_ratio'] * 0.2
+        weekend_bonus = timing_analysis["weekend_ratio"] * 0.2
+        night_bonus = timing_analysis["night_ratio"] * 0.2
 
         total_confidence = base_confidence + weekend_bonus + night_bonus
 
@@ -892,11 +890,11 @@ class AnomalyDetector(MLPatternDetector):
     def _calculate_behavioral_anomaly_confidence(self, behavioral_anomalies: pd.DataFrame, behavioral_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for behavioral anomalies.
-        
+
         Args:
             behavioral_anomalies: Behavioral anomaly events
             behavioral_analysis: Behavioral analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -904,10 +902,10 @@ class AnomalyDetector(MLPatternDetector):
         base_confidence = min(len(behavioral_anomalies) / 10.0, 1.0)
 
         # State diversity bonus
-        diversity_bonus = min(behavioral_analysis['state_diversity'] / 5.0, 0.3)
+        diversity_bonus = min(behavioral_analysis["state_diversity"] / 5.0, 0.3)
 
         # Transition rate bonus
-        transition_bonus = min(behavioral_analysis['transition_rate'] / 2.0, 0.2)
+        transition_bonus = min(behavioral_analysis["transition_rate"] / 2.0, 0.2)
 
         total_confidence = base_confidence + diversity_bonus + transition_bonus
 
@@ -916,18 +914,18 @@ class AnomalyDetector(MLPatternDetector):
     def _calculate_device_anomaly_confidence(self, anomaly_data: dict[str, Any]) -> float:
         """
         Calculate confidence for device anomalies.
-        
+
         Args:
             anomaly_data: Device anomaly data
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from anomaly count
-        base_confidence = min(anomaly_data['count'] / 10.0, 1.0)
+        base_confidence = min(anomaly_data["count"] / 10.0, 1.0)
 
         # Frequency bonus (lower frequency = more unusual)
-        frequency_bonus = (1.0 - anomaly_data['analysis']['frequency']) * 0.3
+        frequency_bonus = (1.0 - anomaly_data["analysis"]["frequency"]) * 0.3
 
         total_confidence = base_confidence + frequency_bonus
 
@@ -936,30 +934,30 @@ class AnomalyDetector(MLPatternDetector):
     def _calculate_ml_anomaly_confidence(self, ml_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for ML anomalies.
-        
+
         Args:
             ml_analysis: ML anomaly analysis
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from event count
-        base_confidence = min(ml_analysis['event_count'] / 10.0, 1.0)
+        base_confidence = min(ml_analysis["event_count"] / 10.0, 1.0)
 
         # Feature analysis bonus
-        feature_analysis = ml_analysis['feature_analysis']
+        feature_analysis = ml_analysis["feature_analysis"]
         feature_bonus = 0.0
 
         # Concurrent events bonus
-        if feature_analysis['avg_concurrent_events'] > 2:
+        if feature_analysis["avg_concurrent_events"] > 2:
             feature_bonus += 0.2
 
         # State diversity bonus
-        if feature_analysis['state_diversity'] > 3:
+        if feature_analysis["state_diversity"] > 3:
             feature_bonus += 0.2
 
         # Weekend/night ratio bonus
-        if feature_analysis['weekend_ratio'] > 0.5 or feature_analysis['night_ratio'] > 0.5:
+        if feature_analysis["weekend_ratio"] > 0.5 or feature_analysis["night_ratio"] > 0.5:
             feature_bonus += 0.1
 
         total_confidence = base_confidence + feature_bonus
@@ -969,10 +967,10 @@ class AnomalyDetector(MLPatternDetector):
     def _cluster_anomaly_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Cluster similar anomaly patterns using ML.
-        
+
         Args:
             patterns: List of anomaly patterns
-            
+
         Returns:
             Clustered patterns with cluster information
         """
@@ -996,40 +994,40 @@ class AnomalyDetector(MLPatternDetector):
     def _extract_anomaly_pattern_features(self, patterns: list[dict]) -> np.ndarray:
         """
         Extract features for anomaly pattern clustering.
-        
+
         Args:
             patterns: List of anomaly patterns
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         for pattern in patterns:
-            metadata = pattern['metadata']
+            metadata = pattern["metadata"]
 
             # Extract numerical features
             feature_vector = [
-                pattern['occurrences'],
-                pattern['confidence'],
-                len(pattern['devices']),
-                metadata.get('anomaly_count', 0),
-                metadata.get('outlier_count', 0),
-                metadata.get('avg_outlier_score', 0),
-                metadata.get('anomaly_characteristics', {}).get('activity_intensity', 0),
-                metadata.get('anomaly_characteristics', {}).get('unique_states', 0),
-                metadata.get('anomaly_characteristics', {}).get('weekend_ratio', 0),
-                metadata.get('anomaly_characteristics', {}).get('night_ratio', 0)
+                pattern["occurrences"],
+                pattern["confidence"],
+                len(pattern["devices"]),
+                metadata.get("anomaly_count", 0),
+                metadata.get("outlier_count", 0),
+                metadata.get("avg_outlier_score", 0),
+                metadata.get("anomaly_characteristics", {}).get("activity_intensity", 0),
+                metadata.get("anomaly_characteristics", {}).get("unique_states", 0),
+                metadata.get("anomaly_characteristics", {}).get("weekend_ratio", 0),
+                metadata.get("anomaly_characteristics", {}).get("night_ratio", 0),
             ]
 
             # Add pattern type encoding
-            pattern_type = pattern['pattern_type']
+            pattern_type = pattern["pattern_type"]
             type_encoding = {
-                'statistical_outlier': 0,
-                'timing_anomaly': 1,
-                'behavioral_anomaly': 2,
-                'device_anomaly': 3,
-                'ml_anomaly': 4
+                "statistical_outlier": 0,
+                "timing_anomaly": 1,
+                "behavioral_anomaly": 2,
+                "device_anomaly": 3,
+                "ml_anomaly": 4,
             }.get(pattern_type, 0)
             feature_vector.append(type_encoding)
 

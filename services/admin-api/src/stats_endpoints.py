@@ -34,7 +34,7 @@ class StatsEndpoints:
 
     def _seed_default_data(self) -> None:
         # Populate metrics with deterministic data
-        for index, service in enumerate(self.service_urls, start=1):
+        for index, _service in enumerate(self.service_urls, start=1):
             value = 100 * index
             metrics_service.collector.record_value("events_processed_total", float(value))
             metrics_service.collector.record_value("api_requests_total", float(value // 2))
@@ -149,7 +149,7 @@ class StatsEndpoints:
                     "service": svc,
                     "value": 60.0,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
+                },
             )
             metrics_list.append(
                 {
@@ -157,7 +157,7 @@ class StatsEndpoints:
                     "service": svc,
                     "value": 1.0,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
+                },
             )
 
         if metric_name:
@@ -205,7 +205,7 @@ class StatsEndpoints:
                     "timestamp": (now - timedelta(minutes=5 * i)).isoformat(),
                     "events_processed": 100 - (i * 5),
                     "errors": i,
-                }
+                },
             )
         return trends
 

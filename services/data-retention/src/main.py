@@ -9,7 +9,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from shared.logging_config import setup_logging
 
@@ -51,11 +51,11 @@ class DataRetentionService:
         self.retention_endpoints: RetentionEndpoints | None = None
 
         # Configuration
-        self.cleanup_interval_hours = int(os.getenv('CLEANUP_INTERVAL_HOURS', '24'))
-        self.monitoring_interval_minutes = int(os.getenv('MONITORING_INTERVAL_MINUTES', '5'))
-        self.compression_interval_hours = int(os.getenv('COMPRESSION_INTERVAL_HOURS', '24'))
-        self.backup_interval_hours = int(os.getenv('BACKUP_INTERVAL_HOURS', '24'))
-        self.backup_dir = os.getenv('BACKUP_DIR', '/backups')
+        self.cleanup_interval_hours = int(os.getenv("CLEANUP_INTERVAL_HOURS", "24"))
+        self.monitoring_interval_minutes = int(os.getenv("MONITORING_INTERVAL_MINUTES", "5"))
+        self.compression_interval_hours = int(os.getenv("COMPRESSION_INTERVAL_HOURS", "24"))
+        self.backup_interval_hours = int(os.getenv("BACKUP_INTERVAL_HOURS", "24"))
+        self.backup_dir = os.getenv("BACKUP_DIR", "/backups")
 
         logger.info("Data retention service initialized")
 
@@ -134,7 +134,7 @@ class DataRetentionService:
             "storage_monitor": self.storage_monitor is not None,
             "compression_service": self.compression_service is not None,
             "backup_service": self.backup_service is not None,
-            "policy_count": len(self.policy_manager.get_all_policies())
+            "policy_count": len(self.policy_manager.get_all_policies()),
         }
 
     def get_retention_policies(self) -> list:
@@ -148,7 +148,7 @@ class DataRetentionService:
             description=policy_data["description"],
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
-            enabled=policy_data.get("enabled", True)
+            enabled=policy_data.get("enabled", True),
         )
 
         self.policy_manager.add_policy(policy)
@@ -160,7 +160,7 @@ class DataRetentionService:
             description=policy_data["description"],
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
-            enabled=policy_data.get("enabled", True)
+            enabled=policy_data.get("enabled", True),
         )
 
         self.policy_manager.update_policy(policy)
@@ -172,7 +172,7 @@ class DataRetentionService:
                 self.view_manager,
                 self.retention_manager,
                 self.archival_manager,
-                self.analytics
+                self.analytics,
             )
             self.retention_endpoints.add_routes(app)
             logger.info("Epic 2 retention endpoints registered")
@@ -184,7 +184,8 @@ class DataRetentionService:
     async def run_cleanup(self, policy_name: str | None = None) -> list:
         """Run data cleanup."""
         if not self.cleanup_service:
-            raise RuntimeError("Cleanup service not initialized")
+            msg = "Cleanup service not initialized"
+            raise RuntimeError(msg)
 
         return [result.to_dict() for result in await self.cleanup_service.run_cleanup(policy_name)]
 
@@ -216,13 +217,14 @@ class DataRetentionService:
                           include_logs: bool = False) -> dict:
         """Create a backup."""
         if not self.backup_service:
-            raise RuntimeError("Backup service not initialized")
+            msg = "Backup service not initialized"
+            raise RuntimeError(msg)
 
         backup_info = await self.backup_service.create_backup(
             backup_type=backup_type,
             include_data=include_data,
             include_config=include_config,
-            include_logs=include_logs
+            include_logs=include_logs,
         )
 
         return backup_info.to_dict()
@@ -231,13 +233,14 @@ class DataRetentionService:
                            restore_config: bool = True, restore_logs: bool = False) -> bool:
         """Restore from a backup."""
         if not self.backup_service:
-            raise RuntimeError("Backup service not initialized")
+            msg = "Backup service not initialized"
+            raise RuntimeError(msg)
 
         return await self.backup_service.restore_backup(
             backup_id=backup_id,
             restore_data=restore_data,
             restore_config=restore_config,
-            restore_logs=restore_logs
+            restore_logs=restore_logs,
         )
 
     def get_backup_history(self, limit: int = 100) -> list:
@@ -265,7 +268,7 @@ class DataRetentionService:
         """Get comprehensive service statistics."""
         stats = {
             "service_status": self.get_service_status(),
-            "policy_statistics": self.policy_manager.get_policy_statistics()
+            "policy_statistics": self.policy_manager.get_policy_statistics(),
         }
 
         if self.cleanup_service:
@@ -290,7 +293,7 @@ async def main():
     """Main entry point."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     try:
@@ -317,26 +320,26 @@ async def main():
         )
 
         # Health check routes
-        app.router.add_get('/health', health_check)
-        app.router.add_get('/api/v1/health', health_check)
-        app.router.add_get('/stats', get_statistics)
-        app.router.add_get('/api/v1/stats', get_statistics)
+        app.router.add_get("/health", health_check)
+        app.router.add_get("/api/v1/health", health_check)
+        app.router.add_get("/stats", get_statistics)
+        app.router.add_get("/api/v1/stats", get_statistics)
 
         # Policy management routes
-        app.router.add_get('/policies', get_policies)
-        app.router.add_post('/policies', add_policy)
-        app.router.add_put('/policies', update_policy)
-        app.router.add_delete('/policies/{policy_name}', delete_policy)
+        app.router.add_get("/policies", get_policies)
+        app.router.add_post("/policies", add_policy)
+        app.router.add_put("/policies", update_policy)
+        app.router.add_delete("/policies/{policy_name}", delete_policy)
 
         # Cleanup routes
-        app.router.add_post('/cleanup', run_cleanup)
+        app.router.add_post("/cleanup", run_cleanup)
 
         # Backup and restore routes
-        app.router.add_post('/backup', create_backup)
-        app.router.add_post('/restore', restore_backup)
-        app.router.add_get('/backups', get_backup_history)
-        app.router.add_get('/backup-stats', get_backup_statistics)
-        app.router.add_delete('/backups/cleanup', cleanup_old_backups)
+        app.router.add_post("/backup", create_backup)
+        app.router.add_post("/restore", restore_backup)
+        app.router.add_get("/backups", get_backup_history)
+        app.router.add_get("/backup-stats", get_backup_statistics)
+        app.router.add_delete("/backups/cleanup", cleanup_old_backups)
 
         # Epic 2: Storage optimization routes
         data_retention_service.setup_epic2_endpoints(app)
@@ -345,8 +348,8 @@ async def main():
         await runner.setup()
 
         # Get port from environment
-        port = int(os.getenv('PORT', '8080'))
-        site = web.TCPSite(runner, '0.0.0.0', port)
+        port = int(os.getenv("PORT", "8080"))
+        site = web.TCPSite(runner, "0.0.0.0", port)
         await site.start()
 
         logger.info(f"Data retention service started on port {port}")
@@ -358,7 +361,7 @@ async def main():
     except KeyboardInterrupt:
         logger.info("Received shutdown signal")
     except Exception as e:
-        logger.error(f"Service error: {e}")
+        logger.exception(f"Service error: {e}")
     finally:
         await data_retention_service.stop()
 

@@ -43,7 +43,7 @@ class SetupWizardResult(BaseModel):
 class SetupWizardFramework:
     """
     Framework for guided setup wizards
-    
+
     Features:
     - Step-by-step execution with validation
     - Progress tracking
@@ -60,16 +60,16 @@ class SetupWizardFramework:
         self,
         integration_type: str,
         steps: list[SetupStep],
-        initial_config: dict = None
+        initial_config: dict | None = None,
     ) -> str:
         """
         Start a new setup wizard session
-        
+
         Args:
             integration_type: Type of integration (mqtt, zigbee2mqtt, etc.)
             steps: List of setup steps
             initial_config: Initial configuration data
-            
+
         Returns:
             Session ID for tracking progress
         """
@@ -84,7 +84,7 @@ class SetupWizardFramework:
             "status": SetupWizardStatus.IN_PROGRESS,
             "started_at": datetime.now(),
             "completed_steps": [],
-            "errors": []
+            "errors": [],
         }
 
         return session_id
@@ -93,26 +93,28 @@ class SetupWizardFramework:
         self,
         session_id: str,
         step_number: int,
-        step_data: dict = None
+        step_data: dict | None = None,
     ) -> dict:
         """
         Execute a single setup step
-        
+
         Args:
             session_id: Wizard session ID
             step_number: Step number to execute
             step_data: Data for this step
-            
+
         Returns:
             Step execution result
         """
         session = self.active_sessions.get(session_id)
         if not session:
-            raise ValueError(f"Session {session_id} not found")
+            msg = f"Session {session_id} not found"
+            raise ValueError(msg)
 
         steps = session["steps"]
         if step_number >= len(steps):
-            raise ValueError(f"Step {step_number} out of range")
+            msg = f"Step {step_number} out of range"
+            raise ValueError(msg)
 
         step = steps[step_number]
 
@@ -132,31 +134,31 @@ class SetupWizardFramework:
                 "success": True,
                 "step": step.dict(),
                 "result": result,
-                "next_step": step_number + 1 if step_number + 1 < len(steps) else None
+                "next_step": step_number + 1 if step_number + 1 < len(steps) else None,
             }
 
         except Exception as e:
             session["errors"].append({
                 "step": step_number,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             })
 
             return {
                 "success": False,
                 "step": step.dict(),
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _execute_step_logic(
         self,
         session: dict,
         step: SetupStep,
-        step_data: dict
+        step_data: dict,
     ) -> dict:
         """
         Execute step-specific logic
-        
+
         To be overridden by specific wizard implementations
         """
         return {"message": "Step executed successfully"}
@@ -164,13 +166,14 @@ class SetupWizardFramework:
     async def rollback_wizard(self, session_id: str):
         """
         Rollback wizard changes
-        
+
         Args:
             session_id: Wizard session ID
         """
         session = self.active_sessions.get(session_id)
         if not session:
-            raise ValueError(f"Session {session_id} not found")
+            msg = f"Session {session_id} not found"
+            raise ValueError(msg)
 
         # Rollback completed steps in reverse order
         completed_steps = session["completed_steps"]
@@ -187,10 +190,9 @@ class SetupWizardFramework:
     async def _rollback_step(self, session: dict, step_number: int):
         """
         Rollback a specific step
-        
+
         To be overridden by specific wizard implementations
         """
-        pass
 
     def get_session_status(self, session_id: str) -> dict | None:
         """Get current session status"""
@@ -200,7 +202,7 @@ class SetupWizardFramework:
 class Zigbee2MQTTSetupWizard(SetupWizardFramework):
     """
     Zigbee2MQTT Setup Wizard
-    
+
     Steps:
     1. Check prerequisites (MQTT broker, addon installed)
     2. Configure Zigbee coordinator
@@ -217,36 +219,36 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
                 step_name="Check Prerequisites",
                 description="Verify MQTT broker and Zigbee2MQTT addon are installed",
                 validation_required=True,
-                rollback_possible=False
+                rollback_possible=False,
             ),
             SetupStep(
                 step_number=2,
                 step_name="Configure Coordinator",
                 description="Configure Zigbee coordinator connection",
                 validation_required=True,
-                rollback_possible=True
+                rollback_possible=True,
             ),
             SetupStep(
                 step_number=3,
                 step_name="Test Connection",
                 description="Test coordinator connectivity",
                 validation_required=True,
-                rollback_possible=False
+                rollback_possible=False,
             ),
             SetupStep(
                 step_number=4,
                 step_name="Enable Discovery",
                 description="Enable MQTT discovery for automatic device detection",
                 validation_required=True,
-                rollback_possible=True
+                rollback_possible=True,
             ),
             SetupStep(
                 step_number=5,
                 step_name="Validate Setup",
                 description="Final validation of Zigbee2MQTT integration",
                 validation_required=True,
-                rollback_possible=False
-            )
+                rollback_possible=False,
+            ),
         ]
 
         return await self.start_wizard("zigbee2mqtt", steps)
@@ -255,19 +257,19 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
         self,
         session: dict,
         step: SetupStep,
-        step_data: dict
+        step_data: dict,
     ) -> dict:
         """Execute Zigbee2MQTT-specific step logic"""
 
         if step.step_number == 1:
             return await self._check_prerequisites()
-        elif step.step_number == 2:
+        if step.step_number == 2:
             return await self._configure_coordinator(step_data)
-        elif step.step_number == 3:
+        if step.step_number == 3:
             return await self._test_connection()
-        elif step.step_number == 4:
+        if step.step_number == 4:
             return await self._enable_discovery()
-        elif step.step_number == 5:
+        if step.step_number == 5:
             return await self._validate_setup()
 
         return {"message": "Step not implemented"}
@@ -278,35 +280,35 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
 
                 # Check MQTT integration
                 async with session.get(
                     f"{self.ha_url}/api/config/config_entries/entry",
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     if response.status == 200:
                         entries = await response.json()
-                        mqtt_entry = next((e for e in entries if e.get('domain') == 'mqtt'), None)
+                        mqtt_entry = next((e for e in entries if e.get("domain") == "mqtt"), None)
 
                         if not mqtt_entry:
                             return {
                                 "success": False,
                                 "message": "MQTT integration not found",
-                                "recommendation": "Install MQTT integration first"
+                                "recommendation": "Install MQTT integration first",
                             }
 
                         return {
                             "success": True,
                             "message": "Prerequisites verified",
-                            "mqtt_configured": True
+                            "mqtt_configured": True,
                         }
         except Exception as e:
             return {
                 "success": False,
-                "message": f"Error checking prerequisites: {e}"
+                "message": f"Error checking prerequisites: {e}",
             }
 
     async def _configure_coordinator(self, config_data: dict) -> dict:
@@ -315,7 +317,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
         return {
             "success": True,
             "message": "Coordinator configuration ready",
-            "config": config_data
+            "config": config_data,
         }
 
     async def _test_connection(self) -> dict:
@@ -323,7 +325,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
         # Placeholder for connection testing
         return {
             "success": True,
-            "message": "Connection test passed"
+            "message": "Connection test passed",
         }
 
     async def _enable_discovery(self) -> dict:
@@ -332,29 +334,28 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
 
                 # Trigger MQTT discovery
                 async with session.post(
                     f"{self.ha_url}/api/services/mqtt/discover",
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     if response.status == 200:
                         return {
                             "success": True,
-                            "message": "MQTT discovery enabled"
+                            "message": "MQTT discovery enabled",
                         }
-                    else:
-                        return {
-                            "success": False,
-                            "message": f"Failed to enable discovery: HTTP {response.status}"
-                        }
+                    return {
+                        "success": False,
+                        "message": f"Failed to enable discovery: HTTP {response.status}",
+                    }
         except Exception as e:
             return {
                 "success": False,
-                "message": f"Error enabling discovery: {e}"
+                "message": f"Error enabling discovery: {e}",
             }
 
     async def _validate_setup(self) -> dict:
@@ -362,14 +363,14 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
         # Placeholder for validation logic
         return {
             "success": True,
-            "message": "Setup validation complete"
+            "message": "Setup validation complete",
         }
 
 
 class MQTTSetupWizard(SetupWizardFramework):
     """
     MQTT Integration Setup Wizard
-    
+
     Steps:
     1. Detect MQTT broker
     2. Configure connection
@@ -386,36 +387,36 @@ class MQTTSetupWizard(SetupWizardFramework):
                 step_name="Detect MQTT Broker",
                 description="Detect and verify MQTT broker installation",
                 validation_required=True,
-                rollback_possible=False
+                rollback_possible=False,
             ),
             SetupStep(
                 step_number=2,
                 step_name="Configure Connection",
                 description="Configure MQTT broker connection settings",
                 validation_required=True,
-                rollback_possible=True
+                rollback_possible=True,
             ),
             SetupStep(
                 step_number=3,
                 step_name="Test Connectivity",
                 description="Test MQTT broker connectivity",
                 validation_required=True,
-                rollback_possible=False
+                rollback_possible=False,
             ),
             SetupStep(
                 step_number=4,
                 step_name="Enable Discovery",
                 description="Enable MQTT discovery for automatic device detection",
                 validation_required=True,
-                rollback_possible=True
+                rollback_possible=True,
             ),
             SetupStep(
                 step_number=5,
                 step_name="Validate Integration",
                 description="Final validation of MQTT integration",
                 validation_required=True,
-                rollback_possible=False
-            )
+                rollback_possible=False,
+            ),
         ]
 
         return await self.start_wizard("mqtt", steps)

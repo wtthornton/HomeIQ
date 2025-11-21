@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -26,7 +26,7 @@ def calculate_service_uptime() -> float:
     """
     Calculate service uptime percentage since last restart.
     Story 24.1: Replace hardcoded uptime with real calculation.
-    
+
     Returns:
         Uptime percentage (0-100). Returns 100% if service hasn't been restarted.
     """
@@ -35,13 +35,13 @@ def calculate_service_uptime() -> float:
         from .main import SERVICE_START_TIME
 
         # Calculate uptime (100% since last restart)
-        uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
+        (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
 
         # Return 100% (service is up since it started)
         # In a more sophisticated system, this would track historical downtime
         return 100.0
     except Exception as e:
-        logger.error(f"Error calculating uptime: {e}")
+        logger.exception(f"Error calculating uptime: {e}")
         # Return None to indicate calculation failure
         return None
 
@@ -92,22 +92,22 @@ influxdb_client = InfluxDBQueryClient()
 def calculate_trend(data: list[float], window: int = 5) -> str:
     """
     Calculate trend from time series data
-    
+
     Args:
         data: List of values
         window: Number of recent points to consider
-    
+
     Returns:
         'up', 'down', or 'stable'
     """
     if len(data) < window:
-        return 'stable'
+        return "stable"
 
     recent = data[-window:]
     older = data[-window*2:-window] if len(data) >= window*2 else data[:-window]
 
     if not older:
-        return 'stable'
+        return "stable"
 
     recent_avg = sum(recent) / len(recent)
     older_avg = sum(older) / len(older)
@@ -116,65 +116,64 @@ def calculate_trend(data: list[float], window: int = 5) -> str:
     threshold = abs(older_avg) * 0.1 if older_avg != 0 else 0.1
 
     if recent_avg > older_avg + threshold:
-        return 'up'
-    elif recent_avg < older_avg - threshold:
-        return 'down'
-    else:
-        return 'stable'
+        return "up"
+    if recent_avg < older_avg - threshold:
+        return "down"
+    return "stable"
 
 
 def get_time_range_params(time_range: str) -> tuple:
     """
     Get start time and interval for a given time range
-    
+
     Args:
         time_range: '1h', '6h', '24h', or '7d'
-    
+
     Returns:
         (start_time_str, interval_str, num_points)
     """
     now = datetime.utcnow()
 
-    if time_range == '1h':
+    if time_range == "1h":
         start = now - timedelta(hours=1)
-        interval = '1m'
+        interval = "1m"
         num_points = 60
-    elif time_range == '6h':
+    elif time_range == "6h":
         start = now - timedelta(hours=6)
-        interval = '5m'
+        interval = "5m"
         num_points = 72
-    elif time_range == '24h':
+    elif time_range == "24h":
         start = now - timedelta(hours=24)
-        interval = '15m'
+        interval = "15m"
         num_points = 96
-    elif time_range == '7d':
+    elif time_range == "7d":
         start = now - timedelta(days=7)
-        interval = '2h'
+        interval = "2h"
         num_points = 84
     else:
         # Default to 1h
         start = now - timedelta(hours=1)
-        interval = '1m'
+        interval = "1m"
         num_points = 60
 
-    return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), interval, num_points)
+    return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), interval, num_points)
 
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
-    range: Literal['1h', '6h', '24h', '7d'] = Query(
-        '1h',
-        description="Time range: 1h, 6h, 24h, 7d"
+    range: Literal["1h", "6h", "24h", "7d"] = Query(
+        "1h",
+        description="Time range: 1h, 6h, 24h, 7d",
     ),
-    metrics: str | None = Query(None, description="Comma-separated list of metrics to include")
+    metrics: str | None = Query(None, description="Comma-separated list of metrics to include"),
 ):
     """
     Get analytics data for the specified time range
-    
+
     Args:
         range: Time range ('1h', '6h', '24h', '7d')
         metrics: Optional filter for specific metrics
-    
+
     Returns:
         Analytics data with time series and summary statistics
     """
@@ -199,74 +198,73 @@ async def get_analytics(
         error_rate_data = await query_error_rate(start_time, interval, num_points)
 
         # Calculate summary statistics
-        total_events = sum(point['value'] for point in events_data)
-        success_rate = 100.0 - (error_rate_data[-1]['value'] if error_rate_data else 0.0)
-        avg_latency = sum(point['value'] for point in db_latency_data) / len(db_latency_data) if db_latency_data else 0.0
+        total_events = sum(point["value"] for point in events_data)
+        success_rate = 100.0 - (error_rate_data[-1]["value"] if error_rate_data else 0.0)
+        avg_latency = sum(point["value"] for point in db_latency_data) / len(db_latency_data) if db_latency_data else 0.0
 
         # Build response
-        response = AnalyticsResponse(
+        return AnalyticsResponse(
             eventsPerMinute=MetricData(
-                current=events_data[-1]['value'] if events_data else 0.0,
-                peak=max((point['value'] for point in events_data), default=0.0),
-                average=sum(point['value'] for point in events_data) / len(events_data) if events_data else 0.0,
-                min=min((point['value'] for point in events_data), default=0.0),
-                trend=calculate_trend([point['value'] for point in events_data]),
-                data=[TimeSeriesPoint(**point) for point in events_data]
+                current=events_data[-1]["value"] if events_data else 0.0,
+                peak=max((point["value"] for point in events_data), default=0.0),
+                average=sum(point["value"] for point in events_data) / len(events_data) if events_data else 0.0,
+                min=min((point["value"] for point in events_data), default=0.0),
+                trend=calculate_trend([point["value"] for point in events_data]),
+                data=[TimeSeriesPoint(**point) for point in events_data],
             ),
             apiResponseTime=MetricData(
-                current=api_response_data[-1]['value'] if api_response_data else 0.0,
-                peak=max((point['value'] for point in api_response_data), default=0.0),
-                average=sum(point['value'] for point in api_response_data) / len(api_response_data) if api_response_data else 0.0,
-                min=min((point['value'] for point in api_response_data), default=0.0),
-                trend=calculate_trend([point['value'] for point in api_response_data]),
-                data=[TimeSeriesPoint(**point) for point in api_response_data]
+                current=api_response_data[-1]["value"] if api_response_data else 0.0,
+                peak=max((point["value"] for point in api_response_data), default=0.0),
+                average=sum(point["value"] for point in api_response_data) / len(api_response_data) if api_response_data else 0.0,
+                min=min((point["value"] for point in api_response_data), default=0.0),
+                trend=calculate_trend([point["value"] for point in api_response_data]),
+                data=[TimeSeriesPoint(**point) for point in api_response_data],
             ),
             databaseLatency=MetricData(
-                current=db_latency_data[-1]['value'] if db_latency_data else 0.0,
-                peak=max((point['value'] for point in db_latency_data), default=0.0),
+                current=db_latency_data[-1]["value"] if db_latency_data else 0.0,
+                peak=max((point["value"] for point in db_latency_data), default=0.0),
                 average=avg_latency,
-                min=min((point['value'] for point in db_latency_data), default=0.0),
-                trend=calculate_trend([point['value'] for point in db_latency_data]),
-                data=[TimeSeriesPoint(**point) for point in db_latency_data]
+                min=min((point["value"] for point in db_latency_data), default=0.0),
+                trend=calculate_trend([point["value"] for point in db_latency_data]),
+                data=[TimeSeriesPoint(**point) for point in db_latency_data],
             ),
             errorRate=MetricData(
-                current=error_rate_data[-1]['value'] if error_rate_data else 0.0,
-                peak=max((point['value'] for point in error_rate_data), default=0.0),
-                average=sum(point['value'] for point in error_rate_data) / len(error_rate_data) if error_rate_data else 0.0,
-                min=min((point['value'] for point in error_rate_data), default=0.0),
-                trend=calculate_trend([point['value'] for point in error_rate_data]),
-                data=[TimeSeriesPoint(**point) for point in error_rate_data]
+                current=error_rate_data[-1]["value"] if error_rate_data else 0.0,
+                peak=max((point["value"] for point in error_rate_data), default=0.0),
+                average=sum(point["value"] for point in error_rate_data) / len(error_rate_data) if error_rate_data else 0.0,
+                min=min((point["value"] for point in error_rate_data), default=0.0),
+                trend=calculate_trend([point["value"] for point in error_rate_data]),
+                data=[TimeSeriesPoint(**point) for point in error_rate_data],
             ),
             summary=AnalyticsSummary(
                 totalEvents=int(total_events),
                 successRate=round(success_rate, 2),
                 avgLatency=round(avg_latency, 2),
-                uptime=calculate_service_uptime() or 100.0  # Story 24.1: Real uptime calculation
+                uptime=calculate_service_uptime() or 100.0,  # Story 24.1: Real uptime calculation
             ),
             timeRange=range,
-            lastUpdate=datetime.utcnow().isoformat() + 'Z'
+            lastUpdate=datetime.utcnow().isoformat() + "Z",
         )
 
-        return response
 
     except Exception as e:
         logger.error(f"Error getting analytics: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get analytics: {str(e)}"
+            detail=f"Failed to get analytics: {e!s}",
         )
 
 
 async def query_events_per_minute(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Query events per minute from InfluxDB"""
     try:
-        query = f'''
+        query = f"""
         from(bucket: "home_assistant_events")
           |> range(start: {start_time})
           |> filter(fn: (r) => r._measurement == "home_assistant_events")
           |> aggregateWindow(every: {interval}, fn: count)
           |> keep(columns: ["_time", "_value"])
-        '''
+        """
 
         result = await influxdb_client.query(query)
 
@@ -275,8 +273,8 @@ async def query_events_per_minute(start_time: str, interval: str, num_points: in
         for table in result:
             for record in table.records:
                 data.append({
-                    'timestamp': record.get_time().isoformat() + 'Z',
-                    'value': float(record.get_value() or 0)
+                    "timestamp": record.get_time().isoformat() + "Z",
+                    "value": float(record.get_value() or 0),
                 })
 
         # Fill missing data points
@@ -285,7 +283,7 @@ async def query_events_per_minute(start_time: str, interval: str, num_points: in
 
         return data[:num_points]
     except Exception as e:
-        logger.error(f"Error querying events per minute: {e}")
+        logger.exception(f"Error querying events per minute: {e}")
         # Return empty data with proper structure
         return generate_empty_series(start_time, interval, num_points)
 
@@ -324,24 +322,24 @@ def generate_empty_series(start_time: str, interval: str, num_points: int) -> li
     from datetime import datetime, timedelta
 
     # Parse interval (e.g., '1m', '5m', '15m', '2h')
-    match = re.match(r'(\d+)([mhd])', interval)
+    match = re.match(r"(\d+)([mhd])", interval)
     if not match:
         interval_delta = timedelta(minutes=1)
     else:
         value, unit = int(match.group(1)), match.group(2)
-        if unit == 'm':
+        if unit == "m":
             interval_delta = timedelta(minutes=value)
-        elif unit == 'h':
+        elif unit == "h":
             interval_delta = timedelta(hours=value)
         else:  # 'd'
             interval_delta = timedelta(days=value)
 
-    start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+    start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
 
     return [
         {
-            'timestamp': (start + interval_delta * i).isoformat() + 'Z',
-            'value': 0.0
+            "timestamp": (start + interval_delta * i).isoformat() + "Z",
+            "value": 0.0,
         }
         for i in range(num_points)
     ]
@@ -354,24 +352,24 @@ def generate_mock_series(start_time: str, interval: str, num_points: int, base: 
     from datetime import datetime, timedelta
 
     # Parse interval
-    match = re.match(r'(\d+)([mhd])', interval)
+    match = re.match(r"(\d+)([mhd])", interval)
     if not match:
         interval_delta = timedelta(minutes=1)
     else:
         value, unit = int(match.group(1)), match.group(2)
-        if unit == 'm':
+        if unit == "m":
             interval_delta = timedelta(minutes=value)
-        elif unit == 'h':
+        elif unit == "h":
             interval_delta = timedelta(hours=value)
         else:  # 'd'
             interval_delta = timedelta(days=value)
 
-    start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+    start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
 
     return [
         {
-            'timestamp': (start + interval_delta * i).isoformat() + 'Z',
-            'value': max(0, base + random.uniform(-variance, variance))
+            "timestamp": (start + interval_delta * i).isoformat() + "Z",
+            "value": max(0, base + random.uniform(-variance, variance)),
         }
         for i in range(num_points)
     ]

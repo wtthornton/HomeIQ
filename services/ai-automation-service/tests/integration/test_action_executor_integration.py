@@ -36,7 +36,7 @@ async def action_executor(mock_ha_client):
         ha_client=mock_ha_client,
         num_workers=2,
         max_retries=3,
-        retry_delay=0.1  # Short delay for tests
+        retry_delay=0.1,  # Short delay for tests
     )
     await executor.start()
     yield executor
@@ -107,7 +107,7 @@ async def test_retry_on_failure(action_executor, mock_ha_client):
     response_success.json = AsyncMock(return_value=[{"entity_id": "light.office", "state": "on"}])
 
     mock_ha_client._get_session.return_value.post = AsyncMock(
-        side_effect=[response_fail, response_fail, response_success]
+        side_effect=[response_fail, response_fail, response_success],
     )
 
     yaml_str = """
@@ -203,7 +203,7 @@ actions:
 
     context = {
         "query_id": "test-query-123",
-        "suggestion_id": "test-suggestion-456"
+        "suggestion_id": "test-suggestion-456",
     }
     result = await action_executor.execute_actions(actions, context)
 

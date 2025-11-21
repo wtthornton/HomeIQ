@@ -32,9 +32,10 @@ class AnthropicProvider(BaseProvider):
         prompt: str,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
-        raise NotImplementedError("Anthropic provider not yet implemented")
+        msg = "Anthropic provider not yet implemented"
+        raise NotImplementedError(msg)
 
 
 class GoogleProvider(BaseProvider):
@@ -58,9 +59,10 @@ class GoogleProvider(BaseProvider):
         prompt: str,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
-        raise NotImplementedError("Google provider not yet implemented")
+        msg = "Google provider not yet implemented"
+        raise NotImplementedError(msg)
 
 
 class GroqProvider(BaseProvider):
@@ -84,9 +86,10 @@ class GroqProvider(BaseProvider):
         prompt: str,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
-        raise NotImplementedError("Groq provider not yet implemented")
+        msg = "Groq provider not yet implemented"
+        raise NotImplementedError(msg)
 
 
 class OllamaProvider(BaseProvider):
@@ -110,7 +113,8 @@ class OllamaProvider(BaseProvider):
         prompt: str,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
-        raise NotImplementedError("Ollama provider not yet implemented (requires LOCAL_LLM_ENABLED=true)")
+        msg = "Ollama provider not yet implemented (requires LOCAL_LLM_ENABLED=true)"
+        raise NotImplementedError(msg)
 

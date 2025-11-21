@@ -14,12 +14,12 @@ async def _fetch_from_home_assistant(path: str) -> Any:
     if not HA_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="HA_URL is not configured for admin-api"
+            detail="HA_URL is not configured for admin-api",
         )
     if not HA_TOKEN:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="HA token is not configured for admin-api"
+            detail="HA token is not configured for admin-api",
         )
 
     url = f"{HA_URL.rstrip('/')}{path}"
@@ -36,12 +36,12 @@ async def _fetch_from_home_assistant(path: str) -> Any:
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=exc.response.status_code,
-            detail=exc.response.text
+            detail=exc.response.text,
         ) from exc
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to reach Home Assistant: {exc}"
+            detail=f"Failed to reach Home Assistant: {exc}",
         ) from exc
 
 
@@ -83,6 +83,6 @@ async def get_state(entity_id: str) -> Any:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Entity {normalized} not found"
+                detail=f"Entity {normalized} not found",
             ) from exc
         raise

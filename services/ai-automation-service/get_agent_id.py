@@ -26,7 +26,7 @@ try:
     url = f"{ha_url.rstrip('/')}/api/conversation/agents"
     headers = {
         "Authorization": f"Bearer {ha_token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     response = requests.get(url, headers=headers, timeout=10)
 

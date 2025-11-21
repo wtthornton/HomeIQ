@@ -49,7 +49,7 @@ class OptimizationRecommendation(BaseModel):
 class PerformanceAnalysisEngine:
     """
     Performance analysis engine for Home Assistant environments
-    
+
     Features:
     - Response time analysis
     - Resource usage monitoring
@@ -64,7 +64,7 @@ class PerformanceAnalysisEngine:
     async def analyze_performance(self) -> dict:
         """
         Comprehensive performance analysis
-        
+
         Returns:
             Analysis results with bottlenecks and recommendations
         """
@@ -73,14 +73,14 @@ class PerformanceAnalysisEngine:
             self._analyze_response_times(),
             self._analyze_resource_usage(),
             self._analyze_configuration(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Identify bottlenecks
         bottlenecks = self._identify_bottlenecks(
             response_time_analysis,
             resource_analysis,
-            config_analysis
+            config_analysis,
         )
 
         return {
@@ -88,7 +88,7 @@ class PerformanceAnalysisEngine:
             "response_time": response_time_analysis if not isinstance(response_time_analysis, Exception) else {},
             "resource_usage": resource_analysis if not isinstance(resource_analysis, Exception) else {},
             "configuration": config_analysis if not isinstance(config_analysis, Exception) else {},
-            "bottlenecks": bottlenecks
+            "bottlenecks": bottlenecks,
         }
 
     async def _analyze_response_times(self) -> dict:
@@ -97,7 +97,7 @@ class PerformanceAnalysisEngine:
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
 
                 # Test multiple endpoints and measure response time
@@ -105,7 +105,7 @@ class PerformanceAnalysisEngine:
                 async with session.get(
                     f"{self.ha_url}/api/states",
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     elapsed = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -115,7 +115,7 @@ class PerformanceAnalysisEngine:
                             "average_response_time_ms": round(elapsed, 2),
                             "endpoint": "/api/states",
                             "entity_count": len(states),
-                            "status": "healthy" if elapsed < 500 else "slow"
+                            "status": "healthy" if elapsed < 500 else "slow",
                         }
         except Exception as e:
             return {"error": str(e), "status": "error"}
@@ -126,7 +126,7 @@ class PerformanceAnalysisEngine:
         return {
             "cpu_usage_percent": 12.5,
             "memory_usage_mb": 256.0,
-            "status": "healthy"
+            "status": "healthy",
         }
 
     async def _analyze_configuration(self) -> dict:
@@ -135,21 +135,21 @@ class PerformanceAnalysisEngine:
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
 
                 # Get HA configuration
                 async with session.get(
                     f"{self.ha_url}/api/config",
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     if response.status == 200:
                         config = await response.json()
                         return {
                             "recorder_configured": "recorder" in config.get("components", []),
                             "total_components": len(config.get("components", [])),
-                            "status": "healthy"
+                            "status": "healthy",
                         }
         except Exception as e:
             return {"error": str(e), "status": "error"}
@@ -158,7 +158,7 @@ class PerformanceAnalysisEngine:
         self,
         response_time: dict,
         resource_usage: dict,
-        configuration: dict
+        configuration: dict,
     ) -> list[dict]:
         """Identify performance bottlenecks"""
         bottlenecks = []
@@ -171,14 +171,14 @@ class PerformanceAnalysisEngine:
                     "type": "slow_response",
                     "severity": "high",
                     "description": f"High response time: {rt}ms",
-                    "recommendation": "Optimize database queries or reduce entity count"
+                    "recommendation": "Optimize database queries or reduce entity count",
                 })
             elif rt > 500:
                 bottlenecks.append({
                     "type": "moderate_response",
                     "severity": "medium",
                     "description": f"Moderate response time: {rt}ms",
-                    "recommendation": "Consider enabling recorder purge or optimizing automations"
+                    "recommendation": "Consider enabling recorder purge or optimizing automations",
                 })
 
         # Check resource usage
@@ -189,7 +189,7 @@ class PerformanceAnalysisEngine:
                     "type": "high_cpu",
                     "severity": "high",
                     "description": f"High CPU usage: {cpu}%",
-                    "recommendation": "Review and optimize resource-intensive automations"
+                    "recommendation": "Review and optimize resource-intensive automations",
                 })
 
         return bottlenecks
@@ -198,7 +198,7 @@ class PerformanceAnalysisEngine:
 class RecommendationEngine:
     """
     Generate optimization recommendations
-    
+
     Features:
     - Prioritization by impact and effort
     - Automated fixes for common issues
@@ -210,11 +210,11 @@ class RecommendationEngine:
 
     async def generate_recommendations(
         self,
-        performance_analysis: dict
+        performance_analysis: dict,
     ) -> list[OptimizationRecommendation]:
         """
         Generate optimization recommendations based on performance analysis
-        
+
         Returns:
             Prioritized list of recommendations
         """
@@ -238,8 +238,8 @@ class RecommendationEngine:
                         "Enable recorder purge in configuration.yaml",
                         "Set purge_keep_days to 7 or less",
                         "Add entity filters to reduce database size",
-                        "Restart Home Assistant to apply changes"
-                    ]
+                        "Restart Home Assistant to apply changes",
+                    ],
                 ))
 
             elif bottleneck["type"] == "high_cpu":
@@ -256,8 +256,8 @@ class RecommendationEngine:
                         "Review automations for inefficient triggers",
                         "Reduce polling frequency for slow devices",
                         "Consolidate similar automations",
-                        "Use templates instead of multiple condition checks"
-                    ]
+                        "Use templates instead of multiple condition checks",
+                    ],
                 ))
 
         # Add general recommendations
@@ -268,7 +268,7 @@ class RecommendationEngine:
 
     async def _generate_general_recommendations(
         self,
-        performance_analysis: dict
+        performance_analysis: dict,
     ) -> list[OptimizationRecommendation]:
         """Generate general optimization recommendations"""
         recommendations = []
@@ -289,25 +289,25 @@ class RecommendationEngine:
                     "Add recorder configuration to configuration.yaml",
                     "Set purge_keep_days: 7",
                     "Set commit_interval: 1",
-                    "Restart Home Assistant"
+                    "Restart Home Assistant",
                 ],
                 configuration_changes={
                     "recorder": {
                         "purge_keep_days": 7,
-                        "commit_interval": 1
-                    }
-                }
+                        "commit_interval": 1,
+                    },
+                },
             ))
 
         return recommendations
 
     def _prioritize_recommendations(
         self,
-        recommendations: list[OptimizationRecommendation]
+        recommendations: list[OptimizationRecommendation],
     ) -> list[OptimizationRecommendation]:
         """
         Prioritize recommendations by impact and effort
-        
+
         Priority order:
         1. High impact, Low effort
         2. High impact, Medium effort
@@ -333,6 +333,6 @@ class RecommendationEngine:
 
         return sorted(
             recommendations,
-            key=lambda r: priority_map.get((r.impact, r.effort), 10)
+            key=lambda r: priority_map.get((r.impact, r.effort), 10),
         )
 

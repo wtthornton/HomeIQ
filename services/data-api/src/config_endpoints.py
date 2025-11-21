@@ -46,7 +46,7 @@ class ConfigEndpoints:
         """Initialize config endpoints"""
         self.router = APIRouter()
         self.service_urls = {
-            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://localhost:8001")
+            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://localhost:8001"),
         }
 
         self._add_routes()
@@ -57,7 +57,7 @@ class ConfigEndpoints:
         @self.router.get("/config", response_model=dict[str, Any])
         async def get_configuration(
             service: str | None = Query(None, description="Specific service to get config for"),
-            include_sensitive: bool = Query(False, description="Include sensitive configuration values")
+            include_sensitive: bool = Query(False, description="Include sensitive configuration values"),
         ):
             """Get configuration for services"""
             try:
@@ -65,46 +65,44 @@ class ConfigEndpoints:
                     # Get config for specific service
                     config = await self._get_service_config(service, include_sensitive)
                     return {service: config}
-                else:
-                    # Get config for all services
-                    all_config = {}
-                    for service_name in self.service_urls.keys():
-                        config = await self._get_service_config(service_name, include_sensitive)
-                        all_config[service_name] = config
-                    return all_config
+                # Get config for all services
+                all_config = {}
+                for service_name in self.service_urls:
+                    config = await self._get_service_config(service_name, include_sensitive)
+                    all_config[service_name] = config
+                return all_config
 
             except Exception as e:
-                logger.error(f"Error getting configuration: {e}")
+                logger.exception(f"Error getting configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration"
+                    detail="Failed to get configuration",
                 ) from e
 
         @self.router.get("/config/schema", response_model=dict[str, list[ConfigItem]])
         async def get_config_schema():
             """Get configuration schema for all services"""
             try:
-                schema = await self._get_config_schema()
-                return schema
+                return await self._get_config_schema()
 
             except Exception as e:
-                logger.error(f"Error getting configuration schema: {e}")
+                logger.exception(f"Error getting configuration schema: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration schema"
+                    detail="Failed to get configuration schema",
                 ) from e
 
         @self.router.put("/config/{service}", response_model=dict[str, Any])
         async def update_configuration(
             service: str,
-            updates: list[ConfigUpdate] = Body(..., description="Configuration updates")
+            updates: list[ConfigUpdate] = Body(..., description="Configuration updates"),
         ):
             """Update configuration for a specific service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        detail=f"Service {service} not found",
                     )
 
                 # Validate updates
@@ -112,7 +110,7 @@ class ConfigEndpoints:
                 if not validation.is_valid:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Configuration validation failed: {', '.join(validation.errors)}"
+                        detail=f"Configuration validation failed: {', '.join(validation.errors)}",
                     )
 
                 # Apply updates
@@ -122,41 +120,40 @@ class ConfigEndpoints:
                     "service": service,
                     "updated": len(updates),
                     "timestamp": datetime.now().isoformat(),
-                    "result": result
+                    "result": result,
                 }
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error updating configuration: {e}")
+                logger.exception(f"Error updating configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to update configuration"
+                    detail="Failed to update configuration",
                 )
 
         @self.router.post("/config/{service}/validate", response_model=ConfigValidation)
         async def validate_configuration(
             service: str,
-            config: dict[str, Any] = Body(..., description="Configuration to validate")
+            config: dict[str, Any] = Body(..., description="Configuration to validate"),
         ):
             """Validate configuration for a service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        detail=f"Service {service} not found",
                     )
 
-                validation = await self._validate_service_config(service, config)
-                return validation
+                return await self._validate_service_config(service, config)
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error validating configuration: {e}")
+                logger.exception(f"Error validating configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to validate configuration"
+                    detail="Failed to validate configuration",
                 )
 
         @self.router.get("/config/{service}/backup", response_model=dict[str, Any])
@@ -166,69 +163,66 @@ class ConfigEndpoints:
                 if service not in self.service_urls:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        detail=f"Service {service} not found",
                     )
 
-                backup = await self._backup_service_config(service)
-                return backup
+                return await self._backup_service_config(service)
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error backing up configuration: {e}")
+                logger.exception(f"Error backing up configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to backup configuration"
+                    detail="Failed to backup configuration",
                 )
 
         @self.router.post("/config/{service}/restore", response_model=dict[str, Any])
         async def restore_configuration(
             service: str,
-            backup_data: dict[str, Any] = Body(..., description="Backup data to restore")
+            backup_data: dict[str, Any] = Body(..., description="Backup data to restore"),
         ):
             """Restore configuration from backup"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        detail=f"Service {service} not found",
                     )
 
-                result = await self._restore_service_config(service, backup_data)
-                return result
+                return await self._restore_service_config(service, backup_data)
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error restoring configuration: {e}")
+                logger.exception(f"Error restoring configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to restore configuration"
+                    detail="Failed to restore configuration",
                 )
 
         @self.router.get("/config/{service}/history", response_model=list[dict[str, Any]])
         async def get_config_history(
             service: str,
-            limit: int = Query(10, description="Maximum number of history entries")
+            limit: int = Query(10, description="Maximum number of history entries"),
         ):
             """Get configuration change history for a service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        detail=f"Service {service} not found",
                     )
 
-                history = await self._get_config_history(service, limit)
-                return history
+                return await self._get_config_history(service, limit)
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error getting configuration history: {e}")
+                logger.exception(f"Error getting configuration history: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration history"
+                    detail="Failed to get configuration history",
                 )
 
     async def _get_service_config(self, service: str, include_sensitive: bool) -> dict[str, Any]:
@@ -241,10 +235,10 @@ class ConfigEndpoints:
                 async with session.get(f"{service_url}/config", params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting config for {service}: {e}")
+            logger.exception(f"Error getting config for {service}: {e}")
             return {"error": str(e)}
 
     async def _get_config_schema(self) -> dict[str, list[ConfigItem]]:
@@ -304,7 +298,7 @@ class ConfigEndpoints:
         return ConfigValidation(
             is_valid=len(errors) == 0,
             errors=errors,
-            warnings=warnings
+            warnings=warnings,
         )
 
     async def _apply_config_updates(self, service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
@@ -316,11 +310,12 @@ class ConfigEndpoints:
                 async with session.put(f"{service_url}/config", json=updates) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error applying config updates for {service}: {e}")
-            raise Exception(f"Failed to apply configuration updates: {e}")
+            logger.exception(f"Error applying config updates for {service}: {e}")
+            msg = f"Failed to apply configuration updates: {e}"
+            raise Exception(msg)
 
     async def _validate_service_config(self, service: str, config: dict[str, Any]) -> ConfigValidation:
         """Validate complete service configuration"""
@@ -340,13 +335,14 @@ class ConfigEndpoints:
                         return {
                             "service": service,
                             "timestamp": datetime.now().isoformat(),
-                            "backup": backup_data
+                            "backup": backup_data,
                         }
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error backing up config for {service}: {e}")
-            raise Exception(f"Failed to backup configuration: {e}")
+            logger.exception(f"Error backing up config for {service}: {e}")
+            msg = f"Failed to backup configuration: {e}"
+            raise Exception(msg)
 
     async def _restore_service_config(self, service: str, backup_data: dict[str, Any]) -> dict[str, Any]:
         """Restore service configuration from backup"""
@@ -357,11 +353,12 @@ class ConfigEndpoints:
                 async with session.post(f"{service_url}/config/restore", json=backup_data) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error restoring config for {service}: {e}")
-            raise Exception(f"Failed to restore configuration: {e}")
+            logger.exception(f"Error restoring config for {service}: {e}")
+            msg = f"Failed to restore configuration: {e}"
+            raise Exception(msg)
 
     async def _get_config_history(self, service: str, limit: int) -> list[dict[str, Any]]:
         """Get configuration change history"""
@@ -373,52 +370,51 @@ class ConfigEndpoints:
                 async with session.get(f"{service_url}/config/history", params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting config history for {service}: {e}")
+            logger.exception(f"Error getting config history for {service}: {e}")
             return []
 
     def _validate_type(self, value: Any, expected_type: str) -> bool:
         """Validate value type"""
         if expected_type == "string":
             return isinstance(value, str)
-        elif expected_type == "integer":
+        if expected_type == "integer":
             return isinstance(value, int)
-        elif expected_type == "float":
+        if expected_type == "float":
             return isinstance(value, (int, float))
-        elif expected_type == "boolean":
+        if expected_type == "boolean":
             return isinstance(value, bool)
-        elif expected_type == "array":
+        if expected_type == "array":
             return isinstance(value, list)
-        elif expected_type == "object":
+        if expected_type == "object":
             return isinstance(value, dict)
-        else:
-            return True  # Unknown type, assume valid
+        return True  # Unknown type, assume valid
 
     def _validate_rules(self, value: Any, rules: dict[str, Any]) -> dict[str, list[str]]:
         r"""
         Validate a configuration value against custom validation rules.
-        
+
         Performs multiple validation types including range checks, string length validation,
         and regex pattern matching. Returns categorized errors and warnings.
-        
+
         Complexity: C (15) - Moderate-high complexity due to multiple validation types
-        
+
         Args:
             value (Any): Configuration value to validate (can be string, int, float, dict, etc.)
             rules (Dict[str, Any]): Validation rules dictionary containing optional keys:
                 - 'min': Minimum numeric value
-                - 'max': Maximum numeric value  
+                - 'max': Maximum numeric value
                 - 'min_length': Minimum string length
                 - 'max_length': Maximum string length
                 - 'pattern': Regex pattern for string matching
-                
+
         Returns:
             Dict[str, List[str]]: Validation result containing:
                 - 'errors' (List[str]): Validation failures
                 - 'warnings' (List[str]): Non-critical issues
-                
+
         Example:
             >>> rules = {'min': 0, 'max': 100, 'pattern': r'^\d+$'}
             >>> result = endpoints._validate_rules(50, rules)
@@ -426,7 +422,7 @@ class ConfigEndpoints:
             ...     print(f"Invalid: {result['errors']}")
             >>> else:
             ...     print("Valid")
-        
+
         Note:
             Complexity arises from:
             - Multiple rule types (min/max, length, pattern)

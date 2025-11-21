@@ -15,7 +15,7 @@ class ProcessedEvent:
     """
     Single event with all features pre-extracted
     Foundation for all pattern detectors
-    
+
     This standardized structure ensures:
     - Features extracted once (not per detector)
     - Consistent feature definitions
@@ -54,9 +54,9 @@ class ProcessedEvent:
     hour: int = 0  # 0-23
     minute: int = 0  # 0-59
     day_of_week: int = 0  # 0=Monday, 6=Sunday
-    day_type: str = 'weekday'  # 'weekday' or 'weekend'
-    season: str = 'spring'  # 'spring', 'summer', 'fall', 'winter'
-    time_of_day: str = 'morning'  # 'morning', 'afternoon', 'evening', 'night'
+    day_type: str = "weekday"  # 'weekday' or 'weekend'
+    season: str = "spring"  # 'spring', 'summer', 'fall', 'winter'
+    time_of_day: str = "morning"  # 'morning', 'afternoon', 'evening', 'night'
 
     # ============================================================================
     # CONTEXTUAL FEATURES (from sensors/API)
@@ -85,7 +85,7 @@ class ProcessedEvent:
     # METADATA
     # ============================================================================
     processed_at: datetime = field(default_factory=datetime.utcnow)
-    processing_version: str = '1.0'
+    processing_version: str = "1.0"
 
     def to_text(self) -> str:
         """
@@ -99,23 +99,23 @@ class ProcessedEvent:
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary (for JSON storage)"""
         data = {
-            'event_id': self.event_id,
-            'timestamp': self.timestamp.isoformat(),
-            'device_id': self.device_id,
-            'entity_id': self.entity_id,
-            'device_name': self.device_name,
-            'device_type': self.device_type,
-            'area': self.area,
-            'hour': self.hour,
-            'minute': self.minute,
-            'day_type': self.day_type,
-            'season': self.season,
-            'time_of_day': self.time_of_day,
-            'session_id': self.session_id,
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "device_id": self.device_id,
+            "entity_id": self.entity_id,
+            "device_name": self.device_name,
+            "device_type": self.device_type,
+            "area": self.area,
+            "hour": self.hour,
+            "minute": self.minute,
+            "day_type": self.day_type,
+            "season": self.season,
+            "time_of_day": self.time_of_day,
+            "session_id": self.session_id,
         }
 
         if self.embedding is not None:
-            data['embedding'] = self.embedding.tolist()
+            data["embedding"] = self.embedding.tolist()
 
         return data
 
@@ -190,11 +190,11 @@ class ProcessedEvents:
     def to_summary(self) -> dict[str, Any]:
         """Get preprocessing summary"""
         return {
-            'total_events': self.total_events,
-            'unique_devices': self.unique_devices,
-            'unique_sessions': self.unique_sessions,
-            'date_range_start': self.date_range_start.isoformat() if self.date_range_start else None,
-            'date_range_end': self.date_range_end.isoformat() if self.date_range_end else None,
-            'processing_time_seconds': self.processing_time_seconds
+            "total_events": self.total_events,
+            "unique_devices": self.unique_devices,
+            "unique_sessions": self.unique_sessions,
+            "date_range_start": self.date_range_start.isoformat() if self.date_range_start else None,
+            "date_range_end": self.date_range_end.isoformat() if self.date_range_end else None,
+            "processing_time_seconds": self.processing_time_seconds,
         }
 

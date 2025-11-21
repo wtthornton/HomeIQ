@@ -19,9 +19,9 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': ''}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True):
             with pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"):
-                service = ElectricityPricingService()
+                ElectricityPricingService()
 
     def test_default_provider(self):
         """
@@ -31,9 +31,9 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.provider_name == 'awattar'
+            assert service.provider_name == "awattar"
 
     def test_custom_provider(self):
         """
@@ -44,11 +44,11 @@ class TestServiceConfiguration:
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'PRICING_PROVIDER': 'awattar'
+            "INFLUXDB_TOKEN": "test-token",
+            "PRICING_PROVIDER": "awattar",
         }, clear=True):
             service = ElectricityPricingService()
-            assert service.provider_name == 'awattar'
+            assert service.provider_name == "awattar"
 
     def test_default_influxdb_url(self):
         """
@@ -58,9 +58,9 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_url == 'http://influxdb:8086'
+            assert service.influxdb_url == "http://influxdb:8086"
 
     def test_custom_influxdb_url(self):
         """
@@ -71,11 +71,11 @@ class TestServiceConfiguration:
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'INFLUXDB_URL': 'http://custom:9999'
+            "INFLUXDB_TOKEN": "test-token",
+            "INFLUXDB_URL": "http://custom:9999",
         }, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_url == 'http://custom:9999'
+            assert service.influxdb_url == "http://custom:9999"
 
     def test_default_influxdb_org(self):
         """
@@ -85,9 +85,9 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_org == 'home_assistant'
+            assert service.influxdb_org == "home_assistant"
 
     def test_default_influxdb_bucket(self):
         """
@@ -97,9 +97,9 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_bucket == 'events'
+            assert service.influxdb_bucket == "events"
 
     def test_fetch_interval_default(self):
         """
@@ -109,7 +109,7 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
             assert service.fetch_interval == 3600
 
@@ -121,7 +121,7 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
             assert service.cache_duration == 60
 
@@ -138,11 +138,11 @@ class TestProviderSelection:
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'PRICING_PROVIDER': 'awattar'
+            "INFLUXDB_TOKEN": "test-token",
+            "PRICING_PROVIDER": "awattar",
         }, clear=True):
             service = ElectricityPricingService()
-            assert service.provider.__class__.__name__ == 'AwattarProvider'
+            assert service.provider.__class__.__name__ == "AwattarProvider"
 
     def test_unknown_provider_defaults_to_awattar(self):
         """
@@ -153,11 +153,11 @@ class TestProviderSelection:
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'PRICING_PROVIDER': 'unknown_provider'
+            "INFLUXDB_TOKEN": "test-token",
+            "PRICING_PROVIDER": "unknown_provider",
         }, clear=True):
             service = ElectricityPricingService()
-            assert service.provider.__class__.__name__ == 'AwattarProvider'
+            assert service.provider.__class__.__name__ == "AwattarProvider"
 
     def test_provider_name_case_insensitive(self):
         """
@@ -168,11 +168,11 @@ class TestProviderSelection:
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {
-            'INFLUXDB_TOKEN': 'test-token',
-            'PRICING_PROVIDER': 'AWATTAR'
+            "INFLUXDB_TOKEN": "test-token",
+            "PRICING_PROVIDER": "AWATTAR",
         }, clear=True):
             service = ElectricityPricingService()
-            assert service.provider.__class__.__name__ == 'AwattarProvider'
+            assert service.provider.__class__.__name__ == "AwattarProvider"
 
 
 class TestCompleteConfiguration:
@@ -187,23 +187,23 @@ class TestCompleteConfiguration:
         from src.main import ElectricityPricingService
 
         custom_env = {
-            'INFLUXDB_TOKEN': 'custom-token-12345',
-            'INFLUXDB_URL': 'http://prod-influxdb:8086',
-            'INFLUXDB_ORG': 'production-org',
-            'INFLUXDB_BUCKET': 'production-events',
-            'PRICING_PROVIDER': 'awattar',
-            'PRICING_API_KEY': 'api-key-12345',
+            "INFLUXDB_TOKEN": "custom-token-12345",
+            "INFLUXDB_URL": "http://prod-influxdb:8086",
+            "INFLUXDB_ORG": "production-org",
+            "INFLUXDB_BUCKET": "production-events",
+            "PRICING_PROVIDER": "awattar",
+            "PRICING_API_KEY": "api-key-12345",
         }
 
         with patch.dict(os.environ, custom_env, clear=True):
             service = ElectricityPricingService()
 
-            assert service.influxdb_token == 'custom-token-12345'
-            assert service.influxdb_url == 'http://prod-influxdb:8086'
-            assert service.influxdb_org == 'production-org'
-            assert service.influxdb_bucket == 'production-events'
-            assert service.provider_name == 'awattar'
-            assert service.api_key == 'api-key-12345'
+            assert service.influxdb_token == "custom-token-12345"
+            assert service.influxdb_url == "http://prod-influxdb:8086"
+            assert service.influxdb_org == "production-org"
+            assert service.influxdb_bucket == "production-events"
+            assert service.provider_name == "awattar"
+            assert service.api_key == "api-key-12345"
 
     def test_minimal_configuration(self):
         """
@@ -213,12 +213,12 @@ class TestCompleteConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {'INFLUXDB_TOKEN': 'test-token'}, clear=True):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
 
-            assert service.influxdb_token == 'test-token'
-            assert service.influxdb_url == 'http://influxdb:8086'
-            assert service.influxdb_org == 'home_assistant'
-            assert service.influxdb_bucket == 'events'
-            assert service.provider_name == 'awattar'
-            assert service.api_key == ''
+            assert service.influxdb_token == "test-token"
+            assert service.influxdb_url == "http://influxdb:8086"
+            assert service.influxdb_org == "home_assistant"
+            assert service.influxdb_bucket == "events"
+            assert service.provider_name == "awattar"
+            assert service.api_key == ""

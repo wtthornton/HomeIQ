@@ -36,11 +36,13 @@ def __getattr__(name: str):
 
     target_file = _find_test_file(name)
     if target_file is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg)
 
     spec = importlib.util.spec_from_file_location(module_name, target_file)
     if spec is None or spec.loader is None:
-        raise AttributeError(f"unable to load test module {module_name!r}")
+        msg = f"unable to load test module {module_name!r}"
+        raise AttributeError(msg)
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module

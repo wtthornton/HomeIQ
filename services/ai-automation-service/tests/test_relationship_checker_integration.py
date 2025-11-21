@@ -14,7 +14,7 @@ from src.synergy_detection.synergy_detector import DeviceSynergyDetector
 class TestRelationshipCheckerIntegration:
     """
     Test suite for relationship checker integration into synergy detector
-    
+
     Story AI4.3: Tests filtering of existing automations from synergy suggestions
     """
 
@@ -27,17 +27,17 @@ class TestRelationshipCheckerIntegration:
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(return_value=[
             {
-                'id': 'motion_light_auto',
-                'alias': 'Motion Light Automation',
-                'trigger': {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.motion_living_room'
+                "id": "motion_light_auto",
+                "alias": "Motion Light Automation",
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": "binary_sensor.motion_living_room",
                 },
-                'action': {
-                    'service': 'light.turn_on',
-                    'entity_id': 'light.living_room'
-                }
-            }
+                "action": {
+                    "service": "light.turn_on",
+                    "entity_id": "light.living_room",
+                },
+            },
         ])
 
         # Mock data API client
@@ -47,23 +47,23 @@ class TestRelationshipCheckerIntegration:
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
             ha_client=ha_client,
-            min_confidence=0.5
+            min_confidence=0.5,
         )
 
         # Compatible pairs (one matches existing automation)
         compatible_pairs = [
             {
-                'trigger_entity': 'binary_sensor.motion_living_room',
-                'action_entity': 'light.living_room',
-                'relationship_type': 'motion_to_light',
-                'area': 'living_room'
+                "trigger_entity": "binary_sensor.motion_living_room",
+                "action_entity": "light.living_room",
+                "relationship_type": "motion_to_light",
+                "area": "living_room",
             },
             {
-                'trigger_entity': 'binary_sensor.motion_bedroom',
-                'action_entity': 'light.bedroom',
-                'relationship_type': 'motion_to_light',
-                'area': 'bedroom'
-            }
+                "trigger_entity": "binary_sensor.motion_bedroom",
+                "action_entity": "light.bedroom",
+                "relationship_type": "motion_to_light",
+                "area": "bedroom",
+            },
         ]
 
         # Filter existing automations
@@ -71,8 +71,8 @@ class TestRelationshipCheckerIntegration:
 
         # Should filter out the first pair (already automated)
         assert len(new_pairs) == 1
-        assert new_pairs[0]['trigger_entity'] == 'binary_sensor.motion_bedroom'
-        assert new_pairs[0]['action_entity'] == 'light.bedroom'
+        assert new_pairs[0]["trigger_entity"] == "binary_sensor.motion_bedroom"
+        assert new_pairs[0]["action_entity"] == "light.bedroom"
 
     @pytest.mark.asyncio
     async def test_filter_with_no_existing_automations(self):
@@ -87,15 +87,15 @@ class TestRelationshipCheckerIntegration:
 
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=ha_client
+            ha_client=ha_client,
         )
 
         compatible_pairs = [
             {
-                'trigger_entity': 'binary_sensor.motion_bedroom',
-                'action_entity': 'light.bedroom',
-                'relationship_type': 'motion_to_light'
-            }
+                "trigger_entity": "binary_sensor.motion_bedroom",
+                "action_entity": "light.bedroom",
+                "relationship_type": "motion_to_light",
+            },
         ]
 
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
@@ -113,15 +113,15 @@ class TestRelationshipCheckerIntegration:
         # Detector without HA client
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=None
+            ha_client=None,
         )
 
         compatible_pairs = [
             {
-                'trigger_entity': 'binary_sensor.motion_bedroom',
-                'action_entity': 'light.bedroom',
-                'relationship_type': 'motion_to_light'
-            }
+                "trigger_entity": "binary_sensor.motion_bedroom",
+                "action_entity": "light.bedroom",
+                "relationship_type": "motion_to_light",
+            },
         ]
 
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
@@ -137,38 +137,38 @@ class TestRelationshipCheckerIntegration:
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(return_value=[
             {
-                'id': 'door_lock_auto',
-                'alias': 'Auto Lock Door',
-                'trigger': {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.front_door'
+                "id": "door_lock_auto",
+                "alias": "Auto Lock Door",
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": "binary_sensor.front_door",
                 },
-                'action': {
-                    'service': 'lock.lock',
-                    'entity_id': 'lock.front_door'
-                }
-            }
+                "action": {
+                    "service": "lock.lock",
+                    "entity_id": "lock.front_door",
+                },
+            },
         ])
 
         data_api_client = AsyncMock()
 
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=ha_client
+            ha_client=ha_client,
         )
 
         # Try both directions - both should be filtered
         compatible_pairs = [
             {
-                'trigger_entity': 'binary_sensor.front_door',
-                'action_entity': 'lock.front_door',
-                'relationship_type': 'door_to_lock'
+                "trigger_entity": "binary_sensor.front_door",
+                "action_entity": "lock.front_door",
+                "relationship_type": "door_to_lock",
             },
             {
-                'trigger_entity': 'lock.front_door',
-                'action_entity': 'binary_sensor.front_door',
-                'relationship_type': 'lock_to_door'
-            }
+                "trigger_entity": "lock.front_door",
+                "action_entity": "binary_sensor.front_door",
+                "relationship_type": "lock_to_door",
+            },
         ]
 
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
@@ -189,15 +189,15 @@ class TestRelationshipCheckerIntegration:
 
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=ha_client
+            ha_client=ha_client,
         )
 
         compatible_pairs = [
             {
-                'trigger_entity': 'binary_sensor.motion_bedroom',
-                'action_entity': 'light.bedroom',
-                'relationship_type': 'motion_to_light'
-            }
+                "trigger_entity": "binary_sensor.motion_bedroom",
+                "action_entity": "light.bedroom",
+                "relationship_type": "motion_to_light",
+            },
         ]
 
         # Should not raise, should return all pairs
@@ -216,16 +216,16 @@ class TestRelationshipCheckerIntegration:
         # Create 50 automations
         automations = [
             {
-                'id': f'auto_{i}',
-                'alias': f'Auto {i}',
-                'trigger': {
-                    'platform': 'state',
-                    'entity_id': f'sensor.trigger_{i}'
+                "id": f"auto_{i}",
+                "alias": f"Auto {i}",
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": f"sensor.trigger_{i}",
                 },
-                'action': {
-                    'service': 'light.turn_on',
-                    'entity_id': f'light.action_{i}'
-                }
+                "action": {
+                    "service": "light.turn_on",
+                    "entity_id": f"light.action_{i}",
+                },
             }
             for i in range(50)
         ]
@@ -237,7 +237,7 @@ class TestRelationshipCheckerIntegration:
 
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=ha_client
+            ha_client=ha_client,
         )
 
         # Create 100 device pairs (half will match existing automations)
@@ -246,16 +246,16 @@ class TestRelationshipCheckerIntegration:
             if i < 50:
                 # These match existing automations
                 compatible_pairs.append({
-                    'trigger_entity': f'sensor.trigger_{i}',
-                    'action_entity': f'light.action_{i}',
-                    'relationship_type': 'sensor_to_light'
+                    "trigger_entity": f"sensor.trigger_{i}",
+                    "action_entity": f"light.action_{i}",
+                    "relationship_type": "sensor_to_light",
                 })
             else:
                 # These are new
                 compatible_pairs.append({
-                    'trigger_entity': f'sensor.new_trigger_{i}',
-                    'action_entity': f'light.new_action_{i}',
-                    'relationship_type': 'sensor_to_light'
+                    "trigger_entity": f"sensor.new_trigger_{i}",
+                    "action_entity": f"light.new_action_{i}",
+                    "relationship_type": "sensor_to_light",
                 })
 
         # Measure performance
@@ -271,7 +271,7 @@ class TestRelationshipCheckerIntegration:
 
         # Verify correct filtering
         for pair in new_pairs:
-            assert pair['trigger_entity'].startswith('sensor.new_trigger_')
+            assert pair["trigger_entity"].startswith("sensor.new_trigger_")
 
     @pytest.mark.asyncio
     async def test_filter_with_multiple_triggers_actions(self):
@@ -281,41 +281,41 @@ class TestRelationshipCheckerIntegration:
         ha_client = AsyncMock()
         ha_client.get_automations = AsyncMock(return_value=[
             {
-                'id': 'multi_auto',
-                'alias': 'Multi Trigger Auto',
-                'triggers': [
-                    {'platform': 'state', 'entity_id': 'binary_sensor.motion_1'},
-                    {'platform': 'state', 'entity_id': 'binary_sensor.motion_2'}
+                "id": "multi_auto",
+                "alias": "Multi Trigger Auto",
+                "triggers": [
+                    {"platform": "state", "entity_id": "binary_sensor.motion_1"},
+                    {"platform": "state", "entity_id": "binary_sensor.motion_2"},
                 ],
-                'actions': [
-                    {'service': 'light.turn_on', 'entity_id': 'light.1'},
-                    {'service': 'light.turn_on', 'entity_id': 'light.2'}
-                ]
-            }
+                "actions": [
+                    {"service": "light.turn_on", "entity_id": "light.1"},
+                    {"service": "light.turn_on", "entity_id": "light.2"},
+                ],
+            },
         ])
 
         data_api_client = AsyncMock()
 
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=ha_client
+            ha_client=ha_client,
         )
 
         # All these combinations should be filtered
         compatible_pairs = [
-            {'trigger_entity': 'binary_sensor.motion_1', 'action_entity': 'light.1'},
-            {'trigger_entity': 'binary_sensor.motion_1', 'action_entity': 'light.2'},
-            {'trigger_entity': 'binary_sensor.motion_2', 'action_entity': 'light.1'},
-            {'trigger_entity': 'binary_sensor.motion_2', 'action_entity': 'light.2'},
+            {"trigger_entity": "binary_sensor.motion_1", "action_entity": "light.1"},
+            {"trigger_entity": "binary_sensor.motion_1", "action_entity": "light.2"},
+            {"trigger_entity": "binary_sensor.motion_2", "action_entity": "light.1"},
+            {"trigger_entity": "binary_sensor.motion_2", "action_entity": "light.2"},
             # This one is new
-            {'trigger_entity': 'binary_sensor.motion_3', 'action_entity': 'light.3'}
+            {"trigger_entity": "binary_sensor.motion_3", "action_entity": "light.3"},
         ]
 
         new_pairs = await detector._filter_existing_automations(compatible_pairs)
 
         # Only the last pair should remain
         assert len(new_pairs) == 1
-        assert new_pairs[0]['trigger_entity'] == 'binary_sensor.motion_3'
+        assert new_pairs[0]["trigger_entity"] == "binary_sensor.motion_3"
 
 
 @pytest.mark.asyncio
@@ -325,21 +325,21 @@ async def test_automation_parser_integration():
 
     automations = [
         {
-            'id': 'test_auto',
-            'alias': 'Test Auto',
-            'trigger': {'platform': 'state', 'entity_id': 'sensor.test'},
-            'action': {'service': 'light.turn_on', 'entity_id': 'light.test'}
-        }
+            "id": "test_auto",
+            "alias": "Test Auto",
+            "trigger": {"platform": "state", "entity_id": "sensor.test"},
+            "action": {"service": "light.turn_on", "entity_id": "light.test"},
+        },
     ]
 
     parser.parse_automations(automations)
 
     # Should find relationship
-    assert parser.has_relationship('sensor.test', 'light.test')
-    assert parser.has_relationship('light.test', 'sensor.test')  # Bidirectional
+    assert parser.has_relationship("sensor.test", "light.test")
+    assert parser.has_relationship("light.test", "sensor.test")  # Bidirectional
 
     # Should not find non-existent relationship
-    assert not parser.has_relationship('sensor.test', 'light.other')
+    assert not parser.has_relationship("sensor.test", "light.other")
 
 
 if __name__ == "__main__":

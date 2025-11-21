@@ -52,16 +52,16 @@ class EntityRegistryEntry:
         cls,
         entity: "Entity",
         device: Optional["Device"] = None,
-        related_entities: list[str] | None = None
+        related_entities: list[str] | None = None,
     ) -> "EntityRegistryEntry":
         """
         Create EntityRegistryEntry from Entity and Device models
-        
+
         Args:
             entity: Entity model instance
             device: Optional Device model instance
             related_entities: Optional list of sibling entity IDs
-            
+
         Returns:
             EntityRegistryEntry instance
         """
@@ -88,34 +88,34 @@ class EntityRegistryEntry:
             available_services=entity.available_services,
             icon=entity.icon,
             device_class=entity.device_class,
-            unit_of_measurement=entity.unit_of_measurement
+            unit_of_measurement=entity.unit_of_measurement,
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
-            'entity_id': self.entity_id,
-            'unique_id': self.unique_id,
-            'name': self.name,
-            'device_id': self.device_id,
-            'area_id': self.area_id,
-            'config_entry_id': self.config_entry_id,
-            'platform': self.platform,
-            'domain': self.domain,
-            'manufacturer': self.manufacturer,
-            'model': self.model,
-            'sw_version': self.sw_version,
-            'via_device': self.via_device,
-            'related_entities': self.related_entities,
-            'capabilities': self.capabilities,
-            'friendly_name': self.friendly_name,
-            'name_by_user': self.name_by_user,
-            'original_name': self.original_name,
-            'disabled': self.disabled,
-            'supported_features': self.supported_features,
-            'available_services': self.available_services,
-            'icon': self.icon,
-            'device_class': self.device_class,
-            'unit_of_measurement': self.unit_of_measurement
+            "entity_id": self.entity_id,
+            "unique_id": self.unique_id,
+            "name": self.name,
+            "device_id": self.device_id,
+            "area_id": self.area_id,
+            "config_entry_id": self.config_entry_id,
+            "platform": self.platform,
+            "domain": self.domain,
+            "manufacturer": self.manufacturer,
+            "model": self.model,
+            "sw_version": self.sw_version,
+            "via_device": self.via_device,
+            "related_entities": self.related_entities,
+            "capabilities": self.capabilities,
+            "friendly_name": self.friendly_name,
+            "name_by_user": self.name_by_user,
+            "original_name": self.original_name,
+            "disabled": self.disabled,
+            "supported_features": self.supported_features,
+            "available_services": self.available_services,
+            "icon": self.icon,
+            "device_class": self.device_class,
+            "unit_of_measurement": self.unit_of_measurement,
         }
 

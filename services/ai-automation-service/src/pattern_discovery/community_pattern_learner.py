@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from ..patterns import PatternDefinition, PatternVariable
+from src.patterns import PatternDefinition, PatternVariable
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class CommunityPatternLearner:
     async def discover_patterns(
         self,
         min_quality: float = 0.7,
-        min_occurrences: int = 10
+        min_occurrences: int = 10,
     ) -> list[PatternDefinition]:
         """
         Discover common automation patterns from community corpus.
@@ -71,7 +71,7 @@ class CommunityPatternLearner:
             if len(autos) >= min_occurrences:
                 logger.info(
                     f"Found pattern: {device_combo} "
-                    f"({len(autos)} instances)"
+                    f"({len(autos)} instances)",
                 )
 
                 # Extract pattern from examples
@@ -86,7 +86,7 @@ class CommunityPatternLearner:
 
     async def _fetch_quality_automations(
         self,
-        min_quality: float
+        min_quality: float,
     ) -> list[dict[str, Any]]:
         """
         Fetch high-quality automations from miner.
@@ -102,8 +102,8 @@ class CommunityPatternLearner:
                 f"{self.miner_url}/api/automation-miner/corpus/search",
                 params={
                     "min_quality": min_quality,
-                    "limit": 500
-                }
+                    "limit": 500,
+                },
             )
 
             response.raise_for_status()
@@ -115,12 +115,12 @@ class CommunityPatternLearner:
             return automations
 
         except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch automations from miner: {e}")
+            logger.exception(f"Failed to fetch automations from miner: {e}")
             return []
 
     def _group_by_devices(
         self,
-        automations: list[dict[str, Any]]
+        automations: list[dict[str, Any]],
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Group automations by device combination.
@@ -153,7 +153,7 @@ class CommunityPatternLearner:
     async def _extract_pattern(
         self,
         device_combo: tuple[str, ...],
-        automations: list[dict[str, Any]]
+        automations: list[dict[str, Any]],
     ) -> PatternDefinition | None:
         """
         Extract common pattern from group of similar automations.
@@ -170,7 +170,7 @@ class CommunityPatternLearner:
         most_common_use_case = Counter(use_cases).most_common(1)[0][0]
 
         complexity_levels = [a.get("complexity") for a in automations]
-        most_common_complexity = Counter(complexity_levels).most_common(1)[0][0]
+        Counter(complexity_levels).most_common(1)[0][0]
 
         # Extract common keywords from titles
         all_titles = " ".join([a.get("title", "") for a in automations]).lower()
@@ -189,8 +189,8 @@ class CommunityPatternLearner:
                     name=device,
                     type=device,
                     domain=self._get_domain_for_device(device),
-                    description=f"{device.replace('_', ' ').title()} to control"
-                )
+                    description=f"{device.replace('_', ' ').title()} to control",
+                ),
             )
 
         # Calculate priority based on occurrence count
@@ -209,13 +209,13 @@ class CommunityPatternLearner:
             keywords=keywords,
             variables=variables,
             template=template,
-            priority=priority
+            priority=priority,
         )
 
     def _extract_keywords(
         self,
         text: str,
-        device_combo: tuple[str, ...]
+        device_combo: tuple[str, ...],
     ) -> list[str]:
         """Extract relevant keywords from text"""
         # Start with device names
@@ -223,15 +223,15 @@ class CommunityPatternLearner:
 
         # Common automation keywords
         common_words = [
-            'auto', 'automatic', 'turn', 'on', 'off', 'when', 'if',
-            'schedule', 'time', 'trigger', 'control', 'smart'
+            "auto", "automatic", "turn", "on", "off", "when", "if",
+            "schedule", "time", "trigger", "control", "smart",
         ]
 
-        words = re.findall(r'\b\w{4,}\b', text)  # Words 4+ chars
+        words = re.findall(r"\b\w{4,}\b", text)  # Words 4+ chars
         word_counts = Counter(words)
 
         # Add frequently occurring words (excluding common words)
-        for word, count in word_counts.most_common(15):
+        for word, _count in word_counts.most_common(15):
             if word not in common_words and word not in keywords:
                 keywords.append(word)
 
@@ -240,37 +240,36 @@ class CommunityPatternLearner:
     def _generate_pattern_name(
         self,
         device_combo: tuple[str, ...],
-        titles_text: str
+        titles_text: str,
     ) -> str:
         """Generate friendly pattern name"""
         # Check for common pattern names in titles
         if "motion" in titles_text and "light" in titles_text:
             return "Motion-Activated Lighting"
-        elif "door" in titles_text and "alert" in titles_text:
+        if "door" in titles_text and "alert" in titles_text:
             return "Door Alert System"
-        elif "climate" in titles_text or "temperature" in titles_text:
+        if "climate" in titles_text or "temperature" in titles_text:
             return "Climate Control Automation"
-        else:
-            # Fallback: Create name from devices
-            devices_str = ", ".join([d.replace('_', ' ').title() for d in device_combo])
-            return f"{devices_str} Automation"
+        # Fallback: Create name from devices
+        devices_str = ", ".join([d.replace("_", " ").title() for d in device_combo])
+        return f"{devices_str} Automation"
 
     def _get_domain_for_device(self, device: str) -> str:
         """Map device type to HA domain"""
         # Handle compound device types
-        if 'sensor' in device:
-            return 'binary_sensor' if 'binary' in device or 'motion' in device or 'door' in device else 'sensor'
+        if "sensor" in device:
+            return "binary_sensor" if "binary" in device or "motion" in device or "door" in device else "sensor"
 
         # Direct mappings
         domain_map = {
-            'light': 'light',
-            'switch': 'switch',
-            'climate': 'climate',
-            'thermostat': 'climate',
-            'cover': 'cover',
-            'lock': 'lock',
-            'camera': 'camera',
-            'fan': 'fan'
+            "light": "light",
+            "switch": "switch",
+            "climate": "climate",
+            "thermostat": "climate",
+            "cover": "cover",
+            "lock": "lock",
+            "camera": "camera",
+            "fan": "fan",
         }
 
         return domain_map.get(device, device)
@@ -278,7 +277,7 @@ class CommunityPatternLearner:
     def _generate_placeholder_template(
         self,
         device_combo: tuple[str, ...],
-        pattern_id: str
+        pattern_id: str,
     ) -> str:
         """
         Generate placeholder template.
@@ -313,7 +312,7 @@ actions:
         """
         try:
             response = await self.client.get(
-                f"{self.miner_url}/api/automation-miner/corpus/stats"
+                f"{self.miner_url}/api/automation-miner/corpus/stats",
             )
 
             response.raise_for_status()
@@ -323,11 +322,11 @@ actions:
                 "total_automations": stats.get("count", 0),
                 "avg_quality": stats.get("avg_quality_score", 0),
                 "device_types": stats.get("unique_devices", 0),
-                "use_cases": stats.get("use_cases", {})
+                "use_cases": stats.get("use_cases", {}),
             }
 
         except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch statistics: {e}")
+            logger.exception(f"Failed to fetch statistics: {e}")
             return {}
 
     async def close(self):

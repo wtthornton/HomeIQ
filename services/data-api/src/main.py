@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from shared.auth import AuthManager
 from shared.correlation_middleware import FastAPICorrelationMiddleware
@@ -115,32 +115,33 @@ class DataAPIService:
     def __init__(self):
         """Initialize Data API service"""
         # Configuration - Configurable via environment variables
-        self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')
-        self.api_port = int(os.getenv('DATA_API_PORT', '8006'))
-        self.request_timeout = int(os.getenv('REQUEST_TIMEOUT', '30'))  # seconds
-        self.db_query_timeout = int(os.getenv('DB_QUERY_TIMEOUT', '10'))  # seconds
-        self.api_title = 'Data API - Feature Data Hub'
-        self.api_version = '1.0.0'
-        self.api_description = 'Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)'
+        self.api_host = os.getenv("DATA_API_HOST", "0.0.0.0")
+        self.api_port = int(os.getenv("DATA_API_PORT", "8006"))
+        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))  # seconds
+        self.db_query_timeout = int(os.getenv("DB_QUERY_TIMEOUT", "10"))  # seconds
+        self.api_title = "Data API - Feature Data Hub"
+        self.api_version = "1.0.0"
+        self.api_description = "Feature data access for HA Ingestor (events, devices, sports, analytics, HA automation)"
 
         # Security - authentication always enforced
-        self.api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
-        self.allow_anonymous = os.getenv('DATA_API_ALLOW_ANONYMOUS', 'false').lower() == 'true'
-        rate_limit_per_minute = int(os.getenv('DATA_API_RATE_LIMIT_PER_MIN', '100'))
-        burst = int(os.getenv('DATA_API_RATE_LIMIT_BURST', '20'))
+        self.api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
+        self.allow_anonymous = os.getenv("DATA_API_ALLOW_ANONYMOUS", "false").lower() == "true"
+        rate_limit_per_minute = int(os.getenv("DATA_API_RATE_LIMIT_PER_MIN", "100"))
+        burst = int(os.getenv("DATA_API_RATE_LIMIT_BURST", "20"))
         self.rate_limiter = RateLimiter(rate=rate_limit_per_minute, per=60, burst=burst)
 
         if not self.api_key:
             if not self.allow_anonymous:
-                raise RuntimeError("DATA_API_API_KEY (or API_KEY) must be configured for data-api")
+                msg = "DATA_API_API_KEY (or API_KEY) must be configured for data-api"
+                raise RuntimeError(msg)
             self.api_key = secrets.token_urlsafe(48)
             logger.warning(
                 "Data API started in anonymous mode for local testing only. "
-                "Set DATA_API_API_KEY to enforce authentication."
+                "Set DATA_API_API_KEY to enforce authentication.",
             )
 
         # CORS settings
-        self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+        self.cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 
         # Initialize components
         self.auth_manager = AuthManager(
@@ -181,7 +182,7 @@ class DataAPIService:
             else:
                 logger.warning("InfluxDB connection failed - webhook detector disabled")
         except Exception as e:
-            logger.error(f"Error connecting to InfluxDB: {e}")
+            logger.exception(f"Error connecting to InfluxDB: {e}")
             logger.warning("Service will start without InfluxDB connection")
 
         self.is_running = True
@@ -202,7 +203,7 @@ class DataAPIService:
         try:
             await self.influxdb_client.close()
         except Exception as e:
-            logger.error(f"Error closing InfluxDB connection: {e}")
+            logger.exception(f"Error closing InfluxDB connection: {e}")
 
         self.is_running = False
         logger.info("Data API service stopped")
@@ -225,7 +226,7 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("SQLite database initialized")
     except Exception as e:
-        logger.error(f"SQLite initialization failed: {e}")
+        logger.exception(f"SQLite initialization failed: {e}")
         # Don't crash - service can run without SQLite initially
 
     await data_api_service.startup()
@@ -242,13 +243,13 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Observability setup (tracing and correlation ID)
 if OBSERVABILITY_AVAILABLE:
     # Set up OpenTelemetry tracing
-    otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+    otlp_endpoint = os.getenv("OTLP_ENDPOINT")
     if setup_tracing("data-api", otlp_endpoint):
         logger.info("✅ OpenTelemetry tracing configured")
 
@@ -284,12 +285,12 @@ events_endpoints = EventsEndpoints()
 app.include_router(
     events_endpoints.router,
     prefix="/api/v1",
-    tags=["Events"]
+    tags=["Events"],
 )
 
 app.include_router(
     devices_router,
-    tags=["Devices & Entities"]
+    tags=["Devices & Entities"],
 )
 
 # Story 13.3: Alerts, Metrics, Integrations, WebSockets
@@ -297,13 +298,13 @@ alert_endpoints = AlertEndpoints()
 app.include_router(
     alert_endpoints.router,
     prefix="/api/v1",
-    tags=["Alerts"]
+    tags=["Alerts"],
 )
 
 app.include_router(
     create_metrics_router(),
     prefix="/api/v1",
-    tags=["Metrics"]
+    tags=["Metrics"],
 )
 
 # Create integration router with service-specific config_manager
@@ -311,7 +312,7 @@ integration_router = create_integration_router(config_manager)
 app.include_router(
     integration_router,
     prefix="/api/v1",
-    tags=["Integrations"]
+    tags=["Integrations"],
 )
 
 # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
@@ -320,38 +321,38 @@ app.include_router(
 app.include_router(
     sports_router,
     prefix="/api/v1",
-    tags=["Sports Data"]
+    tags=["Sports Data"],
 )
 
 app.include_router(
     ha_automation_router,
     prefix="/api/v1",
-    tags=["Home Assistant Automation"]
+    tags=["Home Assistant Automation"],
 )
 
 # Story 21.4: Analytics Endpoints (Real-time metrics aggregation)
 app.include_router(
     analytics_router,
     prefix="/api/v1",
-    tags=["Analytics"]
+    tags=["Analytics"],
 )
 
 # Phase 4: Energy Correlation Endpoints
 app.include_router(
     energy_router,
     prefix="/api/v1",
-    tags=["Energy"]
+    tags=["Energy"],
 )
 
 app.include_router(
     hygiene_router,
-    tags=["Device Hygiene"]
+    tags=["Device Hygiene"],
 )
 
 # MCP Code Execution Tools
 app.include_router(
     mcp_router,
-    tags=["MCP Tools"]
+    tags=["MCP Tools"],
 )
 
 
@@ -365,9 +366,9 @@ async def root():
             "service": data_api_service.api_title,
             "version": data_api_service.api_version,
             "status": "running",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         },
-        message="Data API is running"
+        message="Data API is running",
     )
 
 
@@ -398,7 +399,7 @@ async def health_check():
         "metrics": {
             "total_requests": data_api_service.total_requests,
             "failed_requests": data_api_service.failed_requests,
-            "error_rate_percent": round(error_rate, 2)
+            "error_rate_percent": round(error_rate, 2),
         },
         "cache": cache.get_stats(),
         "rate_limiter": data_api_service.rate_limiter.get_stats(),
@@ -408,13 +409,13 @@ async def health_check():
                 "url": influxdb_status["url"],
                 "query_count": influxdb_status["query_count"],
                 "avg_query_time_ms": influxdb_status["avg_query_time_ms"],
-                "success_rate": influxdb_status["success_rate"]
+                "success_rate": influxdb_status["success_rate"],
             },
-            "sqlite": sqlite_status
+            "sqlite": sqlite_status,
         },
         "authentication": {
-            "api_key_required": not data_api_service.allow_anonymous
-        }
+            "api_key_required": not data_api_service.allow_anonymous,
+        },
     }
 
 
@@ -433,11 +434,11 @@ async def api_info():
                 "events": "/api/v1/events (Coming in Story 13.2)",
                 "devices": "/api/v1/devices (Coming in Story 13.2)",
                 "sports": "/api/v1/sports (Coming in Story 13.4)",
-                "ha_automation": "/api/v1/ha (Coming in Story 13.4)"
+                "ha_automation": "/api/v1/ha (Coming in Story 13.4)",
             },
-            "authentication": data_api_service.enable_auth
+            "authentication": data_api_service.enable_auth,
         },
-        message="Data API information retrieved successfully"
+        message="Data API information retrieved successfully",
     )
 
 
@@ -458,8 +459,8 @@ else:
             status_code=exc.status_code,
             content=ErrorResponse(
                 error=exc.detail,
-                error_code=f"HTTP_{exc.status_code}"
-            ).model_dump()
+                error_code=f"HTTP_{exc.status_code}",
+            ).model_dump(),
         )
 
     @app.exception_handler(Exception)
@@ -473,8 +474,8 @@ else:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ErrorResponse(
                 error="Internal server error",
-                error_code="INTERNAL_ERROR"
-            ).model_dump()
+                error_code="INTERNAL_ERROR",
+            ).model_dump(),
         )
 
 
@@ -484,7 +485,7 @@ if __name__ == "__main__":
         "src.main:app",
         host=data_api_service.api_host,
         port=data_api_service.api_port,
-        reload=os.getenv('RELOAD', 'false').lower() == 'true',
-        log_level=os.getenv('LOG_LEVEL', 'info').lower()
+        reload=os.getenv("RELOAD", "false").lower() == "true",
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )
 

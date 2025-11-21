@@ -17,7 +17,7 @@ Base = declarative_base()
 
 class Device(Base):
     """Device metadata table."""
-    __tablename__ = 'devices'
+    __tablename__ = "devices"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -57,32 +57,32 @@ class Device(Base):
     capabilities: Mapped[list["DeviceCapability"]] = relationship(
         "DeviceCapability",
         back_populates="device",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
     health_metrics: Mapped[list["DeviceHealthMetric"]] = relationship(
         "DeviceHealthMetric",
         back_populates="device",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
     relationships: Mapped[list["DeviceRelationship"]] = relationship(
         "DeviceRelationship",
         foreign_keys="DeviceRelationship.source_device_id",
         back_populates="source_device",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
     target_relationships: Mapped[list["DeviceRelationship"]] = relationship(
         "DeviceRelationship",
         foreign_keys="DeviceRelationship.target_device_id",
         back_populates="target_device",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
 
 class DeviceCapability(Base):
     """Device capabilities table."""
-    __tablename__ = 'device_capabilities'
+    __tablename__ = "device_capabilities"
 
-    device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String, ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
     capability_name: Mapped[str] = mapped_column(String, primary_key=True)
     capability_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
     properties: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -97,11 +97,11 @@ class DeviceCapability(Base):
 
 class DeviceRelationship(Base):
     """Device relationships table."""
-    __tablename__ = 'device_relationships'
+    __tablename__ = "device_relationships"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    source_device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), index=True)
-    target_device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), index=True)
+    source_device_id: Mapped[str] = mapped_column(String, ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    target_device_id: Mapped[str] = mapped_column(String, ForeignKey("devices.id", ondelete="CASCADE"), index=True)
     relationship_type: Mapped[str] = mapped_column(String, nullable=False)  # parent, child, sibling, etc.
     strength: Mapped[float] = mapped_column(Float, default=1.0)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -114,10 +114,10 @@ class DeviceRelationship(Base):
 
 class DeviceHealthMetric(Base):
     """Device health metrics table."""
-    __tablename__ = 'device_health_metrics'
+    __tablename__ = "device_health_metrics"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), index=True)
+    device_id: Mapped[str] = mapped_column(String, ForeignKey("devices.id", ondelete="CASCADE"), index=True)
     metric_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
     metric_unit: Mapped[str | None] = mapped_column(String)
@@ -130,10 +130,10 @@ class DeviceHealthMetric(Base):
 
 class DeviceEntity(Base):
     """Device entities table (from Home Assistant)."""
-    __tablename__ = 'device_entities'
+    __tablename__ = "device_entities"
 
     entity_id: Mapped[str] = mapped_column(String, primary_key=True)
-    device_id: Mapped[str | None] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), index=True)
+    device_id: Mapped[str | None] = mapped_column(String, ForeignKey("devices.id", ondelete="CASCADE"), index=True)
     name: Mapped[str | None] = mapped_column(String)
     original_name: Mapped[str | None] = mapped_column(String)
     platform: Mapped[str] = mapped_column(String, nullable=False)
@@ -155,7 +155,7 @@ class DeviceEntity(Base):
 class DeviceHygieneIssue(Base):
     """Captured device/entity hygiene issues for remediation."""
 
-    __tablename__ = 'device_hygiene_issues'
+    __tablename__ = "device_hygiene_issues"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     issue_key: Mapped[str] = mapped_column(String, unique=True, index=True)
@@ -163,8 +163,8 @@ class DeviceHygieneIssue(Base):
     severity: Mapped[str] = mapped_column(String, default="medium", index=True)
     status: Mapped[str] = mapped_column(String, default="open", index=True)
 
-    device_id: Mapped[str | None] = mapped_column(String, ForeignKey('devices.id', ondelete='SET NULL'), index=True)
-    entity_id: Mapped[str | None] = mapped_column(String, ForeignKey('device_entities.entity_id', ondelete='SET NULL'), index=True)
+    device_id: Mapped[str | None] = mapped_column(String, ForeignKey("devices.id", ondelete="SET NULL"), index=True)
+    entity_id: Mapped[str | None] = mapped_column(String, ForeignKey("device_entities.entity_id", ondelete="SET NULL"), index=True)
 
     name: Mapped[str | None] = mapped_column(String)
     suggested_action: Mapped[str | None] = mapped_column(String)
@@ -178,7 +178,7 @@ class DeviceHygieneIssue(Base):
 
 class DiscoverySession(Base):
     """Discovery session tracking table."""
-    __tablename__ = 'discovery_sessions'
+    __tablename__ = "discovery_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
@@ -193,7 +193,7 @@ class DiscoverySession(Base):
 
 class CacheStats(Base):
     """Cache statistics table."""
-    __tablename__ = 'cache_stats'
+    __tablename__ = "cache_stats"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cache_type: Mapped[str] = mapped_column(String, nullable=False)  # redis, memory, etc.
@@ -208,7 +208,7 @@ class CacheStats(Base):
 
 class TeamTrackerIntegration(Base):
     """Team Tracker integration status and configuration."""
-    __tablename__ = 'team_tracker_integration'
+    __tablename__ = "team_tracker_integration"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     is_installed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -222,7 +222,7 @@ class TeamTrackerIntegration(Base):
 
 class TeamTrackerTeam(Base):
     """Configured Team Tracker teams for automation context."""
-    __tablename__ = 'team_tracker_teams'
+    __tablename__ = "team_tracker_teams"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     team_id: Mapped[str] = mapped_column(String, nullable=False)  # Team abbreviation (e.g., "DAL", "NO")

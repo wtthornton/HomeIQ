@@ -16,42 +16,31 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 # Epic AI-1 imports (Pattern Detection)
-from ..clients.data_api_client import DataAPIClient
-from ..clients.device_intelligence_client import DeviceIntelligenceClient
-from ..clients.pattern_aggregate_client import (
-    PatternAggregateClient,  # Story AI5.4: Incremental processing
-)
-from ..config import settings
-from ..database.crud import (
-    get_synergy_opportunities,
-    record_analysis_run,
-    store_patterns,
-    store_suggestion,
-)
-from ..database.models import get_db_session
+from src.clients.data_api_client import DataAPIClient
+from src.clients.device_intelligence_client import DeviceIntelligenceClient
+from src.clients.pattern_aggregate_client import PatternAggregateClient
+from src.config import settings
+from src.database.crud import get_synergy_opportunities, record_analysis_run, store_patterns, store_suggestion
+from src.database.models import get_db_session
 
 # Epic AI-2 imports (Device Intelligence)
-from ..device_intelligence import (
-    FeatureAnalyzer,
-    FeatureSuggestionGenerator,
-    update_device_capabilities_batch,
-)
-from ..llm.openai_client import OpenAIClient
-from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
-from ..pattern_analyzer.confidence_calibrator import ConfidenceCalibrator
-from ..pattern_analyzer.pattern_cross_validator import PatternCrossValidator
-from ..pattern_analyzer.pattern_deduplicator import PatternDeduplicator
-from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
-from ..pattern_detection.anomaly_detector import AnomalyDetector
-from ..pattern_detection.contextual_detector import ContextualDetector
-from ..pattern_detection.day_type_detector import DayTypeDetector
-from ..pattern_detection.duration_detector import DurationDetector
-from ..pattern_detection.room_based_detector import RoomBasedDetector
-from ..pattern_detection.seasonal_detector import SeasonalDetector
+from src.device_intelligence import FeatureAnalyzer, FeatureSuggestionGenerator, update_device_capabilities_batch
+from src.llm.openai_client import OpenAIClient
+from src.pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from src.pattern_analyzer.confidence_calibrator import ConfidenceCalibrator
+from src.pattern_analyzer.pattern_cross_validator import PatternCrossValidator
+from src.pattern_analyzer.pattern_deduplicator import PatternDeduplicator
+from src.pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from src.pattern_detection.anomaly_detector import AnomalyDetector
+from src.pattern_detection.contextual_detector import ContextualDetector
+from src.pattern_detection.day_type_detector import DayTypeDetector
+from src.pattern_detection.duration_detector import DurationDetector
+from src.pattern_detection.room_based_detector import RoomBasedDetector
+from src.pattern_detection.seasonal_detector import SeasonalDetector
 
 # New ML-enhanced pattern detectors
-from ..pattern_detection.sequence_detector import SequenceDetector
-from ..pattern_detection.session_detector import SessionDetector
+from src.pattern_detection.sequence_detector import SequenceDetector
+from src.pattern_detection.session_detector import SessionDetector
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +51,7 @@ class DailyAnalysisScheduler:
     def __init__(self, cron_schedule: str | None = None, enable_incremental: bool = True):
         """
         Initialize the scheduler.
-        
+
         Args:
             cron_schedule: Cron expression (default: "0 3 * * *" = 3 AM daily)
             enable_incremental: Enable incremental updates for faster processing
@@ -95,10 +84,10 @@ class DailyAnalysisScheduler:
             self.scheduler.add_job(
                 self.run_daily_analysis,
                 CronTrigger.from_crontab(self.cron_schedule),
-                id='daily_pattern_analysis',
-                name='Daily Pattern Analysis and Suggestion Generation',
+                id="daily_pattern_analysis",
+                name="Daily Pattern Analysis and Suggestion Generation",
                 replace_existing=True,
-                misfire_grace_time=3600  # Allow up to 1 hour late start
+                misfire_grace_time=3600,  # Allow up to 1 hour late start
             )
 
             self.scheduler.start()
@@ -129,7 +118,7 @@ class DailyAnalysisScheduler:
     async def run_daily_analysis(self):
         """
         Unified daily batch job workflow (Story AI2.5, Enhanced for Epic AI-3):
-        
+
         Phase 1: Device Capability Update (Epic AI-2)
         Phase 2: Fetch Historical Events (Shared by AI-1 + AI-2 + AI-3)
         Phase 3: Pattern Detection (Epic AI-1)
@@ -137,7 +126,7 @@ class DailyAnalysisScheduler:
         Phase 4: Feature Analysis (Epic AI-2)
         Phase 5: Combined Suggestion Generation (AI-1 + AI-2 + AI-3)
         Phase 6: Publish Notification & Store Results
-        
+
         This method is called by the scheduler automatically at 3 AM daily.
         Story AI2.5: Unified Daily Batch Job (Enhanced Story AI3.1)
         """
@@ -149,8 +138,8 @@ class DailyAnalysisScheduler:
         self.is_running = True
         start_time = datetime.now(timezone.utc)
         job_result = {
-            'start_time': start_time.isoformat(),
-            'status': 'running'
+            "start_time": start_time.isoformat(),
+            "status": "running",
         }
 
         try:
@@ -161,7 +150,7 @@ class DailyAnalysisScheduler:
 
             if getattr(settings, "enable_pdl_workflows", False):
                 try:
-                    from ..pdl.runtime import PDLExecutionError, PDLInterpreter
+                    from src.pdl.runtime import PDLExecutionError, PDLInterpreter
 
                     script_path = Path(__file__).resolve().parent.parent / "pdl" / "scripts" / "nightly_batch.yaml"
                     interpreter = PDLInterpreter.from_file(script_path, logger)
@@ -169,10 +158,10 @@ class DailyAnalysisScheduler:
                         {
                             "mqtt_connected": bool(self.mqtt_client and getattr(self.mqtt_client, "is_connected", False)),
                             "incremental_enabled": self.enable_incremental,
-                        }
+                        },
                     )
                 except PDLExecutionError as pdl_exc:
-                    logger.error("❌ PDL nightly batch guardrail violation: %s", pdl_exc)
+                    logger.exception("❌ PDL nightly batch guardrail violation: %s", pdl_exc)
                     return
                 except Exception as pdl_exc:  # pragma: no cover - defensive logging
                     logger.warning(
@@ -191,14 +180,14 @@ class DailyAnalysisScheduler:
                 influxdb_url=settings.influxdb_url,
                 influxdb_token=settings.influxdb_token,
                 influxdb_org=settings.influxdb_org,
-                influxdb_bucket=settings.influxdb_bucket
+                influxdb_bucket=settings.influxdb_bucket,
             )
 
             try:
                 capability_stats = await update_device_capabilities_batch(
                     mqtt_client=self.mqtt_client,
                     data_api_client=data_client,
-                    db_session_factory=get_db_session
+                    db_session_factory=get_db_session,
                 )
 
                 logger.info("✅ Device capabilities updated:")
@@ -207,15 +196,15 @@ class DailyAnalysisScheduler:
                 logger.info(f"   - New devices: {capability_stats['new_devices']}")
                 logger.info(f"   - Errors: {capability_stats['errors']}")
 
-                job_result['devices_checked'] = capability_stats['devices_checked']
-                job_result['capabilities_updated'] = capability_stats['capabilities_updated']
-                job_result['new_devices'] = capability_stats['new_devices']
+                job_result["devices_checked"] = capability_stats["devices_checked"]
+                job_result["capabilities_updated"] = capability_stats["capabilities_updated"]
+                job_result["new_devices"] = capability_stats["new_devices"]
 
             except Exception as e:
-                logger.error(f"⚠️ Device capability update failed: {e}")
+                logger.exception(f"⚠️ Device capability update failed: {e}")
                 logger.info("   → Continuing with pattern analysis...")
-                job_result['devices_checked'] = 0
-                job_result['capabilities_updated'] = 0
+                job_result["devices_checked"] = 0
+                job_result["capabilities_updated"] = 0
 
             # ================================================================
             # Phase 2: Fetch Events (SHARED by AI-1 + AI-2)
@@ -227,7 +216,7 @@ class DailyAnalysisScheduler:
                 influxdb_url=settings.influxdb_url,
                 influxdb_token=settings.influxdb_token,
                 influxdb_org=settings.influxdb_org,
-                influxdb_bucket=settings.influxdb_bucket
+                influxdb_bucket=settings.influxdb_bucket,
             )
             # Use 7 days lookback (or adjust based on available data)
             # If no events found, try shorter periods
@@ -235,7 +224,7 @@ class DailyAnalysisScheduler:
 
             events_df = await data_client.fetch_events(
                 start_time=start_date,
-                limit=100000
+                limit=100000,
             )
 
             # If no events with 7 days, try 24 hours
@@ -244,17 +233,17 @@ class DailyAnalysisScheduler:
                 start_date = datetime.now(timezone.utc) - timedelta(hours=24)
                 events_df = await data_client.fetch_events(
                     start_time=start_date,
-                    limit=100000
+                    limit=100000,
                 )
 
             if events_df.empty:
                 logger.warning("❌ No events available for analysis")
-                job_result['status'] = 'no_data'
-                job_result['events_count'] = 0
+                job_result["status"] = "no_data"
+                job_result["events_count"] = 0
                 return
 
             logger.info(f"✅ Fetched {len(events_df)} events")
-            job_result['events_count'] = len(events_df)
+            job_result["events_count"] = len(events_df)
 
             # ================================================================
             # Initialize Pattern Aggregate Client (Story AI5.4)
@@ -266,7 +255,7 @@ class DailyAnalysisScheduler:
                 token=settings.influxdb_token,
                 org=settings.influxdb_org,
                 bucket_daily="pattern_aggregates_daily",
-                bucket_weekly="pattern_aggregates_weekly"
+                bucket_weekly="pattern_aggregates_weekly",
             )
 
             logger.info("✅ Pattern Aggregate Client initialized")
@@ -285,7 +274,7 @@ class DailyAnalysisScheduler:
                 min_confidence=settings.time_of_day_base_confidence,
                 aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
                 domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
-                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
+                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides),
             )
             logger.info("  → Running co-occurrence detector (incremental)...")
             # Quality improvement: Increased thresholds for better pattern quality
@@ -296,7 +285,7 @@ class DailyAnalysisScheduler:
                 min_confidence=max(0.75, settings.co_occurrence_base_confidence),  # Quality: increased from 0.7 to 0.75
                 aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
                 domain_support_overrides=dict(settings.co_occurrence_support_overrides),
-                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
+                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides),
             )
 
             tod_patterns = []
@@ -305,7 +294,7 @@ class DailyAnalysisScheduler:
 
             if getattr(settings, "enable_langchain_pattern_chain", False):
                 try:
-                    from ..langchain_integration.pattern_chain import build_pattern_detection_chain
+                    from src.langchain_integration.pattern_chain import build_pattern_detection_chain
 
                     chain_inputs = {
                         "events_df": events_df,
@@ -331,7 +320,7 @@ class DailyAnalysisScheduler:
                     )
 
             if not chain_used:
-                if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
+                if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, "incremental_update"):
                     logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
                     tod_patterns = tod_detector.incremental_update(events_df, self._last_pattern_update_time)
                 else:
@@ -339,14 +328,13 @@ class DailyAnalysisScheduler:
 
                 self._last_pattern_update_time = datetime.now(timezone.utc)
 
-                if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
+                if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, "incremental_update"):
                     logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
                     co_patterns = co_detector.incremental_update(events_df, self._last_pattern_update_time)
+                elif len(events_df) > 10000:
+                    co_patterns = co_detector.detect_patterns_optimized(events_df)
                 else:
-                    if len(events_df) > 10000:
-                        co_patterns = co_detector.detect_patterns_optimized(events_df)
-                    else:
-                        co_patterns = co_detector.detect_patterns(events_df)
+                    co_patterns = co_detector.detect_patterns(events_df)
 
                 logger.info(f"    ✅ Legacy detectors found {len(tod_patterns)} time-of-day patterns and {len(co_patterns)} co-occurrence patterns")
 
@@ -367,10 +355,10 @@ class DailyAnalysisScheduler:
                 min_sequence_occurrences=3,  # Quality: decreased from 5 to 3 for more patterns
                 min_confidence=0.65,  # Quality: decreased from 0.7 to 0.65 for more patterns
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(sequence_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(sequence_detector, "incremental_update"):
                 sequence_patterns = sequence_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 sequence_patterns = sequence_detector.detect_patterns(events_df)
@@ -386,10 +374,10 @@ class DailyAnalysisScheduler:
                 min_context_occurrences=5,  # Quality: decreased from 10 to 5 for more patterns
                 min_confidence=0.6,  # Quality: decreased from 0.7 to 0.6 for more patterns
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
+                aggregate_client=aggregate_client,  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(contextual_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(contextual_detector, "incremental_update"):
                 contextual_patterns = contextual_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 contextual_patterns = contextual_detector.detect_patterns(events_df)
@@ -402,10 +390,10 @@ class DailyAnalysisScheduler:
                 min_room_occurrences=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(room_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(room_detector, "incremental_update"):
                 room_patterns = room_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 room_patterns = room_detector.detect_patterns(events_df)
@@ -419,10 +407,10 @@ class DailyAnalysisScheduler:
                 min_session_occurrences=3,
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
+                aggregate_client=aggregate_client,  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(session_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(session_detector, "incremental_update"):
                 session_patterns = session_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 session_patterns = session_detector.detect_patterns(events_df)
@@ -437,10 +425,10 @@ class DailyAnalysisScheduler:
                 min_occurrences=10,  # Increased from 3 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(duration_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(duration_detector, "incremental_update"):
                 duration_patterns = duration_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 duration_patterns = duration_detector.detect_patterns(events_df)
@@ -453,10 +441,10 @@ class DailyAnalysisScheduler:
                 min_day_type_occurrences=10,  # Increased from 5 to 10 for better quality
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.6: Pass aggregate client for weekly aggregates
+                aggregate_client=aggregate_client,  # Story AI5.6: Pass aggregate client for weekly aggregates
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(day_type_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(day_type_detector, "incremental_update"):
                 day_type_patterns = day_type_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 day_type_patterns = day_type_detector.detect_patterns(events_df)
@@ -471,10 +459,10 @@ class DailyAnalysisScheduler:
                 weather_integration=True,
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
+                aggregate_client=aggregate_client,  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(seasonal_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(seasonal_detector, "incremental_update"):
                 seasonal_patterns = seasonal_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 seasonal_patterns = seasonal_detector.detect_patterns(events_df)
@@ -492,10 +480,10 @@ class DailyAnalysisScheduler:
                 enable_device_analysis=True,
                 min_confidence=0.7,
                 enable_incremental=self.enable_incremental,
-                aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
+                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
             )
             # Use incremental update if enabled and previous run exists
-            if self.enable_incremental and self._last_pattern_update_time and hasattr(anomaly_detector, 'incremental_update'):
+            if self.enable_incremental and self._last_pattern_update_time and hasattr(anomaly_detector, "incremental_update"):
                 anomaly_patterns = anomaly_detector.incremental_update(events_df, self._last_pattern_update_time)
             else:
                 anomaly_patterns = anomaly_detector.detect_patterns(events_df)
@@ -505,14 +493,14 @@ class DailyAnalysisScheduler:
             # Multi-factor pattern detection (NEW - Enhanced Pattern Detection)
             logger.info("    → Running multi-factor detector (time + presence + weather)...")
             try:
-                from ..pattern_detection.multi_factor_detector import MultiFactorPatternDetector
+                from src.pattern_detection.multi_factor_detector import MultiFactorPatternDetector
                 multi_factor_detector = MultiFactorPatternDetector(
-                    time_factors=['time_of_day', 'day_of_week', 'season'],
-                    presence_factors=['presence'],
-                    weather_factors=['temperature', 'humidity'],
+                    time_factors=["time_of_day", "day_of_week", "season"],
+                    presence_factors=["presence"],
+                    weather_factors=["temperature", "humidity"],
                     min_pattern_occurrences=5,  # Quality: decreased from 10 to 5 for more patterns
                     min_confidence=0.65,  # Quality: decreased from 0.7 to 0.65 for more patterns
-                    aggregate_client=aggregate_client
+                    aggregate_client=aggregate_client,
                 )
                 multi_factor_patterns = multi_factor_detector.detect_patterns(events_df)
                 all_patterns.extend(multi_factor_patterns)
@@ -530,25 +518,25 @@ class DailyAnalysisScheduler:
             if self.enable_incremental:
                 stats_summary = {}
                 detector_names = [
-                    'tod_detector', 'co_detector', 'sequence_detector', 'contextual_detector',
-                    'room_detector', 'session_detector', 'duration_detector',
-                    'day_type_detector', 'seasonal_detector', 'anomaly_detector'
+                    "tod_detector", "co_detector", "sequence_detector", "contextual_detector",
+                    "room_detector", "session_detector", "duration_detector",
+                    "day_type_detector", "seasonal_detector", "anomaly_detector",
                 ]
                 for detector_name in detector_names:
                     if detector_name in locals():
                         detector = locals()[detector_name]
-                        if hasattr(detector, 'get_detection_stats'):
+                        if hasattr(detector, "get_detection_stats"):
                             stats = detector.get_detection_stats()
-                            incremental = stats.get('incremental_updates', 0)
-                            full = stats.get('full_analyses', 0)
+                            incremental = stats.get("incremental_updates", 0)
+                            full = stats.get("full_analyses", 0)
                             if incremental > 0 or full > 0:
                                 stats_summary[detector_name] = {
-                                    'incremental': incremental,
-                                    'full': full
+                                    "incremental": incremental,
+                                    "full": full,
                                 }
                 if stats_summary:
                     logger.info(f"   ⚡ Incremental update stats: {stats_summary}")
-            job_result['patterns_detected'] = len(all_patterns)
+            job_result["patterns_detected"] = len(all_patterns)
 
             # Quality improvement: Deduplicate patterns
             if all_patterns:
@@ -567,10 +555,10 @@ class DailyAnalysisScheduler:
                     validator = PatternCrossValidator()
                     validation_results = await validator.cross_validate(all_patterns)
 
-                    contradictions = len(validation_results['contradictions'])
-                    redundancies = len(validation_results['redundancies'])
-                    reinforcements = len(validation_results['reinforcements'])
-                    quality_score = validation_results['quality_score']
+                    contradictions = len(validation_results["contradictions"])
+                    redundancies = len(validation_results["redundancies"])
+                    reinforcements = len(validation_results["reinforcements"])
+                    quality_score = validation_results["quality_score"]
 
                     logger.info("📊 Cross-Validation Results:")
                     logger.info(f"   - Quality Score: {quality_score:.2f}")
@@ -586,10 +574,10 @@ class DailyAnalysisScheduler:
                         logger.info(f"   ✅ Found {reinforcements} reinforcing patterns (high confidence)")
 
                     # Store quality score in job result
-                    job_result['pattern_quality_score'] = quality_score
-                    job_result['pattern_contradictions'] = contradictions
-                    job_result['pattern_redundancies'] = redundancies
-                    job_result['pattern_reinforcements'] = reinforcements
+                    job_result["pattern_quality_score"] = quality_score
+                    job_result["pattern_contradictions"] = contradictions
+                    job_result["pattern_redundancies"] = redundancies
+                    job_result["pattern_reinforcements"] = reinforcements
 
                 except Exception as e:
                     logger.warning(f"⚠️ Pattern cross-validation failed: {e}, continuing...")
@@ -606,10 +594,10 @@ class DailyAnalysisScheduler:
                         calibration_report = await calibrator.generate_calibration_report()
                         logger.info("📊 Calibration Report:")
                         for pattern_type, metrics in calibration_report.items():
-                            if metrics['reliability'] != 'unknown':
+                            if metrics["reliability"] != "unknown":
                                 logger.info(
                                     f"   - {pattern_type}: {metrics['acceptance_rate']:.1%} acceptance "
-                                    f"({metrics['sample_count']} samples, {metrics['reliability']} reliability)"
+                                    f"({metrics['sample_count']} samples, {metrics['reliability']} reliability)",
                                 )
                 except Exception as e:
                     logger.warning(f"⚠️ Confidence calibration failed: {e}, continuing with uncalibrated patterns")
@@ -619,10 +607,10 @@ class DailyAnalysisScheduler:
                 async with get_db_session() as db:
                     patterns_stored = await store_patterns(db, all_patterns)
                 logger.info(f"   💾 Stored {patterns_stored} patterns in database")
-                job_result['patterns_stored'] = patterns_stored
+                job_result["patterns_stored"] = patterns_stored
             else:
                 logger.info("   ℹ️  No patterns to store")
-                job_result['patterns_stored'] = 0
+                job_result["patterns_stored"] = 0
 
             # ================================================================
             # Phase 3c: Synergy Detection (NEW - Epic AI-3)
@@ -631,9 +619,9 @@ class DailyAnalysisScheduler:
             logger.info("   → Starting synergy detection with relaxed parameters...")
 
             try:
-                from ..clients.ha_client import HomeAssistantClient
-                from ..database.crud import store_synergy_opportunities
-                from ..synergy_detection import DeviceSynergyDetector
+                from src.clients.ha_client import HomeAssistantClient
+                from src.database.crud import store_synergy_opportunities
+                from src.synergy_detection import DeviceSynergyDetector
                 logger.info("   → Imported synergy detection modules successfully")
 
                 # Story AI4.3: Initialize HA client for automation checking
@@ -642,7 +630,7 @@ class DailyAnalysisScheduler:
                     access_token=settings.ha_token,
                     max_retries=settings.ha_max_retries,
                     retry_delay=settings.ha_retry_delay,
-                    timeout=settings.ha_timeout
+                    timeout=settings.ha_timeout,
                 )
                 logger.info("   → HA client initialized for automation filtering")
 
@@ -651,7 +639,7 @@ class DailyAnalysisScheduler:
                     ha_client=ha_client,  # Story AI4.3: Enable automation filtering!
                     influxdb_client=data_client.influxdb_client,  # Enable advanced scoring (Story AI3.2)
                     min_confidence=0.5,  # Lowered from 0.7 to be less restrictive
-                    same_area_required=False  # Relaxed requirement to find more opportunities
+                    same_area_required=False,  # Relaxed requirement to find more opportunities
                 )
 
                 logger.info("   → Calling detect_synergies() method...")
@@ -660,20 +648,18 @@ class DailyAnalysisScheduler:
                 # Enhanced synergy detection (NEW - Sequential, Simultaneous, Complementary)
                 logger.info("   → Running enhanced synergy detection...")
                 try:
-                    from ..synergy_detection.enhanced_synergy_detector import (
-                        EnhancedSynergyDetector,
-                    )
+                    from src.synergy_detection.enhanced_synergy_detector import EnhancedSynergyDetector
                     enhanced_detector = EnhancedSynergyDetector(
                         base_synergy_detector=synergy_detector,
-                        data_api_client=data_client
+                        data_api_client=data_client,
                     )
                     enhanced_synergies = await enhanced_detector.detect_enhanced_synergies(
                         events_df=events_df,
-                        window_minutes=30
+                        window_minutes=30,
                     )
                     # Merge with base synergies (avoid duplicates)
-                    existing_ids = {s.get('synergy_id') for s in synergies}
-                    new_enhanced = [s for s in enhanced_synergies if s.get('synergy_id') not in existing_ids]
+                    existing_ids = {s.get("synergy_id") for s in synergies}
+                    new_enhanced = [s for s in enhanced_synergies if s.get("synergy_id") not in existing_ids]
                     synergies.extend(new_enhanced)
                     logger.info(f"   ✅ Enhanced detection added {len(new_enhanced)} new synergies")
                 except Exception as e:
@@ -690,13 +676,13 @@ class DailyAnalysisScheduler:
                 logger.info("  → Part B: Weather opportunity detection (Epic AI-3)...")
 
                 try:
-                    from ..contextual_patterns import WeatherOpportunityDetector
+                    from src.contextual_patterns import WeatherOpportunityDetector
 
                     weather_detector = WeatherOpportunityDetector(
                         influxdb_client=data_client.influxdb_client,
                         data_api_client=data_client,
                         frost_threshold_f=32.0,
-                        heat_threshold_f=85.0
+                        heat_threshold_f=85.0,
                     )
 
                     weather_opportunities = await weather_detector.detect_opportunities(days=7)
@@ -717,13 +703,13 @@ class DailyAnalysisScheduler:
                 logger.info("  → Part C: Energy opportunity detection (Epic AI-3)...")
 
                 try:
-                    from ..contextual_patterns import EnergyOpportunityDetector
+                    from src.contextual_patterns import EnergyOpportunityDetector
 
                     energy_detector = EnergyOpportunityDetector(
                         influxdb_client=data_client.influxdb_client,
                         data_api_client=data_client,
                         peak_price_threshold=0.15,  # $/kWh default
-                        min_confidence=0.7
+                        min_confidence=0.7,
                     )
 
                     energy_opportunities = await energy_detector.detect_opportunities()
@@ -744,10 +730,10 @@ class DailyAnalysisScheduler:
                 logger.info("  → Part D: Event opportunity detection (Epic AI-3)...")
 
                 try:
-                    from ..contextual_patterns import EventOpportunityDetector
+                    from src.contextual_patterns import EventOpportunityDetector
 
                     event_detector = EventOpportunityDetector(
-                        data_api_client=data_client
+                        data_api_client=data_client,
                     )
 
                     event_opportunities = await event_detector.detect_opportunities()
@@ -764,9 +750,9 @@ class DailyAnalysisScheduler:
 
                 # Calculate counts for each type (handle missing variables gracefully)
                 device_count = len(synergies)
-                weather_count = len(weather_opportunities) if 'weather_opportunities' in locals() else 0
-                energy_count = len(energy_opportunities) if 'energy_opportunities' in locals() else 0
-                event_count = len(event_opportunities) if 'event_opportunities' in locals() else 0
+                weather_count = len(weather_opportunities) if "weather_opportunities" in locals() else 0
+                energy_count = len(energy_opportunities) if "energy_opportunities" in locals() else 0
+                event_count = len(event_opportunities) if "event_opportunities" in locals() else 0
 
                 # Subtract contextual opportunities from device count
                 device_count = device_count - weather_count - energy_count - event_count
@@ -781,10 +767,8 @@ class DailyAnalysisScheduler:
                 ml_discovered_count = 0
                 ml_validated_count = 0
                 try:
-                    from ..synergy_detection.ml_enhanced_synergy_detector import (
-                        MLEnhancedSynergyDetector,
-                    )
-                    from ..synergy_detection.ml_synergy_miner import DynamicSynergyMiner
+                    from src.synergy_detection.ml_enhanced_synergy_detector import MLEnhancedSynergyDetector
+                    from src.synergy_detection.ml_synergy_miner import DynamicSynergyMiner
 
                     logger.info("   → Running ML synergy miner...")
                     ml_miner = DynamicSynergyMiner(
@@ -795,7 +779,7 @@ class DailyAnalysisScheduler:
                         min_consistency=0.8,
                         time_window_seconds=60,
                         lookback_days=30,
-                        min_occurrences=10
+                        min_occurrences=10,
                     )
 
                     discovered_synergies = await ml_miner.mine_synergies()
@@ -805,18 +789,18 @@ class DailyAnalysisScheduler:
                             ml_detector = MLEnhancedSynergyDetector(
                                 base_synergy_detector=synergy_detector,
                                 influxdb_client=data_client.influxdb_client,
-                                enable_ml_discovery=True
+                                enable_ml_discovery=True,
                             )
 
                             # Store discovered synergies
                             stored_count = await ml_detector._store_discovered_synergies(
-                                discovered_synergies, db
+                                discovered_synergies, db,
                             )
                             ml_discovered_count = stored_count
 
                             # Validate against patterns
                             validated_synergies = await ml_detector._validate_discovered_synergies(
-                                discovered_synergies, all_patterns, db
+                                discovered_synergies, all_patterns, db,
                             )
                             ml_validated_count = len(validated_synergies)
 
@@ -831,40 +815,40 @@ class DailyAnalysisScheduler:
                             db,
                             synergies,
                             validate_with_patterns=True,  # Phase 2: Enable pattern validation
-                            min_pattern_confidence=0.7
+                            min_pattern_confidence=0.7,
                         )
                         # Query validated count from database
                         from sqlalchemy import func, select
 
-                        from ..database.models import SynergyOpportunity
+                        from src.database.models import SynergyOpportunity
                         validated_result = await db.execute(
                             select(func.count()).select_from(SynergyOpportunity).where(
-                                SynergyOpportunity.validated_by_patterns == True
-                            )
+                                SynergyOpportunity.validated_by_patterns,
+                            ),
                         )
                         total_validated = validated_result.scalar() or 0
                     logger.info(f"   💾 Stored {synergies_stored} synergies in database")
                     logger.info(f"   ✅ Phase 2: Pattern validation enabled - {total_validated} total validated synergies in database")
                     logger.info(f"   ✅ ML-discovered synergies: {ml_discovered_count} discovered, {ml_validated_count} validated")
-                    job_result['synergies_detected'] = len(synergies)
-                    job_result['synergies_stored'] = synergies_stored
-                    job_result['synergies_validated'] = total_validated
-                    job_result['ml_synergies_discovered'] = ml_discovered_count
-                    job_result['ml_synergies_validated'] = ml_validated_count
+                    job_result["synergies_detected"] = len(synergies)
+                    job_result["synergies_stored"] = synergies_stored
+                    job_result["synergies_validated"] = total_validated
+                    job_result["ml_synergies_discovered"] = ml_discovered_count
+                    job_result["ml_synergies_validated"] = ml_validated_count
                 else:
                     logger.info("   ℹ️  No synergies to store")
-                    job_result['synergies_detected'] = 0
-                    job_result['synergies_stored'] = 0
+                    job_result["synergies_detected"] = 0
+                    job_result["synergies_stored"] = 0
 
             except Exception as e:
-                logger.error(f"⚠️ Synergy detection failed: {e}")
+                logger.exception(f"⚠️ Synergy detection failed: {e}")
                 logger.info("   → Continuing with feature analysis...")
                 synergies = []
-                job_result['synergies_detected'] = 0
-                job_result['synergies_stored'] = 0
+                job_result["synergies_detected"] = 0
+                job_result["synergies_stored"] = 0
             finally:
                 # Story AI4.3: Clean up HA client resources
-                if 'ha_client' in locals() and ha_client:
+                if "ha_client" in locals() and ha_client:
                     try:
                         await ha_client.close()
                         logger.debug("   → HA client connection closed")
@@ -879,45 +863,45 @@ class DailyAnalysisScheduler:
             try:
                 # Initialize Device Intelligence Service client
                 device_intelligence_client = DeviceIntelligenceClient(
-                    base_url=settings.device_intelligence_url
+                    base_url=settings.device_intelligence_url,
                 )
 
                 feature_analyzer = FeatureAnalyzer(
                     device_intelligence_client=device_intelligence_client,
                     db_session=get_db_session,
-                    influxdb_client=data_client.influxdb_client
+                    influxdb_client=data_client.influxdb_client,
                 )
 
                 analysis_result = await feature_analyzer.analyze_all_devices()
 
-                if analysis_result.get('skipped'):
-                    skip_reason = analysis_result.get('skip_reason', 'unknown')
+                if analysis_result.get("skipped"):
+                    skip_reason = analysis_result.get("skip_reason", "unknown")
                     logger.warning(f"⚠️ Feature analysis skipped: {skip_reason}")
                     opportunities = []
-                    job_result['feature_analysis_skipped'] = True
-                    job_result['feature_analysis_skip_reason'] = skip_reason
-                    job_result['stale_capabilities'] = analysis_result.get('stale_capabilities', {})
-                    job_result['devices_analyzed'] = 0
-                    job_result['opportunities_found'] = 0
-                    job_result['avg_utilization'] = 0
+                    job_result["feature_analysis_skipped"] = True
+                    job_result["feature_analysis_skip_reason"] = skip_reason
+                    job_result["stale_capabilities"] = analysis_result.get("stale_capabilities", {})
+                    job_result["devices_analyzed"] = 0
+                    job_result["opportunities_found"] = 0
+                    job_result["avg_utilization"] = 0
                 else:
-                    opportunities = analysis_result.get('opportunities', [])
+                    opportunities = analysis_result.get("opportunities", [])
 
                     logger.info("✅ Feature analysis complete:")
                     logger.info(f"   - Devices analyzed: {analysis_result.get('devices_analyzed', 0)}")
                     logger.info(f"   - Opportunities found: {len(opportunities)}")
                     logger.info(f"   - Average utilization: {analysis_result.get('avg_utilization', 0):.1f}%")
 
-                    job_result['devices_analyzed'] = analysis_result.get('devices_analyzed', 0)
-                    job_result['opportunities_found'] = len(opportunities)
-                    job_result['avg_utilization'] = analysis_result.get('avg_utilization', 0)
+                    job_result["devices_analyzed"] = analysis_result.get("devices_analyzed", 0)
+                    job_result["opportunities_found"] = len(opportunities)
+                    job_result["avg_utilization"] = analysis_result.get("avg_utilization", 0)
 
             except Exception as e:
-                logger.error(f"⚠️ Feature analysis failed: {e}")
+                logger.exception(f"⚠️ Feature analysis failed: {e}")
                 logger.info("   → Continuing with suggestions...")
                 opportunities = []
-                job_result['devices_analyzed'] = 0
-                job_result['opportunities_found'] = 0
+                job_result["devices_analyzed"] = 0
+                job_result["opportunities_found"] = 0
 
             # ================================================================
             # Phase 5: Combined Suggestion Generation (AI-1 + AI-2 + AI-3)
@@ -925,7 +909,7 @@ class DailyAnalysisScheduler:
             logger.info("💡 Phase 5/7: Combined Suggestion Generation (AI-1 + AI-2)...")
 
             # Initialize unified prompt builder with device intelligence
-            from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+            from src.prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 
             device_intel_client = DeviceIntelligenceClient(settings.device_intelligence_url)
             unified_builder = UnifiedPromptBuilder(device_intelligence_client=device_intel_client)
@@ -940,15 +924,15 @@ class DailyAnalysisScheduler:
                 # Collect all unique device IDs from patterns
                 all_device_ids = set()
                 for pattern in all_patterns:
-                    if 'device_id' in pattern:
-                        all_device_ids.add(pattern['device_id'])
+                    if "device_id" in pattern:
+                        all_device_ids.add(pattern["device_id"])
 
                 if all_device_ids:
                     logger.info(f"  → Pre-fetching contexts for {len(all_device_ids)} devices")
                     # Fetch contexts in parallel for better performance
                     async def fetch_device_context(device_id):
                         try:
-                            context = await unified_builder.get_enhanced_device_context({'device_id': device_id})
+                            context = await unified_builder.get_enhanced_device_context({"device_id": device_id})
                             return device_id, context
                         except Exception as e:
                             logger.warning(f"  ⚠️ Failed to fetch context for {device_id}: {e}")
@@ -980,8 +964,8 @@ class DailyAnalysisScheduler:
             async def process_pattern_suggestion(pattern, cached_contexts):
                 try:
                     # Use cached context if available
-                    if cached_contexts and pattern.get('device_id') in cached_contexts:
-                        enhanced_context = cached_contexts[pattern['device_id']]
+                    if cached_contexts and pattern.get("device_id") in cached_contexts:
+                        enhanced_context = cached_contexts[pattern["device_id"]]
                     else:
                         enhanced_context = await unified_builder.get_enhanced_device_context(pattern)
 
@@ -989,7 +973,7 @@ class DailyAnalysisScheduler:
                     prompt_dict = await unified_builder.build_pattern_prompt(
                         pattern=pattern,
                         device_context=enhanced_context,
-                        output_mode="description"
+                        output_mode="description",
                     )
 
                     # Generate suggestion
@@ -997,44 +981,43 @@ class DailyAnalysisScheduler:
                         prompt_dict=prompt_dict,
                         temperature=settings.default_temperature,
                         max_tokens=settings.description_max_tokens,
-                        output_format="description"
+                        output_format="description",
                     )
 
                     # Format suggestion
-                    if 'title' in description_data:
-                        title = description_data['title']
-                        description = description_data['description']
-                        rationale = description_data['rationale']
-                        category = description_data['category']
-                        priority = description_data['priority']
+                    if "title" in description_data:
+                        title = description_data["title"]
+                        description = description_data["description"]
+                        rationale = description_data["rationale"]
+                        category = description_data["category"]
+                        priority = description_data["priority"]
                     else:
                         title = f"Automation for {pattern.get('device_id', 'device')}"
-                        description = description_data.get('description', '')
+                        description = description_data.get("description", "")
                         rationale = "Based on detected usage pattern"
                         category = "convenience"
                         priority = "medium"
 
-                    suggestion = {
-                        'type': 'pattern_automation',
-                        'source': 'Epic-AI-1',
-                        'pattern_id': pattern.get('id'),
-                        'pattern_type': pattern.get('pattern_type'),
-                        'title': title,
-                        'description': description,
-                        'automation_yaml': None,
-                        'confidence': pattern['confidence'],
-                        'category': category,
-                        'priority': priority,
-                        'rationale': rationale
+                    return {
+                        "type": "pattern_automation",
+                        "source": "Epic-AI-1",
+                        "pattern_id": pattern.get("id"),
+                        "pattern_type": pattern.get("pattern_type"),
+                        "title": title,
+                        "description": description,
+                        "automation_yaml": None,
+                        "confidence": pattern["confidence"],
+                        "category": category,
+                        "priority": priority,
+                        "rationale": rationale,
                     }
 
-                    return suggestion
                 except Exception as e:
-                    logger.error(f"     Failed to process pattern: {e}")
+                    logger.exception(f"     Failed to process pattern: {e}")
                     return None
 
             if all_patterns:
-                sorted_patterns = sorted(all_patterns, key=lambda p: p['confidence'], reverse=True)
+                sorted_patterns = sorted(all_patterns, key=lambda p: p["confidence"], reverse=True)
                 top_patterns = sorted_patterns[:10]
 
                 logger.info(f"     Processing top {len(top_patterns)} patterns (parallel)")
@@ -1072,14 +1055,14 @@ class DailyAnalysisScheduler:
                     feature_generator = FeatureSuggestionGenerator(
                         llm_client=openai_client,
                         feature_analyzer=feature_analyzer,
-                        db_session=get_db_session
+                        db_session=get_db_session,
                     )
 
                     feature_suggestions = await feature_generator.generate_suggestions(max_suggestions=10)
                     logger.info(f"     ✅ Generated {len(feature_suggestions)} feature suggestions")
 
                 except Exception as e:
-                    logger.error(f"     ❌ Feature suggestion generation failed: {e}")
+                    logger.exception(f"     ❌ Feature suggestion generation failed: {e}")
             else:
                 logger.info("     ℹ️  No opportunities available for suggestions")
 
@@ -1091,9 +1074,7 @@ class DailyAnalysisScheduler:
             synergy_suggestions = []
 
             try:
-                from ..synergy_detection.synergy_suggestion_generator import (
-                    SynergySuggestionGenerator,
-                )
+                from src.synergy_detection.synergy_suggestion_generator import SynergySuggestionGenerator
 
                 # Query synergies from database with priority-based selection
                 async with get_db_session() as db:
@@ -1104,7 +1085,7 @@ class DailyAnalysisScheduler:
                             order_by_priority=True,
                             min_priority=settings.synergy_min_priority,
                             limit=settings.synergy_max_suggestions,
-                            min_confidence=0.7  # Maintain minimum confidence threshold
+                            min_confidence=0.7,  # Maintain minimum confidence threshold
                         )
                         logger.info(f"     → Selected {len(selected_synergies)} synergies by priority score")
                     else:
@@ -1114,7 +1095,7 @@ class DailyAnalysisScheduler:
                             db,
                             order_by_priority=False,
                             limit=settings.synergy_max_suggestions,
-                            min_confidence=0.7
+                            min_confidence=0.7,
                         )
                         logger.info(f"     → Selected {len(selected_synergies)} synergies by impact score")
 
@@ -1124,32 +1105,32 @@ class DailyAnalysisScheduler:
                     for synergy in selected_synergies:
                         import json
                         synergy_dict = {
-                            'synergy_id': synergy.synergy_id,
-                            'synergy_type': synergy.synergy_type,
-                            'devices': json.loads(synergy.device_ids) if synergy.device_ids else [],
-                            'impact_score': synergy.impact_score,
-                            'complexity': synergy.complexity,
-                            'confidence': synergy.confidence,
-                            'area': synergy.area,
-                            'opportunity_metadata': synergy.opportunity_metadata or {},
-                            'pattern_support_score': getattr(synergy, 'pattern_support_score', 0.0),
-                            'validated_by_patterns': getattr(synergy, 'validated_by_patterns', False),
-                            'relationship': (synergy.opportunity_metadata or {}).get('relationship', ''),
-                            'trigger_entity': (synergy.opportunity_metadata or {}).get('trigger_entity', ''),
-                            'action_entity': (synergy.opportunity_metadata or {}).get('action_entity', ''),
-                            'trigger_name': (synergy.opportunity_metadata or {}).get('trigger_name', ''),
-                            'action_name': (synergy.opportunity_metadata or {}).get('action_name', ''),
-                            'rationale': (synergy.opportunity_metadata or {}).get('rationale', '')
+                            "synergy_id": synergy.synergy_id,
+                            "synergy_type": synergy.synergy_type,
+                            "devices": json.loads(synergy.device_ids) if synergy.device_ids else [],
+                            "impact_score": synergy.impact_score,
+                            "complexity": synergy.complexity,
+                            "confidence": synergy.confidence,
+                            "area": synergy.area,
+                            "opportunity_metadata": synergy.opportunity_metadata or {},
+                            "pattern_support_score": getattr(synergy, "pattern_support_score", 0.0),
+                            "validated_by_patterns": getattr(synergy, "validated_by_patterns", False),
+                            "relationship": (synergy.opportunity_metadata or {}).get("relationship", ""),
+                            "trigger_entity": (synergy.opportunity_metadata or {}).get("trigger_entity", ""),
+                            "action_entity": (synergy.opportunity_metadata or {}).get("action_entity", ""),
+                            "trigger_name": (synergy.opportunity_metadata or {}).get("trigger_name", ""),
+                            "action_name": (synergy.opportunity_metadata or {}).get("action_name", ""),
+                            "rationale": (synergy.opportunity_metadata or {}).get("rationale", ""),
                         }
                         synergy_dicts.append(synergy_dict)
 
                     synergy_generator = SynergySuggestionGenerator(
-                        llm_client=openai_client
+                        llm_client=openai_client,
                     )
 
                     synergy_suggestions = await synergy_generator.generate_suggestions(
                         synergies=synergy_dicts,
-                        max_suggestions=settings.synergy_max_suggestions
+                        max_suggestions=settings.synergy_max_suggestions,
                     )
                     logger.info(f"     ✅ Generated {len(synergy_suggestions)} synergy suggestions")
                 else:
@@ -1167,20 +1148,20 @@ class DailyAnalysisScheduler:
 
             # Apply ranking score with boost for validated synergies
             for suggestion in all_suggestions:
-                base_confidence = suggestion.get('confidence', 0.5)
+                base_confidence = suggestion.get("confidence", 0.5)
                 # Give validated synergies 1.1x boost in ranking
-                if suggestion.get('type', '').startswith('synergy_') and suggestion.get('validated_by_patterns', False):
-                    suggestion['_ranking_score'] = base_confidence * 1.1
+                if suggestion.get("type", "").startswith("synergy_") and suggestion.get("validated_by_patterns", False):
+                    suggestion["_ranking_score"] = base_confidence * 1.1
                 else:
-                    suggestion['_ranking_score'] = base_confidence
+                    suggestion["_ranking_score"] = base_confidence
 
-            all_suggestions.sort(key=lambda s: s.get('_ranking_score', 0.5), reverse=True)
+            all_suggestions.sort(key=lambda s: s.get("_ranking_score", 0.5), reverse=True)
             all_suggestions = all_suggestions[:10]  # Top 10 total
 
             # Clean up temporary ranking score
             for suggestion in all_suggestions:
-                if '_ranking_score' in suggestion:
-                    del suggestion['_ranking_score']
+                if "_ranking_score" in suggestion:
+                    del suggestion["_ranking_score"]
 
             logger.info(f"✅ Combined suggestions: {len(all_suggestions)} total")
             logger.info(f"   - Pattern-based (AI-1): {len(pattern_suggestions)}")
@@ -1196,7 +1177,7 @@ class DailyAnalysisScheduler:
                         await store_suggestion(db, suggestion, commit=False)
                         suggestions_stored += 1
                     except Exception as e:
-                        logger.error(f"   ❌ Failed to store suggestion: {e}")
+                        logger.exception(f"   ❌ Failed to store suggestion: {e}")
                         # Continue with other suggestions
 
                 try:
@@ -1204,7 +1185,7 @@ class DailyAnalysisScheduler:
                     logger.info(f"   💾 Stored {suggestions_stored}/{len(all_suggestions)} suggestions in database")
                 except Exception as e:
                     await db.rollback()
-                    logger.error(f"   ❌ Failed to commit suggestions: {e}")
+                    logger.exception(f"   ❌ Failed to commit suggestions: {e}")
                     suggestions_stored = 0
 
             suggestions_generated = len(all_suggestions)
@@ -1217,12 +1198,12 @@ class DailyAnalysisScheduler:
             logger.info(f"  → OpenAI tokens: {openai_client.total_tokens_used}")
             logger.info(f"  → OpenAI cost: ${openai_cost:.6f}")
 
-            job_result['suggestions_generated'] = suggestions_generated
-            job_result['pattern_suggestions'] = len(pattern_suggestions)
-            job_result['feature_suggestions'] = len(feature_suggestions)
-            job_result['synergy_suggestions'] = len(synergy_suggestions)
-            job_result['openai_tokens'] = openai_client.total_tokens_used
-            job_result['openai_cost_usd'] = round(openai_cost, 6)
+            job_result["suggestions_generated"] = suggestions_generated
+            job_result["pattern_suggestions"] = len(pattern_suggestions)
+            job_result["feature_suggestions"] = len(feature_suggestions)
+            job_result["synergy_suggestions"] = len(synergy_suggestions)
+            job_result["openai_tokens"] = openai_client.total_tokens_used
+            job_result["openai_cost_usd"] = round(openai_cost, 6)
 
             await self._maybe_run_self_improvement(job_result)
 
@@ -1233,23 +1214,23 @@ class DailyAnalysisScheduler:
 
             try:
                 notification = {
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'epic_ai_1': {
-                        'patterns_detected': len(all_patterns),
-                        'pattern_suggestions': len(pattern_suggestions)
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "epic_ai_1": {
+                        "patterns_detected": len(all_patterns),
+                        "pattern_suggestions": len(pattern_suggestions),
                     },
-                    'epic_ai_2': {
-                        'devices_checked': job_result.get('devices_checked', 0),
-                        'capabilities_updated': job_result.get('capabilities_updated', 0),
-                        'opportunities_found': job_result.get('opportunities_found', 0),
-                        'feature_suggestions': len(feature_suggestions)
+                    "epic_ai_2": {
+                        "devices_checked": job_result.get("devices_checked", 0),
+                        "capabilities_updated": job_result.get("capabilities_updated", 0),
+                        "opportunities_found": job_result.get("opportunities_found", 0),
+                        "feature_suggestions": len(feature_suggestions),
                     },
-                    'combined': {
-                        'suggestions_generated': suggestions_generated,
-                        'events_analyzed': len(events_df)
+                    "combined": {
+                        "suggestions_generated": suggestions_generated,
+                        "events_analyzed": len(events_df),
                     },
-                    'duration_seconds': (datetime.now(timezone.utc) - start_time).total_seconds(),
-                    'success': True
+                    "duration_seconds": (datetime.now(timezone.utc) - start_time).total_seconds(),
+                    "success": True,
                 }
 
                 if self.mqtt_client:
@@ -1268,9 +1249,9 @@ class DailyAnalysisScheduler:
             end_time = datetime.now(timezone.utc)
             duration = (end_time - start_time).total_seconds()
 
-            job_result['status'] = 'success'
-            job_result['end_time'] = end_time.isoformat()
-            job_result['duration_seconds'] = round(duration, 2)
+            job_result["status"] = "success"
+            job_result["end_time"] = end_time.isoformat()
+            job_result["duration_seconds"] = round(duration, 2)
 
             logger.info("=" * 80)
             logger.info("✅ Unified Daily AI Analysis Complete!")
@@ -1296,9 +1277,9 @@ class DailyAnalysisScheduler:
 
         except Exception as e:
             logger.error(f"❌ Daily analysis job failed: {e}", exc_info=True)
-            job_result['status'] = 'failed'
-            job_result['error'] = str(e)
-            job_result['end_time'] = datetime.now(timezone.utc).isoformat()
+            job_result["status"] = "failed"
+            job_result["error"] = str(e)
+            job_result["end_time"] = datetime.now(timezone.utc).isoformat()
 
         finally:
             self.is_running = False
@@ -1307,12 +1288,12 @@ class DailyAnalysisScheduler:
                 async with get_db_session() as db:
                     await record_analysis_run(db, job_result)
             except Exception as e:
-                logger.error(f"Failed to persist analysis run summary: {e}")
+                logger.exception(f"Failed to persist analysis run summary: {e}")
 
     def _store_job_history(self, job_result: dict):
         """
         Store job execution history for tracking and debugging.
-        
+
         Args:
             job_result: Dictionary with job execution details
         """
@@ -1326,10 +1307,10 @@ class DailyAnalysisScheduler:
     def get_job_history(self, limit: int = 10) -> list:
         """
         Get recent job execution history.
-        
+
         Args:
             limit: Maximum number of jobs to return
-        
+
         Returns:
             List of recent job execution results
         """
@@ -1338,22 +1319,22 @@ class DailyAnalysisScheduler:
     def get_next_run_time(self) -> datetime | None:
         """
         Get the next scheduled run time.
-        
+
         Returns:
             Next run time as datetime, or None if not scheduled
         """
         try:
-            job = self.scheduler.get_job('daily_pattern_analysis')
+            job = self.scheduler.get_job("daily_pattern_analysis")
             if job:
                 return job.next_run_time
         except Exception as e:
-            logger.error(f"Failed to get next run time: {e}")
+            logger.exception(f"Failed to get next run time: {e}")
         return None
 
     async def trigger_manual_run(self):
         """
         Manually trigger analysis run (for testing or on-demand execution).
-        
+
         This runs in the background and doesn't block.
         """
         logger.info("🔧 Manual analysis run triggered")
@@ -1370,7 +1351,7 @@ class DailyAnalysisScheduler:
             return
 
         try:
-            from ..langchain_integration.self_improvement import generate_prompt_tuning_report
+            from src.langchain_integration.self_improvement import generate_prompt_tuning_report
 
             report = await generate_prompt_tuning_report(get_db_session)
             job_result["self_improvement"] = {

@@ -6,7 +6,7 @@ Reprocess Patterns Script - Story AI1.23 Phase 2
 Regenerates automation suggestions using OpenAI description generation.
 This script:
 1. Deletes all existing suggestions
-2. Fetches all patterns from database  
+2. Fetches all patterns from database
 3. Generates OpenAI-powered descriptions (NO placeholders)
 4. Fetches device capabilities
 5. Stores in 'draft' status
@@ -40,7 +40,7 @@ from llm.description_generator import DescriptionGenerator
 from openai import AsyncOpenAI
 from sqlalchemy import delete, select
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +64,7 @@ async def fetch_all_patterns():
     """Fetch all patterns from database"""
     async with get_db_session() as db:
         result = await db.execute(
-            select(Pattern).order_by(Pattern.confidence.desc())
+            select(Pattern).order_by(Pattern.confidence.desc()),
         )
         patterns = result.scalars().all()
         logger.info(f"📊 Found {len(patterns)} patterns to process")
@@ -74,48 +74,48 @@ async def fetch_all_patterns():
 async def generate_description_with_openai(
     pattern: Pattern,
     description_generator: DescriptionGenerator,
-    data_api_client: DataAPIClient
+    data_api_client: DataAPIClient,
 ) -> tuple[str, dict]:
     """
     Generate OpenAI-powered description for the pattern.
-    
+
     Phase 2: Real OpenAI generation with device capabilities!
-    
+
     Returns:
         Tuple of (description, capabilities)
     """
     # Build pattern dict for OpenAI
     pattern_dict = {
-        'pattern_type': pattern.pattern_type,
-        'device_id': pattern.device_id,
-        'confidence': pattern.confidence,
-        'occurrences': pattern.occurrences,
-        'metadata': pattern.pattern_metadata or {}
+        "pattern_type": pattern.pattern_type,
+        "device_id": pattern.device_id,
+        "confidence": pattern.confidence,
+        "occurrences": pattern.occurrences,
+        "metadata": pattern.pattern_metadata or {},
     }
 
     # Extract specific fields for different pattern types
     metadata = pattern.pattern_metadata or {}
 
-    if pattern.pattern_type == 'time_of_day':
-        pattern_dict['hour'] = int(metadata.get('avg_time_decimal', 0))
-        pattern_dict['minute'] = int((metadata.get('avg_time_decimal', 0) % 1) * 60)
+    if pattern.pattern_type == "time_of_day":
+        pattern_dict["hour"] = int(metadata.get("avg_time_decimal", 0))
+        pattern_dict["minute"] = int((metadata.get("avg_time_decimal", 0) % 1) * 60)
 
-    elif pattern.pattern_type == 'co_occurrence':
+    elif pattern.pattern_type == "co_occurrence":
         # Device ID format: "device1+device2"
-        if '+' in pattern.device_id:
-            device1, device2 = pattern.device_id.split('+', 1)
-            pattern_dict['device1'] = device1
-            pattern_dict['device2'] = device2
+        if "+" in pattern.device_id:
+            device1, device2 = pattern.device_id.split("+", 1)
+            pattern_dict["device1"] = device1
+            pattern_dict["device2"] = device2
 
     # Fetch device capabilities from data-api
     try:
         capabilities = await data_api_client.fetch_device_capabilities(pattern.device_id)
 
         device_context = {
-            'name': capabilities.get('friendly_name', pattern.device_id),
-            'area': capabilities.get('area', ''),
-            'domain': capabilities.get('domain', 'unknown'),
-            'capabilities': capabilities.get('supported_features', {})
+            "name": capabilities.get("friendly_name", pattern.device_id),
+            "area": capabilities.get("area", ""),
+            "domain": capabilities.get("domain", "unknown"),
+            "capabilities": capabilities.get("supported_features", {}),
         }
     except Exception as e:
         logger.warning(f"Failed to fetch capabilities for {pattern.device_id}: {e}")
@@ -126,13 +126,13 @@ async def generate_description_with_openai(
     try:
         description = await description_generator.generate_description(
             pattern=pattern_dict,
-            device_context=device_context
+            device_context=device_context,
         )
 
         return description, capabilities
 
     except Exception as e:
-        logger.error(f"OpenAI generation failed for {pattern.pattern_type}: {e}")
+        logger.exception(f"OpenAI generation failed for {pattern.pattern_type}: {e}")
         # Fallback to basic description
         fallback = generate_fallback_description(pattern)
         return fallback, capabilities
@@ -145,34 +145,33 @@ def generate_fallback_description(pattern: Pattern) -> str:
     """
     pattern_type = pattern.pattern_type
     device_id = pattern.device_id
-    friendly_name = device_id.split('.')[-1].replace('_', ' ').title() if '.' in device_id else device_id
+    friendly_name = device_id.split(".")[-1].replace("_", " ").title() if "." in device_id else device_id
 
-    if pattern_type == 'time_of_day':
+    if pattern_type == "time_of_day":
         metadata = pattern.pattern_metadata or {}
-        hour = int(metadata.get('avg_time_decimal', 0))
-        minute = int((metadata.get('avg_time_decimal', 0) % 1) * 60)
+        hour = int(metadata.get("avg_time_decimal", 0))
+        minute = int((metadata.get("avg_time_decimal", 0) % 1) * 60)
         return f"Automatically control {friendly_name} at {hour:02d}:{minute:02d} based on consistent usage pattern"
 
-    elif pattern_type == 'co_occurrence':
+    if pattern_type == "co_occurrence":
         metadata = pattern.pattern_metadata or {}
-        if '+' in device_id:
-            d1, d2 = device_id.split('+', 1)
-            name1 = d1.split('.')[-1].replace('_', ' ').title()
-            name2 = d2.split('.')[-1].replace('_', ' ').title()
+        if "+" in device_id:
+            d1, d2 = device_id.split("+", 1)
+            name1 = d1.split(".")[-1].replace("_", " ").title()
+            name2 = d2.split(".")[-1].replace("_", " ").title()
             return f"When {name1} activates, automatically turn on {name2}"
         return f"Automate {friendly_name} based on co-occurrence pattern"
 
-    elif pattern_type == 'anomaly':
+    if pattern_type == "anomaly":
         return f"Get notified when {friendly_name} shows unusual activity"
 
-    else:
-        return f"Automate {friendly_name} based on detected usage pattern"
+    return f"Automate {friendly_name} based on detected usage pattern"
 
 
 def generate_title_placeholder(pattern: Pattern) -> str:
     """Generate a placeholder title"""
-    pattern_type = pattern.pattern_type.replace('_', ' ').title()
-    device_name = pattern.device_id.split('.')[-1].replace('_', ' ').title()
+    pattern_type = pattern.pattern_type.replace("_", " ").title()
+    device_name = pattern.device_id.split(".")[-1].replace("_", " ").title()
     return f"{device_name} {pattern_type}"
 
 
@@ -180,46 +179,44 @@ def infer_category(pattern: Pattern) -> str:
     """Infer category from device ID"""
     device_id = pattern.device_id.lower()
 
-    if any(k in device_id for k in ['light', 'switch']):
-        return 'convenience'
-    elif any(k in device_id for k in ['climate', 'thermostat', 'temperature']):
-        return 'comfort'
-    elif any(k in device_id for k in ['alarm', 'lock', 'door', 'camera', 'motion']):
-        return 'security'
-    elif any(k in device_id for k in ['energy', 'power']):
-        return 'energy'
-    else:
-        return 'convenience'
+    if any(k in device_id for k in ["light", "switch"]):
+        return "convenience"
+    if any(k in device_id for k in ["climate", "thermostat", "temperature"]):
+        return "comfort"
+    if any(k in device_id for k in ["alarm", "lock", "door", "camera", "motion"]):
+        return "security"
+    if any(k in device_id for k in ["energy", "power"]):
+        return "energy"
+    return "convenience"
 
 
 def infer_priority(confidence: float) -> str:
     """Infer priority from confidence score"""
     if confidence >= 0.85:
-        return 'high'
-    elif confidence >= 0.65:
-        return 'medium'
-    else:
-        return 'low'
+        return "high"
+    if confidence >= 0.65:
+        return "medium"
+    return "low"
 
 
 async def create_suggestion_from_pattern(
     pattern: Pattern,
     description_generator: DescriptionGenerator,
-    data_api_client: DataAPIClient
+    data_api_client: DataAPIClient,
 ) -> Suggestion:
     """
     Create a new suggestion from a pattern.
-    
+
     Phase 2: Uses OpenAI to generate real descriptions with device capabilities!
     """
     # Generate OpenAI description and fetch capabilities
     description, capabilities = await generate_description_with_openai(
         pattern,
         description_generator,
-        data_api_client
+        data_api_client,
     )
 
-    suggestion = Suggestion(
+    return Suggestion(
         pattern_id=pattern.id,
 
         # NEW: Description-first fields (Phase 2: Real OpenAI!)
@@ -233,7 +230,7 @@ async def create_suggestion_from_pattern(
         yaml_generated_at=None,
 
         # Status
-        status='draft',
+        status="draft",
 
         # Legacy fields
         title=generate_title_placeholder(pattern),
@@ -246,10 +243,9 @@ async def create_suggestion_from_pattern(
         updated_at=datetime.utcnow(),
         approved_at=None,
         deployed_at=None,
-        ha_automation_id=None
+        ha_automation_id=None,
     )
 
-    return suggestion
 
 
 async def reprocess_all_patterns():
@@ -259,7 +255,7 @@ async def reprocess_all_patterns():
     logger.info("="*80)
 
     # Check for OpenAI API key
-    openai_api_key = os.getenv('OPENAI_API_KEY')
+    openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         logger.error("❌ OPENAI_API_KEY environment variable not set!")
         logger.error("   Set it with: export OPENAI_API_KEY='sk-...'")
@@ -308,7 +304,7 @@ async def reprocess_all_patterns():
                 suggestion = await create_suggestion_from_pattern(
                     pattern,
                     description_generator,
-                    data_api_client
+                    data_api_client,
                 )
 
                 db.add(suggestion)
@@ -321,13 +317,13 @@ async def reprocess_all_patterns():
 
                 logger.info(
                     f"  ✅ [{i}/{len(patterns)}] {suggestion.title} "
-                    f"(confidence: {suggestion.confidence:.0%})"
+                    f"(confidence: {suggestion.confidence:.0%})",
                 )
                 logger.debug(f"     Description: {suggestion.description_only[:60]}...")
 
             except Exception as e:
                 failed_count += 1
-                logger.error(f"  ❌ [{i}/{len(patterns)}] Failed: {pattern.pattern_type} - {e}")
+                logger.exception(f"  ❌ [{i}/{len(patterns)}] Failed: {pattern.pattern_type} - {e}")
 
         # Commit all suggestions
         await db.commit()
@@ -370,6 +366,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("\n⚠️  Interrupted by user")
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+        logger.exception(f"❌ Fatal error: {e}")
         raise
 

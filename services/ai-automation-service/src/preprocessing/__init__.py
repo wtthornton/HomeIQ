@@ -8,5 +8,5 @@ Extracts all features once, reused by all pattern detectors
 from .event_preprocessor import EventPreprocessor
 from .processed_events import ProcessedEvent, ProcessedEvents
 
-__all__ = ['EventPreprocessor', 'ProcessedEvent', 'ProcessedEvents']
+__all__ = ["EventPreprocessor", "ProcessedEvent", "ProcessedEvents"]
 

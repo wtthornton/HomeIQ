@@ -42,12 +42,12 @@ async def initialize_database(settings: Settings):
     _engine = create_async_engine(
         database_url,
         echo=False,  # Set to True for SQL logging
-        future=True
+        future=True,
     )
     _session_factory = async_sessionmaker(
         _engine,
         class_=AsyncSession,
-        expire_on_commit=False
+        expire_on_commit=False,
     )
 
     # Create tables
@@ -63,7 +63,8 @@ async def initialize_database(settings: Settings):
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Get database session dependency."""
     if _session_factory is None:
-        raise RuntimeError("Database not initialized")
+        msg = "Database not initialized"
+        raise RuntimeError(msg)
 
     async with _session_factory() as session:
         try:
@@ -85,7 +86,8 @@ async def recreate_tables():
     """Drop all tables and recreate them with new schema."""
     global _engine
     if not _engine:
-        raise RuntimeError("Database not initialized")
+        msg = "Database not initialized"
+        raise RuntimeError(msg)
 
     logger.info("🔄 Recreating database tables")
 

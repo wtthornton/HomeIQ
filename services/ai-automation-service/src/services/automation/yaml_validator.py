@@ -37,7 +37,7 @@ class ValidationPipelineResult:
 class AutomationYAMLValidator:
     """
     Multi-stage validation pipeline for automation YAML.
-    
+
     Stages:
     1. Syntax validation (YAML parsing)
     2. Structure validation (HA format)
@@ -48,11 +48,11 @@ class AutomationYAMLValidator:
 
     def __init__(
         self,
-        ha_client: HomeAssistantClient | None = None
+        ha_client: HomeAssistantClient | None = None,
     ):
         """
         Initialize YAML validator.
-        
+
         Args:
             ha_client: Home Assistant client for entity validation
         """
@@ -64,15 +64,15 @@ class AutomationYAMLValidator:
     async def validate(
         self,
         yaml_content: str,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> ValidationPipelineResult:
         """
         Run multi-stage validation pipeline.
-        
+
         Args:
             yaml_content: YAML string to validate
             context: Optional context (validated entities, etc.)
-        
+
         Returns:
             ValidationPipelineResult with all stage results
         """
@@ -86,7 +86,7 @@ class AutomationYAMLValidator:
             return ValidationPipelineResult(
                 valid=False,
                 stages=stages,
-                all_checks_passed=False
+                all_checks_passed=False,
             )
 
         # Stage 2: Structure validation
@@ -97,7 +97,7 @@ class AutomationYAMLValidator:
             return ValidationPipelineResult(
                 valid=False,
                 stages=stages,
-                all_checks_passed=False
+                all_checks_passed=False,
             )
 
         # Stage 3: Entity existence (if HA client available)
@@ -109,7 +109,7 @@ class AutomationYAMLValidator:
                 return ValidationPipelineResult(
                     valid=False,
                     stages=stages,
-                    all_checks_passed=False
+                    all_checks_passed=False,
                 )
 
         # Stage 4: Logic validation
@@ -125,7 +125,7 @@ class AutomationYAMLValidator:
         return ValidationPipelineResult(
             valid=all_passed,
             stages=stages,
-            all_checks_passed=all_passed
+            all_checks_passed=all_passed,
         )
 
     async def _validate_syntax(self, yaml_content: str) -> ValidationStage:
@@ -138,14 +138,14 @@ class AutomationYAMLValidator:
                 name="syntax",
                 valid=True,
                 errors=[],
-                warnings=[]
+                warnings=[],
             )
         except yaml.YAMLError as e:
             return ValidationStage(
                 name="syntax",
                 valid=False,
                 errors=[f"YAML syntax error: {e}"],
-                warnings=[]
+                warnings=[],
             )
 
     async def _validate_structure(self, yaml_content: str) -> ValidationStage:
@@ -156,7 +156,7 @@ class AutomationYAMLValidator:
             name="structure",
             valid=result.is_valid,
             errors=result.errors,
-            warnings=result.warnings
+            warnings=result.warnings,
         )
 
     async def _validate_entities(self, yaml_content: str, context: dict | None) -> ValidationStage:
@@ -174,34 +174,34 @@ class AutomationYAMLValidator:
             entity_ids = set()
 
             # Check triggers
-            triggers = data.get('trigger', [])
+            triggers = data.get("trigger", [])
             if isinstance(triggers, list):
                 for trigger in triggers:
-                    if isinstance(trigger, dict) and 'entity_id' in trigger:
-                        entity_id = trigger['entity_id']
+                    if isinstance(trigger, dict) and "entity_id" in trigger:
+                        entity_id = trigger["entity_id"]
                         if isinstance(entity_id, str):
                             entity_ids.add(entity_id)
                         elif isinstance(entity_id, list):
                             entity_ids.update(entity_id)
 
             # Check conditions
-            conditions = data.get('condition', [])
+            conditions = data.get("condition", [])
             if isinstance(conditions, list):
                 for condition in conditions:
-                    if isinstance(condition, dict) and 'entity_id' in condition:
-                        entity_id = condition['entity_id']
+                    if isinstance(condition, dict) and "entity_id" in condition:
+                        entity_id = condition["entity_id"]
                         if isinstance(entity_id, str):
                             entity_ids.add(entity_id)
 
             # Check actions
-            actions = data.get('action', [])
+            actions = data.get("action", [])
             if isinstance(actions, list):
                 for action in actions:
                     if isinstance(action, dict):
                         # Check target.entity_id
-                        if 'target' in action and isinstance(action['target'], dict):
-                            if 'entity_id' in action['target']:
-                                entity_id = action['target']['entity_id']
+                        if "target" in action and isinstance(action["target"], dict):
+                            if "entity_id" in action["target"]:
+                                entity_id = action["target"]["entity_id"]
                                 if isinstance(entity_id, str):
                                     entity_ids.add(entity_id)
                                 elif isinstance(entity_id, list):
@@ -214,7 +214,7 @@ class AutomationYAMLValidator:
 
                 validator = EntityValidator(
                     ha_client=self.ha_client,
-                    data_api_client=DataAPIClient()
+                    data_api_client=DataAPIClient(),
                 )
 
                 validation_results = await validator.validate_entities(list(entity_ids))
@@ -227,7 +227,7 @@ class AutomationYAMLValidator:
                 name="entities",
                 valid=len(errors) == 0,
                 errors=errors,
-                warnings=warnings
+                warnings=warnings,
             )
 
         except Exception as e:
@@ -235,7 +235,7 @@ class AutomationYAMLValidator:
                 name="entities",
                 valid=False,
                 errors=[f"Entity validation error: {e}"],
-                warnings=[]
+                warnings=[],
             )
 
     async def _validate_logic(self, yaml_content: str) -> ValidationStage:
@@ -246,7 +246,7 @@ class AutomationYAMLValidator:
             name="logic",
             valid=True,
             errors=[],
-            warnings=[]
+            warnings=[],
         )
 
     async def _validate_safety(self, yaml_content: str) -> ValidationStage:
@@ -257,6 +257,6 @@ class AutomationYAMLValidator:
             name="safety",
             valid=True,
             errors=[],
-            warnings=[]
+            warnings=[],
         )
 

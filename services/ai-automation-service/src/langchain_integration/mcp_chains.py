@@ -33,7 +33,7 @@ class MCPCodeExecutionChain:
     def __init__(self, code_executor_url: str = "http://ai-code-executor:8030"):
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
-            temperature=0.7
+            temperature=0.7,
         )
         self.code_executor_url = code_executor_url
 
@@ -89,7 +89,7 @@ except Exception as e:
 
 Context: {context}
 
-Generate Python code to accomplish this task:""")
+Generate Python code to accomplish this task:"""),
         ])
 
         return (
@@ -115,7 +115,7 @@ Code execution output:
 Summary result:
 {result}
 
-Generate the Home Assistant automation YAML:""")
+Generate the Home Assistant automation YAML:"""),
         ])
 
         return (
@@ -127,12 +127,12 @@ Generate the Home Assistant automation YAML:""")
     def _extract_code_block(self, text: str) -> str:
         """Extract Python code from markdown code blocks"""
         # Look for ```python ... ``` blocks
-        matches = re.findall(r'```python\n(.*?)\n```', text, re.DOTALL)
+        matches = re.findall(r"```python\n(.*?)\n```", text, re.DOTALL)
         if matches:
             return matches[0].strip()
 
         # Look for ``` ... ``` blocks (no language specified)
-        matches = re.findall(r'```\n(.*?)\n```', text, re.DOTALL)
+        matches = re.findall(r"```\n(.*?)\n```", text, re.DOTALL)
         if matches:
             return matches[0].strip()
 
@@ -147,7 +147,7 @@ Generate the Home Assistant automation YAML:""")
             response = await client.post(
                 f"{self.code_executor_url}/execute",
                 json={"code": code},
-                timeout=60.0
+                timeout=60.0,
             )
             response.raise_for_status()
             return response.json()
@@ -155,7 +155,7 @@ Generate the Home Assistant automation YAML:""")
     async def generate_automation(
         self,
         description: str,
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Generate automation using LangChain + MCP code execution.
@@ -174,7 +174,7 @@ Generate the Home Assistant automation YAML:""")
 
             code = await self.code_generation_chain.ainvoke({
                 "description": description,
-                "context": json.dumps(context, indent=2)
+                "context": json.dumps(context, indent=2),
             })
 
             logger.info(f"Generated code:\n{code}")
@@ -185,8 +185,8 @@ Generate the Home Assistant automation YAML:""")
 
             exec_result = await self._execute_code(code)
 
-            if not exec_result['success']:
-                error_msg = exec_result.get('error', 'Unknown error')
+            if not exec_result["success"]:
+                error_msg = exec_result.get("error", "Unknown error")
                 logger.error(f"Code execution failed: {error_msg}")
 
                 # Return error result
@@ -200,8 +200,8 @@ Generate the Home Assistant automation YAML:""")
                         "total_tokens": code_gen_tokens,
                         "prompt_tokens": cb.prompt_tokens,
                         "completion_tokens": cb.completion_tokens,
-                        "total_cost": cb.total_cost
-                    }
+                        "total_cost": cb.total_cost,
+                    },
                 }
 
             logger.info(f"Execution successful ({exec_result['execution_time']:.3f}s)")
@@ -212,8 +212,8 @@ Generate the Home Assistant automation YAML:""")
 
             automation_yaml = await self.interpretation_chain.ainvoke({
                 "description": description,
-                "stdout": exec_result['stdout'],
-                "result": json.dumps(exec_result['return_value'], indent=2)
+                "stdout": exec_result["stdout"],
+                "result": json.dumps(exec_result["return_value"], indent=2),
             })
 
             interpretation_tokens = cb.total_tokens - code_gen_tokens
@@ -230,6 +230,6 @@ Generate the Home Assistant automation YAML:""")
                     "total_tokens": cb.total_tokens,
                     "prompt_tokens": cb.prompt_tokens,
                     "completion_tokens": cb.completion_tokens,
-                    "total_cost": cb.total_cost
-                }
+                    "total_cost": cb.total_cost,
+                },
             }

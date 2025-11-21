@@ -25,23 +25,20 @@ class ErrorResponse:
 
 class NoEntitiesFoundError(Exception):
     """Raised when no entities are found"""
-    pass
 
 
 class AmbiguousQueryError(Exception):
     """Raised when query is ambiguous"""
-    pass
 
 
 class ValidationError(Exception):
     """Raised when validation fails"""
-    pass
 
 
 class ErrorRecoveryService:
     """
     Provides actionable error recovery guidance.
-    
+
     Handles different error types and suggests recovery actions
     to help users resolve issues.
     """
@@ -54,52 +51,51 @@ class ErrorRecoveryService:
         self,
         error: Exception,
         query: str,
-        partial_results: dict | None = None
+        partial_results: dict | None = None,
     ) -> ErrorResponse:
         """
         Handle processing error and provide recovery guidance.
-        
+
         Args:
             error: The exception that occurred
             query: Original user query
             partial_results: Optional partial results before error
-        
+
         Returns:
             ErrorResponse with recovery actions
         """
         if isinstance(error, NoEntitiesFoundError):
             return await self._handle_no_entities_error(query, partial_results)
-        elif isinstance(error, AmbiguousQueryError):
+        if isinstance(error, AmbiguousQueryError):
             return await self._handle_ambiguous_query_error(query, partial_results)
-        elif isinstance(error, ValidationError):
+        if isinstance(error, ValidationError):
             return await self._handle_validation_error(error, query, partial_results)
-        else:
-            return self._handle_generic_error(error, query, partial_results)
+        return self._handle_generic_error(error, query, partial_results)
 
     async def _handle_no_entities_error(
         self,
         query: str,
-        partial_results: dict | None
+        partial_results: dict | None,
     ) -> ErrorResponse:
         """Handle no entities found error"""
         # Suggest similar entities (would use entity search in full implementation)
         suggestions = [
             "Check device names in Home Assistant",
             "Try using the search feature to find devices",
-            "Verify device names match exactly (case-sensitive)"
+            "Verify device names match exactly (case-sensitive)",
         ]
 
         return ErrorResponse(
             type="no_entities",
             message="Couldn't find the devices you mentioned",
             recovery_actions=suggestions,
-            error_details={"query": query}
+            error_details={"query": query},
         )
 
     async def _handle_ambiguous_query_error(
         self,
         query: str,
-        partial_results: dict | None
+        partial_results: dict | None,
     ) -> ErrorResponse:
         """Handle ambiguous query error"""
         return ErrorResponse(
@@ -108,44 +104,44 @@ class ErrorRecoveryService:
             recovery_actions=[
                 "Answer the clarification questions",
                 "Provide more specific device names",
-                "Specify the location or area"
+                "Specify the location or area",
             ],
-            error_details={"query": query}
+            error_details={"query": query},
         )
 
     async def _handle_validation_error(
         self,
         error: ValidationError,
         query: str,
-        partial_results: dict | None
+        partial_results: dict | None,
     ) -> ErrorResponse:
         """Handle validation error"""
         return ErrorResponse(
             type="validation",
-            message=f"Validation failed: {str(error)}",
+            message=f"Validation failed: {error!s}",
             recovery_actions=[
                 "Check that all entities exist in Home Assistant",
                 "Verify automation YAML syntax",
-                "Review error details and fix issues"
+                "Review error details and fix issues",
             ],
-            error_details={"query": query, "error": str(error)}
+            error_details={"query": query, "error": str(error)},
         )
 
     def _handle_generic_error(
         self,
         error: Exception,
         query: str,
-        partial_results: dict | None
+        partial_results: dict | None,
     ) -> ErrorResponse:
         """Handle generic error"""
         return ErrorResponse(
             type="generic",
-            message=f"An error occurred: {str(error)}",
+            message=f"An error occurred: {error!s}",
             recovery_actions=[
                 "Try rephrasing your request",
                 "Check that all required services are running",
-                "Contact support if the issue persists"
+                "Contact support if the issue persists",
             ],
-            error_details={"query": query, "error": str(error), "error_type": type(error).__name__}
+            error_details={"query": query, "error": str(error), "error_type": type(error).__name__},
         )
 

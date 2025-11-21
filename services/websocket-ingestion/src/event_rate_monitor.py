@@ -33,7 +33,7 @@ class EventRateMonitor:
     def record_event(self, event_data: dict[str, Any]):
         """
         Record an event for rate monitoring
-        
+
         Args:
             event_data: The processed event data
         """
@@ -63,7 +63,7 @@ class EventRateMonitor:
                 self._calculate_rates(current_time)
 
         except Exception as e:
-            logger.error(f"Error recording event: {e}")
+            logger.exception(f"Error recording event: {e}")
 
     def _clean_old_timestamps(self, current_time: datetime):
         """Remove timestamps older than the window size"""
@@ -86,15 +86,15 @@ class EventRateMonitor:
             self.hour_rates.append(events_last_hour)
 
         except Exception as e:
-            logger.error(f"Error calculating rates: {e}")
+            logger.exception(f"Error calculating rates: {e}")
 
     def get_current_rate(self, window_minutes: int = 1) -> float:
         """
         Get current event rate
-        
+
         Args:
             window_minutes: Time window in minutes
-            
+
         Returns:
             Events per minute
         """
@@ -104,16 +104,16 @@ class EventRateMonitor:
                 recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
                 return recent_events / window_minutes
         except Exception as e:
-            logger.error(f"Error calculating current rate: {e}")
+            logger.exception(f"Error calculating current rate: {e}")
             return 0.0
 
     def get_average_rate(self, window_minutes: int = 60) -> float:
         """
         Get average event rate over specified window
-        
+
         Args:
             window_minutes: Time window in minutes
-            
+
         Returns:
             Average events per minute
         """
@@ -121,21 +121,20 @@ class EventRateMonitor:
             with self.lock:
                 if window_minutes == 60 and self.minute_rates:
                     return sum(self.minute_rates) / len(self.minute_rates)
-                elif window_minutes == 60 * 24 and self.hour_rates:
+                if window_minutes == 60 * 24 and self.hour_rates:
                     return sum(self.hour_rates) / len(self.hour_rates) / 60  # Convert to per minute
-                else:
-                    # Calculate for custom window
-                    cutoff_time = datetime.now() - timedelta(minutes=window_minutes)
-                    recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
-                    return recent_events / window_minutes
+                # Calculate for custom window
+                cutoff_time = datetime.now() - timedelta(minutes=window_minutes)
+                recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
+                return recent_events / window_minutes
         except Exception as e:
-            logger.error(f"Error calculating average rate: {e}")
+            logger.exception(f"Error calculating average rate: {e}")
             return 0.0
 
     def get_rate_statistics(self) -> dict[str, Any]:
         """
         Get comprehensive rate statistics
-        
+
         Returns:
             Dictionary with rate statistics
         """
@@ -162,31 +161,31 @@ class EventRateMonitor:
                     "current_rates": {
                         "events_per_minute_1min": round(current_rate_1min, 2),
                         "events_per_minute_5min": round(current_rate_5min, 2),
-                        "events_per_minute_15min": round(current_rate_15min, 2)
+                        "events_per_minute_15min": round(current_rate_15min, 2),
                     },
                     "average_rates": {
                         "events_per_minute_1hour": round(average_rate_1hour, 2),
                         "events_per_minute_24hour": round(average_rate_24hour, 2),
-                        "events_per_minute_overall": round(overall_rate, 2)
+                        "events_per_minute_overall": round(overall_rate, 2),
                     },
                     "events_by_type": self.events_by_type.copy(),
                     "top_entities": self._get_top_entities(10),
                     "rate_trends": {
                         "minute_rates": list(self.minute_rates),
-                        "hour_rates": list(self.hour_rates)
-                    }
+                        "hour_rates": list(self.hour_rates),
+                    },
                 }
         except Exception as e:
-            logger.error(f"Error getting rate statistics: {e}")
+            logger.exception(f"Error getting rate statistics: {e}")
             return {}
 
     def _get_top_entities(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get top entities by event count
-        
+
         Args:
             limit: Maximum number of entities to return
-            
+
         Returns:
             List of dictionaries with entity information
         """
@@ -194,7 +193,7 @@ class EventRateMonitor:
             sorted_entities = sorted(
                 self.events_by_entity.items(),
                 key=lambda x: x[1],
-                reverse=True
+                reverse=True,
             )
 
             return [
@@ -202,13 +201,13 @@ class EventRateMonitor:
                 for entity_id, count in sorted_entities[:limit]
             ]
         except Exception as e:
-            logger.error(f"Error getting top entities: {e}")
+            logger.exception(f"Error getting top entities: {e}")
             return []
 
     def get_rate_alerts(self) -> list[dict[str, Any]]:
         """
         Check for rate anomalies and generate alerts
-        
+
         Returns:
             List of alert dictionaries
         """
@@ -229,7 +228,7 @@ class EventRateMonitor:
                         "message": f"Event rate is {rate_ratio:.1f}x higher than average",
                         "current_rate": current_rate,
                         "average_rate": average_rate,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     })
                 elif rate_ratio < 0.1:  # 10x lower than average
                     alerts.append({
@@ -238,7 +237,7 @@ class EventRateMonitor:
                         "message": f"Event rate is {rate_ratio:.1f}x lower than average",
                         "current_rate": current_rate,
                         "average_rate": average_rate,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     })
 
             # Alert if no events received recently
@@ -250,11 +249,11 @@ class EventRateMonitor:
                         "severity": "warning",
                         "message": f"No events received for {time_since_last_event.total_seconds() / 60:.1f} minutes",
                         "last_event_time": self.last_event_time.isoformat(),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     })
 
         except Exception as e:
-            logger.error(f"Error generating rate alerts: {e}")
+            logger.exception(f"Error generating rate alerts: {e}")
 
         return alerts
 

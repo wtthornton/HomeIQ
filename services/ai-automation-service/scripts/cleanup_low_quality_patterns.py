@@ -33,7 +33,7 @@ async def cleanup_patterns():
     """Clean up low-quality patterns from database"""
 
     # Create database connection
-    database_url = getattr(settings, 'database_url', 'sqlite+aiosqlite:///./ai_automation.db')
+    database_url = getattr(settings, "database_url", "sqlite+aiosqlite:///./ai_automation.db")
     engine = create_async_engine(database_url, echo=False)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -54,8 +54,8 @@ async def cleanup_patterns():
             # Cleanup 1: Remove non-actionable devices
             print("Step 1: Removing non-actionable devices...")
             result = await db.execute(text("""
-                SELECT device_id, COUNT(*) as count 
-                FROM patterns 
+                SELECT device_id, COUNT(*) as count
+                FROM patterns
                 GROUP BY device_id
             """))
             all_devices = result.fetchall()
@@ -65,7 +65,7 @@ async def cleanup_patterns():
                 if not is_actionable_device(device_id):
                     await db.execute(
                         text("DELETE FROM patterns WHERE device_id = :device_id"),
-                        {"device_id": device_id}
+                        {"device_id": device_id},
                     )
                     removed_devices += count
                     print(f"  Removed {count} patterns for {device_id}")
@@ -77,7 +77,7 @@ async def cleanup_patterns():
             print("Step 2: Removing patterns with low occurrences...")
             result = await db.execute(
                 text("DELETE FROM patterns WHERE occurrences < :min_occurrences"),
-                {"min_occurrences": MIN_OCCURRENCES}
+                {"min_occurrences": MIN_OCCURRENCES},
             )
             removed_low_occurrences = result.rowcount
             print(f"  Removed {removed_low_occurrences} patterns with < {MIN_OCCURRENCES} occurrences")
@@ -87,7 +87,7 @@ async def cleanup_patterns():
             print("Step 3: Removing patterns with low confidence...")
             result = await db.execute(
                 text("DELETE FROM patterns WHERE confidence < :min_confidence"),
-                {"min_confidence": MIN_CONFIDENCE}
+                {"min_confidence": MIN_CONFIDENCE},
             )
             removed_low_confidence = result.rowcount
             print(f"  Removed {removed_low_confidence} patterns with < {MIN_CONFIDENCE} confidence")
@@ -104,9 +104,9 @@ async def cleanup_patterns():
             final_devices = result.scalar()
 
             result = await db.execute(text("""
-                SELECT pattern_type, COUNT(*) as count 
-                FROM patterns 
-                GROUP BY pattern_type 
+                SELECT pattern_type, COUNT(*) as count
+                FROM patterns
+                GROUP BY pattern_type
                 ORDER BY count DESC
             """))
             pattern_types = result.fetchall()

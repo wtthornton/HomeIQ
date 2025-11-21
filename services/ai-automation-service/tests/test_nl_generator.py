@@ -25,16 +25,16 @@ class TestNLAutomationGenerator:
 
         # Mock devices response
         client.fetch_devices = AsyncMock(return_value=pd.DataFrame([
-            {'device_id': 'kitchen_light_1', 'friendly_name': 'Kitchen Light', 'area_id': 'kitchen'},
-            {'device_id': 'bedroom_light_1', 'friendly_name': 'Bedroom Light', 'area_id': 'bedroom'}
+            {"device_id": "kitchen_light_1", "friendly_name": "Kitchen Light", "area_id": "kitchen"},
+            {"device_id": "bedroom_light_1", "friendly_name": "Bedroom Light", "area_id": "bedroom"},
         ]))
 
         # Mock entities response
         client.fetch_entities = AsyncMock(return_value=pd.DataFrame([
-            {'entity_id': 'light.kitchen', 'friendly_name': 'Kitchen Light', 'area_id': 'kitchen'},
-            {'entity_id': 'light.bedroom', 'friendly_name': 'Bedroom Light', 'area_id': 'bedroom'},
-            {'entity_id': 'binary_sensor.front_door', 'friendly_name': 'Front Door', 'area_id': 'entry'},
-            {'entity_id': 'climate.thermostat', 'friendly_name': 'Thermostat', 'area_id': 'living_room'}
+            {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light", "area_id": "kitchen"},
+            {"entity_id": "light.bedroom", "friendly_name": "Bedroom Light", "area_id": "bedroom"},
+            {"entity_id": "binary_sensor.front_door", "friendly_name": "Front Door", "area_id": "entry"},
+            {"entity_id": "climate.thermostat", "friendly_name": "Thermostat", "area_id": "living_room"},
         ]))
 
         return client
@@ -74,7 +74,7 @@ class TestNLAutomationGenerator:
             safety_score=95,
             issues=[],
             can_override=True,
-            summary="✅ Passed all safety checks"
+            summary="✅ Passed all safety checks",
         ))
         return validator
 
@@ -84,7 +84,7 @@ class TestNLAutomationGenerator:
         return NLAutomationGenerator(
             data_api_client=mock_data_api_client,
             openai_client=mock_openai_client,
-            safety_validator=mock_safety_validator
+            safety_validator=mock_safety_validator,
         )
 
     @pytest.mark.asyncio
@@ -92,7 +92,7 @@ class TestNLAutomationGenerator:
         """Test generating automation from simple request"""
         request = NLAutomationRequest(
             request_text="Turn on kitchen light at 7 AM",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -108,7 +108,7 @@ class TestNLAutomationGenerator:
         """Test that device context is fetched from data-api"""
         request = NLAutomationRequest(
             request_text="Turn on bedroom light at 8 PM",
-            user_id="test"
+            user_id="test",
         )
 
         await nl_generator.generate(request)
@@ -122,7 +122,7 @@ class TestNLAutomationGenerator:
         """Test that safety validation runs on generated automation"""
         request = NLAutomationRequest(
             request_text="Turn on light",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -137,12 +137,12 @@ class TestNLAutomationGenerator:
         """Test that OpenAI failures are handled gracefully"""
         # Make OpenAI fail
         mock_openai_client.client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API Error")
+            side_effect=Exception("API Error"),
         )
 
         request = NLAutomationRequest(
             request_text="Turn on light",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -179,12 +179,12 @@ class TestNLAutomationGenerator:
         valid_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50, total_tokens=150)
 
         mock_openai_client.client.chat.completions.create = AsyncMock(
-            side_effect=[invalid_response, valid_response]
+            side_effect=[invalid_response, valid_response],
         )
 
         request = NLAutomationRequest(
             request_text="Turn on light",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -214,7 +214,7 @@ class TestNLAutomationGenerator:
 
         request = NLAutomationRequest(
             request_text="Turn on lights",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -229,7 +229,7 @@ class TestNLAutomationGenerator:
         # Test with high confidence, good safety
         request = NLAutomationRequest(
             request_text="Turn on kitchen light at 7 AM on weekdays",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -242,7 +242,7 @@ class TestNLAutomationGenerator:
         """Test that very short requests get lower confidence"""
         request = NLAutomationRequest(
             request_text="Turn on light",  # Only 3 words
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -263,16 +263,16 @@ class TestNLAutomationGenerator:
                     rule="time_constraints",
                     severity="warning",
                     message="Consider adding time constraint",
-                    suggested_fix="Add time condition"
-                )
+                    suggested_fix="Add time condition",
+                ),
             ],
             can_override=True,
-            summary="⚠️ 1 warning found"
+            summary="⚠️ 1 warning found",
         ))
 
         request = NLAutomationRequest(
             request_text="Turn off heater",
-            user_id="test"
+            user_id="test",
         )
 
         result = await nl_generator.generate(request)
@@ -284,15 +284,15 @@ class TestNLAutomationGenerator:
     def test_summarize_devices(self, nl_generator):
         """Test device summary generation"""
         context = {
-            'entities_by_domain': {
-                'light': [
-                    {'entity_id': 'light.kitchen', 'friendly_name': 'Kitchen Light'},
-                    {'entity_id': 'light.bedroom', 'friendly_name': 'Bedroom Light'}
+            "entities_by_domain": {
+                "light": [
+                    {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light"},
+                    {"entity_id": "light.bedroom", "friendly_name": "Bedroom Light"},
                 ],
-                'climate': [
-                    {'entity_id': 'climate.thermostat', 'friendly_name': 'Thermostat'}
-                ]
-            }
+                "climate": [
+                    {"entity_id": "climate.thermostat", "friendly_name": "Thermostat"},
+                ],
+            },
         }
 
         summary = nl_generator._summarize_devices(context)
@@ -312,12 +312,12 @@ class TestRegenerateWithClarification:
         generator = NLAutomationGenerator(
             data_api_client=mock_data_api_client,
             openai_client=mock_openai_client,
-            safety_validator=mock_safety_validator
+            safety_validator=mock_safety_validator,
         )
 
         result = await generator.regenerate_with_clarification(
             original_request="Turn on lights",
-            clarification="Kitchen lights only"
+            clarification="Kitchen lights only",
         )
 
         # Should call OpenAI with combined request
@@ -333,7 +333,7 @@ class TestGetNLGenerator:
         generator = get_nl_generator(
             data_api_client=mock_data_api_client,
             openai_client=mock_openai_client,
-            safety_validator=mock_safety_validator
+            safety_validator=mock_safety_validator,
         )
 
         assert generator is not None
@@ -349,11 +349,11 @@ def mock_data_api_client():
     """Mock Data API client"""
     client = AsyncMock()
     client.fetch_devices = AsyncMock(return_value=pd.DataFrame([
-        {'device_id': 'light_1', 'friendly_name': 'Kitchen Light', 'area_id': 'kitchen'}
+        {"device_id": "light_1", "friendly_name": "Kitchen Light", "area_id": "kitchen"},
     ]))
     client.fetch_entities = AsyncMock(return_value=pd.DataFrame([
-        {'entity_id': 'light.kitchen', 'friendly_name': 'Kitchen Light', 'area_id': 'kitchen'},
-        {'entity_id': 'climate.thermostat', 'friendly_name': 'Thermostat', 'area_id': 'living_room'}
+        {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light", "area_id": "kitchen"},
+        {"entity_id": "climate.thermostat", "friendly_name": "Thermostat", "area_id": "living_room"},
     ]))
     return client
 
@@ -393,7 +393,7 @@ def mock_safety_validator():
         safety_score=95,
         issues=[],
         can_override=True,
-        summary="✅ Passed"
+        summary="✅ Passed",
     ))
     return validator
 

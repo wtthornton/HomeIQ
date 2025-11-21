@@ -21,7 +21,7 @@ class AliasService:
     def __init__(self, db: AsyncSession):
         """
         Initialize alias service.
-        
+
         Args:
             db: Database session
         """
@@ -30,15 +30,15 @@ class AliasService:
     async def get_aliases_for_entity(
         self,
         entity_id: str,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> list[str]:
         """
         Get all aliases for a specific entity.
-        
+
         Args:
             entity_id: Entity ID to get aliases for
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             List of alias strings
         """
@@ -46,29 +46,29 @@ class AliasService:
             result = await self.db.execute(
                 select(EntityAlias.alias)
                 .where(EntityAlias.entity_id == entity_id)
-                .where(EntityAlias.user_id == user_id)
+                .where(EntityAlias.user_id == user_id),
             )
             aliases = [row[0] for row in result.fetchall()]
             logger.debug(f"Found {len(aliases)} aliases for entity {entity_id} (user: {user_id})")
             return aliases
         except Exception as e:
-            logger.error(f"Error getting aliases for entity {entity_id}: {e}")
+            logger.exception(f"Error getting aliases for entity {entity_id}: {e}")
             return []
 
     async def get_entity_for_alias(
         self,
         alias: str,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> str | None:
         """
         Get entity_id for a given alias (exact match lookup).
-        
+
         This is the primary method used in entity resolution - fast indexed lookup.
-        
+
         Args:
             alias: Alias string to look up
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             Entity ID if alias found, None otherwise
         """
@@ -78,7 +78,7 @@ class AliasService:
                 select(EntityAlias.entity_id)
                 .where(EntityAlias.alias == alias_lower)
                 .where(EntityAlias.user_id == user_id)
-                .limit(1)
+                .limit(1),
             )
             row = result.first()
             if row:
@@ -87,23 +87,23 @@ class AliasService:
                 return entity_id
             return None
         except Exception as e:
-            logger.error(f"Error looking up alias '{alias}': {e}")
+            logger.exception(f"Error looking up alias '{alias}': {e}")
             return None
 
     async def create_alias(
         self,
         entity_id: str,
         alias: str,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> EntityAlias | None:
         """
         Create a new alias for an entity.
-        
+
         Args:
             entity_id: Entity ID to alias
             alias: Alias string
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             Created EntityAlias object, or None if creation failed
         """
@@ -120,7 +120,7 @@ class AliasService:
             entity_alias = EntityAlias(
                 entity_id=entity_id,
                 alias=alias_lower,
-                user_id=user_id
+                user_id=user_id,
             )
             self.db.add(entity_alias)
             await self.db.commit()
@@ -130,21 +130,21 @@ class AliasService:
             return entity_alias
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating alias '{alias}' → {entity_id}: {e}")
+            logger.exception(f"Error creating alias '{alias}' → {entity_id}: {e}")
             return None
 
     async def delete_alias(
         self,
         alias: str,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> bool:
         """
         Delete an alias.
-        
+
         Args:
             alias: Alias to delete
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             True if deleted, False otherwise
         """
@@ -153,7 +153,7 @@ class AliasService:
             result = await self.db.execute(
                 delete(EntityAlias)
                 .where(EntityAlias.alias == alias_lower)
-                .where(EntityAlias.user_id == user_id)
+                .where(EntityAlias.user_id == user_id),
             )
             await self.db.commit()
 
@@ -166,26 +166,26 @@ class AliasService:
             return deleted
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting alias '{alias}': {e}")
+            logger.exception(f"Error deleting alias '{alias}': {e}")
             return False
 
     async def get_all_aliases(
         self,
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> dict[str, list[str]]:
         """
         Get all aliases for a user, grouped by entity_id.
-        
+
         Args:
             user_id: User ID (default: "anonymous")
-            
+
         Returns:
             Dictionary mapping entity_id → list of aliases
         """
         try:
             result = await self.db.execute(
                 select(EntityAlias.entity_id, EntityAlias.alias)
-                .where(EntityAlias.user_id == user_id)
+                .where(EntityAlias.user_id == user_id),
             )
 
             aliases_by_entity: dict[str, list[str]] = {}
@@ -198,6 +198,6 @@ class AliasService:
             logger.debug(f"Found aliases for {len(aliases_by_entity)} entities (user: {user_id})")
             return aliases_by_entity
         except Exception as e:
-            logger.error(f"Error getting all aliases for user {user_id}: {e}")
+            logger.exception(f"Error getting all aliases for user {user_id}: {e}")
             return {}
 

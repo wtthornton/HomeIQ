@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 class AutomationMetadata(BaseModel):
     """
     Structured metadata for a community automation
-    
+
     Validated using Pydantic for data quality assurance.
     """
     # Core fields
@@ -27,15 +27,15 @@ class AutomationMetadata(BaseModel):
     actions: list[dict[str, Any]] = Field(default_factory=list)
 
     # Classification
-    use_case: Literal['energy', 'comfort', 'security', 'convenience']
-    complexity: Literal['low', 'medium', 'high']
+    use_case: Literal["energy", "comfort", "security", "convenience"]
+    complexity: Literal["low", "medium", "high"]
 
     # Quality metrics
     quality_score: Annotated[float, Field(ge=0.0, le=1.0)]
     vote_count: int = Field(ge=0, default=0)
 
     # Source tracking
-    source: Literal['discourse', 'github']
+    source: Literal["discourse", "github"]
     source_id: str
 
     # Timestamps
@@ -45,38 +45,38 @@ class AutomationMetadata(BaseModel):
     # Optional metadata
     metadata: dict[str, Any] | None = Field(default_factory=dict)
 
-    @field_validator('devices')
+    @field_validator("devices")
     @classmethod
     def normalize_devices(cls, v: list[str]) -> list[str]:
         """
         Normalize device names (lowercase, underscores)
-        
+
         Example: "Motion Sensor" → "motion_sensor"
         """
         if not v:
             return []
-        return [device.lower().replace(' ', '_').replace('-', '_') for device in v]
+        return [device.lower().replace(" ", "_").replace("-", "_") for device in v]
 
-    @field_validator('integrations')
+    @field_validator("integrations")
     @classmethod
     def normalize_integrations(cls, v: list[str]) -> list[str]:
         """Normalize integration names"""
         if not v:
             return []
-        return [integration.lower().replace(' ', '_').replace('-', '_') for integration in v]
+        return [integration.lower().replace(" ", "_").replace("-", "_") for integration in v]
 
-    @field_validator('title')
+    @field_validator("title")
     @classmethod
     def clean_title(cls, v: str) -> str:
         """Remove extra whitespace and normalize title"""
-        return ' '.join(v.split()).strip()
+        return " ".join(v.split()).strip()
 
-    @field_validator('description')
+    @field_validator("description")
     @classmethod
     def clean_description(cls, v: str) -> str:
         """Remove extra whitespace and normalize description"""
         # Remove multiple newlines
-        cleaned = '\n'.join(line.strip() for line in v.split('\n') if line.strip())
+        cleaned = "\n".join(line.strip() for line in v.split("\n") if line.strip())
         return cleaned.strip()
 
     class Config:
@@ -96,15 +96,15 @@ class AutomationMetadata(BaseModel):
                 "source": "discourse",
                 "source_id": "12345",
                 "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-10-01T00:00:00Z"
-            }
+                "updated_at": "2024-10-01T00:00:00Z",
+            },
         }
 
 
 class ParsedAutomation(BaseModel):
     """
     Intermediate model for parsed YAML automation
-    
+
     Used during normalization before creating AutomationMetadata
     """
     raw_yaml: str | None = None

@@ -29,7 +29,7 @@ from src.services.rag import RAGClient
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,11 @@ logger = logging.getLogger(__name__)
 async def seed_from_queries(db: AsyncSession, rag_client: RAGClient) -> int:
     """
     Seed knowledge base from successful queries.
-    
+
     Args:
         db: Database session
         rag_client: RAG client instance
-        
+
     Returns:
         Number of queries seeded
     """
@@ -50,7 +50,7 @@ async def seed_from_queries(db: AsyncSession, rag_client: RAGClient) -> int:
     # Get successful queries (high confidence, deployed, or no clarification needed)
     stmt = select(AskAIQuery).where(
         (AskAIQuery.confidence >= 0.85) |  # High confidence
-        (AskAIQuery.original_query.isnot(None))  # Has query text
+        (AskAIQuery.original_query.isnot(None)),  # Has query text
     ).order_by(AskAIQuery.created_at.desc())
 
     result = await db.execute(stmt)
@@ -65,14 +65,14 @@ async def seed_from_queries(db: AsyncSession, rag_client: RAGClient) -> int:
             # Store query
             await rag_client.store(
                 text=query.original_query,
-                knowledge_type='query',
+                knowledge_type="query",
                 metadata={
-                    'query_id': query.query_id,
-                    'confidence': query.confidence,
-                    'user_id': query.user_id,
-                    'created_at': query.created_at.isoformat() if query.created_at else None
+                    "query_id": query.query_id,
+                    "confidence": query.confidence,
+                    "user_id": query.user_id,
+                    "created_at": query.created_at.isoformat() if query.created_at else None,
                 },
-                success_score=success_score
+                success_score=success_score,
             )
             count += 1
 
@@ -90,11 +90,11 @@ async def seed_from_queries(db: AsyncSession, rag_client: RAGClient) -> int:
 async def seed_from_patterns(db: AsyncSession, rag_client: RAGClient) -> int:
     """
     Seed knowledge base from common patterns.
-    
+
     Args:
         db: Database session
         rag_client: RAG client instance
-        
+
     Returns:
         Number of patterns seeded
     """
@@ -109,14 +109,14 @@ async def seed_from_patterns(db: AsyncSession, rag_client: RAGClient) -> int:
             # Store pattern
             await rag_client.store(
                 text=pattern_text,
-                knowledge_type='pattern',
+                knowledge_type="pattern",
                 metadata={
-                    'pattern_id': pattern_id,
-                    'category': pattern.category,
-                    'keywords': pattern.keywords,
-                    'priority': pattern.priority
+                    "pattern_id": pattern_id,
+                    "category": pattern.category,
+                    "keywords": pattern.keywords,
+                    "priority": pattern.priority,
                 },
-                success_score=0.9  # Patterns are high-quality, hand-crafted
+                success_score=0.9,  # Patterns are high-quality, hand-crafted
             )
             count += 1
 
@@ -131,11 +131,11 @@ async def seed_from_patterns(db: AsyncSession, rag_client: RAGClient) -> int:
 async def seed_from_suggestions(db: AsyncSession, rag_client: RAGClient) -> int:
     """
     Seed knowledge base from deployed automations.
-    
+
     Args:
         db: Database session
         rag_client: RAG client instance
-        
+
     Returns:
         Number of automations seeded
     """
@@ -143,7 +143,7 @@ async def seed_from_suggestions(db: AsyncSession, rag_client: RAGClient) -> int:
 
     # Get deployed suggestions (status = 'deployed')
     stmt = select(Suggestion).where(
-        Suggestion.status == 'deployed'
+        Suggestion.status == "deployed",
     ).order_by(Suggestion.created_at.desc())
 
     result = await db.execute(stmt)
@@ -158,14 +158,14 @@ async def seed_from_suggestions(db: AsyncSession, rag_client: RAGClient) -> int:
             # Store automation
             await rag_client.store(
                 text=automation_text,
-                knowledge_type='automation',
+                knowledge_type="automation",
                 metadata={
-                    'suggestion_id': suggestion.id,
-                    'status': suggestion.status,
-                    'confidence': suggestion.confidence,
-                    'created_at': suggestion.created_at.isoformat() if suggestion.created_at else None
+                    "suggestion_id": suggestion.id,
+                    "status": suggestion.status,
+                    "confidence": suggestion.confidence,
+                    "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
                 },
-                success_score=suggestion.confidence if suggestion.confidence else 0.8  # Deployed = successful
+                success_score=suggestion.confidence if suggestion.confidence else 0.8,  # Deployed = successful
             )
             count += 1
 
@@ -195,7 +195,7 @@ async def main():
         openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
         rag_client = RAGClient(
             openvino_service_url=openvino_url,
-            db_session=db
+            db_session=db,
         )
 
         total_count = 0

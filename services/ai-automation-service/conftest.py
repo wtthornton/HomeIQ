@@ -13,11 +13,11 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Set test environment
-os.environ['ENVIRONMENT'] = 'test'
-os.environ['LOG_LEVEL'] = 'DEBUG'
+os.environ["ENVIRONMENT"] = "test"
+os.environ["LOG_LEVEL"] = "DEBUG"
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def event_loop_policy():
     """Set event loop policy for async tests"""
     import asyncio
@@ -71,7 +71,7 @@ def mock_openai_client():
         "description": "Test description",
         "yaml_content": "test: yaml",
         "category": "convenience",
-        "priority": "medium"
+        "priority": "medium",
     }
     return mock
 
@@ -84,14 +84,14 @@ def sample_events():
             "entity_id": "light.living_room",
             "state": "on",
             "timestamp": "2024-10-20T10:00:00Z",
-            "attributes": {"brightness": 255}
+            "attributes": {"brightness": 255},
         },
         {
             "entity_id": "sensor.temperature",
             "state": "22.5",
             "timestamp": "2024-10-20T10:05:00Z",
-            "attributes": {"unit": "°C"}
-        }
+            "attributes": {"unit": "°C"},
+        },
     ]
 
 
@@ -104,15 +104,15 @@ def sample_devices():
             "name": "Living Room Light",
             "area": "living_room",
             "domain": "light",
-            "capabilities": ["brightness", "color"]
+            "capabilities": ["brightness", "color"],
         },
         {
             "device_id": "device_2",
             "name": "Bedroom Thermostat",
             "area": "bedroom",
             "domain": "climate",
-            "capabilities": ["temperature", "mode"]
-        }
+            "capabilities": ["temperature", "mode"],
+        },
     ]
 
 
@@ -124,7 +124,7 @@ def sample_pattern():
         "entity_id": "light.living_room",
         "hour": 18,
         "confidence": 0.85,
-        "occurrences": 25
+        "occurrences": 25,
     }
 
 
@@ -148,7 +148,7 @@ automation:
       - service: light.turn_on
         entity_id: light.living_room
 """,
-        "status": "pending"
+        "status": "pending",
     }
 
 
@@ -156,10 +156,10 @@ automation:
 def pytest_configure(config):
     """Configure pytest"""
     config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
+        "markers", "unit: mark test as a unit test",
     )
     config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
+        "markers", "integration: mark test as an integration test",
     )
 
 
@@ -178,9 +178,9 @@ def pytest_sessionstart(session):
     """Load test environment - Context7 recommended approach"""
     # Try loading .env.test from multiple locations
     env_files = [
-        Path('.env.test'),
-        Path(__file__).parent / '.env.test',
-        Path(__file__).parent.parent / '.env.test'
+        Path(".env.test"),
+        Path(__file__).parent / ".env.test",
+        Path(__file__).parent.parent / ".env.test",
     ]
 
     loaded_from = None
@@ -198,10 +198,10 @@ def pytest_sessionstart(session):
 
     # Validate required test variables
     required_vars = {
-        'HA_URL': 'Home Assistant test URL',
-        'HA_TOKEN': 'Home Assistant test token',
-        'MQTT_BROKER': 'MQTT test broker',
-        'OPENAI_API_KEY': 'OpenAI test API key'
+        "HA_URL": "Home Assistant test URL",
+        "HA_TOKEN": "Home Assistant test token",
+        "MQTT_BROKER": "MQTT test broker",
+        "OPENAI_API_KEY": "OpenAI test API key",
     }
 
     missing_vars = []
@@ -220,11 +220,11 @@ def pytest_sessionstart(session):
 def test_config():
     """Simple test configuration fixture - Context7 pattern"""
     return {
-        'ha_url': os.getenv('HA_URL', 'http://localhost:8123'),
-        'ha_token': os.getenv('HA_TOKEN', 'test_token'),
-        'mqtt_broker': os.getenv('MQTT_BROKER', 'localhost:1883'),
-        'openai_api_key': os.getenv('OPENAI_API_KEY', 'test_key'),
-        'influxdb_url': os.getenv('INFLUXDB_URL', 'http://localhost:8086'),
-        'influxdb_token': os.getenv('INFLUXDB_TOKEN', 'test_token'),
+        "ha_url": os.getenv("HA_URL", "http://localhost:8123"),
+        "ha_token": os.getenv("HA_TOKEN", "test_token"),
+        "mqtt_broker": os.getenv("MQTT_BROKER", "localhost:1883"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY", "test_key"),
+        "influxdb_url": os.getenv("INFLUXDB_URL", "http://localhost:8086"),
+        "influxdb_token": os.getenv("INFLUXDB_TOKEN", "test_token"),
     }
 

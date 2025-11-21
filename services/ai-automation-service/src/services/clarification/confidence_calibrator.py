@@ -29,17 +29,17 @@ logger = logging.getLogger(__name__)
 class ClarificationConfidenceCalibrator:
     """
     Calibrates clarification confidence scores using user feedback.
-    
+
     Uses scikit-learn 1.5+ CalibratedClassifierCV with isotonic regression
     for 2025 best-practice confidence calibration.
-    
+
     Maps raw confidence scores to calibrated probabilities that match actual accuracy.
     """
 
     def __init__(self, model_path: str | None = None) -> None:
         """
         Initialize confidence calibrator.
-        
+
         Args:
             model_path: Optional path to save/load calibrated model
         """
@@ -60,25 +60,25 @@ class ClarificationConfidenceCalibrator:
         ambiguity_count: int = 0,
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
-        answer_count: int = 0
+        answer_count: int = 0,
     ) -> np.ndarray:
         """
         Extract features from clarification context for calibration.
-        
+
         Features include:
         - Raw confidence score
         - Ambiguity count
         - Critical ambiguity count
         - Clarification rounds
         - Answer count
-        
+
         Args:
             raw_confidence: Raw confidence score (0.0-1.0)
             ambiguity_count: Total number of ambiguities
             critical_ambiguity_count: Number of critical ambiguities
             rounds: Number of clarification rounds
             answer_count: Number of answers provided
-            
+
         Returns:
             Feature vector as numpy array
         """
@@ -110,11 +110,11 @@ class ClarificationConfidenceCalibrator:
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
         answer_count: int = 0,
-        save_immediately: bool = False
+        save_immediately: bool = False,
     ) -> None:
         """
         Add user feedback for clarification calibration.
-        
+
         Args:
             raw_confidence: Raw confidence score before calibration
             actually_proceeded: True if user proceeded after clarification (confidence >= threshold)
@@ -134,7 +134,7 @@ class ClarificationConfidenceCalibrator:
             ambiguity_count=ambiguity_count,
             critical_ambiguity_count=critical_ambiguity_count,
             rounds=rounds,
-            answer_count=answer_count
+            answer_count=answer_count,
         )
         label = 1 if outcome else 0
 
@@ -143,7 +143,7 @@ class ClarificationConfidenceCalibrator:
 
         logger.debug(
             f"Added clarification feedback: confidence={raw_confidence:.2f}, "
-            f"proceeded={actually_proceeded}, approved={suggestion_approved}, outcome={outcome}"
+            f"proceeded={actually_proceeded}, approved={suggestion_approved}, outcome={outcome}",
         )
 
         # Auto-retrain if we have enough samples (Phase 1.1)
@@ -160,15 +160,15 @@ class ClarificationConfidenceCalibrator:
     def train(self, min_samples: int = 10) -> None:
         """
         Train calibration model on accumulated feedback.
-        
+
         Uses scikit-learn 1.5+ best practices: 5-fold cross-validation for isotonic regression.
-        
+
         Args:
             min_samples: Minimum number of samples required for training
         """
         if len(self.features_history) < min_samples:
             logger.warning(
-                f"Insufficient training data: {len(self.features_history)} < {min_samples}"
+                f"Insufficient training data: {len(self.features_history)} < {min_samples}",
             )
             return
 
@@ -183,7 +183,7 @@ class ClarificationConfidenceCalibrator:
             # Split for validation (80/20)
             if len(X) >= 20:
                 X_train, X_val, y_train, y_val = train_test_split(
-                    X_scaled, y, test_size=0.2, random_state=42, stratify=y
+                    X_scaled, y, test_size=0.2, random_state=42, stratify=y,
                 )
             else:
                 X_train, y_train = X_scaled, y
@@ -197,8 +197,8 @@ class ClarificationConfidenceCalibrator:
             cv_folds = min(5, len(X_train) // 2) if len(X_train) >= 10 else 2
             self.calibrator = CalibratedClassifierCV(
                 base_classifier,
-                method='isotonic',  # Best for small datasets (< 1000 samples)
-                cv=cv_folds
+                method="isotonic",  # Best for small datasets (< 1000 samples)
+                cv=cv_folds,
             )
 
             self.calibrator.fit(X_train, y_train)
@@ -209,13 +209,13 @@ class ClarificationConfidenceCalibrator:
                 val_score = self.calibrator.score(X_val, y_val)
                 logger.info(
                     f"Clarification calibration model trained: {len(X_train)} samples, "
-                    f"validation accuracy: {val_score:.2%}"
+                    f"validation accuracy: {val_score:.2%}",
                 )
             else:
                 train_score = self.calibrator.score(X_train, y_train)
                 logger.info(
                     f"Clarification calibration model trained: {len(X_train)} samples, "
-                    f"training accuracy: {train_score:.2%}"
+                    f"training accuracy: {train_score:.2%}",
                 )
 
         except Exception as e:
@@ -228,18 +228,18 @@ class ClarificationConfidenceCalibrator:
         ambiguity_count: int = 0,
         critical_ambiguity_count: int = 0,
         rounds: int = 0,
-        answer_count: int = 0
+        answer_count: int = 0,
     ) -> float:
         """
         Calibrate clarification confidence score.
-        
+
         Args:
             raw_confidence: Raw confidence score (0.0-1.0)
             ambiguity_count: Total number of ambiguities
             critical_ambiguity_count: Number of critical ambiguities
             rounds: Number of clarification rounds
             answer_count: Number of answers provided
-            
+
         Returns:
             Calibrated confidence score (0.0-1.0)
         """
@@ -255,7 +255,7 @@ class ClarificationConfidenceCalibrator:
                 ambiguity_count=ambiguity_count,
                 critical_ambiguity_count=critical_ambiguity_count,
                 rounds=rounds,
-                answer_count=answer_count
+                answer_count=answer_count,
             )
             features_scaled = self.scaler.transform(features.reshape(1, -1))
 
@@ -282,25 +282,25 @@ class ClarificationConfidenceCalibrator:
 
         try:
             # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+            os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else ".", exist_ok=True)
 
-            with open(save_path, 'wb') as f:
+            with open(save_path, "wb") as f:
                 pickle.dump({
-                    'scaler': self.scaler,
-                    'calibrator': self.calibrator,
-                    'is_fitted': self.is_fitted,
-                    'features_history': self.features_history,
-                    'labels_history': self.labels_history
+                    "scaler": self.scaler,
+                    "calibrator": self.calibrator,
+                    "is_fitted": self.is_fitted,
+                    "features_history": self.features_history,
+                    "labels_history": self.labels_history,
                 }, f)
 
             logger.info(f"Clarification calibrator model saved to {save_path}")
         except Exception as e:
-            logger.error(f"Failed to save clarification calibrator model: {e}")
+            logger.exception(f"Failed to save clarification calibrator model: {e}")
 
     def load(self, path: str | None = None) -> bool:
         """
         Load calibrator model from disk.
-        
+
         Returns:
             True if model loaded successfully, False otherwise
         """
@@ -311,31 +311,31 @@ class ClarificationConfidenceCalibrator:
             return False
 
         try:
-            with open(load_path, 'rb') as f:
+            with open(load_path, "rb") as f:
                 data = pickle.load(f)
 
-            self.scaler = data.get('scaler', StandardScaler())
-            self.calibrator = data.get('calibrator')
-            self.is_fitted = data.get('is_fitted', False)
-            self.features_history = data.get('features_history', [])
-            self.labels_history = data.get('labels_history', [])
+            self.scaler = data.get("scaler", StandardScaler())
+            self.calibrator = data.get("calibrator")
+            self.is_fitted = data.get("is_fitted", False)
+            self.features_history = data.get("features_history", [])
+            self.labels_history = data.get("labels_history", [])
 
             logger.info(
                 f"Clarification calibrator model loaded from {load_path}: "
-                f"{len(self.features_history)} training samples"
+                f"{len(self.features_history)} training samples",
             )
             return True
         except Exception as e:
-            logger.error(f"Failed to load clarification calibrator model: {e}")
+            logger.exception(f"Failed to load clarification calibrator model: {e}")
             return False
 
     def get_stats(self) -> dict[str, Any]:
         """Get calibration statistics."""
         return {
-            'is_fitted': self.is_fitted,
-            'training_samples': len(self.features_history),
-            'positive_feedback': sum(self.labels_history) if self.labels_history else 0,
-            'negative_feedback': len(self.labels_history) - sum(self.labels_history) if self.labels_history else 0,
-            'model_path': self.model_path
+            "is_fitted": self.is_fitted,
+            "training_samples": len(self.features_history),
+            "positive_feedback": sum(self.labels_history) if self.labels_history else 0,
+            "negative_feedback": len(self.labels_history) - sum(self.labels_history) if self.labels_history else 0,
+            "model_path": self.model_path,
         }
 

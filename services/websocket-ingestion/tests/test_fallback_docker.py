@@ -15,7 +15,7 @@ import websockets
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class DockerFallbackTest:
             "url": primary_url,
             "token": primary_token,
             "ws_url": primary_url.replace("http://", "ws://") + "/api/websocket",
-            "priority": 1
+            "priority": 1,
         })
 
         # Nabu Casa fallback - accessible from host
@@ -51,7 +51,7 @@ class DockerFallbackTest:
                 "url": nabu_casa_url,
                 "token": nabu_casa_token,
                 "ws_url": nabu_casa_url.replace("https://", "wss://") + "/api/websocket",
-                "priority": 2
+                "priority": 2,
             })
 
         # Sort by priority
@@ -72,7 +72,7 @@ class DockerFallbackTest:
                 connection["ws_url"],
                 ping_interval=20,
                 ping_timeout=10,
-                close_timeout=10
+                close_timeout=10,
             )
 
             # Wait for auth_required
@@ -80,14 +80,14 @@ class DockerFallbackTest:
             auth_data = json.loads(auth_required)
             logger.info(f"🔐 Auth required: {auth_data}")
 
-            if auth_data.get('type') != 'auth_required':
+            if auth_data.get("type") != "auth_required":
                 logger.error("❌ Expected auth_required message")
                 return False
 
             # Send authentication
             auth_message = {
                 "type": "auth",
-                "access_token": connection["token"]
+                "access_token": connection["token"],
             }
             await ws.send(json.dumps(auth_message))
 
@@ -96,13 +96,13 @@ class DockerFallbackTest:
             auth_result = json.loads(auth_response)
             logger.info(f"🔑 Auth response: {auth_result}")
 
-            if auth_result.get('type') == 'auth_ok':
+            if auth_result.get("type") == "auth_ok":
                 logger.info(f"✅ {connection['name']} connection successful")
 
                 # Test event subscription
                 subscribe_message = {
                     "id": 1,
-                    "type": "subscribe_events"
+                    "type": "subscribe_events",
                 }
                 await ws.send(json.dumps(subscribe_message))
 
@@ -111,21 +111,19 @@ class DockerFallbackTest:
                 result = json.loads(response)
                 logger.info(f"📡 Event subscription: {result}")
 
-                if result.get('type') == 'result' and result.get('success'):
+                if result.get("type") == "result" and result.get("success"):
                     logger.info(f"✅ {connection['name']} event subscription successful")
                     await ws.close()
                     return True
-                else:
-                    logger.error(f"❌ {connection['name']} event subscription failed")
-                    await ws.close()
-                    return False
-            else:
-                logger.error(f"❌ {connection['name']} authentication failed: {auth_result}")
+                logger.error(f"❌ {connection['name']} event subscription failed")
                 await ws.close()
                 return False
+            logger.error(f"❌ {connection['name']} authentication failed: {auth_result}")
+            await ws.close()
+            return False
 
         except Exception as e:
-            logger.error(f"❌ {connection['name']} connection error: {e}")
+            logger.exception(f"❌ {connection['name']} connection error: {e}")
             return False
 
     async def test_fallback_scenario(self):
@@ -150,13 +148,12 @@ class DockerFallbackTest:
             logger.info(f"🎉 Fallback capability confirmed! {len(available_connections)} connections available")
             logger.info(f"📋 Available connections: {', '.join(available_connections)}")
             return True
-        elif len(available_connections) == 1:
+        if len(available_connections) == 1:
             logger.warning(f"⚠️  Only one connection available: {available_connections[0]}")
             logger.warning("No fallback capability - consider adding more connections")
             return False
-        else:
-            logger.error("❌ No connections available")
-            return False
+        logger.error("❌ No connections available")
+        return False
 
 async def main():
     """Main test function"""

@@ -42,7 +42,7 @@ health_services: dict = {}
 async def lifespan(app: FastAPI):
     """
     Lifespan context manager for service initialization and cleanup
-    
+
     Context7 Pattern: Modern FastAPI lifespan management
     Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
     """
@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
     # Initialize continuous monitoring
     continuous_monitor = ContinuousHealthMonitor(
         health_services["monitor"],
-        health_services["integration_checker"]
+        health_services["integration_checker"],
     )
     health_services["continuous_monitor"] = continuous_monitor
 
@@ -119,7 +119,7 @@ app = FastAPI(
     title="HA Setup & Recommendation Service",
     description="Automated setup, health monitoring, and optimization for Home Assistant",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -138,7 +138,7 @@ app.add_middleware(
     "/health",
     response_model=HealthCheckResponse,
     tags=["health"],
-    summary="Simple health check"
+    summary="Simple health check",
 )
 async def health_check():
     """Simple health check endpoint for container orchestration"""
@@ -146,7 +146,7 @@ async def health_check():
         status="healthy",
         service=settings.service_name,
         timestamp=datetime.now(),
-        version="1.0.0"
+        version="1.0.0",
     )
 
 
@@ -154,14 +154,14 @@ async def health_check():
     "/api/health/environment",
     response_model=EnvironmentHealthResponse,
     tags=["health"],
-    summary="Get comprehensive environment health status"
+    summary="Get comprehensive environment health status",
 )
 async def get_environment_health(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> EnvironmentHealthResponse:
     """
     Get comprehensive environment health status
-    
+
     Returns:
         Complete health status including:
         - Overall health score (0-100)
@@ -175,11 +175,11 @@ async def get_environment_health(
         if not health_service:
             logger.error(
                 "Environment health requested before monitor initialized",
-                extra={"event": "environment_health", "status": "uninitialized"}
+                extra={"event": "environment_health", "status": "uninitialized"},
             )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Health monitoring service not initialized"
+                detail="Health monitoring service not initialized",
             )
 
         response = await health_service.check_environment_health(db)
@@ -192,7 +192,7 @@ async def get_environment_health(
                 "ha_status": str(response.ha_status),
                 "integration_count": len(response.integrations),
                 "issues_detected": len(response.issues_detected),
-            }
+            },
         )
 
         return response
@@ -202,29 +202,29 @@ async def get_environment_health(
     except Exception as e:
         logger.exception(
             "Environment health endpoint failed",
-            extra={"event": "environment_health", "error": str(e)}
+            extra={"event": "environment_health", "error": str(e)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error checking environment health: {str(e)}"
+            detail=f"Error checking environment health: {e!s}",
         ) from e
 
 
 @app.get(
     "/api/health/trends",
     tags=["health"],
-    summary="Get health trends over time"
+    summary="Get health trends over time",
 )
 async def get_health_trends(
     hours: int = 24,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get health trends over specified time period
-    
+
     Args:
         hours: Number of hours to analyze (default: 24)
-        
+
     Returns:
         Trend analysis including average score, min/max, and trend direction
     """
@@ -233,39 +233,38 @@ async def get_health_trends(
         if not continuous_monitor:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Continuous monitoring not initialized"
+                detail="Continuous monitoring not initialized",
             )
 
-        trends = await continuous_monitor.get_health_trends(db, hours)
-        return trends
+        return await continuous_monitor.get_health_trends(db, hours)
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting health trends: {str(e)}"
+            detail=f"Error getting health trends: {e!s}",
         ) from e
 
 
 @app.get(
     "/api/health/integrations",
     tags=["health"],
-    summary="Get detailed integration health status"
+    summary="Get detailed integration health status",
 )
 async def get_integrations_health(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get detailed health status for all integrations
-    
+
     Checks:
     - Home Assistant authentication
     - MQTT broker connectivity
     - Zigbee2MQTT status
     - Device discovery
     - HA Ingestor services (Data API, Admin API)
-    
+
     Returns:
         List of integration health results with detailed diagnostics
     """
@@ -274,7 +273,7 @@ async def get_integrations_health(
         if not integration_checker:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Integration health checker not initialized"
+                detail="Integration health checker not initialized",
             )
 
         # Run all integration checks
@@ -291,7 +290,7 @@ async def get_integrations_health(
             "warning_count": sum(1 for r in check_results if r.status == IntegrationStatus.WARNING),
             "error_count": sum(1 for r in check_results if r.status == IntegrationStatus.ERROR),
             "not_configured_count": sum(1 for r in check_results if r.status == IntegrationStatus.NOT_CONFIGURED),
-            "integrations": [r.dict() for r in check_results]
+            "integrations": [r.dict() for r in check_results],
         }
 
     except HTTPException:
@@ -299,13 +298,13 @@ async def get_integrations_health(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error checking integrations: {str(e)}"
+            detail=f"Error checking integrations: {e!s}",
         ) from e
 
 
 async def _store_integration_health_results(
     db: AsyncSession,
-    check_results: list
+    check_results: list,
 ):
     """Store integration health check results in database"""
     try:
@@ -320,7 +319,7 @@ async def _store_integration_health_results(
                 is_connected=result.is_connected,
                 error_message=result.error_message,
                 last_check=result.last_check,
-                check_details=result.check_details
+                check_details=result.check_details,
             )
 
             db.add(integration_health)
@@ -340,12 +339,12 @@ async def _store_integration_health_results(
 @app.post(
     "/api/setup/wizard/{integration_type}/start",
     tags=["setup"],
-    summary="Start setup wizard for integration"
+    summary="Start setup wizard for integration",
 )
 async def start_setup_wizard(integration_type: str):
     """
     Start a setup wizard for specified integration type
-    
+
     Supported types:
     - zigbee2mqtt
     - mqtt
@@ -360,33 +359,33 @@ async def start_setup_wizard(integration_type: str):
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported integration type: {integration_type}"
+                detail=f"Unsupported integration type: {integration_type}",
             )
 
         return {
             "session_id": session_id,
             "integration_type": integration_type,
             "status": "started",
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error starting setup wizard: {str(e)}"
+            detail=f"Error starting setup wizard: {e!s}",
         ) from e
 
 
 @app.post(
     "/api/setup/wizard/{session_id}/step/{step_number}",
     tags=["setup"],
-    summary="Execute setup wizard step"
+    summary="Execute setup wizard step",
 )
 async def execute_wizard_step(
     session_id: str,
     step_number: int,
-    step_data: dict = None
+    step_data: dict | None = None,
 ):
     """Execute a specific step in the setup wizard"""
     try:
@@ -400,21 +399,20 @@ async def execute_wizard_step(
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found"
+                detail=f"Session {session_id} not found",
             )
 
         # Get appropriate wizard
         wizard = zigbee_wizard if session["integration_type"] == "zigbee2mqtt" else mqtt_wizard
 
-        result = await wizard.execute_step(session_id, step_number, step_data)
-        return result
+        return await wizard.execute_step(session_id, step_number, step_data)
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error executing wizard step: {str(e)}"
+            detail=f"Error executing wizard step: {e!s}",
         ) from e
 
 
@@ -423,12 +421,12 @@ async def execute_wizard_step(
 @app.get(
     "/api/optimization/analyze",
     tags=["optimization"],
-    summary="Analyze system performance"
+    summary="Analyze system performance",
 )
 async def analyze_performance():
     """
     Run comprehensive performance analysis
-    
+
     Returns:
         Performance analysis with bottlenecks identified
     """
@@ -437,30 +435,29 @@ async def analyze_performance():
         if not analyzer:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Performance analyzer not initialized"
+                detail="Performance analyzer not initialized",
             )
 
-        analysis = await analyzer.analyze_performance()
-        return analysis
+        return await analyzer.analyze_performance()
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing performance: {str(e)}"
+            detail=f"Error analyzing performance: {e!s}",
         ) from e
 
 
 @app.get(
     "/api/optimization/recommendations",
     tags=["optimization"],
-    summary="Get optimization recommendations"
+    summary="Get optimization recommendations",
 )
 async def get_optimization_recommendations():
     """
     Generate optimization recommendations based on performance analysis
-    
+
     Returns:
         Prioritized list of optimization recommendations
     """
@@ -471,7 +468,7 @@ async def get_optimization_recommendations():
         if not analyzer or not rec_engine:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Optimization engine not initialized"
+                detail="Optimization engine not initialized",
             )
 
         # Run performance analysis
@@ -483,7 +480,7 @@ async def get_optimization_recommendations():
         return {
             "timestamp": datetime.now(),
             "total_recommendations": len(recommendations),
-            "recommendations": [r.dict() for r in recommendations]
+            "recommendations": [r.dict() for r in recommendations],
         }
 
     except HTTPException:
@@ -491,7 +488,7 @@ async def get_optimization_recommendations():
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating recommendations: {str(e)}"
+            detail=f"Error generating recommendations: {e!s}",
         ) from e
 
 
@@ -521,13 +518,13 @@ async def get_bridge_status():
                     "action": attempt.action.value,
                     "success": attempt.success,
                     "error_message": attempt.error_message,
-                    "duration_seconds": attempt.duration_seconds
+                    "duration_seconds": attempt.duration_seconds,
                 } for attempt in health_status.recovery_attempts
-            ]
+            ],
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {e!s}") from e
 
 
 @app.post("/api/zigbee2mqtt/bridge/recovery", tags=["Zigbee2MQTT Bridge"])
@@ -540,11 +537,11 @@ async def attempt_bridge_recovery(force: bool = False):
         return {
             "success": success,
             "message": message,
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Recovery failed: {e!s}") from e
 
 
 @app.post("/api/zigbee2mqtt/bridge/restart", tags=["Zigbee2MQTT Bridge"])
@@ -557,11 +554,11 @@ async def restart_bridge():
         return {
             "success": success,
             "message": message,
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {e!s}") from e
 
 
 @app.get("/api/zigbee2mqtt/bridge/health", tags=["Zigbee2MQTT Bridge"])
@@ -576,7 +573,7 @@ async def get_bridge_health():
             "state": health_status.bridge_state.value,
             "health_score": health_status.health_score,
             "device_count": health_status.metrics.device_count,
-            "last_check": health_status.last_check
+            "last_check": health_status.last_check,
         }
 
     except Exception as e:
@@ -585,7 +582,7 @@ async def get_bridge_health():
             "state": "error",
             "health_score": 0,
             "error": str(e),
-            "last_check": datetime.now()
+            "last_check": datetime.now(),
         }
 
 
@@ -596,11 +593,10 @@ async def start_zigbee_setup_wizard(request: SetupWizardRequest):
     """Start a new Zigbee2MQTT setup wizard"""
     try:
         setup_wizard = health_services["zigbee_setup_wizard"]
-        response = await setup_wizard.start_setup_wizard(request)
-        return response
+        return await setup_wizard.start_setup_wizard(request)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start setup wizard: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to start setup wizard: {e!s}") from e
 
 
 @app.post("/api/zigbee2mqtt/setup/{wizard_id}/continue", tags=["Zigbee2MQTT Setup"])
@@ -608,13 +604,12 @@ async def continue_zigbee_setup_wizard(wizard_id: str):
     """Continue the setup wizard to the next step"""
     try:
         setup_wizard = health_services["zigbee_setup_wizard"]
-        response = await setup_wizard.continue_wizard(wizard_id)
-        return response
+        return await setup_wizard.continue_wizard(wizard_id)
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to continue wizard: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to continue wizard: {e!s}") from e
 
 
 @app.get("/api/zigbee2mqtt/setup/{wizard_id}/status", tags=["Zigbee2MQTT Setup"])
@@ -632,7 +627,7 @@ async def get_zigbee_setup_wizard_status(wizard_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get wizard status: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to get wizard status: {e!s}") from e
 
 
 @app.delete("/api/zigbee2mqtt/setup/{wizard_id}", tags=["Zigbee2MQTT Setup"])
@@ -644,13 +639,12 @@ async def cancel_zigbee_setup_wizard(wizard_id: str):
 
         if success:
             return {"message": "Wizard cancelled successfully", "wizard_id": wizard_id}
-        else:
-            raise HTTPException(status_code=404, detail="Wizard not found")
+        raise HTTPException(status_code=404, detail="Wizard not found")
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cancel wizard: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to cancel wizard: {e!s}") from e
 
 
 # Root endpoint
@@ -667,7 +661,7 @@ async def root():
             "integration_checking": "Comprehensive integration health validation",
             "setup_wizards": "Guided setup for MQTT and Zigbee2MQTT",
             "performance_optimization": "Automated performance analysis and recommendations",
-            "continuous_monitoring": "Background health monitoring with alerting"
+            "continuous_monitoring": "Background health monitoring with alerting",
         },
         "endpoints": {
             "health": "/health",
@@ -685,8 +679,8 @@ async def root():
             "setup_wizard_continue": "/api/zigbee2mqtt/setup/{wizard_id}/continue",
             "setup_wizard_status": "/api/zigbee2mqtt/setup/{wizard_id}/status",
             "docs": "/docs",
-            "openapi": "/openapi.json"
-        }
+            "openapi": "/openapi.json",
+        },
     }
 
 
@@ -696,6 +690,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=settings.service_port,
-        reload=True
+        reload=True,
     )
 

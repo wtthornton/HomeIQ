@@ -62,17 +62,17 @@ async def run_migration(dry_run: bool = False):
             # Split SQL by semicolons and execute each statement
             # Remove comments (both line comments and inline comments)
             lines = []
-            for line in sql_content.split('\n'):
+            for line in sql_content.split("\n"):
                 # Remove inline comments (everything after --)
-                if '--' in line:
-                    line = line[:line.index('--')]
+                if "--" in line:
+                    line = line[:line.index("--")]
                 line = line.strip()
                 if line:
                     lines.append(line)
 
             # Join lines and split by semicolon
-            full_sql = ' '.join(lines)
-            statements = [s.strip() for s in full_sql.split(';') if s.strip()]
+            full_sql = " ".join(lines)
+            statements = [s.strip() for s in full_sql.split(";") if s.strip()]
 
             for i, statement in enumerate(statements, 1):
                 if statement:
@@ -91,9 +91,9 @@ async def run_migration(dry_run: bool = False):
 
             # Verify tables were created
             result = await conn.execute(text("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
-                AND name IN ('conversations', 'conversation_turns', 'confidence_factors', 
+                SELECT name FROM sqlite_master
+                WHERE type='table'
+                AND name IN ('conversations', 'conversation_turns', 'confidence_factors',
                             'function_calls', 'automation_suggestions')
                 ORDER BY name
             """))

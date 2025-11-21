@@ -14,7 +14,7 @@ import os
 import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -29,11 +29,11 @@ class User(BaseModel):
     """Simple authenticated user representation."""
 
     username: str
-    permissions: List[str] = []
+    permissions: list[str] = []
     created_at: datetime
-    last_login: Optional[datetime] = None
-    full_name: Optional[str] = None
-    email: Optional[str] = None
+    last_login: datetime | None = None
+    full_name: str | None = None
+    email: str | None = None
 
 
 class AuthManager:
@@ -41,10 +41,10 @@ class AuthManager:
 
     def __init__(
         self,
-        api_key: Optional[str],
+        api_key: str | None,
         *,
         allow_anonymous: bool = False,
-        users: Optional[List[Dict[str, Any]]] = None,
+        users: list[dict[str, Any]] | None = None,
     ):
         """
         Initialize the authentication manager.
@@ -56,8 +56,9 @@ class AuthManager:
         """
 
         if not api_key and not allow_anonymous:
+            msg = "API key is required – authentication cannot be disabled in production"
             raise ValueError(
-                "API key is required – authentication cannot be disabled in production"
+                msg,
             )
 
         self.api_key = api_key
@@ -70,7 +71,7 @@ class AuthManager:
         self.algorithm = os.getenv("ADMIN_API_JWT_ALGORITHM", "HS256")
         self.access_token_expire_minutes = int(os.getenv("ADMIN_API_JWT_TTL", "30"))
 
-        self.sessions: Dict[str, Dict[str, Any]] = {}
+        self.sessions: dict[str, dict[str, Any]] = {}
         self.session_timeout = 3600  # seconds
 
         # The pseudo-user returned when API key authentication succeeds
@@ -81,17 +82,17 @@ class AuthManager:
         )
 
         # Configurable user store for JWT/password auth
-        self.users_db: Dict[str, Dict[str, Any]] = {}
+        self.users_db: dict[str, dict[str, Any]] = {}
         self._load_users(users)
 
         logger.info(
-            "Authentication manager initialized (anonymous=%s)", self.allow_anonymous
+            "Authentication manager initialized (anonymous=%s)", self.allow_anonymous,
         )
 
     async def get_current_user(
         self,
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-            HTTPBearer(auto_error=False)
+        credentials: HTTPAuthorizationCredentials | None = Depends(
+            HTTPBearer(auto_error=False),
         ),
     ):
         """
@@ -132,7 +133,7 @@ class AuthManager:
             return False
         return secrets.compare_digest(presented_key, self.api_key)
 
-    def validate_api_key(self, api_key: Optional[str]) -> bool:
+    def validate_api_key(self, api_key: str | None) -> bool:
         """Public helper for validating API key strings."""
         if not api_key:
             return False
@@ -151,9 +152,9 @@ class AuthManager:
         username: str,
         password: str,
         *,
-        permissions: Optional[List[str]] = None,
-        full_name: Optional[str] = None,
-        email: Optional[str] = None,
+        permissions: list[str] | None = None,
+        full_name: str | None = None,
+        email: str | None = None,
         disabled: bool = False,
     ) -> None:
         """Register a new user (mainly for tests or setup scripts)."""
@@ -178,11 +179,11 @@ class AuthManager:
         """Return a PBKDF2-SHA256 hash for the provided password."""
         return self.pwd_context.hash(password)
 
-    def get_user(self, username: str) -> Optional[Dict[str, Any]]:
+    def get_user(self, username: str) -> dict[str, Any] | None:
         """Fetch a user definition."""
         return self.users_db.get(username)
 
-    def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
+    def authenticate_user(self, username: str, password: str) -> dict[str, Any] | None:
         """Authenticate a user using username/password credentials."""
         user = self.get_user(username)
         if not user or user.get("disabled"):
@@ -192,7 +193,7 @@ class AuthManager:
         return user
 
     def create_access_token(
-        self, data: Dict[str, Any], expires_delta: Optional[timedelta] = None
+        self, data: dict[str, Any], expires_delta: timedelta | None = None,
     ) -> str:
         """Create a signed JWT access token."""
         to_encode = data.copy()
@@ -202,7 +203,7 @@ class AuthManager:
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
 
-    def verify_token(self, token: Optional[str]) -> Optional[Dict[str, Any]]:
+    def verify_token(self, token: str | None) -> dict[str, Any] | None:
         """Verify and decode a JWT token."""
         if not token:
             return None
@@ -218,7 +219,7 @@ class AuthManager:
             logger.warning("Failed to decode JWT: %s", exc)
             return None
 
-        username: Optional[str] = payload.get("sub")
+        username: str | None = payload.get("sub")
         if not username:
             return None
 
@@ -249,7 +250,7 @@ class AuthManager:
         logger.debug("Created session for user %s", user.username)
         return session_token
 
-    def validate_session(self, session_token: str) -> Optional[User]:
+    def validate_session(self, session_token: str) -> User | None:
         """Validate a stored session token."""
         session = self.sessions.get(session_token)
         if not session:
@@ -276,7 +277,7 @@ class AuthManager:
         if expired:
             logger.debug("Cleaned up %s expired sessions", len(expired))
 
-    def get_session_statistics(self) -> Dict[str, Any]:
+    def get_session_statistics(self) -> dict[str, Any]:
         """Return diagnostic information about session usage."""
         now = datetime.now()
         active = sum(1 for session in self.sessions.values() if now <= session["expires_at"])
@@ -289,7 +290,7 @@ class AuthManager:
             "authentication_enforced": not self.allow_anonymous,
         }
 
-    def configure_auth(self, api_key: Optional[str], enable_auth: Optional[bool] = None):
+    def configure_auth(self, api_key: str | None, enable_auth: bool | None = None):
         """
         Legacy helper retained for backward compatibility.
 
@@ -298,14 +299,15 @@ class AuthManager:
 
         if enable_auth is False and not self.allow_anonymous:
             logger.warning(
-                "Ignoring request to disable authentication – this toggle is deprecated"
+                "Ignoring request to disable authentication – this toggle is deprecated",
             )
         self.api_key = api_key
 
     def configure_session_timeout(self, timeout: int):
         """Update the session timeout duration."""
         if timeout <= 0:
-            raise ValueError("Session timeout must be positive")
+            msg = "Session timeout must be positive"
+            raise ValueError(msg)
         self.session_timeout = timeout
         logger.info("Updated session timeout to %s seconds", timeout)
 
@@ -313,7 +315,7 @@ class AuthManager:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _load_users(self, provided_users: Optional[List[Dict[str, Any]]]) -> None:
+    def _load_users(self, provided_users: list[dict[str, Any]] | None) -> None:
         """Populate the user store from provided config or environment variables."""
         definitions = provided_users or self._load_users_from_env()
         for entry in definitions:
@@ -342,7 +344,7 @@ class AuthManager:
                 "disabled": entry.get("disabled", False),
             }
 
-    def _load_users_from_env(self) -> List[Dict[str, Any]]:
+    def _load_users_from_env(self) -> list[dict[str, Any]]:
         """Load user definitions from ADMIN_API_USERS_* environment variables."""
         users_json = os.getenv("ADMIN_API_USERS_JSON")
         if users_json:
@@ -352,7 +354,7 @@ class AuthManager:
                     return data
                 logger.warning("ADMIN_API_USERS_JSON must be a JSON list")
             except json.JSONDecodeError as exc:
-                logger.error("Failed to parse ADMIN_API_USERS_JSON: %s", exc)
+                logger.exception("Failed to parse ADMIN_API_USERS_JSON: %s", exc)
 
         users_file = os.getenv("ADMIN_API_USERS_FILE")
         if users_file:
@@ -361,7 +363,7 @@ class AuthManager:
                 try:
                     return json.loads(path.read_text(encoding="utf-8"))
                 except Exception as exc:
-                    logger.error("Failed to read ADMIN_API_USERS_FILE: %s", exc)
+                    logger.exception("Failed to read ADMIN_API_USERS_FILE: %s", exc)
 
         return []
 

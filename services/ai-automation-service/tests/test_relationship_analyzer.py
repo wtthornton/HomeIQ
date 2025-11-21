@@ -22,42 +22,42 @@ def mock_ha_client():
     # Mock automation configurations
     client.get_automations = AsyncMock(return_value=[
         {
-            'id': 'bedroom_motion_light',
-            'alias': 'Bedroom Motion Lighting',
-            'trigger': [
+            "id": "bedroom_motion_light",
+            "alias": "Bedroom Motion Lighting",
+            "trigger": [
                 {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.bedroom_motion',
-                    'to': 'on'
-                }
+                    "platform": "state",
+                    "entity_id": "binary_sensor.bedroom_motion",
+                    "to": "on",
+                },
             ],
-            'action': [
+            "action": [
                 {
-                    'service': 'light.turn_on',
-                    'target': {
-                        'entity_id': 'light.bedroom_ceiling'
-                    }
-                }
-            ]
+                    "service": "light.turn_on",
+                    "target": {
+                        "entity_id": "light.bedroom_ceiling",
+                    },
+                },
+            ],
         },
         {
-            'id': 'door_lock',
-            'alias': 'Auto Lock Front Door',
-            'trigger': [
+            "id": "door_lock",
+            "alias": "Auto Lock Front Door",
+            "trigger": [
                 {
-                    'platform': 'state',
-                    'entity_id': 'binary_sensor.front_door',
-                    'to': 'off',
-                    'for': '00:02:00'
-                }
+                    "platform": "state",
+                    "entity_id": "binary_sensor.front_door",
+                    "to": "off",
+                    "for": "00:02:00",
+                },
             ],
-            'action': [
+            "action": [
                 {
-                    'service': 'lock.lock',
-                    'entity_id': 'lock.front_door'
-                }
-            ]
-        }
+                    "service": "lock.lock",
+                    "entity_id": "lock.front_door",
+                },
+            ],
+        },
     ])
 
     return client
@@ -75,8 +75,8 @@ async def test_get_existing_automations(mock_ha_client):
     automations = await checker.get_existing_automations()
 
     assert len(automations) == 2
-    assert automations[0]['id'] == 'bedroom_motion_light'
-    assert automations[1]['id'] == 'door_lock'
+    assert automations[0]["id"] == "bedroom_motion_light"
+    assert automations[1]["id"] == "door_lock"
 
 
 @pytest.mark.asyncio
@@ -105,22 +105,22 @@ async def test_parse_simple_automation(mock_ha_client):
     checker = HomeAssistantAutomationChecker(mock_ha_client)
 
     automation = {
-        'trigger': {
-            'platform': 'state',
-            'entity_id': 'binary_sensor.motion'
+        "trigger": {
+            "platform": "state",
+            "entity_id": "binary_sensor.motion",
         },
-        'action': {
-            'service': 'light.turn_on',
-            'target': {
-                'entity_id': 'light.bedroom'
-            }
-        }
+        "action": {
+            "service": "light.turn_on",
+            "target": {
+                "entity_id": "light.bedroom",
+            },
+        },
     }
 
     relationships = checker._parse_automation_relationships(automation)
 
     assert len(relationships) == 1
-    assert relationships[0] == ('binary_sensor.motion', 'light.bedroom')
+    assert relationships[0] == ("binary_sensor.motion", "light.bedroom")
 
 
 @pytest.mark.asyncio
@@ -129,22 +129,22 @@ async def test_parse_multiple_triggers_and_actions():
     checker = HomeAssistantAutomationChecker(AsyncMock())
 
     automation = {
-        'trigger': [
-            {'platform': 'state', 'entity_id': 'binary_sensor.motion_1'},
-            {'platform': 'state', 'entity_id': 'binary_sensor.motion_2'}
+        "trigger": [
+            {"platform": "state", "entity_id": "binary_sensor.motion_1"},
+            {"platform": "state", "entity_id": "binary_sensor.motion_2"},
         ],
-        'action': [
-            {'service': 'light.turn_on', 'target': {'entity_id': 'light.light_1'}},
-            {'service': 'light.turn_on', 'target': {'entity_id': 'light.light_2'}}
-        ]
+        "action": [
+            {"service": "light.turn_on", "target": {"entity_id": "light.light_1"}},
+            {"service": "light.turn_on", "target": {"entity_id": "light.light_2"}},
+        ],
     }
 
     relationships = checker._parse_automation_relationships(automation)
 
     # Should create 2x2 = 4 relationships
     assert len(relationships) == 4
-    assert ('binary_sensor.motion_1', 'light.light_1') in relationships
-    assert ('binary_sensor.motion_2', 'light.light_2') in relationships
+    assert ("binary_sensor.motion_1", "light.light_1") in relationships
+    assert ("binary_sensor.motion_2", "light.light_2") in relationships
 
 
 @pytest.mark.asyncio
@@ -153,24 +153,24 @@ async def test_parse_action_with_list_entities():
     checker = HomeAssistantAutomationChecker(AsyncMock())
 
     automation = {
-        'trigger': {
-            'platform': 'state',
-            'entity_id': 'binary_sensor.motion'
+        "trigger": {
+            "platform": "state",
+            "entity_id": "binary_sensor.motion",
         },
-        'action': {
-            'service': 'light.turn_on',
-            'target': {
-                'entity_id': ['light.light_1', 'light.light_2', 'light.light_3']
-            }
-        }
+        "action": {
+            "service": "light.turn_on",
+            "target": {
+                "entity_id": ["light.light_1", "light.light_2", "light.light_3"],
+            },
+        },
     }
 
     relationships = checker._parse_automation_relationships(automation)
 
     # Should create relationship with each light
     assert len(relationships) == 3
-    assert ('binary_sensor.motion', 'light.light_1') in relationships
-    assert ('binary_sensor.motion', 'light.light_2') in relationships
+    assert ("binary_sensor.motion", "light.light_1") in relationships
+    assert ("binary_sensor.motion", "light.light_2") in relationships
 
 
 # ============================================================================
@@ -184,8 +184,8 @@ async def test_is_connected_true(mock_ha_client):
 
     # This pair has automation (from mock data)
     is_connected = await checker.is_connected(
-        'binary_sensor.bedroom_motion',
-        'light.bedroom_ceiling'
+        "binary_sensor.bedroom_motion",
+        "light.bedroom_ceiling",
     )
 
     assert is_connected is True
@@ -198,8 +198,8 @@ async def test_is_connected_false(mock_ha_client):
 
     # This pair has NO automation
     is_connected = await checker.is_connected(
-        'binary_sensor.kitchen_motion',
-        'light.kitchen_ceiling'
+        "binary_sensor.kitchen_motion",
+        "light.kitchen_ceiling",
     )
 
     assert is_connected is False
@@ -212,12 +212,12 @@ async def test_is_connected_bidirectional(mock_ha_client):
 
     # Check both directions
     forward = await checker.is_connected(
-        'binary_sensor.bedroom_motion',
-        'light.bedroom_ceiling'
+        "binary_sensor.bedroom_motion",
+        "light.bedroom_ceiling",
     )
     reverse = await checker.is_connected(
-        'light.bedroom_ceiling',
-        'binary_sensor.bedroom_motion'
+        "light.bedroom_ceiling",
+        "binary_sensor.bedroom_motion",
     )
 
     # Both should be True (bidirectional check)
@@ -249,7 +249,7 @@ async def test_malformed_automation_handling():
 
     # Malformed automation (missing trigger/action)
     automation = {
-        'id': 'broken_automation'
+        "id": "broken_automation",
         # No trigger or action
     }
 
@@ -294,10 +294,10 @@ async def test_get_connected_entity_pairs(mock_ha_client):
 
     # Should have 2 pairs from mock automations
     assert len(pairs) >= 2
-    assert ('binary_sensor.bedroom_motion', 'light.bedroom_ceiling') in pairs
-    assert ('binary_sensor.front_door', 'lock.front_door') in pairs
+    assert ("binary_sensor.bedroom_motion", "light.bedroom_ceiling") in pairs
+    assert ("binary_sensor.front_door", "lock.front_door") in pairs
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 

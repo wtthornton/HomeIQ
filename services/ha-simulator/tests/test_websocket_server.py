@@ -3,6 +3,7 @@ Tests for HA Simulator WebSocket Server
 """
 
 import asyncio
+import contextlib
 import json
 from unittest.mock import AsyncMock, Mock
 
@@ -21,12 +22,12 @@ class TestHASimulatorWebSocketServer:
             "simulator": {
                 "name": "Test Simulator",
                 "version": "2025.10.1",
-                "port": 8123
+                "port": 8123,
             },
             "authentication": {
                 "enabled": True,
-                "token": "test_token"
-            }
+                "token": "test_token",
+            },
         }
 
     @pytest.fixture
@@ -60,10 +61,8 @@ class TestHASimulatorWebSocketServer:
         # Cancel the task
         handler_task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await handler_task
-        except asyncio.CancelledError:
-            pass
 
         # Verify connection was handled
         assert len(server.clients) == 0  # Should be removed after cancellation
@@ -77,7 +76,7 @@ class TestHASimulatorWebSocketServer:
         # Test auth message
         auth_message = {
             "type": "auth",
-            "access_token": "test_token"
+            "access_token": "test_token",
         }
 
         await server.handle_message(ws, json.dumps(auth_message))
@@ -94,13 +93,13 @@ class TestHASimulatorWebSocketServer:
         # First authenticate
         await server.auth_manager.handle_auth(ws, {
             "type": "auth",
-            "access_token": "test_token"
+            "access_token": "test_token",
         })
 
         # Then subscribe
         subscribe_message = {
             "id": 1,
-            "type": "subscribe_events"
+            "type": "subscribe_events",
         }
 
         await server.handle_message(ws, json.dumps(subscribe_message))
@@ -123,20 +122,20 @@ class TestHASimulatorWebSocketServer:
         # Authenticate and subscribe clients
         await server.auth_manager.handle_auth(ws1, {
             "type": "auth",
-            "access_token": "test_token"
+            "access_token": "test_token",
         })
         await server.auth_manager.handle_auth(ws2, {
             "type": "auth",
-            "access_token": "test_token"
+            "access_token": "test_token",
         })
 
         await server.subscription_manager.handle_subscribe_events(ws1, {
             "id": 1,
-            "type": "subscribe_events"
+            "type": "subscribe_events",
         })
         await server.subscription_manager.handle_subscribe_events(ws2, {
             "id": 1,
-            "type": "subscribe_events"
+            "type": "subscribe_events",
         })
 
         # Broadcast event
@@ -144,8 +143,8 @@ class TestHASimulatorWebSocketServer:
             "type": "event",
             "event": {
                 "event_type": "state_changed",
-                "data": {"entity_id": "test.entity"}
-            }
+                "data": {"entity_id": "test.entity"},
+            },
         }
 
         await server.broadcast_event(test_event)
@@ -166,13 +165,13 @@ class TestHASimulatorWebSocketServer:
         # Authenticate one client
         await server.auth_manager.handle_auth(ws1, {
             "type": "auth",
-            "access_token": "test_token"
+            "access_token": "test_token",
         })
 
         # Subscribe one client
         await server.subscription_manager.handle_subscribe_events(ws1, {
             "id": 1,
-            "type": "subscribe_events"
+            "type": "subscribe_events",
         })
 
         # Mock request

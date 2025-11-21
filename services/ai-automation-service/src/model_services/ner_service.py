@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="NER Model Service",
     description="Pre-trained NER model for entity extraction",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Global NER pipeline (loaded once at startup)
@@ -44,7 +44,7 @@ async def startup_event():
         ner_pipeline = pipeline("ner", model="dslim/bert-base-NER")
         logger.info("NER model loaded successfully")
     except Exception as e:
-        logger.error(f"Failed to load NER model: {e}")
+        logger.exception(f"Failed to load NER model: {e}")
         raise
 
 @app.get("/health")
@@ -53,17 +53,17 @@ async def health_check():
     return {
         "status": "healthy",
         "model_loaded": ner_pipeline is not None,
-        "model_name": "dslim/bert-base-NER"
+        "model_name": "dslim/bert-base-NER",
     }
 
 @app.post("/extract", response_model=EntityExtractionResponse)
 async def extract_entities(request: EntityExtractionRequest):
     """
     Extract entities from query using NER model
-    
+
     Args:
         request: Entity extraction request with query and confidence threshold
-        
+
     Returns:
         EntityExtractionResponse with extracted entities and metadata
     """
@@ -79,7 +79,7 @@ async def extract_entities(request: EntityExtractionRequest):
         # Filter by confidence threshold
         filtered_entities = [
             entity for entity in raw_entities
-            if entity.get('score', 0) >= request.confidence_threshold
+            if entity.get("score", 0) >= request.confidence_threshold
         ]
 
         # Convert to our format
@@ -88,18 +88,18 @@ async def extract_entities(request: EntityExtractionRequest):
 
         for entity in filtered_entities:
             # Map NER labels to our entity types
-            entity_type = "device" if entity['entity'] in ['B-DEVICE', 'I-DEVICE'] else "area"
+            entity_type = "device" if entity["entity"] in ["B-DEVICE", "I-DEVICE"] else "area"
 
             entities.append({
-                'name': entity['word'],
-                'type': entity_type,
-                'domain': 'unknown',
-                'confidence': entity['score'],
-                'extraction_method': 'ner',
-                'start': entity['start'],
-                'end': entity['end']
+                "name": entity["word"],
+                "type": entity_type,
+                "domain": "unknown",
+                "confidence": entity["score"],
+                "extraction_method": "ner",
+                "start": entity["start"],
+                "end": entity["end"],
             })
-            confidence_scores.append(entity['score'])
+            confidence_scores.append(entity["score"])
 
         processing_time = time.time() - start_time
 
@@ -109,12 +109,12 @@ async def extract_entities(request: EntityExtractionRequest):
             entities=entities,
             processing_time=processing_time,
             model_used="dslim/bert-base-NER",
-            confidence_scores=confidence_scores
+            confidence_scores=confidence_scores,
         )
 
     except Exception as e:
-        logger.error(f"Entity extraction failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+        logger.exception(f"Entity extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}")
 
 @app.get("/model-info")
 async def get_model_info():
@@ -125,7 +125,7 @@ async def get_model_info():
         "language": "English",
         "entities_detected": ["PERSON", "ORG", "LOC", "MISC"],
         "model_size": "~400MB",
-        "loaded": ner_pipeline is not None
+        "loaded": ner_pipeline is not None,
     }
 
 @app.get("/stats")
@@ -135,7 +135,7 @@ async def get_stats():
         "service": "NER Model Service",
         "model": "dslim/bert-base-NER",
         "status": "running",
-        "uptime": "calculated_on_request"
+        "uptime": "calculated_on_request",
     }
 
 if __name__ == "__main__":

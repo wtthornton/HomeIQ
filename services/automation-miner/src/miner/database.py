@@ -11,7 +11,7 @@ from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, String, Te
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-from ..config import settings
+from src.config import settings
 
 # Base class for all models
 Base = declarative_base()
@@ -20,7 +20,7 @@ Base = declarative_base()
 class CommunityAutomation(Base):
     """
     Community automation storage model
-    
+
     Stores normalized automation metadata from community sources.
     """
     __tablename__ = "community_automations"
@@ -34,7 +34,7 @@ class CommunityAutomation(Base):
 
     # Composite unique constraint: source + source_id must be unique together
     __table_args__ = (
-        UniqueConstraint('source', 'source_id', name='uq_source_source_id'),
+        UniqueConstraint("source", "source_id", name="uq_source_source_id"),
     )
 
     # Core fields
@@ -70,15 +70,15 @@ class CommunityAutomation(Base):
 
 # Create indexes for JSON fields (SQLite doesn't support GIN, but we can add expression indexes)
 # For PostgreSQL, these would be GIN indexes
-Index('ix_use_case', CommunityAutomation.use_case)
-Index('ix_quality_score', CommunityAutomation.quality_score)
-Index('ix_source', CommunityAutomation.source)
+Index("ix_use_case", CommunityAutomation.use_case)
+Index("ix_quality_score", CommunityAutomation.quality_score)
+Index("ix_source", CommunityAutomation.source)
 
 
 class MinerState(Base):
     """
     Miner state tracking
-    
+
     Stores crawler state (last_crawl_timestamp, etc.)
     """
     __tablename__ = "miner_state"
@@ -95,10 +95,10 @@ class MinerState(Base):
 class Database:
     """Database connection manager"""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str | None = None):
         """
         Initialize database connection
-        
+
         Args:
             db_path: Path to SQLite database file (default from settings)
         """
@@ -113,24 +113,26 @@ class Database:
             try:
                 db_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                raise RuntimeError(f"Failed to create database directory {db_dir}: {e}")
+                msg = f"Failed to create database directory {db_dir}: {e}"
+                raise RuntimeError(msg)
 
         # Check if directory is writable
         if not os.access(db_dir, os.W_OK):
-            raise RuntimeError(f"Database directory is not writable: {db_dir}")
+            msg = f"Database directory is not writable: {db_dir}"
+            raise RuntimeError(msg)
 
         # Create async engine
         self.engine = create_async_engine(
             f"sqlite+aiosqlite:///{self.db_path}",
             echo=False,  # Set to True for SQL logging
-            future=True
+            future=True,
         )
 
         # Create async session factory
         self.async_session = async_sessionmaker(
             self.engine,
             class_=AsyncSession,
-            expire_on_commit=False
+            expire_on_commit=False,
         )
 
     async def create_tables(self):
@@ -167,7 +169,7 @@ def get_database() -> Database:
 async def get_db_session():
     """
     Dependency for FastAPI to get database session
-    
+
     Usage:
         @app.get("/...")
         async def endpoint(db: AsyncSession = Depends(get_db_session)):

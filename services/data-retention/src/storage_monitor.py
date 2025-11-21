@@ -1,6 +1,7 @@
 """Storage usage monitoring and management."""
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -39,7 +40,7 @@ class StorageMetrics:
             "available_size_gb": self.available_size_bytes / (1024**3),
             "database_size_gb": self.database_size_bytes / (1024**3) if self.database_size_bytes else None,
             "log_size_gb": self.log_size_bytes / (1024**3) if self.log_size_bytes else None,
-            "backup_size_gb": self.backup_size_bytes / (1024**3) if self.backup_size_bytes else None
+            "backup_size_gb": self.backup_size_bytes / (1024**3) if self.backup_size_bytes else None,
         }
 
 @dataclass
@@ -63,7 +64,7 @@ class StorageAlert:
             "threshold_percentage": self.threshold_percentage,
             "current_percentage": self.current_percentage,
             "timestamp": self.timestamp.isoformat(),
-            "resolved": self.resolved
+            "resolved": self.resolved,
         }
 
 class StorageMonitor:
@@ -72,7 +73,7 @@ class StorageMonitor:
     def __init__(self, influxdb_client=None, storage_paths: list[str] | None = None):
         """
         Initialize storage monitor.
-        
+
         Args:
             influxdb_client: InfluxDB client for database size monitoring
             storage_paths: List of storage paths to monitor
@@ -108,23 +109,21 @@ class StorageMonitor:
 
         if self.monitor_task and not self.monitor_task.done():
             self.monitor_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.monitor_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Storage monitor stopped")
 
     async def collect_metrics(self) -> StorageMetrics:
         """
         Collect current storage metrics.
-        
+
         Returns:
             StorageMetrics: Current storage metrics
         """
         try:
             # Get system disk usage
-            disk_usage = psutil.disk_usage('/')
+            disk_usage = psutil.disk_usage("/")
 
             # Get database size if InfluxDB client is available
             database_size = await self._get_database_size()
@@ -143,7 +142,7 @@ class StorageMonitor:
                 usage_percentage=(disk_usage.used / disk_usage.total) * 100,
                 database_size_bytes=database_size,
                 log_size_bytes=log_size,
-                backup_size_bytes=backup_size
+                backup_size_bytes=backup_size,
             )
 
             self.metrics_history.append(metrics)
@@ -158,13 +157,13 @@ class StorageMonitor:
             return metrics
 
         except Exception as e:
-            logger.error(f"Failed to collect storage metrics: {e}")
+            logger.exception(f"Failed to collect storage metrics: {e}")
             raise
 
     async def _get_database_size(self) -> int | None:
         """
         Get InfluxDB database size.
-        
+
         Returns:
             Database size in bytes or None if unavailable
         """
@@ -179,7 +178,7 @@ class StorageMonitor:
                 |> count()
             """
 
-            result = await self.influxdb_client.query(query)
+            await self.influxdb_client.query(query)
 
             # This is a simplified approach - in reality, you'd need to query
             # the actual database size from InfluxDB system tables
@@ -192,7 +191,7 @@ class StorageMonitor:
     async def _get_log_size(self) -> int | None:
         """
         Get log file size.
-        
+
         Returns:
             Log size in bytes or None if unavailable
         """
@@ -201,13 +200,11 @@ class StorageMonitor:
             log_path = "/var/log"
             if os.path.exists(log_path):
                 total_size = 0
-                for dirpath, dirnames, filenames in os.walk(log_path):
+                for dirpath, _dirnames, filenames in os.walk(log_path):
                     for filename in filenames:
                         filepath = os.path.join(dirpath, filename)
-                        try:
+                        with contextlib.suppress(OSError):
                             total_size += os.path.getsize(filepath)
-                        except OSError:
-                            pass
                 return total_size
             return None
 
@@ -218,7 +215,7 @@ class StorageMonitor:
     async def _get_backup_size(self) -> int | None:
         """
         Get backup file size.
-        
+
         Returns:
             Backup size in bytes or None if unavailable
         """
@@ -227,13 +224,11 @@ class StorageMonitor:
             backup_path = "/backups"
             if os.path.exists(backup_path):
                 total_size = 0
-                for dirpath, dirnames, filenames in os.walk(backup_path):
+                for dirpath, _dirnames, filenames in os.walk(backup_path):
                     for filename in filenames:
                         filepath = os.path.join(dirpath, filename)
-                        try:
+                        with contextlib.suppress(OSError):
                             total_size += os.path.getsize(filepath)
-                        except OSError:
-                            pass
                 return total_size
             return None
 
@@ -244,7 +239,7 @@ class StorageMonitor:
     async def _check_alerts(self, metrics: StorageMetrics) -> None:
         """
         Check for storage usage alerts.
-        
+
         Args:
             metrics: Current storage metrics
         """
@@ -257,7 +252,7 @@ class StorageMonitor:
                 severity="critical",
                 message=f"Storage usage is critical: {current_percentage:.1f}%",
                 threshold_percentage=self.critical_threshold,
-                current_percentage=current_percentage
+                current_percentage=current_percentage,
             )
 
         # Check for warning threshold
@@ -267,7 +262,7 @@ class StorageMonitor:
                 severity="warning",
                 message=f"Storage usage is high: {current_percentage:.1f}%",
                 threshold_percentage=self.warning_threshold,
-                current_percentage=current_percentage
+                current_percentage=current_percentage,
             )
 
         # Resolve alerts if usage drops below thresholds
@@ -278,7 +273,7 @@ class StorageMonitor:
                           threshold_percentage: float, current_percentage: float) -> None:
         """
         Create a storage alert.
-        
+
         Args:
             alert_type: Type of alert
             severity: Alert severity
@@ -290,7 +285,7 @@ class StorageMonitor:
         existing_alert = next(
             (alert for alert in self.active_alerts
              if alert.alert_type == alert_type and not alert.resolved),
-            None
+            None,
         )
 
         if existing_alert:
@@ -302,7 +297,7 @@ class StorageMonitor:
             message=message,
             threshold_percentage=threshold_percentage,
             current_percentage=current_percentage,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         self.active_alerts.append(alert)
@@ -318,7 +313,7 @@ class StorageMonitor:
     async def schedule_monitoring(self, interval_minutes: int = 5) -> None:
         """
         Schedule periodic storage monitoring.
-        
+
         Args:
             interval_minutes: Interval between monitoring runs in minutes
         """
@@ -331,7 +326,7 @@ class StorageMonitor:
                 try:
                     await self.collect_metrics()
                 except Exception as e:
-                    logger.error(f"Storage monitoring failed: {e}")
+                    logger.exception(f"Storage monitoring failed: {e}")
 
                 # Wait for next monitoring cycle
                 await asyncio.sleep(interval_minutes * 60)
@@ -342,7 +337,7 @@ class StorageMonitor:
     def get_current_metrics(self) -> StorageMetrics | None:
         """
         Get current storage metrics.
-        
+
         Returns:
             Latest storage metrics or None if no metrics available
         """
@@ -351,10 +346,10 @@ class StorageMonitor:
     def get_metrics_history(self, hours: int = 24) -> list[StorageMetrics]:
         """
         Get storage metrics history.
-        
+
         Args:
             hours: Number of hours of history to return
-            
+
         Returns:
             List of storage metrics
         """
@@ -367,7 +362,7 @@ class StorageMonitor:
     def get_active_alerts(self) -> list[StorageAlert]:
         """
         Get active storage alerts.
-        
+
         Returns:
             List of active alerts
         """
@@ -376,7 +371,7 @@ class StorageMonitor:
     def get_storage_statistics(self) -> dict[str, Any]:
         """
         Get storage statistics.
-        
+
         Returns:
             Dictionary containing storage statistics
         """
@@ -387,7 +382,7 @@ class StorageMonitor:
                 "average_usage_percentage": 0.0,
                 "peak_usage_percentage": 0.0,
                 "active_alerts": 0,
-                "last_measurement": None
+                "last_measurement": None,
             }
 
         current_metrics = self.get_current_metrics()
@@ -399,19 +394,20 @@ class StorageMonitor:
             "average_usage_percentage": sum(usage_percentages) / len(usage_percentages),
             "peak_usage_percentage": max(usage_percentages),
             "active_alerts": len(self.get_active_alerts()),
-            "last_measurement": self.metrics_history[-1].timestamp.isoformat() if self.metrics_history else None
+            "last_measurement": self.metrics_history[-1].timestamp.isoformat() if self.metrics_history else None,
         }
 
     def set_alert_thresholds(self, warning_threshold: float, critical_threshold: float) -> None:
         """
         Set alert thresholds.
-        
+
         Args:
             warning_threshold: Warning threshold percentage
             critical_threshold: Critical threshold percentage
         """
         if warning_threshold >= critical_threshold:
-            raise ValueError("Warning threshold must be less than critical threshold")
+            msg = "Warning threshold must be less than critical threshold"
+            raise ValueError(msg)
 
         self.warning_threshold = warning_threshold
         self.critical_threshold = critical_threshold

@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class DeviceEmbeddingModel:
     """
     OpenVINO-optimized embedding model for device descriptions.
-    
+
     Story AI4.1: Device Embedding Generation
     Context7 Best Practice: OpenVINO INT8 quantization for edge deployment
-    
+
     Usage:
         >>> model = DeviceEmbeddingModel()
         >>> model.load_model()
@@ -41,11 +41,11 @@ class DeviceEmbeddingModel:
     def __init__(
         self,
         model_path: str = "./models/nlevel-synergy/embedding-int8",
-        device: str = "CPU"
+        device: str = "CPU",
     ):
         """
         Initialize embedding model.
-        
+
         Args:
             model_path: Path to quantized OpenVINO model
             device: OpenVINO device (CPU, GPU, etc.)
@@ -59,12 +59,12 @@ class DeviceEmbeddingModel:
     def load_model(self):
         """
         Load OpenVINO-optimized model.
-        
+
         Context7 Best Practice:
         - Use OVModelForFeatureExtraction for sentence transformers
         - INT8 quantization via export=True
         - Supports CPU and GPU devices
-        
+
         Raises:
             FileNotFoundError: If model not found at model_path
             RuntimeError: If model fails to load
@@ -78,9 +78,12 @@ class DeviceEmbeddingModel:
 
             # Check if model exists
             if not self.model_path.exists():
-                raise FileNotFoundError(
+                msg = (
                     f"Model not found at {self.model_path}. "
                     f"Run: bash scripts/quantize-nlevel-models.sh"
+                )
+                raise FileNotFoundError(
+                    msg,
                 )
 
             # Load OpenVINO model
@@ -89,7 +92,7 @@ class DeviceEmbeddingModel:
 
             self.model = OVModelForFeatureExtraction.from_pretrained(
                 str(self.model_path),
-                device=self.device
+                device=self.device,
             )
 
             # Load tokenizer (from original model)
@@ -101,12 +104,13 @@ class DeviceEmbeddingModel:
                 f"✅ Model loaded successfully\n"
                 f"   Device: {self.device}\n"
                 f"   Embedding dim: {self.EMBEDDING_DIM}\n"
-                f"   Max seq length: {self.MAX_SEQ_LENGTH}"
+                f"   Max seq length: {self.MAX_SEQ_LENGTH}",
             )
 
         except Exception as e:
-            logger.error(f"Failed to load OpenVINO model: {e}")
-            raise RuntimeError(f"Model loading failed: {e}")
+            logger.exception(f"Failed to load OpenVINO model: {e}")
+            msg = f"Model loading failed: {e}"
+            raise RuntimeError(msg)
 
     def encode(
         self,
@@ -114,33 +118,34 @@ class DeviceEmbeddingModel:
         batch_size: int = 32,
         normalize: bool = True,
         show_progress: bool = False,
-        convert_to_numpy: bool = True
+        convert_to_numpy: bool = True,
     ) -> np.ndarray:
         """
         Generate embeddings for text descriptions.
-        
+
         Args:
             texts: List of device descriptors
             batch_size: Batch size for processing (Context7: 32 optimal)
             normalize: Normalize embeddings for dot-product scoring
             show_progress: Show progress bar (requires tqdm)
             convert_to_numpy: Return numpy array (vs torch tensor)
-        
+
         Returns:
             Numpy array of embeddings (N x 384) or torch tensor
-        
+
         Context7 Best Practice:
         - Batch processing for efficiency
         - Normalize for dot-product scoring (faster than cosine)
         - Use mean pooling for sentence embeddings
-        
+
         Example:
             >>> texts = ["motion sensor in kitchen", "light in living room"]
             >>> embeddings = model.encode(texts, normalize=True)
             >>> similarity = np.dot(embeddings[0], embeddings[1])
         """
         if not self._model_loaded:
-            raise RuntimeError("Model not loaded. Call load_model() first.")
+            msg = "Model not loaded. Call load_model() first."
+            raise RuntimeError(msg)
 
         if not texts:
             return np.array([])
@@ -159,7 +164,7 @@ class DeviceEmbeddingModel:
                 padding=True,
                 truncation=True,
                 max_length=self.MAX_SEQ_LENGTH,
-                return_tensors='pt'
+                return_tensors="pt",
             )
 
             # Generate embeddings
@@ -169,7 +174,7 @@ class DeviceEmbeddingModel:
                 # Mean pooling (Context7 best practice for sentence embeddings)
                 embeddings = self._mean_pooling(
                     outputs.last_hidden_state,
-                    inputs['attention_mask']
+                    inputs["attention_mask"],
                 )
 
             all_embeddings.append(embeddings)
@@ -193,17 +198,17 @@ class DeviceEmbeddingModel:
     def _mean_pooling(
         self,
         token_embeddings: torch.Tensor,
-        attention_mask: torch.Tensor
+        attention_mask: torch.Tensor,
     ) -> torch.Tensor:
         """
         Mean pooling to get sentence embeddings.
-        
+
         Context7: Standard practice for sentence transformers
-        
+
         Args:
             token_embeddings: Token-level embeddings from model
             attention_mask: Attention mask for padding
-        
+
         Returns:
             Mean-pooled sentence embeddings
         """
@@ -215,17 +220,17 @@ class DeviceEmbeddingModel:
     def get_model_info(self) -> dict:
         """
         Get model metadata.
-        
+
         Returns:
             Dict with model information
         """
         return {
-            'model_name': self.MODEL_NAME,
-            'model_version': self.MODEL_VERSION,
-            'embedding_dim': self.EMBEDDING_DIM,
-            'max_seq_length': self.MAX_SEQ_LENGTH,
-            'device': self.device,
-            'loaded': self._model_loaded
+            "model_name": self.MODEL_NAME,
+            "model_version": self.MODEL_VERSION,
+            "embedding_dim": self.EMBEDDING_DIM,
+            "max_seq_length": self.MAX_SEQ_LENGTH,
+            "device": self.device,
+            "loaded": self._model_loaded,
         }
 
     def unload_model(self):

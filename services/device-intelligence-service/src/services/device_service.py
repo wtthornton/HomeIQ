@@ -31,7 +31,7 @@ class DeviceService:
             logger.info(f"Retrieved {len(devices)} devices")
             return devices
         except Exception as e:
-            logger.error(f"Error retrieving devices: {e}")
+            logger.exception(f"Error retrieving devices: {e}")
             return []
 
     async def upsert_device(self, device_data: dict[str, Any]) -> Device:
@@ -51,17 +51,16 @@ class DeviceService:
                 await self.session.commit()
                 logger.debug(f"Updated device: {device_data['id']}")
                 return existing_device
-            else:
-                # Create new device
-                device = Device(**device_data)
-                self.session.add(device)
-                await self.session.commit()
-                logger.debug(f"Created device: {device_data['id']}")
-                return device
+            # Create new device
+            device = Device(**device_data)
+            self.session.add(device)
+            await self.session.commit()
+            logger.debug(f"Created device: {device_data['id']}")
+            return device
 
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error upserting device {device_data.get('id', 'unknown')}: {e}")
+            logger.exception(f"Error upserting device {device_data.get('id', 'unknown')}: {e}")
             raise
 
     async def bulk_upsert_devices(self, devices_data: list[dict[str, Any]]) -> list[Device]:
@@ -104,7 +103,7 @@ class DeviceService:
 
             device_ids = [entry["id"] for entry in devices_data]
             result = await self.session.execute(
-                select(Device).where(Device.id.in_(device_ids))
+                select(Device).where(Device.id.in_(device_ids)),
             )
             devices = result.scalars().all()
 
@@ -120,7 +119,7 @@ class DeviceService:
 
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error bulk upserting devices: {e}")
+            logger.exception(f"Error bulk upserting devices: {e}")
             raise
 
     async def get_device_by_id(self, device_id: str) -> Device | None:
@@ -135,7 +134,7 @@ class DeviceService:
                 logger.info(f"Device not found: {device_id}")
             return device
         except Exception as e:
-            logger.error(f"Error retrieving device {device_id}: {e}")
+            logger.exception(f"Error retrieving device {device_id}: {e}")
             return None
 
     async def bulk_upsert_capabilities(self, capabilities_data: list[dict[str, Any]]) -> int:
@@ -165,7 +164,7 @@ class DeviceService:
 
         except Exception as e:
             await self.session.rollback()
-            logger.error("Error bulk upserting capabilities: %s", e)
+            logger.exception("Error bulk upserting capabilities: %s", e)
             raise
 
     async def get_device_capabilities(self, device_id: str) -> list[DeviceCapability]:
@@ -177,21 +176,21 @@ class DeviceService:
             logger.info(f"Retrieved {len(capabilities)} capabilities for device {device_id}")
             return capabilities
         except Exception as e:
-            logger.error(f"Error retrieving capabilities for device {device_id}: {e}")
+            logger.exception(f"Error retrieving capabilities for device {device_id}: {e}")
             return []
 
     async def get_device_health_metrics(self, device_id: str, limit: int = 100) -> list[DeviceHealthMetric]:
         """Get health metrics for a device."""
         try:
             stmt = select(DeviceHealthMetric).where(
-                DeviceHealthMetric.device_id == device_id
+                DeviceHealthMetric.device_id == device_id,
             ).order_by(DeviceHealthMetric.timestamp.desc()).limit(limit)
             result = await self.session.execute(stmt)
             metrics = result.scalars().all()
             logger.info(f"Retrieved {len(metrics)} health metrics for device {device_id}")
             return metrics
         except Exception as e:
-            logger.error(f"Error retrieving health metrics for device {device_id}: {e}")
+            logger.exception(f"Error retrieving health metrics for device {device_id}: {e}")
             return []
 
     async def get_devices_by_area(self, area_id: str) -> list[Device]:
@@ -203,7 +202,7 @@ class DeviceService:
             logger.info(f"Retrieved {len(devices)} devices for area {area_id}")
             return devices
         except Exception as e:
-            logger.error(f"Error retrieving devices for area {area_id}: {e}")
+            logger.exception(f"Error retrieving devices for area {area_id}: {e}")
             return []
 
     async def get_devices_by_integration(self, integration: str) -> list[Device]:
@@ -215,7 +214,7 @@ class DeviceService:
             logger.info(f"Retrieved {len(devices)} devices for integration {integration}")
             return devices
         except Exception as e:
-            logger.error(f"Error retrieving devices for integration {integration}: {e}")
+            logger.exception(f"Error retrieving devices for integration {integration}: {e}")
             return []
 
     async def get_device_stats(self) -> dict[str, Any]:
@@ -251,18 +250,18 @@ class DeviceService:
                 "devices_by_integration": devices_by_integration,
                 "devices_by_area": devices_by_area,
                 "average_health_score": average_health_score,
-                "total_capabilities": total_capabilities
+                "total_capabilities": total_capabilities,
             }
 
             logger.info(f"Retrieved device statistics: {total_devices} devices, {total_capabilities} capabilities")
             return stats
 
         except Exception as e:
-            logger.error(f"Error retrieving device statistics: {e}")
+            logger.exception(f"Error retrieving device statistics: {e}")
             return {
                 "total_devices": 0,
                 "devices_by_integration": {},
                 "devices_by_area": {},
                 "average_health_score": 0.0,
-                "total_capabilities": 0
+                "total_capabilities": 0,
             }

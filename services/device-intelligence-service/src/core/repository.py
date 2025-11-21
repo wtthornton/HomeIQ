@@ -222,7 +222,7 @@ class DeviceRepository:
                 model=bindparam("model"),
                 area_id=bindparam("area_id"),
                 health_score=bindparam("health_score"),
-                updated_at=func.now()
+                updated_at=func.now(),
             )
         )
 
@@ -263,11 +263,11 @@ class DeviceRepository:
                 "exposed": stmt.excluded.exposed,
                 "configured": stmt.excluded.configured,
                 "source": stmt.excluded.source,
-                "last_updated": func.now()
-            }
+                "last_updated": func.now(),
+            },
         )
 
-        result = await session.execute(stmt)
+        await session.execute(stmt)
         await session.commit()
 
         logger.info(f"✅ Bulk upserted {len(capabilities_data)} capabilities")
@@ -283,7 +283,7 @@ class DeviceRepository:
             metric_name=metric_name,
             metric_value=metric_value,
             metric_unit=metric_unit,
-            metadata_json=metadata_json
+            metadata_json=metadata_json,
         )
         session.add(metric)
         await session.commit()
@@ -330,7 +330,7 @@ class DeviceRepository:
                 "restart_count": metric.restart_count or 0,
                 "connection_drops": metric.connection_drops or 0,
                 "data_transfer_rate": metric.data_transfer_rate or 0,
-                "failure_imminent": 0  # Default to no failure for training
+                "failure_imminent": 0,  # Default to no failure for training
             })
 
         return training_data
@@ -347,7 +347,7 @@ class DeviceRepository:
         # Devices by integration
         result = await session.execute(
             select(Device.integration, func.count(Device.id))
-            .group_by(Device.integration)
+            .group_by(Device.integration),
         )
         stats["devices_by_integration"] = dict(result.all())
 
@@ -355,14 +355,14 @@ class DeviceRepository:
         result = await session.execute(
             select(Device.area_id, func.count(Device.id))
             .where(Device.area_id.isnot(None))
-            .group_by(Device.area_id)
+            .group_by(Device.area_id),
         )
         stats["devices_by_area"] = dict(result.all())
 
         # Average health score
         result = await session.execute(
             select(func.avg(Device.health_score))
-            .where(Device.health_score.isnot(None))
+            .where(Device.health_score.isnot(None)),
         )
         stats["average_health_score"] = round(result.scalar() or 0, 2)
 
@@ -402,7 +402,7 @@ class DeviceRepository:
             "health_score": device.health_score,
             "disabled_by": device.disabled_by,
             "created_at": device.created_at.isoformat(),
-            "updated_at": device.updated_at.isoformat()
+            "updated_at": device.updated_at.isoformat(),
         }
 
     def _dict_to_device(self, device_dict: dict[str, Any]) -> Device:

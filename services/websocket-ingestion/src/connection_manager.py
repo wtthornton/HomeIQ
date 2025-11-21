@@ -3,6 +3,7 @@ Connection Manager for Home Assistant WebSocket with Retry Logic
 """
 
 import asyncio
+import contextlib
 import logging
 import os
 import random
@@ -43,13 +44,13 @@ class ConnectionManager:
         self.event_processor = EventProcessor(discovery_service=self.discovery_service)
 
         # Periodic discovery refresh interval (default: 30 minutes to match cache TTL)
-        self.discovery_refresh_interval = int(os.getenv('DISCOVERY_REFRESH_INTERVAL', '1800'))  # 30 minutes
+        self.discovery_refresh_interval = int(os.getenv("DISCOVERY_REFRESH_INTERVAL", "1800"))  # 30 minutes
 
         # Retry configuration (configurable via environment)
         # -1 = infinite retries (recommended for production)
-        self.max_retries = int(os.getenv('WEBSOCKET_MAX_RETRIES', '-1'))
+        self.max_retries = int(os.getenv("WEBSOCKET_MAX_RETRIES", "-1"))
         self.base_delay = 1  # seconds
-        self.max_delay = int(os.getenv('WEBSOCKET_MAX_RETRY_DELAY', '300'))  # 5 minutes default
+        self.max_delay = int(os.getenv("WEBSOCKET_MAX_RETRY_DELAY", "300"))  # 5 minutes default
         self.backoff_multiplier = 2
         self.jitter_range = 0.1  # 10% jitter
         self.current_retry_count = 0
@@ -71,7 +72,7 @@ class ConnectionManager:
     async def start(self) -> bool:
         """
         Start the connection manager
-        
+
         Returns:
             True if started successfully, False otherwise
         """
@@ -88,7 +89,7 @@ class ConnectionManager:
             # Transition to connecting state
             self.state_machine.transition(ConnectionState.CONNECTING)
         except InvalidStateTransition as e:
-            logger.error(f"Cannot start from state {current_state.value}: {e}")
+            logger.exception(f"Cannot start from state {current_state.value}: {e}")
             return False
 
         # Set up event handlers
@@ -102,7 +103,7 @@ class ConnectionManager:
             try:
                 self.state_machine.transition(ConnectionState.CONNECTED)
             except InvalidStateTransition as e:
-                logger.error(f"State transition error after successful connection: {e}")
+                logger.exception(f"State transition error after successful connection: {e}")
                 # Force transition if we're actually connected
                 self.state_machine.transition(ConnectionState.CONNECTED, force=True)
 
@@ -110,17 +111,16 @@ class ConnectionManager:
             self.listen_task = asyncio.create_task(self._listen_loop())
             logger.info("Connection manager started successfully")
             return True
-        else:
-            # Transition to failed state
-            try:
-                self.state_machine.transition(ConnectionState.FAILED)
-            except InvalidStateTransition:
-                pass  # Already in failed state
+        # Transition to failed state
+        try:
+            self.state_machine.transition(ConnectionState.FAILED)
+        except InvalidStateTransition:
+            pass  # Already in failed state
 
-            # Start reconnection task
-            self.reconnect_task = asyncio.create_task(self._reconnect_loop())
-            logger.info("Connection manager started with reconnection task")
-            return True
+        # Start reconnection task
+        self.reconnect_task = asyncio.create_task(self._reconnect_loop())
+        logger.info("Connection manager started with reconnection task")
+        return True
 
     async def stop(self):
         """Stop the connection manager"""
@@ -140,17 +140,13 @@ class ConnectionManager:
         # Cancel tasks
         if self.reconnect_task:
             self.reconnect_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.reconnect_task
-            except asyncio.CancelledError:
-                pass
 
         if self.listen_task:
             self.listen_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.listen_task
-            except asyncio.CancelledError:
-                pass
 
         # Disconnect client
         if self.client:
@@ -177,7 +173,7 @@ class ConnectionManager:
             try:
                 self.state_machine.transition(ConnectionState.CONNECTING)
             except InvalidStateTransition as e:
-                logger.error(f"Cannot transition to CONNECTING: {e}")
+                logger.exception(f"Cannot transition to CONNECTING: {e}")
                 return False
 
         self.connection_attempts += 1
@@ -216,7 +212,7 @@ class ConnectionManager:
             context = {
                 "base_url": self.base_url,
                 "connection_attempt": self.connection_attempts + 1,
-                "retry_count": self.current_retry_count
+                "retry_count": self.current_retry_count,
             }
             self.error_handler.log_error(e, context)
 
@@ -273,12 +269,9 @@ class ConnectionManager:
                     self.listen_task = asyncio.create_task(self._listen_loop())
                     logger.info("Reconnection successful")
                     break
-                else:
-                    logger.warning(f"Reconnection attempt {self.current_retry_count} failed")
-                    try:
-                        self.state_machine.transition(ConnectionState.FAILED)
-                    except InvalidStateTransition:
-                        pass
+                logger.warning(f"Reconnection attempt {self.current_retry_count} failed")
+                with contextlib.suppress(InvalidStateTransition):
+                    self.state_machine.transition(ConnectionState.FAILED)
 
             except asyncio.CancelledError:
                 break
@@ -286,16 +279,14 @@ class ConnectionManager:
                 self.last_error = str(e)
 
                 # Transition to failed on exception
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ConnectionState.FAILED)
-                except InvalidStateTransition:
-                    pass
 
                 # Log reconnection error with categorization
                 context = {
                     "reconnection_attempt": self.current_retry_count,
                     "total_attempts": self.connection_attempts,
-                    "base_url": self.base_url
+                    "base_url": self.base_url,
                 }
                 self.error_handler.log_error(e, context)
 
@@ -305,10 +296,8 @@ class ConnectionManager:
         # Only stop if we have a retry limit (not infinite)
         if self.max_retries != -1 and self.current_retry_count >= self.max_retries:
             logger.error(f"Maximum reconnection attempts ({self.max_retries}) reached")
-            try:
+            with contextlib.suppress(InvalidStateTransition):
                 self.state_machine.transition(ConnectionState.FAILED)
-            except InvalidStateTransition:
-                pass
 
     async def _listen_loop(self):
         """Loop for listening to WebSocket messages"""
@@ -319,7 +308,7 @@ class ConnectionManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Listen loop error: {e}")
+                logger.exception(f"Listen loop error: {e}")
                 if self.on_error:
                     await self.on_error(f"Listen error: {e}")
 
@@ -327,10 +316,8 @@ class ConnectionManager:
                 try:
                     self.state_machine.transition(ConnectionState.RECONNECTING)
                 except InvalidStateTransition:
-                    try:
+                    with contextlib.suppress(InvalidStateTransition):
                         self.state_machine.transition(ConnectionState.FAILED)
-                    except InvalidStateTransition:
-                        pass
 
                 # Start reconnection if not already reconnecting
                 current_state = self.state_machine.get_state()
@@ -388,7 +375,7 @@ class ConnectionManager:
             logger.info("📡 Initiating subscription to state_changed events")
             success = await self.event_subscription.subscribe_to_events(
                 self.client,
-                ['state_changed']
+                ["state_changed"],
             )
 
             if success:
@@ -401,16 +388,16 @@ class ConnectionManager:
                 logger.error("=" * 80)
 
         except Exception as e:
-            logger.error("=" * 80)
-            logger.error(f"❌ ERROR SUBSCRIBING TO EVENTS: {e}")
-            logger.error("=" * 80)
+            logger.exception("=" * 80)
+            logger.exception(f"❌ ERROR SUBSCRIBING TO EVENTS: {e}")
+            logger.exception("=" * 80)
             import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.exception(f"Traceback: {traceback.format_exc()}")
 
     async def _periodic_discovery_refresh(self):
         """
         Periodically refresh the discovery cache to keep device/area mappings up-to-date.
-        
+
         Runs every DISCOVERY_REFRESH_INTERVAL seconds (default: 30 minutes).
         Automatically retries if discovery fails.
         """
@@ -441,10 +428,10 @@ class ConnectionManager:
                     await self.discovery_service.discover_all(self.client.websocket, store=True)
                     logger.info("✅ Periodic discovery refresh completed successfully")
                 except Exception as discovery_error:
-                    logger.error(f"❌ Periodic discovery refresh failed: {discovery_error}")
+                    logger.exception(f"❌ Periodic discovery refresh failed: {discovery_error}")
                     # Log but continue - will try again next interval
                     import traceback
-                    logger.error(traceback.format_exc())
+                    logger.exception(traceback.format_exc())
 
                 logger.info("=" * 80)
 
@@ -452,10 +439,10 @@ class ConnectionManager:
                 logger.info("🛑 Periodic discovery refresh task cancelled")
                 break
             except Exception as e:
-                logger.error(f"❌ Error in periodic discovery refresh task: {e}")
+                logger.exception(f"❌ Error in periodic discovery refresh task: {e}")
                 # Log but continue - will try again next interval
                 import traceback
-                logger.error(traceback.format_exc())
+                logger.exception(traceback.format_exc())
                 # Short sleep to avoid rapid retries on persistent errors
                 await asyncio.sleep(60)
 
@@ -491,9 +478,9 @@ class ConnectionManager:
             else:
                 logger.warning("⚠️  WebSocket not available - skipping discovery")
         except Exception as e:
-            logger.error(f"❌ Discovery failed (non-fatal): {e}")
+            logger.exception(f"❌ Discovery failed (non-fatal): {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
 
         if self.on_connect:
             logger.info("📞 Calling external on_connect callback")
@@ -509,18 +496,14 @@ class ConnectionManager:
         if self.periodic_discovery_task and not self.periodic_discovery_task.done():
             logger.info("🛑 Cancelling periodic discovery refresh task...")
             self.periodic_discovery_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.periodic_discovery_task
-            except asyncio.CancelledError:
-                pass
 
         # Transition to reconnecting or disconnected based on current state
         current_state = self.state_machine.get_state()
         if current_state == ConnectionState.CONNECTED:
-            try:
+            with contextlib.suppress(InvalidStateTransition):
                 self.state_machine.transition(ConnectionState.RECONNECTING)
-            except InvalidStateTransition:
-                pass
 
         if self.on_disconnect:
             await self.on_disconnect()
@@ -566,7 +549,7 @@ class ConnectionManager:
                 await self.on_message(message)
 
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
+            logger.exception(f"Error handling message: {e}")
             if self.on_error:
                 await self.on_error(f"Message handling error: {e}")
 
@@ -580,10 +563,10 @@ class ConnectionManager:
     async def send_message(self, message: dict[str, Any]) -> bool:
         """
         Send message to Home Assistant
-        
+
         Args:
             message: Message to send
-            
+
         Returns:
             True if message sent successfully, False otherwise
         """
@@ -593,12 +576,12 @@ class ConnectionManager:
 
         return await self.client.send_message(message)
 
-    def configure_retry_parameters(self, max_retries: int = None, base_delay: float = None,
-                                   max_delay: float = None, backoff_multiplier: float = None,
-                                   jitter_range: float = None):
+    def configure_retry_parameters(self, max_retries: int | None = None, base_delay: float | None = None,
+                                   max_delay: float | None = None, backoff_multiplier: float | None = None,
+                                   jitter_range: float | None = None):
         """
         Configure retry parameters
-        
+
         Args:
             max_retries: Maximum number of reconnection attempts
             base_delay: Base delay in seconds for first retry
@@ -624,7 +607,7 @@ class ConnectionManager:
     def get_status(self) -> dict[str, Any]:
         """
         Get connection manager status
-        
+
         Returns:
             Dictionary with status information
         """
@@ -644,7 +627,7 @@ class ConnectionManager:
                 "max_delay": self.max_delay,
                 "backoff_multiplier": self.backoff_multiplier,
                 "jitter_range": self.jitter_range,
-                "current_retry_count": self.current_retry_count
+                "current_retry_count": self.current_retry_count,
             },
             "base_url": self.base_url,
             "client_status": client_status,
@@ -652,5 +635,5 @@ class ConnectionManager:
             "event_processing": self.event_processor.get_processing_statistics(),
             "event_rates": self.event_rate_monitor.get_rate_statistics(),
             "error_statistics": self.error_handler.get_error_statistics(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

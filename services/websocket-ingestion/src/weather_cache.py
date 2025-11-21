@@ -132,7 +132,8 @@ class WeatherCache:
     def configure_max_size(self, max_size: int) -> None:
         """Update the maximum cache size and evict if necessary."""
         if max_size <= 0:
-            raise ValueError("max_size must be greater than zero")
+            msg = "max_size must be greater than zero"
+            raise ValueError(msg)
         self.max_size = max_size
         while len(self.cache) > self.max_size:
             self.cache.popitem(last=False)
@@ -141,13 +142,15 @@ class WeatherCache:
     def configure_ttl(self, ttl_seconds: int) -> None:
         """Set the default TTL for new entries."""
         if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds must be greater than zero")
+            msg = "ttl_seconds must be greater than zero"
+            raise ValueError(msg)
         self.default_ttl = ttl_seconds
 
     def configure_cleanup_interval(self, interval_seconds: int) -> None:
         """Set the cleanup interval for background task."""
         if interval_seconds <= 0:
-            raise ValueError("interval_seconds must be greater than zero")
+            msg = "interval_seconds must be greater than zero"
+            raise ValueError(msg)
         self.cleanup_interval = interval_seconds
 
     def reset_statistics(self) -> None:

@@ -5,9 +5,9 @@ from .community_learner import CommunityPatternLearner
 from .predictive_generator import PredictiveAutomationGenerator
 
 __all__ = [
-    'CascadeSuggestionGenerator',
-    'PredictiveAutomationGenerator',
-    'CommunityPatternLearner'
+    "CascadeSuggestionGenerator",
+    "CommunityPatternLearner",
+    "PredictiveAutomationGenerator",
 ]
 
 

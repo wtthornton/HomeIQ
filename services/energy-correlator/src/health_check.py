@@ -36,7 +36,7 @@ class HealthCheckHandler:
             ),
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
-            "success_rate": success_rate
+            "success_rate": success_rate,
         }
 
         return web.json_response(health_data)

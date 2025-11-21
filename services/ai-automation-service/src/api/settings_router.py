@@ -7,16 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import settings as runtime_settings
-from ..database import (
-    get_db,
-)
-from ..database import (
-    get_system_settings as db_get_system_settings,
-)
-from ..database import (
-    update_system_settings as db_update_system_settings,
-)
+from src.config import settings as runtime_settings
+from src.database import get_db
+from src.database import get_system_settings as db_get_system_settings
+from src.database import update_system_settings as db_update_system_settings
+
 from .ask_ai_router import (
     reload_guardrail_checker,
     reload_soft_prompt_adapter,
@@ -69,7 +64,7 @@ class SystemSettingsSchema(BaseModel):
     enable_parallel_model_testing: bool = Field(default=False, alias="enableParallelModelTesting")
     parallel_testing_models: ParallelTestingModelsModel | None = Field(
         default_factory=lambda: ParallelTestingModelsModel(),
-        alias="parallelTestingModels"
+        alias="parallelTestingModels",
     )
     enable_answer_caching: bool = Field(default=True, alias="enableAnswerCaching")  # NEW: Enable/disable answer caching
 
@@ -90,11 +85,11 @@ def _validate_payload(payload: SystemSettingsSchema) -> dict:
                 logger.info("Created soft prompt model directory: %s", model_dir_path)
             except Exception as exc:
                 errors.append(
-                    f"Failed to create soft prompt model directory '{model_dir_path}': {exc}"
+                    f"Failed to create soft prompt model directory '{model_dir_path}': {exc}",
                 )
         elif not model_dir_path.is_dir():
             errors.append(
-                f"Soft prompt model directory path '{model_dir_path}' exists but is not a directory."
+                f"Soft prompt model directory path '{model_dir_path}' exists but is not a directory.",
             )
 
     if not 0 <= payload.soft_prompt_confidence_threshold <= 1:
@@ -149,16 +144,14 @@ def _apply_runtime_settings(updated_record, previous_record) -> None:
     if updated_record.soft_prompt_enabled:
         if soft_prompt_changed:
             reload_soft_prompt_adapter()
-    else:
-        if previous_record.soft_prompt_enabled:
-            reset_soft_prompt_adapter()
+    elif previous_record.soft_prompt_enabled:
+        reset_soft_prompt_adapter()
 
     if updated_record.guardrail_enabled:
         if guardrail_changed:
             reload_guardrail_checker()
-    else:
-        if previous_record.guardrail_enabled:
-            reset_guardrail_checker()
+    elif previous_record.guardrail_enabled:
+        reset_guardrail_checker()
 
 
 @router.get("", response_model=SystemSettingsSchema)
@@ -191,7 +184,7 @@ async def update_settings(payload: SystemSettingsSchema, db: AsyncSession = Depe
             # Use default if not provided
             update_payload["parallel_testing_models"] = {
                 "suggestion": ["gpt-5.1"],
-                "yaml": ["gpt-5.1"]
+                "yaml": ["gpt-5.1"],
             }
 
         updated_record = await db_update_system_settings(db, update_payload)

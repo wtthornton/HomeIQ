@@ -39,7 +39,7 @@ class MLEnhancedSynergyDetector:
         influxdb_client,
         enable_ml_discovery: bool = True,
         ml_discovery_interval_hours: int = 24,
-        min_ml_confidence: float = 0.75
+        min_ml_confidence: float = 0.75,
     ):
         """
         Initialize ML-enhanced synergy detector.
@@ -68,7 +68,7 @@ class MLEnhancedSynergyDetector:
                 min_consistency=0.8,
                 time_window_seconds=60,
                 lookback_days=30,
-                min_occurrences=10
+                min_occurrences=10,
             )
 
         # Cache for ML-discovered synergies
@@ -77,12 +77,12 @@ class MLEnhancedSynergyDetector:
 
         logger.info(
             f"MLEnhancedSynergyDetector initialized: "
-            f"ml_discovery={enable_ml_discovery}, interval={ml_discovery_interval_hours}h"
+            f"ml_discovery={enable_ml_discovery}, interval={ml_discovery_interval_hours}h",
         )
 
     async def detect_synergies(
         self,
-        force_ml_refresh: bool = False
+        force_ml_refresh: bool = False,
     ) -> list[dict]:
         """
         Detect synergies using both predefined and ML-discovered patterns.
@@ -116,14 +116,14 @@ class MLEnhancedSynergyDetector:
         logger.info(
             f"✅ Enhanced synergy detection complete in {duration:.2f}s: "
             f"{len(predefined_synergies)} predefined + {len(ml_synergies)} ML = "
-            f"{len(combined_synergies)} total"
+            f"{len(combined_synergies)} total",
         )
 
         return combined_synergies
 
     async def _get_ml_discovered_synergies(
         self,
-        force_refresh: bool = False
+        force_refresh: bool = False,
     ) -> list[dict]:
         """
         Get ML-discovered synergies from cache or run new discovery.
@@ -142,7 +142,7 @@ class MLEnhancedSynergyDetector:
             if cache_age_hours < self.ml_discovery_interval_hours:
                 logger.info(
                     f"  → Using cached ML synergies "
-                    f"(age: {cache_age_hours:.1f}h < {self.ml_discovery_interval_hours}h)"
+                    f"(age: {cache_age_hours:.1f}h < {self.ml_discovery_interval_hours}h)",
                 )
                 return self._convert_discovered_to_dict(self._ml_synergy_cache)
 
@@ -163,7 +163,7 @@ class MLEnhancedSynergyDetector:
             logger.info(
                 f"  → ML mining stats: {stats['total_count']} synergies, "
                 f"avg confidence={stats['avg_confidence']:.2f}, "
-                f"avg consistency={stats['avg_consistency']:.2f}"
+                f"avg consistency={stats['avg_consistency']:.2f}",
             )
 
             return self._convert_discovered_to_dict(discovered_synergies)
@@ -174,7 +174,7 @@ class MLEnhancedSynergyDetector:
 
     def _convert_discovered_to_dict(
         self,
-        discovered_synergies: list[DiscoveredSynergy]
+        discovered_synergies: list[DiscoveredSynergy],
     ) -> list[dict]:
         """
         Convert DiscoveredSynergy objects to synergy dictionary format.
@@ -193,32 +193,32 @@ class MLEnhancedSynergyDetector:
         for synergy in discovered_synergies:
             # Convert to synergy dict format
             synergy_dict = {
-                'synergy_id': str(uuid.uuid4()),
-                'synergy_type': 'ml_discovered',
-                'devices': [synergy.trigger_entity, synergy.action_entity],
-                'trigger_entity': synergy.trigger_entity,
-                'action_entity': synergy.action_entity,
-                'relationship': f"{synergy.trigger_entity} → {synergy.action_entity}",
-                'impact_score': self._calculate_ml_impact_score(synergy),
-                'confidence': synergy.confidence,
-                'complexity': self._infer_complexity(synergy),
-                'area': None,  # Will be filled from device data if available
-                'rationale': (
+                "synergy_id": str(uuid.uuid4()),
+                "synergy_type": "ml_discovered",
+                "devices": [synergy.trigger_entity, synergy.action_entity],
+                "trigger_entity": synergy.trigger_entity,
+                "action_entity": synergy.action_entity,
+                "relationship": f"{synergy.trigger_entity} → {synergy.action_entity}",
+                "impact_score": self._calculate_ml_impact_score(synergy),
+                "confidence": synergy.confidence,
+                "complexity": self._infer_complexity(synergy),
+                "area": None,  # Will be filled from device data if available
+                "rationale": (
                     f"Discovered pattern: {synergy.trigger_entity} triggers {synergy.action_entity} "
                     f"({synergy.frequency} times, {synergy.consistency * 100:.0f}% consistent)"
                 ),
-                'metadata': {
-                    'source': 'ml_discovered',
-                    'support': synergy.support,
-                    'lift': synergy.lift,
-                    'frequency': synergy.frequency,
-                    'consistency': synergy.consistency,
-                    'time_window_seconds': synergy.time_window_seconds,
-                    'discovered_at': synergy.discovered_at.isoformat()
+                "metadata": {
+                    "source": "ml_discovered",
+                    "support": synergy.support,
+                    "lift": synergy.lift,
+                    "frequency": synergy.frequency,
+                    "consistency": synergy.consistency,
+                    "time_window_seconds": synergy.time_window_seconds,
+                    "discovered_at": synergy.discovered_at.isoformat(),
                 },
                 # Epic AI-4: N-level synergy fields
-                'synergy_depth': 2,
-                'chain_devices': [synergy.trigger_entity, synergy.action_entity]
+                "synergy_depth": 2,
+                "chain_devices": [synergy.trigger_entity, synergy.action_entity],
             }
 
             synergy_dicts.append(synergy_dict)
@@ -270,18 +270,17 @@ class MLEnhancedSynergyDetector:
         """
         # High confidence + high consistency = low complexity (reliable pattern)
         if synergy.confidence >= 0.85 and synergy.consistency >= 0.85:
-            return 'low'
+            return "low"
         # Medium confidence or consistency = medium complexity
-        elif synergy.confidence >= 0.70 or synergy.consistency >= 0.70:
-            return 'medium'
+        if synergy.confidence >= 0.70 or synergy.consistency >= 0.70:
+            return "medium"
         # Low confidence and consistency = high complexity (less reliable)
-        else:
-            return 'high'
+        return "high"
 
     def _merge_synergies(
         self,
         predefined: list[dict],
-        ml_discovered: list[dict]
+        ml_discovered: list[dict],
     ) -> list[dict]:
         """
         Merge predefined and ML-discovered synergies, removing duplicates.
@@ -300,8 +299,8 @@ class MLEnhancedSynergyDetector:
         # Create lookup for predefined synergies
         predefined_pairs = set()
         for synergy in predefined:
-            trigger = synergy.get('trigger_entity')
-            action = synergy.get('action_entity')
+            trigger = synergy.get("trigger_entity")
+            action = synergy.get("action_entity")
             if trigger and action:
                 predefined_pairs.add((trigger, action))
 
@@ -310,8 +309,8 @@ class MLEnhancedSynergyDetector:
         duplicates_removed = 0
 
         for ml_synergy in ml_discovered:
-            trigger = ml_synergy.get('trigger_entity')
-            action = ml_synergy.get('action_entity')
+            trigger = ml_synergy.get("trigger_entity")
+            action = ml_synergy.get("action_entity")
 
             # Skip if predefined already has this relationship
             if (trigger, action) in predefined_pairs:
@@ -325,14 +324,14 @@ class MLEnhancedSynergyDetector:
 
         # Combine and sort by impact score
         combined = predefined + filtered_ml
-        combined.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
+        combined.sort(key=lambda x: x.get("impact_score", 0), reverse=True)
 
         return combined
 
     async def _store_discovered_synergies(
         self,
         discovered_synergies: list[DiscoveredSynergy],
-        db
+        db,
     ) -> int:
         """
         Store discovered synergies in database for persistence.
@@ -348,7 +347,7 @@ class MLEnhancedSynergyDetector:
             return 0
 
         try:
-            from ..database.models import DiscoveredSynergy as DiscoveredSynergyDB
+            from src.database.models import DiscoveredSynergy as DiscoveredSynergyDB
 
             stored_count = 0
 
@@ -359,8 +358,8 @@ class MLEnhancedSynergyDetector:
                     existing = await db.execute(
                         select(DiscoveredSynergyDB).where(
                             DiscoveredSynergyDB.trigger_entity == synergy.trigger_entity,
-                            DiscoveredSynergyDB.action_entity == synergy.action_entity
-                        )
+                            DiscoveredSynergyDB.action_entity == synergy.action_entity,
+                        ),
                     )
                     existing_synergy = existing.scalar_one_or_none()
 
@@ -374,11 +373,11 @@ class MLEnhancedSynergyDetector:
                         existing_synergy.time_window_seconds = synergy.time_window_seconds
                         existing_synergy.discovered_at = synergy.discovered_at
                         existing_synergy.synergy_metadata = {
-                            'analysis_period': getattr(synergy, 'analysis_period', None),
-                            'total_transactions': getattr(synergy, 'total_transactions', None),
-                            'mining_duration_seconds': getattr(synergy, 'mining_duration', None),
-                            'area': getattr(synergy, 'area', None),
-                            'device_classes': getattr(synergy, 'device_classes', [])
+                            "analysis_period": getattr(synergy, "analysis_period", None),
+                            "total_transactions": getattr(synergy, "total_transactions", None),
+                            "mining_duration_seconds": getattr(synergy, "mining_duration", None),
+                            "area": getattr(synergy, "area", None),
+                            "device_classes": getattr(synergy, "device_classes", []),
                         }
                     else:
                         # Create new synergy record
@@ -386,7 +385,7 @@ class MLEnhancedSynergyDetector:
                             synergy_id=str(uuid.uuid4()),
                             trigger_entity=synergy.trigger_entity,
                             action_entity=synergy.action_entity,
-                            source='mined',  # ML-discovered
+                            source="mined",  # ML-discovered
 
                             # Association rule metrics
                             support=synergy.support,
@@ -402,23 +401,23 @@ class MLEnhancedSynergyDetector:
                             discovered_at=synergy.discovered_at,
                             validation_count=0,
                             validation_passed=None,  # Not yet validated
-                            status='discovered',
+                            status="discovered",
 
                             # Metadata - renamed from 'metadata' to avoid SQLAlchemy reserved name
                             synergy_metadata={
-                                'analysis_period': getattr(synergy, 'analysis_period', None),
-                                'total_transactions': getattr(synergy, 'total_transactions', None),
-                                'mining_duration_seconds': getattr(synergy, 'mining_duration', None),
-                                'area': getattr(synergy, 'area', None),
-                                'device_classes': getattr(synergy, 'device_classes', [])
-                            }
+                                "analysis_period": getattr(synergy, "analysis_period", None),
+                                "total_transactions": getattr(synergy, "total_transactions", None),
+                                "mining_duration_seconds": getattr(synergy, "mining_duration", None),
+                                "area": getattr(synergy, "area", None),
+                                "device_classes": getattr(synergy, "device_classes", []),
+                            },
                         )
                         db.add(discovered)
 
                     stored_count += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to store discovered synergy {synergy.trigger_entity} → {synergy.action_entity}: {e}")
+                    logger.exception(f"Failed to store discovered synergy {synergy.trigger_entity} → {synergy.action_entity}: {e}")
                     continue
 
             await db.commit()
@@ -436,25 +435,25 @@ class MLEnhancedSynergyDetector:
         self,
         discovered_synergies: list[DiscoveredSynergy],
         patterns: list[dict],
-        db
+        db,
     ) -> list[DiscoveredSynergy]:
         """
         Validate ML-discovered synergies against detected patterns.
-        
+
         A synergy is validated if:
         1. Both devices are actionable
         2. Pattern evidence supports the relationship
         3. Consistency and confidence are high enough
-        
+
         Args:
             discovered_synergies: List of DiscoveredSynergy objects
             patterns: List of detected patterns (dicts)
             db: Database session
-            
+
         Returns:
             List of validated DiscoveredSynergy objects
         """
-        from ..database.models import DiscoveredSynergy as DiscoveredSynergyDB
+        from src.database.models import DiscoveredSynergy as DiscoveredSynergyDB
 
         validated = []
 
@@ -465,29 +464,29 @@ class MLEnhancedSynergyDetector:
             # Check 1: Pattern support
             matching_patterns = [
                 p for p in patterns
-                if (p.get('device_id') == synergy.trigger_entity or
-                    p.get('device1') == synergy.trigger_entity or
-                    p.get('device2') == synergy.trigger_entity)
+                if (p.get("device_id") == synergy.trigger_entity or
+                    p.get("device1") == synergy.trigger_entity or
+                    p.get("device2") == synergy.trigger_entity)
             ]
 
             if matching_patterns:
                 validation_score += 0.4
-                validation_reasons.append('pattern_support')
+                validation_reasons.append("pattern_support")
 
             # Check 2: Statistical significance
             if synergy.lift > 1.5:  # Strong association
                 validation_score += 0.3
-                validation_reasons.append('strong_lift')
+                validation_reasons.append("strong_lift")
 
             # Check 3: Consistency
             if synergy.consistency > 0.7:
                 validation_score += 0.2
-                validation_reasons.append('high_consistency')
+                validation_reasons.append("high_consistency")
 
             # Check 4: Frequency
             if synergy.frequency > 10:
                 validation_score += 0.1
-                validation_reasons.append('high_frequency')
+                validation_reasons.append("high_frequency")
 
             # Validate if score >= 0.6
             if validation_score >= 0.6:
@@ -496,20 +495,20 @@ class MLEnhancedSynergyDetector:
                 existing = await db.execute(
                     select(DiscoveredSynergyDB).where(
                         DiscoveredSynergyDB.trigger_entity == synergy.trigger_entity,
-                        DiscoveredSynergyDB.action_entity == synergy.action_entity
-                    )
+                        DiscoveredSynergyDB.action_entity == synergy.action_entity,
+                    ),
                 )
                 db_synergy = existing.scalar_one_or_none()
 
                 if db_synergy:
                     db_synergy.validation_passed = True
-                    db_synergy.status = 'validated'
+                    db_synergy.status = "validated"
                     db_synergy.last_validated = datetime.now(timezone.utc)
                     db_synergy.validation_count += 1
                     if not db_synergy.synergy_metadata:
                         db_synergy.synergy_metadata = {}
-                    db_synergy.synergy_metadata['validation_score'] = validation_score
-                    db_synergy.synergy_metadata['validation_reasons'] = validation_reasons
+                    db_synergy.synergy_metadata["validation_score"] = validation_score
+                    db_synergy.synergy_metadata["validation_reasons"] = validation_reasons
 
                 validated.append(synergy)
             else:
@@ -518,14 +517,14 @@ class MLEnhancedSynergyDetector:
                 existing = await db.execute(
                     select(DiscoveredSynergyDB).where(
                         DiscoveredSynergyDB.trigger_entity == synergy.trigger_entity,
-                        DiscoveredSynergyDB.action_entity == synergy.action_entity
-                    )
+                        DiscoveredSynergyDB.action_entity == synergy.action_entity,
+                    ),
                 )
                 db_synergy = existing.scalar_one_or_none()
 
                 if db_synergy:
                     db_synergy.validation_passed = False
-                    db_synergy.status = 'rejected'
+                    db_synergy.status = "rejected"
                     db_synergy.rejection_reason = f"Low validation score: {validation_score:.2f}"
 
         await db.commit()
@@ -543,23 +542,23 @@ class MLEnhancedSynergyDetector:
         """
         if not self.ml_miner or not self._ml_synergy_cache:
             return {
-                'enabled': self.enable_ml_discovery,
-                'discovered_count': 0,
-                'last_discovery': None
+                "enabled": self.enable_ml_discovery,
+                "discovered_count": 0,
+                "last_discovery": None,
             }
 
         stats = self.ml_miner.get_statistics(self._ml_synergy_cache)
 
         return {
-            'enabled': self.enable_ml_discovery,
-            'discovered_count': stats['total_count'],
-            'last_discovery': self._last_ml_discovery.isoformat() if self._last_ml_discovery else None,
-            'cache_age_hours': (
+            "enabled": self.enable_ml_discovery,
+            "discovered_count": stats["total_count"],
+            "last_discovery": self._last_ml_discovery.isoformat() if self._last_ml_discovery else None,
+            "cache_age_hours": (
                 (datetime.now(timezone.utc) - self._last_ml_discovery).total_seconds() / 3600
                 if self._last_ml_discovery else None
             ),
-            'avg_confidence': stats.get('avg_confidence'),
-            'avg_consistency': stats.get('avg_consistency'),
-            'avg_frequency': stats.get('avg_frequency'),
-            'avg_lift': stats.get('avg_lift')
+            "avg_confidence": stats.get("avg_confidence"),
+            "avg_consistency": stats.get("avg_consistency"),
+            "avg_frequency": stats.get("avg_frequency"),
+            "avg_lift": stats.get("avg_lift"),
         }

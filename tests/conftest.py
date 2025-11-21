@@ -5,7 +5,7 @@ Following Context7 KB best practices from /pytest-dev/pytest
 """
 
 import asyncio
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 
@@ -16,10 +16,10 @@ collect_ignore = ["integration", "unit"]
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """
     ✅ Context7 Best Practice: Provide event loop for async tests
-    
+
     Creates a new event loop for the entire test session to support async fixtures.
     This is required for pytest-asyncio to work correctly.
-    
+
     Reference: https://docs.pytest.org/en/stable/how-to/fixtures.html
     """
     policy = asyncio.get_event_loop_policy()
@@ -32,10 +32,10 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 async def cleanup_after_test():
     """
     ✅ Context7 Best Practice: Auto cleanup after each test
-    
+
     Automatically runs after every test to ensure clean state.
     Waits for pending async tasks to complete.
-    
+
     Reference: /pytest-dev/pytest - conftest.py patterns
     """
     yield
@@ -47,12 +47,12 @@ async def cleanup_after_test():
 def reset_environment_state():
     """
     ✅ Context7 Best Practice: Reset state between tests
-    
+
     Ensures test isolation by resetting any global state.
     Runs before and after each test automatically.
     """
     # Setup: runs before test
-    yield
+    return
     # Teardown: runs after test
     # Add any environment cleanup here if needed
 

@@ -14,71 +14,71 @@ class EnhancedExtractionMetrics:
 
     def __init__(self):
         self.metrics = {
-            'total_queries': 0,
-            'enhanced_extractions': 0,
-            'fallback_extractions': 0,
-            'avg_extraction_time': 0.0,
-            'device_intelligence_calls': 0,
-            'capabilities_found': 0,
-            'health_filtered_devices': 0,
-            'areas_discovered': set(),
-            'capabilities_used': defaultdict(int),
-            'device_types_found': defaultdict(int),
-            'error_count': 0,
-            'last_reset': datetime.now(timezone.utc)
+            "total_queries": 0,
+            "enhanced_extractions": 0,
+            "fallback_extractions": 0,
+            "avg_extraction_time": 0.0,
+            "device_intelligence_calls": 0,
+            "capabilities_found": 0,
+            "health_filtered_devices": 0,
+            "areas_discovered": set(),
+            "capabilities_used": defaultdict(int),
+            "device_types_found": defaultdict(int),
+            "error_count": 0,
+            "last_reset": datetime.now(timezone.utc),
         }
 
     async def track_extraction(self, query: str, entities: list[dict[str, Any]], extraction_time: float):
         """Track extraction metrics"""
 
-        self.metrics['total_queries'] += 1
-        self.metrics['avg_extraction_time'] = (
-            (self.metrics['avg_extraction_time'] * (self.metrics['total_queries'] - 1) + extraction_time)
-            / self.metrics['total_queries']
+        self.metrics["total_queries"] += 1
+        self.metrics["avg_extraction_time"] = (
+            (self.metrics["avg_extraction_time"] * (self.metrics["total_queries"] - 1) + extraction_time)
+            / self.metrics["total_queries"]
         )
 
         # Count enhanced vs fallback extractions
-        enhanced_count = len([e for e in entities if e.get('extraction_method') == 'device_intelligence'])
+        enhanced_count = len([e for e in entities if e.get("extraction_method") == "device_intelligence"])
         if enhanced_count > 0:
-            self.metrics['enhanced_extractions'] += 1
+            self.metrics["enhanced_extractions"] += 1
         else:
-            self.metrics['fallback_extractions'] += 1
+            self.metrics["fallback_extractions"] += 1
 
         # Count capabilities found
-        total_capabilities = sum(len(e.get('capabilities', [])) for e in entities)
-        self.metrics['capabilities_found'] += total_capabilities
+        total_capabilities = sum(len(e.get("capabilities", [])) for e in entities)
+        self.metrics["capabilities_found"] += total_capabilities
 
         # Track areas discovered
         for entity in entities:
-            if entity.get('area'):
-                self.metrics['areas_discovered'].add(entity['area'])
+            if entity.get("area"):
+                self.metrics["areas_discovered"].add(entity["area"])
 
             # Track capabilities used
-            capabilities = entity.get('capabilities', [])
+            capabilities = entity.get("capabilities", [])
             for cap in capabilities:
-                if cap.get('supported'):
-                    self.metrics['capabilities_used'][cap['feature']] += 1
+                if cap.get("supported"):
+                    self.metrics["capabilities_used"][cap["feature"]] += 1
 
             # Track device types
-            if entity.get('integration'):
-                self.metrics['device_types_found'][entity['integration']] += 1
+            if entity.get("integration"):
+                self.metrics["device_types_found"][entity["integration"]] += 1
 
         logger.info(f"📊 Extraction metrics: {enhanced_count} enhanced entities, {total_capabilities} capabilities, {extraction_time:.2f}s")
 
     def track_device_intelligence_call(self, call_type: str, success: bool = True):
         """Track device intelligence service calls"""
 
-        self.metrics['device_intelligence_calls'] += 1
+        self.metrics["device_intelligence_calls"] += 1
 
         if not success:
-            self.metrics['error_count'] += 1
+            self.metrics["error_count"] += 1
 
         logger.debug(f"📡 Device intelligence call: {call_type}, success: {success}")
 
     def track_health_filtering(self, filtered_count: int):
         """Track devices filtered by health score"""
 
-        self.metrics['health_filtered_devices'] += filtered_count
+        self.metrics["health_filtered_devices"] += filtered_count
 
         if filtered_count > 0:
             logger.info(f"🏥 Health filtering: {filtered_count} devices filtered out")
@@ -88,33 +88,33 @@ class EnhancedExtractionMetrics:
 
         # Convert sets to lists for JSON serialization
         metrics_copy = self.metrics.copy()
-        metrics_copy['areas_discovered'] = list(metrics_copy['areas_discovered'])
-        metrics_copy['capabilities_used'] = dict(metrics_copy['capabilities_used'])
-        metrics_copy['device_types_found'] = dict(metrics_copy['device_types_found'])
+        metrics_copy["areas_discovered"] = list(metrics_copy["areas_discovered"])
+        metrics_copy["capabilities_used"] = dict(metrics_copy["capabilities_used"])
+        metrics_copy["device_types_found"] = dict(metrics_copy["device_types_found"])
 
         # Add computed statistics
-        if self.metrics['total_queries'] > 0:
-            metrics_copy['enhancement_rate'] = (
-                self.metrics['enhanced_extractions'] / self.metrics['total_queries']
+        if self.metrics["total_queries"] > 0:
+            metrics_copy["enhancement_rate"] = (
+                self.metrics["enhanced_extractions"] / self.metrics["total_queries"]
             )
-            metrics_copy['fallback_rate'] = (
-                self.metrics['fallback_extractions'] / self.metrics['total_queries']
+            metrics_copy["fallback_rate"] = (
+                self.metrics["fallback_extractions"] / self.metrics["total_queries"]
             )
-            metrics_copy['avg_capabilities_per_query'] = (
-                self.metrics['capabilities_found'] / self.metrics['total_queries']
+            metrics_copy["avg_capabilities_per_query"] = (
+                self.metrics["capabilities_found"] / self.metrics["total_queries"]
             )
         else:
-            metrics_copy['enhancement_rate'] = 0.0
-            metrics_copy['fallback_rate'] = 0.0
-            metrics_copy['avg_capabilities_per_query'] = 0.0
+            metrics_copy["enhancement_rate"] = 0.0
+            metrics_copy["fallback_rate"] = 0.0
+            metrics_copy["avg_capabilities_per_query"] = 0.0
 
         # Add error rate
-        if self.metrics['device_intelligence_calls'] > 0:
-            metrics_copy['error_rate'] = (
-                self.metrics['error_count'] / self.metrics['device_intelligence_calls']
+        if self.metrics["device_intelligence_calls"] > 0:
+            metrics_copy["error_rate"] = (
+                self.metrics["error_count"] / self.metrics["device_intelligence_calls"]
             )
         else:
-            metrics_copy['error_rate'] = 0.0
+            metrics_copy["error_rate"] = 0.0
 
         return metrics_copy
 
@@ -123,7 +123,7 @@ class EnhancedExtractionMetrics:
 
         metrics = self.get_metrics()
 
-        summary = f"""
+        return f"""
 📊 Enhanced Entity Extraction Performance Summary
 ===============================================
 
@@ -152,7 +152,6 @@ class EnhancedExtractionMetrics:
 
 🕒 Last Reset: {metrics['last_reset'].strftime('%Y-%m-%d %H:%M:%S UTC')}
 """
-        return summary
 
     def _format_top_capabilities(self, capabilities: dict[str, int], top_n: int = 5) -> str:
         """Format top capabilities for display"""
@@ -180,18 +179,18 @@ class EnhancedExtractionMetrics:
         """Reset all metrics"""
 
         self.metrics = {
-            'total_queries': 0,
-            'enhanced_extractions': 0,
-            'fallback_extractions': 0,
-            'avg_extraction_time': 0.0,
-            'device_intelligence_calls': 0,
-            'capabilities_found': 0,
-            'health_filtered_devices': 0,
-            'areas_discovered': set(),
-            'capabilities_used': defaultdict(int),
-            'device_types_found': defaultdict(int),
-            'error_count': 0,
-            'last_reset': datetime.now(timezone.utc)
+            "total_queries": 0,
+            "enhanced_extractions": 0,
+            "fallback_extractions": 0,
+            "avg_extraction_time": 0.0,
+            "device_intelligence_calls": 0,
+            "capabilities_found": 0,
+            "health_filtered_devices": 0,
+            "areas_discovered": set(),
+            "capabilities_used": defaultdict(int),
+            "device_types_found": defaultdict(int),
+            "error_count": 0,
+            "last_reset": datetime.now(timezone.utc),
         }
 
         logger.info("📊 Metrics reset")

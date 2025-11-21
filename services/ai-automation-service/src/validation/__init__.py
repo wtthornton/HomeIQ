@@ -7,4 +7,4 @@ only reference devices that actually exist in the Home Assistant system.
 
 from .device_validator import DeviceValidator, ValidationResult
 
-__all__ = ['DeviceValidator', 'ValidationResult']
+__all__ = ["DeviceValidator", "ValidationResult"]

@@ -13,8 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 # Add shared directory to path
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent / '../../shared'))
+sys.path.append(str(Path(__file__).parent / "../../shared"))
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -110,7 +109,7 @@ async def list_devices(
     model: str | None = Query(default=None, description="Filter by model"),
     area_id: str | None = Query(default=None, description="Filter by area/room"),
     platform: str | None = Query(default=None, description="Filter by integration platform"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List all discovered devices from Home Assistant (SQLite storage)
@@ -131,13 +130,13 @@ async def list_devices(
         # Build query with entity count
         if platform:
             # Join with entities to filter by platform
-            query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
+            query = select(Device, func.count(Entity.entity_id).label("entity_count"))\
                 .join(Entity, Device.device_id == Entity.device_id)\
                 .where(Entity.platform == platform)\
                 .group_by(Device.device_id)
         else:
             # Standard query without platform filter
-            query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
+            query = select(Device, func.count(Entity.entity_id).label("entity_count"))\
                 .outerjoin(Entity, Device.device_id == Entity.device_id)\
                 .group_by(Device.device_id)
 
@@ -169,7 +168,7 @@ async def list_devices(
                 config_entry_id=device.config_entry_id,
                 via_device=device.via_device,
                 entity_count=entity_count,
-                timestamp=device.last_seen.isoformat() if device.last_seen else datetime.now().isoformat()
+                timestamp=device.last_seen.isoformat() if device.last_seen else datetime.now().isoformat(),
             )
             for device, entity_count in rows
         ]
@@ -177,7 +176,7 @@ async def list_devices(
         result = DevicesListResponse(
             devices=device_responses,
             count=len(device_responses),
-            limit=limit
+            limit=limit,
         )
 
         # Cache the result
@@ -186,10 +185,10 @@ async def list_devices(
         return result
 
     except Exception as e:
-        logger.error(f"Error listing devices from SQLite: {e}")
+        logger.exception(f"Error listing devices from SQLite: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve devices: {str(e)}"
+            detail=f"Failed to retrieve devices: {e!s}",
         ) from e
 
 
@@ -209,7 +208,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             Device.config_entry_id,
             Device.via_device,
             Device.last_seen,
-            func.count(Entity.entity_id).label('entity_count')
+            func.count(Entity.entity_id).label("entity_count"),
         )\
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
@@ -236,26 +235,26 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             config_entry_id=config_entry_id,
             via_device=via_device,
             entity_count=entity_count,
-            timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
+            timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat(),
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {str(e)}") from e
+        logger.exception(f"Error getting device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {e!s}") from e
 
 
 # Epic 23.5: Device Reliability Endpoint
 @router.get("/api/devices/reliability", response_model=dict[str, Any])
 async def get_device_reliability(
     period: str = Query(default="7d", description="Time period for analysis (1d, 7d, 30d)"),
-    group_by: str = Query(default="manufacturer", description="Group by manufacturer or model")
+    group_by: str = Query(default="manufacturer", description="Group by manufacturer or model"),
 ):
     """
     Get device reliability metrics grouped by manufacturer or model
-    
+
     Epic 23.5: Analyzes event data from InfluxDB to identify device reliability patterns
-    
+
     Returns:
     - Event counts by manufacturer/model
     - Coverage percentage (% of events with device metadata)
@@ -281,10 +280,10 @@ async def get_device_reliability(
         if not period_sanitized:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid period supplied"
+                detail="Invalid period supplied",
             )
 
-        query = f'''
+        query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
@@ -292,7 +291,7 @@ async def get_device_reliability(
           |> group(columns: ["_value"])
           |> count()
           |> sort(desc: true)
-        '''
+        """
 
         result = query_api.query(query)
 
@@ -309,7 +308,7 @@ async def get_device_reliability(
                 reliability_data.append({
                     field_name: group_value,
                     "event_count": count,
-                    "percentage": 0  # Will calculate after total is known
+                    "percentage": 0,  # Will calculate after total is known
                 })
 
         # Calculate percentages
@@ -320,13 +319,13 @@ async def get_device_reliability(
         # Get total event count for coverage calculation
         # Total events count - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events, not field instances
-        total_query = f'''
+        total_query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
           |> count()
-        '''
+        """
 
         total_result = query_api.query(total_query)
         all_events_count = 0
@@ -344,16 +343,16 @@ async def get_device_reliability(
             "total_events_in_period": all_events_count,
             "metadata_coverage_percentage": coverage,
             "reliability_data": reliability_data[:20],  # Top 20
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Error getting device reliability: {e}")
+        logger.exception(f"Error getting device reliability: {e}")
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get device reliability metrics: {str(e)}"
+            detail=f"Failed to get device reliability metrics: {e!s}",
         ) from e
     finally:
         if client:
@@ -370,7 +369,7 @@ async def list_entities(
     domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: str | None = Query(default=None, description="Filter by platform"),
     device_id: str | None = Query(default=None, description="Filter by device ID"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """List entities (SQLite) - Story 22.2"""
     try:
@@ -380,12 +379,12 @@ async def list_entities(
         logger.info(f"🔍 [list_entities] Parsed params: limit={limit}, domain={domain}, platform={platform}, device_id={device_id}")
 
         # Override with raw query params if FastAPI didn't parse them
-        if 'device_id' in raw_query and not device_id:
-            device_id = raw_query.get('device_id')
+        if "device_id" in raw_query and not device_id:
+            device_id = raw_query.get("device_id")
             logger.warning(f"⚠️ [list_entities] Using device_id from raw query: {device_id}")
-        if 'limit' in raw_query and limit == 100:
+        if "limit" in raw_query and limit == 100:
             try:
-                limit = int(raw_query.get('limit', 100))
+                limit = int(raw_query.get("limit", 100))
                 logger.warning(f"⚠️ [list_entities] Using limit from raw query: {limit}")
             except (ValueError, TypeError):
                 pass
@@ -436,7 +435,7 @@ async def list_entities(
                 icon=entity.icon,
                 device_class=entity.device_class,
                 unit_of_measurement=entity.unit_of_measurement,
-                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
+                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat()),
             )
             for entity in entities_data
         ]
@@ -444,11 +443,11 @@ async def list_entities(
         return EntitiesListResponse(
             entities=entity_responses,
             count=len(entity_responses),
-            limit=limit
+            limit=limit,
         )
     except Exception as e:
-        logger.error(f"Error listing entities from SQLite: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve entities: {str(e)}") from e
+        logger.exception(f"Error listing entities from SQLite: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve entities: {e!s}") from e
 
 
 @router.get("/api/entities/{entity_id}", response_model=EntityResponse)
@@ -484,13 +483,13 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
             icon=entity.icon,
             device_class=entity.device_class,
             unit_of_measurement=entity.unit_of_measurement,
-            timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
+            timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat()),
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting entity {entity_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve entity: {str(e)}") from e
+        logger.exception(f"Error getting entity {entity_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve entity: {e!s}") from e
 
 
 # Relationship Query Endpoints
@@ -498,14 +497,14 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/api/entities/by-device/{device_id}")
 async def get_entities_by_device(
     device_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get all entities for a device
-    
+
     Args:
         device_id: Device ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -516,27 +515,27 @@ async def get_entities_by_device(
             "success": True,
             "device_id": device_id,
             "entities": [entry.to_dict() for entry in entities],
-            "count": len(entities)
+            "count": len(entities),
         }
     except Exception as e:
-        logger.error(f"Error getting entities by device {device_id}: {e}")
+        logger.exception(f"Error getting entities by device {device_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get entities by device: {str(e)}"
+            detail=f"Failed to get entities by device: {e!s}",
         ) from e
 
 
 @router.get("/api/entities/{entity_id}/siblings")
 async def get_sibling_entities(
     entity_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get sibling entities (entities from same device)
-    
+
     Args:
         entity_id: Entity ID
-        
+
     Returns:
         List of EntityRegistryEntry instances (sibling entities)
     """
@@ -549,27 +548,27 @@ async def get_sibling_entities(
             "success": True,
             "entity_id": entity_id,
             "siblings": [entry.to_dict() for entry in siblings],
-            "count": len(siblings)
+            "count": len(siblings),
         }
     except Exception as e:
-        logger.error(f"Error getting sibling entities for {entity_id}: {e}")
+        logger.exception(f"Error getting sibling entities for {entity_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get sibling entities: {str(e)}"
+            detail=f"Failed to get sibling entities: {e!s}",
         ) from e
 
 
 @router.get("/api/entities/{entity_id}/device")
 async def get_device_for_entity(
     entity_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get device for an entity
-    
+
     Args:
         entity_id: Entity ID
-        
+
     Returns:
         Device information
     """
@@ -580,7 +579,7 @@ async def get_device_for_entity(
         if not device:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Device not found for entity {entity_id}"
+                detail=f"Device not found for entity {entity_id}",
             )
 
         return {
@@ -595,30 +594,30 @@ async def get_device_for_entity(
                 "area_id": device.area_id,
                 "integration": device.integration,
                 "config_entry_id": device.config_entry_id,
-                "via_device": device.via_device
-            }
+                "via_device": device.via_device,
+            },
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting device for entity {entity_id}: {e}")
+        logger.exception(f"Error getting device for entity {entity_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get device for entity: {str(e)}"
+            detail=f"Failed to get device for entity: {e!s}",
         ) from e
 
 
 @router.get("/api/entities/by-area/{area_id}")
 async def get_entities_in_area(
     area_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get all entities in an area
-    
+
     Args:
         area_id: Area ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -629,27 +628,27 @@ async def get_entities_in_area(
             "success": True,
             "area_id": area_id,
             "entities": [entry.to_dict() for entry in entities],
-            "count": len(entities)
+            "count": len(entities),
         }
     except Exception as e:
-        logger.error(f"Error getting entities in area {area_id}: {e}")
+        logger.exception(f"Error getting entities in area {area_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get entities in area: {str(e)}"
+            detail=f"Failed to get entities in area: {e!s}",
         ) from e
 
 
 @router.get("/api/entities/by-config-entry/{config_entry_id}")
 async def get_entities_by_config_entry(
     config_entry_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get entities by config entry ID
-    
+
     Args:
         config_entry_id: Config entry ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -660,27 +659,27 @@ async def get_entities_by_config_entry(
             "success": True,
             "config_entry_id": config_entry_id,
             "entities": [entry.to_dict() for entry in entities],
-            "count": len(entities)
+            "count": len(entities),
         }
     except Exception as e:
-        logger.error(f"Error getting entities by config entry {config_entry_id}: {e}")
+        logger.exception(f"Error getting entities by config entry {config_entry_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get entities by config entry: {str(e)}"
+            detail=f"Failed to get entities by config entry: {e!s}",
         ) from e
 
 
 @router.get("/api/devices/{device_id}/hierarchy")
 async def get_device_hierarchy(
     device_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get device hierarchy (via_device relationships)
-    
+
     Args:
         device_id: Device ID
-        
+
     Returns:
         Dictionary with device hierarchy information
     """
@@ -689,24 +688,24 @@ async def get_device_hierarchy(
         hierarchy = await registry.get_device_hierarchy(device_id)
         return {
             "success": True,
-            **hierarchy
+            **hierarchy,
         }
     except Exception as e:
-        logger.error(f"Error getting device hierarchy for {device_id}: {e}")
+        logger.exception(f"Error getting device hierarchy for {device_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get device hierarchy: {str(e)}"
+            detail=f"Failed to get device hierarchy: {e!s}",
         ) from e
 
 
 @router.get("/api/integrations/{platform}/performance")
 async def get_integration_performance(
     platform: str,
-    period: str = Query(default="1h", description="Time period for metrics (1h, 24h, 7d)")
+    period: str = Query(default="1h", description="Time period for metrics (1h, 24h, 7d)"),
 ):
     """
     Get performance metrics for a specific integration platform (Phase 3.3)
-    
+
     Returns event rate, error rate, response time, and discovery status
     """
     try:
@@ -728,14 +727,14 @@ async def get_integration_performance(
         platform_sanitized = sanitize_flux_value(platform)
         period_sanitized = sanitize_flux_value(period)
 
-        event_rate_query = f'''
+        event_rate_query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "context_id")
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
-        '''
+        """
 
         event_result = query_api.query(event_rate_query)
         total_events = 0
@@ -747,7 +746,7 @@ async def get_integration_performance(
         period_minutes = {
             "1h": 60,
             "24h": 1440,
-            "7d": 10080
+            "7d": 10080,
         }.get(period, 60)
 
         events_per_minute = round(total_events / period_minutes, 2) if period_minutes > 0 else 0
@@ -755,7 +754,7 @@ async def get_integration_performance(
         # Estimate error rate (events with error field)
         # Error count query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Add _field filter to count unique events with errors
-        error_query = f'''
+        error_query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
@@ -763,7 +762,7 @@ async def get_integration_performance(
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> filter(fn: (r) => exists r["error"])
           |> count()
-        '''
+        """
 
         error_result = query_api.query(error_query)
         total_errors = 0
@@ -776,14 +775,14 @@ async def get_integration_performance(
         # Calculate average response time (if available)
         # Response time query - OPTIMIZED (Context7 KB Pattern)
         # FIX: Filter by response_time field specifically
-        response_time_query = f'''
+        response_time_query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -{period_sanitized})
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => r._field == "response_time")
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> mean()
-        '''
+        """
 
         response_result = query_api.query(response_time_query)
         avg_response_time = 0
@@ -792,13 +791,13 @@ async def get_integration_performance(
                 avg_response_time = round(record.get_value(), 2)
 
         # Device discovery status (simplified - check if we have recent device updates)
-        discovery_query = f'''
+        discovery_query = f"""
         from(bucket: "{influxdb_bucket}")
           |> range(start: -5m)
           |> filter(fn: (r) => r["_measurement"] == "devices")
           |> filter(fn: (r) => r["platform"] == "{platform_sanitized}")
           |> count()
-        '''
+        """
 
         discovery_result = query_api.query(discovery_query)
         recent_discoveries = 0
@@ -817,11 +816,11 @@ async def get_integration_performance(
             "device_discovery_status": discovery_status,
             "total_events": total_events,
             "total_errors": total_errors,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Error getting performance metrics for {platform}: {e}")
+        logger.exception(f"Error getting performance metrics for {platform}: {e}")
         # Return default metrics on error
         return {
             "platform": platform,
@@ -833,7 +832,7 @@ async def get_integration_performance(
             "total_events": 0,
             "total_errors": 0,
             "error": str(e),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     finally:
         if client:
@@ -846,11 +845,11 @@ async def get_integration_performance(
 @router.get("/api/integrations/{platform}/analytics")
 async def get_integration_analytics(
     platform: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get analytics for a specific integration platform (Phase 2.3)
-    
+
     Returns device count, entity count, and entity breakdown by domain
     """
     try:
@@ -873,7 +872,7 @@ async def get_integration_analytics(
         # Get entity breakdown by domain
         domain_query = select(
             Entity.domain,
-            func.count(Entity.entity_id).label('count')
+            func.count(Entity.entity_id).label("count"),
         )\
             .where(Entity.platform == platform)\
             .group_by(Entity.domain)\
@@ -890,24 +889,24 @@ async def get_integration_analytics(
             "device_count": device_count,
             "entity_count": entity_count,
             "entity_breakdown": domain_breakdown,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Error getting integration analytics for {platform}: {e}")
+        logger.exception(f"Error getting integration analytics for {platform}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve integration analytics: {str(e)}"
+            detail=f"Failed to retrieve integration analytics: {e!s}",
         ) from e
 
 
 @router.get("/api/integrations", response_model=IntegrationsListResponse)
 async def list_integrations(
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of integrations to return")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of integrations to return"),
 ):
     """
     List all Home Assistant integrations (config entries)
-    
+
     Returns all discovered integrations with their setup status.
     """
     try:
@@ -916,13 +915,13 @@ async def list_integrations(
         if not influxdb_client.is_connected:
             await influxdb_client.connect()
 
-        query = f'''
+        query = f"""
             from(bucket: "home_assistant_events")
                 |> range(start: -90d)
                 |> filter(fn: (r) => r["_measurement"] == "config_entries")
                 |> last()
                 |> limit(n: {limit})
-        '''
+        """
 
         results = await influxdb_client._execute_query(query)
 
@@ -932,7 +931,7 @@ async def list_integrations(
             # Convert timestamp to string if needed
             timestamp = record.get("_time", datetime.now())
             if not isinstance(timestamp, str):
-                timestamp = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
+                timestamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
 
             integration = IntegrationResponse(
                 entry_id=record.get("entry_id", ""),
@@ -940,31 +939,31 @@ async def list_integrations(
                 title=record.get("title", "Unknown"),
                 state=record.get("state", "unknown"),
                 version=int(record.get("version", 1)),
-                timestamp=timestamp
+                timestamp=timestamp,
             )
             integrations.append(integration)
 
         return IntegrationsListResponse(
             integrations=integrations,
-            count=len(integrations)
+            count=len(integrations),
         )
 
     except Exception as e:
-        logger.error(f"Error listing integrations: {e}")
+        logger.exception(f"Error listing integrations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve integrations: {str(e)}"
+            detail=f"Failed to retrieve integrations: {e!s}",
         ) from e
 
 
 # Helper functions
 def _build_devices_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for devices with filters"""
-    query = '''
+    query = """
         from(bucket: "home_assistant_events")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "devices")
-    '''
+    """
 
     # Add filters
     if filters.get("manufacturer"):
@@ -980,18 +979,18 @@ def _build_devices_query(filters: dict[str, str], limit: int) -> str:
         if area_id:
             query += f'\n    |> filter(fn: (r) => r["area_id"] == "{area_id}")'
 
-    query += f'\n    |> last()\n    |> limit(n: {limit})'
+    query += f"\n    |> last()\n    |> limit(n: {limit})"
 
     return query
 
 
 def _build_entities_query(filters: dict[str, str], limit: int) -> str:
     """Build Flux query for entities with filters"""
-    query = '''
+    query = """
         from(bucket: "home_assistant_events")
             |> range(start: -90d)
             |> filter(fn: (r) => r["_measurement"] == "entities")
-    '''
+    """
 
     # Add filters
     if filters.get("domain"):
@@ -1007,7 +1006,7 @@ def _build_entities_query(filters: dict[str, str], limit: int) -> str:
         if device_id:
             query += f'\n    |> filter(fn: (r) => r["device_id"] == "{device_id}")'
 
-    query += f'\n    |> last()\n    |> limit(n: {limit})'
+    query += f"\n    |> last()\n    |> limit(n: {limit})"
 
     return query
 
@@ -1017,7 +1016,7 @@ def _build_entities_query(filters: dict[str, str], limit: int) -> str:
 @router.post("/internal/devices/bulk_upsert")
 async def bulk_upsert_devices(
     devices: list[dict[str, Any]],
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert devices from HA discovery
@@ -1029,44 +1028,44 @@ async def bulk_upsert_devices(
 
         for device_data in devices:
             # Extract device_id (HA uses 'id', we use 'device_id')
-            device_id = device_data.get('id') or device_data.get('device_id')
+            device_id = device_data.get("id") or device_data.get("device_id")
             if not device_id:
                 logger.warning(f"Skipping device without ID: {device_data.get('name', 'unknown')}")
                 continue
 
             # Check if device exists first
             result = await db.execute(
-                select(Device).where(Device.device_id == device_id)
+                select(Device).where(Device.device_id == device_id),
             )
             existing_device = result.scalar_one_or_none()
 
             # Prepare device data
             device_values = {
-                'device_id': device_id,
-                'name': device_data.get('name_by_user') or device_data.get('name', 'Unknown'),
-                'name_by_user': device_data.get('name_by_user'),
-                'manufacturer': device_data.get('manufacturer'),
-                'model': device_data.get('model'),
-                'sw_version': device_data.get('sw_version'),
-                'area_id': device_data.get('area_id'),
-                'integration': device_data.get('integration'),
-                'entry_type': device_data.get('entry_type'),
-                'configuration_url': device_data.get('configuration_url'),
-                'suggested_area': device_data.get('suggested_area'),
+                "device_id": device_id,
+                "name": device_data.get("name_by_user") or device_data.get("name", "Unknown"),
+                "name_by_user": device_data.get("name_by_user"),
+                "manufacturer": device_data.get("manufacturer"),
+                "model": device_data.get("model"),
+                "sw_version": device_data.get("sw_version"),
+                "area_id": device_data.get("area_id"),
+                "integration": device_data.get("integration"),
+                "entry_type": device_data.get("entry_type"),
+                "configuration_url": device_data.get("configuration_url"),
+                "suggested_area": device_data.get("suggested_area"),
                 # Source tracking
-                'config_entry_id': device_data.get('config_entry_id'),
-                'via_device': device_data.get('via_device_id'),  # HA uses 'via_device_id'
-                'last_seen': datetime.now()
+                "config_entry_id": device_data.get("config_entry_id"),
+                "via_device": device_data.get("via_device_id"),  # HA uses 'via_device_id'
+                "last_seen": datetime.now(),
             }
 
             if existing_device:
                 # Update existing device
                 for key, value in device_values.items():
-                    if key != 'device_id':  # Don't update primary key
+                    if key != "device_id":  # Don't update primary key
                         setattr(existing_device, key, value)
             else:
                 # Insert new device
-                device_values['created_at'] = datetime.now()
+                device_values["created_at"] = datetime.now()
                 new_device = Device(**device_values)
                 db.add(new_device)
 
@@ -1079,24 +1078,24 @@ async def bulk_upsert_devices(
         return {
             "success": True,
             "upserted": upserted_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error bulk upserting devices: {e}")
+        logger.exception(f"Error bulk upserting devices: {e}")
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to bulk upsert devices: {str(e)}"
+            detail=f"Failed to bulk upsert devices: {e!s}",
         ) from e
 
 
 @router.post("/internal/entities/bulk_upsert")
 async def bulk_upsert_entities(
     entities: list[dict[str, Any]],
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert entities from HA discovery
@@ -1107,24 +1106,24 @@ async def bulk_upsert_entities(
         upserted_count = 0
 
         for entity_data in entities:
-            entity_id = entity_data.get('entity_id')
+            entity_id = entity_data.get("entity_id")
             if not entity_id:
                 logger.warning("Skipping entity without entity_id")
                 continue
 
             # Extract domain from entity_id (e.g., "light.kitchen" -> "light")
-            domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+            domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
 
             # Extract name fields from entity registry data
-            name = entity_data.get('name')  # Primary name (what shows in HA UI)
-            name_by_user = entity_data.get('name_by_user')  # User-customized name
-            original_name = entity_data.get('original_name')  # Original name
+            name = entity_data.get("name")  # Primary name (what shows in HA UI)
+            name_by_user = entity_data.get("name_by_user")  # User-customized name
+            original_name = entity_data.get("original_name")  # Original name
 
             # Compute friendly_name (priority: name_by_user > name > original_name > entity_id)
             friendly_name = name_by_user or name or original_name
             if not friendly_name:
                 # Fallback: derive from entity_id
-                friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
+                friendly_name = entity_id.split(".")[-1].replace("_", " ").title()
 
             # Capabilities will be enriched separately from State API
             # For now, set to None - will be populated by entity_capability_enrichment service
@@ -1135,12 +1134,12 @@ async def bulk_upsert_entities(
             # Create entity instance
             entity = Entity(
                 entity_id=entity_id,
-                device_id=entity_data.get('device_id'),
+                device_id=entity_data.get("device_id"),
                 domain=domain,
-                platform=entity_data.get('platform', 'unknown'),
-                unique_id=entity_data.get('unique_id'),
-                area_id=entity_data.get('area_id'),
-                disabled=entity_data.get('disabled_by') is not None,
+                platform=entity_data.get("platform", "unknown"),
+                unique_id=entity_data.get("unique_id"),
+                area_id=entity_data.get("area_id"),
+                disabled=entity_data.get("disabled_by") is not None,
                 # NEW: Entity Registry name fields
                 name=name,
                 name_by_user=name_by_user,
@@ -1151,9 +1150,9 @@ async def bulk_upsert_entities(
                 capabilities=capabilities,
                 available_services=available_services,
                 # Source tracking
-                config_entry_id=entity_data.get('config_entry_id'),
+                config_entry_id=entity_data.get("config_entry_id"),
                 created_at=datetime.now(),
-                updated_at=datetime.now()
+                updated_at=datetime.now(),
             )
 
             # Merge (upsert)
@@ -1167,21 +1166,21 @@ async def bulk_upsert_entities(
         return {
             "success": True,
             "upserted": upserted_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error bulk upserting entities: {e}")
+        logger.exception(f"Error bulk upserting entities: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to bulk upsert entities: {str(e)}"
+            detail=f"Failed to bulk upsert entities: {e!s}",
         ) from e
 
 
 @router.delete("/internal/devices/clear")
 async def clear_all_devices(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Delete all devices and entities from the database (for reload/reset)
@@ -1205,13 +1204,13 @@ async def clear_all_devices(
             "success": True,
             "devices_deleted": devices_count,
             "entities_deleted": entities_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error clearing devices and entities: {e}")
+        logger.exception(f"Error clearing devices and entities: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear devices and entities: {str(e)}"
+            detail=f"Failed to clear devices and entities: {e!s}",
         ) from e

@@ -35,7 +35,7 @@ if not db_path:
     sys.exit(1)
 
 # Suppress database path message unless verbose
-if '--verbose' in sys.argv:
+if "--verbose" in sys.argv:
     print(f"Using database: {db_path}")
 
 
@@ -46,7 +46,7 @@ def get_query_by_id(query_id: str) -> dict | None:
     cursor = conn.cursor()
     cursor.execute(
         "SELECT * FROM ask_ai_queries WHERE query_id = ?",
-        (query_id,)
+        (query_id,),
     )
     row = cursor.fetchone()
     conn.close()
@@ -62,7 +62,7 @@ def search_queries_by_text(search_text: str, limit: int = 10) -> list[dict]:
     cursor = conn.cursor()
     cursor.execute(
         "SELECT * FROM ask_ai_queries WHERE original_query LIKE ? ORDER BY created_at DESC LIMIT ?",
-        (f"%{search_text}%", limit)
+        (f"%{search_text}%", limit),
     )
     rows = cursor.fetchall()
     conn.close()
@@ -75,7 +75,7 @@ def get_latest_query() -> dict | None:
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM ask_ai_queries ORDER BY created_at DESC LIMIT 1"
+        "SELECT * FROM ask_ai_queries ORDER BY created_at DESC LIMIT 1",
     )
     row = cursor.fetchone()
     conn.close()
@@ -91,13 +91,13 @@ def find_suggestion_by_id(suggestions: list[dict], suggestion_id: str) -> dict |
 
     # Try exact match first
     for suggestion in suggestions:
-        if suggestion.get('suggestion_id') == suggestion_id:
+        if suggestion.get("suggestion_id") == suggestion_id:
             return suggestion
 
     # Try partial match (e.g., "71481" matches "ask-ai-71481...")
     suggestion_id_lower = suggestion_id.lower()
     for suggestion in suggestions:
-        sid = suggestion.get('suggestion_id', '').lower()
+        sid = suggestion.get("suggestion_id", "").lower()
         if suggestion_id_lower in sid or sid in suggestion_id_lower:
             return suggestion
 
@@ -106,7 +106,7 @@ def find_suggestion_by_id(suggestions: list[dict], suggestion_id: str) -> dict |
 
 def format_prompt_display(query: dict, suggestion: dict) -> str:
     """Format the prompt for display."""
-    debug = suggestion.get('debug', {})
+    debug = suggestion.get("debug", {})
 
     output = []
     output.append("=" * 80)
@@ -137,7 +137,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
     output.append("=" * 80)
     output.append("SYSTEM PROMPT")
     output.append("=" * 80)
-    system_prompt = debug.get('system_prompt', 'N/A')
+    system_prompt = debug.get("system_prompt", "N/A")
     output.append(system_prompt)
     output.append("")
 
@@ -145,12 +145,12 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
     output.append("=" * 80)
     output.append("USER PROMPT (FULL - SENT TO OPENAI)")
     output.append("=" * 80)
-    user_prompt = debug.get('user_prompt', 'N/A')
+    user_prompt = debug.get("user_prompt", "N/A")
     output.append(user_prompt)
     output.append("")
 
     # Filtered User Prompt (if different)
-    filtered_prompt = debug.get('filtered_user_prompt')
+    filtered_prompt = debug.get("filtered_user_prompt")
     if filtered_prompt and filtered_prompt != user_prompt:
         output.append("=" * 80)
         output.append("USER PROMPT (FILTERED - ENTITIES ONLY)")
@@ -159,7 +159,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         output.append("")
 
     # Clarification Context
-    clarification_context = debug.get('clarification_context')
+    clarification_context = debug.get("clarification_context")
     if clarification_context:
         output.append("=" * 80)
         output.append("CLARIFICATION CONTEXT (Q&A)")
@@ -168,7 +168,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         output.append("")
 
     # OpenAI Response
-    openai_response = debug.get('openai_response')
+    openai_response = debug.get("openai_response")
     if openai_response:
         output.append("=" * 80)
         output.append("OPENAI RESPONSE")
@@ -176,7 +176,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         if isinstance(openai_response, list):
             # Find the matching suggestion in the response
             for resp in openai_response:
-                if resp.get('description') == suggestion.get('description'):
+                if resp.get("description") == suggestion.get("description"):
                     output.append(json.dumps(resp, indent=2))
                     break
             else:
@@ -186,7 +186,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         output.append("")
 
     # Token Usage
-    token_usage = debug.get('token_usage')
+    token_usage = debug.get("token_usage")
     if token_usage:
         output.append("=" * 80)
         output.append("TOKEN USAGE")
@@ -195,7 +195,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         output.append("")
 
     # Device Selection Debug
-    device_debug = debug.get('device_selection')
+    device_debug = debug.get("device_selection")
     if device_debug:
         output.append("=" * 80)
         output.append("DEVICE SELECTION DEBUG")
@@ -204,7 +204,7 @@ def format_prompt_display(query: dict, suggestion: dict) -> str:
         output.append("")
 
     # Entity Context Stats
-    entity_context_stats = debug.get('entity_context_stats')
+    entity_context_stats = debug.get("entity_context_stats")
     if entity_context_stats:
         output.append("=" * 80)
         output.append("ENTITY CONTEXT STATISTICS")
@@ -244,7 +244,7 @@ def main():
             sys.exit(1)
         print(f"Found {len(queries)} queries matching '{search_text}':")
         for i, q in enumerate(queries, 1):
-            suggestions = json.loads(q.get('suggestions', '[]') or '[]')
+            suggestions = json.loads(q.get("suggestions", "[]") or "[]")
             print(f"  {i}. [{q.get('query_id')}] {q.get('original_query', '')[:80]}... ({len(suggestions)} suggestions)")
         if len(queries) == 1:
             query = queries[0]
@@ -264,12 +264,9 @@ def main():
         sys.exit(1)
 
     # Parse suggestions JSON
-    suggestions_json = query.get('suggestions')
+    suggestions_json = query.get("suggestions")
     if suggestions_json:
-        if isinstance(suggestions_json, str):
-            suggestions = json.loads(suggestions_json)
-        else:
-            suggestions = suggestions_json
+        suggestions = json.loads(suggestions_json) if isinstance(suggestions_json, str) else suggestions_json
     else:
         suggestions = []
 
@@ -296,9 +293,9 @@ def main():
     print(output)
 
     # Optionally save to file
-    if '--save' in sys.argv:
+    if "--save" in sys.argv:
         filename = f"prompt_{query.get('query_id')}_{suggestion.get('suggestion_id', 'unknown')}.txt"
-        with open(filename, 'w', encoding='utf-8') as f:
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(output)
         print(f"\nPrompt saved to: {filename}")
 

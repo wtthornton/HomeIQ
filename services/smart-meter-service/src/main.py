@@ -14,7 +14,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from adapters.home_assistant import HomeAssistantAdapter
 from health_check import HealthCheckHandler
@@ -30,19 +30,19 @@ class SmartMeterService:
     """Generic smart meter integration with adapter support"""
 
     def __init__(self):
-        self.meter_type = os.getenv('METER_TYPE', 'home_assistant')
-        self.api_token = os.getenv('METER_API_TOKEN', '')
-        self.device_id = os.getenv('METER_DEVICE_ID', '')
+        self.meter_type = os.getenv("METER_TYPE", "home_assistant")
+        self.api_token = os.getenv("METER_API_TOKEN", "")
+        self.device_id = os.getenv("METER_DEVICE_ID", "")
 
         # Home Assistant configuration
-        self.ha_url = os.getenv('HOME_ASSISTANT_URL')
-        self.ha_token = os.getenv('HOME_ASSISTANT_TOKEN')
+        self.ha_url = os.getenv("HOME_ASSISTANT_URL")
+        self.ha_token = os.getenv("HOME_ASSISTANT_TOKEN")
 
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         # Service configuration
         self.fetch_interval = 300  # 5 minutes
@@ -59,21 +59,22 @@ class SmartMeterService:
         self.adapter = None  # Will be initialized in startup
 
         if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN required")
+            msg = "INFLUXDB_TOKEN required"
+            raise ValueError(msg)
 
     async def startup(self):
         """Initialize service"""
         logger.info(f"Initializing Smart Meter Service (Type: {self.meter_type})...")
 
         self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=10)
+            timeout=aiohttp.ClientTimeout(total=10),
         )
 
         self.influxdb_client = InfluxDBClient3(
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
 
         # Initialize adapter based on meter type
@@ -89,22 +90,21 @@ class SmartMeterService:
 
     def _create_adapter(self):
         """Create adapter based on meter type"""
-        if self.meter_type == 'home_assistant':
+        if self.meter_type == "home_assistant":
             if not self.ha_url or not self.ha_token:
                 logger.warning(
-                    "HOME_ASSISTANT_URL and HOME_ASSISTANT_TOKEN not configured - using mock data"
+                    "HOME_ASSISTANT_URL and HOME_ASSISTANT_TOKEN not configured - using mock data",
                 )
                 return None
             return HomeAssistantAdapter(self.ha_url, self.ha_token)
-        elif self.meter_type == 'emporia':
+        if self.meter_type == "emporia":
             logger.warning("Emporia adapter not yet implemented - using mock data")
             return None
-        elif self.meter_type == 'sense':
+        if self.meter_type == "sense":
             logger.warning("Sense adapter not yet implemented - using mock data")
             return None
-        else:
-            logger.warning(f"Unknown meter type: {self.meter_type} - using mock data")
-            return None
+        logger.warning(f"Unknown meter type: {self.meter_type} - using mock data")
+        return None
 
     async def shutdown(self):
         """Cleanup"""
@@ -122,30 +122,30 @@ class SmartMeterService:
                 data = await self.adapter.fetch_consumption(
                     self.session,
                     self.api_token,
-                    self.device_id
+                    self.device_id,
                 )
 
                 # Add timestamp if not present
-                if 'timestamp' not in data:
-                    data['timestamp'] = datetime.now()
+                if "timestamp" not in data:
+                    data["timestamp"] = datetime.now()
 
                 # Ensure percentages are calculated
-                for circuit in data.get('circuits', []):
-                    if 'percentage' not in circuit:
-                        circuit['percentage'] = (
-                            (circuit['power_w'] / data['total_power_w']) * 100
-                            if data['total_power_w'] > 0 else 0
+                for circuit in data.get("circuits", []):
+                    if "percentage" not in circuit:
+                        circuit["percentage"] = (
+                            (circuit["power_w"] / data["total_power_w"]) * 100
+                            if data["total_power_w"] > 0 else 0
                         )
 
                 # Detect phantom loads (high 3am baseline)
                 current_hour = datetime.now().hour
                 if current_hour == 3:
-                    self.baseline_3am = data['total_power_w']
+                    self.baseline_3am = data["total_power_w"]
                     if self.baseline_3am > 200:
                         logger.warning(f"High phantom load detected: {self.baseline_3am:.0f}W at 3am")
 
                 # Log high consumption
-                if data['total_power_w'] > 10000:
+                if data["total_power_w"] > 10000:
                     logger.warning(f"High power consumption: {data['total_power_w']:.0f}W")
 
                 # Update cache and stats
@@ -157,7 +157,7 @@ class SmartMeterService:
                 logger.info(
                     f"Power: {data['total_power_w']:.0f}W, "
                     f"Daily: {data.get('daily_kwh', 0):.1f}kWh, "
-                    f"Circuits: {len(data.get('circuits', []))}"
+                    f"Circuits: {len(data.get('circuits', []))}",
                 )
 
                 return data
@@ -167,7 +167,7 @@ class SmartMeterService:
                     logger,
                     f"Error fetching from adapter: {e}",
                     service="smart-meter-service",
-                    error=str(e)
+                    error=str(e),
                 )
                 self.health_handler.failed_fetches += 1
 
@@ -186,17 +186,17 @@ class SmartMeterService:
         """Return mock data for testing when no adapter is configured"""
 
         data = {
-            'total_power_w': 2450.0,
-            'daily_kwh': 18.5,
-            'circuits': [
-                {'name': 'HVAC', 'power_w': 1200.0, 'percentage': 49.0},
-                {'name': 'Kitchen', 'power_w': 450.0, 'percentage': 18.4},
-                {'name': 'Living Room', 'power_w': 300.0, 'percentage': 12.2},
-                {'name': 'Office', 'power_w': 250.0, 'percentage': 10.2},
-                {'name': 'Bedrooms', 'power_w': 150.0, 'percentage': 6.1},
-                {'name': 'Other', 'power_w': 100.0, 'percentage': 4.1}
+            "total_power_w": 2450.0,
+            "daily_kwh": 18.5,
+            "circuits": [
+                {"name": "HVAC", "power_w": 1200.0, "percentage": 49.0},
+                {"name": "Kitchen", "power_w": 450.0, "percentage": 18.4},
+                {"name": "Living Room", "power_w": 300.0, "percentage": 12.2},
+                {"name": "Office", "power_w": 250.0, "percentage": 10.2},
+                {"name": "Bedrooms", "power_w": 150.0, "percentage": 6.1},
+                {"name": "Other", "power_w": 100.0, "percentage": 4.1},
             ],
-            'timestamp': datetime.now()
+            "timestamp": datetime.now(),
         }
 
         # Update stats
@@ -219,19 +219,19 @@ class SmartMeterService:
             # Store whole-home consumption
             point = Point("smart_meter") \
                 .tag("meter_type", self.meter_type) \
-                .field("total_power_w", float(data['total_power_w'])) \
-                .field("daily_kwh", float(data['daily_kwh'])) \
-                .time(data['timestamp'])
+                .field("total_power_w", float(data["total_power_w"])) \
+                .field("daily_kwh", float(data["daily_kwh"])) \
+                .time(data["timestamp"])
 
             self.influxdb_client.write(point)
 
             # Store circuit-level data
-            for circuit in data.get('circuits', []):
+            for circuit in data.get("circuits", []):
                 circuit_point = Point("smart_meter_circuit") \
-                    .tag("circuit_name", circuit['name']) \
-                    .field("power_w", float(circuit['power_w'])) \
-                    .field("percentage", float(circuit['percentage'])) \
-                    .time(data['timestamp'])
+                    .tag("circuit_name", circuit["name"]) \
+                    .field("power_w", float(circuit["power_w"])) \
+                    .field("percentage", float(circuit["percentage"])) \
+                    .time(data["timestamp"])
 
                 self.influxdb_client.write(circuit_point)
 
@@ -242,7 +242,7 @@ class SmartMeterService:
                 logger,
                 f"Error writing to InfluxDB: {e}",
                 service="smart-meter-service",
-                error=str(e)
+                error=str(e),
             )
 
     async def run_continuous(self):
@@ -264,7 +264,7 @@ class SmartMeterService:
                     logger,
                     f"Error in continuous loop: {e}",
                     service="smart-meter-service",
-                    error=str(e)
+                    error=str(e),
                 )
                 await asyncio.sleep(60)
 
@@ -272,7 +272,7 @@ class SmartMeterService:
 async def create_app(service: SmartMeterService):
     """Create web application"""
     app = web.Application()
-    app.router.add_get('/health', service.health_handler.handle)
+    app.router.add_get("/health", service.health_handler.handle)
     return app
 
 
@@ -287,8 +287,8 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
 
-    port = int(os.getenv('SERVICE_PORT', '8014'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    port = int(os.getenv("SERVICE_PORT", "8014"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")

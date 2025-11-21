@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class DecisionTrace:
     """
     Decision trace for automation plan decisions.
-    
+
     Captures:
     - Prompt
     - Provider/model IDs
@@ -74,10 +74,10 @@ def generate_trace_id() -> str:
 def write_trace(trace: DecisionTrace) -> str:
     """
     Write decision trace to disk.
-    
+
     Args:
         trace: DecisionTrace instance
-        
+
     Returns:
         Trace ID
     """
@@ -85,23 +85,23 @@ def write_trace(trace: DecisionTrace) -> str:
         trace_dir = _ensure_trace_dir()
         # Write to file
         trace_file = trace_dir / f"{trace.trace_id}.json"
-        with open(trace_file, 'w') as f:
+        with open(trace_file, "w") as f:
             f.write(trace.to_json())
 
         logger.debug(f"Trace written: {trace.trace_id}")
         return trace.trace_id
     except Exception as e:
-        logger.error(f"Failed to write trace: {e}")
+        logger.exception(f"Failed to write trace: {e}")
         return trace.trace_id  # Return trace_id even if write failed
 
 
 def get_trace(trace_id: str) -> DecisionTrace | None:
     """
     Retrieve trace by ID.
-    
+
     Args:
         trace_id: Trace ID
-        
+
     Returns:
         DecisionTrace or None if not found
     """
@@ -116,7 +116,7 @@ def get_trace(trace_id: str) -> DecisionTrace | None:
 
         return DecisionTrace(**data)
     except Exception as e:
-        logger.error(f"Failed to read trace {trace_id}: {e}")
+        logger.exception(f"Failed to read trace {trace_id}: {e}")
         return None
 
 
@@ -131,11 +131,11 @@ def create_trace(
     ranking_scores: dict[str, Any] | None = None,
     final_plan: dict[str, Any] | None = None,
     diff: dict[str, Any] | None = None,
-    timings: dict[str, float] | None = None
+    timings: dict[str, float] | None = None,
 ) -> DecisionTrace:
     """
     Create a new decision trace.
-    
+
     Args:
         prompt: User prompt
         provider_id: LLM provider ID
@@ -148,7 +148,7 @@ def create_trace(
         final_plan: Final automation plan
         diff: Diff from original
         timings: Timing information
-        
+
     Returns:
         DecisionTrace instance
     """
@@ -165,6 +165,6 @@ def create_trace(
         ranking_scores=ranking_scores,
         final_plan=final_plan,
         diff=diff,
-        timings=timings
+        timings=timings,
     )
 

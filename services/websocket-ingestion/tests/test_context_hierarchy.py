@@ -22,7 +22,7 @@ class TestContextHierarchy:
             "context": {
                 "id": "context123",
                 "parent_id": "parent_context456",
-                "user_id": "user789"
+                "user_id": "user789",
             },
             "data": {
                 "entity_id": "sensor.test",
@@ -30,15 +30,15 @@ class TestContextHierarchy:
                     "state": "on",
                     "attributes": {},
                     "last_changed": datetime.now().isoformat(),
-                    "last_updated": datetime.now().isoformat()
+                    "last_updated": datetime.now().isoformat(),
                 },
                 "old_state": {
                     "state": "off",
                     "attributes": {},
                     "last_changed": datetime.now().isoformat(),
-                    "last_updated": datetime.now().isoformat()
-                }
-            }
+                    "last_updated": datetime.now().isoformat(),
+                },
+            },
         }
 
         result = self.processor.process_event(event_data)
@@ -55,7 +55,7 @@ class TestContextHierarchy:
             "context": {
                 "id": "context123",
                 "parent_id": None,
-                "user_id": "user789"
+                "user_id": "user789",
             },
             "data": {
                 "entity_id": "sensor.test",
@@ -63,9 +63,9 @@ class TestContextHierarchy:
                     "state": "on",
                     "attributes": {},
                     "last_changed": datetime.now().isoformat(),
-                    "last_updated": datetime.now().isoformat()
-                }
-            }
+                    "last_updated": datetime.now().isoformat(),
+                },
+            },
         }
 
         result = self.processor.process_event(event_data)
@@ -85,9 +85,9 @@ class TestContextHierarchy:
                     "state": "on",
                     "attributes": {},
                     "last_changed": datetime.now().isoformat(),
-                    "last_updated": datetime.now().isoformat()
-                }
-            }
+                    "last_updated": datetime.now().isoformat(),
+                },
+            },
         }
 
         result = self.processor.process_event(event_data)
@@ -104,7 +104,7 @@ class TestContextHierarchy:
             "event_type": "state_changed",
             "context": {
                 "id": "context123",
-                "parent_id": "parent456"
+                "parent_id": "parent456",
             },
             "data": {
                 "entity_id": "sensor.test",
@@ -112,9 +112,9 @@ class TestContextHierarchy:
                     "state": "on",
                     "attributes": {},
                     "last_changed": datetime.now().isoformat(),
-                    "last_updated": datetime.now().isoformat()
-                }
-            }
+                    "last_updated": datetime.now().isoformat(),
+                },
+            },
         }
 
         self.processor.process_event(valid_event)

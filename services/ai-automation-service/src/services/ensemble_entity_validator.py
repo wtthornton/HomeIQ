@@ -53,7 +53,7 @@ class EnsembleValidationResult:
 class EnsembleEntityValidator:
     """
     Ensemble validator that uses multiple models to validate entities.
-    
+
     Strategy:
     1. Run ALL validation methods in parallel
     2. HA API is ground truth (required)
@@ -68,11 +68,11 @@ class EnsembleEntityValidator:
         openai_client=None,
         sentence_transformer_model=None,
         device_intelligence_client=None,
-        min_consensus_threshold: float = 0.6
+        min_consensus_threshold: float = 0.6,
     ):
         """
         Initialize ensemble validator.
-        
+
         Args:
             ha_client: Home Assistant client (REQUIRED - ground truth)
             openai_client: Optional OpenAI client for reasoning
@@ -92,7 +92,7 @@ class EnsembleEntityValidator:
             ValidationMethod.OPENAI: 0.8,  # High weight - good reasoning
             ValidationMethod.EMBEDDING_SIMILARITY: 0.7,  # Good semantic matching
             ValidationMethod.HF_NER: 0.6,  # Moderate - entity extraction quality
-            ValidationMethod.PATTERN_MATCHING: 0.4  # Lower weight - fallback
+            ValidationMethod.PATTERN_MATCHING: 0.4,  # Lower weight - fallback
         }
 
         logger.info("EnsembleEntityValidator initialized")
@@ -101,16 +101,16 @@ class EnsembleEntityValidator:
         self,
         entity_id: str,
         query_context: str | None = None,
-        available_entities: list[dict[str, Any]] | None = None
+        available_entities: list[dict[str, Any]] | None = None,
     ) -> EnsembleValidationResult:
         """
         Validate entity using ALL available methods in parallel.
-        
+
         Args:
             entity_id: Entity ID to validate
             query_context: Optional query context for better matching
             available_entities: Optional list of available entities for comparison
-            
+
         Returns:
             EnsembleValidationResult with consensus from all methods
         """
@@ -151,7 +151,7 @@ class EnsembleEntityValidator:
                 method_results=valid_results,
                 consensus_score=0.0,
                 warnings=["Entity not found in Home Assistant API (ground truth)"],
-                suggested_alternatives=self._suggest_alternatives(entity_id, available_entities)
+                suggested_alternatives=self._suggest_alternatives(entity_id, available_entities),
             )
 
         # Calculate consensus from all methods
@@ -171,7 +171,7 @@ class EnsembleEntityValidator:
             method_results=valid_results,
             consensus_score=consensus_score,
             warnings=warnings,
-            suggested_alternatives=[]  # Only suggest if invalid
+            suggested_alternatives=[],  # Only suggest if invalid
         )
 
     async def _validate_with_ha_api(self, entity_id: str) -> EntityValidationResult:
@@ -187,9 +187,9 @@ class EnsembleEntityValidator:
                 exists=exists,
                 confidence=1.0 if exists else 0.0,  # Ground truth is 100% confident
                 details={
-                    "state": state.get('state') if state else None,
-                    "attributes": state.get('attributes') if state else None
-                }
+                    "state": state.get("state") if state else None,
+                    "attributes": state.get("attributes") if state else None,
+                },
             )
         except Exception as e:
             logger.error(f"❌ HA API validation failed for {entity_id}: {e}", exc_info=True)
@@ -199,7 +199,7 @@ class EnsembleEntityValidator:
                 exists=False,
                 confidence=0.0,
                 details={},
-                error=str(e)
+                error=str(e),
             )
 
     async def _validate_with_openai(self, entity_id: str, query_context: str | None) -> EntityValidationResult:
@@ -211,7 +211,7 @@ class EnsembleEntityValidator:
                 exists=False,
                 confidence=0.0,
                 details={},
-                error="OpenAI client or context not available"
+                error="OpenAI client or context not available",
             )
 
         try:
@@ -238,26 +238,26 @@ Respond with JSON:
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a Home Assistant entity validation expert."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.1,
-                max_completion_tokens=200  # Use max_completion_tokens for newer models
+                max_completion_tokens=200,  # Use max_completion_tokens for newer models
             )
 
             import json
             content = response.choices[0].message.content
-            json_match = __import__('re').search(r'\{.*\}', content, __import__('re').DOTALL)
+            json_match = __import__("re").search(r"\{.*\}", content, __import__("re").DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
                 return EntityValidationResult(
                     entity_id=entity_id,
                     method=ValidationMethod.OPENAI,
-                    exists=data.get('exists', False),
-                    confidence=data.get('confidence', 0.5),
+                    exists=data.get("exists", False),
+                    confidence=data.get("confidence", 0.5),
                     details={
-                        "reasoning": data.get('reasoning', ''),
-                        "suggestions": data.get('suggestions', [])
-                    }
+                        "reasoning": data.get("reasoning", ""),
+                        "suggestions": data.get("suggestions", []),
+                    },
                 )
         except Exception as e:
             logger.warning(f"OpenAI validation failed: {e}")
@@ -268,13 +268,13 @@ Respond with JSON:
             exists=False,
             confidence=0.0,
             details={},
-            error="OpenAI validation failed"
+            error="OpenAI validation failed",
         )
 
     async def _validate_with_embeddings(
         self,
         entity_id: str,
-        available_entities: list[dict[str, Any]] | None
+        available_entities: list[dict[str, Any]] | None,
     ) -> EntityValidationResult:
         """Validate using embedding similarity"""
         if not self.sentence_model or not available_entities:
@@ -284,7 +284,7 @@ Respond with JSON:
                 exists=False,
                 confidence=0.0,
                 details={},
-                error="SentenceTransformer model or available entities not provided"
+                error="SentenceTransformer model or available entities not provided",
             )
 
         try:
@@ -296,7 +296,7 @@ Respond with JSON:
             best_similarity = 0.0
 
             for available in available_entities:
-                available_id = available.get('entity_id', '')
+                available_id = available.get("entity_id", "")
                 if available_id:
                     available_embedding = self.sentence_model.encode(available_id)
                     # Use numpy cosine similarity
@@ -318,8 +318,8 @@ Respond with JSON:
                 confidence=best_similarity,
                 details={
                     "best_match": best_match,
-                    "similarity": best_similarity
-                }
+                    "similarity": best_similarity,
+                },
             )
         except Exception as e:
             logger.warning(f"Embedding validation failed: {e}")
@@ -329,7 +329,7 @@ Respond with JSON:
                 exists=False,
                 confidence=0.0,
                 details={},
-                error=str(e)
+                error=str(e),
             )
 
     async def _validate_with_pattern(self, entity_id: str, query_context: str) -> EntityValidationResult:
@@ -337,10 +337,10 @@ Respond with JSON:
         import re
 
         # Check if entity ID format is valid
-        valid_format = bool(re.match(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$', entity_id))
+        valid_format = bool(re.match(r"^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$", entity_id))
 
         # Check if entity ID matches query context
-        entity_name = entity_id.split('.')[-1] if '.' in entity_id else entity_id
+        entity_name = entity_id.split(".")[-1] if "." in entity_id else entity_id
         context_match = entity_name.lower() in query_context.lower() if query_context else False
 
         exists = valid_format and context_match
@@ -353,17 +353,17 @@ Respond with JSON:
             confidence=confidence,
             details={
                 "valid_format": valid_format,
-                "context_match": context_match
-            }
+                "context_match": context_match,
+            },
         )
 
     def _calculate_consensus(
         self,
-        results: list[EntityValidationResult]
+        results: list[EntityValidationResult],
     ) -> tuple[float, float]:
         """
         Calculate consensus score and weighted confidence.
-        
+
         Returns:
             (consensus_score, weighted_confidence)
         """
@@ -397,23 +397,23 @@ Respond with JSON:
     def _suggest_alternatives(
         self,
         entity_id: str,
-        available_entities: list[dict[str, Any]] | None
+        available_entities: list[dict[str, Any]] | None,
     ) -> list[str]:
         """Suggest alternative entity IDs"""
         if not available_entities:
             return []
 
         # Extract domain and name from entity_id
-        if '.' not in entity_id:
+        if "." not in entity_id:
             return []
 
-        domain, name = entity_id.split('.', 1)
+        domain, name = entity_id.split(".", 1)
 
         # Find entities with same domain
         candidates = [
-            e.get('entity_id', '') for e in available_entities
-            if e.get('entity_id', '').startswith(f"{domain}.") and
-            name.lower() in e.get('entity_id', '').lower()
+            e.get("entity_id", "") for e in available_entities
+            if e.get("entity_id", "").startswith(f"{domain}.") and
+            name.lower() in e.get("entity_id", "").lower()
         ]
 
         return candidates[:5]  # Return top 5 candidates
@@ -422,16 +422,16 @@ Respond with JSON:
         self,
         entity_ids: list[str],
         query_context: str | None = None,
-        available_entities: list[dict[str, Any]] | None = None
+        available_entities: list[dict[str, Any]] | None = None,
     ) -> dict[str, EnsembleValidationResult]:
         """
         Validate multiple entities in parallel using ensemble approach.
-        
+
         Args:
             entity_ids: List of entity IDs to validate
             query_context: Optional query context
             available_entities: Optional available entities for comparison
-            
+
         Returns:
             Dictionary mapping entity_id -> EnsembleValidationResult
         """
@@ -447,7 +447,7 @@ Respond with JSON:
 
         # Build result dictionary
         validation_results = {}
-        for entity_id, result in zip(entity_ids, results):
+        for entity_id, result in zip(entity_ids, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Validation failed for {entity_id}: {result}")
                 validation_results[entity_id] = EnsembleValidationResult(
@@ -456,8 +456,8 @@ Respond with JSON:
                     confidence=0.0,
                     method_results=[],
                     consensus_score=0.0,
-                    warnings=[f"Validation error: {str(result)}"],
-                    suggested_alternatives=[]
+                    warnings=[f"Validation error: {result!s}"],
+                    suggested_alternatives=[],
                 )
             else:
                 validation_results[entity_id] = result

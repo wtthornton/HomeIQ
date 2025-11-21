@@ -35,27 +35,27 @@ def compute_rank_score(
     automation: dict[str, Any],
     capabilities: dict[str, Any],
     reliability_history: dict[str, float] | None = None,
-    user_preferences: dict[str, float] | None = None
+    user_preferences: dict[str, float] | None = None,
 ) -> RankScore:
     """
     Compute heuristic ranking score for an automation plan.
-    
+
     Scoring formula:
     +2.0 * capability_match_ratio
     +1.0 * reliability_score (default 0.5 if unknown)
     -0.5 * predicted_latency_sec
     -0.5 * energy_cost_bucket (0/1/2)
     +0.2 * user_recent_preference(device_type)
-    
+
     Hard filters (exclude if missing mandatory capability):
     - Any candidate missing mandatory capability is excluded
-    
+
     Args:
         automation: Automation plan (dict or AutomationPlan)
         capabilities: Available capabilities dict
         reliability_history: Optional reliability scores by entity_id
         user_preferences: Optional user preferences by device_type
-        
+
     Returns:
         RankScore with total score and feature breakdown
     """
@@ -84,7 +84,7 @@ def compute_rank_score(
             user_recent_preference=0.0,
             feature_breakdown={},
             excluded=True,
-            exclusion_reason=f"Missing mandatory capabilities: {', '.join(missing_mandatory)}"
+            exclusion_reason=f"Missing mandatory capabilities: {', '.join(missing_mandatory)}",
         )
 
     # Feature 2: Reliability score
@@ -105,7 +105,7 @@ def compute_rank_score(
         "reliability": 1.0 * reliability_score,
         "latency": -0.5 * predicted_latency_sec,
         "energy_cost": -0.5 * energy_cost_bucket,
-        "user_preference": 0.2 * user_recent_preference
+        "user_preference": 0.2 * user_recent_preference,
     }
 
     total_score = sum(feature_breakdown.values())
@@ -118,7 +118,7 @@ def compute_rank_score(
         energy_cost_bucket=energy_cost_bucket,
         user_recent_preference=user_recent_preference,
         feature_breakdown=feature_breakdown,
-        excluded=False
+        excluded=False,
     )
 
 
@@ -127,18 +127,18 @@ def rank_automations(
     capabilities: dict[str, Any],
     top_k: int = 10,
     reliability_history: dict[str, float] | None = None,
-    user_preferences: dict[str, float] | None = None
+    user_preferences: dict[str, float] | None = None,
 ) -> list[RankedAutomation]:
     """
     Rank automations and return top-K.
-    
+
     Args:
         automations: List of automation plans
         capabilities: Available capabilities dict
         top_k: Number of top results to return
         reliability_history: Optional reliability scores
         user_preferences: Optional user preferences
-        
+
     Returns:
         List of RankedAutomation sorted by score (highest first)
     """
@@ -149,17 +149,17 @@ def rank_automations(
             automation,
             capabilities,
             reliability_history,
-            user_preferences
+            user_preferences,
         )
         scored.append(RankedAutomation(
             automation=automation,
             score=score,
-            rank=0  # Will be set after sorting
+            rank=0,  # Will be set after sorting
         ))
 
     # Filter out excluded
     included = [s for s in scored if not s.score.excluded]
-    excluded = [s for s in scored if s.score.excluded]
+    [s for s in scored if s.score.excluded]
 
     # Sort by score (highest first)
     included.sort(key=lambda x: x.score.total_score, reverse=True)
@@ -213,7 +213,7 @@ def _extract_entities(automation: dict[str, Any]) -> list[str]:
 def _compute_capability_match(
     automation: dict[str, Any],
     capabilities: dict[str, Any],
-    entities: list[str]
+    entities: list[str],
 ) -> float:
     """Compute capability match ratio (0.0-1.0)"""
     if not entities:
@@ -238,8 +238,8 @@ def _get_mandatory_capabilities(automation: dict[str, Any]) -> list[str]:
     for action in actions:
         service = action.get("service", "")
         # Extract domain.service capabilities
-        if '.' in service:
-            domain = service.split('.')[0]
+        if "." in service:
+            domain = service.split(".")[0]
             required.append(f"{domain}.turn_on")  # Basic capability
             required.append(f"{domain}.turn_off")  # Basic capability
 
@@ -253,7 +253,7 @@ def _get_required_capabilities(automation: dict[str, Any]) -> list[str]:
 
 def _compute_reliability_score(
     entities: list[str],
-    reliability_history: dict[str, float]
+    reliability_history: dict[str, float],
 ) -> float:
     """Compute reliability score (0.0-1.0)"""
     if not entities:
@@ -265,7 +265,7 @@ def _compute_reliability_score(
 
 def _compute_predicted_latency(
     automation: dict[str, Any],
-    entities: list[str]
+    entities: list[str],
 ) -> float:
     """Compute predicted latency in seconds"""
     # Simple heuristic: base latency + per-entity overhead
@@ -276,7 +276,7 @@ def _compute_predicted_latency(
 
 def _compute_energy_cost_bucket(
     automation: dict[str, Any],
-    entities: list[str]
+    entities: list[str],
 ) -> int:
     """Compute energy cost bucket (0=low, 1=medium, 2=high)"""
     # Check for high-power services
@@ -292,23 +292,22 @@ def _compute_energy_cost_bucket(
 
     if has_high_power:
         return 2  # High
-    elif len(entities) > 3:
+    if len(entities) > 3:
         return 1  # Medium
-    else:
-        return 0  # Low
+    return 0  # Low
 
 
 def _compute_user_preference(
     automation: dict[str, Any],
     entities: list[str],
-    user_preferences: dict[str, float]
+    user_preferences: dict[str, float],
 ) -> float:
     """Compute user preference score (0.0-1.0)"""
     if not entities or not user_preferences:
         return 0.0
 
     # Extract device types
-    device_types = [e.split('.')[0] for e in entities if '.' in e]
+    device_types = [e.split(".")[0] for e in entities if "." in e]
 
     # Get preference scores
     scores = [user_preferences.get(dt, 0.0) for dt in device_types]

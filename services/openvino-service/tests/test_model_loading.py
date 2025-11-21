@@ -29,8 +29,7 @@ def patched_manager(monkeypatch, tmp_path):
     module = types.ModuleType("sentence_transformers")
     module.SentenceTransformer = _StubSentenceTransformer
     monkeypatch.setitem(sys.modules, "sentence_transformers", module)
-    manager = OpenVINOManager(models_dir=str(tmp_path))
-    return manager
+    return OpenVINOManager(models_dir=str(tmp_path))
 
 
 @pytest.mark.asyncio

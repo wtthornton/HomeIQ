@@ -54,7 +54,7 @@ class MQTTClient:
         self.broker_url = broker_url
         self.username = username
         self.password = password
-        self.base_topic = base_topic.rstrip('/')  # Remove trailing slash if present
+        self.base_topic = base_topic.rstrip("/")  # Remove trailing slash if present
 
         # Parse broker URL
         parsed = urlparse(broker_url)
@@ -110,12 +110,11 @@ class MQTTClient:
                 logger.info("✅ Successfully connected to MQTT broker")
                 self.reconnect_attempts = 0
                 return True
-            else:
-                logger.error("❌ Failed to connect to MQTT broker")
-                return False
+            logger.error("❌ Failed to connect to MQTT broker")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to MQTT broker: {e}")
+            logger.exception(f"❌ Failed to connect to MQTT broker: {e}")
             return False
 
     async def disconnect(self):
@@ -152,7 +151,7 @@ class MQTTClient:
         """MQTT message callback."""
         try:
             topic = msg.topic
-            payload = msg.payload.decode('utf-8')
+            payload = msg.payload.decode("utf-8")
 
             # Parse JSON payload
             try:
@@ -165,7 +164,7 @@ class MQTTClient:
             asyncio.create_task(self._handle_message(topic, data))
 
         except Exception as e:
-            logger.error(f"❌ Error handling MQTT message: {e}")
+            logger.exception(f"❌ Error handling MQTT message: {e}")
 
     def _on_log(self, client, userdata, level, buf):
         """MQTT log callback."""
@@ -195,7 +194,7 @@ class MQTTClient:
         """Handle incoming MQTT messages."""
         try:
             # Handle device list messages (both retained and response)
-            if topic == f"{self.base_topic}/bridge/devices" or topic == f"{self.base_topic}/bridge/response/device/list":
+            if topic in (f"{self.base_topic}/bridge/devices", f"{self.base_topic}/bridge/response/device/list"):
                 # Extract data from response if it's a response message
                 if topic == f"{self.base_topic}/bridge/response/device/list":
                     # Response format: {"data": {...}, "status": "ok"}
@@ -209,7 +208,7 @@ class MQTTClient:
                         return
                 await self._handle_devices_message(data)
             # Handle group list messages (both retained and response)
-            elif topic == f"{self.base_topic}/bridge/groups" or topic == f"{self.base_topic}/bridge/response/group/list":
+            elif topic in (f"{self.base_topic}/bridge/groups", f"{self.base_topic}/bridge/response/group/list"):
                 # Extract data from response if it's a response message
                 if topic == f"{self.base_topic}/bridge/response/group/list":
                     if isinstance(data, dict) and "data" in data:
@@ -228,7 +227,7 @@ class MQTTClient:
                 logger.debug(f"📨 Unhandled message on topic {topic}")
 
         except Exception as e:
-            logger.error(f"❌ Error handling message on topic {topic}: {e}")
+            logger.exception(f"❌ Error handling message on topic {topic}: {e}")
 
     async def _handle_devices_message(self, data: list[dict[str, Any]]):
         """Handle devices message from Zigbee2MQTT bridge."""
@@ -249,16 +248,16 @@ class MQTTClient:
                     hardware_version=device_data.get("hardware_version"),
                     software_build_id=device_data.get("software_build_id"),
                     date_code=device_data.get("date_code"),
-                    last_seen=datetime.fromisoformat(device_data["last_seen"].replace('Z', '+00:00')) if device_data.get("last_seen") else None,
+                    last_seen=datetime.fromisoformat(device_data["last_seen"].replace("Z", "+00:00")) if device_data.get("last_seen") else None,
                     definition=device_data.get("definition"),
                     exposes=device_data.get("definition", {}).get("exposes", []),
-                    capabilities={}  # Will be populated by capability parser
+                    capabilities={},  # Will be populated by capability parser
                 )
 
                 self.devices[device.ieee_address] = device
 
             except Exception as e:
-                logger.error(f"❌ Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
+                logger.exception(f"❌ Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
 
         # Call message handler with full list (after all devices are stored)
         if "devices" in self.message_handlers:
@@ -275,13 +274,13 @@ class MQTTClient:
                     id=group_data["id"],
                     friendly_name=group_data["friendly_name"],
                     members=group_data.get("members", []),
-                    scenes=group_data.get("scenes", [])
+                    scenes=group_data.get("scenes", []),
                 )
 
                 self.groups[group.id] = group
 
             except Exception as e:
-                logger.error(f"❌ Error parsing group {group_data.get('id', 'unknown')}: {e}")
+                logger.exception(f"❌ Error parsing group {group_data.get('id', 'unknown')}: {e}")
 
         # Call message handler with full list (after all groups are stored)
         if "groups" in self.message_handlers:

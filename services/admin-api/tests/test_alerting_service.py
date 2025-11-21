@@ -27,7 +27,7 @@ class TestAlertRule:
             metric_name="cpu_usage",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         assert rule.name == "test_rule"
@@ -51,7 +51,7 @@ class TestAlertRule:
             severity=AlertSeverity.WARNING,
             enabled=False,
             cooldown_minutes=10,
-            notification_channels=["email", "slack"]
+            notification_channels=["email", "slack"],
         )
 
         data = rule.to_dict()
@@ -82,7 +82,7 @@ class TestAlert:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         assert alert.alert_id == "alert-123"
@@ -110,7 +110,7 @@ class TestAlert:
             status=AlertStatus.ACTIVE,
             created_at="2024-01-01T00:00:00Z",
             acknowledged_at="2024-01-01T01:00:00Z",
-            acknowledged_by="admin"
+            acknowledged_by="admin",
         )
 
         data = alert.to_dict()
@@ -142,7 +142,7 @@ class TestNotificationChannels:
             "password": "password",
             "from_email": "alerts@example.com",
             "to_emails": ["admin@example.com"],
-            "use_tls": True
+            "use_tls": True,
         }
 
         channel = EmailNotificationChannel("email", config)
@@ -163,7 +163,7 @@ class TestNotificationChannels:
             "enabled": True,
             "webhook_url": "https://api.example.com/webhook",
             "headers": {"Authorization": "Bearer token"},
-            "timeout": 10
+            "timeout": 10,
         }
 
         channel = WebhookNotificationChannel("webhook", config)
@@ -181,7 +181,7 @@ class TestNotificationChannels:
             "webhook_url": "https://hooks.slack.com/webhook",
             "channel": "#alerts",
             "username": "HA-Ingestor",
-            "icon_emoji": ":warning:"
+            "icon_emoji": ":warning:",
         }
 
         channel = SlackNotificationChannel("slack", config)
@@ -218,7 +218,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=50.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         # Add rule
@@ -241,7 +241,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=50.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         manager.add_rule(rule)
@@ -253,7 +253,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=75.0,
-            severity=AlertSeverity.CRITICAL
+            severity=AlertSeverity.CRITICAL,
         )
 
         manager.update_rule(updated_rule)
@@ -294,7 +294,7 @@ class TestAlertManager:
             condition=">",
             threshold=50.0,
             severity=AlertSeverity.WARNING,
-            cooldown_minutes=5
+            cooldown_minutes=5,
         )
 
         manager.add_rule(rule)
@@ -317,7 +317,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         manager.add_rule(rule)
@@ -351,7 +351,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         manager.add_rule(rule)
@@ -359,7 +359,7 @@ class TestAlertManager:
         # Evaluate with metrics
         metrics = {
             "test_metric": 85.0,
-            "other_metric": 50.0
+            "other_metric": 50.0,
         }
 
         await manager.evaluate_all_alerts(metrics)
@@ -383,7 +383,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -411,7 +411,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -440,7 +440,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -464,7 +464,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         alert2 = Alert(
@@ -477,7 +477,7 @@ class TestAlertManager:
             threshold=90.0,
             condition=">",
             status=AlertStatus.RESOLVED,
-            created_at="2024-01-01T01:00:00Z"
+            created_at="2024-01-01T01:00:00Z",
         )
 
         manager.alert_history = [alert1, alert2]
@@ -507,7 +507,7 @@ class TestAlertManager:
             metric_name="test_metric",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
         manager.add_rule(rule)
 
@@ -521,7 +521,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -559,7 +559,7 @@ class TestAlertingService:
 
         config = {
             "enabled": True,
-            "webhook_url": "https://api.example.com/webhook"
+            "webhook_url": "https://api.example.com/webhook",
         }
 
         service.add_notification_channel("test_webhook", "webhook", config)
@@ -578,7 +578,7 @@ class TestAlertingService:
             metric_name="test_metric",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         service.alert_manager.add_rule(rule)
@@ -603,7 +603,7 @@ class TestAlertingService:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         service.alert_manager.active_alerts["test_rule"] = alert

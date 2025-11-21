@@ -3,7 +3,7 @@
 import sqlite3
 import sys
 
-db_path = '/app/data/ai_automation.db'
+db_path = "/app/data/ai_automation.db"
 
 try:
     conn = sqlite3.connect(db_path)

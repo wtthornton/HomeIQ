@@ -37,7 +37,7 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
 
     # Load export data
     logger.info(f"Loading export data from: {input_path}")
-    with open(input_path, encoding='utf-8') as f:
+    with open(input_path, encoding="utf-8") as f:
         export_data = json.load(f)
 
     queries = export_data.get("queries", [])
@@ -96,13 +96,13 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
                     "context": json.dumps({
                         "legacy_query_id": old_query_id,
                         "parsed_intent": query_data.get("parsed_intent"),
-                        "extracted_entities": query_data.get("extracted_entities")
+                        "extracted_entities": query_data.get("extracted_entities"),
                     }),
                     "metadata": json.dumps({
                         "processing_time_ms": query_data.get("processing_time_ms"),
-                        "confidence": query_data.get("confidence")
+                        "confidence": query_data.get("confidence"),
                     }),
-                    "created_at": query_data.get("created_at") or datetime.utcnow().isoformat()
+                    "created_at": query_data.get("created_at") or datetime.utcnow().isoformat(),
                 })
 
                 # Create initial turn
@@ -127,7 +127,7 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
                     "extracted_entities": json.dumps(query_data.get("extracted_entities") or []),
                     "confidence": query_data.get("confidence"),
                     "processing_time_ms": query_data.get("processing_time_ms"),
-                    "created_at": query_data.get("created_at") or datetime.utcnow().isoformat()
+                    "created_at": query_data.get("created_at") or datetime.utcnow().isoformat(),
                 })
 
                 # Import suggestions if any
@@ -157,7 +157,7 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
                         "response_type": "automation_generated",
                         "validated_entities": json.dumps(suggestion.get("validated_entities", {})),
                         "status": "draft",
-                        "created_at": query_data.get("created_at") or datetime.utcnow().isoformat()
+                        "created_at": query_data.get("created_at") or datetime.utcnow().isoformat(),
                     })
 
             logger.info(f"✅ Imported {len(queries)} conversations")
@@ -189,7 +189,7 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
                     "session_id": old_session_id,
                     "questions": json.dumps(session_data.get("questions", [])),
                     "answers": json.dumps(session_data.get("answers", [])),
-                    "conversation_id": conversation_id
+                    "conversation_id": conversation_id,
                 })
 
             logger.info(f"✅ Imported {len(sessions)} clarification sessions")
@@ -202,11 +202,11 @@ async def import_to_v2(input_path: Path, dry_run: bool = False) -> bool:
 
             # Save mapping file for reference
             mapping_file = input_path.parent / f"{input_path.stem}_mapping.json"
-            with open(mapping_file, 'w') as f:
+            with open(mapping_file, "w") as f:
                 json.dump({
                     "query_id_mapping": query_id_mapping,
                     "session_id_mapping": session_id_mapping,
-                    "import_date": datetime.utcnow().isoformat()
+                    "import_date": datetime.utcnow().isoformat(),
                 }, f, indent=2)
 
             logger.info(f"✅ Saved ID mapping to: {mapping_file}")
@@ -226,7 +226,7 @@ async def main():
         "--input",
         type=Path,
         default=Path(__file__).parent.parent / "data" / "legacy_export.json",
-        help="Input JSON file from export_legacy_data.py"
+        help="Input JSON file from export_legacy_data.py",
     )
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without applying")
     args = parser.parse_args()

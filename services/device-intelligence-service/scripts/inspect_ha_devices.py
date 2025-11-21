@@ -12,7 +12,7 @@ async def inspect_ha_devices():
     client = HomeAssistantClient(
         settings.HA_URL,
         None,
-        settings.HA_TOKEN
+        settings.HA_TOKEN,
     )
 
     # Connect

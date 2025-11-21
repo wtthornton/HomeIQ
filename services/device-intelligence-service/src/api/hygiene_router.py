@@ -110,7 +110,7 @@ async def update_issue_status(
     session: AsyncSession = Depends(get_db_session),
 ):
     result = await session.execute(
-        select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == issue_key)
+        select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == issue_key),
     )
     issue = result.scalar_one_or_none()
     if issue is None:
@@ -135,7 +135,7 @@ async def apply_issue_action(
     ha_client: HomeAssistantClient = Depends(get_ha_client),
 ):
     result = await session.execute(
-        select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == issue_key)
+        select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == issue_key),
     )
     issue = result.scalar_one_or_none()
     if issue is None:

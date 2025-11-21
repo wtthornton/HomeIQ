@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class HistoryManager:
     """
     Manages conversation history and context.
-    
+
     Handles:
     - Loading conversation history from database
     - Building context from history
@@ -33,16 +33,16 @@ class HistoryManager:
         self,
         conversation_id: str,
         db: AsyncSession,
-        limit: int | None = None
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get conversation history from database.
-        
+
         Args:
             conversation_id: Conversation ID
             db: Database session
             limit: Optional limit on number of turns
-        
+
         Returns:
             List of conversation turns
         """
@@ -59,7 +59,7 @@ class HistoryManager:
 
             result = await db.execute(
                 query,
-                {"conversation_id": conversation_id, "limit": limit or 100}
+                {"conversation_id": conversation_id, "limit": limit or 100},
             )
 
             turns = []
@@ -75,7 +75,7 @@ class HistoryManager:
                     "extracted_entities": row.extracted_entities,
                     "confidence": row.confidence,
                     "processing_time_ms": row.processing_time_ms,
-                    "created_at": row.created_at.isoformat() if row.created_at else None
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
                 })
 
             logger.info(f"Loaded {len(turns)} turns for conversation {conversation_id}")
@@ -87,14 +87,14 @@ class HistoryManager:
 
     def build_context_from_history(
         self,
-        history: list[dict[str, Any]]
+        history: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Build context from conversation history.
-        
+
         Args:
             history: List of conversation turns
-        
+
         Returns:
             Context dictionary
         """
@@ -114,13 +114,12 @@ class HistoryManager:
                     all_entities.append(entities)
 
         # Build context
-        context = {
+        return {
             "turn_count": len(history),
             "entities": all_entities,
             "validated_entities": validated_entities,
             "last_turn": history[-1] if history else None,
-            "first_query": history[0].get("content") if history else None
+            "first_query": history[0].get("content") if history else None,
         }
 
-        return context
 

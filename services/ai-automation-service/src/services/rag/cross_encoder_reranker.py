@@ -23,7 +23,7 @@ except ImportError:
 class CrossEncoderReranker:
     """
     Cross-encoder reranker for final result ranking.
-    
+
     Cross-encoders process query-document pairs together,
     providing more accurate relevance scores than bi-encoders.
     """
@@ -31,7 +31,7 @@ class CrossEncoderReranker:
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
         """
         Initialize cross-encoder reranker.
-        
+
         Args:
             model_name: HuggingFace model name for cross-encoder
                        Default: ms-marco-MiniLM-L-6-v2 (fast, good accuracy)
@@ -48,7 +48,7 @@ class CrossEncoderReranker:
             self.model = CrossEncoder(model_name, max_length=512)
             logger.info("Cross-encoder model loaded successfully")
         except Exception as e:
-            logger.error(f"Failed to load cross-encoder model: {e}")
+            logger.exception(f"Failed to load cross-encoder model: {e}")
             self.model = None
 
     def rerank(
@@ -56,17 +56,17 @@ class CrossEncoderReranker:
         query: str,
         candidates: list[dict[str, Any]],
         top_k: int | None = None,
-        text_field: str = 'text'
+        text_field: str = "text",
     ) -> list[dict[str, Any]]:
         """
         Rerank candidates using cross-encoder.
-        
+
         Args:
             query: Query text
             candidates: List of candidate documents (with scores from initial retrieval)
             top_k: Number of top results to return (None = return all)
             text_field: Field name containing text to rerank
-            
+
         Returns:
             Reranked list of candidates with cross-encoder scores
         """
@@ -81,7 +81,7 @@ class CrossEncoderReranker:
             # Prepare query-document pairs
             pairs = []
             for candidate in candidates:
-                text = candidate.get(text_field, '')
+                text = candidate.get(text_field, "")
                 pairs.append([query, text])
 
             # Get cross-encoder scores (batch processing)
@@ -91,11 +91,11 @@ class CrossEncoderReranker:
             reranked = []
             for i, candidate in enumerate(candidates):
                 reranked_candidate = candidate.copy()
-                reranked_candidate['cross_encoder_score'] = float(scores[i])
+                reranked_candidate["cross_encoder_score"] = float(scores[i])
                 reranked.append(reranked_candidate)
 
             # Sort by cross-encoder score (descending)
-            reranked.sort(key=lambda x: x.get('cross_encoder_score', 0.0), reverse=True)
+            reranked.sort(key=lambda x: x.get("cross_encoder_score", 0.0), reverse=True)
 
             # Return top_k if specified
             if top_k is not None:
@@ -103,13 +103,13 @@ class CrossEncoderReranker:
 
             logger.debug(
                 f"Reranked {len(candidates)} candidates → {len(reranked)} results "
-                f"(top score: {reranked[0].get('cross_encoder_score', 0.0):.3f})"
+                f"(top score: {reranked[0].get('cross_encoder_score', 0.0):.3f})",
             )
 
             return reranked
 
         except Exception as e:
-            logger.error(f"Error during cross-encoder reranking: {e}")
+            logger.exception(f"Error during cross-encoder reranking: {e}")
             # Return original candidates on error
             return candidates
 
@@ -118,13 +118,13 @@ class CrossEncoderReranker:
         query: str,
         candidates: list[dict[str, Any]],
         top_k: int | None = None,
-        text_field: str = 'text',
+        text_field: str = "text",
         cross_encoder_weight: float = 0.7,
-        original_score_weight: float = 0.3
+        original_score_weight: float = 0.3,
     ) -> list[dict[str, Any]]:
         """
         Rerank candidates combining cross-encoder scores with original scores.
-        
+
         Args:
             query: Query text
             candidates: List of candidate documents
@@ -132,7 +132,7 @@ class CrossEncoderReranker:
             text_field: Field name containing text
             cross_encoder_weight: Weight for cross-encoder score (default: 0.7)
             original_score_weight: Weight for original score (default: 0.3)
-            
+
         Returns:
             Reranked candidates with combined scores
         """
@@ -145,18 +145,18 @@ class CrossEncoderReranker:
 
             # Normalize scores to [0, 1] range
             max_cross_score = max(
-                (c.get('cross_encoder_score', 0.0) for c in reranked),
-                default=1.0
+                (c.get("cross_encoder_score", 0.0) for c in reranked),
+                default=1.0,
             )
 
             # Get original score field (could be 'similarity', 'hybrid_score', etc.)
-            original_score_fields = ['hybrid_score', 'similarity', 'bm25_score']
+            original_score_fields = ["hybrid_score", "similarity", "bm25_score"]
             max_original_score = 0.0
 
             for field in original_score_fields:
                 max_field_score = max(
                     (c.get(field, 0.0) for c in reranked),
-                    default=0.0
+                    default=0.0,
                 )
                 max_original_score = max(max_original_score, max_field_score)
 
@@ -165,7 +165,7 @@ class CrossEncoderReranker:
 
             # Combine scores
             for candidate in reranked:
-                cross_score = candidate.get('cross_encoder_score', 0.0)
+                cross_score = candidate.get("cross_encoder_score", 0.0)
                 original_score = 0.0
 
                 # Find original score
@@ -180,22 +180,22 @@ class CrossEncoderReranker:
 
                 # Weighted combination
                 combined_score = (cross_encoder_weight * norm_cross) + (original_score_weight * norm_original)
-                candidate['final_score'] = combined_score
+                candidate["final_score"] = combined_score
 
             # Sort by final score
-            reranked.sort(key=lambda x: x.get('final_score', 0.0), reverse=True)
+            reranked.sort(key=lambda x: x.get("final_score", 0.0), reverse=True)
 
             if top_k is not None:
                 reranked = reranked[:top_k]
 
             logger.debug(
                 f"Hybrid reranking: {len(candidates)} candidates → {len(reranked)} results "
-                f"(final top score: {reranked[0].get('final_score', 0.0):.3f})"
+                f"(final top score: {reranked[0].get('final_score', 0.0):.3f})",
             )
 
             return reranked
 
         except Exception as e:
-            logger.error(f"Error during hybrid reranking: {e}")
+            logger.exception(f"Error during hybrid reranking: {e}")
             return candidates
 

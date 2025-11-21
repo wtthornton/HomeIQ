@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 class FeatureSuggestionGenerator:
     """
     Generates LLM-powered suggestions for unused device features.
-    
+
     Takes opportunities from FeatureAnalyzer and creates actionable
     suggestions with configuration guidance using OpenAI.
-    
+
     Story AI2.4: Feature-Based Suggestion Generator
     Epic AI-2: Device Intelligence System
-    
+
     Example Usage:
         generator = FeatureSuggestionGenerator(llm_client, analyzer, db_session)
         suggestions = await generator.generate_suggestions(max_suggestions=10)
@@ -32,7 +32,7 @@ class FeatureSuggestionGenerator:
     def __init__(self, llm_client, feature_analyzer, db_session):
         """
         Initialize feature suggestion generator.
-        
+
         Args:
             llm_client: OpenAI client from Epic-AI-1 (existing)
             feature_analyzer: FeatureAnalyzer from Story 2.3
@@ -45,16 +45,16 @@ class FeatureSuggestionGenerator:
     async def generate_suggestions(self, max_suggestions: int = 10) -> list[dict]:
         """
         Generate feature-based suggestions for top opportunities.
-        
+
         Analyzes all devices, identifies top opportunities, and generates
         LLM-powered suggestions with configuration guidance.
-        
+
         Args:
             max_suggestions: Maximum number of suggestions to generate (default: 10)
-            
+
         Returns:
             List of generated suggestion dictionaries
-            
+
         Example Output:
             [
                 {
@@ -75,7 +75,7 @@ class FeatureSuggestionGenerator:
 
         # Get opportunities from analyzer (Story 2.3)
         analysis = await self.analyzer.analyze_all_devices()
-        opportunities = analysis.get('opportunities', [])[:max_suggestions]
+        opportunities = analysis.get("opportunities", [])[:max_suggestions]
 
         if not opportunities:
             logger.info("ℹ️ No feature opportunities found (all devices fully utilized!)")
@@ -84,7 +84,7 @@ class FeatureSuggestionGenerator:
         logger.info(
             f"📊 Found {len(opportunities)} opportunities:\n"
             f"   Top opportunity: {opportunities[0]['feature_name']} "
-            f"({opportunities[0]['impact']} impact, {opportunities[0]['complexity']} complexity)"
+            f"({opportunities[0]['impact']} impact, {opportunities[0]['complexity']} complexity)",
         )
 
         suggestions = []
@@ -98,7 +98,7 @@ class FeatureSuggestionGenerator:
                     logger.info(f"✅ [{i}/{len(opportunities)}] Generated: {suggestion['title'][:50]}...")
 
             except Exception as e:
-                logger.error(f"❌ Failed to generate suggestion for {opp['feature_name']}: {e}")
+                logger.exception(f"❌ Failed to generate suggestion for {opp['feature_name']}: {e}")
                 # Continue with other opportunities
                 continue
 
@@ -108,7 +108,7 @@ class FeatureSuggestionGenerator:
             f"✅ Feature suggestion generation complete in {duration:.1f}s\n"
             f"   Generated: {len(suggestions)} suggestions\n"
             f"   LLM calls: {len(suggestions)}\n"
-            f"   Success rate: {len(suggestions)/len(opportunities)*100:.0f}%"
+            f"   Success rate: {len(suggestions)/len(opportunities)*100:.0f}%",
         )
 
         return suggestions
@@ -116,33 +116,33 @@ class FeatureSuggestionGenerator:
     async def _generate_llm_suggestion(self, opportunity: dict) -> dict | None:
         """
         Generate single suggestion using LLM.
-        
+
         Args:
             opportunity: Opportunity dict from FeatureAnalyzer
-            
+
         Returns:
             Suggestion dict or None if generation fails
         """
         try:
             # Use unified prompt builder for consistent prompt generation
-            from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
+            from src.prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 
             unified_builder = UnifiedPromptBuilder(device_intelligence_client=None)
 
             # Build device context from opportunity
             device_context = {
-                'device_id': opportunity['device_id'],
-                'friendly_name': opportunity['device_name'],
-                'manufacturer': opportunity['manufacturer'],
-                'model': opportunity['model'],
-                'capabilities': [opportunity['feature_name']]
+                "device_id": opportunity["device_id"],
+                "friendly_name": opportunity["device_name"],
+                "manufacturer": opportunity["manufacturer"],
+                "model": opportunity["model"],
+                "capabilities": [opportunity["feature_name"]],
             }
 
             # Build unified prompt for feature suggestion
             prompt_dict = await unified_builder.build_feature_prompt(
                 opportunity=opportunity,
                 device_context=device_context,
-                output_mode="description"
+                output_mode="description",
             )
 
             # Generate suggestion with unified prompt
@@ -150,14 +150,14 @@ class FeatureSuggestionGenerator:
                 prompt_dict=prompt_dict,
                 temperature=0.8,  # Creative but consistent
                 max_tokens=300,  # Keep suggestions concise
-                output_format="description"
+                output_format="description",
             )
 
             # Extract suggestion content
-            content = suggestion_data.get('description', '').strip()
+            content = suggestion_data.get("description", "").strip()
 
             # Create suggestion dict
-            suggestion = {
+            return {
                 "title": f"Enable {opportunity['feature_name'].replace('_', ' ').title()} on {opportunity['device_name']}",
                 "description": content,
                 "type": "feature_discovery",  # Distinguish from pattern suggestions
@@ -171,26 +171,25 @@ class FeatureSuggestionGenerator:
                 "category": self._determine_category(opportunity),
                 "priority": self._map_impact_to_priority(opportunity["impact"]),
                 "automation_yaml": "",  # Feature suggestions don't have automation YAML (config steps instead)
-                "status": "pending"
+                "status": "pending",
             }
 
-            return suggestion
 
         except Exception as e:
-            logger.error(f"❌ OpenAI API error for feature {opportunity['feature_name']}: {e}")
+            logger.exception(f"❌ OpenAI API error for feature {opportunity['feature_name']}: {e}")
             raise
 
     def _build_feature_prompt(self, opportunity: dict) -> str:
         """
         Build LLM prompt for feature suggestion.
-        
+
         Args:
             opportunity: Opportunity dict from FeatureAnalyzer
-            
+
         Returns:
             Formatted prompt string for OpenAI
         """
-        feature_friendly = opportunity['feature_name'].replace('_', ' ').title()
+        feature_friendly = opportunity["feature_name"].replace("_", " ").title()
 
         return f"""Device Feature Discovery Suggestion:
 
@@ -222,12 +221,12 @@ Example for LED Notifications:
     def _calculate_confidence(self, opportunity: dict) -> float:
         """
         Calculate confidence score for feature suggestion.
-        
+
         Based on impact and complexity - high impact + easy = high confidence.
-        
+
         Args:
             opportunity: Opportunity dict
-            
+
         Returns:
             Confidence score between 0.3 and 0.95
         """
@@ -243,10 +242,10 @@ Example for LED Notifications:
     def _determine_category(self, opportunity: dict) -> str:
         """
         Determine suggestion category based on feature name.
-        
+
         Args:
             opportunity: Opportunity dict
-            
+
         Returns:
             Category: "energy" | "comfort" | "security" | "convenience"
         """
@@ -257,24 +256,23 @@ Example for LED Notifications:
             return "energy"
 
         # Security-related features
-        elif any(k in feature_lower for k in ["security", "alert", "notification", "alarm", "status", "led"]):
+        if any(k in feature_lower for k in ["security", "alert", "notification", "alarm", "status", "led"]):
             return "security"
 
         # Comfort-related features
-        elif any(k in feature_lower for k in ["temperature", "climate", "comfort", "fan", "humidity"]):
+        if any(k in feature_lower for k in ["temperature", "climate", "comfort", "fan", "humidity"]):
             return "comfort"
 
         # Default to convenience
-        else:
-            return "convenience"
+        return "convenience"
 
     def _map_impact_to_priority(self, impact: str) -> str:
         """
         Map impact level to priority.
-        
+
         Args:
             impact: Impact level from FeatureAnalyzer
-            
+
         Returns:
             Priority: "high" | "medium" | "low"
         """

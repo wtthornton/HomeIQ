@@ -3,42 +3,42 @@
 import sqlite3
 import sys
 
-db_path = '/app/data/ai_automation.db'
+db_path = "/app/data/ai_automation.db"
 
 try:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Check if metadata column exists
-    cursor.execute('PRAGMA table_info(discovered_synergies)')
+    cursor.execute("PRAGMA table_info(discovered_synergies)")
     cols = [col[1] for col in cursor.fetchall()]
 
-    if 'metadata' in cols and 'synergy_metadata' not in cols:
+    if "metadata" in cols and "synergy_metadata" not in cols:
         print("Renaming 'metadata' column to 'synergy_metadata'...")
 
         # SQLite 3.25.0+ supports RENAME COLUMN
         try:
-            cursor.execute('ALTER TABLE discovered_synergies RENAME COLUMN metadata TO synergy_metadata')
+            cursor.execute("ALTER TABLE discovered_synergies RENAME COLUMN metadata TO synergy_metadata")
             conn.commit()
             print("✅ Column renamed successfully using RENAME COLUMN")
         except sqlite3.OperationalError as e:
-            if 'RENAME COLUMN' in str(e):
+            if "RENAME COLUMN" in str(e):
                 print("SQLite version doesn't support RENAME COLUMN, using table recreation method...")
                 # Fallback: recreate table
                 # Get all data
-                cursor.execute('SELECT * FROM discovered_synergies')
+                cursor.execute("SELECT * FROM discovered_synergies")
                 rows = cursor.fetchall()
 
                 # Get column names
-                cursor.execute('PRAGMA table_info(discovered_synergies)')
+                cursor.execute("PRAGMA table_info(discovered_synergies)")
                 old_cols = [col[1] for col in cursor.fetchall()]
-                metadata_idx = old_cols.index('metadata')
+                metadata_idx = old_cols.index("metadata")
 
                 # Drop old table
-                cursor.execute('DROP TABLE discovered_synergies')
+                cursor.execute("DROP TABLE discovered_synergies")
 
                 # Recreate with new column name
-                cursor.execute('''
+                cursor.execute("""
                     CREATE TABLE discovered_synergies (
                         id INTEGER PRIMARY KEY,
                         synergy_id VARCHAR(36) NOT NULL UNIQUE,
@@ -59,34 +59,34 @@ try:
                         status VARCHAR(20) NOT NULL DEFAULT 'discovered',
                         rejection_reason TEXT
                     )
-                ''')
+                """)
 
                 # Recreate indexes
-                cursor.execute('CREATE UNIQUE INDEX ix_discovered_synergies_synergy_id ON discovered_synergies(synergy_id)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_trigger ON discovered_synergies(trigger_entity)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_action ON discovered_synergies(action_entity)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_source ON discovered_synergies(source)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_status ON discovered_synergies(status)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_confidence ON discovered_synergies(confidence)')
-                cursor.execute('CREATE INDEX ix_discovered_synergies_trigger_action ON discovered_synergies(trigger_entity, action_entity)')
+                cursor.execute("CREATE UNIQUE INDEX ix_discovered_synergies_synergy_id ON discovered_synergies(synergy_id)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_trigger ON discovered_synergies(trigger_entity)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_action ON discovered_synergies(action_entity)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_source ON discovered_synergies(source)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_status ON discovered_synergies(status)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_confidence ON discovered_synergies(confidence)")
+                cursor.execute("CREATE INDEX ix_discovered_synergies_trigger_action ON discovered_synergies(trigger_entity, action_entity)")
 
                 # Reinsert data (adjusting for renamed column)
                 if rows:
-                    placeholders = ','.join(['?' for _ in old_cols])
+                    placeholders = ",".join(["?" for _ in old_cols])
                     # Replace metadata column name in placeholders
-                    old_cols_str = ','.join(old_cols)
-                    old_cols_str = old_cols_str.replace('metadata', 'synergy_metadata')
+                    old_cols_str = ",".join(old_cols)
+                    old_cols_str = old_cols_str.replace("metadata", "synergy_metadata")
 
                     # Insert rows
                     for row in rows:
-                        cursor.execute(f'INSERT INTO discovered_synergies ({old_cols_str}) VALUES ({placeholders})', row)
+                        cursor.execute(f"INSERT INTO discovered_synergies ({old_cols_str}) VALUES ({placeholders})", row)
 
                 conn.commit()
                 print("✅ Table recreated with renamed column")
             else:
                 raise
 
-    elif 'synergy_metadata' in cols:
+    elif "synergy_metadata" in cols:
         print("✅ Column already renamed to 'synergy_metadata'")
     else:
         print("⚠️ Neither 'metadata' nor 'synergy_metadata' column found")

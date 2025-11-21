@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip(
     "transformers",
-    reason="transformers dependency not available in this environment"
+    reason="transformers dependency not available in this environment",
 )
 
 import json
@@ -48,8 +48,8 @@ class TestTask24SequenceDetection:
         detected = component_detector.detect_stripped_components(yaml_content, description)
 
         # Should detect both delay and repeat
-        delay_found = any(comp.component_type == 'delay' for comp in detected)
-        repeat_found = any(comp.component_type == 'repeat' for comp in detected)
+        delay_found = any(comp.component_type == "delay" for comp in detected)
+        repeat_found = any(comp.component_type == "repeat" for comp in detected)
 
         assert delay_found, "Should detect delay in description"
         assert repeat_found, "Should detect repeat in description"
@@ -63,8 +63,8 @@ class TestTask24SequenceDetection:
         detected = component_detector.detect_stripped_components(yaml_content, description)
 
         # Should not detect delays or repeats
-        delay_found = any(comp.component_type == 'delay' for comp in detected)
-        repeat_found = any(comp.component_type == 'repeat' for comp in detected)
+        delay_found = any(comp.component_type == "delay" for comp in detected)
+        repeat_found = any(comp.component_type == "repeat" for comp in detected)
 
         assert not delay_found, "Should not detect delay in simple automation"
         assert not repeat_found, "Should not detect repeat in simple automation"
@@ -74,30 +74,30 @@ class TestTask24SequenceDetection:
         # Simulate detection of delays/repeats
         detected_components = [
             DetectedComponent(
-                component_type='delay',
-                original_value='2 seconds',
-                detected_from='description',
-                confidence=0.95
+                component_type="delay",
+                original_value="2 seconds",
+                detected_from="description",
+                confidence=0.95,
             ),
             DetectedComponent(
-                component_type='repeat',
-                original_value='5 times',
-                detected_from='description',
-                confidence=0.95
-            )
+                component_type="repeat",
+                original_value="5 times",
+                detected_from="description",
+                confidence=0.95,
+            ),
         ]
 
         # Check if sequences are detected
         has_sequences = any(
-            comp.component_type in ['repeat', 'delay']
+            comp.component_type in ["repeat", "delay"]
             for comp in detected_components
         )
 
         assert has_sequences is True, "Should detect sequences"
 
         # Should use sequence mode
-        test_mode = 'sequence' if has_sequences else 'simple'
-        assert test_mode == 'sequence', "Should select sequence mode"
+        test_mode = "sequence" if has_sequences else "simple"
+        assert test_mode == "sequence", "Should select sequence mode"
 
     def test_simple_mode_selection(self):
         """Test simple mode selection for non-sequence automations"""
@@ -105,31 +105,31 @@ class TestTask24SequenceDetection:
         detected_components = []
 
         has_sequences = any(
-            comp.component_type in ['repeat', 'delay']
+            comp.component_type in ["repeat", "delay"]
             for comp in detected_components
         )
 
         assert has_sequences is False, "Should not detect sequences"
 
         # Should use simple mode
-        test_mode = 'sequence' if has_sequences else 'simple'
-        assert test_mode == 'simple', "Should select simple mode"
+        test_mode = "sequence" if has_sequences else "simple"
+        assert test_mode == "simple", "Should select simple mode"
 
     def test_test_mode_flag_in_suggestion(self):
         """Test that test_mode flag is correctly set in suggestion"""
         suggestion = {
-            'description': 'Flash lights 3 times with delays',
-            'test_mode': 'sequence'
+            "description": "Flash lights 3 times with delays",
+            "test_mode": "sequence",
         }
 
         # Simulate check in generate_automation_yaml
-        is_sequence_test = suggestion.get('test_mode') == 'sequence'
+        is_sequence_test = suggestion.get("test_mode") == "sequence"
 
         assert is_sequence_test is True, "Should detect sequence test mode"
 
         # Simple mode
-        suggestion['test_mode'] = 'simple'
-        is_sequence_test = suggestion.get('test_mode') == 'sequence'
+        suggestion["test_mode"] = "simple"
+        is_sequence_test = suggestion.get("test_mode") == "sequence"
         assert is_sequence_test is False, "Should detect simple test mode"
 
 
@@ -139,25 +139,25 @@ class TestTask25NestedComponentDetection:
     def test_detect_nested_delay_in_repeat(self):
         """Test detecting nested components (delay within repeat)"""
         stripped_components = [
-            {'type': 'delay', 'original_value': '2 seconds', 'confidence': 0.95},
-            {'type': 'repeat', 'original_value': '3 times with delays', 'confidence': 0.95}
+            {"type": "delay", "original_value": "2 seconds", "confidence": 0.95},
+            {"type": "repeat", "original_value": "3 times with delays", "confidence": 0.95},
         ]
 
         nested_components = []
         simple_components = []
 
         for comp in stripped_components:
-            comp_type = comp.get('type', '')
-            original_value = comp.get('original_value', '')
+            comp_type = comp.get("type", "")
+            original_value = comp.get("original_value", "")
 
             # Check if component appears to be nested
-            if comp_type == 'delay' and any(
-                'repeat' in str(other_comp.get('original_value', '')).lower() or other_comp.get('type') == 'repeat'
+            if comp_type == "delay" and any(
+                "repeat" in str(other_comp.get("original_value", "")).lower() or other_comp.get("type") == "repeat"
                 for other_comp in stripped_components
             ):
                 nested_components.append(comp)
-            elif comp_type == 'repeat':
-                if 'delay' in original_value.lower() or 'wait' in original_value.lower():
+            elif comp_type == "repeat":
+                if "delay" in original_value.lower() or "wait" in original_value.lower():
                     nested_components.append(comp)
                 else:
                     simple_components.append(comp)
@@ -166,13 +166,13 @@ class TestTask25NestedComponentDetection:
 
         # Delay should be nested (because repeat exists)
         delay_nested = any(
-            comp.get('type') == 'delay' for comp in nested_components
+            comp.get("type") == "delay" for comp in nested_components
         )
         assert delay_nested, "Delay should be detected as nested"
 
         # Repeat should be nested if it mentions delay
         repeat_nested = any(
-            comp.get('type') == 'repeat' and 'delay' in comp.get('original_value', '').lower()
+            comp.get("type") == "repeat" and "delay" in comp.get("original_value", "").lower()
             for comp in nested_components
         )
         assert repeat_nested, "Repeat mentioning delay should be nested"
@@ -180,24 +180,24 @@ class TestTask25NestedComponentDetection:
     def test_detect_simple_components(self):
         """Test detecting simple (non-nested) components"""
         stripped_components = [
-            {'type': 'delay', 'original_value': '30 seconds', 'confidence': 0.95},
-            {'type': 'time_condition', 'original_value': 'after 5pm', 'confidence': 0.95}
+            {"type": "delay", "original_value": "30 seconds", "confidence": 0.95},
+            {"type": "time_condition", "original_value": "after 5pm", "confidence": 0.95},
         ]
 
         nested_components = []
         simple_components = []
 
         for comp in stripped_components:
-            comp_type = comp.get('type', '')
-            original_value = comp.get('original_value', '')
+            comp_type = comp.get("type", "")
+            original_value = comp.get("original_value", "")
 
-            if comp_type == 'delay' and any(
-                'repeat' in str(other_comp.get('original_value', '')).lower() or other_comp.get('type') == 'repeat'
+            if comp_type == "delay" and any(
+                "repeat" in str(other_comp.get("original_value", "")).lower() or other_comp.get("type") == "repeat"
                 for other_comp in stripped_components
             ):
                 nested_components.append(comp)
-            elif comp_type == 'repeat':
-                if 'delay' in original_value.lower() or 'wait' in original_value.lower():
+            elif comp_type == "repeat":
+                if "delay" in original_value.lower() or "wait" in original_value.lower():
                     nested_components.append(comp)
                 else:
                     simple_components.append(comp)
@@ -211,8 +211,8 @@ class TestTask25NestedComponentDetection:
     def test_nesting_info_generation(self):
         """Test nesting info generation for prompt"""
         nested_components = [
-            {'type': 'delay', 'original_value': '2 seconds'},
-            {'type': 'repeat', 'original_value': '3 times'}
+            {"type": "delay", "original_value": "2 seconds"},
+            {"type": "repeat", "original_value": "3 times"},
         ]
 
         nesting_info = ""
@@ -247,28 +247,28 @@ class TestTask25Restoration:
             "restored_components": ["delay", "repeat"],
             "restoration_details": [
                 "Restored delay: 2 seconds within repeat block",
-                "Restored repeat: 3 times"
+                "Restored repeat: 3 times",
             ],
             "nested_components_restored": ["delay"],
             "restoration_structure": "delay: 2s within repeat: 3 times",
             "confidence": 0.95,
             "intent_match": True,
-            "intent_validation": "Delays are correctly nested within repeat block as specified in original query"
+            "intent_validation": "Delays are correctly nested within repeat block as specified in original query",
         })
 
         mock_openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         original_suggestion = {
-            'description': 'Flash lights 3 times with 2-second delays',
-            'trigger_summary': 'Door opens',
-            'action_summary': 'Flash lights with delays'
+            "description": "Flash lights 3 times with 2-second delays",
+            "trigger_summary": "Door opens",
+            "action_summary": "Flash lights with delays",
         }
 
         test_result = {
-            'stripped_components': [
-                {'type': 'delay', 'original_value': '2 seconds', 'confidence': 0.95},
-                {'type': 'repeat', 'original_value': '3 times', 'confidence': 0.95}
-            ]
+            "stripped_components": [
+                {"type": "delay", "original_value": "2 seconds", "confidence": 0.95},
+                {"type": "repeat", "original_value": "3 times", "confidence": 0.95},
+            ],
         }
 
         original_query = "Flash office lights 3 times with 2-second delays when door opens"
@@ -277,18 +277,18 @@ class TestTask25Restoration:
             original_suggestion=original_suggestion,
             test_result=test_result,
             original_query=original_query,
-            openai_client=mock_openai_client
+            openai_client=mock_openai_client,
         )
 
         # Verify enhanced fields are present
-        assert 'nested_components_restored' in result, "Should include nested components"
-        assert 'restoration_structure' in result, "Should include restoration structure"
-        assert 'intent_match' in result, "Should include intent match"
-        assert 'intent_validation' in result, "Should include intent validation"
+        assert "nested_components_restored" in result, "Should include nested components"
+        assert "restoration_structure" in result, "Should include restoration structure"
+        assert "intent_match" in result, "Should include intent match"
+        assert "intent_validation" in result, "Should include intent validation"
 
-        assert result['intent_match'] is True, "Should match user intent"
-        assert len(result['nested_components_restored']) > 0, "Should restore nested components"
-        assert len(result['restoration_structure']) > 0, "Should describe restoration structure"
+        assert result["intent_match"] is True, "Should match user intent"
+        assert len(result["nested_components_restored"]) > 0, "Should restore nested components"
+        assert len(result["restoration_structure"]) > 0, "Should describe restoration structure"
 
     @pytest.mark.asyncio
     async def test_restoration_without_nested_components(self, mock_openai_client):
@@ -305,21 +305,21 @@ class TestTask25Restoration:
             "restoration_structure": "delay: 30 seconds (simple component)",
             "confidence": 0.9,
             "intent_match": True,
-            "intent_validation": "Delay matches original query intent"
+            "intent_validation": "Delay matches original query intent",
         })
 
         mock_openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         original_suggestion = {
-            'description': 'Wait 30 seconds then turn on lights',
-            'trigger_summary': 'Button pressed',
-            'action_summary': 'Wait then turn on'
+            "description": "Wait 30 seconds then turn on lights",
+            "trigger_summary": "Button pressed",
+            "action_summary": "Wait then turn on",
         }
 
         test_result = {
-            'stripped_components': [
-                {'type': 'delay', 'original_value': '30 seconds', 'confidence': 0.95}
-            ]
+            "stripped_components": [
+                {"type": "delay", "original_value": "30 seconds", "confidence": 0.95},
+            ],
         }
 
         original_query = "Wait 30 seconds then turn on the lights"
@@ -328,42 +328,42 @@ class TestTask25Restoration:
             original_suggestion=original_suggestion,
             test_result=test_result,
             original_query=original_query,
-            openai_client=mock_openai_client
+            openai_client=mock_openai_client,
         )
 
         # Verify all fields are present
-        assert 'nested_components_restored' in result, "Should include nested components field"
-        assert 'restoration_structure' in result, "Should include restoration structure"
-        assert result['intent_match'] is True, "Should match user intent"
-        assert len(result['nested_components_restored']) == 0, "Should have no nested components"
+        assert "nested_components_restored" in result, "Should include nested components field"
+        assert "restoration_structure" in result, "Should include restoration structure"
+        assert result["intent_match"] is True, "Should match user intent"
+        assert len(result["nested_components_restored"]) == 0, "Should have no nested components"
 
     @pytest.mark.asyncio
     async def test_restoration_without_openai_client(self):
         """Test restoration fallback when OpenAI client is unavailable"""
         original_suggestion = {
-            'description': 'Flash lights with delays',
-            'trigger_summary': 'Door opens',
-            'action_summary': 'Flash lights'
+            "description": "Flash lights with delays",
+            "trigger_summary": "Door opens",
+            "action_summary": "Flash lights",
         }
 
         test_result = {
-            'stripped_components': [
-                {'type': 'delay', 'original_value': '2 seconds', 'confidence': 0.95}
-            ]
+            "stripped_components": [
+                {"type": "delay", "original_value": "2 seconds", "confidence": 0.95},
+            ],
         }
 
         result = await restore_stripped_components(
             original_suggestion=original_suggestion,
             test_result=test_result,
             original_query="Flash lights with 2-second delays",
-            openai_client=None  # No OpenAI client
+            openai_client=None,  # No OpenAI client
         )
 
         # Should return basic restoration without enhanced fields
-        assert 'restored_components' in result, "Should include restored components"
-        assert 'restoration_log' in result, "Should include restoration log"
+        assert "restored_components" in result, "Should include restored components"
+        assert "restoration_log" in result, "Should include restoration log"
         # Enhanced fields may not be present without OpenAI
-        assert result['restoration_confidence'] == 0.5 or 'restoration_confidence' not in result
+        assert result["restoration_confidence"] == 0.5 or "restoration_confidence" not in result
 
 
 class TestIntegration:
@@ -378,22 +378,22 @@ class TestIntegration:
 
         # Step 2: Determine mode
         has_sequences = any(
-            comp.component_type in ['repeat', 'delay']
+            comp.component_type in ["repeat", "delay"]
             for comp in detected
         )
-        test_mode = 'sequence' if has_sequences else 'simple'
+        test_mode = "sequence" if has_sequences else "simple"
 
         # Step 3: Format for restoration
         stripped_components = component_detector.format_components_for_preview(detected)
 
         # Verify flow
-        assert test_mode == 'sequence', "Should detect sequence mode"
+        assert test_mode == "sequence", "Should detect sequence mode"
         assert len(stripped_components) >= 2, "Should have multiple components"
 
         # Verify component types
-        component_types = [comp.get('type') for comp in stripped_components]
-        assert 'delay' in component_types, "Should include delay"
-        assert 'repeat' in component_types, "Should include repeat"
+        component_types = [comp.get("type") for comp in stripped_components]
+        assert "delay" in component_types, "Should include delay"
+        assert "repeat" in component_types, "Should include repeat"
 
 
 if __name__ == "__main__":

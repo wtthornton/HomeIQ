@@ -24,16 +24,16 @@ class EventProcessor:
             "state_changed": ["event_type", "new_state"],
             "call_service": ["event_type", "domain", "service", "service_data"],
             "service_registered": ["event_type", "domain", "service"],
-            "service_removed": ["event_type", "domain", "service"]
+            "service_removed": ["event_type", "domain", "service"],
         }
 
     def validate_event(self, event_data: dict[str, Any]) -> tuple[bool, str]:
         """
         Validate Home Assistant event data
-        
+
         Args:
             event_data: The event data to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -63,16 +63,16 @@ class EventProcessor:
             return True, ""
 
         except Exception as e:
-            logger.error(f"Error validating event: {e}")
-            return False, f"Validation error: {str(e)}"
+            logger.exception(f"Error validating event: {e}")
+            return False, f"Validation error: {e!s}"
 
     def _validate_state_changed_event(self, event_data: dict[str, Any]) -> tuple[bool, str]:
         """
         Validate state_changed event specifically
-        
+
         Args:
             event_data: The state_changed event data
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -127,53 +127,52 @@ class EventProcessor:
                 return True, ""
 
             # Fallback: Check for direct fields (legacy structure)
-            else:
-                # Check old_state
-                old_state = event_data.get("old_state")
-                if old_state is not None and not isinstance(old_state, dict):
-                    return False, "old_state must be a dictionary or null"
+            # Check old_state
+            old_state = event_data.get("old_state")
+            if old_state is not None and not isinstance(old_state, dict):
+                return False, "old_state must be a dictionary or null"
 
-                if "new_state" not in event_data:
-                    return False, "new_state key must be present (can be null)"
+            if "new_state" not in event_data:
+                return False, "new_state key must be present (can be null)"
 
-                # Check new_state
-                # NOTE: In Home Assistant, new_state can be None when an entity is deleted
-                new_state = event_data.get("new_state")
-                if new_state is not None and not isinstance(new_state, dict):
-                    return False, "new_state must be a dictionary or null"
+            # Check new_state
+            # NOTE: In Home Assistant, new_state can be None when an entity is deleted
+            new_state = event_data.get("new_state")
+            if new_state is not None and not isinstance(new_state, dict):
+                return False, "new_state must be a dictionary or null"
 
-                # Check required fields in new_state (only if it exists)
-                if new_state is not None:
-                    required_new_state_fields = ["entity_id", "state"]
-                    for field in required_new_state_fields:
-                        if field not in new_state:
-                            return False, f"Missing required field in new_state: {field}"
+            # Check required fields in new_state (only if it exists)
+            if new_state is not None:
+                required_new_state_fields = ["entity_id", "state"]
+                for field in required_new_state_fields:
+                    if field not in new_state:
+                        return False, f"Missing required field in new_state: {field}"
 
-                # Validate entity_id format (only if new_state exists)
-                if new_state is not None:
-                    entity_id = new_state.get("entity_id")
-                    if not isinstance(entity_id, str) or "." not in entity_id:
-                        return False, "entity_id must be a string in format 'domain.entity'"
+            # Validate entity_id format (only if new_state exists)
+            if new_state is not None:
+                entity_id = new_state.get("entity_id")
+                if not isinstance(entity_id, str) or "." not in entity_id:
+                    return False, "entity_id must be a string in format 'domain.entity'"
 
-                # Validate state value (only if new_state exists)
-                if new_state is not None:
-                    state_value = new_state.get("state")
-                    if not isinstance(state_value, str):
-                        return False, "state must be a string"
+            # Validate state value (only if new_state exists)
+            if new_state is not None:
+                state_value = new_state.get("state")
+                if not isinstance(state_value, str):
+                    return False, "state must be a string"
 
-                return True, ""
+            return True, ""
 
         except Exception as e:
-            logger.error(f"Error validating state_changed event: {e}")
-            return False, f"State validation error: {str(e)}"
+            logger.exception(f"Error validating state_changed event: {e}")
+            return False, f"State validation error: {e!s}"
 
     def extract_event_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract structured data from Home Assistant event
-        
+
         Args:
             event_data: The raw event data
-            
+
         Returns:
             Dictionary with extracted event data
         """
@@ -181,7 +180,7 @@ class EventProcessor:
             extracted = {
                 "event_type": event_data.get("event_type"),
                 "timestamp": datetime.now().isoformat(),
-                "raw_data": event_data.copy()
+                "raw_data": event_data.copy(),
             }
 
             event_type = event_data.get("event_type")
@@ -197,21 +196,21 @@ class EventProcessor:
             return extracted
 
         except Exception as e:
-            logger.error(f"Error extracting event data: {e}")
+            logger.exception(f"Error extracting event data: {e}")
             return {
                 "event_type": "error",
                 "timestamp": datetime.now().isoformat(),
                 "error": str(e),
-                "raw_data": event_data
+                "raw_data": event_data,
             }
 
     def _extract_state_changed_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract data from state_changed event
-        
+
         Args:
             event_data: The state_changed event data
-            
+
         Returns:
             Dictionary with extracted state_changed data
         """
@@ -287,7 +286,7 @@ class EventProcessor:
                     duration_in_state = duration_seconds
 
             except Exception as e:
-                logger.error(f"Error calculating duration_in_state for {entity_id}: {e}")
+                logger.exception(f"Error calculating duration_in_state for {entity_id}: {e}")
                 duration_in_state = None
 
         return {
@@ -315,17 +314,17 @@ class EventProcessor:
                 "to": new_state.get("state") if isinstance(new_state, dict) else None,
                 "changed": (old_state.get("state") if isinstance(old_state, dict) else None) != (
                     new_state.get("state") if isinstance(new_state, dict) else None
-                )
-            }
+                ),
+            },
         }
 
     def _extract_call_service_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract data from call_service event
-        
+
         Args:
             event_data: The call_service event data
-            
+
         Returns:
             Dictionary with extracted call_service data
         """
@@ -333,16 +332,16 @@ class EventProcessor:
             "domain": event_data.get("domain"),
             "service": event_data.get("service"),
             "service_data": event_data.get("service_data", {}),
-            "entity_id": event_data.get("entity_id")
+            "entity_id": event_data.get("entity_id"),
         }
 
     def process_event(self, event_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Process and validate a Home Assistant event
-        
+
         Args:
             event_data: The raw event data
-            
+
         Returns:
             Processed event data if valid, None if invalid
         """
@@ -369,14 +368,14 @@ class EventProcessor:
             return processed_data
 
         except Exception as e:
-            logger.error(f"Error processing event: {e}")
+            logger.exception(f"Error processing event: {e}")
             self.validation_errors += 1
             return None
 
     def _log_processed_event(self, processed_data: dict[str, Any]):
         """
         Log processed event information
-        
+
         Args:
             processed_data: The processed event data
         """
@@ -394,12 +393,12 @@ class EventProcessor:
                 logger.info(f"Processed {event_type} event")
 
         except Exception as e:
-            logger.error(f"Error logging processed event: {e}")
+            logger.exception(f"Error logging processed event: {e}")
 
     def get_processing_statistics(self) -> dict[str, Any]:
         """
         Get event processing statistics
-        
+
         Returns:
             Dictionary with processing statistics
         """
@@ -408,7 +407,7 @@ class EventProcessor:
             "validation_errors": self.validation_errors,
             "success_rate": (self.processed_events / (self.processed_events + self.validation_errors) * 100)
                            if (self.processed_events + self.validation_errors) > 0 else 0,
-            "last_processed_time": self.last_processed_time.isoformat() if self.last_processed_time else None
+            "last_processed_time": self.last_processed_time.isoformat() if self.last_processed_time else None,
         }
 
     def reset_statistics(self):

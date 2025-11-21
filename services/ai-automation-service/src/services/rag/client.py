@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """
     Calculate cosine similarity between two vectors.
-    
+
     Args:
         a: First vector (1D numpy array)
         b: Second vector (1D numpy array)
-        
+
     Returns:
         Cosine similarity score (0.0-1.0)
     """
@@ -44,7 +44,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 class RAGClient:
     """
     Generic RAG client for semantic knowledge retrieval.
-    
+
     Can be used for:
     - Query clarification (primary use case)
     - Pattern matching
@@ -59,11 +59,11 @@ class RAGClient:
         db_session: AsyncSession,
         embedding_cache_size: int = 100,
         enable_hybrid_retrieval: bool = True,
-        enable_reranking: bool = True
+        enable_reranking: bool = True,
     ):
         """
         Initialize RAG client.
-        
+
         Args:
             openvino_service_url: URL of OpenVINO service (e.g., "http://openvino-service:8019")
             db_session: Async database session
@@ -71,7 +71,7 @@ class RAGClient:
             enable_hybrid_retrieval: Enable hybrid retrieval (dense + sparse BM25) (default: True)
             enable_reranking: Enable cross-encoder reranking (default: True)
         """
-        self.openvino_url = openvino_service_url.rstrip('/')
+        self.openvino_url = openvino_service_url.rstrip("/")
         self.db = db_session
         self._embedding_cache: dict[str, np.ndarray] = {}
         self._cache_size = embedding_cache_size
@@ -89,19 +89,19 @@ class RAGClient:
 
         logger.info(
             f"RAGClient initialized with OpenVINO service: {self.openvino_url} "
-            f"(hybrid={enable_hybrid_retrieval}, reranking={enable_reranking})"
+            f"(hybrid={enable_hybrid_retrieval}, reranking={enable_reranking})",
         )
 
     async def _get_embedding(self, text: str) -> np.ndarray:
         """
         Get embedding from OpenVINO service (with cache).
-        
+
         Args:
             text: Text to embed
-            
+
         Returns:
             384-dim numpy array
-            
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
@@ -115,9 +115,9 @@ class RAGClient:
                 f"{self.openvino_url}/embeddings",
                 json={
                     "texts": [text],
-                    "normalize": True  # Normalize for cosine similarity
+                    "normalize": True,  # Normalize for cosine similarity
                 },
-                timeout=5.0
+                timeout=5.0,
             )
             response.raise_for_status()
 
@@ -135,40 +135,42 @@ class RAGClient:
             return embedding
 
         except httpx.HTTPError as e:
-            logger.error(f"HTTP error generating embedding: {e}")
-            raise EmbeddingGenerationError(f"Failed to generate embedding: {e}") from e
+            logger.exception(f"HTTP error generating embedding: {e}")
+            msg = f"Failed to generate embedding: {e}"
+            raise EmbeddingGenerationError(msg) from e
         except Exception as e:
-            logger.error(f"Unexpected error generating embedding: {e}")
-            raise EmbeddingGenerationError(f"Failed to generate embedding: {e}") from e
+            logger.exception(f"Unexpected error generating embedding: {e}")
+            msg = f"Failed to generate embedding: {e}"
+            raise EmbeddingGenerationError(msg) from e
 
     async def _batch_get_embeddings(self, texts: list[str]) -> list[np.ndarray]:
         """
         Get embeddings for multiple texts in batch (more efficient).
-        
+
         Args:
             texts: List of texts to embed
-            
+
         Returns:
             List of 384-dim numpy arrays
-            
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
         if not texts:
             return []
-        
+
         # Check cache first, collect uncached texts
         embeddings = []
         uncached_texts = []
         uncached_indices = []
-        
+
         for i, text in enumerate(texts):
             if text in self._embedding_cache:
                 embeddings.append((i, self._embedding_cache[text]))
             else:
                 uncached_texts.append(text)
                 uncached_indices.append(i)
-        
+
         # Generate embeddings for uncached texts
         if uncached_texts:
             try:
@@ -176,33 +178,35 @@ class RAGClient:
                     f"{self.openvino_url}/embeddings",
                     json={
                         "texts": uncached_texts,
-                        "normalize": True
+                        "normalize": True,
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
                 response.raise_for_status()
-                
+
                 data = response.json()
                 new_embeddings = [np.array(emb) for emb in data["embeddings"]]
-                
+
                 # Cache new embeddings
-                for text, embedding in zip(uncached_texts, new_embeddings):
+                for text, embedding in zip(uncached_texts, new_embeddings, strict=False):
                     if len(self._embedding_cache) >= self._cache_size:
                         oldest_key = next(iter(self._embedding_cache))
                         del self._embedding_cache[oldest_key]
                     self._embedding_cache[text] = embedding
-                
+
                 # Add to results
-                for idx, embedding in zip(uncached_indices, new_embeddings):
+                for idx, embedding in zip(uncached_indices, new_embeddings, strict=False):
                     embeddings.append((idx, embedding))
-                    
+
             except httpx.HTTPError as e:
-                logger.error(f"HTTP error generating batch embeddings: {e}")
-                raise EmbeddingGenerationError(f"Failed to generate batch embeddings: {e}") from e
+                logger.exception(f"HTTP error generating batch embeddings: {e}")
+                msg = f"Failed to generate batch embeddings: {e}"
+                raise EmbeddingGenerationError(msg) from e
             except Exception as e:
-                logger.error(f"Unexpected error generating batch embeddings: {e}")
-                raise EmbeddingGenerationError(f"Failed to generate batch embeddings: {e}") from e
-        
+                logger.exception(f"Unexpected error generating batch embeddings: {e}")
+                msg = f"Failed to generate batch embeddings: {e}"
+                raise EmbeddingGenerationError(msg) from e
+
         # Sort by original index and return just embeddings
         embeddings.sort(key=lambda x: x[0])
         return [emb for _, emb in embeddings]
@@ -212,20 +216,20 @@ class RAGClient:
         text: str,
         knowledge_type: str,
         metadata: dict[str, Any] | None = None,
-        success_score: float = 0.5
+        success_score: float = 0.5,
     ) -> int:
         """
         Store text with semantic embedding.
-        
+
         Args:
             text: Text to store
             knowledge_type: Type ('query', 'pattern', 'blueprint', 'automation', etc.)
             metadata: Additional metadata (optional)
             success_score: Success score (0.0-1.0, default: 0.5)
-            
+
         Returns:
             ID of stored entry
-            
+
         Raises:
             StorageError: If storage fails
         """
@@ -239,7 +243,7 @@ class RAGClient:
                 embedding=embedding.tolist(),  # Convert to list for JSON storage
                 knowledge_type=knowledge_type,
                 knowledge_metadata=metadata or {},  # Renamed from 'metadata' to avoid SQLAlchemy reserved word conflict
-                success_score=success_score
+                success_score=success_score,
             )
 
             self.db.add(entry)
@@ -253,8 +257,9 @@ class RAGClient:
             raise
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error storing semantic knowledge: {e}")
-            raise StorageError(f"Failed to store semantic knowledge: {e}") from e
+            logger.exception(f"Error storing semantic knowledge: {e}")
+            msg = f"Failed to store semantic knowledge: {e}"
+            raise StorageError(msg) from e
 
     async def retrieve(
         self,
@@ -262,22 +267,22 @@ class RAGClient:
         knowledge_type: str | None = None,
         top_k: int = 5,
         min_similarity: float = 0.7,
-        filter_metadata: dict[str, Any] | None = None
+        filter_metadata: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Retrieve similar entries using semantic similarity.
-        
+
         Args:
             query: Query text
             knowledge_type: Filter by type (optional)
             top_k: Number of results to return
             min_similarity: Minimum similarity threshold (0.0-1.0)
             filter_metadata: Filter by metadata (optional, supports nested dict matching)
-            
+
         Returns:
             List of similar entries with similarity scores, sorted by similarity (descending)
             Each entry contains: id, text, similarity, knowledge_type, metadata, success_score
-            
+
         Raises:
             RetrievalError: If retrieval fails
         """
@@ -312,17 +317,17 @@ class RAGClient:
                         continue
 
                 similarities.append({
-                    'id': entry.id,
-                    'text': entry.text,
-                    'similarity': float(similarity),
-                    'knowledge_type': entry.knowledge_type,
-                    'metadata': entry.knowledge_metadata or {},  # Map to 'metadata' in response for API compatibility
-                    'success_score': entry.success_score,
-                    'created_at': entry.created_at.isoformat() if entry.created_at else None
+                    "id": entry.id,
+                    "text": entry.text,
+                    "similarity": float(similarity),
+                    "knowledge_type": entry.knowledge_type,
+                    "metadata": entry.knowledge_metadata or {},  # Map to 'metadata' in response for API compatibility
+                    "success_score": entry.success_score,
+                    "created_at": entry.created_at.isoformat() if entry.created_at else None,
                 })
 
             # Sort by similarity (descending) and return top_k
-            similarities.sort(key=lambda x: x['similarity'], reverse=True)
+            similarities.sort(key=lambda x: x["similarity"], reverse=True)
             results = similarities[:top_k]
 
             logger.debug(f"Retrieved {len(results)} similar entries for query: {query[:50]}...")
@@ -331,8 +336,9 @@ class RAGClient:
         except EmbeddingGenerationError:
             raise
         except Exception as e:
-            logger.error(f"Error retrieving semantic knowledge: {e}")
-            raise RetrievalError(f"Failed to retrieve semantic knowledge: {e}") from e
+            logger.exception(f"Error retrieving semantic knowledge: {e}")
+            msg = f"Failed to retrieve semantic knowledge: {e}"
+            raise RetrievalError(msg) from e
 
     async def retrieve_hybrid(
         self,
@@ -344,16 +350,16 @@ class RAGClient:
         use_query_expansion: bool = True,
         use_reranking: bool = True,
         dense_weight: float = 0.6,
-        sparse_weight: float = 0.4
+        sparse_weight: float = 0.4,
     ) -> list[dict[str, Any]]:
         """
         Hybrid retrieval using dense (embeddings) + sparse (BM25) + reranking.
-        
+
         Implements 2025 best practices:
         1. Query expansion (synonyms, related terms)
         2. Hybrid retrieval (dense + sparse BM25)
         3. Cross-encoder reranking (final ranking)
-        
+
         Args:
             query: Query text
             knowledge_type: Filter by type (optional)
@@ -364,7 +370,7 @@ class RAGClient:
             use_reranking: Enable cross-encoder reranking (default: True)
             dense_weight: Weight for dense retrieval (default: 0.6)
             sparse_weight: Weight for sparse retrieval (default: 0.4)
-            
+
         Returns:
             List of similar entries with hybrid scores, sorted by relevance
         """
@@ -381,7 +387,7 @@ class RAGClient:
                 knowledge_type=knowledge_type,
                 top_k=top_k * 3,  # Get more candidates for hybrid combination
                 min_similarity=min_similarity,
-                filter_metadata=filter_metadata
+                filter_metadata=filter_metadata,
             )
 
             if not dense_results:
@@ -404,16 +410,16 @@ class RAGClient:
                     documents = []
                     for entry in all_entries:
                         doc = {
-                            'id': entry.id,
-                            'text': entry.text,
-                            'knowledge_type': entry.knowledge_type,
-                            'metadata': entry.knowledge_metadata or {},
-                            'success_score': entry.success_score
+                            "id": entry.id,
+                            "text": entry.text,
+                            "knowledge_type": entry.knowledge_type,
+                            "metadata": entry.knowledge_metadata or {},
+                            "success_score": entry.success_score,
                         }
                         documents.append(doc)
 
                     # Index documents
-                    self.bm25_retriever.index(documents, text_field='text')
+                    self.bm25_retriever.index(documents, text_field="text")
                     self._bm25_indexed = True
                     logger.debug(f"Built BM25 index with {len(documents)} documents")
 
@@ -424,7 +430,7 @@ class RAGClient:
                     top_k=top_k * 2,  # More candidates before reranking
                     dense_weight=dense_weight,
                     sparse_weight=sparse_weight,
-                    text_field='text'
+                    text_field="text",
                 )
 
                 results = hybrid_results
@@ -437,9 +443,9 @@ class RAGClient:
                     query=expanded_query,
                     candidates=results,
                     top_k=top_k,
-                    text_field='text',
+                    text_field="text",
                     cross_encoder_weight=0.7,
-                    original_score_weight=0.3
+                    original_score_weight=0.3,
                 )
             else:
                 # Just take top_k if no reranking
@@ -447,13 +453,13 @@ class RAGClient:
 
             logger.info(
                 f"Hybrid retrieval: '{query[:50]}...' → {len(results)} results "
-                f"(expansion={use_query_expansion}, reranking={use_reranking})"
+                f"(expansion={use_query_expansion}, reranking={use_reranking})",
             )
 
             return results
 
         except Exception as e:
-            logger.error(f"Error in hybrid retrieval: {e}")
+            logger.exception(f"Error in hybrid retrieval: {e}")
             # Fallback to standard retrieval
             logger.warning("Falling back to standard dense retrieval")
             return await self.retrieve(
@@ -461,22 +467,22 @@ class RAGClient:
                 knowledge_type=knowledge_type,
                 top_k=top_k,
                 min_similarity=min_similarity,
-                filter_metadata=filter_metadata
+                filter_metadata=filter_metadata,
             )
 
     def _matches_metadata(self, entry_metadata: dict[str, Any], filter_metadata: dict[str, Any]) -> bool:
         """
         Check if entry metadata matches filter criteria.
-        
+
         Supports:
         - Exact value matching: {"status": "deployed"}
         - Nested dict matching: {"device": {"type": "light"}}
         - Comparison operators: {"confidence": {">": 0.8}}
-        
+
         Args:
             entry_metadata: Entry metadata
             filter_metadata: Filter criteria
-            
+
         Returns:
             True if metadata matches filter
         """
@@ -513,36 +519,36 @@ class RAGClient:
                             return False
                         if not self._matches_metadata(entry_value, {op: op_value}):
                             return False
-            else:
-                # Exact value matching
-                if entry_value != filter_value:
-                    return False
+            # Exact value matching
+            elif entry_value != filter_value:
+                return False
 
         return True
 
     async def update_success_score(
         self,
         entry_id: int,
-        success_score: float
+        success_score: float,
     ) -> None:
         """
         Update success score for an entry (for learning from user feedback).
-        
+
         Args:
             entry_id: ID of entry to update
             success_score: New success score (0.0-1.0)
-            
+
         Raises:
             StorageError: If update fails
         """
         try:
             result = await self.db.execute(
-                select(SemanticKnowledge).where(SemanticKnowledge.id == entry_id)
+                select(SemanticKnowledge).where(SemanticKnowledge.id == entry_id),
             )
             entry = result.scalar_one_or_none()
 
             if not entry:
-                raise StorageError(f"Entry with id={entry_id} not found")
+                msg = f"Entry with id={entry_id} not found"
+                raise StorageError(msg)
 
             entry.success_score = max(0.0, min(1.0, success_score))  # Clamp to [0.0, 1.0]
             entry.updated_at = datetime.utcnow()
@@ -552,8 +558,9 @@ class RAGClient:
 
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating success score: {e}")
-            raise StorageError(f"Failed to update success score: {e}") from e
+            logger.exception(f"Error updating success score: {e}")
+            msg = f"Failed to update success score: {e}"
+            raise StorageError(msg) from e
 
     async def close(self):
         """Close HTTP client (call when done with client)"""

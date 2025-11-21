@@ -9,7 +9,7 @@ Created: Phase 2 - Core Service Refactoring
 from .calculator import ConfidenceScore, EnhancedConfidenceCalculator
 
 __all__ = [
-    'EnhancedConfidenceCalculator',
-    'ConfidenceScore'
+    "ConfidenceScore",
+    "EnhancedConfidenceCalculator",
 ]
 

@@ -5,7 +5,7 @@ Runs during container build or first startup to pre-download models
 
 Models:
 1. all-MiniLM-L6-v2 (20MB INT8) - Embeddings
-2. bge-reranker-base (280MB INT8) - Re-ranking  
+2. bge-reranker-base (280MB INT8) - Re-ranking
 3. flan-t5-small (80MB INT8) - Classification
 
 This ensures models are cached in Docker volume
@@ -51,11 +51,11 @@ def download_models():
             model = OVModelForFeatureExtraction.from_pretrained(
                 "sentence-transformers/all-MiniLM-L6-v2",
                 export=True,
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             tokenizer = AutoTokenizer.from_pretrained(
                 "sentence-transformers/all-MiniLM-L6-v2",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             print("✅ Downloaded: all-MiniLM-L6-v2 (OpenVINO INT8, ~20MB)")
         else:
@@ -63,14 +63,14 @@ def download_models():
 
             print("Downloading standard model...")
             model = SentenceTransformer(
-                'sentence-transformers/all-MiniLM-L6-v2',
-                cache_folder=str(models_dir)
+                "sentence-transformers/all-MiniLM-L6-v2",
+                cache_folder=str(models_dir),
             )
             print("✅ Downloaded: all-MiniLM-L6-v2 (standard, ~80MB)")
 
         # Test
         if use_openvino:
-            test_inputs = tokenizer(["test"], return_tensors='pt', padding=True, truncation=True)
+            test_inputs = tokenizer(["test"], return_tensors="pt", padding=True, truncation=True)
             outputs = model(**test_inputs)
             print(f"   Test embedding shape: {outputs.last_hidden_state.shape}")
         else:
@@ -94,11 +94,11 @@ def download_models():
             print("Downloading pre-quantized INT8 version...")
             model = OVModelForSequenceClassification.from_pretrained(
                 "OpenVINO/bge-reranker-base-int8-ov",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             tokenizer = AutoTokenizer.from_pretrained(
                 "OpenVINO/bge-reranker-base-int8-ov",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             print("✅ Downloaded: bge-reranker-base (OpenVINO INT8, ~280MB)")
         else:
@@ -107,16 +107,16 @@ def download_models():
             print("Downloading standard model...")
             tokenizer = AutoTokenizer.from_pretrained(
                 "BAAI/bge-reranker-base",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             model = AutoModelForSequenceClassification.from_pretrained(
                 "BAAI/bge-reranker-base",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             print("✅ Downloaded: bge-reranker-base (standard, ~1.1GB)")
 
         # Test
-        test_inputs = tokenizer("test [SEP] test", return_tensors='pt', truncation=True)
+        test_inputs = tokenizer("test [SEP] test", return_tensors="pt", truncation=True)
         outputs = model(**test_inputs)
         print(f"   Test re-ranking score: {outputs.logits[0][0].item():.3f}")
 
@@ -138,11 +138,11 @@ def download_models():
             model = OVModelForSeq2SeqLM.from_pretrained(
                 "google/flan-t5-small",
                 export=True,
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             tokenizer = AutoTokenizer.from_pretrained(
                 "google/flan-t5-small",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             print("✅ Downloaded: flan-t5-small (OpenVINO INT8, ~80MB)")
         else:
@@ -151,17 +151,17 @@ def download_models():
             print("Downloading standard model...")
             tokenizer = T5Tokenizer.from_pretrained(
                 "google/flan-t5-small",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             model = T5ForConditionalGeneration.from_pretrained(
                 "google/flan-t5-small",
-                cache_dir=str(models_dir)
+                cache_dir=str(models_dir),
             )
             print("✅ Downloaded: flan-t5-small (standard, ~300MB)")
 
         # Test
         test_prompt = "Classify as energy, comfort, security, or convenience: lights on\n\nCategory:"
-        test_inputs = tokenizer(test_prompt, return_tensors='pt')
+        test_inputs = tokenizer(test_prompt, return_tensors="pt")
         outputs = model.generate(**test_inputs, max_new_tokens=5)
         result = tokenizer.decode(outputs[0], skip_special_tokens=True)
         print(f"   Test classification: {result}")

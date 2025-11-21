@@ -36,7 +36,7 @@ class TestDeduplicator:
             source="discourse",
             source_id="12345",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
     def test_calculate_title_similarity_identical(self, dedup):
@@ -80,7 +80,7 @@ class TestDeduplicator:
         metadata1 = sample_metadata
         metadata2 = sample_metadata.model_copy(update={
             "source_id": "67890",
-            "title": "Motion activated lighting"  # Very similar
+            "title": "Motion activated lighting",  # Very similar
         })
 
         is_dup = dedup.is_duplicate(metadata1, metadata2)
@@ -92,7 +92,7 @@ class TestDeduplicator:
         metadata1 = sample_metadata
         metadata2 = sample_metadata.model_copy(update={
             "source_id": "67890",
-            "title": "Temperature control system"
+            "title": "Temperature control system",
         })
 
         is_dup = dedup.is_duplicate(metadata1, metadata2)
@@ -106,14 +106,14 @@ class TestDeduplicator:
             triggers=[], conditions=[], actions=[], use_case="comfort",
             complexity="low", quality_score=0.7, vote_count=100,
             source="discourse", source_id="1",
-            created_at=datetime.utcnow(), updated_at=datetime.utcnow()
+            created_at=datetime.utcnow(), updated_at=datetime.utcnow(),
         )
         auto2 = AutomationMetadata(
             title="Test", description="Test", devices=[], integrations=[],
             triggers=[], conditions=[], actions=[], use_case="comfort",
             complexity="low", quality_score=0.9, vote_count=500,
             source="discourse", source_id="2",
-            created_at=datetime.utcnow(), updated_at=datetime.utcnow()
+            created_at=datetime.utcnow(), updated_at=datetime.utcnow(),
         )
 
         best = dedup.select_best([auto1, auto2])
@@ -122,6 +122,6 @@ class TestDeduplicator:
         assert best.quality_score == 0.9
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 

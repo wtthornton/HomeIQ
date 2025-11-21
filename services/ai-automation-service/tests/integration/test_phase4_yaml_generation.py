@@ -27,7 +27,7 @@ from httpx import AsyncClient
 
 pytest.importorskip(
     "transformers",
-    reason="transformers dependency not available in this environment"
+    reason="transformers dependency not available in this environment",
 )
 
 from src.main import app
@@ -41,8 +41,8 @@ from src.safety_validator import SafetyIssue, SafetyResult
 async def test_approve_and_generate_valid_yaml():
     """Test approval with successful YAML generation"""
 
-    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
-         patch('src.api.conversational_router.safety_validator') as mock_safety:
+    with patch("src.api.ask_ai_router.generate_automation_yaml") as mock_generate_yaml, \
+         patch("src.api.conversational_router.safety_validator") as mock_safety:
 
         # Mock YAML generation
         mock_generate_yaml.return_value = """alias: Morning Kitchen Light
@@ -62,32 +62,32 @@ actions:
             safety_score=95,
             issues=[],
             can_override=True,
-            summary="No safety issues detected"
+            summary="No safety issues detected",
         ))
 
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/suggestions/1/approve",
-                json={"final_description": "At 7:00 AM, turn on Kitchen Light to full brightness"}
+                json={"final_description": "At 7:00 AM, turn on Kitchen Light to full brightness"},
             )
 
             assert response.status_code == 200
             data = response.json()
 
-            assert data['status'] == 'yaml_generated'
-            assert 'automation_yaml' in data
-            assert 'alias: Morning Kitchen Light' in data['automation_yaml']
-            assert data['yaml_validation']['syntax_valid'] == True
-            assert data['yaml_validation']['safety_score'] == 95
-            assert data['ready_to_deploy'] == True
+            assert data["status"] == "yaml_generated"
+            assert "automation_yaml" in data
+            assert "alias: Morning Kitchen Light" in data["automation_yaml"]
+            assert data["yaml_validation"]["syntax_valid"]
+            assert data["yaml_validation"]["safety_score"] == 95
+            assert data["ready_to_deploy"]
 
 
 @pytest.mark.asyncio
 async def test_approve_with_safety_failure():
     """Test approval when safety validation fails"""
 
-    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
-         patch('src.api.conversational_router.safety_validator') as mock_safety:
+    with patch("src.api.ask_ai_router.generate_automation_yaml") as mock_generate_yaml, \
+         patch("src.api.conversational_router.safety_validator") as mock_safety:
 
         # Mock YAML generation (valid syntax)
         mock_generate_yaml.return_value = """alias: Disable All Security
@@ -101,28 +101,28 @@ actions:
             issues=[SafetyIssue(
                 rule="security_disable",
                 severity="critical",
-                message="Never disable security systems automatically"
+                message="Never disable security systems automatically",
             )],
             can_override=False,
-            summary="Critical safety violation: disabling security"
+            summary="Critical safety violation: disabling security",
         ))
 
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/suggestions/1/approve",
-                json={"final_description": "Disable all security systems"}
+                json={"final_description": "Disable all security systems"},
             )
 
             # Should return 400 (bad request)
             assert response.status_code == 400
-            assert "Safety validation failed" in response.json()['detail']
+            assert "Safety validation failed" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_approve_with_invalid_yaml_syntax():
     """Test approval when YAML generation produces invalid syntax"""
 
-    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml:
+    with patch("src.api.ask_ai_router.generate_automation_yaml") as mock_generate_yaml:
 
         # Mock YAML generation with INVALID syntax (will raise ValueError)
         mock_generate_yaml.side_effect = ValueError("Generated YAML syntax is invalid: missing colon")
@@ -130,19 +130,19 @@ async def test_approve_with_invalid_yaml_syntax():
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/suggestions/1/approve",
-                json={"final_description": "Test description"}
+                json={"final_description": "Test description"},
             )
 
             # Should return 500 (server error)
             assert response.status_code == 500
-            assert "syntax errors" in response.json()['detail'].lower()
+            assert "syntax errors" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
 async def test_rollback_on_yaml_failure():
     """Test that suggestion status rolls back to 'refining' on YAML failure"""
 
-    with patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml:
+    with patch("src.api.ask_ai_router.generate_automation_yaml") as mock_generate_yaml:
 
         # Mock YAML generation that raises exception
         mock_generate_yaml.side_effect = Exception("OpenAI timeout")
@@ -151,7 +151,7 @@ async def test_rollback_on_yaml_failure():
             # Attempt approval (will fail)
             response = await client.post(
                 "/api/v1/suggestions/1/approve",
-                json={"final_description": "Test"}
+                json={"final_description": "Test"},
             )
 
             # Should return 500
@@ -169,18 +169,18 @@ async def test_rollback_on_yaml_failure():
 async def test_complete_flow_generate_refine_approve():
     """
     Test complete flow from generation to approval.
-    
+
     Flow:
     1. Generate description (Phase 2)
     2. Refine description (Phase 3)
     3. Approve and generate YAML (Phase 4)
     """
 
-    with patch('src.api.conversational_router.description_generator') as mock_desc_gen, \
-         patch('src.api.conversational_router.suggestion_refiner') as mock_refiner, \
-         patch('src.api.ask_ai_router.generate_automation_yaml') as mock_generate_yaml, \
-         patch('src.api.conversational_router.safety_validator') as mock_safety, \
-         patch('src.api.conversational_router.data_api_client') as mock_data_api:
+    with patch("src.api.conversational_router.description_generator") as mock_desc_gen, \
+         patch("src.api.conversational_router.suggestion_refiner") as mock_refiner, \
+         patch("src.api.ask_ai_router.generate_automation_yaml") as mock_generate_yaml, \
+         patch("src.api.conversational_router.safety_validator") as mock_safety, \
+         patch("src.api.conversational_router.data_api_client") as mock_data_api:
 
         # Mock capabilities
         mock_data_api.fetch_device_capabilities = AsyncMock(return_value={
@@ -188,24 +188,24 @@ async def test_complete_flow_generate_refine_approve():
             "friendly_name": "Kitchen Light",
             "domain": "light",
             "supported_features": {"brightness": True, "rgb_color": True},
-            "friendly_capabilities": ["Adjust brightness", "Change color"]
+            "friendly_capabilities": ["Adjust brightness", "Change color"],
         })
 
         # Mock description generation
         mock_desc_gen.generate_description = AsyncMock(
-            return_value="At 7:00 AM, turn on the Kitchen Light to 50% brightness"
+            return_value="At 7:00 AM, turn on the Kitchen Light to 50% brightness",
         )
 
         # Mock refinement
         from src.llm.suggestion_refiner import RefinementResult, ValidationResult
         mock_refiner.validate_feasibility = AsyncMock(return_value=ValidationResult(
-            ok=True, messages=[], warnings=[], alternatives=[]
+            ok=True, messages=[], warnings=[], alternatives=[],
         ))
         mock_refiner.refine_description = AsyncMock(return_value=RefinementResult(
             updated_description="At 7:00 AM, turn on the Kitchen Light to blue at full brightness",
             changes_made=["Added color: blue"],
             validation=ValidationResult(ok=True, messages=[], warnings=[], alternatives=[]),
-            history_entry={"user_input": "Make it blue", "updated_description": "..."}
+            history_entry={"user_input": "Make it blue", "updated_description": "..."},
         ))
 
         # Mock YAML generation
@@ -227,7 +227,7 @@ actions:
             safety_score=95,
             issues=[],
             can_override=True,
-            summary="No issues"
+            summary="No issues",
         ))
 
         async with AsyncClient(app=app, base_url="http://test") as client:
@@ -238,8 +238,8 @@ actions:
                     "pattern_id": 1,
                     "pattern_type": "time_of_day",
                     "device_id": "light.kitchen",
-                    "metadata": {"avg_time_decimal": 7.0}
-                }
+                    "metadata": {"avg_time_decimal": 7.0},
+                },
             )
             assert gen_response.status_code == 201
 
@@ -249,16 +249,16 @@ actions:
             # Step 3: Approve and generate YAML
             approve_response = await client.post(
                 "/api/v1/suggestions/1/approve",
-                json={"final_description": "At 7:00 AM, turn on the Kitchen Light to blue"}
+                json={"final_description": "At 7:00 AM, turn on the Kitchen Light to blue"},
             )
 
             assert approve_response.status_code == 200
             approval_data = approve_response.json()
 
-            assert approval_data['status'] == 'yaml_generated'
-            assert 'alias: Morning Kitchen Light' in approval_data['automation_yaml']
-            assert 'rgb_color: [0, 0, 255]' in approval_data['automation_yaml']
-            assert approval_data['ready_to_deploy'] == True
+            assert approval_data["status"] == "yaml_generated"
+            assert "alias: Morning Kitchen Light" in approval_data["automation_yaml"]
+            assert "rgb_color: [0, 0, 255]" in approval_data["automation_yaml"]
+            assert approval_data["ready_to_deploy"]
 
 
 # ============================================================================
@@ -281,7 +281,7 @@ actions:
     # Should not raise exception
     parsed = yaml.safe_load(valid_yaml)
     assert parsed is not None
-    assert 'alias' in parsed
+    assert "alias" in parsed
 
 
 def test_invalid_yaml_syntax():
@@ -304,17 +304,17 @@ trigger
 
 @pytest.mark.integration
 @pytest.mark.skipif(
-    not os.getenv('OPENAI_API_KEY'),
-    reason="OPENAI_API_KEY not set - skipping real API tests"
+    not os.getenv("OPENAI_API_KEY"),
+    reason="OPENAI_API_KEY not set - skipping real API tests",
 )
 @pytest.mark.asyncio
 async def test_real_openai_yaml_generation():
     """
     Test real OpenAI YAML generation (COSTS MONEY - ~$0.0002).
-    
+
     This is a real integration test that calls OpenAI API.
     Only run when you want to verify the actual integration works.
-    
+
     Note: This test now uses generate_automation_yaml from ask_ai_router
     instead of the removed YAMLGenerator class.
     """
@@ -322,7 +322,7 @@ async def test_real_openai_yaml_generation():
     from src.llm.openai_client import OpenAIClient
 
     # Initialize real client and patch the global openai_client in ask_ai_router
-    openai_client = OpenAIClient(api_key=os.getenv('OPENAI_API_KEY'), model="gpt-4o-mini")
+    openai_client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o-mini")
 
     # Test YAML generation
     suggestion = {
@@ -331,18 +331,18 @@ async def test_real_openai_yaml_generation():
         "action_summary": "Turn on Kitchen Light to blue at full brightness",
         "devices_involved": ["Kitchen Light"],
         "validated_entities": {
-            "Kitchen Light": "light.kitchen"
-        }
+            "Kitchen Light": "light.kitchen",
+        },
     }
 
     # Patch the global openai_client in ask_ai_router module
-    with patch('src.api.ask_ai_router.openai_client', openai_client):
+    with patch("src.api.ask_ai_router.openai_client", openai_client):
         yaml_content = await generate_automation_yaml(
             suggestion=suggestion,
             original_query="Turn on kitchen light at 7am weekdays",
             entities=None,
             db_session=None,
-            ha_client=None
+            ha_client=None,
         )
 
     # Assertions
@@ -351,13 +351,13 @@ async def test_real_openai_yaml_generation():
 
     # Verify it's valid YAML
     parsed = yaml.safe_load(yaml_content)
-    assert 'alias' in parsed
-    assert 'triggers' in parsed or 'trigger' in parsed
-    assert 'actions' in parsed or 'action' in parsed
+    assert "alias" in parsed
+    assert "triggers" in parsed or "trigger" in parsed
+    assert "actions" in parsed or "action" in parsed
 
     print("\n✅ Real OpenAI YAML generation test passed!")
     print("\n   Generated YAML:")
-    print("   " + yaml_content.replace('\n', '\n   '))
+    print("   " + yaml_content.replace("\n", "\n   "))
 
 
 # ============================================================================

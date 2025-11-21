@@ -55,10 +55,10 @@ Examples:
 class DescriptionGenerator:
     """
     Generates human-readable descriptions from detected patterns.
-    
+
     Phase 2: Description-Only Generation
     Story AI1.23: Conversational Suggestion Refinement
-    
+
     Usage:
         generator = DescriptionGenerator(openai_client)
         description = await generator.generate_description(pattern, device_context)
@@ -67,7 +67,7 @@ class DescriptionGenerator:
     def __init__(self, openai_client: AsyncOpenAI, model: str = "gpt-4o-mini"):
         """
         Initialize description generator.
-        
+
         Args:
             openai_client: AsyncOpenAI client instance
             model: Model to use (default: gpt-4o-mini for cost efficiency)
@@ -83,23 +83,23 @@ class DescriptionGenerator:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((Exception,)),
-        reraise=True
+        reraise=True,
     )
     async def generate_description(
         self,
         pattern: dict,
-        device_context: dict | None = None
+        device_context: dict | None = None,
     ) -> str:
         """
         Generate human-readable description from pattern.
-        
+
         Args:
             pattern: Detected pattern dict with type, device_id, metadata
             device_context: Optional device metadata (name, area, capabilities)
-        
+
         Returns:
             Human-readable description (NO YAML)
-        
+
         Raises:
             Exception: If OpenAI API call fails after retries
         """
@@ -115,15 +115,15 @@ class DescriptionGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": SYSTEM_PROMPT_DESCRIPTION
+                        "content": SYSTEM_PROMPT_DESCRIPTION,
                     },
                     {
                         "role": "user",
-                        "content": prompt
-                    }
+                        "content": prompt,
+                    },
                 ],
                 temperature=0.7,  # Higher for natural, creative language
-                max_completion_tokens=200    # Short descriptions only (use max_completion_tokens for newer models)
+                max_completion_tokens=200,    # Short descriptions only (use max_completion_tokens for newer models)
             )
 
             # Track token usage
@@ -134,65 +134,64 @@ class DescriptionGenerator:
 
             logger.info(
                 f"✅ Description generated: {usage.total_tokens} tokens "
-                f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
+                f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})",
             )
 
             # Extract description
             description = response.choices[0].message.content.strip()
 
             # Validate: ensure no YAML was generated
-            if any(yaml_marker in description.lower() for yaml_marker in ['alias:', 'trigger:', 'action:', 'condition:']):
+            if any(yaml_marker in description.lower() for yaml_marker in ["alias:", "trigger:", "action:", "condition:"]):
                 logger.warning("⚠️ OpenAI returned YAML despite instructions! Cleaning...")
                 # Extract only the descriptive text before any YAML
-                description = description.split('alias:')[0].split('trigger:')[0].strip()
+                description = description.split("alias:")[0].split("trigger:")[0].strip()
 
             logger.info(f"✅ Final description: {description[:80]}...")
             return description
 
         except Exception as e:
-            logger.error(f"❌ OpenAI API error for pattern {pattern.get('pattern_type')}: {e}")
+            logger.exception(f"❌ OpenAI API error for pattern {pattern.get('pattern_type')}: {e}")
             raise
 
     def _build_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """
         Build prompt for description generation.
-        
+
         Args:
             pattern: Pattern dictionary
             device_context: Optional device metadata
-        
+
         Returns:
             Formatted prompt for OpenAI
         """
-        pattern_type = pattern.get('pattern_type', 'unknown')
+        pattern_type = pattern.get("pattern_type", "unknown")
 
-        if pattern_type == 'time_of_day':
+        if pattern_type == "time_of_day":
             return self._build_time_of_day_prompt(pattern, device_context)
-        elif pattern_type == 'co_occurrence':
+        if pattern_type == "co_occurrence":
             return self._build_co_occurrence_prompt(pattern, device_context)
-        elif pattern_type == 'anomaly':
+        if pattern_type == "anomaly":
             return self._build_anomaly_prompt(pattern, device_context)
-        else:
-            logger.warning(f"Unknown pattern type: {pattern_type}, using generic prompt")
-            return self._build_generic_prompt(pattern, device_context)
+        logger.warning(f"Unknown pattern type: {pattern_type}, using generic prompt")
+        return self._build_generic_prompt(pattern, device_context)
 
     def _build_time_of_day_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for time-of-day pattern"""
-        device_id = pattern.get('device_id', 'unknown')
-        hour = pattern.get('hour', pattern.get('metadata', {}).get('hour', 0))
-        minute = pattern.get('minute', pattern.get('metadata', {}).get('minute', 0))
-        occurrences = pattern.get('occurrences', 0)
-        confidence = pattern.get('confidence', 0.0)
+        device_id = pattern.get("device_id", "unknown")
+        hour = pattern.get("hour", pattern.get("metadata", {}).get("hour", 0))
+        minute = pattern.get("minute", pattern.get("metadata", {}).get("minute", 0))
+        occurrences = pattern.get("occurrences", 0)
+        confidence = pattern.get("confidence", 0.0)
 
         # Extract friendly name from device_context
         device_name = device_id
-        area = ''
-        domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
+        area = ""
+        domain = device_id.split(".")[0] if "." in device_id else "unknown"
 
         if device_context:
-            device_name = device_context.get('name', device_context.get('friendly_name', device_id))
-            area = device_context.get('area', device_context.get('area_id', ''))
-            domain = device_context.get('domain', domain)
+            device_name = device_context.get("name", device_context.get("friendly_name", device_id))
+            area = device_context.get("area", device_context.get("area_id", ""))
+            domain = device_context.get("domain", domain)
 
         # Build device description
         device_desc = f"{device_name}"
@@ -222,21 +221,21 @@ Your description (1-2 sentences, NO YAML):"""
 
     def _build_co_occurrence_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for co-occurrence pattern"""
-        device1 = pattern.get('device1', pattern.get('device_id', 'unknown'))
-        device2 = pattern.get('device2', pattern.get('metadata', {}).get('device2', 'unknown'))
-        occurrences = pattern.get('occurrences', 0)
-        confidence = pattern.get('confidence', 0.0)
-        avg_delta = pattern.get('metadata', {}).get('avg_time_delta_seconds', 30)
+        device1 = pattern.get("device1", pattern.get("device_id", "unknown"))
+        device2 = pattern.get("device2", pattern.get("metadata", {}).get("device2", "unknown"))
+        occurrences = pattern.get("occurrences", 0)
+        confidence = pattern.get("confidence", 0.0)
+        avg_delta = pattern.get("metadata", {}).get("avg_time_delta_seconds", 30)
 
         # Extract friendly names
         device1_name = device1
         device2_name = device2
 
         if device_context:
-            if 'device1' in device_context:
-                device1_name = device_context['device1'].get('name', device1)
-            if 'device2' in device_context:
-                device2_name = device_context['device2'].get('name', device2)
+            if "device1" in device_context:
+                device1_name = device_context["device1"].get("name", device1)
+            if "device2" in device_context:
+                device2_name = device_context["device2"].get("name", device2)
 
         return f"""Create a 1-2 sentence description for this automation pattern:
 
@@ -262,12 +261,12 @@ Your description (1-2 sentences, NO YAML):"""
 
     def _build_anomaly_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build prompt for anomaly pattern"""
-        device_id = pattern.get('device_id', 'unknown')
-        anomaly_score = pattern.get('metadata', {}).get('anomaly_score', 0)
+        device_id = pattern.get("device_id", "unknown")
+        anomaly_score = pattern.get("metadata", {}).get("anomaly_score", 0)
 
         device_name = device_id
         if device_context:
-            device_name = device_context.get('name', device_context.get('friendly_name', device_id))
+            device_name = device_context.get("name", device_context.get("friendly_name", device_id))
 
         return f"""Create a 1-2 sentence description for this automation pattern:
 
@@ -288,12 +287,12 @@ Your description (1-2 sentences, NO YAML):"""
 
     def _build_generic_prompt(self, pattern: dict, device_context: dict | None = None) -> str:
         """Build generic prompt for unknown pattern types"""
-        device_id = pattern.get('device_id', 'unknown')
-        pattern_type = pattern.get('pattern_type', 'detected usage')
+        device_id = pattern.get("device_id", "unknown")
+        pattern_type = pattern.get("pattern_type", "detected usage")
 
         device_name = device_id
         if device_context:
-            device_name = device_context.get('name', device_context.get('friendly_name', device_id))
+            device_name = device_context.get("name", device_context.get("friendly_name", device_id))
 
         return f"""Create a 1-2 sentence description for this automation pattern:
 
@@ -311,7 +310,7 @@ Your description (1-2 sentences, NO YAML):"""
     def get_usage_stats(self) -> dict:
         """
         Get token usage statistics.
-        
+
         Returns:
             Dictionary with token counts and estimated cost
         """
@@ -321,16 +320,16 @@ Your description (1-2 sentences, NO YAML):"""
         total_cost = CostTracker.calculate_cost(
             self.total_input_tokens,
             self.total_output_tokens,
-            model=self.model
+            model=self.model,
         )
 
         return {
-            'total_tokens': self.total_tokens,
-            'input_tokens': self.total_input_tokens,
-            'output_tokens': self.total_output_tokens,
-            'estimated_cost_usd': round(total_cost, 6),
-            'total_cost_usd': round(total_cost, 6),
-            'model': self.model
+            "total_tokens": self.total_tokens,
+            "input_tokens": self.total_input_tokens,
+            "output_tokens": self.total_output_tokens,
+            "estimated_cost_usd": round(total_cost, 6),
+            "total_cost_usd": round(total_cost, 6),
+            "model": self.model,
         }
 
     def reset_usage_stats(self):

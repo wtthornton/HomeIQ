@@ -23,11 +23,11 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['type'] == 'service_call'
-        assert actions[0]['domain'] == 'light'
-        assert actions[0]['service'] == 'turn_on'
-        assert actions[0]['target']['entity_id'] == 'light.office'
-        assert actions[0]['data']['brightness_pct'] == 100
+        assert actions[0]["type"] == "service_call"
+        assert actions[0]["domain"] == "light"
+        assert actions[0]["service"] == "turn_on"
+        assert actions[0]["target"]["entity_id"] == "light.office"
+        assert actions[0]["data"]["brightness_pct"] == 100
 
     def test_parse_delay(self):
         """Test parsing delay action"""
@@ -38,8 +38,8 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['type'] == 'delay'
-        assert actions[0]['delay'] == 2.0
+        assert actions[0]["type"] == "delay"
+        assert actions[0]["delay"] == 2.0
 
     def test_parse_delay_dict(self):
         """Test parsing delay as dictionary"""
@@ -51,8 +51,8 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['type'] == 'delay'
-        assert actions[0]['delay'] == 2.0
+        assert actions[0]["type"] == "delay"
+        assert actions[0]["delay"] == 2.0
 
     def test_parse_sequence(self):
         """Test parsing sequence of actions"""
@@ -70,8 +70,8 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['type'] == 'sequence'
-        assert len(actions[0]['actions']) == 3
+        assert actions[0]["type"] == "sequence"
+        assert len(actions[0]["actions"]) == 3
 
     def test_parse_parallel(self):
         """Test parsing parallel actions"""
@@ -88,8 +88,8 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['type'] == 'parallel'
-        assert len(actions[0]['actions']) == 2
+        assert actions[0]["type"] == "parallel"
+        assert len(actions[0]["actions"]) == 2
 
     def test_parse_multiple_actions(self):
         """Test parsing multiple top-level actions"""
@@ -106,9 +106,9 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 3
-        assert actions[0]['type'] == 'service_call'
-        assert actions[1]['type'] == 'delay'
-        assert actions[2]['type'] == 'service_call'
+        assert actions[0]["type"] == "service_call"
+        assert actions[1]["type"] == "delay"
+        assert actions[2]["type"] == "service_call"
 
     def test_parse_invalid_yaml(self):
         """Test parsing invalid YAML"""
@@ -138,5 +138,5 @@ actions:
         actions = ActionParser.parse_actions_from_yaml(yaml_str)
 
         assert len(actions) == 1
-        assert actions[0]['delay'] == 5415.0  # 1 hour + 30 minutes + 15 seconds
+        assert actions[0]["delay"] == 5415.0  # 1 hour + 30 minutes + 15 seconds
 

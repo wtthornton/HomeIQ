@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 class SynergySuggestionGenerator:
     """
     Generates LLM-powered suggestions from synergy opportunities.
-    
+
     Takes synergies from DeviceSynergyDetector and creates actionable
     automation suggestions using OpenAI (reuses Epic AI-1 infrastructure).
-    
+
     Story AI3.4: Synergy-Based Suggestion Generation
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     """
@@ -27,7 +27,7 @@ class SynergySuggestionGenerator:
     def __init__(self, llm_client):
         """
         Initialize synergy suggestion generator.
-        
+
         Args:
             llm_client: OpenAI client from Epic AI-1
         """
@@ -37,15 +37,15 @@ class SynergySuggestionGenerator:
     async def generate_suggestions(
         self,
         synergies: list[dict],
-        max_suggestions: int = 10
+        max_suggestions: int = 10,
     ) -> list[dict]:
         """
         Generate suggestions from synergy opportunities.
-        
+
         Args:
             synergies: List of synergy opportunities from detector
             max_suggestions: Maximum suggestions to generate
-        
+
         Returns:
             List of generated suggestion dictionaries
         """
@@ -61,13 +61,13 @@ class SynergySuggestionGenerator:
         top_synergies = synergies[:max_suggestions]
 
         # Log priority scores if available for debugging
-        if top_synergies and 'pattern_support_score' in top_synergies[0]:
+        if top_synergies and "pattern_support_score" in top_synergies[0]:
             priority_info = []
             for s in top_synergies[:3]:  # Log top 3
-                impact = s.get('impact_score', 0)
-                conf = s.get('confidence', 0)
-                pattern = s.get('pattern_support_score', 0)
-                validated = s.get('validated_by_patterns', False)
+                impact = s.get("impact_score", 0)
+                conf = s.get("confidence", 0)
+                pattern = s.get("pattern_support_score", 0)
+                validated = s.get("validated_by_patterns", False)
                 priority_info.append(f"impact={impact:.2f}, conf={conf:.2f}, pattern={pattern:.2f}, validated={validated}")
             logger.debug(f"Top synergies priority details: {', '.join(priority_info)}")
 
@@ -86,7 +86,7 @@ class SynergySuggestionGenerator:
                     logger.info(f"✅ [{i}/{len(top_synergies)}] Generated: {suggestion['title'][:50]}...")
 
             except Exception as e:
-                logger.error(f"❌ Failed to generate suggestion for synergy {synergy.get('synergy_id')}: {e}")
+                logger.exception(f"❌ Failed to generate suggestion for synergy {synergy.get('synergy_id')}: {e}")
                 continue
 
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
@@ -95,7 +95,7 @@ class SynergySuggestionGenerator:
             f"✅ Synergy suggestion generation complete in {duration:.1f}s\n"
             f"   Generated: {len(suggestions)} suggestions\n"
             f"   LLM calls: {len(suggestions)}\n"
-            f"   Success rate: {len(suggestions)/len(top_synergies)*100:.0f}%"
+            f"   Success rate: {len(suggestions)/len(top_synergies)*100:.0f}%",
         )
 
         return suggestions
@@ -103,10 +103,10 @@ class SynergySuggestionGenerator:
     async def _generate_llm_suggestion(self, synergy: dict) -> dict | None:
         """
         Generate single suggestion using LLM.
-        
+
         Args:
             synergy: Synergy opportunity from detector
-        
+
         Returns:
             Suggestion dict or None if generation fails
         """
@@ -125,15 +125,15 @@ class SynergySuggestionGenerator:
                             "Generate valid YAML automations from detected device synergies. "
                             "Focus on practical, easy-to-understand automations that provide real value. "
                             "Always use friendly device names in descriptions and rationale."
-                        )
+                        ),
                     },
                     {
                         "role": "user",
-                        "content": prompt
-                    }
+                        "content": prompt,
+                    },
                 ],
                 temperature=0.7,  # Balanced creativity
-                max_completion_tokens=600  # Sufficient for automation YAML (use max_completion_tokens for newer models)
+                max_completion_tokens=600,  # Sufficient for automation YAML (use max_completion_tokens for newer models)
             )
 
             # Track token usage
@@ -144,65 +144,64 @@ class SynergySuggestionGenerator:
 
             logger.debug(
                 f"OpenAI API call: {usage.total_tokens} tokens "
-                f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})"
+                f"(input: {usage.prompt_tokens}, output: {usage.completion_tokens})",
             )
 
             # Parse response
             content = response.choices[0].message.content
-            suggestion = self._parse_response(content, synergy)
+            return self._parse_response(content, synergy)
 
-            return suggestion
 
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.exception(f"OpenAI API error: {e}")
             raise
 
     def _build_prompt(self, synergy: dict) -> str:
         """
         Build prompt from synergy opportunity.
-        
+
         Args:
             synergy: Synergy opportunity dict
-        
+
         Returns:
             Prompt string for OpenAI
         """
-        synergy_type = synergy.get('synergy_type', 'device_pair')
+        synergy_type = synergy.get("synergy_type", "device_pair")
 
-        if synergy_type == 'device_pair':
+        if synergy_type == "device_pair":
             return self._build_device_pair_prompt(synergy)
-        elif synergy_type == 'weather_context':
+        if synergy_type == "weather_context":
             return self._build_weather_context_prompt(synergy)
-        elif synergy_type == 'energy_context':
+        if synergy_type == "energy_context":
             return self._build_energy_context_prompt(synergy)
-        elif synergy_type == 'event_context':
+        if synergy_type == "event_context":
             return self._build_event_context_prompt(synergy)
-        else:
-            raise ValueError(f"Unknown synergy type: {synergy_type}")
+        msg = f"Unknown synergy type: {synergy_type}"
+        raise ValueError(msg)
 
     def _build_device_pair_prompt(self, synergy: dict) -> str:
         """Build prompt for device pair synergy"""
-        metadata = synergy.get('opportunity_metadata', synergy)
+        metadata = synergy.get("opportunity_metadata", synergy)
 
-        trigger_name = metadata.get('trigger_name', synergy.get('trigger_entity', 'Trigger Device'))
-        action_name = metadata.get('action_name', synergy.get('action_entity', 'Action Device'))
-        trigger_entity = synergy.get('trigger_entity', metadata.get('trigger_entity', ''))
-        action_entity = synergy.get('action_entity', metadata.get('action_entity', ''))
-        area = synergy.get('area', 'unknown')
-        relationship = synergy.get('relationship', metadata.get('relationship', 'automation'))
+        trigger_name = metadata.get("trigger_name", synergy.get("trigger_entity", "Trigger Device"))
+        action_name = metadata.get("action_name", synergy.get("action_entity", "Action Device"))
+        trigger_entity = synergy.get("trigger_entity", metadata.get("trigger_entity", ""))
+        action_entity = synergy.get("action_entity", metadata.get("action_entity", ""))
+        area = synergy.get("area", "unknown")
+        relationship = synergy.get("relationship", metadata.get("relationship", "automation"))
 
         # Determine relationship type for instructions
-        if 'motion' in relationship:
+        if "motion" in relationship:
             automation_type = "motion-activated lighting"
             trigger_desc = "motion is detected"
             action_desc = "turn on the light"
             auto_off = "Optional: Turn off after no motion for 5 minutes"
-        elif 'door' in relationship and 'lock' in relationship:
+        elif "door" in relationship and "lock" in relationship:
             automation_type = "automatic door lock"
             trigger_desc = "door closes"
             action_desc = "lock the door"
             auto_off = "Optional: Add delay before locking"
-        elif 'temp' in relationship:
+        elif "temp" in relationship:
             automation_type = "temperature-based climate control"
             trigger_desc = "temperature changes"
             action_desc = "adjust the climate device"
@@ -225,7 +224,7 @@ DETECTED OPPORTUNITY:
 - Complexity: {synergy.get('complexity', 'medium')}
 
 INSIGHT:
-You have {trigger_name} and {action_name} in the same area ({area}) with NO automation 
+You have {trigger_name} and {action_name} in the same area ({area}) with NO automation
 connecting them. This is a valuable automation opportunity for {automation_type}.
 
 INSTRUCTIONS:
@@ -259,16 +258,16 @@ PRIORITY: [high|medium|low]
     def _build_weather_context_prompt(self, synergy: dict) -> str:
         """
         Build prompt for weather context synergy.
-        
+
         Story AI3.5: Weather Context Integration
         """
-        metadata = synergy.get('opportunity_metadata', {})
+        metadata = synergy.get("opportunity_metadata", {})
 
-        device_name = metadata.get('action_name', synergy.get('action_entity', 'Climate Device'))
-        weather_condition = metadata.get('weather_condition', 'Weather condition detected')
-        suggested_action = metadata.get('suggested_action', 'Adjust climate control')
-        rationale = metadata.get('rationale', 'Weather-based automation')
-        relationship = synergy.get('relationship', 'weather_automation')
+        device_name = metadata.get("action_name", synergy.get("action_entity", "Climate Device"))
+        weather_condition = metadata.get("weather_condition", "Weather condition detected")
+        suggested_action = metadata.get("suggested_action", "Adjust climate control")
+        rationale = metadata.get("rationale", "Weather-based automation")
+        synergy.get("relationship", "weather_automation")
 
         return f"""Create a Home Assistant automation for this weather-aware opportunity:
 
@@ -327,11 +326,11 @@ PRIORITY: [high|medium|low]
     def _parse_response(self, content: str, synergy: dict) -> dict:
         """
         Parse OpenAI response into suggestion structure.
-        
+
         Args:
             content: OpenAI response text
             synergy: Original synergy opportunity
-        
+
         Returns:
             Parsed suggestion dictionary
         """
@@ -339,55 +338,54 @@ PRIORITY: [high|medium|low]
 
         try:
             # Extract YAML block
-            yaml_match = re.search(r'```yaml\n(.*?)\n```', content, re.DOTALL)
+            yaml_match = re.search(r"```yaml\n(.*?)\n```", content, re.DOTALL)
             automation_yaml = yaml_match.group(1) if yaml_match else ""
 
             # Extract RATIONALE
-            rationale_match = re.search(r'RATIONALE:\s*(.+?)(?:\n|$)', content)
-            rationale = rationale_match.group(1).strip() if rationale_match else synergy.get('rationale', '')
+            rationale_match = re.search(r"RATIONALE:\s*(.+?)(?:\n|$)", content)
+            rationale = rationale_match.group(1).strip() if rationale_match else synergy.get("rationale", "")
 
             # Extract CATEGORY
-            category_match = re.search(r'CATEGORY:\s*(\w+)', content)
-            category = category_match.group(1).lower() if category_match else 'convenience'
+            category_match = re.search(r"CATEGORY:\s*(\w+)", content)
+            category = category_match.group(1).lower() if category_match else "convenience"
 
             # Extract PRIORITY
-            priority_match = re.search(r'PRIORITY:\s*(\w+)', content)
-            priority = priority_match.group(1).lower() if priority_match else 'medium'
+            priority_match = re.search(r"PRIORITY:\s*(\w+)", content)
+            priority = priority_match.group(1).lower() if priority_match else "medium"
 
             # Extract title from YAML alias
             title_match = re.search(r'alias:\s*["\'](.+?)["\']', automation_yaml)
             if not title_match:
-                title_match = re.search(r'alias:\s*(.+?)(?:\n|$)', automation_yaml)
+                title_match = re.search(r"alias:\s*(.+?)(?:\n|$)", automation_yaml)
             title = title_match.group(1).strip() if title_match else f"Synergy: {synergy.get('relationship', 'Automation')}"
 
             # Extract description from YAML
             desc_match = re.search(r'description:\s*["\'](.+?)["\']', automation_yaml)
             if not desc_match:
-                desc_match = re.search(r'description:\s*(.+?)(?:\n|$)', automation_yaml)
+                desc_match = re.search(r"description:\s*(.+?)(?:\n|$)", automation_yaml)
             description = desc_match.group(1).strip() if desc_match else rationale
 
             # Build suggestion
-            suggestion = {
-                'type': f"synergy_{synergy.get('synergy_type', 'device_pair')}",
-                'synergy_id': synergy.get('synergy_id'),
-                'title': title,
-                'description': description,
-                'automation_yaml': automation_yaml,
-                'rationale': rationale,
-                'category': category,
-                'priority': priority,
-                'confidence': synergy.get('confidence', 0.85),
-                'complexity': synergy.get('complexity', 'low'),
-                'impact_score': synergy.get('impact_score', 0.7),
-                'devices_involved': synergy.get('devices', []),
+            return {
+                "type": f"synergy_{synergy.get('synergy_type', 'device_pair')}",
+                "synergy_id": synergy.get("synergy_id"),
+                "title": title,
+                "description": description,
+                "automation_yaml": automation_yaml,
+                "rationale": rationale,
+                "category": category,
+                "priority": priority,
+                "confidence": synergy.get("confidence", 0.85),
+                "complexity": synergy.get("complexity", "low"),
+                "impact_score": synergy.get("impact_score", 0.7),
+                "devices_involved": synergy.get("devices", []),
                 # Include pattern validation fields for ranking boost
-                'validated_by_patterns': synergy.get('validated_by_patterns', False),
-                'pattern_support_score': synergy.get('pattern_support_score', 0.0)
+                "validated_by_patterns": synergy.get("validated_by_patterns", False),
+                "pattern_support_score": synergy.get("pattern_support_score", 0.0),
             }
 
-            return suggestion
 
         except Exception as e:
-            logger.error(f"Failed to parse OpenAI response: {e}")
+            logger.exception(f"Failed to parse OpenAI response: {e}")
             raise
 

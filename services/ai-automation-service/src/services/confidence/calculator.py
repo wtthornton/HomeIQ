@@ -26,7 +26,7 @@ class ConfidenceScore:
 class EnhancedConfidenceCalculator:
     """
     Multi-factor confidence calculator with explanations.
-    
+
     Calculates confidence based on:
     - Entity match quality
     - Ambiguity penalty
@@ -39,11 +39,11 @@ class EnhancedConfidenceCalculator:
         """Initialize confidence calculator"""
         # Factor weights
         self.weights = {
-            'entity_match': 0.3,
-            'ambiguity_penalty': 0.25,
-            'historical_success': 0.2,
-            'query_completeness': 0.15,
-            'location_match': 0.1
+            "entity_match": 0.3,
+            "ambiguity_penalty": 0.25,
+            "historical_success": 0.2,
+            "query_completeness": 0.15,
+            "location_match": 0.1,
         }
 
         logger.info("EnhancedConfidenceCalculator initialized")
@@ -54,28 +54,28 @@ class EnhancedConfidenceCalculator:
         entities: list[dict],
         ambiguities: list[Any],
         validation_result: dict,
-        rag_matches: list | None = None
+        rag_matches: list | None = None,
     ) -> ConfidenceScore:
         """
         Calculate multi-factor confidence score.
-        
+
         Args:
             query: User query
             entities: Extracted entities
             ambiguities: Detected ambiguities
             validation_result: Entity validation results
             rag_matches: Optional RAG matches for historical success
-        
+
         Returns:
             ConfidenceScore with breakdown
         """
         # Calculate individual factors
         factors = {
-            'entity_match': self._score_entity_matches(entities, validation_result),
-            'ambiguity_penalty': self._score_ambiguities(ambiguities),
-            'historical_success': self._score_rag_matches(rag_matches),
-            'query_completeness': self._score_query_completeness(query),
-            'location_match': self._score_location_accuracy(query, entities)
+            "entity_match": self._score_entity_matches(entities, validation_result),
+            "ambiguity_penalty": self._score_ambiguities(ambiguities),
+            "historical_success": self._score_rag_matches(rag_matches),
+            "query_completeness": self._score_query_completeness(query),
+            "location_match": self._score_location_accuracy(query, entities),
         }
 
         # Calculate weighted average
@@ -91,7 +91,7 @@ class EnhancedConfidenceCalculator:
             overall=overall,
             factors=factors,
             explanation=explanation,
-            breakdown=breakdown
+            breakdown=breakdown,
         )
 
     def _score_entity_matches(self, entities: list[dict], validation_result: dict) -> float:
@@ -126,7 +126,7 @@ class EnhancedConfidenceCalculator:
         penalty = len(ambiguities) * 0.15
 
         # Check for critical ambiguities
-        critical_count = sum(1 for a in ambiguities if hasattr(a, 'severity') and str(a.severity) == 'CRITICAL')
+        critical_count = sum(1 for a in ambiguities if hasattr(a, "severity") and str(a.severity) == "CRITICAL")
         penalty += critical_count * 0.2
 
         return max(0.0, 1.0 - penalty)
@@ -141,10 +141,9 @@ class EnhancedConfidenceCalculator:
 
         # Average success score if available
         if match_count > 0:
-            scores = [m.get('success_score', 0.5) for m in rag_matches if isinstance(m, dict)]
+            scores = [m.get("success_score", 0.5) for m in rag_matches if isinstance(m, dict)]
             if scores:
-                avg_score = sum(scores) / len(scores)
-                return avg_score
+                return sum(scores) / len(scores)
 
         # Default based on match count
         return min(1.0, 0.5 + (match_count * 0.1))
@@ -157,9 +156,9 @@ class EnhancedConfidenceCalculator:
         query_lower = query.lower()
 
         # Check for key components
-        has_device = any(kw in query_lower for kw in ['light', 'switch', 'sensor', 'thermostat', 'door', 'lock'])
-        has_action = any(kw in query_lower for kw in ['turn', 'set', 'open', 'close', 'lock', 'unlock'])
-        has_condition = any(kw in query_lower for kw in ['when', 'if', 'after', 'before'])
+        has_device = any(kw in query_lower for kw in ["light", "switch", "sensor", "thermostat", "door", "lock"])
+        has_action = any(kw in query_lower for kw in ["turn", "set", "open", "close", "lock", "unlock"])
+        has_condition = any(kw in query_lower for kw in ["when", "if", "after", "before"])
 
         score = 0.0
         if has_device:
@@ -182,13 +181,12 @@ class EnhancedConfidenceCalculator:
             return 0.5
 
         # Check if entities have location/area information
-        entities_with_location = sum(1 for e in entities if e.get('area_id') or e.get('area_name'))
+        entities_with_location = sum(1 for e in entities if e.get("area_id") or e.get("area_name"))
 
         if len(entities) == 0:
             return 0.5
 
-        location_rate = entities_with_location / len(entities)
-        return location_rate
+        return entities_with_location / len(entities)
 
     def _weighted_average(self, factors: dict[str, float]) -> float:
         """Calculate weighted average of factors"""
@@ -209,54 +207,53 @@ class EnhancedConfidenceCalculator:
         """Generate human-readable explanation"""
         parts = []
 
-        if factors.get('entity_match', 0) > 0.8:
+        if factors.get("entity_match", 0) > 0.8:
             parts.append("Strong entity matches found")
-        elif factors.get('entity_match', 0) < 0.5:
+        elif factors.get("entity_match", 0) < 0.5:
             parts.append("Weak entity matches")
 
-        if factors.get('ambiguity_penalty', 1.0) < 0.7:
+        if factors.get("ambiguity_penalty", 1.0) < 0.7:
             parts.append("Some ambiguities detected")
 
-        if factors.get('historical_success', 0.5) > 0.7:
+        if factors.get("historical_success", 0.5) > 0.7:
             parts.append("Similar successful queries found")
 
-        if factors.get('query_completeness', 0.5) < 0.5:
+        if factors.get("query_completeness", 0.5) < 0.5:
             parts.append("Query may need more details")
 
         if overall > 0.8:
             return f"High confidence ({overall:.0%}): {', '.join(parts) if parts else 'All factors positive'}"
-        elif overall > 0.6:
+        if overall > 0.6:
             return f"Moderate confidence ({overall:.0%}): {', '.join(parts) if parts else 'Mostly positive'}"
-        else:
-            return f"Low confidence ({overall:.0%}): {', '.join(parts) if parts else 'Several factors need improvement'}"
+        return f"Low confidence ({overall:.0%}): {', '.join(parts) if parts else 'Several factors need improvement'}"
 
     def _detailed_breakdown(self, factors: dict[str, float]) -> dict[str, Any]:
         """Generate detailed breakdown"""
         return {
-            'entity_match': {
-                'score': factors.get('entity_match', 0),
-                'weight': self.weights.get('entity_match', 0),
-                'contribution': factors.get('entity_match', 0) * self.weights.get('entity_match', 0)
+            "entity_match": {
+                "score": factors.get("entity_match", 0),
+                "weight": self.weights.get("entity_match", 0),
+                "contribution": factors.get("entity_match", 0) * self.weights.get("entity_match", 0),
             },
-            'ambiguity_penalty': {
-                'score': factors.get('ambiguity_penalty', 1.0),
-                'weight': self.weights.get('ambiguity_penalty', 0),
-                'contribution': factors.get('ambiguity_penalty', 1.0) * self.weights.get('ambiguity_penalty', 0)
+            "ambiguity_penalty": {
+                "score": factors.get("ambiguity_penalty", 1.0),
+                "weight": self.weights.get("ambiguity_penalty", 0),
+                "contribution": factors.get("ambiguity_penalty", 1.0) * self.weights.get("ambiguity_penalty", 0),
             },
-            'historical_success': {
-                'score': factors.get('historical_success', 0.5),
-                'weight': self.weights.get('historical_success', 0),
-                'contribution': factors.get('historical_success', 0.5) * self.weights.get('historical_success', 0)
+            "historical_success": {
+                "score": factors.get("historical_success", 0.5),
+                "weight": self.weights.get("historical_success", 0),
+                "contribution": factors.get("historical_success", 0.5) * self.weights.get("historical_success", 0),
             },
-            'query_completeness': {
-                'score': factors.get('query_completeness', 0.5),
-                'weight': self.weights.get('query_completeness', 0),
-                'contribution': factors.get('query_completeness', 0.5) * self.weights.get('query_completeness', 0)
+            "query_completeness": {
+                "score": factors.get("query_completeness", 0.5),
+                "weight": self.weights.get("query_completeness", 0),
+                "contribution": factors.get("query_completeness", 0.5) * self.weights.get("query_completeness", 0),
             },
-            'location_match': {
-                'score': factors.get('location_match', 0.5),
-                'weight': self.weights.get('location_match', 0),
-                'contribution': factors.get('location_match', 0.5) * self.weights.get('location_match', 0)
-            }
+            "location_match": {
+                "score": factors.get("location_match", 0.5),
+                "weight": self.weights.get("location_match", 0),
+                "contribution": factors.get("location_match", 0.5) * self.weights.get("location_match", 0),
+            },
         }
 

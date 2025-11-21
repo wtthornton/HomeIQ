@@ -8,4 +8,4 @@ Phase 2: Pattern-synergy cross-validation
 from .pattern_history_validator import PatternHistoryValidator
 from .pattern_synergy_validator import PatternSynergyValidator
 
-__all__ = ['PatternHistoryValidator', 'PatternSynergyValidator']
+__all__ = ["PatternHistoryValidator", "PatternSynergyValidator"]

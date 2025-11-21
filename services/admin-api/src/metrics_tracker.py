@@ -13,7 +13,7 @@ from typing import Any
 class ResponseTimeTracker:
     """
     Track response times using histogram buckets for percentile calculations.
-    
+
     Context7 Pattern: Use histograms for request duration tracking
     - Tracks min, max, avg, p50, p95, p99
     - Lightweight in-memory storage
@@ -32,8 +32,8 @@ class ResponseTimeTracker:
                 self.measurements[service] = []
 
             self.measurements[service].append({
-                'time': datetime.now(),
-                'duration_ms': response_time_ms
+                "time": datetime.now(),
+                "duration_ms": response_time_ms,
             })
 
             # Keep only recent measurements
@@ -43,7 +43,7 @@ class ResponseTimeTracker:
     async def get_stats(self, service: str) -> dict[str, Any]:
         """
         Get response time statistics for a service.
-        
+
         Returns:
             - min: Minimum response time
             - max: Maximum response time
@@ -56,33 +56,33 @@ class ResponseTimeTracker:
         async with self._lock:
             if service not in self.measurements or not self.measurements[service]:
                 return {
-                    'min': 0,
-                    'max': 0,
-                    'avg': 0,
-                    'p50': 0,
-                    'p95': 0,
-                    'p99': 0,
-                    'count': 0
+                    "min": 0,
+                    "max": 0,
+                    "avg": 0,
+                    "p50": 0,
+                    "p95": 0,
+                    "p99": 0,
+                    "count": 0,
                 }
 
-            durations = sorted([m['duration_ms'] for m in self.measurements[service]])
+            durations = sorted([m["duration_ms"] for m in self.measurements[service]])
             count = len(durations)
 
             return {
-                'min': round(durations[0], 2),
-                'max': round(durations[-1], 2),
-                'avg': round(sum(durations) / count, 2),
-                'p50': round(self._percentile(durations, 50), 2),
-                'p95': round(self._percentile(durations, 95), 2),
-                'p99': round(self._percentile(durations, 99), 2),
-                'count': count
+                "min": round(durations[0], 2),
+                "max": round(durations[-1], 2),
+                "avg": round(sum(durations) / count, 2),
+                "p50": round(self._percentile(durations, 50), 2),
+                "p95": round(self._percentile(durations, 95), 2),
+                "p99": round(self._percentile(durations, 99), 2),
+                "count": count,
             }
 
     async def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """Get stats for all tracked services"""
         async with self._lock:
             stats = {}
-            for service in self.measurements.keys():
+            for service in self.measurements:
                 stats[service] = await self.get_stats(service)
             return stats
 

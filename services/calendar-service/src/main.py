@@ -13,7 +13,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from event_parser import CalendarEventParser
 from ha_client import HomeAssistantCalendarClient
@@ -32,16 +32,16 @@ class CalendarService:
 
     def __init__(self):
         # Calendar configuration
-        self.calendar_entities = os.getenv('CALENDAR_ENTITIES', 'calendar.primary').split(',')
+        self.calendar_entities = os.getenv("CALENDAR_ENTITIES", "calendar.primary").split(",")
 
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         # Service configuration
-        self.fetch_interval = int(os.getenv('CALENDAR_FETCH_INTERVAL', '900'))  # 15 minutes default
+        self.fetch_interval = int(os.getenv("CALENDAR_FETCH_INTERVAL", "900"))  # 15 minutes default
 
         # Components
         self.ha_client: HomeAssistantCalendarClient | None = None
@@ -51,7 +51,8 @@ class CalendarService:
 
         # Validate InfluxDB configuration
         if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN required")
+            msg = "INFLUXDB_TOKEN required"
+            raise ValueError(msg)
 
         # Clean up calendar entity list
         self.calendar_entities = [cal.strip() for cal in self.calendar_entities]
@@ -67,19 +68,20 @@ class CalendarService:
         if not connection_config:
             logger.error("No Home Assistant connections available")
             self.health_handler.ha_connected = False
-            raise ConnectionError("No Home Assistant connections available. Configure HA_HTTP_URL/HA_WS_URL + HA_TOKEN or NABU_CASA_URL + NABU_CASA_TOKEN")
+            msg = "No Home Assistant connections available. Configure HA_HTTP_URL/HA_WS_URL + HA_TOKEN or NABU_CASA_URL + NABU_CASA_TOKEN"
+            raise ConnectionError(msg)
 
         logger.info(f"Using HA connection: {connection_config.name} ({connection_config.url})")
 
         # Convert WebSocket URL to HTTP URL for calendar client
-        http_url = connection_config.url.replace('ws://', 'http://').replace('wss://', 'https://')
-        if http_url.endswith('/api/websocket'):
-            http_url = http_url.replace('/api/websocket', '')
+        http_url = connection_config.url.replace("ws://", "http://").replace("wss://", "https://")
+        if http_url.endswith("/api/websocket"):
+            http_url = http_url.replace("/api/websocket", "")
 
         # Initialize Home Assistant client
         self.ha_client = HomeAssistantCalendarClient(
             base_url=http_url,
-            token=connection_config.token
+            token=connection_config.token,
         )
 
         await self.ha_client.connect()
@@ -89,7 +91,8 @@ class CalendarService:
         if not connection_ok:
             logger.error("Failed to connect to Home Assistant")
             self.health_handler.ha_connected = False
-            raise ConnectionError(f"Cannot connect to Home Assistant at {http_url}")
+            msg = f"Cannot connect to Home Assistant at {http_url}"
+            raise ConnectionError(msg)
 
         self.health_handler.ha_connected = True
 
@@ -109,7 +112,7 @@ class CalendarService:
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
 
         logger.info("Calendar Service initialized successfully")
@@ -136,7 +139,7 @@ class CalendarService:
             all_events_raw = await self.ha_client.get_events_from_multiple_calendars(
                 calendar_ids=self.calendar_entities,
                 start=now,
-                end=end_of_day
+                end=end_of_day,
             )
 
             # Combine events from all calendars
@@ -144,7 +147,7 @@ class CalendarService:
             for calendar_id, events in all_events_raw.items():
                 for event in events:
                     # Add calendar source to event
-                    event['calendar_source'] = calendar_id
+                    event["calendar_source"] = calendar_id
                     combined_events.append(event)
 
             logger.info(f"Fetched {len(combined_events)} events from {len(self.calendar_entities)} calendar(s)")
@@ -153,7 +156,7 @@ class CalendarService:
             parsed_events = self.event_parser.parse_multiple_events(combined_events)
 
             # Sort by start time
-            parsed_events.sort(key=lambda e: e['start'] if e.get('start') else now)
+            parsed_events.sort(key=lambda e: e["start"] if e.get("start") else now)
 
             self.health_handler.last_successful_fetch = datetime.now()
             self.health_handler.total_fetches += 1
@@ -165,7 +168,7 @@ class CalendarService:
                 logger,
                 f"Error fetching calendar events: {e}",
                 service="calendar-service",
-                error=str(e)
+                error=str(e),
             )
             self.health_handler.ha_connected = False
             self.health_handler.failed_fetches += 1
@@ -181,40 +184,40 @@ class CalendarService:
             if not events:
                 logger.info("No calendar events found, assuming default status")
                 return {
-                    'currently_home': False,
-                    'wfh_today': False,
-                    'next_arrival': None,
-                    'prepare_time': None,
-                    'hours_until_arrival': None,
-                    'confidence': 0.5,  # Low confidence with no data
-                    'timestamp': datetime.now(timezone.utc),
-                    'event_count': 0
+                    "currently_home": False,
+                    "wfh_today": False,
+                    "next_arrival": None,
+                    "prepare_time": None,
+                    "hours_until_arrival": None,
+                    "confidence": 0.5,  # Low confidence with no data
+                    "timestamp": datetime.now(timezone.utc),
+                    "event_count": 0,
                 }
 
             # Check if working from home today
-            wfh_today = any(e.get('is_wfh', False) for e in events)
+            wfh_today = any(e.get("is_wfh", False) for e in events)
 
             # Get current events using parser helper
             current_events = self.event_parser.get_current_events(events, now)
 
             # Check if currently home based on current events
-            currently_home = wfh_today or any(e.get('is_home', False) for e in current_events)
+            currently_home = wfh_today or any(e.get("is_home", False) for e in current_events)
 
             # Get upcoming events
             future_events = self.event_parser.get_upcoming_events(events, now)
 
             # Find next home event
-            next_home_event = next((e for e in future_events if e.get('is_home', False)), None)
+            next_home_event = next((e for e in future_events if e.get("is_home", False)), None)
 
             # Calculate arrival time and confidence
             if next_home_event:
-                arrival_time = next_home_event['start']
+                arrival_time = next_home_event["start"]
                 travel_time = timedelta(minutes=30)  # Estimate
                 prepare_time = arrival_time - travel_time
                 hours_until_arrival = (arrival_time - now).total_seconds() / 3600
 
                 # Use event's confidence if available
-                confidence = next_home_event.get('confidence', 0.75)
+                confidence = next_home_event.get("confidence", 0.75)
             else:
                 arrival_time = None
                 prepare_time = None
@@ -228,21 +231,21 @@ class CalendarService:
                 confidence = max(confidence, 0.85)  # High confidence with current home events
 
             prediction = {
-                'currently_home': currently_home,
-                'wfh_today': wfh_today,
-                'next_arrival': arrival_time,
-                'prepare_time': prepare_time,
-                'hours_until_arrival': hours_until_arrival,
-                'confidence': confidence,
-                'timestamp': datetime.now(timezone.utc),
-                'event_count': len(events),
-                'current_event_count': len(current_events),
-                'upcoming_event_count': len(future_events)
+                "currently_home": currently_home,
+                "wfh_today": wfh_today,
+                "next_arrival": arrival_time,
+                "prepare_time": prepare_time,
+                "hours_until_arrival": hours_until_arrival,
+                "confidence": confidence,
+                "timestamp": datetime.now(timezone.utc),
+                "event_count": len(events),
+                "current_event_count": len(current_events),
+                "upcoming_event_count": len(future_events),
             }
 
             logger.info(
                 f"Occupancy prediction: Home={currently_home}, WFH={wfh_today}, "
-                f"Events={len(events)}, Confidence={confidence:.2f}"
+                f"Events={len(events)}, Confidence={confidence:.2f}",
             )
 
             return prediction
@@ -252,7 +255,7 @@ class CalendarService:
                 logger,
                 f"Error predicting occupancy: {e}",
                 service="calendar-service",
-                error=str(e)
+                error=str(e),
             )
             self.health_handler.failed_fetches += 1
             return None
@@ -267,11 +270,11 @@ class CalendarService:
             point = Point("occupancy_prediction") \
                 .tag("source", "calendar") \
                 .tag("user", "primary") \
-                .field("currently_home", bool(prediction['currently_home'])) \
-                .field("wfh_today", bool(prediction['wfh_today'])) \
-                .field("confidence", float(prediction['confidence'])) \
-                .field("hours_until_arrival", float(prediction['hours_until_arrival']) if prediction['hours_until_arrival'] is not None else 0) \
-                .time(prediction['timestamp'])
+                .field("currently_home", bool(prediction["currently_home"])) \
+                .field("wfh_today", bool(prediction["wfh_today"])) \
+                .field("confidence", float(prediction["confidence"])) \
+                .field("hours_until_arrival", float(prediction["hours_until_arrival"]) if prediction["hours_until_arrival"] is not None else 0) \
+                .time(prediction["timestamp"])
 
             self.influxdb_client.write(point)
 
@@ -282,7 +285,7 @@ class CalendarService:
                 logger,
                 f"Error writing to InfluxDB: {e}",
                 service="calendar-service",
-                error=str(e)
+                error=str(e),
             )
 
     async def run_continuous(self):
@@ -309,7 +312,7 @@ class CalendarService:
                     logger,
                     f"Error in continuous loop: {e}",
                     service="calendar-service",
-                    error=str(e)
+                    error=str(e),
                 )
                 self.health_handler.ha_connected = False
                 # Wait 5 minutes before retry on error
@@ -319,7 +322,7 @@ class CalendarService:
 async def create_app(service: CalendarService):
     """Create web application"""
     app = web.Application()
-    app.router.add_get('/health', service.health_handler.handle)
+    app.router.add_get("/health", service.health_handler.handle)
     return app
 
 
@@ -334,8 +337,8 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
 
-    port = int(os.getenv('SERVICE_PORT', '8013'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    port = int(os.getenv("SERVICE_PORT", "8013"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")

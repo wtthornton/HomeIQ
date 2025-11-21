@@ -35,7 +35,7 @@ async def client():
 async def test_db():
     """
     Test database with automatic setup and teardown
-    
+
     Creates tables before test, drops after test completes.
     """
     from src.miner.database import get_database
@@ -79,7 +79,7 @@ def sample_automation_metadata():
         source="discourse",
         source_id="test123",
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     )
 
 

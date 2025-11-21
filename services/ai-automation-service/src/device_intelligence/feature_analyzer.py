@@ -11,7 +11,7 @@ Epic: AI-2 - Device Intelligence System
 import logging
 from datetime import datetime
 
-from ..database.crud import get_capability_freshness
+from src.database.crud import get_capability_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 class FeatureAnalyzer:
     """
     Analyzes device instances for unused features and utilization metrics.
-    
+
     Matches device instances from Home Assistant to capability definitions
     from device_capabilities table, then identifies which features are
     configured vs. available.
-    
+
     Story AI2.3: Device Matching & Feature Analysis
     Epic AI-2: Device Intelligence System
-    
+
     Example Usage:
         analyzer = FeatureAnalyzer(data_api_client, db_session)
         analysis = await analyzer.analyze_all_devices()
@@ -36,7 +36,7 @@ class FeatureAnalyzer:
     def __init__(self, device_intelligence_client, db_session, influxdb_client=None, capability_lookup_func=None):
         """
         Initialize feature analyzer.
-        
+
         Args:
             device_intelligence_client: Client for querying devices from Device Intelligence Service
             db_session: SQLAlchemy async session factory
@@ -51,10 +51,10 @@ class FeatureAnalyzer:
     async def analyze_all_devices(self) -> dict:
         """
         Analyze all devices in Home Assistant.
-        
+
         Queries devices from data-api, matches to capability definitions,
         and calculates utilization metrics across all devices.
-        
+
         Returns:
             Dictionary with:
             - overall_utilization: float (percentage)
@@ -64,7 +64,7 @@ class FeatureAnalyzer:
             - total_available: int (total available features)
             - by_manufacturer: Dict[str, Dict] (utilization by brand)
             - opportunities: List[Dict] (top unused features)
-            
+
         Example Output:
             {
                 "overall_utilization": 32.5,
@@ -116,7 +116,7 @@ class FeatureAnalyzer:
                 "total_configured": 0,
                 "total_available": 0,
                 "by_manufacturer": {},
-                "opportunities": []
+                "opportunities": [],
             }
 
         # Guard: ensure capability data is fresh before continuing
@@ -124,12 +124,12 @@ class FeatureAnalyzer:
         if capability_freshness["total_models"] == 0:
             logger.warning(
                 "⚠️ Device capability cache is empty. Skipping feature analysis until "
-                "the nightly capability refresh populates data."
+                "the nightly capability refresh populates data.",
             )
             return self._build_skip_result(
                 devices_found=len(devices),
                 reason="no_capabilities",
-                stale_info=capability_freshness
+                stale_info=capability_freshness,
             )
 
         if capability_freshness["stale_count"] > 0:
@@ -140,12 +140,12 @@ class FeatureAnalyzer:
                 "Preview: %s",
                 capability_freshness["stale_count"],
                 capability_freshness["threshold_iso"],
-                preview_text or "n/a"
+                preview_text or "n/a",
             )
             return self._build_skip_result(
                 devices_found=len(devices),
                 reason="capabilities_stale",
-                stale_info=capability_freshness
+                stale_info=capability_freshness,
             )
 
         total_configured = 0
@@ -157,40 +157,40 @@ class FeatureAnalyzer:
         for device in devices:
             try:
                 # Pass device data to avoid redundant API call
-                analysis = await self.analyze_device(device['device_id'], device_data=device)
+                analysis = await self.analyze_device(device["device_id"], device_data=device)
 
                 if analysis:
                     analyzed_count += 1
-                    total_configured += analysis['configured_count']
-                    total_available += analysis['total_features']
+                    total_configured += analysis["configured_count"]
+                    total_available += analysis["total_features"]
 
                     # Track by manufacturer
-                    manufacturer = analysis.get('manufacturer', 'Unknown')
+                    manufacturer = analysis.get("manufacturer", "Unknown")
                     if manufacturer not in by_manufacturer:
                         by_manufacturer[manufacturer] = {
-                            'utilization': 0.0,
-                            'devices': 0,
-                            'configured': 0,
-                            'available': 0
+                            "utilization": 0.0,
+                            "devices": 0,
+                            "configured": 0,
+                            "available": 0,
                         }
 
-                    by_manufacturer[manufacturer]['devices'] += 1
-                    by_manufacturer[manufacturer]['configured'] += analysis['configured_count']
-                    by_manufacturer[manufacturer]['available'] += analysis['total_features']
+                    by_manufacturer[manufacturer]["devices"] += 1
+                    by_manufacturer[manufacturer]["configured"] += analysis["configured_count"]
+                    by_manufacturer[manufacturer]["available"] += analysis["total_features"]
 
                     # Collect opportunities
-                    all_opportunities.extend(analysis.get('opportunities', []))
+                    all_opportunities.extend(analysis.get("opportunities", []))
 
             except Exception as e:
                 logger.warning(f"⚠️ Failed to analyze device {device.get('device_id')}: {e}")
                 continue
 
         # Calculate manufacturer utilizations
-        for manuf, stats in by_manufacturer.items():
-            if stats['available'] > 0:
-                stats['utilization'] = round(
-                    (stats['configured'] / stats['available']) * 100,
-                    1
+        for _manuf, stats in by_manufacturer.items():
+            if stats["available"] > 0:
+                stats["utilization"] = round(
+                    (stats["configured"] / stats["available"]) * 100,
+                    1,
                 )
 
         # Calculate overall utilization
@@ -198,7 +198,7 @@ class FeatureAnalyzer:
         if total_available > 0:
             overall_utilization = round(
                 (total_configured / total_available) * 100,
-                1
+                1,
             )
 
         # Rank opportunities by impact and complexity
@@ -211,7 +211,7 @@ class FeatureAnalyzer:
             f"   Overall utilization: {overall_utilization}%\n"
             f"   Devices analyzed: {analyzed_count}/{len(devices)}\n"
             f"   Total features: {total_configured}/{total_available}\n"
-            f"   Opportunities found: {len(ranked_opportunities)}"
+            f"   Opportunities found: {len(ranked_opportunities)}",
         )
 
         return {
@@ -223,7 +223,7 @@ class FeatureAnalyzer:
             "total_available": total_available,
             "by_manufacturer": by_manufacturer,
             "opportunities": ranked_opportunities[:20],  # Top 20
-            "analysis_duration_seconds": round(duration, 2)
+            "analysis_duration_seconds": round(duration, 2),
         }
 
     async def _check_capability_freshness(self) -> dict:
@@ -235,7 +235,7 @@ class FeatureAnalyzer:
         self,
         devices_found: int,
         reason: str,
-        stale_info: dict
+        stale_info: dict,
     ) -> dict:
         """Construct a structured response when analysis is skipped."""
         return {
@@ -249,22 +249,22 @@ class FeatureAnalyzer:
             "opportunities": [],
             "skipped": True,
             "skip_reason": reason,
-            "stale_capabilities": stale_info
+            "stale_capabilities": stale_info,
         }
 
     async def analyze_device(self, device_id: str, device_data: dict | None = None) -> dict | None:
         """
         Analyze single device for unused features.
-        
+
         Matches device to capability definition, determines configured features,
         and calculates utilization.
-        
+
         Args:
             device_id: Device entity ID (e.g., "light.kitchen_switch")
-            
+
         Returns:
             Dict with analysis results or None if device has no capabilities
-            
+
         Example Output:
             {
                 "device_id": "light.kitchen_switch",
@@ -283,7 +283,7 @@ class FeatureAnalyzer:
             logger.debug(f"Device {device_id} not found")
             return None
 
-        model = device.get('model')
+        model = device.get("model")
         if not model:
             logger.debug(f"Device {device_id} has no model identifier")
             return None
@@ -306,7 +306,7 @@ class FeatureAnalyzer:
         if len(available_features) > 0:
             utilization = round(
                 (len(configured_set) / len(available_features)) * 100,
-                1
+                1,
             )
 
         # Create opportunities for unused features
@@ -315,13 +315,13 @@ class FeatureAnalyzer:
             feature_data = capabilities.capabilities[feature_name]
             opportunities.append({
                 "device_id": device_id,
-                "device_name": device.get('name', device_id),
+                "device_name": device.get("name", device_id),
                 "manufacturer": capabilities.manufacturer,
                 "model": model,
                 "feature_name": feature_name,
-                "feature_type": feature_data.get('type', 'unknown'),
-                "complexity": feature_data.get('complexity', 'easy'),
-                "impact": self._assess_impact(feature_name, feature_data)
+                "feature_type": feature_data.get("type", "unknown"),
+                "complexity": feature_data.get("complexity", "easy"),
+                "impact": self._assess_impact(feature_name, feature_data),
             })
 
         return {
@@ -333,16 +333,16 @@ class FeatureAnalyzer:
             "utilization": utilization,
             "unused_features": list(unused_features),
             "configured_features": list(configured_set),
-            "opportunities": opportunities
+            "opportunities": opportunities,
         }
 
     async def _get_devices_from_device_intelligence(self) -> list[dict]:
         """
         Query all devices from Device Intelligence Service.
-        
+
         Returns:
             List of device dictionaries from Device Intelligence Service
-            
+
         Example Response:
             [
                 {
@@ -361,16 +361,16 @@ class FeatureAnalyzer:
             logger.debug(f"Retrieved {len(devices)} devices from Device Intelligence Service")
             return devices
         except Exception as e:
-            logger.error(f"❌ Failed to get devices from Device Intelligence Service: {e}")
+            logger.exception(f"❌ Failed to get devices from Device Intelligence Service: {e}")
             return []
 
     async def _get_device_metadata(self, device_id: str) -> dict | None:
         """
         Get device metadata from Device Intelligence Service.
-        
+
         Args:
             device_id: Device entity ID
-            
+
         Returns:
             Device metadata dict or None if not found
         """
@@ -386,10 +386,10 @@ class FeatureAnalyzer:
     async def _get_capabilities_by_model(self, model: str):
         """
         Get capabilities from database for device model.
-        
+
         Args:
             model: Device model identifier (e.g., "VZM31-SN")
-            
+
         Returns:
             DeviceCapability object or None if not found
         """
@@ -402,7 +402,7 @@ class FeatureAnalyzer:
                 return None
 
         # Production: Use database session
-        from ..database.crud import get_device_capability
+        from src.database.crud import get_device_capability
 
         try:
             async with self.db() as session:
@@ -414,48 +414,48 @@ class FeatureAnalyzer:
     async def _get_configured_features(
         self,
         device_id: str,
-        device: dict
+        device: dict,
     ) -> list[str]:
         """
         Determine which features are configured for a device.
-        
+
         **SIMPLIFIED APPROACH FOR STORY 2.3:**
         - Check entity type (light, switch, climate)
         - Assume only basic features are configured
         - Mark advanced features as unconfigured
-        
+
         **STORY 2.4 WILL ENHANCE:**
         - Query HA entity attributes
         - Check automation triggers
         - Analyze historical usage patterns
-        
+
         Args:
             device_id: Device entity ID
             device: Device metadata from data-api
-            
+
         Returns:
             List of feature names that appear to be configured
-            
+
         Example:
             For "light.kitchen_switch" → ["light_control"]
             For "climate.thermostat" → ["climate_control"]
         """
         configured = []
-        entity_id = device.get('entity_id', device_id)
+        entity_id = device.get("entity_id", device_id)
 
         # Detect basic features by entity type
-        if entity_id.startswith('light.'):
-            configured.append('light_control')
-        elif entity_id.startswith('switch.'):
-            configured.append('switch_control')
-        elif entity_id.startswith('climate.'):
-            configured.append('climate_control')
-        elif entity_id.startswith('binary_sensor.'):
+        if entity_id.startswith("light."):
+            configured.append("light_control")
+        elif entity_id.startswith("switch."):
+            configured.append("switch_control")
+        elif entity_id.startswith("climate."):
+            configured.append("climate_control")
+        elif entity_id.startswith("binary_sensor."):
             # Check sensor type
-            if 'contact' in entity_id.lower():
-                configured.append('contact')
-            if 'motion' in entity_id.lower():
-                configured.append('occupancy')
+            if "contact" in entity_id.lower():
+                configured.append("contact")
+            if "motion" in entity_id.lower():
+                configured.append("occupancy")
 
         logger.debug(f"Device {device_id}: {len(configured)} configured features detected (simplified)")
 
@@ -470,28 +470,28 @@ class FeatureAnalyzer:
     def _assess_impact(self, feature_name: str, feature_data: dict) -> str:
         """
         Assess impact of enabling a feature.
-        
+
         Uses keyword-based heuristics to estimate user value.
-        
+
         Args:
             feature_name: Feature name (e.g., "led_notifications")
             feature_data: Feature capability data
-            
+
         Returns:
             "high" | "medium" | "low"
-            
+
         Heuristics:
             - High: notifications, alerts, automation, energy management
             - Medium: timers, modes, presets, scheduling
             - Low: minor tweaks, cosmetic settings
         """
         high_impact_keywords = [
-            'led', 'notification', 'alert', 'automation',
-            'energy', 'power', 'status', 'indicator'
+            "led", "notification", "alert", "automation",
+            "energy", "power", "status", "indicator",
         ]
         medium_impact_keywords = [
-            'timer', 'mode', 'preset', 'schedule', 'delay',
-            'duration', 'threshold', 'sensitivity'
+            "timer", "mode", "preset", "schedule", "delay",
+            "duration", "threshold", "sensitivity",
         ]
 
         name_lower = feature_name.lower()
@@ -510,7 +510,7 @@ class FeatureAnalyzer:
     def _rank_opportunities(self, opportunities: list[dict]) -> list[dict]:
         """
         Rank opportunities by impact and complexity.
-        
+
         Priority formula:
         - High impact + Easy complexity = 9 points (Top priority!)
         - High impact + Medium complexity = 6 points
@@ -518,13 +518,13 @@ class FeatureAnalyzer:
         - High impact + Advanced complexity = 3 points
         - Medium impact + Medium complexity = 4 points
         - Low impact = 1-3 points
-        
+
         Args:
             opportunities: List of opportunity dicts
-            
+
         Returns:
             Sorted list of opportunities (highest priority first)
-            
+
         Example:
             [
                 {priority_score: 9, feature: "led_notifications", impact: "high", complexity: "easy"},
@@ -537,8 +537,8 @@ class FeatureAnalyzer:
             impact_scores = {"high": 3, "medium": 2, "low": 1}
             complexity_scores = {"easy": 3, "medium": 2, "advanced": 1}
 
-            impact = impact_scores.get(opp.get('impact', 'low'), 1)
-            complexity = complexity_scores.get(opp.get('complexity', 'medium'), 2)
+            impact = impact_scores.get(opp.get("impact", "low"), 1)
+            complexity = complexity_scores.get(opp.get("complexity", "medium"), 2)
 
             return impact * complexity  # Max = 9 (high impact + easy)
 
@@ -547,7 +547,7 @@ class FeatureAnalyzer:
 
         logger.debug(
             f"Ranked {len(ranked)} opportunities "
-            f"(top priority: {priority_score(ranked[0]) if ranked else 0})"
+            f"(top priority: {priority_score(ranked[0]) if ranked else 0})",
         )
 
         return ranked

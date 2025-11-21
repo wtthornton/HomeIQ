@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
 """Check entity table schema and name fields"""
-import sqlite3
 import os
+import sqlite3
+import sys
 
-db_path = 'services/data-api/data/metadata.db'
+db_path = "services/data-api/data/metadata.db"
 
 if not os.path.exists(db_path):
     print(f"Database not found at {db_path}")
-    exit(1)
+    sys.exit(1)
 
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 # Check table schema
 print("Entity table columns:")
-cursor.execute('PRAGMA table_info(entities)')
+cursor.execute("PRAGMA table_info(entities)")
 cols = cursor.fetchall()
 for col in cols:
     print(f"  {col[1]} ({col[2]})")
 
 # Check if name columns exist
-name_cols = [c[1] for c in cols if 'name' in c[1].lower()]
+name_cols = [c[1] for c in cols if "name" in c[1].lower()]
 print(f"\nName-related columns: {name_cols}")
 
 # Check Hue entity with name fields
 print("\nChecking light.hue_color_downlight_1_5:")
 cursor.execute("""
-    SELECT entity_id, name, name_by_user, original_name, friendly_name 
-    FROM entities 
+    SELECT entity_id, name, name_by_user, original_name, friendly_name
+    FROM entities
     WHERE entity_id = 'light.hue_color_downlight_1_5'
 """)
 row = cursor.fetchone()
@@ -42,7 +43,7 @@ else:
 
 # Count entities with NULL name fields
 cursor.execute("""
-    SELECT 
+    SELECT
         COUNT(*) as total,
         SUM(CASE WHEN name IS NULL THEN 1 ELSE 0 END) as null_name,
         SUM(CASE WHEN name_by_user IS NULL THEN 1 ELSE 0 END) as null_name_by_user,
@@ -54,7 +55,7 @@ cursor.execute("""
 stats = cursor.fetchone()
 if stats:
     total, null_name, null_name_by_user, null_original_name, null_friendly_name = stats
-    print(f"\nHue entity name field statistics:")
+    print("\nHue entity name field statistics:")
     print(f"  Total Hue entities: {total}")
     print(f"  NULL name: {null_name}")
     print(f"  NULL name_by_user: {null_name_by_user}")

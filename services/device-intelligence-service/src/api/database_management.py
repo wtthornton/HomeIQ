@@ -61,10 +61,10 @@ class DatabaseStatsResponse(BaseModel):
 async def recreate_database_tables() -> RecreateTablesResponse:
     """
     Recreate all database tables with the latest schema.
-    
+
     **WARNING:** This will drop all existing data and recreate tables.
     Only use this during development or when you need to apply schema changes.
-    
+
     Returns:
         RecreateTablesResponse: Success status and message
     """
@@ -79,14 +79,14 @@ async def recreate_database_tables() -> RecreateTablesResponse:
         logger.info("✅ Database tables recreated successfully")
         return RecreateTablesResponse(
             success=True,
-            message="Database tables recreated successfully with latest schema"
+            message="Database tables recreated successfully with latest schema",
         )
 
     except Exception as e:
-        logger.error(f"❌ Failed to recreate database tables: {e}")
+        logger.exception(f"❌ Failed to recreate database tables: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to recreate database tables: {str(e)}"
+            detail=f"Failed to recreate database tables: {e!s}",
         )
 
 
@@ -94,7 +94,7 @@ async def recreate_database_tables() -> RecreateTablesResponse:
 async def get_database_status() -> DatabaseStatusResponse:
     """
     Get database status and connection information.
-    
+
     Returns:
         DatabaseStatusResponse: Database status information
     """
@@ -105,7 +105,7 @@ async def get_database_status() -> DatabaseStatusResponse:
         if _engine is None:
             return DatabaseStatusResponse(
                 status="not_initialized",
-                message="Database not initialized"
+                message="Database not initialized",
             )
 
         # Try to execute a simple query to verify connection
@@ -116,28 +116,28 @@ async def get_database_status() -> DatabaseStatusResponse:
 
         return DatabaseStatusResponse(
             status="connected",
-            message="Database connection is active"
+            message="Database connection is active",
         )
 
     except Exception as e:
-        logger.error(f"❌ Database status check failed: {e}")
+        logger.exception(f"❌ Database status check failed: {e}")
         return DatabaseStatusResponse(
             status="error",
-            message=f"Database error: {str(e)}"
+            message=f"Database error: {e!s}",
         )
 
 
 @router.post("/cleanup", response_model=DatabaseCleanupResponse)
 async def cleanup_database(
     days_to_keep: int = 90,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> DatabaseCleanupResponse:
     """
     Clean up old records from the database.
-    
+
     Args:
         days_to_keep: Number of days of data to keep (default: 90)
-    
+
     Returns:
         DatabaseCleanupResponse: Cleanup results
     """
@@ -150,14 +150,14 @@ async def cleanup_database(
         # Clean up old predictions
         result = await session.execute(
             text("DELETE FROM predictions WHERE predicted_at < :cutoff"),
-            {"cutoff": cutoff_date}
+            {"cutoff": cutoff_date},
         )
         records_deleted += result.rowcount
 
         # Clean up old recommendations
         result = await session.execute(
             text("DELETE FROM recommendations WHERE created_at < :cutoff AND status = 'rejected'"),
-            {"cutoff": cutoff_date}
+            {"cutoff": cutoff_date},
         )
         records_deleted += result.rowcount
 
@@ -167,25 +167,25 @@ async def cleanup_database(
         return DatabaseCleanupResponse(
             success=True,
             message="Database cleanup completed successfully",
-            records_deleted=records_deleted
+            records_deleted=records_deleted,
         )
 
     except Exception as e:
         await session.rollback()
-        logger.error(f"❌ Database cleanup failed: {e}")
+        logger.exception(f"❌ Database cleanup failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Database cleanup failed: {str(e)}"
+            detail=f"Database cleanup failed: {e!s}",
         )
 
 
 @router.post("/optimize", response_model=DatabaseOptimizeResponse)
 async def optimize_database(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> DatabaseOptimizeResponse:
     """
     Optimize database by running VACUUM and ANALYZE.
-    
+
     Returns:
         DatabaseOptimizeResponse: Optimization results
     """
@@ -203,25 +203,25 @@ async def optimize_database(
         logger.info("✅ Database optimization completed")
         return DatabaseOptimizeResponse(
             success=True,
-            message="Database optimized successfully (VACUUM and ANALYZE completed)"
+            message="Database optimized successfully (VACUUM and ANALYZE completed)",
         )
 
     except Exception as e:
         await session.rollback()
-        logger.error(f"❌ Database optimization failed: {e}")
+        logger.exception(f"❌ Database optimization failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Database optimization failed: {str(e)}"
+            detail=f"Database optimization failed: {e!s}",
         )
 
 
 @router.get("/stats", response_model=DatabaseStatsResponse)
 async def get_database_stats(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> DatabaseStatsResponse:
     """
     Get database statistics including size and record counts.
-    
+
     Returns:
         DatabaseStatsResponse: Database statistics
     """
@@ -240,7 +240,7 @@ async def get_database_stats(
 
         # Get table names and record counts
         result = await session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"),
         )
         tables = [row[0] for row in result.fetchall()]
 
@@ -261,14 +261,14 @@ async def get_database_stats(
             database_size_mb=round(db_size_mb, 2),
             table_count=len(tables),
             total_records=total_records,
-            tables=table_counts
+            tables=table_counts,
         )
 
     except Exception as e:
-        logger.error(f"❌ Failed to get database stats: {e}")
+        logger.exception(f"❌ Failed to get database stats: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get database stats: {str(e)}"
+            detail=f"Failed to get database stats: {e!s}",
         )
 
 
@@ -282,12 +282,12 @@ async def database_management_info() -> dict[str, Any]:
             "status": "GET /api/database/status - Get database status",
             "cleanup": "POST /api/database/cleanup - Clean up old records",
             "optimize": "POST /api/database/optimize - Optimize database (VACUUM, ANALYZE)",
-            "stats": "GET /api/database/stats - Get database statistics"
+            "stats": "GET /api/database/stats - Get database statistics",
         },
         "warnings": [
             "Recreating tables will DELETE ALL existing data",
             "Only use recreate_tables during development or schema migrations",
-            "Make sure to backup data before recreating tables"
-        ]
+            "Make sure to backup data before recreating tables",
+        ],
     }
 

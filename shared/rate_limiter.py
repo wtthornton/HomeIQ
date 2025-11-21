@@ -11,7 +11,6 @@ import asyncio
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -43,8 +42,8 @@ class RateLimiter:
         self.per = per
         self.burst = burst
 
-        self._buckets: Dict[str, Dict] = defaultdict(
-            lambda: {"tokens": float(burst), "last_update": datetime.now()}
+        self._buckets: dict[str, dict] = defaultdict(
+            lambda: {"tokens": float(burst), "last_update": datetime.now()},
         )
         self._lock = asyncio.Lock()
 
@@ -91,7 +90,7 @@ class RateLimiter:
             if old_ips:
                 logger.debug("Cleaned up %s expired rate limiter entries", len(old_ips))
 
-    def get_stats(self) -> Dict[str, float | int]:
+    def get_stats(self) -> dict[str, float | int]:
         """Return statistics for observability endpoints."""
         percentage = 0.0
         if self.total_requests:

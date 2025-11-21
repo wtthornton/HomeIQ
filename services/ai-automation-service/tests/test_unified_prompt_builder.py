@@ -19,12 +19,12 @@ class TestUnifiedPromptBuilder:
         """Mock device intelligence client"""
         client = AsyncMock()
         client.get_device_details.return_value = {
-            'capabilities': ['led_notifications', 'smart_bulb_mode'],
-            'health_score': 85,
-            'manufacturer': 'Inovelli',
-            'model': 'LZW31-SN',
-            'integration': 'z-wave',
-            'friendly_name': 'Kitchen Switch'
+            "capabilities": ["led_notifications", "smart_bulb_mode"],
+            "health_score": 85,
+            "manufacturer": "Inovelli",
+            "model": "LZW31-SN",
+            "integration": "z-wave",
+            "friendly_name": "Kitchen Switch",
         }
         return client
 
@@ -37,12 +37,12 @@ class TestUnifiedPromptBuilder:
     def sample_pattern(self):
         """Sample pattern for testing"""
         return {
-            'type': 'time_of_day',
-            'device_id': 'light.kitchen_switch',
-            'hour': 7,
-            'minute': 30,
-            'confidence': 0.85,
-            'occurrences': 25
+            "type": "time_of_day",
+            "device_id": "light.kitchen_switch",
+            "hour": 7,
+            "minute": 30,
+            "confidence": 0.85,
+            "occurrences": 25,
         }
 
     @pytest.fixture
@@ -50,55 +50,55 @@ class TestUnifiedPromptBuilder:
         """Sample entities for testing"""
         return [
             {
-                'entity_id': 'light.kitchen_switch',
-                'friendly_name': 'Kitchen Switch',
-                'domain': 'light',
-                'state': 'on',
-                'capabilities': ['led_notifications', 'smart_bulb_mode'],
-                'health_score': 85,
-                'manufacturer': 'Inovelli',
-                'model': 'LZW31-SN'
+                "entity_id": "light.kitchen_switch",
+                "friendly_name": "Kitchen Switch",
+                "domain": "light",
+                "state": "on",
+                "capabilities": ["led_notifications", "smart_bulb_mode"],
+                "health_score": 85,
+                "manufacturer": "Inovelli",
+                "model": "LZW31-SN",
             },
             {
-                'entity_id': 'light.living_room',
-                'friendly_name': 'Living Room Light',
-                'domain': 'light',
-                'state': 'off',
-                'capabilities': ['color_temp', 'brightness'],
-                'health_score': 92
-            }
+                "entity_id": "light.living_room",
+                "friendly_name": "Living Room Light",
+                "domain": "light",
+                "state": "off",
+                "capabilities": ["color_temp", "brightness"],
+                "health_score": 92,
+            },
         ]
 
     @pytest.fixture
     def sample_opportunity(self):
         """Sample feature opportunity for testing"""
         return {
-            'device_id': 'light.kitchen_switch',
-            'device_name': 'Kitchen Switch',
-            'feature_name': 'led_notifications',
-            'feature_type': 'notification',
-            'complexity': 'medium',
-            'impact': 'high',
-            'manufacturer': 'Inovelli',
-            'model': 'LZW31-SN'
+            "device_id": "light.kitchen_switch",
+            "device_name": "Kitchen Switch",
+            "feature_name": "led_notifications",
+            "feature_type": "notification",
+            "complexity": "medium",
+            "impact": "high",
+            "manufacturer": "Inovelli",
+            "model": "LZW31-SN",
         }
 
     @pytest.mark.asyncio
     async def test_build_pattern_prompt_time_of_day(self, unified_builder, sample_pattern):
         """Test building time-of-day pattern prompt"""
         device_context = {
-            'device_id': 'light.kitchen_switch',
-            'friendly_name': 'Kitchen Switch',
-            'manufacturer': 'Inovelli',
-            'model': 'LZW31-SN',
-            'capabilities': ['led_notifications'],
-            'health_score': 85
+            "device_id": "light.kitchen_switch",
+            "friendly_name": "Kitchen Switch",
+            "manufacturer": "Inovelli",
+            "model": "LZW31-SN",
+            "capabilities": ["led_notifications"],
+            "health_score": 85,
         }
 
         result = await unified_builder.build_pattern_prompt(
             pattern=sample_pattern,
             device_context=device_context,
-            output_mode="description"
+            output_mode="description",
         )
 
         assert "system_prompt" in result
@@ -112,29 +112,29 @@ class TestUnifiedPromptBuilder:
     async def test_build_pattern_prompt_co_occurrence(self, unified_builder):
         """Test building co-occurrence pattern prompt"""
         pattern = {
-            'type': 'co_occurrence',
-            'device1': 'light.kitchen_switch',
-            'device2': 'light.living_room',
-            'confidence': 0.75,
-            'occurrences': 15,
-            'metadata': {'avg_time_delta_seconds': 5.2}
+            "type": "co_occurrence",
+            "device1": "light.kitchen_switch",
+            "device2": "light.living_room",
+            "confidence": 0.75,
+            "occurrences": 15,
+            "metadata": {"avg_time_delta_seconds": 5.2},
         }
 
         device_context = {
-            'device1': {
-                'name': 'Kitchen Switch',
-                'domain': 'light'
+            "device1": {
+                "name": "Kitchen Switch",
+                "domain": "light",
             },
-            'device2': {
-                'name': 'Living Room Light',
-                'domain': 'light'
-            }
+            "device2": {
+                "name": "Living Room Light",
+                "domain": "light",
+            },
         }
 
         result = await unified_builder.build_pattern_prompt(
             pattern=pattern,
             device_context=device_context,
-            output_mode="yaml"
+            output_mode="yaml",
         )
 
         assert "system_prompt" in result
@@ -151,7 +151,7 @@ class TestUnifiedPromptBuilder:
         result = await unified_builder.build_query_prompt(
             query=query,
             entities=sample_entities,
-            output_mode="suggestions"
+            output_mode="suggestions",
         )
 
         assert "system_prompt" in result
@@ -165,17 +165,17 @@ class TestUnifiedPromptBuilder:
     async def test_build_feature_prompt(self, unified_builder, sample_opportunity):
         """Test building feature opportunity prompt"""
         device_context = {
-            'device_id': 'light.kitchen_switch',
-            'friendly_name': 'Kitchen Switch',
-            'manufacturer': 'Inovelli',
-            'model': 'LZW31-SN',
-            'capabilities': ['led_notifications']
+            "device_id": "light.kitchen_switch",
+            "friendly_name": "Kitchen Switch",
+            "manufacturer": "Inovelli",
+            "model": "LZW31-SN",
+            "capabilities": ["led_notifications"],
         }
 
         result = await unified_builder.build_feature_prompt(
             opportunity=sample_opportunity,
             device_context=device_context,
-            output_mode="description"
+            output_mode="description",
         )
 
         assert "system_prompt" in result
@@ -189,16 +189,16 @@ class TestUnifiedPromptBuilder:
         """Test getting enhanced device context with device intelligence"""
         result = await unified_builder.get_enhanced_device_context(sample_pattern)
 
-        assert result['device_id'] == 'light.kitchen_switch'
-        assert 'capabilities' in result
-        assert 'health_score' in result
-        assert 'manufacturer' in result
-        assert 'model' in result
-        assert 'integration' in result
-        assert 'friendly_name' in result
+        assert result["device_id"] == "light.kitchen_switch"
+        assert "capabilities" in result
+        assert "health_score" in result
+        assert "manufacturer" in result
+        assert "model" in result
+        assert "integration" in result
+        assert "friendly_name" in result
 
         # Verify device intelligence client was called
-        mock_device_intel_client.get_device_details.assert_called_once_with('light.kitchen_switch')
+        mock_device_intel_client.get_device_details.assert_called_once_with("light.kitchen_switch")
 
     @pytest.mark.asyncio
     async def test_get_enhanced_device_context_no_client(self, sample_pattern):
@@ -218,16 +218,16 @@ class TestUnifiedPromptBuilder:
         result = await builder.get_enhanced_device_context(sample_pattern)
 
         # Should return basic context on error
-        assert result == {'device_id': 'light.kitchen_switch'}
+        assert result == {"device_id": "light.kitchen_switch"}
 
     def test_build_device_context_section(self, unified_builder):
         """Test building device context section for prompts"""
         device_context = {
-            'friendly_name': 'Kitchen Switch',
-            'manufacturer': 'Inovelli',
-            'model': 'LZW31-SN',
-            'health_score': 85,
-            'capabilities': ['led_notifications', 'smart_bulb_mode']
+            "friendly_name": "Kitchen Switch",
+            "manufacturer": "Inovelli",
+            "model": "LZW31-SN",
+            "health_score": 85,
+            "capabilities": ["led_notifications", "smart_bulb_mode"],
         }
 
         result = unified_builder._build_device_context_section(device_context)
@@ -242,7 +242,7 @@ class TestUnifiedPromptBuilder:
     def test_build_device_context_section_minimal(self, unified_builder):
         """Test building device context section with minimal data"""
         device_context = {
-            'friendly_name': 'Basic Light'
+            "friendly_name": "Basic Light",
         }
 
         result = unified_builder._build_device_context_section(device_context)
@@ -276,13 +276,13 @@ class TestUnifiedPromptBuilder:
     def test_build_time_of_day_prompt(self, unified_builder):
         """Test building time-of-day specific prompt"""
         pattern = {
-            'time_range': '7:30 AM',
-            'frequency': 'daily'
+            "time_range": "7:30 AM",
+            "frequency": "daily",
         }
         device_section = "Device: Kitchen Switch\nHealth Score: 85 (Excellent)"
 
         result = unified_builder._build_time_of_day_prompt(
-            pattern, device_section, "description"
+            pattern, device_section, "description",
         )
 
         assert "7:30 AM" in result
@@ -294,13 +294,13 @@ class TestUnifiedPromptBuilder:
     def test_build_co_occurrence_prompt(self, unified_builder):
         """Test building co-occurrence specific prompt"""
         pattern = {
-            'entities': ['light.kitchen', 'light.living_room'],
-            'confidence': 0.75
+            "entities": ["light.kitchen", "light.living_room"],
+            "confidence": 0.75,
         }
         device_section = "Device: Kitchen Light\nDevice: Living Room Light"
 
         result = unified_builder._build_co_occurrence_prompt(
-            pattern, device_section, "yaml"
+            pattern, device_section, "yaml",
         )
 
         assert "light.kitchen" in result
@@ -312,13 +312,13 @@ class TestUnifiedPromptBuilder:
     def test_build_synergy_prompt(self, unified_builder):
         """Test building synergy specific prompt"""
         pattern = {
-            'synergy_type': 'lighting_sequence',
-            'devices': ['light.kitchen', 'light.living_room']
+            "synergy_type": "lighting_sequence",
+            "devices": ["light.kitchen", "light.living_room"],
         }
         device_section = "Device: Kitchen Light\nDevice: Living Room Light"
 
         result = unified_builder._build_synergy_prompt(
-            pattern, device_section, "description"
+            pattern, device_section, "description",
         )
 
         assert "lighting_sequence" in result
@@ -330,12 +330,12 @@ class TestUnifiedPromptBuilder:
     def test_build_generic_pattern_prompt(self, unified_builder):
         """Test building generic pattern prompt"""
         pattern = {
-            'data': {'custom_field': 'test_value'}
+            "data": {"custom_field": "test_value"},
         }
         device_section = "Device: Test Device"
 
         result = unified_builder._build_generic_pattern_prompt(
-            pattern, device_section, "yaml"
+            pattern, device_section, "yaml",
         )
 
         assert "test_value" in result
@@ -370,13 +370,13 @@ class TestUnifiedPromptBuilderIntegration:
     def real_world_pattern(self):
         """Real-world pattern example"""
         return {
-            'type': 'time_of_day',
-            'device_id': 'light.bedroom_lamp',
-            'hour': 22,
-            'minute': 0,
-            'confidence': 0.92,
-            'occurrences': 28,
-            'pattern_type': 'time_of_day'
+            "type": "time_of_day",
+            "device_id": "light.bedroom_lamp",
+            "hour": 22,
+            "minute": 0,
+            "confidence": 0.92,
+            "occurrences": 28,
+            "pattern_type": "time_of_day",
         }
 
     @pytest.fixture
@@ -384,23 +384,23 @@ class TestUnifiedPromptBuilderIntegration:
         """Real-world entities example"""
         return [
             {
-                'entity_id': 'light.bedroom_lamp',
-                'friendly_name': 'Bedroom Lamp',
-                'domain': 'light',
-                'state': 'on',
-                'capabilities': ['brightness', 'color_temp'],
-                'health_score': 78,
-                'manufacturer': 'Philips',
-                'model': 'Hue White Ambiance'
+                "entity_id": "light.bedroom_lamp",
+                "friendly_name": "Bedroom Lamp",
+                "domain": "light",
+                "state": "on",
+                "capabilities": ["brightness", "color_temp"],
+                "health_score": 78,
+                "manufacturer": "Philips",
+                "model": "Hue White Ambiance",
             },
             {
-                'entity_id': 'sensor.bedroom_motion',
-                'friendly_name': 'Bedroom Motion Sensor',
-                'domain': 'binary_sensor',
-                'state': 'off',
-                'capabilities': ['motion_detection'],
-                'health_score': 95
-            }
+                "entity_id": "sensor.bedroom_motion",
+                "friendly_name": "Bedroom Motion Sensor",
+                "domain": "binary_sensor",
+                "state": "off",
+                "capabilities": ["motion_detection"],
+                "health_score": 95,
+            },
         ]
 
     @pytest.mark.asyncio
@@ -408,27 +408,27 @@ class TestUnifiedPromptBuilderIntegration:
         """Test processing real-world pattern with device intelligence"""
         mock_client = AsyncMock()
         mock_client.get_device_details.return_value = {
-            'capabilities': ['brightness', 'color_temp', 'night_light_mode'],
-            'health_score': 78,
-            'manufacturer': 'Philips',
-            'model': 'Hue White Ambiance',
-            'integration': 'hue',
-            'friendly_name': 'Bedroom Lamp'
+            "capabilities": ["brightness", "color_temp", "night_light_mode"],
+            "health_score": 78,
+            "manufacturer": "Philips",
+            "model": "Hue White Ambiance",
+            "integration": "hue",
+            "friendly_name": "Bedroom Lamp",
         }
 
         builder = UnifiedPromptBuilder(device_intelligence_client=mock_client)
 
         # Test enhanced context retrieval
         enhanced_context = await builder.get_enhanced_device_context(real_world_pattern)
-        assert enhanced_context['device_id'] == 'light.bedroom_lamp'
-        assert 'night_light_mode' in enhanced_context['capabilities']
-        assert enhanced_context['health_score'] == 78
+        assert enhanced_context["device_id"] == "light.bedroom_lamp"
+        assert "night_light_mode" in enhanced_context["capabilities"]
+        assert enhanced_context["health_score"] == 78
 
         # Test pattern prompt building
         prompt_dict = await builder.build_pattern_prompt(
             pattern=real_world_pattern,
             device_context=enhanced_context,
-            output_mode="description"
+            output_mode="description",
         )
 
         assert "Bedroom Lamp" in prompt_dict["user_prompt"]
@@ -446,7 +446,7 @@ class TestUnifiedPromptBuilderIntegration:
         prompt_dict = await builder.build_query_prompt(
             query=query,
             entities=real_world_entities,
-            output_mode="suggestions"
+            output_mode="suggestions",
         )
 
         assert "bedtime routine" in prompt_dict["user_prompt"]
@@ -467,15 +467,15 @@ class TestUnifiedPromptBuilderErrorHandling:
         builder = UnifiedPromptBuilder(device_intelligence_client=None)
 
         incomplete_pattern = {
-            'type': 'time_of_day',
-            'device_id': 'light.test'
+            "type": "time_of_day",
+            "device_id": "light.test",
             # Missing hour, minute, confidence
         }
 
         result = await builder.build_pattern_prompt(
             pattern=incomplete_pattern,
             device_context=None,
-            output_mode="description"
+            output_mode="description",
         )
 
         # Should handle gracefully
@@ -491,7 +491,7 @@ class TestUnifiedPromptBuilderErrorHandling:
         result = await builder.build_query_prompt(
             query="test query",
             entities=[],
-            output_mode="suggestions"
+            output_mode="suggestions",
         )
 
         assert "No devices detected in query" in result["user_prompt"]
@@ -502,9 +502,9 @@ class TestUnifiedPromptBuilderErrorHandling:
         builder = UnifiedPromptBuilder(device_intelligence_client=None)
 
         result = await builder.build_pattern_prompt(
-            pattern={'type': 'time_of_day', 'device_id': 'light.test'},
+            pattern={"type": "time_of_day", "device_id": "light.test"},
             device_context=None,
-            output_mode="description"
+            output_mode="description",
         )
 
         assert "No specific device context available" in result["user_prompt"]
@@ -514,16 +514,16 @@ class TestUnifiedPromptBuilderErrorHandling:
         builder = UnifiedPromptBuilder(device_intelligence_client=None)
 
         # Test excellent health score
-        context_excellent = {'health_score': 85}
+        context_excellent = {"health_score": 85}
         result_excellent = builder._build_device_context_section(context_excellent)
         assert "Excellent" in result_excellent
 
         # Test good health score
-        context_good = {'health_score': 70}
+        context_good = {"health_score": 70}
         result_good = builder._build_device_context_section(context_good)
         assert "Good" in result_good
 
         # Test fair health score
-        context_fair = {'health_score': 50}
+        context_fair = {"health_score": 50}
         result_fair = builder._build_device_context_section(context_fair)
         assert "Fair" in result_fair

@@ -49,7 +49,7 @@ class EnhancedAutomationGenerator:
         nl_generator: NLAutomationGenerator,
         pattern_matcher: PatternMatcher | None = None,
         pattern_composer: PatternComposer | None = None,
-        pattern_threshold: float = 0.5  # Minimum confidence for pattern use
+        pattern_threshold: float = 0.5,  # Minimum confidence for pattern use
     ):
         """
         Initialize enhanced generator.
@@ -68,7 +68,7 @@ class EnhancedAutomationGenerator:
     async def generate(
         self,
         request: NLAutomationRequest,
-        available_entities: list[dict[str, Any]]
+        available_entities: list[dict[str, Any]],
     ) -> EnhancedGenerationResult:
         """
         Generate automation using best available method.
@@ -88,7 +88,7 @@ class EnhancedAutomationGenerator:
         # Step 1: Try pattern matching
         pattern_matches = await self.pattern_matcher.match_patterns(
             request.request_text,
-            available_entities
+            available_entities,
         )
 
         if pattern_matches and pattern_matches[0].confidence >= self.pattern_threshold:
@@ -96,13 +96,13 @@ class EnhancedAutomationGenerator:
             logger.info(
                 f"Using pattern-based generation "
                 f"({len(pattern_matches)} match(es), "
-                f"best confidence: {pattern_matches[0].confidence:.2f})"
+                f"best confidence: {pattern_matches[0].confidence:.2f})",
             )
 
             # Compose patterns into automation(s)
             composed = await self.pattern_composer.compose(
                 pattern_matches,
-                request.request_text
+                request.request_text,
             )
 
             generation_time_ms = int((time.time() - start_time) * 1000)
@@ -112,13 +112,13 @@ class EnhancedAutomationGenerator:
                 method=composed.strategy,
                 patterns_used=composed.patterns_used,
                 confidence=composed.confidence,
-                generation_time_ms=generation_time_ms
+                generation_time_ms=generation_time_ms,
             )
 
         # Step 2: No pattern match or low confidence → use LLM
         logger.info(
             f"No pattern match (threshold: {self.pattern_threshold}), "
-            f"using LLM generation"
+            f"using LLM generation",
         )
 
         llm_result = await self.nl_generator.generate(request)
@@ -127,23 +127,23 @@ class EnhancedAutomationGenerator:
 
         return EnhancedGenerationResult(
             automations=[{
-                'yaml': llm_result.automation_yaml,
-                'title': llm_result.title,
-                'description': llm_result.description,
-                'explanation': llm_result.explanation,
-                'safety_result': llm_result.safety_result,
-                'warnings': llm_result.warnings
+                "yaml": llm_result.automation_yaml,
+                "title": llm_result.title,
+                "description": llm_result.description,
+                "explanation": llm_result.explanation,
+                "safety_result": llm_result.safety_result,
+                "warnings": llm_result.warnings,
             }],
-            method='llm',
+            method="llm",
             confidence=llm_result.confidence,
-            generation_time_ms=generation_time_ms
+            generation_time_ms=generation_time_ms,
         )
 
     async def get_pattern_suggestions(
         self,
         request: str,
         available_entities: list[dict[str, Any]],
-        limit: int = 3
+        limit: int = 3,
     ) -> list[dict[str, Any]]:
         """
         Get suggested patterns for a request without generating YAML.
@@ -160,19 +160,19 @@ class EnhancedAutomationGenerator:
         """
         matches = await self.pattern_matcher.match_patterns(
             request,
-            available_entities
+            available_entities,
         )
 
         suggestions = []
         for match in matches[:limit]:
             suggestions.append({
-                'pattern_id': match.pattern_id,
-                'name': match.pattern.name,
-                'description': match.pattern.description,
-                'confidence': match.confidence,
-                'category': match.pattern.category,
-                'variables': match.variables,
-                'missing_variables': match.missing_variables
+                "pattern_id": match.pattern_id,
+                "name": match.pattern.name,
+                "description": match.pattern.description,
+                "confidence": match.confidence,
+                "category": match.pattern.category,
+                "variables": match.variables,
+                "missing_variables": match.missing_variables,
             })
 
         return suggestions
@@ -180,7 +180,7 @@ class EnhancedAutomationGenerator:
 
 def get_enhanced_generator(
     nl_generator: NLAutomationGenerator,
-    pattern_threshold: float = 0.5
+    pattern_threshold: float = 0.5,
 ) -> EnhancedAutomationGenerator:
     """
     Factory function to create enhanced automation generator.
@@ -194,5 +194,5 @@ def get_enhanced_generator(
     """
     return EnhancedAutomationGenerator(
         nl_generator=nl_generator,
-        pattern_threshold=pattern_threshold
+        pattern_threshold=pattern_threshold,
     )

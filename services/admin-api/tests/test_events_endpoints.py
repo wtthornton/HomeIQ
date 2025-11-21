@@ -20,8 +20,8 @@ class TestEventsEndpoints:
     def test_init(self):
         """Test EventsEndpoints initialization"""
         assert self.events_endpoints.router is not None
-        assert hasattr(self.events_endpoints, 'router')
-        assert hasattr(self.events_endpoints, 'service_urls')
+        assert hasattr(self.events_endpoints, "router")
+        assert hasattr(self.events_endpoints, "service_urls")
 
     def test_events_endpoint(self):
         """Test events endpoint"""
@@ -108,7 +108,7 @@ class TestEventsEndpoints:
         search_data = {
             "query": "temperature",
             "fields": ["entity_id", "event_type", "attributes"],
-            "limit": 100
+            "limit": 100,
         }
 
         response = self.client.post("/events/search", json=search_data)
@@ -120,7 +120,7 @@ class TestEventsEndpoints:
     def test_search_events_endpoint_with_minimal_data(self):
         """Test search events endpoint with minimal data"""
         search_data = {
-            "query": "test"
+            "query": "test",
         }
 
         response = self.client.post("/events/search", json=search_data)
@@ -233,7 +233,7 @@ class TestEventsEndpoints:
     def test_events_endpoint_error_handling(self):
         """Test events endpoint error handling"""
         # Mock the _get_all_events method to raise an exception
-        with patch.object(self.events_endpoints, '_get_all_events', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_all_events", side_effect=Exception("Test error")):
             response = self.client.get("/events")
 
             # Should handle error gracefully
@@ -245,7 +245,7 @@ class TestEventsEndpoints:
     def test_event_by_id_endpoint_error_handling(self):
         """Test event by ID endpoint error handling"""
         # Mock the _get_event_by_id method to raise an exception
-        with patch.object(self.events_endpoints, '_get_event_by_id', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_event_by_id", side_effect=Exception("Test error")):
             response = self.client.get("/events/test-event-id")
 
             # Should handle error gracefully
@@ -259,11 +259,11 @@ class TestEventsEndpoints:
         search_data = {
             "query": "test",
             "fields": ["entity_id", "event_type"],
-            "limit": 100
+            "limit": 100,
         }
 
         # Mock the _search_events method to raise an exception
-        with patch.object(self.events_endpoints, '_search_events', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_search_events", side_effect=Exception("Test error")):
             response = self.client.post("/events/search", json=search_data)
 
             # Should handle error gracefully
@@ -275,7 +275,7 @@ class TestEventsEndpoints:
     def test_events_stats_endpoint_error_handling(self):
         """Test events stats endpoint error handling"""
         # Mock the _get_all_events_stats method to raise an exception
-        with patch.object(self.events_endpoints, '_get_all_events_stats', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_all_events_stats", side_effect=Exception("Test error")):
             response = self.client.get("/events/stats")
 
             # Should handle error gracefully
@@ -287,7 +287,7 @@ class TestEventsEndpoints:
     def test_active_entities_endpoint_error_handling(self):
         """Test active entities endpoint error handling"""
         # Mock the _get_all_active_entities method to raise an exception
-        with patch.object(self.events_endpoints, '_get_all_active_entities', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_all_active_entities", side_effect=Exception("Test error")):
             response = self.client.get("/events/entities")
 
             # Should handle error gracefully
@@ -299,7 +299,7 @@ class TestEventsEndpoints:
     def test_event_types_endpoint_error_handling(self):
         """Test event types endpoint error handling"""
         # Mock the _get_all_event_types method to raise an exception
-        with patch.object(self.events_endpoints, '_get_all_event_types', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_all_event_types", side_effect=Exception("Test error")):
             response = self.client.get("/events/types")
 
             # Should handle error gracefully
@@ -311,7 +311,7 @@ class TestEventsEndpoints:
     def test_events_stream_endpoint_error_handling(self):
         """Test events stream endpoint error handling"""
         # Mock the _get_events_stream method to raise an exception
-        with patch.object(self.events_endpoints, '_get_events_stream', side_effect=Exception("Test error")):
+        with patch.object(self.events_endpoints, "_get_events_stream", side_effect=Exception("Test error")):
             response = self.client.get("/events/stream")
 
             # Should handle error gracefully
@@ -330,7 +330,7 @@ class TestEventsEndpoints:
             old_state={"state": "20"},
             new_state={"state": "21"},
             attributes={"unit_of_measurement": "°C"},
-            tags={"service": "websocket-ingestion"}
+            tags={"service": "websocket-ingestion"},
         )
 
         assert event_data.id == "test-id"
@@ -348,7 +348,7 @@ class TestEventsEndpoints:
             event_type="state_changed",
             start_time=datetime.now(),
             end_time=datetime.now(),
-            tags={"service": "websocket-ingestion"}
+            tags={"service": "websocket-ingestion"},
         )
 
         assert event_filter.entity_id == "sensor.temperature"
@@ -360,7 +360,7 @@ class TestEventsEndpoints:
         event_search = EventSearch(
             query="temperature",
             fields=["entity_id", "event_type"],
-            limit=100
+            limit=100,
         )
 
         assert event_search.query == "temperature"

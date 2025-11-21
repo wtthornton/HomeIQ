@@ -8,8 +8,9 @@ in Home Assistant events.
 """
 
 # Existing detectors (imported from pattern_analyzer)
-from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
-from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from src.pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from src.pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+
 from .anomaly_detector import AnomalyDetector
 from .contextual_detector import ContextualDetector
 from .day_type_detector import DayTypeDetector
@@ -25,22 +26,19 @@ from .sequence_detector import SequenceDetector
 from .session_detector import SessionDetector
 
 __all__ = [
+    "AnomalyDetector",
+    "CoOccurrencePatternDetector",
+    "ContextualDetector",
+    "DayTypeDetector",
+    "DurationDetector",
     # Base classes
-    'MLPatternDetector',
-
-    # Existing detectors
-    'TimeOfDayPatternDetector',
-    'CoOccurrencePatternDetector',
-
-    # New ML-enhanced detectors
-    'SequenceDetector',
-    'ContextualDetector',
-
+    "MLPatternDetector",
     # Additional detectors
-    'RoomBasedDetector',
-    'SessionDetector',
-    'DurationDetector',
-    'DayTypeDetector',
-    'SeasonalDetector',
-    'AnomalyDetector'
+    "RoomBasedDetector",
+    "SeasonalDetector",
+    # New ML-enhanced detectors
+    "SequenceDetector",
+    "SessionDetector",
+    # Existing detectors
+    "TimeOfDayPatternDetector",
 ]

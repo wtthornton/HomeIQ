@@ -11,5 +11,5 @@ Story AI3.2: Same-Area Device Pair Detection
 from .device_pair_analyzer import DevicePairAnalyzer
 from .synergy_detector import DeviceSynergyDetector
 
-__all__ = ['DeviceSynergyDetector', 'DevicePairAnalyzer']
+__all__ = ["DevicePairAnalyzer", "DeviceSynergyDetector"]
 

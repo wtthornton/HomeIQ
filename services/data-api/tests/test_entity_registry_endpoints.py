@@ -118,7 +118,7 @@ async def test_get_device_for_entity_endpoint(test_client):
             manufacturer="Test Co",
             model="Model X",
             config_entry_id="entry_456",
-            via_device=None
+            via_device=None,
         )
         session.add(device)
 
@@ -245,7 +245,7 @@ async def test_get_device_hierarchy_endpoint(test_client):
             device_id="child_device_hierarchy",
             name="Child Device",
             manufacturer="Test Co",
-            via_device="parent_device_hierarchy"
+            via_device="parent_device_hierarchy",
         )
         session.add(child_device)
         await session.commit()

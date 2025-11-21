@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Quick database summary script"""
 import os
-import sys
 import sqlite3
 from pathlib import Path
 
@@ -20,16 +19,16 @@ print("-" * 60)
 try:
     conn = sqlite3.connect(sqlite_path)
     cursor = conn.cursor()
-    
+
     # Get table counts
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [row[0] for row in cursor.fetchall()]
-    
+
     for table in tables:
         cursor.execute(f"SELECT COUNT(*) FROM {table}")
         count = cursor.fetchone()[0]
         print(f"  {table:20} {count:>8} rows")
-    
+
     conn.close()
 except Exception as e:
     print(f"  Error: {e}")

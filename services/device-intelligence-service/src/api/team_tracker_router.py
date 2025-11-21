@@ -85,7 +85,7 @@ class DetectedTeamSensor(BaseModel):
 
 @router.get("/status", response_model=TeamTrackerStatus)
 async def get_team_tracker_status(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> TeamTrackerStatus:
     """
     Get Team Tracker integration status.
@@ -96,7 +96,7 @@ async def get_team_tracker_status(
 
     # Get or create integration status
     result = await session.execute(
-        select(TeamTrackerIntegration).limit(1)
+        select(TeamTrackerIntegration).limit(1),
     )
     integration = result.scalar_one_or_none()
 
@@ -105,7 +105,7 @@ async def get_team_tracker_status(
         integration = TeamTrackerIntegration(
             is_installed=False,
             installation_status="not_installed",
-            last_checked=datetime.now(timezone.utc)
+            last_checked=datetime.now(timezone.utc),
         )
         session.add(integration)
         await session.commit()
@@ -113,13 +113,13 @@ async def get_team_tracker_status(
 
     # Count configured teams
     total_teams_result = await session.execute(
-        select(TeamTrackerTeam)
+        select(TeamTrackerTeam),
     )
     total_teams = len(total_teams_result.scalars().all())
 
     # Count active teams
     active_teams_result = await session.execute(
-        select(TeamTrackerTeam).where(TeamTrackerTeam.is_active == True)
+        select(TeamTrackerTeam).where(TeamTrackerTeam.is_active),
     )
     active_teams = len(active_teams_result.scalars().all())
 
@@ -129,13 +129,13 @@ async def get_team_tracker_status(
         version=integration.version,
         last_checked=integration.last_checked,
         configured_teams_count=total_teams,
-        active_teams_count=active_teams
+        active_teams_count=active_teams,
     )
 
 
 @router.post("/detect")
 async def detect_team_tracker_entities(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """
     Detect Team Tracker sensor entities from Home Assistant.
@@ -147,7 +147,7 @@ async def detect_team_tracker_entities(
 
     # Query for teamtracker entities
     result = await session.execute(
-        select(DeviceEntity).where(DeviceEntity.platform == "teamtracker")
+        select(DeviceEntity).where(DeviceEntity.platform == "teamtracker"),
     )
     team_sensors = result.scalars().all()
 
@@ -155,7 +155,7 @@ async def detect_team_tracker_entities(
 
     # Update integration status
     integration_result = await session.execute(
-        select(TeamTrackerIntegration).limit(1)
+        select(TeamTrackerIntegration).limit(1),
     )
     integration = integration_result.scalar_one_or_none()
 
@@ -173,7 +173,7 @@ async def detect_team_tracker_entities(
     for sensor in team_sensors:
         # Check if team already exists
         existing_team_result = await session.execute(
-            select(TeamTrackerTeam).where(TeamTrackerTeam.entity_id == sensor.entity_id)
+            select(TeamTrackerTeam).where(TeamTrackerTeam.entity_id == sensor.entity_id),
         )
         existing_team = existing_team_result.scalar_one_or_none()
 
@@ -193,7 +193,7 @@ async def detect_team_tracker_entities(
                 sensor_name=sensor.name,
                 configured_in_ha=True,
                 last_detected=datetime.now(timezone.utc),
-                is_active=True
+                is_active=True,
             )
             session.add(new_team)
             logger.info(f"Created new team entry: {sensor.entity_id}")
@@ -201,7 +201,7 @@ async def detect_team_tracker_entities(
         detected_teams.append({
             "entity_id": sensor.entity_id,
             "name": sensor.name,
-            "unique_id": sensor.unique_id
+            "unique_id": sensor.unique_id,
         })
 
     await session.commit()
@@ -209,14 +209,14 @@ async def detect_team_tracker_entities(
     return {
         "detected_count": len(team_sensors),
         "detected_teams": detected_teams,
-        "integration_status": integration.installation_status
+        "integration_status": integration.installation_status,
     }
 
 
 @router.get("/teams", response_model=list[TeamResponse])
 async def get_configured_teams(
     active_only: bool = False,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> list[TeamResponse]:
     """
     Get all configured Team Tracker teams.
@@ -231,7 +231,7 @@ async def get_configured_teams(
 
     query = select(TeamTrackerTeam)
     if active_only:
-        query = query.where(TeamTrackerTeam.is_active == True)
+        query = query.where(TeamTrackerTeam.is_active)
 
     query = query.order_by(TeamTrackerTeam.priority.desc(), TeamTrackerTeam.team_name)
 
@@ -244,7 +244,7 @@ async def get_configured_teams(
 @router.post("/teams", response_model=TeamResponse)
 async def add_team(
     team_config: TeamConfiguration,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> TeamResponse:
     """
     Add a new Team Tracker team configuration.
@@ -257,7 +257,7 @@ async def add_team(
     # Check if team already exists
     if team_config.entity_id:
         existing_result = await session.execute(
-            select(TeamTrackerTeam).where(TeamTrackerTeam.entity_id == team_config.entity_id)
+            select(TeamTrackerTeam).where(TeamTrackerTeam.entity_id == team_config.entity_id),
         )
         if existing_result.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Team with this entity_id already exists")
@@ -274,7 +274,7 @@ async def add_team(
         sport=team_config.sport,
         user_notes=team_config.user_notes,
         priority=team_config.priority,
-        configured_in_ha=False  # Will be updated by detection
+        configured_in_ha=False,  # Will be updated by detection
     )
 
     session.add(new_team)
@@ -290,7 +290,7 @@ async def add_team(
 async def update_team(
     team_id: int,
     team_config: TeamConfiguration,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> TeamResponse:
     """
     Update an existing Team Tracker team configuration.
@@ -298,7 +298,7 @@ async def update_team(
     logger.info(f"✏️ Updating team: {team_id}")
 
     result = await session.execute(
-        select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id)
+        select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id),
     )
     team = result.scalar_one_or_none()
 
@@ -328,7 +328,7 @@ async def update_team(
 @router.delete("/teams/{team_id}")
 async def delete_team(
     team_id: int,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
     """
     Delete a Team Tracker team configuration.
@@ -336,7 +336,7 @@ async def delete_team(
     logger.info(f"🗑️ Deleting team: {team_id}")
 
     result = await session.execute(
-        select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id)
+        select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id),
     )
     team = result.scalar_one_or_none()
 
@@ -353,7 +353,7 @@ async def delete_team(
 
 @router.post("/sync-from-ha")
 async def sync_teams_from_ha(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """
     Sync team configurations from Home Assistant state attributes.
@@ -373,5 +373,5 @@ async def sync_teams_from_ha(
     return {
         "synced": True,
         "detected_count": detection_result["detected_count"],
-        "message": "Teams synchronized from Home Assistant"
+        "message": "Teams synchronized from Home Assistant",
     }

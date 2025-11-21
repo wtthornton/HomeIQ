@@ -17,22 +17,20 @@ from .pattern_composer import ComposedAutomation, PatternComposer, get_pattern_c
 from .pattern_matcher import PatternMatch, PatternMatcher, get_pattern_matcher
 
 __all__ = [
-    # Pattern definitions
-    'PatternDefinition',
-    'PatternVariable',
-    'PATTERNS',
-    'get_pattern',
-    'get_all_patterns',
-    'get_patterns_by_category',
-    'generate_automation_id',
-
-    # Pattern matching
-    'PatternMatch',
-    'PatternMatcher',
-    'get_pattern_matcher',
-
+    "PATTERNS",
     # Pattern composition
-    'ComposedAutomation',
-    'PatternComposer',
-    'get_pattern_composer',
+    "ComposedAutomation",
+    "PatternComposer",
+    # Pattern definitions
+    "PatternDefinition",
+    # Pattern matching
+    "PatternMatch",
+    "PatternMatcher",
+    "PatternVariable",
+    "generate_automation_id",
+    "get_all_patterns",
+    "get_pattern",
+    "get_pattern_composer",
+    "get_pattern_matcher",
+    "get_patterns_by_category",
 ]

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class SeasonalDetector(MLPatternDetector):
     """
     Detects seasonal behavior patterns.
-    
+
     Analyzes patterns based on:
     - Seasonal behavior changes
     - Weather-based patterns
@@ -34,11 +34,11 @@ class SeasonalDetector(MLPatternDetector):
         seasonal_window_days: int = 30,
         weather_integration: bool = True,
         aggregate_client=None,  # Story AI5.8: Monthly aggregation
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize seasonal detector.
-        
+
         Args:
             min_seasonal_occurrences: Minimum occurrences for valid seasonal patterns
             seasonal_window_days: Window for seasonal analysis
@@ -57,10 +57,10 @@ class SeasonalDetector(MLPatternDetector):
     def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect seasonal patterns in events.
-        
+
         Args:
             events_df: Events DataFrame with time, entity_id, state columns
-            
+
         Returns:
             List of seasonal pattern dictionaries
         """
@@ -105,8 +105,8 @@ class SeasonalDetector(MLPatternDetector):
 
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
-        self.detection_stats['total_patterns'] += len(patterns)
-        self.detection_stats['processing_time'] += processing_time
+        self.detection_stats["total_patterns"] += len(patterns)
+        self.detection_stats["processing_time"] += processing_time
 
         logger.info(f"Detected {len(patterns)} seasonal patterns in {processing_time:.2f}s")
         return patterns
@@ -114,43 +114,43 @@ class SeasonalDetector(MLPatternDetector):
     def _add_seasonal_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Add seasonal features to events DataFrame.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             DataFrame with seasonal features
         """
         df = events_df.copy()
 
         # Basic seasonal features
-        df['month'] = df['time'].dt.month
-        df['dayofyear'] = df['time'].dt.dayofyear
-        df['quarter'] = df['time'].dt.quarter
+        df["month"] = df["time"].dt.month
+        df["dayofyear"] = df["time"].dt.dayofyear
+        df["quarter"] = df["time"].dt.quarter
 
         # Season classification
-        df['season'] = df['month'].map({
-            12: 'winter', 1: 'winter', 2: 'winter',
-            3: 'spring', 4: 'spring', 5: 'spring',
-            6: 'summer', 7: 'summer', 8: 'summer',
-            9: 'fall', 10: 'fall', 11: 'fall'
+        df["season"] = df["month"].map({
+            12: "winter", 1: "winter", 2: "winter",
+            3: "spring", 4: "spring", 5: "spring",
+            6: "summer", 7: "summer", 8: "summer",
+            9: "fall", 10: "fall", 11: "fall",
         })
 
         # Daylight approximation
-        df['daylight_hours'] = df['time'].dt.hour.map(self._calculate_daylight_hours)
-        df['is_daylight'] = (df['time'].dt.hour >= 6) & (df['time'].dt.hour <= 18)
+        df["daylight_hours"] = df["time"].dt.hour.map(self._calculate_daylight_hours)
+        df["is_daylight"] = (df["time"].dt.hour >= 6) & (df["time"].dt.hour <= 18)
 
         # Weather features (if available)
-        if 'temperature' not in df.columns:
-            df['temperature'] = 20.0  # Default temperature
-        if 'humidity' not in df.columns:
-            df['humidity'] = 50.0  # Default humidity
+        if "temperature" not in df.columns:
+            df["temperature"] = 20.0  # Default temperature
+        if "humidity" not in df.columns:
+            df["humidity"] = 50.0  # Default humidity
 
         # Temperature categories
-        df['temp_category'] = pd.cut(
-            df['temperature'],
+        df["temp_category"] = pd.cut(
+            df["temperature"],
             bins=[-np.inf, 0, 15, 25, np.inf],
-            labels=['cold', 'cool', 'warm', 'hot']
+            labels=["cold", "cool", "warm", "hot"],
         )
 
         return df
@@ -158,33 +158,32 @@ class SeasonalDetector(MLPatternDetector):
     def _calculate_daylight_hours(self, hour: int) -> int:
         """
         Calculate approximate daylight hours for a given hour.
-        
+
         Args:
             hour: Hour of day (0-23)
-            
+
         Returns:
             Daylight hours (0-12)
         """
         # Simple approximation - could be enhanced with actual sunrise/sunset data
         if 6 <= hour <= 18:
             return min(12, hour - 6)
-        else:
-            return 0
+        return 0
 
     def _detect_seasonal_changes(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect seasonal behavior changes.
-        
+
         Args:
             events_df: Events DataFrame with seasonal features
-            
+
         Returns:
             List of seasonal change patterns
         """
         patterns = []
 
         # Group by season and analyze changes
-        for season, season_events in events_df.groupby('season'):
+        for season, season_events in events_df.groupby("season"):
             if len(season_events) < self.min_seasonal_occurrences:
                 continue
 
@@ -195,26 +194,26 @@ class SeasonalDetector(MLPatternDetector):
             confidence = self._calculate_seasonal_confidence(seasonal_analysis)
 
             if confidence >= self.min_confidence:
-                devices = list(season_events['entity_id'].unique())
+                devices = list(season_events["entity_id"].unique())
 
                 pattern = self._create_pattern_dict(
-                    pattern_type=f'seasonal_{season}',
-                    pattern_id=self._generate_pattern_id(f'season_{season}'),
+                    pattern_type=f"seasonal_{season}",
+                    pattern_id=self._generate_pattern_id(f"season_{season}"),
                     confidence=confidence,
                     occurrences=len(season_events),
                     devices=devices,
                     metadata={
-                        'season': season,
-                        'event_count': len(season_events),
-                        'device_count': len(devices),
-                        'avg_events_per_day': seasonal_analysis['avg_events_per_day'],
-                        'peak_hour': seasonal_analysis['peak_hour'],
-                        'activity_intensity': seasonal_analysis['activity_intensity'],
-                        'daylight_usage': seasonal_analysis['daylight_usage'],
-                        'temperature_correlation': seasonal_analysis['temperature_correlation'],
-                        'first_occurrence': season_events['time'].min().isoformat(),
-                        'last_occurrence': season_events['time'].max().isoformat()
-                    }
+                        "season": season,
+                        "event_count": len(season_events),
+                        "device_count": len(devices),
+                        "avg_events_per_day": seasonal_analysis["avg_events_per_day"],
+                        "peak_hour": seasonal_analysis["peak_hour"],
+                        "activity_intensity": seasonal_analysis["activity_intensity"],
+                        "daylight_usage": seasonal_analysis["daylight_usage"],
+                        "temperature_correlation": seasonal_analysis["temperature_correlation"],
+                        "first_occurrence": season_events["time"].min().isoformat(),
+                        "last_occurrence": season_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -223,17 +222,17 @@ class SeasonalDetector(MLPatternDetector):
     def _detect_weather_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect weather-based patterns.
-        
+
         Args:
             events_df: Events DataFrame with weather features
-            
+
         Returns:
             List of weather patterns
         """
         patterns = []
 
         # Group by temperature category
-        for temp_category, temp_events in events_df.groupby('temp_category'):
+        for temp_category, temp_events in events_df.groupby("temp_category"):
             if len(temp_events) < self.min_seasonal_occurrences:
                 continue
 
@@ -244,25 +243,25 @@ class SeasonalDetector(MLPatternDetector):
             confidence = self._calculate_weather_confidence(weather_analysis)
 
             if confidence >= self.min_confidence:
-                devices = list(temp_events['entity_id'].unique())
+                devices = list(temp_events["entity_id"].unique())
 
                 pattern = self._create_pattern_dict(
-                    pattern_type=f'weather_{temp_category}',
-                    pattern_id=self._generate_pattern_id(f'weather_{temp_category}'),
+                    pattern_type=f"weather_{temp_category}",
+                    pattern_id=self._generate_pattern_id(f"weather_{temp_category}"),
                     confidence=confidence,
                     occurrences=len(temp_events),
                     devices=devices,
                     metadata={
-                        'temperature_category': temp_category,
-                        'event_count': len(temp_events),
-                        'device_count': len(devices),
-                        'avg_temperature': weather_analysis['avg_temperature'],
-                        'temperature_variance': weather_analysis['temperature_variance'],
-                        'activity_intensity': weather_analysis['activity_intensity'],
-                        'weather_sensitivity': weather_analysis['weather_sensitivity'],
-                        'first_occurrence': temp_events['time'].min().isoformat(),
-                        'last_occurrence': temp_events['time'].max().isoformat()
-                    }
+                        "temperature_category": temp_category,
+                        "event_count": len(temp_events),
+                        "device_count": len(devices),
+                        "avg_temperature": weather_analysis["avg_temperature"],
+                        "temperature_variance": weather_analysis["temperature_variance"],
+                        "activity_intensity": weather_analysis["activity_intensity"],
+                        "weather_sensitivity": weather_analysis["weather_sensitivity"],
+                        "first_occurrence": temp_events["time"].min().isoformat(),
+                        "last_occurrence": temp_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -271,17 +270,17 @@ class SeasonalDetector(MLPatternDetector):
     def _detect_daylight_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect daylight-based patterns.
-        
+
         Args:
             events_df: Events DataFrame with daylight features
-            
+
         Returns:
             List of daylight patterns
         """
         patterns = []
 
         # Group by daylight usage
-        for is_daylight, daylight_events in events_df.groupby('is_daylight'):
+        for is_daylight, daylight_events in events_df.groupby("is_daylight"):
             if len(daylight_events) < self.min_seasonal_occurrences:
                 continue
 
@@ -292,25 +291,25 @@ class SeasonalDetector(MLPatternDetector):
             confidence = self._calculate_daylight_confidence(daylight_analysis)
 
             if confidence >= self.min_confidence:
-                devices = list(daylight_events['entity_id'].unique())
-                pattern_type = 'daylight' if is_daylight else 'nighttime'
+                devices = list(daylight_events["entity_id"].unique())
+                pattern_type = "daylight" if is_daylight else "nighttime"
 
                 pattern = self._create_pattern_dict(
-                    pattern_type=f'daylight_{pattern_type}',
-                    pattern_id=self._generate_pattern_id(f'daylight_{pattern_type}'),
+                    pattern_type=f"daylight_{pattern_type}",
+                    pattern_id=self._generate_pattern_id(f"daylight_{pattern_type}"),
                     confidence=confidence,
                     occurrences=len(daylight_events),
                     devices=devices,
                     metadata={
-                        'daylight_type': pattern_type,
-                        'event_count': len(daylight_events),
-                        'device_count': len(devices),
-                        'avg_daylight_hours': daylight_analysis['avg_daylight_hours'],
-                        'activity_intensity': daylight_analysis['activity_intensity'],
-                        'seasonal_variation': daylight_analysis['seasonal_variation'],
-                        'first_occurrence': daylight_events['time'].min().isoformat(),
-                        'last_occurrence': daylight_events['time'].max().isoformat()
-                    }
+                        "daylight_type": pattern_type,
+                        "event_count": len(daylight_events),
+                        "device_count": len(devices),
+                        "avg_daylight_hours": daylight_analysis["avg_daylight_hours"],
+                        "activity_intensity": daylight_analysis["activity_intensity"],
+                        "seasonal_variation": daylight_analysis["seasonal_variation"],
+                        "first_occurrence": daylight_events["time"].min().isoformat(),
+                        "last_occurrence": daylight_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -319,10 +318,10 @@ class SeasonalDetector(MLPatternDetector):
     def _detect_seasonal_clusters(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect seasonal clusters using ML clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of seasonal cluster patterns
         """
@@ -354,24 +353,24 @@ class SeasonalDetector(MLPatternDetector):
                     continue
 
                 cluster_confidence = self._calculate_cluster_confidence(
-                    cluster_events, cluster_id, kmeans
+                    cluster_events, cluster_id, kmeans,
                 )
 
                 if cluster_confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='seasonal_cluster',
-                        pattern_id=self._generate_pattern_id('seasonal_cluster'),
+                        pattern_type="seasonal_cluster",
+                        pattern_id=self._generate_pattern_id("seasonal_cluster"),
                         confidence=cluster_confidence,
                         occurrences=len(cluster_events),
                         devices=[],  # Will be filled from cluster data
                         metadata={
-                            'cluster_id': cluster_id,
-                            'cluster_size': len(cluster_events),
-                            'cluster_characteristics': self._describe_seasonal_cluster(
-                                cluster_events, cluster_id
+                            "cluster_id": cluster_id,
+                            "cluster_size": len(cluster_events),
+                            "cluster_characteristics": self._describe_seasonal_cluster(
+                                cluster_events, cluster_id,
                             ),
-                            'cluster_centroid': kmeans.cluster_centers_[cluster_id].tolist()
-                        }
+                            "cluster_centroid": kmeans.cluster_centers_[cluster_id].tolist(),
+                        },
                     )
                     patterns.append(pattern)
 
@@ -383,147 +382,147 @@ class SeasonalDetector(MLPatternDetector):
     def _analyze_seasonal_characteristics(self, season_events: pd.DataFrame, season: str) -> dict[str, Any]:
         """
         Analyze seasonal characteristics.
-        
+
         Args:
             season_events: Events for season
             season: Season name
-            
+
         Returns:
             Seasonal analysis
         """
         # Basic statistics
         event_count = len(season_events)
-        device_count = season_events['entity_id'].nunique()
+        season_events["entity_id"].nunique()
 
         # Daily statistics
-        daily_events = season_events.groupby(season_events['time'].dt.date).size()
+        daily_events = season_events.groupby(season_events["time"].dt.date).size()
         avg_events_per_day = daily_events.mean()
 
         # Time analysis
-        hourly_counts = season_events['time'].dt.hour.value_counts()
+        hourly_counts = season_events["time"].dt.hour.value_counts()
         peak_hour = hourly_counts.index[0] if len(hourly_counts) > 0 else 0
 
         # Activity intensity
-        time_span_hours = (season_events['time'].max() - season_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (season_events["time"].max() - season_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # Daylight usage
-        daylight_usage = season_events['is_daylight'].mean()
+        daylight_usage = season_events["is_daylight"].mean()
 
         # Temperature correlation
         temperature_correlation = 0.0
-        if 'temperature' in season_events.columns:
+        if "temperature" in season_events.columns:
             try:
-                correlation = season_events['temperature'].corr(season_events['time'].dt.hour)
+                correlation = season_events["temperature"].corr(season_events["time"].dt.hour)
                 temperature_correlation = abs(correlation) if not pd.isna(correlation) else 0.0
             except Exception:
                 pass
 
         return {
-            'avg_events_per_day': avg_events_per_day,
-            'peak_hour': peak_hour,
-            'activity_intensity': activity_intensity,
-            'daylight_usage': daylight_usage,
-            'temperature_correlation': temperature_correlation
+            "avg_events_per_day": avg_events_per_day,
+            "peak_hour": peak_hour,
+            "activity_intensity": activity_intensity,
+            "daylight_usage": daylight_usage,
+            "temperature_correlation": temperature_correlation,
         }
 
     def _analyze_weather_characteristics(self, weather_events: pd.DataFrame, temp_category: str) -> dict[str, Any]:
         """
         Analyze weather characteristics.
-        
+
         Args:
             weather_events: Events for temperature category
             temp_category: Temperature category
-            
+
         Returns:
             Weather analysis
         """
         # Basic statistics
         event_count = len(weather_events)
-        device_count = weather_events['entity_id'].nunique()
+        weather_events["entity_id"].nunique()
 
         # Temperature statistics
-        avg_temperature = weather_events['temperature'].mean()
-        temperature_variance = weather_events['temperature'].var()
+        avg_temperature = weather_events["temperature"].mean()
+        temperature_variance = weather_events["temperature"].var()
 
         # Activity intensity
-        time_span_hours = (weather_events['time'].max() - weather_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (weather_events["time"].max() - weather_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # Weather sensitivity (correlation between temperature and activity)
         weather_sensitivity = 0.0
         if len(weather_events) > 1:
             try:
-                correlation = weather_events['temperature'].corr(pd.Series(range(len(weather_events))))
+                correlation = weather_events["temperature"].corr(pd.Series(range(len(weather_events))))
                 weather_sensitivity = abs(correlation) if not pd.isna(correlation) else 0.0
             except Exception:
                 pass
 
         return {
-            'avg_temperature': avg_temperature,
-            'temperature_variance': temperature_variance,
-            'activity_intensity': activity_intensity,
-            'weather_sensitivity': weather_sensitivity
+            "avg_temperature": avg_temperature,
+            "temperature_variance": temperature_variance,
+            "activity_intensity": activity_intensity,
+            "weather_sensitivity": weather_sensitivity,
         }
 
     def _analyze_daylight_characteristics(self, daylight_events: pd.DataFrame, is_daylight: bool) -> dict[str, Any]:
         """
         Analyze daylight characteristics.
-        
+
         Args:
             daylight_events: Events for daylight period
             is_daylight: Whether this is daylight period
-            
+
         Returns:
             Daylight analysis
         """
         # Basic statistics
         event_count = len(daylight_events)
-        device_count = daylight_events['entity_id'].nunique()
+        daylight_events["entity_id"].nunique()
 
         # Daylight hours
-        avg_daylight_hours = daylight_events['daylight_hours'].mean()
+        avg_daylight_hours = daylight_events["daylight_hours"].mean()
 
         # Activity intensity
-        time_span_hours = (daylight_events['time'].max() - daylight_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (daylight_events["time"].max() - daylight_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # Seasonal variation
         seasonal_variation = 0.0
-        if 'season' in daylight_events.columns:
-            seasonal_counts = daylight_events['season'].value_counts()
+        if "season" in daylight_events.columns:
+            seasonal_counts = daylight_events["season"].value_counts()
             seasonal_variation = len(seasonal_counts) / 4.0  # 4 seasons
 
         return {
-            'avg_daylight_hours': avg_daylight_hours,
-            'activity_intensity': activity_intensity,
-            'seasonal_variation': seasonal_variation
+            "avg_daylight_hours": avg_daylight_hours,
+            "activity_intensity": activity_intensity,
+            "seasonal_variation": seasonal_variation,
         }
 
     def _extract_seasonal_features(self, events_df: pd.DataFrame) -> np.ndarray:
         """
         Extract seasonal features for clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         # Group by month and extract features
-        for month, month_events in events_df.groupby('month'):
+        for month, month_events in events_df.groupby("month"):
             # Extract monthly features
             feature_vector = [
                 len(month_events),  # Event count
-                month_events['entity_id'].nunique(),  # Device count
-                month_events['time'].dt.hour.nunique(),  # Active hours
-                month_events['is_daylight'].mean(),  # Daylight usage ratio
-                month_events['temperature'].mean(),  # Average temperature
-                month_events['temperature'].std(),  # Temperature variance
+                month_events["entity_id"].nunique(),  # Device count
+                month_events["time"].dt.hour.nunique(),  # Active hours
+                month_events["is_daylight"].mean(),  # Daylight usage ratio
+                month_events["temperature"].mean(),  # Average temperature
+                month_events["temperature"].std(),  # Temperature variance
                 month,  # Month
-                month_events['daylight_hours'].mean()  # Average daylight hours
+                month_events["daylight_hours"].mean(),  # Average daylight hours
             ]
             features.append(feature_vector)
 
@@ -532,21 +531,21 @@ class SeasonalDetector(MLPatternDetector):
     def _calculate_seasonal_confidence(self, seasonal_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for seasonal patterns.
-        
+
         Args:
             seasonal_analysis: Seasonal analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity intensity
-        base_confidence = min(seasonal_analysis['activity_intensity'] / 3.0, 1.0)
+        base_confidence = min(seasonal_analysis["activity_intensity"] / 3.0, 1.0)
 
         # Daylight usage bonus
-        daylight_bonus = seasonal_analysis['daylight_usage'] * 0.2
+        daylight_bonus = seasonal_analysis["daylight_usage"] * 0.2
 
         # Temperature correlation bonus
-        temp_bonus = seasonal_analysis['temperature_correlation'] * 0.1
+        temp_bonus = seasonal_analysis["temperature_correlation"] * 0.1
 
         total_confidence = base_confidence + daylight_bonus + temp_bonus
 
@@ -555,18 +554,18 @@ class SeasonalDetector(MLPatternDetector):
     def _calculate_weather_confidence(self, weather_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for weather patterns.
-        
+
         Args:
             weather_analysis: Weather analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity intensity
-        base_confidence = min(weather_analysis['activity_intensity'] / 2.0, 1.0)
+        base_confidence = min(weather_analysis["activity_intensity"] / 2.0, 1.0)
 
         # Weather sensitivity bonus
-        sensitivity_bonus = weather_analysis['weather_sensitivity'] * 0.3
+        sensitivity_bonus = weather_analysis["weather_sensitivity"] * 0.3
 
         total_confidence = base_confidence + sensitivity_bonus
 
@@ -575,18 +574,18 @@ class SeasonalDetector(MLPatternDetector):
     def _calculate_daylight_confidence(self, daylight_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for daylight patterns.
-        
+
         Args:
             daylight_analysis: Daylight analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity intensity
-        base_confidence = min(daylight_analysis['activity_intensity'] / 2.0, 1.0)
+        base_confidence = min(daylight_analysis["activity_intensity"] / 2.0, 1.0)
 
         # Seasonal variation bonus
-        variation_bonus = daylight_analysis['seasonal_variation'] * 0.2
+        variation_bonus = daylight_analysis["seasonal_variation"] * 0.2
 
         total_confidence = base_confidence + variation_bonus
 
@@ -595,12 +594,12 @@ class SeasonalDetector(MLPatternDetector):
     def _calculate_cluster_confidence(self, cluster_events: np.ndarray, cluster_id: int, kmeans_model) -> float:
         """
         Calculate confidence for seasonal clusters.
-        
+
         Args:
             cluster_events: Events in cluster
             cluster_id: Cluster identifier
             kmeans_model: Fitted KMeans model
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -621,32 +620,32 @@ class SeasonalDetector(MLPatternDetector):
     def _describe_seasonal_cluster(self, cluster_events: np.ndarray, cluster_id: int) -> dict[str, Any]:
         """
         Describe seasonal cluster characteristics.
-        
+
         Args:
             cluster_events: Events in cluster
             cluster_id: Cluster identifier
-            
+
         Returns:
             Cluster characteristics
         """
         return {
-            'cluster_id': cluster_id,
-            'event_count': len(cluster_events),
-            'avg_events_per_month': np.mean(cluster_events[:, 0]) if len(cluster_events) > 0 else 0,
-            'avg_devices_per_month': np.mean(cluster_events[:, 1]) if len(cluster_events) > 0 else 0,
-            'avg_active_hours': np.mean(cluster_events[:, 2]) if len(cluster_events) > 0 else 0,
-            'avg_daylight_usage': np.mean(cluster_events[:, 3]) if len(cluster_events) > 0 else 0,
-            'avg_temperature': np.mean(cluster_events[:, 4]) if len(cluster_events) > 0 else 0,
-            'avg_daylight_hours': np.mean(cluster_events[:, 7]) if len(cluster_events) > 0 else 0
+            "cluster_id": cluster_id,
+            "event_count": len(cluster_events),
+            "avg_events_per_month": np.mean(cluster_events[:, 0]) if len(cluster_events) > 0 else 0,
+            "avg_devices_per_month": np.mean(cluster_events[:, 1]) if len(cluster_events) > 0 else 0,
+            "avg_active_hours": np.mean(cluster_events[:, 2]) if len(cluster_events) > 0 else 0,
+            "avg_daylight_usage": np.mean(cluster_events[:, 3]) if len(cluster_events) > 0 else 0,
+            "avg_temperature": np.mean(cluster_events[:, 4]) if len(cluster_events) > 0 else 0,
+            "avg_daylight_hours": np.mean(cluster_events[:, 7]) if len(cluster_events) > 0 else 0,
         }
 
     def _cluster_seasonal_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Cluster similar seasonal patterns using ML.
-        
+
         Args:
             patterns: List of seasonal patterns
-            
+
         Returns:
             Clustered patterns with cluster information
         """
@@ -670,47 +669,47 @@ class SeasonalDetector(MLPatternDetector):
     def _extract_seasonal_pattern_features(self, patterns: list[dict]) -> np.ndarray:
         """
         Extract features for seasonal pattern clustering.
-        
+
         Args:
             patterns: List of seasonal patterns
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         for pattern in patterns:
-            metadata = pattern['metadata']
+            metadata = pattern["metadata"]
 
             # Extract numerical features
             feature_vector = [
-                pattern['occurrences'],
-                pattern['confidence'],
-                len(pattern['devices']),
-                metadata.get('event_count', 0),
-                metadata.get('device_count', 0),
-                metadata.get('avg_events_per_day', 0),
-                metadata.get('peak_hour', 0),
-                metadata.get('activity_intensity', 0),
-                metadata.get('daylight_usage', 0),
-                metadata.get('temperature_correlation', 0),
-                metadata.get('weather_sensitivity', 0)
+                pattern["occurrences"],
+                pattern["confidence"],
+                len(pattern["devices"]),
+                metadata.get("event_count", 0),
+                metadata.get("device_count", 0),
+                metadata.get("avg_events_per_day", 0),
+                metadata.get("peak_hour", 0),
+                metadata.get("activity_intensity", 0),
+                metadata.get("daylight_usage", 0),
+                metadata.get("temperature_correlation", 0),
+                metadata.get("weather_sensitivity", 0),
             ]
 
             # Add pattern type encoding
-            pattern_type = pattern['pattern_type']
+            pattern_type = pattern["pattern_type"]
             type_encoding = {
-                'seasonal_winter': 0,
-                'seasonal_spring': 1,
-                'seasonal_summer': 2,
-                'seasonal_fall': 3,
-                'weather_cold': 4,
-                'weather_cool': 5,
-                'weather_warm': 6,
-                'weather_hot': 7,
-                'daylight_daylight': 8,
-                'daylight_nighttime': 9,
-                'seasonal_cluster': 10
+                "seasonal_winter": 0,
+                "seasonal_spring": 1,
+                "seasonal_summer": 2,
+                "seasonal_fall": 3,
+                "weather_cold": 4,
+                "weather_cool": 5,
+                "weather_warm": 6,
+                "weather_hot": 7,
+                "daylight_daylight": 8,
+                "daylight_nighttime": 9,
+                "seasonal_cluster": 10,
             }.get(pattern_type, 0)
             feature_vector.append(type_encoding)
 
@@ -721,43 +720,43 @@ class SeasonalDetector(MLPatternDetector):
     def _store_monthly_aggregates(self, patterns: list[dict], events_df: pd.DataFrame) -> None:
         """
         Store monthly aggregates to InfluxDB.
-        
+
         Story AI5.8: Incremental pattern processing with monthly aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events_df: Original events DataFrame
         """
         try:
             # Get month identifier from events
-            if events_df.empty or 'time' not in events_df.columns:
+            if events_df.empty or "time" not in events_df.columns:
                 logger.warning("Cannot determine month from events for aggregate storage")
                 return
 
             # Use YYYY-MM format
-            first_date = pd.to_datetime(events_df['time'].min())
-            month_str = first_date.strftime('%Y-%m')
+            first_date = pd.to_datetime(events_df["time"].min())
+            month_str = first_date.strftime("%Y-%m")
 
             logger.info(f"Storing monthly aggregates for {month_str}")
 
             for pattern in patterns:
                 # Extract season information
-                metadata = pattern.get('metadata', {})
-                season = metadata.get('season', 'unknown')
+                metadata = pattern.get("metadata", {})
+                season = metadata.get("season", "unknown")
 
                 # Seasonal patterns from metadata
-                seasonal_patterns = metadata.get('seasonal_patterns', {})
+                seasonal_patterns = metadata.get("seasonal_patterns", {})
                 if not seasonal_patterns:
-                    seasonal_patterns = {'trend': 'stable'}
+                    seasonal_patterns = {"trend": "stable"}
 
                 # Determine trend direction from confidence changes
-                confidence = pattern.get('confidence', 0.0)
+                confidence = pattern.get("confidence", 0.0)
                 if confidence > 0.8:
-                    trend_direction = 'increasing'
+                    trend_direction = "increasing"
                 elif confidence < 0.5:
-                    trend_direction = 'decreasing'
+                    trend_direction = "decreasing"
                 else:
-                    trend_direction = 'stable'
+                    trend_direction = "stable"
 
                 # Store aggregate
                 try:
@@ -766,7 +765,7 @@ class SeasonalDetector(MLPatternDetector):
                         season=season,
                         seasonal_patterns=seasonal_patterns,
                         trend_direction=trend_direction,
-                        confidence=confidence
+                        confidence=confidence,
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {season}: {e}", exc_info=True)

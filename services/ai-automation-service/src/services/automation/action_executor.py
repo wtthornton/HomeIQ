@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class ActionExecutor:
     """
     Action execution engine with queuing and retry logic.
-    
+
     Executes automation actions directly via Home Assistant REST API
     without creating temporary automations. Supports:
     - Action queuing with asyncio.Queue
@@ -43,11 +43,11 @@ class ActionExecutor:
         template_engine: Any | None = None,
         num_workers: int = 2,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ):
         """
         Initialize action executor.
-        
+
         Args:
             ha_client: Home Assistant client for service calls
             template_engine: Optional template engine for rendering dynamic values
@@ -121,17 +121,17 @@ class ActionExecutor:
         action: dict[str, Any],
         context: dict[str, Any],
         retry_on_failure: bool = True,
-        execution_id: str | None = None
+        execution_id: str | None = None,
     ) -> str:
         """
         Queue an action for execution.
-        
+
         Args:
             action: Parsed action dictionary
             context: Test context (query_id, suggestion_id, etc.)
             retry_on_failure: Whether to retry on failure
             execution_id: Optional execution ID (generated if not provided)
-            
+
         Returns:
             Execution ID for tracking
         """
@@ -142,7 +142,7 @@ class ActionExecutor:
             action=action,
             context=context,
             retry_on_failure=retry_on_failure,
-            execution_id=execution_id
+            execution_id=execution_id,
         )
 
         await self._queue.put(action_item)
@@ -153,28 +153,28 @@ class ActionExecutor:
     async def execute_actions(
         self,
         actions: list[dict[str, Any]],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> ActionExecutionSummary:
         """
         Execute a list of actions and return summary.
-        
+
         Convenience method that queues all actions and waits for completion.
-        
+
         Args:
             actions: List of parsed action dictionaries
             context: Test context
-            
+
         Returns:
             ActionExecutionSummary with results
         """
         execution_id = str(uuid.uuid4())
-        context['execution_id'] = execution_id
+        context["execution_id"] = execution_id
 
         # Track execution
         self._executions[execution_id] = {
-            'start_time': time.time(),
-            'actions': [],
-            'results': []
+            "start_time": time.time(),
+            "actions": [],
+            "results": [],
         }
 
         # Queue all actions
@@ -183,10 +183,10 @@ class ActionExecutor:
             action_id = await self.queue_action(
                 action=action,
                 context=context,
-                execution_id=f"{execution_id}-{len(action_ids)}"
+                execution_id=f"{execution_id}-{len(action_ids)}",
             )
             action_ids.append(action_id)
-            self._executions[execution_id]['actions'].append(action_id)
+            self._executions[execution_id]["actions"].append(action_id)
 
         # Wait for all actions to complete
         # Note: In a real implementation, we'd track completion via callbacks
@@ -198,7 +198,7 @@ class ActionExecutor:
             total_actions=len(actions),
             successful=0,
             failed=0,
-            total_time_ms=0.0
+            total_time_ms=0.0,
         )
 
         # Execute actions sequentially for now (can be parallelized later)
@@ -218,7 +218,7 @@ class ActionExecutor:
                 summary.failed += 1
                 summary.errors.append(str(e))
 
-        summary.total_time_ms = (time.time() - self._executions[execution_id]['start_time']) * 1000
+        summary.total_time_ms = (time.time() - self._executions[execution_id]["start_time"]) * 1000
 
         return summary
 
@@ -232,7 +232,7 @@ class ActionExecutor:
                 try:
                     action_item = await asyncio.wait_for(
                         self._queue.get(),
-                        timeout=1.0
+                        timeout=1.0,
                     )
                 except asyncio.TimeoutError:
                     continue
@@ -254,10 +254,10 @@ class ActionExecutor:
     async def _execute_action_with_retry(self, action_item: ActionItem) -> bool:
         """
         Execute action with retry logic.
-        
+
         Args:
             action_item: Action item to execute
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -276,43 +276,40 @@ class ActionExecutor:
                 state_machine.transition(ActionExecutionState.EXECUTING)
 
                 # Execute action based on type
-                if action_item.action.get('type') == 'delay':
-                    await asyncio.sleep(action_item.action.get('delay', 0))
+                if action_item.action.get("type") == "delay":
+                    await asyncio.sleep(action_item.action.get("delay", 0))
                     state_machine.transition(ActionExecutionState.SUCCESS)
                     return True
-                elif action_item.action.get('type') == 'service_call':
+                if action_item.action.get("type") == "service_call":
                     success = await self._execute_service_call(action_item)
                     if success:
                         state_machine.transition(ActionExecutionState.SUCCESS)
                         return True
-                    else:
-                        if attempt < self.max_retries and action_item.retry_on_failure:
-                            state_machine.transition(ActionExecutionState.RETRYING)
-                            continue
-                        else:
-                            state_machine.transition(ActionExecutionState.FAILED)
-                            return False
-                elif action_item.action.get('type') == 'sequence':
-                    return await self._execute_sequence(action_item)
-                elif action_item.action.get('type') == 'parallel':
-                    return await self._execute_parallel(action_item)
-                else:
-                    logger.warning(f"Unknown action type: {action_item.action.get('type')}")
+                    if attempt < self.max_retries and action_item.retry_on_failure:
+                        state_machine.transition(ActionExecutionState.RETRYING)
+                        continue
                     state_machine.transition(ActionExecutionState.FAILED)
                     return False
+                if action_item.action.get("type") == "sequence":
+                    return await self._execute_sequence(action_item)
+                if action_item.action.get("type") == "parallel":
+                    return await self._execute_parallel(action_item)
+                logger.warning(f"Unknown action type: {action_item.action.get('type')}")
+                state_machine.transition(ActionExecutionState.FAILED)
+                return False
 
             except Exception as e:
                 logger.error(f"Error executing action {action_item.execution_id}: {e}", exc_info=True)
                 if attempt < self.max_retries and action_item.retry_on_failure:
                     state_machine.transition(ActionExecutionState.RETRYING)
                     continue
-                else:
-                    state_machine.transition(ActionExecutionState.FAILED)
-                    raise RetryExhaustedError(
-                        f"Action execution failed after {attempt + 1} attempts",
-                        attempts=attempt + 1,
-                        last_error=e
-                    )
+                state_machine.transition(ActionExecutionState.FAILED)
+                msg = f"Action execution failed after {attempt + 1} attempts"
+                raise RetryExhaustedError(
+                    msg,
+                    attempts=attempt + 1,
+                    last_error=e,
+                )
 
         state_machine.transition(ActionExecutionState.FAILED)
         return False
@@ -320,102 +317,102 @@ class ActionExecutor:
     async def _execute_single_action(
         self,
         action: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> ActionExecutionResult:
         """
         Execute a single action and return result.
-        
+
         Args:
             action: Action dictionary
             context: Execution context
-            
+
         Returns:
             ActionExecutionResult
         """
         start_time = time.time()
-        action_id = action.get('action', 'unknown')
+        action_id = action.get("action", "unknown")
 
         try:
-            if action.get('type') == 'delay':
-                delay = action.get('delay', 0)
+            if action.get("type") == "delay":
+                delay = action.get("delay", 0)
                 await asyncio.sleep(delay)
                 return ActionExecutionResult(
                     success=True,
                     action_id=action_id,
-                    execution_time_ms=(time.time() - start_time) * 1000
+                    execution_time_ms=(time.time() - start_time) * 1000,
                 )
-            elif action.get('type') == 'service_call':
+            if action.get("type") == "service_call":
                 # Create temporary action item for execution
                 action_item = ActionItem(
                     action=action,
                     context=context,
-                    execution_id=str(uuid.uuid4())
+                    execution_id=str(uuid.uuid4()),
                 )
                 success = await self._execute_service_call(action_item)
                 return ActionExecutionResult(
                     success=success,
                     action_id=action_id,
                     execution_time_ms=(time.time() - start_time) * 1000,
-                    error=None if success else "Service call failed"
+                    error=None if success else "Service call failed",
                 )
-            else:
-                return ActionExecutionResult(
-                    success=False,
-                    action_id=action_id,
-                    execution_time_ms=(time.time() - start_time) * 1000,
-                    error=f"Unknown action type: {action.get('type')}"
-                )
+            return ActionExecutionResult(
+                success=False,
+                action_id=action_id,
+                execution_time_ms=(time.time() - start_time) * 1000,
+                error=f"Unknown action type: {action.get('type')}",
+            )
         except Exception as e:
             return ActionExecutionResult(
                 success=False,
                 action_id=action_id,
                 execution_time_ms=(time.time() - start_time) * 1000,
-                error=str(e)
+                error=str(e),
             )
 
     async def _execute_service_call(self, action_item: ActionItem) -> bool:
         """
         Execute a service call action.
-        
+
         Args:
             action_item: Action item with service call action
-            
+
         Returns:
             True if successful, False otherwise
         """
         action = action_item.action
-        domain = action.get('domain')
-        service = action.get('service')
+        domain = action.get("domain")
+        service = action.get("service")
 
         if not domain or not service:
-            raise InvalidActionError(f"Missing domain or service in action: {action}")
+            msg = f"Missing domain or service in action: {action}"
+            raise InvalidActionError(msg)
 
         # Build service data
         service_data = {}
 
         # Add target entity_id
-        if 'target' in action:
-            target = action['target']
+        if "target" in action:
+            target = action["target"]
             if isinstance(target, dict):
-                if 'entity_id' in target:
-                    entity_id = target['entity_id']
+                if "entity_id" in target:
+                    entity_id = target["entity_id"]
                     if isinstance(entity_id, list):
-                        service_data['entity_id'] = entity_id
+                        service_data["entity_id"] = entity_id
                     else:
-                        service_data['entity_id'] = entity_id
+                        service_data["entity_id"] = entity_id
                 # Merge other target fields
                 for key, value in target.items():
-                    if key != 'entity_id':
+                    if key != "entity_id":
                         service_data[key] = value
 
         # Add service data
-        if 'data' in action:
-            data = action['data']
+        if "data" in action:
+            data = action["data"]
             # Render templates if template engine available
             if self.template_engine and isinstance(data, dict):
                 rendered_data = {}
                 for key, value in data.items():
-                    if isinstance(value, str) and '{{' in value:
+                    if isinstance(value, str) and "{{" in value:
                         try:
                             rendered_value = await self.template_engine.render(value, action_item.context)
                             rendered_data[key] = rendered_value
@@ -433,40 +430,39 @@ class ActionExecutor:
 
         try:
             result = await self.ha_client._retry_request(
-                method='POST',
+                method="POST",
                 endpoint=endpoint,
                 json=service_data,
-                return_json=False
+                return_json=False,
             )
 
             if result and isinstance(result, dict):
-                status = result.get('status', 0)
+                status = result.get("status", 0)
                 if 200 <= status < 300:
                     logger.debug(f"Service call successful: {domain}.{service}")
                     return True
-                else:
-                    logger.warning(f"Service call failed: {domain}.{service} (status: {status})")
-                    return False
-            else:
-                logger.warning(f"Service call returned unexpected result: {result}")
+                logger.warning(f"Service call failed: {domain}.{service} (status: {status})")
                 return False
+            logger.warning(f"Service call returned unexpected result: {result}")
+            return False
 
         except Exception as e:
-            logger.error(f"Service call error: {domain}.{service}: {e}")
+            logger.exception(f"Service call error: {domain}.{service}: {e}")
+            msg = f"Service call failed: {domain}.{service}"
             raise ServiceCallError(
-                f"Service call failed: {domain}.{service}",
-                response_data={'error': str(e)}
+                msg,
+                response_data={"error": str(e)},
             )
 
     async def _execute_sequence(self, action_item: ActionItem) -> bool:
         """Execute sequence of actions"""
-        actions = action_item.action.get('actions', [])
+        actions = action_item.action.get("actions", [])
         for seq_action in actions:
             seq_item = ActionItem(
                 action=seq_action,
                 context=action_item.context,
                 retry_on_failure=action_item.retry_on_failure,
-                parent_action_id=action_item.execution_id
+                parent_action_id=action_item.execution_id,
             )
             success = await self._execute_action_with_retry(seq_item)
             if not success:
@@ -475,14 +471,14 @@ class ActionExecutor:
 
     async def _execute_parallel(self, action_item: ActionItem) -> bool:
         """Execute actions in parallel"""
-        actions = action_item.action.get('actions', [])
+        actions = action_item.action.get("actions", [])
         tasks = []
         for par_action in actions:
             par_item = ActionItem(
                 action=par_action,
                 context=action_item.context,
                 retry_on_failure=action_item.retry_on_failure,
-                parent_action_id=action_item.execution_id
+                parent_action_id=action_item.execution_id,
             )
             tasks.append(self._execute_action_with_retry(par_item))
 

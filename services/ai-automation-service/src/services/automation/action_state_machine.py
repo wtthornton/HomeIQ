@@ -12,7 +12,7 @@ from enum import Enum
 from pathlib import Path
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[4]  # Go up to project root
 except Exception:
@@ -57,7 +57,7 @@ class ActionExecutionState(Enum):
 class ActionExecutionStateMachine(StateMachine):
     """
     State machine for action execution.
-    
+
     Valid transitions:
     - QUEUED → EXECUTING, CANCELLED
     - EXECUTING → SUCCESS, FAILED, RETRYING, CANCELLED
@@ -70,22 +70,22 @@ class ActionExecutionStateMachine(StateMachine):
     VALID_TRANSITIONS = {
         ActionExecutionState.QUEUED: [
             ActionExecutionState.EXECUTING,
-            ActionExecutionState.CANCELLED
+            ActionExecutionState.CANCELLED,
         ],
         ActionExecutionState.EXECUTING: [
             ActionExecutionState.SUCCESS,
             ActionExecutionState.FAILED,
             ActionExecutionState.RETRYING,
-            ActionExecutionState.CANCELLED
+            ActionExecutionState.CANCELLED,
         ],
         ActionExecutionState.RETRYING: [
             ActionExecutionState.EXECUTING,
             ActionExecutionState.FAILED,
-            ActionExecutionState.CANCELLED
+            ActionExecutionState.CANCELLED,
         ],
         ActionExecutionState.SUCCESS: [],  # Terminal state
         ActionExecutionState.FAILED: [],  # Terminal state
-        ActionExecutionState.CANCELLED: []  # Terminal state
+        ActionExecutionState.CANCELLED: [],  # Terminal state
     }
 
     def __init__(self, initial_state: ActionExecutionState = ActionExecutionState.QUEUED):

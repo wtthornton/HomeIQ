@@ -32,7 +32,7 @@ async_engine: AsyncEngine = create_async_engine(
     pool_pre_ping=True,  # Verify connections before using
     connect_args={
         "timeout": SQLITE_TIMEOUT,
-    }
+    },
 )
 
 # Configure SQLite pragmas for optimal performance
@@ -40,7 +40,7 @@ async_engine: AsyncEngine = create_async_engine(
 def set_sqlite_pragma(dbapi_conn, connection_record):
     """
     Set SQLite pragmas on each connection for optimal performance.
-    
+
     Pragmas configured:
     - WAL mode: Better concurrency (multiple readers, one writer)
     - NORMAL sync: Faster writes, still safe (survives OS crash)
@@ -71,7 +71,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
 
         logger.debug("SQLite pragmas configured successfully")
     except Exception as e:
-        logger.error(f"Failed to set SQLite pragmas: {e}")
+        logger.exception(f"Failed to set SQLite pragmas: {e}")
         raise
     finally:
         cursor.close()
@@ -83,7 +83,7 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,  # Don't expire objects after commit
     autocommit=False,
-    autoflush=False
+    autoflush=False,
 )
 
 
@@ -91,27 +91,26 @@ AsyncSessionLocal = async_sessionmaker(
 class Base(DeclarativeBase):
     """
     Base class for all SQLAlchemy models.
-    
+
     Usage:
         class Device(Base):
             __tablename__ = "devices"
             device_id = Column(String, primary_key=True)
             ...
     """
-    pass
 
 
 # FastAPI dependency for database sessions
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
-    
+
     Automatically handles:
     - Session creation
     - Transaction commit on success
     - Transaction rollback on error
     - Session cleanup
-    
+
     Usage:
         @app.get("/devices")
         async def list_devices(db: AsyncSession = Depends(get_db)):
@@ -132,7 +131,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """
     Initialize database by creating all tables.
-    
+
     Called during application startup.
     Note: In production, use Alembic migrations instead.
     """
@@ -145,7 +144,7 @@ async def init_db() -> None:
 async def check_db_health() -> dict:
     """
     Check database health and return status information.
-    
+
     Returns:
         dict: Database health status including:
             - status: "healthy" or "unhealthy"
@@ -177,13 +176,13 @@ async def check_db_health() -> dict:
                 "journal_mode": journal_mode,
                 "database_size_mb": round(db_size_mb, 2),
                 "wal_enabled": journal_mode == "wal",
-                "connection": "ok"
+                "connection": "ok",
             }
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.exception(f"Database health check failed: {e}")
         return {
             "status": "unhealthy",
-            "connection": str(e)
+            "connection": str(e),
         }
 
 

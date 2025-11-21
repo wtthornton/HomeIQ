@@ -21,7 +21,7 @@ async def test_device_creation():
             name="Test Device",
             manufacturer="Test Co",
             model="Model X",
-            area_id="living_room"
+            area_id="living_room",
         )
         session.add(device)
         await session.commit()
@@ -46,7 +46,7 @@ async def test_entity_with_foreign_key():
         # Create device first
         device = Device(
             device_id="test_device_2",
-            name="Test Device 2"
+            name="Test Device 2",
         )
         session.add(device)
         await session.commit()
@@ -56,14 +56,14 @@ async def test_entity_with_foreign_key():
             entity_id="light.test",
             device_id="test_device_2",
             domain="light",
-            platform="test"
+            platform="test",
         )
         session.add(entity)
         await session.commit()
 
         # Verify relationship
         result = await session.execute(
-            select(Entity).where(Entity.entity_id == "light.test")
+            select(Entity).where(Entity.entity_id == "light.test"),
         )
         saved_entity = result.scalar_one()
         assert saved_entity.device_id == "test_device_2"

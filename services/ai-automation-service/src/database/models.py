@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-from ..config import settings as app_settings
+from src.config import settings as app_settings
 
 
 def _default_enabled_categories() -> dict:
@@ -64,7 +64,7 @@ def get_system_settings_defaults() -> dict:
         "enable_parallel_model_testing": False,
         "parallel_testing_models": {
             "suggestion": ["gpt-5.1"],
-            "yaml": ["gpt-5.1"]
+            "yaml": ["gpt-5.1"],
         },
         "enable_answer_caching": True,  # NEW: Enable answer caching by default
     }
@@ -73,10 +73,10 @@ def get_system_settings_defaults() -> dict:
 class Pattern(Base):
     """
     Detected automation patterns with history tracking.
-    
+
     Phase 1: Enhanced with history tracking fields for trend analysis.
     """
-    __tablename__ = 'patterns'
+    __tablename__ = "patterns"
 
     id = Column(Integer, primary_key=True)
     pattern_type = Column(String, nullable=False)  # 'time_of_day', 'co_occurrence', 'anomaly'
@@ -105,7 +105,7 @@ class Pattern(Base):
 class SystemSettings(Base):
     """Persistent system-wide configuration values."""
 
-    __tablename__ = 'system_settings'
+    __tablename__ = "system_settings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     schedule_enabled = Column(Boolean, nullable=False, default=True)
@@ -126,14 +126,14 @@ class SystemSettings(Base):
     enable_parallel_model_testing = Column(Boolean, nullable=False, default=False)
     parallel_testing_models = Column(JSON, nullable=True, default=lambda: {
         "suggestion": ["gpt-5.1"],
-        "yaml": ["gpt-5.1"]
+        "yaml": ["gpt-5.1"],
     })
     enable_answer_caching = Column(Boolean, nullable=False, default=True)  # NEW: Enable/disable answer caching
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint('id', name='uq_system_settings_singleton'),
+        UniqueConstraint("id", name="uq_system_settings_singleton"),
     )
 
     def __repr__(self):
@@ -143,19 +143,19 @@ class SystemSettings(Base):
 class Suggestion(Base):
     """
     Automation suggestions generated from patterns.
-    
+
     Story AI1.23: Conversational Suggestion Refinement
-    
+
     New conversational flow:
     1. Generate description_only (no YAML yet) -> status='draft'
     2. User refines with natural language -> status='refining', conversation_history updated
     3. User approves -> Generate automation_yaml -> status='yaml_generated'
     4. Deploy to HA -> status='deployed'
     """
-    __tablename__ = 'suggestions'
+    __tablename__ = "suggestions"
 
     id = Column(Integer, primary_key=True)
-    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=True)
+    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=True)
 
     # ===== NEW: Description-First Fields (Story AI1.23) =====
     description_only = Column(Text, nullable=False)  # Human-readable description
@@ -168,7 +168,7 @@ class Suggestion(Base):
     yaml_generated_at = Column(DateTime, nullable=True)  # NEW: When YAML was created
 
     # ===== Status Tracking (updated for conversational flow) =====
-    status = Column(String, default='draft')  # draft, refining, yaml_generated, deployed, rejected
+    status = Column(String, default="draft")  # draft, refining, yaml_generated, deployed, rejected
 
     # ===== Legacy Fields (kept for compatibility) =====
     title = Column(String, nullable=False)
@@ -184,14 +184,14 @@ class Suggestion(Base):
     ha_automation_id = Column(String, nullable=True)
 
     # ===== Expert Mode Fields (NEW - Commit ca86050) =====
-    mode = Column(String(20), nullable=True, server_default='auto_draft',
-                  comment='Suggestion mode: auto_draft or expert')
+    mode = Column(String(20), nullable=True, server_default="auto_draft",
+                  comment="Suggestion mode: auto_draft or expert")
     yaml_edited_at = Column(DateTime, nullable=True,
-                            comment='Timestamp when YAML was manually edited in expert mode')
-    yaml_edit_count = Column(Integer, nullable=True, server_default='0',
-                             comment='Number of manual YAML edits made in expert mode')
+                            comment="Timestamp when YAML was manually edited in expert mode")
+    yaml_edit_count = Column(Integer, nullable=True, server_default="0",
+                             comment="Number of manual YAML edits made in expert mode")
     yaml_generation_method = Column(String(50), nullable=True,
-                                    comment='Method: auto_draft, expert_manual, expert_manual_edited, etc.')
+                                    comment="Method: auto_draft, expert_manual, expert_manual_edited, etc.")
 
     def __repr__(self):
         return f"<Suggestion(id={self.id}, title={self.title}, status={self.status}, refinements={self.refinement_count})>"
@@ -199,10 +199,10 @@ class Suggestion(Base):
     def can_refine(self, max_refinements: int = 10) -> tuple[bool, str | None]:
         """
         Check if suggestion can be refined further.
-        
+
         Args:
             max_refinements: Maximum allowed refinements (default: 10)
-        
+
         Returns:
             Tuple of (allowed: bool, error_message: Optional[str])
         """
@@ -213,10 +213,10 @@ class Suggestion(Base):
 
 class UserFeedback(Base):
     """User feedback on suggestions"""
-    __tablename__ = 'user_feedback'
+    __tablename__ = "user_feedback"
 
     id = Column(Integer, primary_key=True)
-    suggestion_id = Column(Integer, ForeignKey('suggestions.id'))
+    suggestion_id = Column(Integer, ForeignKey("suggestions.id"))
     action = Column(String, nullable=False)  # 'approved', 'rejected', 'modified'
     feedback_text = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -229,10 +229,10 @@ class AutomationVersion(Base):
     """
     Simple version history for automations.
     Keeps last 3 versions per automation for rollback.
-    
+
     Story AI1.20: Simple Rollback
     """
-    __tablename__ = 'automation_versions'
+    __tablename__ = "automation_versions"
 
     id = Column(Integer, primary_key=True)
     automation_id = Column(String(100), nullable=False, index=True)
@@ -251,28 +251,28 @@ class AutomationVersion(Base):
 class DeviceCapability(Base):
     """
     Device capability definitions from Zigbee2MQTT bridge.
-    
+
     Stores universal capability data for device models. One record per
     unique model (e.g., "VZM31-SN", "MCCGQ11LM").
-    
+
     Story AI2.2: Capability Database Schema & Storage
     Epic AI-2: Device Intelligence System
-    
+
     Integration:
         Links to devices table via device.model field (cross-database)
         Devices are in data-api's metadata.db, capabilities in ai_automation.db
-    
+
     Example:
         VZM31-SN -> {led_notifications, smart_bulb_mode, auto_off_timer, ...}
     """
-    __tablename__ = 'device_capabilities'
+    __tablename__ = "device_capabilities"
 
     # Primary Key
     device_model = Column(String, primary_key=True)  # e.g., "VZM31-SN"
 
     # Device Identification
     manufacturer = Column(String, nullable=False)  # e.g., "Inovelli"
-    integration_type = Column(String, nullable=False, default='zigbee2mqtt')
+    integration_type = Column(String, nullable=False, default="zigbee2mqtt")
     description = Column(String, nullable=True)
 
     # Capability Data (JSON columns)
@@ -281,7 +281,7 @@ class DeviceCapability(Base):
 
     # Metadata
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    source = Column(String, default='zigbee2mqtt_bridge')
+    source = Column(String, default="zigbee2mqtt_bridge")
 
     def __repr__(self):
         return f"<DeviceCapability(model='{self.device_model}', manufacturer='{self.manufacturer}', features={len(self.capabilities) if self.capabilities else 0})>"
@@ -290,23 +290,23 @@ class DeviceCapability(Base):
 class DeviceFeatureUsage(Base):
     """
     Track feature usage per device instance.
-    
+
     Records which features are configured vs. available for each physical
     device. Used for utilization analysis and unused feature detection.
-    
+
     Story AI2.2: Capability Database Schema & Storage
     Epic AI-2: Device Intelligence System
-    
+
     Composite Primary Key: (device_id, feature_name)
-    
+
     Integration:
         device_id links to devices.device_id in data-api's metadata.db (logical FK)
-    
+
     Example:
         ("kitchen_switch", "led_notifications", configured=False)
         ("kitchen_switch", "smart_bulb_mode", configured=True)
     """
-    __tablename__ = 'device_feature_usage'
+    __tablename__ = "device_feature_usage"
 
     # Composite Primary Key
     device_id = Column(String, primary_key=True)       # FK to devices.device_id (cross-DB)
@@ -328,13 +328,13 @@ class DeviceFeatureUsage(Base):
 class PatternHistory(Base):
     """
     Time-series snapshots of pattern confidence and occurrences.
-    
+
     Phase 1: Stores historical data for trend analysis and pattern validation.
     """
-    __tablename__ = 'pattern_history'
+    __tablename__ = "pattern_history"
 
     id = Column(Integer, primary_key=True)
-    pattern_id = Column(Integer, ForeignKey('patterns.id', ondelete='CASCADE'), nullable=False)
+    pattern_id = Column(Integer, ForeignKey("patterns.id", ondelete="CASCADE"), nullable=False)
     confidence = Column(Float, nullable=False)
     occurrences = Column(Integer, nullable=False)
     recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -346,15 +346,15 @@ class PatternHistory(Base):
 class SynergyOpportunity(Base):
     """
     Cross-device synergy opportunities for automation suggestions.
-    
+
     Stores detected device pairs that could work together but currently
     have no automation connecting them.
-    
+
     Story AI3.1: Device Synergy Detector Foundation
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     Phase 2: Enhanced with pattern validation support
     """
-    __tablename__ = 'synergy_opportunities'
+    __tablename__ = "synergy_opportunities"
 
     id = Column(Integer, primary_key=True)
     synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
@@ -373,7 +373,7 @@ class SynergyOpportunity(Base):
     supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
 
     # Epic AI-4: N-level synergy fields
-    synergy_depth = Column(Integer, default=2, nullable=False, server_default='2')  # Number of devices in chain (2 = pair, 3+ = multi-hop)
+    synergy_depth = Column(Integer, default=2, nullable=False, server_default="2")  # Number of devices in chain (2 = pair, 3+ = multi-hop)
     chain_devices = Column(Text, nullable=True)  # JSON array of entity_ids in automation chain
     embedding_similarity = Column(Float, nullable=True)  # Semantic similarity score from embeddings
     rerank_score = Column(Float, nullable=True)  # Cross-encoder re-ranking score
@@ -381,26 +381,26 @@ class SynergyOpportunity(Base):
 
     def __repr__(self):
         validated = "✓" if self.validated_by_patterns else "✗"
-        depth = getattr(self, 'synergy_depth', 2)
+        depth = getattr(self, "synergy_depth", 2)
         return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, depth={depth}, area={self.area}, impact={self.impact_score}, validated={validated})>"
 
 
 class DiscoveredSynergy(Base):
     """
     ML-discovered synergies from association rule mining.
-    
+
     Stores synergies found by Apriori algorithm from actual behavior,
     not predefined rule-based relationships.
-    
+
     Quality Improvement: Priority 1.4
     """
-    __tablename__ = 'discovered_synergies'
+    __tablename__ = "discovered_synergies"
 
     id = Column(Integer, primary_key=True)
     synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
     trigger_entity = Column(String, nullable=False, index=True)
     action_entity = Column(String, nullable=False, index=True)
-    source = Column(String, nullable=False, default='mined')  # 'mined' for ML-discovered
+    source = Column(String, nullable=False, default="mined")  # 'mined' for ML-discovered
 
     # Association rule metrics
     support = Column(Float, nullable=False)  # P(X ∪ Y)
@@ -416,7 +416,7 @@ class DiscoveredSynergy(Base):
     discovered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     validation_count = Column(Integer, default=0, nullable=False)
     validation_passed = Column(Boolean, nullable=True)  # None = not yet validated, True/False = validated
-    status = Column(String, nullable=False, default='discovered')  # 'discovered', 'validated', 'rejected'
+    status = Column(String, nullable=False, default="discovered")  # 'discovered', 'validated', 'rejected'
     rejection_reason = Column(Text, nullable=True)  # Reason if rejected
     last_validated = Column(DateTime, nullable=True)  # Last validation timestamp
 
@@ -429,23 +429,23 @@ class DiscoveredSynergy(Base):
 
 
 # Indexes for fast lookups (Epic AI-2)
-Index('idx_capabilities_manufacturer', DeviceCapability.manufacturer)
-Index('idx_capabilities_integration', DeviceCapability.integration_type)
-Index('idx_feature_usage_device', DeviceFeatureUsage.device_id)
-Index('idx_feature_usage_configured', DeviceFeatureUsage.configured)
+Index("idx_capabilities_manufacturer", DeviceCapability.manufacturer)
+Index("idx_capabilities_integration", DeviceCapability.integration_type)
+Index("idx_feature_usage_device", DeviceFeatureUsage.device_id)
+Index("idx_feature_usage_configured", DeviceFeatureUsage.configured)
 
 # Phase 1: Pattern history indexes
-Index('idx_pattern_history_pattern', PatternHistory.pattern_id, PatternHistory.recorded_at)
-Index('idx_pattern_history_recorded', PatternHistory.recorded_at.desc())
+Index("idx_pattern_history_pattern", PatternHistory.pattern_id, PatternHistory.recorded_at)
+Index("idx_pattern_history_recorded", PatternHistory.recorded_at.desc())
 
 # Phase 1: Pattern indexes
-Index('idx_patterns_device', Pattern.device_id)
-Index('idx_patterns_type', Pattern.pattern_type)
-Index('idx_patterns_confidence', Pattern.confidence.desc())
+Index("idx_patterns_device", Pattern.device_id)
+Index("idx_patterns_type", Pattern.pattern_type)
+Index("idx_patterns_confidence", Pattern.confidence.desc())
 
 # Phase 2: Synergy pattern validation indexes
-Index('idx_synergy_validated', SynergyOpportunity.validated_by_patterns)
-Index('idx_synergy_pattern_support', SynergyOpportunity.pattern_support_score.desc())
+Index("idx_synergy_validated", SynergyOpportunity.validated_by_patterns)
+Index("idx_synergy_pattern_support", SynergyOpportunity.pattern_support_score.desc())
 
 
 # Database engine and session
@@ -459,12 +459,12 @@ async def init_db():
 
     # Create async engine
     engine = create_async_engine(
-        'sqlite+aiosqlite:///data/ai_automation.db',
+        "sqlite+aiosqlite:///data/ai_automation.db",
         echo=False,  # Set to True for SQL debugging
         pool_pre_ping=True,  # Verify connections before using
         connect_args={
-            "timeout": 30.0
-        }
+            "timeout": 30.0,
+        },
     )
 
     # Configure SQLite pragmas for optimal performance
@@ -472,7 +472,7 @@ async def init_db():
     def set_sqlite_pragma(dbapi_conn, connection_record):
         """
         Set SQLite pragmas on each connection for optimal performance.
-        
+
         Pragmas configured:
         - WAL mode: Better concurrency (multiple readers, one writer)
         - NORMAL sync: Faster writes, still safe (survives OS crash)
@@ -503,7 +503,7 @@ async def init_db():
 
             logger.debug("SQLite pragmas configured successfully")
         except Exception as e:
-            logger.error(f"Failed to set SQLite pragmas: {e}")
+            logger.exception(f"Failed to set SQLite pragmas: {e}")
             raise
         finally:
             cursor.close()
@@ -512,7 +512,7 @@ async def init_db():
     async_session = async_sessionmaker(
         engine,
         class_=AsyncSession,
-        expire_on_commit=False
+        expire_on_commit=False,
     )
 
     # Create tables (including v2 models)
@@ -557,7 +557,7 @@ async def get_db():
 
 class ManualRefreshTrigger(Base):
     """Audit log for manual suggestion refresh requests."""
-    __tablename__ = 'manual_refresh_triggers'
+    __tablename__ = "manual_refresh_triggers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     triggered_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
@@ -565,7 +565,7 @@ class ManualRefreshTrigger(Base):
 
 class AnalysisRunStatus(Base):
     """Persisted history of analysis runs with summary metrics."""
-    __tablename__ = 'analysis_run_status'
+    __tablename__ = "analysis_run_status"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     status = Column(String, nullable=False)
@@ -577,7 +577,7 @@ class AnalysisRunStatus(Base):
 
 class AskAIQuery(Base):
     """Ask AI natural language queries and their generated suggestions"""
-    __tablename__ = 'ask_ai_queries'
+    __tablename__ = "ask_ai_queries"
 
     query_id = Column(String, primary_key=True, default=lambda: f"query-{uuid.uuid4().hex[:8]}")
     original_query = Column(Text, nullable=False)
@@ -596,21 +596,21 @@ class AskAIQuery(Base):
 class ClarificationSessionDB(Base):
     """
     Persistent storage for Ask AI clarification sessions.
-    
+
     Tracks clarification conversations where the AI needs to ask follow-up
     questions to understand ambiguous user queries. Links back to the original
     query for suggestion retrieval.
-    
+
     Created: November 2025
     Story: AI1.26 - Clarification Flow Improvements
     """
-    __tablename__ = 'clarification_sessions'
+    __tablename__ = "clarification_sessions"
 
     # Primary identifier
     session_id = Column(String, primary_key=True, default=lambda: f"clarify-{uuid.uuid4().hex[:8]}")
 
     # Query linkage
-    original_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=False, index=True)
+    original_query_id = Column(String, ForeignKey("ask_ai_queries.query_id"), nullable=False, index=True)
     original_query = Column(Text, nullable=False)
 
     # User context
@@ -622,7 +622,7 @@ class ClarificationSessionDB(Base):
     ambiguities = Column(JSON, nullable=True)  # Array of detected Ambiguity dicts
 
     # Session tracking
-    status = Column(String, nullable=False, default='in_progress', index=True)  # 'in_progress', 'complete', 'abandoned'
+    status = Column(String, nullable=False, default="in_progress", index=True)  # 'in_progress', 'complete', 'abandoned'
     rounds_completed = Column(Integer, nullable=False, default=0)
     max_rounds = Column(Integer, nullable=False, default=3)
 
@@ -636,12 +636,12 @@ class ClarificationSessionDB(Base):
     completed_at = Column(DateTime, nullable=True)
 
     # Optional linkage to generated query after clarification
-    clarification_query_id = Column(String, ForeignKey('ask_ai_queries.query_id'), nullable=True, index=True)
+    clarification_query_id = Column(String, ForeignKey("ask_ai_queries.query_id"), nullable=True, index=True)
 
     __table_args__ = (
-        Index('idx_clarification_user', 'user_id', 'created_at'),
-        Index('idx_clarification_status', 'status', 'created_at'),
-        Index('idx_clarification_original_query', 'original_query_id'),
+        Index("idx_clarification_user", "user_id", "created_at"),
+        Index("idx_clarification_status", "status", "created_at"),
+        Index("idx_clarification_original_query", "original_query_id"),
     )
 
     def __repr__(self):
@@ -651,17 +651,17 @@ class ClarificationSessionDB(Base):
 class ClarificationConfidenceFeedback(Base):
     """
     Stores feedback for clarification confidence calibration.
-    
+
     Tracks raw confidence scores and actual outcomes (proceeded, suggestion approved)
     to train calibration models that map raw scores to calibrated probabilities.
-    
+
     Created: January 2025
     Story: Confidence Algorithm Improvements (Phase 1.1)
     """
-    __tablename__ = 'clarification_confidence_feedback'
+    __tablename__ = "clarification_confidence_feedback"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
+    session_id = Column(String, ForeignKey("clarification_sessions.session_id"), nullable=False, index=True)
 
     # Confidence data
     raw_confidence = Column(Float, nullable=False)  # Raw confidence before calibration
@@ -680,8 +680,8 @@ class ClarificationConfidenceFeedback(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        Index('idx_clarification_feedback_session', 'session_id', 'created_at'),
-        Index('idx_clarification_feedback_confidence', 'raw_confidence'),
+        Index("idx_clarification_feedback_session", "session_id", "created_at"),
+        Index("idx_clarification_feedback_confidence", "raw_confidence"),
     )
 
     def __repr__(self):
@@ -691,17 +691,17 @@ class ClarificationConfidenceFeedback(Base):
 class ClarificationOutcome(Base):
     """
     Tracks clarification session outcomes for learning and improvement.
-    
+
     Stores final confidence, whether user proceeded, suggestion approval status,
     and number of rounds to build predictive models for expected success rates.
-    
+
     Created: January 2025
     Story: Confidence Algorithm Improvements (Phase 2.1)
     """
-    __tablename__ = 'clarification_outcomes'
+    __tablename__ = "clarification_outcomes"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(String, ForeignKey('clarification_sessions.session_id'), nullable=False, index=True)
+    session_id = Column(String, ForeignKey("clarification_sessions.session_id"), nullable=False, index=True)
 
     # Outcome data
     final_confidence = Column(Float, nullable=False)  # Final confidence when proceeding
@@ -710,15 +710,15 @@ class ClarificationOutcome(Base):
     rounds = Column(Integer, nullable=False, default=0)  # Number of clarification rounds
 
     # Optional linkage to suggestion
-    suggestion_id = Column(Integer, ForeignKey('suggestions.id'), nullable=True, index=True)
+    suggestion_id = Column(Integer, ForeignKey("suggestions.id"), nullable=True, index=True)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        Index('idx_clarification_outcome_session', 'session_id'),
-        Index('idx_clarification_outcome_confidence', 'final_confidence'),
-        Index('idx_clarification_outcome_suggestion', 'suggestion_id'),
+        Index("idx_clarification_outcome_session", "session_id"),
+        Index("idx_clarification_outcome_confidence", "final_confidence"),
+        Index("idx_clarification_outcome_suggestion", "suggestion_id"),
     )
 
     def __repr__(self):
@@ -739,8 +739,8 @@ class EntityAlias(Base):
     # Unique constraint: one alias per entity per user (user can have multiple aliases for same entity)
     # Index for fast alias lookup
     __table_args__ = (
-        UniqueConstraint('alias', 'user_id', name='uq_alias_user'),
-        Index('idx_alias_lookup', 'alias', 'user_id'),  # Fast lookup
+        UniqueConstraint("alias", "user_id", name="uq_alias_user"),
+        Index("idx_alias_lookup", "alias", "user_id"),  # Fast lookup
     )
 
     def __repr__(self):
@@ -750,7 +750,7 @@ class EntityAlias(Base):
 class SemanticKnowledge(Base):
     """
     Generic semantic knowledge storage for RAG (Retrieval-Augmented Generation).
-    
+
     Stores text with embeddings for semantic similarity search.
     Used for:
     - Query clarification (learn from successful queries)
@@ -759,7 +759,7 @@ class SemanticKnowledge(Base):
     - Device intelligence
     - Automation mining
     """
-    __tablename__ = 'semantic_knowledge'
+    __tablename__ = "semantic_knowledge"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(Text, nullable=False)  # Original text (query, pattern, blueprint, etc.)
@@ -771,9 +771,9 @@ class SemanticKnowledge(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        Index('idx_knowledge_type', 'knowledge_type'),  # Fast filtering by type
-        Index('idx_success_score', 'success_score'),  # For ranking by success
-        Index('idx_created_at', 'created_at'),  # For time-based queries
+        Index("idx_knowledge_type", "knowledge_type"),  # Fast filtering by type
+        Index("idx_success_score", "success_score"),  # For ranking by success
+        Index("idx_created_at", "created_at"),  # For time-based queries
     )
 
     def __repr__(self):
@@ -783,7 +783,7 @@ class SemanticKnowledge(Base):
 def get_db_session():
     """
     Get database session as async context manager.
-    
+
     Usage:
         async with get_db_session() as db:
             result = await db.execute(query)
@@ -798,13 +798,13 @@ def get_db_session():
 class ReverseEngineeringMetrics(Base):
     """
     Metrics for tracking reverse engineering value and performance.
-    
+
     Tracks similarity improvements, iterations, costs, and automation success
     to measure the value provided by reverse engineering.
-    
+
     Created: November 2025
     """
-    __tablename__ = 'reverse_engineering_metrics'
+    __tablename__ = "reverse_engineering_metrics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -847,12 +847,12 @@ class ReverseEngineeringMetrics(Base):
     yaml_changed = Column(Boolean, nullable=True, default=False)  # Did RE change the YAML?
 
     __table_args__ = (
-        Index('idx_re_metrics_query_id', 'query_id'),
-        Index('idx_re_metrics_suggestion_id', 'suggestion_id'),
-        Index('idx_re_metrics_created_at', 'created_at'),
-        Index('idx_re_metrics_final_similarity', 'final_similarity'),
-        Index('idx_re_metrics_convergence', 'convergence_achieved'),
-        Index('idx_re_metrics_automation_created', 'automation_created'),
+        Index("idx_re_metrics_query_id", "query_id"),
+        Index("idx_re_metrics_suggestion_id", "suggestion_id"),
+        Index("idx_re_metrics_created_at", "created_at"),
+        Index("idx_re_metrics_final_similarity", "final_similarity"),
+        Index("idx_re_metrics_convergence", "convergence_achieved"),
+        Index("idx_re_metrics_automation_created", "automation_created"),
     )
 
     def __repr__(self) -> str:
@@ -866,13 +866,13 @@ class ReverseEngineeringMetrics(Base):
 class ModelComparisonMetrics(Base):
     """
     Metrics for tracking parallel model comparison results.
-    
+
     Tracks performance, cost, and quality metrics when running multiple
     OpenAI models in parallel for the same task (suggestions or YAML generation).
-    
+
     Created: January 2025
     """
-    __tablename__ = 'model_comparison_metrics'
+    __tablename__ = "model_comparison_metrics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_type = Column(String, nullable=False, index=True)  # 'suggestion' or 'yaml'
@@ -906,10 +906,10 @@ class ModelComparisonMetrics(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     __table_args__ = (
-        Index('idx_model_comp_task_type', 'task_type'),
-        Index('idx_model_comp_created_at', 'created_at'),
-        Index('idx_model_comp_query_id', 'query_id'),
-        Index('idx_model_comp_suggestion_id', 'suggestion_id'),
+        Index("idx_model_comp_task_type", "task_type"),
+        Index("idx_model_comp_created_at", "created_at"),
+        Index("idx_model_comp_query_id", "query_id"),
+        Index("idx_model_comp_suggestion_id", "suggestion_id"),
     )
 
     def __repr__(self) -> str:
@@ -923,10 +923,10 @@ class ModelComparisonMetrics(Base):
 class TrainingRun(Base):
     """Record of soft prompt training jobs."""
 
-    __tablename__ = 'training_runs'
+    __tablename__ = "training_runs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    status = Column(String(20), nullable=False, default='queued')  # queued, running, completed, failed
+    status = Column(String(20), nullable=False, default="queued")  # queued, running, completed, failed
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     finished_at = Column(DateTime, nullable=True)
     dataset_size = Column(Integer, nullable=True)
@@ -936,7 +936,7 @@ class TrainingRun(Base):
     final_loss = Column(Float, nullable=True)
     error_message = Column(Text, nullable=True)
     metadata_path = Column(String, nullable=True)
-    triggered_by = Column(String, nullable=False, default='admin')
+    triggered_by = Column(String, nullable=False, default="admin")
 
     def __repr__(self) -> str:
         return f"<TrainingRun(id={self.id}, status={self.status}, started_at={self.started_at})>"
@@ -945,7 +945,7 @@ class TrainingRun(Base):
     iteration_history_json = Column(JSON, nullable=True)  # Full iteration history
 
     __table_args__ = (
-        Index('idx_training_runs_status', 'status'),
-        Index('idx_training_runs_started_at', 'started_at'),
-        Index('idx_training_runs_run_identifier', 'run_identifier'),
+        Index("idx_training_runs_status", "status"),
+        Index("idx_training_runs_started_at", "started_at"),
+        Index("idx_training_runs_run_identifier", "run_identifier"),
     )

@@ -31,8 +31,8 @@ class TestAdminAPIService:
         assert self.service.app is None
         assert self.service.server_task is None
 
-    @patch('src.main.uvicorn.Server')
-    @patch('src.main.uvicorn.Config')
+    @patch("src.main.uvicorn.Server")
+    @patch("src.main.uvicorn.Config")
     async def test_start(self, mock_config, mock_server):
         """Test service start"""
         # Mock server
@@ -58,7 +58,7 @@ class TestAdminAPIService:
         """Test starting service that's already running"""
         self.service.is_running = True
 
-        with patch('src.main.logger') as mock_logger:
+        with patch("src.main.logger") as mock_logger:
             await self.service.start()
             mock_logger.warning.assert_called_with("Admin API service is already running")
 
@@ -253,7 +253,7 @@ class TestAuthentication:
         """Test authentication endpoint"""
         response = self.client.post("/api/token", json={
             "username": "admin",
-            "password": "adminpass"
+            "password": "adminpass",
         })
 
         # Should work if auth is enabled
@@ -263,7 +263,7 @@ class TestAuthentication:
         """Test invalid authentication"""
         response = self.client.post("/api/token", json={
             "username": "invalid",
-            "password": "invalid"
+            "password": "invalid",
         })
 
         # Should return 401

@@ -8,6 +8,7 @@ operation phase to ensure data consistency.
 
 import asyncio
 import logging
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 class DataMigrationManager:
     """
     Manages data migration between old and new device discovery systems.
-    
+
     This class handles:
     1. Migrating existing device data from ai-automation-service to Device Intelligence Service
     2. Ensuring data consistency during parallel operation
@@ -27,7 +28,7 @@ class DataMigrationManager:
     def __init__(self, device_intelligence_client, data_api_client):
         """
         Initialize migration manager.
-        
+
         Args:
             device_intelligence_client: Client for Device Intelligence Service
             data_api_client: Client for data-api service
@@ -39,13 +40,13 @@ class DataMigrationManager:
             "capabilities_migrated": 0,
             "errors": 0,
             "start_time": None,
-            "end_time": None
+            "end_time": None,
         }
 
     async def run_migration(self) -> dict[str, Any]:
         """
         Run the complete migration process.
-        
+
         Returns:
             Migration statistics and results
         """
@@ -68,7 +69,7 @@ class DataMigrationManager:
             return self.migration_stats
 
         except Exception as e:
-            logger.error(f"❌ Data migration failed: {e}")
+            logger.exception(f"❌ Data migration failed: {e}")
             self.migration_stats["errors"] += 1
             self.migration_stats["end_time"] = datetime.utcnow()
             raise
@@ -80,18 +81,19 @@ class DataMigrationManager:
         try:
             health = await self.device_intelligence.health_check()
             if health.get("status") != "healthy":
-                raise Exception(f"Device Intelligence Service is not healthy: {health}")
+                msg = f"Device Intelligence Service is not healthy: {health}"
+                raise Exception(msg)
 
             logger.info("  ✅ Device Intelligence Service is healthy")
 
         except Exception as e:
-            logger.error(f"  ❌ Device Intelligence Service health check failed: {e}")
+            logger.exception(f"  ❌ Device Intelligence Service health check failed: {e}")
             raise
 
     async def _migrate_device_data(self):
         """
         Migrate device data from data-api to Device Intelligence Service.
-        
+
         Note: This is a simplified migration since Device Intelligence Service
         will re-discover devices from Home Assistant and Zigbee2MQTT.
         """
@@ -116,7 +118,7 @@ class DataMigrationManager:
             self.migration_stats["devices_migrated"] = len(devices)
 
         except Exception as e:
-            logger.error(f"  ❌ Device data migration failed: {e}")
+            logger.exception(f"  ❌ Device data migration failed: {e}")
             self.migration_stats["errors"] += 1
             raise
 
@@ -136,21 +138,21 @@ class DataMigrationManager:
             # needs to discover devices from Home Assistant
 
         except Exception as e:
-            logger.error(f"  ❌ Migration validation failed: {e}")
+            logger.exception(f"  ❌ Migration validation failed: {e}")
             self.migration_stats["errors"] += 1
             raise
 
     async def get_migration_status(self) -> dict[str, Any]:
         """
         Get current migration status.
-        
+
         Returns:
             Current migration statistics
         """
         return {
             "migration_stats": self.migration_stats,
             "device_intelligence_status": await self.device_intelligence.health_check(),
-            "data_api_status": await self.data_api.health_check()
+            "data_api_status": await self.data_api.health_check(),
         }
 
 
@@ -170,4 +172,4 @@ async def run_migration_test():
 
 if __name__ == "__main__":
     success = asyncio.run(run_migration_test())
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

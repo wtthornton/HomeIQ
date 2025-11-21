@@ -27,7 +27,7 @@ class IntentType(str, Enum):
 class IntentMatcher:
     """
     Matches user intent from natural language queries.
-    
+
     Determines if the user wants to:
     - Create an automation
     - Execute an immediate action
@@ -39,18 +39,18 @@ class IntentMatcher:
         """Initialize intent matcher"""
         # Intent keywords
         self.automation_keywords = [
-            'automate', 'automatic', 'schedule', 'routine', 'when', 'if',
-            'create automation', 'make automation', 'set up automation'
+            "automate", "automatic", "schedule", "routine", "when", "if",
+            "create automation", "make automation", "set up automation",
         ]
 
         self.action_keywords = [
-            'turn on', 'turn off', 'switch', 'control', 'set', 'activate',
-            'deactivate', 'open', 'close', 'lock', 'unlock'
+            "turn on", "turn off", "switch", "control", "set", "activate",
+            "deactivate", "open", "close", "lock", "unlock",
         ]
 
         self.information_keywords = [
-            'what', 'show', 'tell', 'list', 'get', 'find', 'check',
-            'status', 'state', 'how many', 'which'
+            "what", "show", "tell", "list", "get", "find", "check",
+            "status", "state", "how many", "which",
         ]
 
         logger.info("IntentMatcher initialized")
@@ -58,33 +58,33 @@ class IntentMatcher:
     def match_intent(self, query: str, context: dict[str, Any] | None = None) -> IntentType:
         """
         Match intent from query.
-        
+
         Args:
             query: User query string
             context: Optional conversation context
-        
+
         Returns:
             IntentType enum value
         """
         query_lower = query.lower()
 
         # Check for clarification (answers to questions)
-        if context and context.get('clarification_questions'):
+        if context and context.get("clarification_questions"):
             # If there are pending clarification questions, likely an answer
-            if any(keyword in query_lower for keyword in ['yes', 'no', 'the', 'this', 'that', 'these', 'those']):
+            if any(keyword in query_lower for keyword in ["yes", "no", "the", "this", "that", "these", "those"]):
                 return IntentType.CLARIFICATION
 
         # Check for immediate actions (imperative verbs)
         action_patterns = [
-            r'\b(turn on|turn off|switch|set|activate|deactivate)\b',
-            r'\b(open|close|lock|unlock)\b',
-            r'^(turn|switch|set|activate|deactivate|open|close|lock|unlock)',
+            r"\b(turn on|turn off|switch|set|activate|deactivate)\b",
+            r"\b(open|close|lock|unlock)\b",
+            r"^(turn|switch|set|activate|deactivate|open|close|lock|unlock)",
         ]
 
         for pattern in action_patterns:
             if re.search(pattern, query_lower):
                 # Check if it's not automation-related
-                if not any(kw in query_lower for kw in ['when', 'if', 'automation', 'schedule']):
+                if not any(kw in query_lower for kw in ["when", "if", "automation", "schedule"]):
                     return IntentType.ACTION
 
         # Check for automation keywords
@@ -101,11 +101,11 @@ class IntentMatcher:
     def get_intent_confidence(self, query: str, intent: IntentType) -> float:
         """
         Get confidence score for intent match.
-        
+
         Args:
             query: User query
             intent: Matched intent
-        
+
         Returns:
             Confidence score (0.0-1.0)
         """
@@ -113,21 +113,21 @@ class IntentMatcher:
 
         if intent == IntentType.ACTION:
             # High confidence if imperative verbs present
-            if re.search(r'\b(turn on|turn off|switch|set)\b', query_lower):
+            if re.search(r"\b(turn on|turn off|switch|set)\b", query_lower):
                 return 0.9
             return 0.7
 
-        elif intent == IntentType.AUTOMATION:
+        if intent == IntentType.AUTOMATION:
             # High confidence if automation keywords present
-            if any(kw in query_lower for kw in ['automate', 'automation', 'schedule']):
+            if any(kw in query_lower for kw in ["automate", "automation", "schedule"]):
                 return 0.9
-            if any(kw in query_lower for kw in ['when', 'if']):
+            if any(kw in query_lower for kw in ["when", "if"]):
                 return 0.8
             return 0.6
 
-        elif intent == IntentType.INFORMATION:
+        if intent == IntentType.INFORMATION:
             # High confidence if question words present
-            if any(kw in query_lower for kw in ['what', 'show', 'tell', 'list']):
+            if any(kw in query_lower for kw in ["what", "show", "tell", "list"]):
                 return 0.9
             return 0.7
 

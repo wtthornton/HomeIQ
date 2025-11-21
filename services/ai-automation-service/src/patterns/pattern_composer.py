@@ -40,7 +40,7 @@ class PatternComposer:
     async def compose(
         self,
         matches: list[PatternMatch],
-        user_request: str
+        user_request: str,
     ) -> ComposedAutomation:
         """
         Compose pattern matches into final automation(s).
@@ -53,7 +53,8 @@ class PatternComposer:
             ComposedAutomation with strategy and generated YAML(s)
         """
         if not matches:
-            raise ValueError("No pattern matches to compose")
+            msg = "No pattern matches to compose"
+            raise ValueError(msg)
 
         # Single pattern match - pure pattern strategy
         if len(matches) == 1:
@@ -65,9 +66,8 @@ class PatternComposer:
         if len(trigger_groups) == 1:
             # All patterns share same trigger → merge
             return await self._merge_strategy(matches)
-        else:
-            # Different triggers → separate automations
-            return await self._separate_strategy(matches)
+        # Different triggers → separate automations
+        return await self._separate_strategy(matches)
 
     async def _pure_pattern_strategy(self, match: PatternMatch) -> ComposedAutomation:
         """Generate automation from single pattern"""
@@ -77,14 +77,14 @@ class PatternComposer:
 
         return ComposedAutomation(
             automations=[{
-                'yaml': yaml_str,
-                'pattern_id': match.pattern_id,
-                'title': match.pattern.name,
-                'description': match.pattern.description
+                "yaml": yaml_str,
+                "pattern_id": match.pattern_id,
+                "title": match.pattern.name,
+                "description": match.pattern.description,
             }],
-            strategy='pure_pattern',
+            strategy="pure_pattern",
             patterns_used=[match.pattern_id],
-            confidence=match.confidence
+            confidence=match.confidence,
         )
 
     async def _merge_strategy(self, matches: list[PatternMatch]) -> ComposedAutomation:
@@ -106,15 +106,15 @@ class PatternComposer:
 
         return ComposedAutomation(
             automations=[{
-                'yaml': base_yaml,
-                'pattern_id': base_match.pattern_id,
-                'title': f"Merged: {base_match.pattern.name}",
-                'description': f"Combined {len(matches)} patterns",
-                'merged_from': pattern_ids
+                "yaml": base_yaml,
+                "pattern_id": base_match.pattern_id,
+                "title": f"Merged: {base_match.pattern.name}",
+                "description": f"Combined {len(matches)} patterns",
+                "merged_from": pattern_ids,
             }],
-            strategy='merged_patterns',
+            strategy="merged_patterns",
             patterns_used=pattern_ids,
-            confidence=avg_confidence
+            confidence=avg_confidence,
         )
 
     async def _separate_strategy(self, matches: list[PatternMatch]) -> ComposedAutomation:
@@ -127,10 +127,10 @@ class PatternComposer:
         for match in matches:
             yaml_str = self._generate_yaml(match)
             automations.append({
-                'yaml': yaml_str,
-                'pattern_id': match.pattern_id,
-                'title': match.pattern.name,
-                'description': match.pattern.description
+                "yaml": yaml_str,
+                "pattern_id": match.pattern_id,
+                "title": match.pattern.name,
+                "description": match.pattern.description,
             })
             pattern_ids.append(match.pattern_id)
 
@@ -138,9 +138,9 @@ class PatternComposer:
 
         return ComposedAutomation(
             automations=automations,
-            strategy='separate_automations',
+            strategy="separate_automations",
             patterns_used=pattern_ids,
-            confidence=avg_confidence
+            confidence=avg_confidence,
         )
 
     def _group_by_trigger(self, matches: list[PatternMatch]) -> dict[str, list[PatternMatch]]:
@@ -174,17 +174,16 @@ class PatternComposer:
         variables = match.variables
 
         # Check for common trigger variable patterns
-        if 'motion_sensor' in variables:
+        if "motion_sensor" in variables:
             return f"state:{variables['motion_sensor']}"
-        elif 'person' in variables:
+        if "person" in variables:
             return f"state:{variables['person']}"
-        elif 'door_sensor' in variables:
+        if "door_sensor" in variables:
             return f"state:{variables['door_sensor']}"
-        elif 'time' in variables:
+        if "time" in variables:
             return f"time:{variables['time']}"
-        else:
-            # Fallback: use pattern ID (different triggers)
-            return f"pattern:{match.pattern_id}"
+        # Fallback: use pattern ID (different triggers)
+        return f"pattern:{match.pattern_id}"
 
     def _generate_yaml(self, match: PatternMatch) -> str:
         """
@@ -201,21 +200,20 @@ class PatternComposer:
 
         # Generate automation ID
         automation_id = generate_automation_id(match.pattern_id, variables)
-        variables['automation_id'] = automation_id
+        variables["automation_id"] = automation_id
 
         # Generate alias (use pattern name + entity names)
-        variables['alias'] = self._generate_alias(match)
+        variables["alias"] = self._generate_alias(match)
 
         # Add derived variables
         variables.update(self._generate_derived_variables(match))
 
         # Fill template
         try:
-            yaml_str = template.format(**variables)
-            return yaml_str
+            return template.format(**variables)
         except KeyError as e:
-            logger.error(f"Missing variable in template: {e}")
-            logger.error(f"Available variables: {list(variables.keys())}")
+            logger.exception(f"Missing variable in template: {e}")
+            logger.exception(f"Available variables: {list(variables.keys())}")
             raise
 
     def _generate_alias(self, match: PatternMatch) -> str:
@@ -226,16 +224,15 @@ class PatternComposer:
         variables = match.variables
         entity_names = []
 
-        for var_name, var_value in variables.items():
-            if '.' in var_value:  # Likely an entity_id
+        for _var_name, var_value in variables.items():
+            if "." in var_value:  # Likely an entity_id
                 # Extract friendly name from entity_id
-                friendly = var_value.split('.')[1].replace('_', ' ').title()
+                friendly = var_value.split(".")[1].replace("_", " ").title()
                 entity_names.append(friendly)
 
         if entity_names:
             return f"{pattern_name}: {', '.join(entity_names[:2])}"
-        else:
-            return pattern_name
+        return pattern_name
 
     def _generate_derived_variables(self, match: PatternMatch) -> dict[str, str]:
         """
@@ -250,28 +247,28 @@ class PatternComposer:
 
         # Generate friendly names from entity IDs
         for var_name, var_value in variables.items():
-            if '.' in var_value:  # Entity ID
-                friendly = var_value.split('.')[1].replace('_', ' ').title()
+            if "." in var_value:  # Entity ID
+                friendly = var_value.split(".")[1].replace("_", " ").title()
                 derived[f"{var_name}_name"] = friendly
 
         # Pad timeout values for HH:MM:SS format
-        for key in ['timeout', 'wait_time', 'no_motion_delay']:
+        for key in ["timeout", "wait_time", "no_motion_delay"]:
             if key in variables:
                 value = int(variables[key])
                 derived[f"{key}_padded"] = f"{value:02d}"
 
         # Generate action_type_readable
-        if 'action_type' in variables:
-            action = variables['action_type']
-            derived['action_type_readable'] = action.replace('_', ' ').title()
+        if "action_type" in variables:
+            action = variables["action_type"]
+            derived["action_type_readable"] = action.replace("_", " ").title()
 
         # Format offset for sun trigger
-        if 'offset' in variables:
-            offset = int(variables['offset'])
+        if "offset" in variables:
+            offset = int(variables["offset"])
             if offset >= 0:
-                derived['offset_formatted'] = f"+00:{offset:02d}:00"
+                derived["offset_formatted"] = f"+00:{offset:02d}:00"
             else:
-                derived['offset_formatted'] = f"-00:{abs(offset):02d}:00"
+                derived["offset_formatted"] = f"-00:{abs(offset):02d}:00"
 
         return derived
 

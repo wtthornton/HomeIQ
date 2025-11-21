@@ -21,16 +21,16 @@ class PatternUtilityScorer:
 
     # Energy-intensive device patterns have higher utility
     ENERGY_INTENSIVE_DEVICES = {
-        'climate', 'heater', 'air_conditioner', 'ac', 'hvac', 'thermostat',
-        'light', 'lamp', 'lighting', 'bulb', 'switch',
-        'washer', 'dryer', 'dishwasher', 'oven', 'stove', 'fridge', 'refrigerator'
+        "climate", "heater", "air_conditioner", "ac", "hvac", "thermostat",
+        "light", "lamp", "lighting", "bulb", "switch",
+        "washer", "dryer", "dishwasher", "oven", "stove", "fridge", "refrigerator",
     }
 
     # Time-saving patterns (frequent manual actions)
     TIME_SAVING_PATTERNS = {
-        'sequence',  # Multi-step sequences save time
-        'session',   # Routine patterns save time
-        'co_occurrence'  # Devices used together = automation opportunity
+        "sequence",  # Multi-step sequences save time
+        "session",   # Routine patterns save time
+        "co_occurrence",  # Devices used together = automation opportunity
     }
 
     def __init__(
@@ -38,11 +38,11 @@ class PatternUtilityScorer:
         energy_weight: float = 0.4,
         time_weight: float = 0.3,
         satisfaction_weight: float = 0.2,
-        frequency_weight: float = 0.1
+        frequency_weight: float = 0.1,
     ):
         """
         Initialize utility scorer.
-        
+
         Args:
             energy_weight: Weight for energy savings utility (0-1)
             time_weight: Weight for time savings utility (0-1)
@@ -67,10 +67,10 @@ class PatternUtilityScorer:
     def score_pattern(self, pattern: dict) -> dict[str, float]:
         """
         Calculate utility scores for a pattern.
-        
+
         Args:
             pattern: Pattern dictionary
-            
+
         Returns:
             Dictionary with utility scores:
             - energy_utility: Energy savings potential (0-1)
@@ -93,29 +93,29 @@ class PatternUtilityScorer:
         )
 
         return {
-            'energy_utility': energy_utility,
-            'time_utility': time_utility,
-            'satisfaction_utility': satisfaction_utility,
-            'frequency_utility': frequency_utility,
-            'total_utility': total_utility
+            "energy_utility": energy_utility,
+            "time_utility": time_utility,
+            "satisfaction_utility": satisfaction_utility,
+            "frequency_utility": frequency_utility,
+            "total_utility": total_utility,
         }
 
     def _calculate_energy_utility(self, pattern: dict) -> float:
         """
         Calculate energy savings utility.
-        
+
         Patterns involving energy-intensive devices or time-of-day
         optimizations have higher utility.
         """
-        devices = pattern.get('devices', [])
+        devices = pattern.get("devices", [])
         if isinstance(devices, str):
             devices = [devices]
 
-        device_id = pattern.get('device_id', '')
-        pattern_type = pattern.get('pattern_type', '')
+        device_id = pattern.get("device_id", "")
+        pattern_type = pattern.get("pattern_type", "")
 
         # Check if pattern involves energy-intensive devices
-        device_names = ' '.join(devices).lower() + ' ' + device_id.lower()
+        device_names = " ".join(devices).lower() + " " + device_id.lower()
         energy_intensive = any(
             device_keyword in device_names
             for device_keyword in self.ENERGY_INTENSIVE_DEVICES
@@ -125,24 +125,23 @@ class PatternUtilityScorer:
             return 0.2  # Low utility for non-energy devices
 
         # Time-of-day patterns can optimize energy usage
-        if pattern_type == 'time_of_day':
-            metadata = pattern.get('metadata', {})
-            hour = metadata.get('hour', metadata.get('typical_hour', 12))
+        if pattern_type == "time_of_day":
+            metadata = pattern.get("metadata", {})
+            hour = metadata.get("hour", metadata.get("typical_hour", 12))
 
             # Patterns during peak hours (morning/evening) have higher utility
             if 6 <= hour <= 9 or 17 <= hour <= 22:
                 return 0.9
-            elif 10 <= hour <= 16:
+            if 10 <= hour <= 16:
                 return 0.7
-            else:
-                return 0.5
+            return 0.5
 
         # Co-occurrence patterns with energy devices
-        if pattern_type == 'co_occurrence' and len(devices) >= 2:
+        if pattern_type == "co_occurrence" and len(devices) >= 2:
             return 0.8
 
         # Session patterns with energy devices
-        if pattern_type == 'session':
+        if pattern_type == "session":
             return 0.7
 
         # Default for energy-intensive devices
@@ -151,33 +150,32 @@ class PatternUtilityScorer:
     def _calculate_time_utility(self, pattern: dict) -> float:
         """
         Calculate time savings utility.
-        
+
         Patterns that automate frequent manual actions have higher utility.
         """
-        pattern_type = pattern.get('pattern_type', '')
-        occurrences = pattern.get('occurrences', 0)
+        pattern_type = pattern.get("pattern_type", "")
+        occurrences = pattern.get("occurrences", 0)
 
         # Sequence patterns save the most time (multiple steps automated)
-        if pattern_type == 'sequence':
-            sequence_length = len(pattern.get('metadata', {}).get('sequence', []))
+        if pattern_type == "sequence":
+            sequence_length = len(pattern.get("metadata", {}).get("sequence", []))
             # Longer sequences = more time saved
-            base_utility = min(0.5 + (sequence_length - 2) * 0.15, 1.0)
-            return base_utility
+            return min(0.5 + (sequence_length - 2) * 0.15, 1.0)
 
         # Session/routine patterns save time
-        if pattern_type in ['session', 'routine']:
+        if pattern_type in ["session", "routine"]:
             return 0.7
 
         # Co-occurrence patterns (automate device pairs)
-        if pattern_type == 'co_occurrence':
+        if pattern_type == "co_occurrence":
             return 0.6
 
         # Frequent patterns save more time
         if occurrences >= 20:
             return 0.8
-        elif occurrences >= 10:
+        if occurrences >= 10:
             return 0.6
-        elif occurrences >= 5:
+        if occurrences >= 5:
             return 0.4
 
         return 0.3
@@ -185,11 +183,11 @@ class PatternUtilityScorer:
     def _calculate_satisfaction_utility(self, pattern: dict) -> float:
         """
         Calculate user satisfaction utility.
-        
+
         Higher confidence and consistency = higher satisfaction.
         """
-        confidence = pattern.get('confidence', 0.5)
-        occurrences = pattern.get('occurrences', 0)
+        confidence = pattern.get("confidence", 0.5)
+        occurrences = pattern.get("occurrences", 0)
 
         # High confidence patterns are more reliable
         satisfaction = confidence
@@ -199,7 +197,7 @@ class PatternUtilityScorer:
         satisfaction = min(satisfaction + occurrence_boost, 1.0)
 
         # Time consistency boost
-        time_consistency = pattern.get('time_consistency', 0.0)
+        time_consistency = pattern.get("time_consistency", 0.0)
         if time_consistency > 0:
             satisfaction = (satisfaction + time_consistency) / 2
 
@@ -208,10 +206,10 @@ class PatternUtilityScorer:
     def _calculate_frequency_utility(self, pattern: dict) -> float:
         """
         Calculate frequency-based utility.
-        
+
         More frequent patterns have higher utility (but less important than other factors).
         """
-        occurrences = pattern.get('occurrences', 0)
+        occurrences = pattern.get("occurrences", 0)
 
         # Normalize to 0-1 (max at 30 occurrences)
         return min(occurrences / 30.0, 1.0)
@@ -219,10 +217,10 @@ class PatternUtilityScorer:
     def add_utility_scores(self, patterns: list[dict]) -> list[dict]:
         """
         Add utility scores to list of patterns.
-        
+
         Args:
             patterns: List of pattern dictionaries
-            
+
         Returns:
             Patterns with utility scores added to metadata
         """
@@ -230,14 +228,14 @@ class PatternUtilityScorer:
             utility_scores = self.score_pattern(pattern)
 
             # Add utility scores to metadata
-            if 'metadata' not in pattern:
-                pattern['metadata'] = {}
+            if "metadata" not in pattern:
+                pattern["metadata"] = {}
 
-            pattern['metadata']['utility'] = utility_scores
-            pattern['utility_score'] = utility_scores['total_utility']
+            pattern["metadata"]["utility"] = utility_scores
+            pattern["utility_score"] = utility_scores["total_utility"]
 
         # Sort by utility score (highest first)
-        patterns.sort(key=lambda p: p.get('utility_score', 0), reverse=True)
+        patterns.sort(key=lambda p: p.get("utility_score", 0), reverse=True)
 
         return patterns
 
@@ -245,16 +243,16 @@ class PatternUtilityScorer:
         self,
         patterns: list[dict],
         min_utility: float = 0.6,
-        max_results: int | None = None
+        max_results: int | None = None,
     ) -> list[dict]:
         """
         Filter and return high-utility patterns.
-        
+
         Args:
             patterns: List of patterns
             min_utility: Minimum utility score threshold
             max_results: Maximum number of patterns to return
-            
+
         Returns:
             Filtered list of high-utility patterns
         """
@@ -264,7 +262,7 @@ class PatternUtilityScorer:
         # Filter by minimum utility
         high_utility = [
             p for p in patterns_with_utility
-            if p.get('utility_score', 0) >= min_utility
+            if p.get("utility_score", 0) >= min_utility
         ]
 
         # Limit results
@@ -276,15 +274,15 @@ class PatternUtilityScorer:
     def prioritize_for_suggestions(
         self,
         patterns: list[dict],
-        max_suggestions: int = 10
+        max_suggestions: int = 10,
     ) -> list[dict]:
         """
         Prioritize patterns for automation suggestions based on utility.
-        
+
         Args:
             patterns: List of patterns
             max_suggestions: Maximum number of patterns to return
-            
+
         Returns:
             Prioritized list of patterns sorted by utility
         """
@@ -294,14 +292,14 @@ class PatternUtilityScorer:
         # Filter by minimum confidence (patterns should still be reliable)
         reliable_patterns = [
             p for p in patterns_with_utility
-            if p.get('confidence', 0) >= 0.6  # Minimum confidence threshold
+            if p.get("confidence", 0) >= 0.6  # Minimum confidence threshold
         ]
 
         # Sort by utility score (descending)
         prioritized = sorted(
             reliable_patterns,
-            key=lambda p: p.get('utility_score', 0),
-            reverse=True
+            key=lambda p: p.get("utility_score", 0),
+            reverse=True,
         )
 
         return prioritized[:max_suggestions]

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from src.core.predictive_analytics import PredictiveAnalyticsEngine
 
@@ -55,7 +55,7 @@ class TestModelTraining:
                 "uptime_hours": np.random.exponential(100),
                 "restart_count": np.random.poisson(2),
                 "connection_drops": np.random.poisson(1),
-                "data_transfer_rate": np.random.normal(1000, 200)
+                "data_transfer_rate": np.random.normal(1000, 200),
             })
         return data
 
@@ -64,7 +64,7 @@ class TestModelTraining:
         """Test model training with sample data."""
         await analytics_engine.train_models(historical_data=sample_training_data)
 
-        assert analytics_engine.is_trained == True
+        assert analytics_engine.is_trained
         assert analytics_engine.model_metadata["version"] is not None
         assert analytics_engine.model_metadata["training_date"] is not None
         assert analytics_engine.model_metadata["data_source"] == "database"
@@ -76,7 +76,7 @@ class TestModelTraining:
 
         # Check validation results
         validation = analytics_engine.model_metadata.get("validation", {})
-        assert validation.get("valid") == True
+        assert validation.get("valid")
         assert "All validation checks passed" in validation.get("reason", "")
 
     @pytest.mark.asyncio
@@ -133,7 +133,7 @@ class TestModelTraining:
 
         # Verification should pass
         result = await analytics_engine._verify_saved_models()
-        assert result == True
+        assert result
 
     @pytest.mark.asyncio
     async def test_training_data_validation(self, analytics_engine):
@@ -141,7 +141,7 @@ class TestModelTraining:
         # Test with insufficient data
         insufficient_data = [{"device_id": f"device_{i}"} for i in range(10)]
         result = analytics_engine._validate_training_data(insufficient_data)
-        assert result == False
+        assert not result
 
         # Test with sufficient data
         import numpy as np
@@ -160,10 +160,10 @@ class TestModelTraining:
                 "uptime_hours": np.random.exponential(100),
                 "restart_count": np.random.poisson(2),
                 "connection_drops": np.random.poisson(1),
-                "data_transfer_rate": np.random.normal(1000, 200)
+                "data_transfer_rate": np.random.normal(1000, 200),
             })
         result = analytics_engine._validate_training_data(sufficient_data)
-        assert result == True
+        assert result
 
     @pytest.mark.asyncio
     async def test_model_status_includes_metadata(self, analytics_engine, sample_training_data):
@@ -212,12 +212,12 @@ class TestModelValidation:
             "accuracy": 0.6,  # Above threshold
             "precision": 0.5,  # Above threshold
             "recall": 0.4,     # Above threshold
-            "f1_score": 0.45
+            "f1_score": 0.45,
         }
 
         # Validate
         result = await analytics_engine._validate_models(X_test_scaled, y_test)
-        assert result["valid"] == True
+        assert result["valid"]
 
     @pytest.mark.asyncio
     async def test_validation_fails_below_thresholds(self, analytics_engine):
@@ -245,11 +245,11 @@ class TestModelValidation:
             "accuracy": 0.3,  # Below threshold
             "precision": 0.2,  # Below threshold
             "recall": 0.1,     # Below threshold
-            "f1_score": 0.15
+            "f1_score": 0.15,
         }
 
         # Validate
         result = await analytics_engine._validate_models(X_test_scaled, y_test)
-        assert result["valid"] == False
+        assert not result["valid"]
         assert "below threshold" in result["reason"].lower()
 

@@ -17,19 +17,19 @@ logger = logging.getLogger(__name__)
 async def update_device_capabilities_batch(
     mqtt_client,
     data_api_client,
-    db_session_factory
+    db_session_factory,
 ) -> dict[str, int]:
     """
     Query Zigbee2MQTT bridge for device capabilities (batch).
-    
+
     This replaces the real-time MQTT listener from Story 2.1.
     Called daily at 3 AM by the unified batch job.
-    
+
     Args:
         mqtt_client: MQTT client instance
         data_api_client: Data API client for fetching HA devices
         db_session_factory: Database session factory
-        
+
     Returns:
         Dictionary with update statistics:
         {
@@ -38,14 +38,14 @@ async def update_device_capabilities_batch(
             "new_devices": int,
             "errors": int
         }
-    
+
     Story AI2.5: Unified Daily Batch Job
     """
     stats = {
         "devices_checked": 0,
         "capabilities_updated": 0,
         "new_devices": 0,
-        "errors": 0
+        "errors": 0,
     }
 
     try:
@@ -61,7 +61,7 @@ async def update_device_capabilities_batch(
             stats["devices_checked"] = len(devices)
             logger.info(f"   ✅ Found {len(devices)} devices in HA")
         except Exception as e:
-            logger.error(f"   ❌ Failed to fetch HA devices: {e}")
+            logger.exception(f"   ❌ Failed to fetch HA devices: {e}")
             stats["errors"] += 1
             return stats
 
@@ -84,7 +84,7 @@ async def update_device_capabilities_batch(
 
             logger.info(f"   ✅ Retrieved data for {len(bridge_data)} Zigbee devices")
         except Exception as e:
-            logger.error(f"   ❌ Failed to query Zigbee2MQTT bridge: {e}")
+            logger.exception(f"   ❌ Failed to query Zigbee2MQTT bridge: {e}")
             stats["errors"] += 1
             return stats
 
@@ -93,17 +93,18 @@ async def update_device_capabilities_batch(
         # =====================================================================
         logger.info("   → Step 3: Parsing and storing capabilities...")
 
-        from ..database.crud import get_device_capability, upsert_device_capability
+        from src.database.crud import get_device_capability, upsert_device_capability
+
         from .capability_parser import CapabilityParser
 
         parser = CapabilityParser()
 
         # Create index of bridge data by model for faster lookup
-        bridge_index = {device.get('model'): device for device in bridge_data if device.get('model')}
+        bridge_index = {device.get("model"): device for device in bridge_data if device.get("model")}
 
         for device in devices:
-            device_model = device.get('model')
-            manufacturer = device.get('manufacturer', 'Unknown')
+            device_model = device.get("model")
+            manufacturer = device.get("manufacturer", "Unknown")
 
             if not device_model:
                 continue  # Skip devices without model info
@@ -122,7 +123,7 @@ async def update_device_capabilities_batch(
                         continue  # Skip if capability is fresh (<30 days old)
 
                     # Parse capabilities from bridge data
-                    exposes = bridge_device.get('exposes', [])
+                    exposes = bridge_device.get("exposes", [])
                     if not exposes:
                         continue  # No capability data available
 
@@ -133,14 +134,14 @@ async def update_device_capabilities_batch(
 
                     # Prepare capability record
                     capability_data = {
-                        'device_model': device_model,
-                        'manufacturer': manufacturer,
-                        'integration_type': 'zigbee',
-                        'description': bridge_device.get('description', ''),
-                        'capabilities': parsed_capabilities,
-                        'mqtt_exposes': exposes,  # Store raw data
-                        'source': 'zigbee2mqtt_bridge',
-                        'last_updated': datetime.utcnow()
+                        "device_model": device_model,
+                        "manufacturer": manufacturer,
+                        "integration_type": "zigbee",
+                        "description": bridge_device.get("description", ""),
+                        "capabilities": parsed_capabilities,
+                        "mqtt_exposes": exposes,  # Store raw data
+                        "source": "zigbee2mqtt_bridge",
+                        "last_updated": datetime.utcnow(),
                     }
 
                     # Upsert capability
@@ -154,7 +155,7 @@ async def update_device_capabilities_batch(
                         logger.debug(f"      🔄 Updated: {device_model}")
 
             except Exception as e:
-                logger.error(f"      ❌ Failed to process {device_model}: {e}")
+                logger.exception(f"      ❌ Failed to process {device_model}: {e}")
                 stats["errors"] += 1
 
         # =====================================================================
@@ -177,10 +178,10 @@ async def update_device_capabilities_batch(
 async def _query_zigbee2mqtt_bridge(mqtt_client) -> list[dict] | None:
     """
     Query Zigbee2MQTT bridge for device list (one-time query).
-    
+
     Args:
         mqtt_client: MQTT client instance
-        
+
     Returns:
         List of device dictionaries from bridge, or None if query fails
     """
@@ -206,7 +207,7 @@ async def _query_zigbee2mqtt_bridge(mqtt_client) -> list[dict] | None:
                         received_data.extend(data)
                     event.set()
             except Exception as e:
-                logger.error(f"Failed to parse bridge message: {e}")
+                logger.exception(f"Failed to parse bridge message: {e}")
                 event.set()
 
         # Subscribe to bridge/devices
@@ -228,25 +229,25 @@ async def _query_zigbee2mqtt_bridge(mqtt_client) -> list[dict] | None:
         return received_data if received_data else None
 
     except Exception as e:
-        logger.error(f"Failed to query Zigbee2MQTT bridge: {e}")
+        logger.exception(f"Failed to query Zigbee2MQTT bridge: {e}")
         return None
 
 
 def _is_stale(capability_record, max_age_days: int = 30) -> bool:
     """
     Check if capability record is stale and needs refresh.
-    
+
     Args:
         capability_record: DeviceCapability SQLAlchemy model instance
         max_age_days: Maximum age in days before considered stale
-        
+
     Returns:
         True if stale (older than max_age_days), False otherwise
     """
     if not capability_record:
         return True
 
-    if not hasattr(capability_record, 'last_updated') or not capability_record.last_updated:
+    if not hasattr(capability_record, "last_updated") or not capability_record.last_updated:
         return True  # No timestamp = stale
 
     age = datetime.utcnow() - capability_record.last_updated

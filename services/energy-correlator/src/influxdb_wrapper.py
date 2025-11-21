@@ -21,7 +21,7 @@ class InfluxDBWrapper:
         influxdb_url: str,
         influxdb_token: str,
         influxdb_org: str,
-        influxdb_bucket: str
+        influxdb_bucket: str,
     ):
         self.influxdb_url = influxdb_url
         self.influxdb_token = influxdb_token
@@ -37,7 +37,7 @@ class InfluxDBWrapper:
             self.client = InfluxDBClient(
                 url=self.influxdb_url,
                 token=self.influxdb_token,
-                org=self.influxdb_org
+                org=self.influxdb_org,
             )
 
             self.write_api = self.client.write_api(write_options=ASYNCHRONOUS)
@@ -46,7 +46,7 @@ class InfluxDBWrapper:
             logger.info(f"Connected to InfluxDB at {self.influxdb_url}")
 
         except Exception as e:
-            logger.error(f"Failed to connect to InfluxDB: {e}")
+            logger.exception(f"Failed to connect to InfluxDB: {e}")
             raise
 
     def close(self):
@@ -58,7 +58,7 @@ class InfluxDBWrapper:
                 self.client.close()
                 logger.info("InfluxDB connection closed")
             except Exception as e:
-                logger.error(f"Error closing InfluxDB connection: {e}")
+                logger.exception(f"Error closing InfluxDB connection: {e}")
 
     def _execute_query(self, flux_query: str) -> list[dict]:
         tables = self.query_api.query(flux_query, org=self.influxdb_org)
@@ -67,11 +67,11 @@ class InfluxDBWrapper:
         for table in tables:
             for record in table.records:
                 result = {
-                    'time': record.get_time()
+                    "time": record.get_time(),
                 }
 
                 for key, value in record.values.items():
-                    if key not in ['result', 'table']:
+                    if key not in ["result", "table"]:
                         result[key] = value
 
                 results.append(result)
@@ -95,13 +95,13 @@ class InfluxDBWrapper:
         self.write_api.write(
             bucket=self.influxdb_bucket,
             org=self.influxdb_org,
-            record=points
+            record=points,
         )
 
     async def write_points(self, points: list[Point]):
         """
         Write a batch of points to InfluxDB asynchronously
-        
+
         Args:
             points: List of InfluxDB Point objects
         """

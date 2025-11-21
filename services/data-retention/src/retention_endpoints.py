@@ -25,8 +25,8 @@ class RetentionEndpoints:
             metrics = await self.analytics.calculate_storage_metrics()
             return web.json_response(metrics)
         except Exception as e:
-            logger.error(f"Error getting stats: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            logger.exception(f"Error getting stats: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def downsample_hourly(self, request):
         """POST /retention/downsample-hourly - Manual trigger"""
@@ -35,8 +35,8 @@ class RetentionEndpoints:
             result = await self.retention_manager.downsample_hot_to_warm()
             return web.json_response(result)
         except Exception as e:
-            logger.error(f"Error downsampling: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            logger.exception(f"Error downsampling: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def downsample_daily(self, request):
         """POST /retention/downsample-daily - Manual trigger"""
@@ -45,8 +45,8 @@ class RetentionEndpoints:
             result = await self.retention_manager.downsample_warm_to_cold()
             return web.json_response(result)
         except Exception as e:
-            logger.error(f"Error downsampling: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            logger.exception(f"Error downsampling: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def archive_s3(self, request):
         """POST /retention/archive-s3 - Manual trigger"""
@@ -55,8 +55,8 @@ class RetentionEndpoints:
             result = await self.archival_manager.archive_to_s3()
             return web.json_response(result)
         except Exception as e:
-            logger.error(f"Error archiving: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            logger.exception(f"Error archiving: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     async def refresh_views(self, request):
         """POST /retention/refresh-views - Manual trigger"""
@@ -65,17 +65,17 @@ class RetentionEndpoints:
             result = await self.view_manager.refresh_all_views()
             return web.json_response(result)
         except Exception as e:
-            logger.error(f"Error refreshing views: {e}")
-            return web.json_response({'error': str(e)}, status=500)
+            logger.exception(f"Error refreshing views: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
     def add_routes(self, app: web.Application):
         """Add routes to application"""
 
-        app.router.add_get('/retention/stats', self.get_stats)
-        app.router.add_post('/retention/downsample-hourly', self.downsample_hourly)
-        app.router.add_post('/retention/downsample-daily', self.downsample_daily)
-        app.router.add_post('/retention/archive-s3', self.archive_s3)
-        app.router.add_post('/retention/refresh-views', self.refresh_views)
+        app.router.add_get("/retention/stats", self.get_stats)
+        app.router.add_post("/retention/downsample-hourly", self.downsample_hourly)
+        app.router.add_post("/retention/downsample-daily", self.downsample_daily)
+        app.router.add_post("/retention/archive-s3", self.archive_s3)
+        app.router.add_post("/retention/refresh-views", self.refresh_views)
 
         logger.info("Retention API endpoints registered")
 

@@ -8,7 +8,7 @@ async def trigger_discovery():
     async with httpx.AsyncClient(timeout=120.0) as client:
         print("Triggering discovery endpoint...")
         try:
-            response = await client.post('http://localhost:8019/api/discovery/refresh')
+            response = await client.post("http://localhost:8019/api/discovery/refresh")
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text}")
         except Exception as e:

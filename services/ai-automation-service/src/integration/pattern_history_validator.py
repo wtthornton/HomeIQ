@@ -17,7 +17,7 @@ from scipy import stats
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database.models import Pattern, PatternHistory
+from src.database.models import Pattern, PatternHistory
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 class PatternHistoryValidator:
     """
     Validates and tracks pattern history for trend analysis.
-    
+
     Phase 1: Foundation for pattern history tracking.
     """
 
     def __init__(self, db: AsyncSession):
         """
         Initialize pattern history validator.
-        
+
         Args:
             db: Database session
         """
@@ -42,16 +42,16 @@ class PatternHistoryValidator:
         self,
         pattern_id: int,
         confidence: float,
-        occurrences: int
+        occurrences: int,
     ) -> PatternHistory:
         """
         Store a pattern history snapshot.
-        
+
         Args:
             pattern_id: Pattern ID
             confidence: Pattern confidence at this point
             occurrences: Number of occurrences
-            
+
         Returns:
             Created PatternHistory instance
         """
@@ -60,7 +60,7 @@ class PatternHistoryValidator:
                 pattern_id=pattern_id,
                 confidence=confidence,
                 occurrences=occurrences,
-                recorded_at=datetime.now(timezone.utc)
+                recorded_at=datetime.now(timezone.utc),
             )
             self.db.add(snapshot)
             await self.db.commit()
@@ -77,15 +77,15 @@ class PatternHistoryValidator:
     async def get_pattern_history(
         self,
         pattern_id: int,
-        days: int = 90
+        days: int = 90,
     ) -> list[PatternHistory]:
         """
         Get pattern history for a specific pattern.
-        
+
         Args:
             pattern_id: Pattern ID
             days: Number of days to look back (default: 90)
-            
+
         Returns:
             List of PatternHistory instances, ordered by recorded_at
         """
@@ -95,8 +95,8 @@ class PatternHistoryValidator:
             query = select(PatternHistory).where(
                 and_(
                     PatternHistory.pattern_id == pattern_id,
-                    PatternHistory.recorded_at >= cutoff_date
-                )
+                    PatternHistory.recorded_at >= cutoff_date,
+                ),
             ).order_by(PatternHistory.recorded_at.asc())
 
             result = await self.db.execute(query)
@@ -112,15 +112,15 @@ class PatternHistoryValidator:
     async def analyze_trend(
         self,
         pattern_id: int,
-        days: int = 90
+        days: int = 90,
     ) -> dict[str, any]:
         """
         Analyze pattern trend over time using linear regression.
-        
+
         Args:
             pattern_id: Pattern ID
             days: Number of days to analyze (default: 90)
-            
+
         Returns:
             Dictionary with trend analysis:
             {
@@ -138,13 +138,13 @@ class PatternHistoryValidator:
 
             if len(history) < 2:
                 return {
-                    'trend': 'insufficient_data',
-                    'trend_strength': 0.0,
-                    'slope': 0.0,
-                    'first_confidence': history[0].confidence if history else 0.0,
-                    'last_confidence': history[-1].confidence if history else 0.0,
-                    'confidence_change': 0.0,
-                    'data_points': len(history)
+                    "trend": "insufficient_data",
+                    "trend_strength": 0.0,
+                    "slope": 0.0,
+                    "first_confidence": history[0].confidence if history else 0.0,
+                    "last_confidence": history[-1].confidence if history else 0.0,
+                    "confidence_change": 0.0,
+                    "data_points": len(history),
                 }
 
             # Extract confidence values and timestamps
@@ -159,7 +159,7 @@ class PatternHistoryValidator:
             x = np.array(days_from_first)
             y = np.array(confidences)
 
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+            slope, _intercept, r_value, _p_value, _std_err = stats.linregress(x, y)
 
             # Determine trend direction
             # Use a threshold to determine if slope is significant
@@ -167,27 +167,27 @@ class PatternHistoryValidator:
             slope_threshold = 0.001  # 0.1% per day
 
             if abs(slope) < slope_threshold:
-                trend = 'stable'
+                trend = "stable"
                 trend_strength = min(1.0, abs(slope) / slope_threshold)
             elif slope > 0:
-                trend = 'increasing'
+                trend = "increasing"
                 trend_strength = min(1.0, abs(slope) / (slope_threshold * 5))  # Scale to 0-1
             else:
-                trend = 'decreasing'
+                trend = "decreasing"
                 trend_strength = min(1.0, abs(slope) / (slope_threshold * 5))
 
             # Calculate confidence change
             confidence_change = confidences[-1] - confidences[0]
 
             result = {
-                'trend': trend,
-                'trend_strength': float(trend_strength),
-                'slope': float(slope),
-                'r_squared': float(r_value ** 2),
-                'first_confidence': float(confidences[0]),
-                'last_confidence': float(confidences[-1]),
-                'confidence_change': float(confidence_change),
-                'data_points': len(history)
+                "trend": trend,
+                "trend_strength": float(trend_strength),
+                "slope": float(slope),
+                "r_squared": float(r_value ** 2),
+                "first_confidence": float(confidences[0]),
+                "last_confidence": float(confidences[-1]),
+                "confidence_change": float(confidence_change),
+                "data_points": len(history),
             }
 
             logger.debug(f"Pattern {pattern_id} trend: {trend} (strength: {trend_strength:.2f}, slope: {slope:.4f})")
@@ -196,24 +196,24 @@ class PatternHistoryValidator:
         except Exception as e:
             logger.error(f"Failed to analyze pattern trend: {e}", exc_info=True)
             return {
-                'trend': 'error',
-                'trend_strength': 0.0,
-                'slope': 0.0,
-                'first_confidence': 0.0,
-                'last_confidence': 0.0,
-                'confidence_change': 0.0,
-                'data_points': 0,
-                'error': str(e)
+                "trend": "error",
+                "trend_strength": 0.0,
+                "slope": 0.0,
+                "first_confidence": 0.0,
+                "last_confidence": 0.0,
+                "confidence_change": 0.0,
+                "data_points": 0,
+                "error": str(e),
             }
 
     async def update_pattern_trend_cache(self, pattern_id: int, days: int = 90) -> dict[str, any]:
         """
         Update cached trend data in the patterns table.
-        
+
         Args:
             pattern_id: Pattern ID
             days: Number of days to analyze
-            
+
         Returns:
             Trend analysis result
         """
@@ -227,9 +227,9 @@ class PatternHistoryValidator:
             pattern = result.scalar_one_or_none()
 
             if pattern:
-                pattern.trend_direction = trend_result['trend']
-                pattern.trend_strength = trend_result['trend_strength']
-                pattern.confidence_history_count = trend_result['data_points']
+                pattern.trend_direction = trend_result["trend"]
+                pattern.trend_strength = trend_result["trend_strength"]
+                pattern.confidence_history_count = trend_result["data_points"]
 
                 await self.db.commit()
                 logger.debug(f"Updated trend cache for pattern {pattern_id}")

@@ -15,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 
 # Add shared directory to path for imports (same pattern as main.py)
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[1]  # typically /app
 except Exception:
@@ -54,7 +54,8 @@ except ImportError:
         StateMachine = shared_sm.StateMachine
         InvalidStateTransition = shared_sm.InvalidStateTransition
     else:
-        raise ImportError("Cannot find shared state_machine module")
+        msg = "Cannot find shared state_machine module"
+        raise ImportError(msg)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class ConnectionState(Enum):
 class ConnectionStateMachine(StateMachine):
     """
     State machine for connection management.
-    
+
     Valid transitions:
     - DISCONNECTED → CONNECTING
     - CONNECTING → AUTHENTICATING, FAILED
@@ -88,7 +89,7 @@ class ConnectionStateMachine(StateMachine):
         ConnectionState.AUTHENTICATING: [ConnectionState.CONNECTED, ConnectionState.FAILED],
         ConnectionState.CONNECTED: [ConnectionState.RECONNECTING, ConnectionState.DISCONNECTED],
         ConnectionState.RECONNECTING: [ConnectionState.CONNECTING, ConnectionState.FAILED],
-        ConnectionState.FAILED: [ConnectionState.RECONNECTING]
+        ConnectionState.FAILED: [ConnectionState.RECONNECTING],
     }
 
     def __init__(self):
@@ -108,7 +109,7 @@ class ProcessingState(Enum):
 class ProcessingStateMachine(StateMachine):
     """
     State machine for batch/event processing.
-    
+
     Valid transitions:
     - STOPPED → STARTING
     - STARTING → RUNNING, ERROR
@@ -124,7 +125,7 @@ class ProcessingStateMachine(StateMachine):
         ProcessingState.RUNNING: [ProcessingState.PAUSED, ProcessingState.STOPPING, ProcessingState.ERROR],
         ProcessingState.PAUSED: [ProcessingState.RUNNING, ProcessingState.STOPPING],
         ProcessingState.STOPPING: [ProcessingState.STOPPED],
-        ProcessingState.ERROR: [ProcessingState.STOPPED, ProcessingState.STARTING]
+        ProcessingState.ERROR: [ProcessingState.STOPPED, ProcessingState.STARTING],
     }
 
     def __init__(self):

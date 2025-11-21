@@ -9,7 +9,7 @@ from .multi_model_extractor import MultiModelEntityExtractor
 from .pattern_extractor import extract_entities_from_query
 
 __all__ = [
-    "extract_entities_from_query",
     "EnhancedEntityExtractor",
-    "MultiModelEntityExtractor"
+    "MultiModelEntityExtractor",
+    "extract_entities_from_query",
 ]

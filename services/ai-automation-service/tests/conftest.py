@@ -26,7 +26,7 @@ pytestmark = pytest.mark.skipif(
 async def client():
     """
     Async HTTP client for AI Automation API endpoints
-    
+
     Automatically closes after test completes.
     """
     from src.api.main import app
@@ -40,20 +40,20 @@ async def client():
 def mock_openai():
     """
     Mock OpenAI client to avoid API costs in tests
-    
+
     Provides realistic responses without making actual API calls.
     """
-    with patch('src.llm.openai_client.OpenAI') as mock:
+    with patch("src.llm.openai_client.OpenAI") as mock:
         # Configure mock to return realistic responses
         mock_instance = AsyncMock()
         mock_instance.chat.completions.create.return_value = AsyncMock(
             choices=[
                 AsyncMock(
                     message=AsyncMock(
-                        content='{"suggestion": "Test automation suggestion", "confidence": 0.85}'
-                    )
-                )
-            ]
+                        content='{"suggestion": "Test automation suggestion", "confidence": 0.85}',
+                    ),
+                ),
+            ],
         )
         mock.return_value = mock_instance
         yield mock
@@ -63,7 +63,7 @@ def mock_openai():
 @pytest.fixture
 def mock_pattern_db():
     """Mock pattern database for testing"""
-    with patch('src.database.get_session') as mock:
+    with patch("src.database.get_session") as mock:
         yield mock
 
 
@@ -71,10 +71,10 @@ def mock_pattern_db():
 @pytest.fixture
 def mock_data_api():
     """Mock Data API client for testing"""
-    with patch('src.clients.data_api_client.DataAPIClient') as mock:
+    with patch("src.clients.data_api_client.DataAPIClient") as mock:
         mock_instance = AsyncMock()
         mock_instance.get_patterns.return_value = []
-        mock_instance.get_device_info.return_value = {'name': 'Test Device'}
+        mock_instance.get_device_info.return_value = {"name": "Test Device"}
         mock.return_value = mock_instance
         yield mock
 
@@ -84,16 +84,16 @@ def mock_data_api():
 def sample_pattern():
     """Sample AI-detected pattern for testing"""
     return {
-        'id': 1,
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.living_room',
-        'confidence': 0.92,
-        'occurrences': 45,
-        'metadata': {
-            'time_range': '18:00-19:00',
-            'days_of_week': ['Monday', 'Tuesday', 'Wednesday']
+        "id": 1,
+        "pattern_type": "time_of_day",
+        "device_id": "light.living_room",
+        "confidence": 0.92,
+        "occurrences": 45,
+        "metadata": {
+            "time_range": "18:00-19:00",
+            "days_of_week": ["Monday", "Tuesday", "Wednesday"],
         },
-        'last_occurrence': datetime.utcnow()
+        "last_occurrence": datetime.utcnow(),
     }
 
 
@@ -101,10 +101,10 @@ def sample_pattern():
 def sample_automation_suggestion():
     """Sample automation suggestion for testing"""
     return {
-        'id': 1,
-        'pattern_id': 1,
-        'description': 'Turn on living room light at 6 PM on weekdays',
-        'automation_yaml': """
+        "id": 1,
+        "pattern_id": 1,
+        "description": "Turn on living room light at 6 PM on weekdays",
+        "automation_yaml": """
 alias: "Evening Light Automation"
 trigger:
   - platform: time
@@ -117,8 +117,8 @@ action:
     target:
       entity_id: light.living_room
 """,
-        'confidence': 0.92,
-        'status': 'pending'
+        "confidence": 0.92,
+        "status": "pending",
     }
 
 
@@ -126,14 +126,14 @@ action:
 def sample_device_context():
     """Sample device context for AI analysis"""
     return {
-        'device_id': 'light.living_room',
-        'name': 'Living Room Light',
-        'device_class': 'light',
-        'capabilities': ['brightness', 'color_temp'],
-        'recent_states': [
-            {'state': 'on', 'timestamp': datetime.utcnow()},
-            {'state': 'off', 'timestamp': datetime.utcnow()},
-        ]
+        "device_id": "light.living_room",
+        "name": "Living Room Light",
+        "device_class": "light",
+        "capabilities": ["brightness", "color_temp"],
+        "recent_states": [
+            {"state": "on", "timestamp": datetime.utcnow()},
+            {"state": "off", "timestamp": datetime.utcnow()},
+        ],
     }
 
 

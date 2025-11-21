@@ -30,7 +30,7 @@ class SoftPromptAdapter:
                 "text2text-generation",
                 model=model,
                 tokenizer=tokenizer,
-                device=-1
+                device=-1,
             )
             self._model_id = getattr(model.config, "name_or_path", str(self.model_path))
             logger.info("Soft prompt adapter initialized with model %s", self._model_id)
@@ -52,7 +52,7 @@ class SoftPromptAdapter:
         query: str,
         suggestions: list[dict],
         context: str | None,
-        threshold: float
+        threshold: float,
     ) -> list[dict]:
         """Augment low-confidence suggestions with a locally generated refinement."""
         if not self.is_ready or not suggestions:
@@ -76,7 +76,7 @@ class SoftPromptAdapter:
                 suggestion.setdefault("metadata", {})["soft_prompt"] = {
                     "applied": True,
                     "model_id": self.model_id,
-                    "confidence_before": confidence
+                    "confidence_before": confidence,
                 }
                 suggestion["confidence"] = max(confidence, threshold - 0.05)
 
@@ -88,7 +88,7 @@ class SoftPromptAdapter:
         self,
         query: str,
         suggestion: dict,
-        context: str | None
+        context: str | None,
     ) -> str | None:
         """Generate a short refinement string using the local pipeline."""
         if not self.is_ready:
@@ -97,7 +97,7 @@ class SoftPromptAdapter:
         prompt_parts = [
             "You improve Home Assistant automations for a single occupant home.",
             f"User request: {query.strip()}",
-            f"Existing idea: {suggestion.get('description', '').strip()}"
+            f"Existing idea: {suggestion.get('description', '').strip()}",
         ]
 
         devices = suggestion.get("devices_involved") or []
@@ -108,7 +108,7 @@ class SoftPromptAdapter:
             prompt_parts.append("Key context:\n" + context.strip())
 
         prompt_parts.append(
-            "Provide one concise improvement that keeps setup simple and practical."
+            "Provide one concise improvement that keeps setup simple and practical.",
         )
 
         prompt = "\n\n".join(part for part in prompt_parts if part)
@@ -118,7 +118,7 @@ class SoftPromptAdapter:
                 prompt,
                 max_new_tokens=self.max_new_tokens,
                 num_return_sequences=1,
-                do_sample=False
+                do_sample=False,
             )
             if not output:
                 return None
@@ -142,9 +142,6 @@ def get_soft_prompt_adapter(model_dir: str) -> SoftPromptAdapter | None:
 
     _adapter_initialized = True
     adapter = SoftPromptAdapter(model_dir=model_dir)
-    if adapter.is_ready:
-        _adapter_singleton = adapter
-    else:
-        _adapter_singleton = None
+    _adapter_singleton = adapter if adapter.is_ready else None
     return _adapter_singleton
 

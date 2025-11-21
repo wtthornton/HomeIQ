@@ -36,7 +36,7 @@ class ConditionType(str, Enum):
 class ConditionEvaluator:
     """
     Evaluates automation conditions with AND/OR/NOT logic.
-    
+
     Supports Home Assistant-style condition evaluation:
     - AND/OR/NOT logic operators
     - Nested conditions
@@ -49,7 +49,7 @@ class ConditionEvaluator:
     def __init__(self, ha_client: HomeAssistantClient, template_engine: TemplateEngine | None = None):
         """
         Initialize condition evaluator.
-        
+
         Args:
             ha_client: Home Assistant client for fetching states
             template_engine: Optional template engine for template conditions
@@ -60,18 +60,18 @@ class ConditionEvaluator:
     async def evaluate(
         self,
         condition: dict[str, Any] | list[dict[str, Any]],
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> bool:
         """
         Evaluate condition(s) with AND/OR/NOT logic.
-        
+
         Args:
             condition: Condition dict or list of conditions
             context: Optional context for evaluation
-            
+
         Returns:
             True if condition(s) are met, False otherwise
-            
+
         Examples:
             # AND logic
             condition = {
@@ -81,7 +81,7 @@ class ConditionEvaluator:
                     {"condition": "numeric_state", "entity_id": "sensor.temp", "above": 20}
                 ]
             }
-            
+
             # OR logic
             condition = {
                 "condition": "or",
@@ -90,7 +90,7 @@ class ConditionEvaluator:
                     {"condition": "state", "entity_id": "switch.2", "state": "on"}
                 ]
             }
-            
+
             # NOT logic
             condition = {
                 "condition": "not",
@@ -98,7 +98,7 @@ class ConditionEvaluator:
                     {"condition": "state", "entity_id": "sensor.motion", "state": "on"}
                 ]
             }
-            
+
             # List of conditions (defaults to AND)
             condition = [
                 {"condition": "state", "entity_id": "sensor.temp", "state": "on"},
@@ -123,12 +123,12 @@ class ConditionEvaluator:
             return False
 
         # Check for logic operator
-        if 'condition' in condition:
-            condition_type = condition['condition']
+        if "condition" in condition:
+            condition_type = condition["condition"]
 
             # AND logic
             if condition_type == ConditionType.AND:
-                sub_conditions = condition.get('conditions', [])
+                sub_conditions = condition.get("conditions", [])
                 if not sub_conditions:
                     logger.warning("AND condition with no sub-conditions")
                     return True  # Empty AND is True
@@ -140,8 +140,8 @@ class ConditionEvaluator:
                 return all(results)
 
             # OR logic
-            elif condition_type == ConditionType.OR:
-                sub_conditions = condition.get('conditions', [])
+            if condition_type == ConditionType.OR:
+                sub_conditions = condition.get("conditions", [])
                 if not sub_conditions:
                     logger.warning("OR condition with no sub-conditions")
                     return False  # Empty OR is False
@@ -153,8 +153,8 @@ class ConditionEvaluator:
                 return any(results)
 
             # NOT logic
-            elif condition_type == ConditionType.NOT:
-                sub_conditions = condition.get('conditions', [])
+            if condition_type == ConditionType.NOT:
+                sub_conditions = condition.get("conditions", [])
                 if len(sub_conditions) != 1:
                     logger.warning(f"NOT condition should have exactly 1 sub-condition, got {len(sub_conditions)}")
                     return False
@@ -163,8 +163,7 @@ class ConditionEvaluator:
                 return not sub_result
 
             # Specific condition type
-            else:
-                return await self._evaluate_specific_condition(condition, context)
+            return await self._evaluate_specific_condition(condition, context)
 
         # No condition type specified - treat as state condition
         logger.warning("Condition dict without 'condition' key, treating as state condition")
@@ -173,55 +172,54 @@ class ConditionEvaluator:
     async def _evaluate_specific_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """
         Evaluate specific condition type.
-        
+
         Args:
             condition: Condition dict
             context: Evaluation context
-            
+
         Returns:
             True if condition is met, False otherwise
         """
-        condition_type = condition.get('condition')
+        condition_type = condition.get("condition")
 
         try:
             if condition_type == ConditionType.STATE:
                 return await self._evaluate_state_condition(condition, context)
 
-            elif condition_type == ConditionType.NUMERIC_STATE:
+            if condition_type == ConditionType.NUMERIC_STATE:
                 return await self._evaluate_numeric_state_condition(condition, context)
 
-            elif condition_type == ConditionType.TIME:
+            if condition_type == ConditionType.TIME:
                 return await self._evaluate_time_condition(condition, context)
 
-            elif condition_type == ConditionType.TEMPLATE:
+            if condition_type == ConditionType.TEMPLATE:
                 return await self._evaluate_template_condition(condition, context)
 
-            elif condition_type == ConditionType.ZONE:
+            if condition_type == ConditionType.ZONE:
                 return await self._evaluate_zone_condition(condition, context)
 
-            elif condition_type == ConditionType.DEVICE:
+            if condition_type == ConditionType.DEVICE:
                 return await self._evaluate_device_condition(condition, context)
 
-            else:
-                logger.warning(f"Unknown condition type: {condition_type}")
-                return False
+            logger.warning(f"Unknown condition type: {condition_type}")
+            return False
 
         except Exception as e:
-            logger.error(f"Error evaluating condition {condition_type}: {e}")
+            logger.exception(f"Error evaluating condition {condition_type}: {e}")
             return False
 
     async def _evaluate_state_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate state condition"""
-        entity_id = condition.get('entity_id')
-        target_state = condition.get('state')
+        entity_id = condition.get("entity_id")
+        target_state = condition.get("state")
 
         if not entity_id:
             logger.warning("State condition missing entity_id")
@@ -234,13 +232,13 @@ class ConditionEvaluator:
         try:
             # Get current state
             states = await self.ha_client.get_states()
-            entity = next((s for s in states if s['entity_id'] == entity_id), None)
+            entity = next((s for s in states if s["entity_id"] == entity_id), None)
 
             if not entity:
                 logger.warning(f"Entity not found: {entity_id}")
                 return False
 
-            current_state = entity.get('state', 'unknown')
+            current_state = entity.get("state", "unknown")
 
             # Handle list of acceptable states
             if isinstance(target_state, list):
@@ -250,19 +248,19 @@ class ConditionEvaluator:
             return current_state == target_state
 
         except Exception as e:
-            logger.error(f"Error evaluating state condition: {e}")
+            logger.exception(f"Error evaluating state condition: {e}")
             return False
 
     async def _evaluate_numeric_state_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate numeric state condition"""
-        entity_id = condition.get('entity_id')
-        above = condition.get('above')
-        below = condition.get('below')
-        value_template = condition.get('value_template')
+        entity_id = condition.get("entity_id")
+        above = condition.get("above")
+        below = condition.get("below")
+        value_template = condition.get("value_template")
 
         if not entity_id:
             logger.warning("Numeric state condition missing entity_id")
@@ -271,13 +269,13 @@ class ConditionEvaluator:
         try:
             # Get current state
             states = await self.ha_client.get_states()
-            entity = next((s for s in states if s['entity_id'] == entity_id), None)
+            entity = next((s for s in states if s["entity_id"] == entity_id), None)
 
             if not entity:
                 logger.warning(f"Entity not found: {entity_id}")
                 return False
 
-            current_state_str = entity.get('state', 'unknown')
+            current_state_str = entity.get("state", "unknown")
 
             # Handle value_template
             if value_template:
@@ -295,37 +293,32 @@ class ConditionEvaluator:
                     return False
 
             # Check above threshold
-            if above is not None:
-                if current_value <= above:
-                    return False
+            if above is not None and current_value <= above:
+                return False
 
             # Check below threshold
-            if below is not None:
-                if current_value >= below:
-                    return False
-
-            return True
+            return not (below is not None and current_value >= below)
 
         except Exception as e:
-            logger.error(f"Error evaluating numeric state condition: {e}")
+            logger.exception(f"Error evaluating numeric state condition: {e}")
             return False
 
     async def _evaluate_time_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate time condition"""
-        after = condition.get('after')
-        before = condition.get('before')
-        weekday = condition.get('weekday')
+        after = condition.get("after")
+        before = condition.get("before")
+        weekday = condition.get("weekday")
 
         now = datetime.now()
         current_time = now.time()
 
         # Check weekday
         if weekday:
-            weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+            weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
             current_weekday = weekdays[now.weekday()]
             if current_weekday not in weekday:
                 return False
@@ -347,10 +340,10 @@ class ConditionEvaluator:
     async def _evaluate_template_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate template condition"""
-        value_template = condition.get('value_template')
+        value_template = condition.get("value_template")
 
         if not value_template:
             logger.warning("Template condition missing value_template")
@@ -362,9 +355,9 @@ class ConditionEvaluator:
             # Template should evaluate to True/False
             # Handle common string representations
             rendered_lower = str(rendered).lower().strip()
-            if rendered_lower in ('true', '1', 'yes', 'on'):
+            if rendered_lower in ("true", "1", "yes", "on"):
                 return True
-            elif rendered_lower in ('false', '0', 'no', 'off', ''):
+            if rendered_lower in ("false", "0", "no", "off", ""):
                 return False
 
             # Try boolean conversion
@@ -374,19 +367,19 @@ class ConditionEvaluator:
                 return bool(rendered)
 
         except Exception as e:
-            logger.error(f"Error evaluating template condition: {e}")
+            logger.exception(f"Error evaluating template condition: {e}")
             return False
 
     async def _evaluate_zone_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate zone condition"""
         # Zone conditions require person/device tracker entities
         # This is a simplified implementation
-        entity_id = condition.get('entity_id')
-        zone = condition.get('zone')
+        entity_id = condition.get("entity_id")
+        zone = condition.get("zone")
 
         if not entity_id or not zone:
             logger.warning("Zone condition missing entity_id or zone")
@@ -394,32 +387,32 @@ class ConditionEvaluator:
 
         try:
             states = await self.ha_client.get_states()
-            entity = next((s for s in states if s['entity_id'] == entity_id), None)
+            entity = next((s for s in states if s["entity_id"] == entity_id), None)
 
             if not entity:
                 return False
 
             # Check if entity is in zone
-            attributes = entity.get('attributes', {})
-            entity_zone = attributes.get('zone')
+            attributes = entity.get("attributes", {})
+            entity_zone = attributes.get("zone")
 
             return entity_zone == zone
 
         except Exception as e:
-            logger.error(f"Error evaluating zone condition: {e}")
+            logger.exception(f"Error evaluating zone condition: {e}")
             return False
 
     async def _evaluate_device_condition(
         self,
         condition: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """Evaluate device condition"""
         # Device conditions check device state
         # This is a simplified implementation
-        device_id = condition.get('device_id')
-        type = condition.get('type')
-        subtype = condition.get('subtype')
+        device_id = condition.get("device_id")
+        condition.get("type")
+        condition.get("subtype")
 
         if not device_id:
             logger.warning("Device condition missing device_id")
@@ -433,11 +426,11 @@ class ConditionEvaluator:
     def _parse_time(self, time_str: str) -> dt_time | None:
         """Parse time string (HH:MM:SS or HH:MM)"""
         try:
-            parts = time_str.split(':')
+            parts = time_str.split(":")
             if len(parts) == 2:
                 hour, minute = int(parts[0]), int(parts[1])
                 return dt_time(hour, minute)
-            elif len(parts) == 3:
+            if len(parts) == 3:
                 hour, minute, second = int(parts[0]), int(parts[1]), int(parts[2])
                 return dt_time(hour, minute, second)
         except (ValueError, IndexError):

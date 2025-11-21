@@ -50,76 +50,76 @@ class Settings(BaseSettings):
     # Database Configuration
     SQLITE_DATABASE_URL: str = Field(
         default="sqlite:///./data/device_intelligence.db",
-        description="SQLite database URL"
+        description="SQLite database URL",
     )
     REDIS_URL: str = Field(
         default="redis://redis:6379/0",
-        description="Redis cache URL"
+        description="Redis cache URL",
     )
 
     # Home Assistant Configuration
     HA_URL: str = Field(
         default="http://homeassistant:8123",
-        description="Home Assistant URL (primary)"
+        description="Home Assistant URL (primary)",
     )
     HA_WS_URL: str | None = Field(
         default=None,
-        description="Home Assistant WebSocket URL (primary)"
+        description="Home Assistant WebSocket URL (primary)",
     )
     HA_TOKEN: str | None = Field(
         default=None,
-        description="Home Assistant long-lived access token (primary)"
+        description="Home Assistant long-lived access token (primary)",
     )
 
     # Nabu Casa Fallback Configuration
     NABU_CASA_URL: str | None = Field(
         default=None,
-        description="Nabu Casa URL for remote access fallback"
+        description="Nabu Casa URL for remote access fallback",
     )
     NABU_CASA_TOKEN: str | None = Field(
         default=None,
-        description="Nabu Casa long-lived access token for fallback"
+        description="Nabu Casa long-lived access token for fallback",
     )
 
     # MQTT Configuration
     # Defaults to Home Assistant's MQTT broker (same server as HA HTTP API)
     MQTT_BROKER: str = Field(
         default="mqtt://192.168.1.86:1883",
-        description="MQTT broker URL (defaults to HA's MQTT broker)"
+        description="MQTT broker URL (defaults to HA's MQTT broker)",
     )
     MQTT_USERNAME: str | None = Field(
         default=None,
-        description="MQTT username"
+        description="MQTT username",
     )
     MQTT_PASSWORD: str | None = Field(
         default=None,
-        description="MQTT password"
+        description="MQTT password",
     )
 
     # Zigbee2MQTT Configuration
     ZIGBEE2MQTT_BASE_TOPIC: str = Field(
         default="zigbee2mqtt",
-        description="Zigbee2MQTT base topic"
+        description="Zigbee2MQTT base topic",
     )
 
     # Performance Configuration
     MAX_WORKERS: int = Field(
         default=4,
-        description="Maximum number of worker processes"
+        description="Maximum number of worker processes",
     )
     REQUEST_TIMEOUT: int = Field(
         default=30,
-        description="Request timeout in seconds"
+        description="Request timeout in seconds",
     )
 
     # Cache Configuration
     CACHE_TTL: int = Field(
         default=300,
-        description="Default cache TTL in seconds"
+        description="Default cache TTL in seconds",
     )
     MAX_CACHE_SIZE: int = Field(
         default=1000,
-        description="Maximum cache size"
+        description="Maximum cache size",
     )
 
     # HTTP Configuration
@@ -129,7 +129,7 @@ class Settings(BaseSettings):
             "http://localhost:3001",
             "http://127.0.0.1:3000",
         ],
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
 
     model_config = {
@@ -145,7 +145,8 @@ class Settings(BaseSettings):
         """Validate log level is a valid logging level."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
-            raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
+            msg = f"LOG_LEVEL must be one of {valid_levels}"
+            raise ValueError(msg)
         return v.upper()
 
     @field_validator("DEVICE_INTELLIGENCE_PORT")
@@ -153,7 +154,8 @@ class Settings(BaseSettings):
     def validate_port(cls, v):
         """Validate port is in valid range."""
         if not 1 <= v <= 65535:
-            raise ValueError("DEVICE_INTELLIGENCE_PORT must be between 1 and 65535")
+            msg = "DEVICE_INTELLIGENCE_PORT must be between 1 and 65535"
+            raise ValueError(msg)
         return v
 
     @field_validator("HA_URL", mode="after")
@@ -161,7 +163,8 @@ class Settings(BaseSettings):
     def validate_ha_url(cls, v):
         """Validate Home Assistant URL format."""
         if not v.startswith(("http://", "https://")):
-            raise ValueError("HA_URL must start with http:// or https://")
+            msg = "HA_URL must start with http:// or https://"
+            raise ValueError(msg)
         return v.rstrip("/")
 
     @field_validator("MQTT_BROKER")
@@ -169,7 +172,8 @@ class Settings(BaseSettings):
     def validate_mqtt_broker(cls, v):
         """Validate MQTT broker URL format."""
         if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
-            raise ValueError("MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://")
+            msg = "MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://"
+            raise ValueError(msg)
         return v
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
@@ -184,7 +188,8 @@ class Settings(BaseSettings):
                     if isinstance(parsed, list):
                         return parsed
                 except json.JSONDecodeError as exc:
-                    raise ValueError(f"Invalid ALLOWED_ORIGINS JSON: {exc}") from exc
+                    msg = f"Invalid ALLOWED_ORIGINS JSON: {exc}"
+                    raise ValueError(msg) from exc
             return [origin.strip() for origin in stripped.split(",") if origin.strip()]
         return value
 
@@ -234,14 +239,14 @@ class Settings(BaseSettings):
     def get_ha_ws_url(self) -> str:
         """Get the WebSocket URL for Home Assistant."""
         # Use HA_WS_URL if available, otherwise construct from HA_URL
-        if hasattr(self, 'HA_WS_URL') and self.HA_WS_URL:
+        if hasattr(self, "HA_WS_URL") and self.HA_WS_URL:
             return self.HA_WS_URL
-        return self.HA_URL.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket'
+        return self.HA_URL.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
 
     def get_nabu_casa_ws_url(self) -> str:
         """Get the WebSocket URL for Nabu Casa."""
         if self.NABU_CASA_URL:
-            return self.NABU_CASA_URL.replace('https://', 'wss://') + '/api/websocket'
+            return self.NABU_CASA_URL.replace("https://", "wss://") + "/api/websocket"
         return None
 
     def is_development(self) -> bool:
@@ -260,9 +265,12 @@ class Settings(BaseSettings):
             missing_fields.append("HA_TOKEN")
 
         if missing_fields:
-            raise ValueError(
+            msg = (
                 f"Missing required configuration values: {', '.join(missing_fields)}. "
                 "Set these environment variables before starting the service."
+            )
+            raise ValueError(
+                msg,
             )
 
     def get_allowed_origins(self) -> list[str]:

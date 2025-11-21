@@ -31,7 +31,7 @@ class DeviceContext:
 class DeviceContextService:
     """
     Enriches entities with real-time device context.
-    
+
     Provides:
     - Current state
     - 24h usage history
@@ -43,7 +43,7 @@ class DeviceContextService:
     def __init__(self, ha_client: HomeAssistantClient):
         """
         Initialize device context service.
-        
+
         Args:
             ha_client: Home Assistant client
         """
@@ -53,15 +53,15 @@ class DeviceContextService:
     async def enrich_with_context(
         self,
         entity_ids: list[str],
-        ha_client: HomeAssistantClient | None = None
+        ha_client: HomeAssistantClient | None = None,
     ) -> dict[str, DeviceContext]:
         """
         Get comprehensive device context.
-        
+
         Args:
             entity_ids: List of entity IDs to enrich
             ha_client: Optional HA client (uses self.ha_client if not provided)
-        
+
         Returns:
             Dictionary mapping entity_id to DeviceContext
         """
@@ -93,7 +93,7 @@ class DeviceContextService:
                     typical_on_time=patterns.get("typical_on_time"),
                     last_changed=datetime.utcnow(),  # Would extract from state
                     responsive=response_rate > 0.9,
-                    usage_patterns=patterns
+                    usage_patterns=patterns,
                 )
 
             except Exception as e:
@@ -109,7 +109,7 @@ class DeviceContextService:
         return {
             "typical_on_time": None,
             "frequency": "unknown",
-            "patterns": []
+            "patterns": [],
         }
 
     def _calculate_response_rate(self, history: list[dict[str, Any]]) -> float:

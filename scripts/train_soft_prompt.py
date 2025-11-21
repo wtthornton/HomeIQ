@@ -13,7 +13,6 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +113,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
+def load_training_examples(db_path: Path, limit: int) -> list[dict[str, str]]:
     if not db_path.exists():
-        raise FileNotFoundError(f"SQLite database not found at {db_path}")
+        msg = f"SQLite database not found at {db_path}"
+        raise FileNotFoundError(msg)
 
     query = """
         SELECT original_query, suggestions
@@ -126,7 +126,7 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
         LIMIT ?
     """
 
-    examples: List[Dict[str, str]] = []
+    examples: list[dict[str, str]] = []
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -158,7 +158,7 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
                         {
                             "instruction": original_query.strip(),
                             "response": response_text.strip(),
-                        }
+                        },
                     )
 
     return examples
@@ -167,21 +167,21 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
 def ensure_dependencies():
     try:
         import torch  # noqa: F401
-        from transformers import AutoTokenizer  # noqa: F401
         from peft import LoraConfig  # noqa: F401
+        from transformers import AutoTokenizer  # noqa: F401
     except ImportError as exc:  # pragma: no cover - runtime dependency check
+        msg = "Required dependencies missing. Install transformers[torch], torch (CPU wheel), and peft."
         raise RuntimeError(
-            "Required dependencies missing. Install transformers[torch], torch (CPU wheel), and peft."
+            msg,
         ) from exc
 
 
 def prepare_dataset(
     tokenizer,
-    examples: List[Dict[str, str]],
+    examples: list[dict[str, str]],
     max_source_tokens: int,
     max_target_tokens: int,
 ):
-    import torch
     from torch.utils.data import Dataset
 
     class PromptDataset(Dataset):
@@ -233,8 +233,8 @@ def main():
 
     logger.info("Loaded %s training examples", len(examples))
 
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
     from peft import LoraConfig, get_peft_model
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 

@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
 
 from health_check import HealthCheckHandler
 
@@ -33,23 +33,23 @@ class CarbonIntensityService:
 
     def __init__(self):
         # WattTime authentication credentials
-        self.username = os.getenv('WATTTIME_USERNAME')
-        self.password = os.getenv('WATTTIME_PASSWORD')
-        self.api_token = os.getenv('WATTTIME_API_TOKEN')  # Optional fallback for manual token
+        self.username = os.getenv("WATTTIME_USERNAME")
+        self.password = os.getenv("WATTTIME_PASSWORD")
+        self.api_token = os.getenv("WATTTIME_API_TOKEN")  # Optional fallback for manual token
 
         # Token management
         self.token_expires_at: datetime | None = None
         self.token_refresh_buffer = 300  # Refresh 5 minutes before expiry (seconds)
 
         # WattTime configuration
-        self.region = os.getenv('GRID_REGION', 'CAISO_NORTH')
+        self.region = os.getenv("GRID_REGION", "CAISO_NORTH")
         self.base_url = "https://api.watttime.org/v3"
 
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         # Service configuration
         self.fetch_interval = 900  # 15 minutes in seconds
@@ -77,7 +77,7 @@ class CarbonIntensityService:
                 logger.warning(
                     "⚠️  No WattTime credentials configured! "
                     "Service will run in standby mode. "
-                    "Add WATTTIME_USERNAME/PASSWORD to environment to enable data fetching."
+                    "Add WATTTIME_USERNAME/PASSWORD to environment to enable data fetching.",
                 )
                 self.credentials_configured = False
                 self.health_handler.credentials_missing = True
@@ -90,7 +90,8 @@ class CarbonIntensityService:
             self.health_handler.credentials_missing = False
 
         if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN environment variable is required")
+            msg = "INFLUXDB_TOKEN environment variable is required"
+            raise ValueError(msg)
 
     async def startup(self):
         """Initialize service components"""
@@ -98,7 +99,7 @@ class CarbonIntensityService:
 
         # Create HTTP session
         self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=10)
+            timeout=aiohttp.ClientTimeout(total=10),
         )
 
         # If using username/password, get initial token
@@ -117,7 +118,7 @@ class CarbonIntensityService:
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
 
         logger.info("Carbon Intensity Service initialized successfully")
@@ -137,7 +138,7 @@ class CarbonIntensityService:
     async def refresh_token(self) -> bool:
         """
         Refresh WattTime API token using username/password
-        
+
         Returns:
             bool: True if refresh successful, False otherwise
         """
@@ -152,13 +153,13 @@ class CarbonIntensityService:
             log_with_context(
                 logger, "INFO",
                 "Refreshing WattTime API token",
-                service="carbon-intensity-service"
+                service="carbon-intensity-service",
             )
 
             async with self.session.post(url, auth=auth) as response:
                 if response.status == 200:
                     data = await response.json()
-                    self.api_token = data.get('token')
+                    self.api_token = data.get("token")
 
                     # WattTime tokens expire in 30 minutes
                     self.token_expires_at = datetime.now() + timedelta(minutes=30)
@@ -169,28 +170,27 @@ class CarbonIntensityService:
 
                     logger.info(f"Token refreshed successfully, expires at {self.token_expires_at.isoformat()}")
                     return True
-                else:
-                    log_error_with_context(
-                        logger,
-                        f"Token refresh failed with status {response.status}",
-                        service="carbon-intensity-service",
-                        status_code=response.status
-                    )
-                    return False
+                log_error_with_context(
+                    logger,
+                    f"Token refresh failed with status {response.status}",
+                    service="carbon-intensity-service",
+                    status_code=response.status,
+                )
+                return False
 
         except Exception as e:
             log_error_with_context(
                 logger,
                 f"Error refreshing token: {e}",
                 service="carbon-intensity-service",
-                error=str(e)
+                error=str(e),
             )
             return False
 
     async def ensure_valid_token(self) -> bool:
         """
         Ensure we have a valid token, refresh if needed
-        
+
         Returns:
             bool: True if we have a valid token, False otherwise
         """
@@ -231,7 +231,7 @@ class CarbonIntensityService:
                 logger, "INFO",
                 f"Fetching carbon intensity for region {self.region}",
                 service="carbon-intensity-service",
-                region=self.region
+                region=self.region,
             )
 
             async with self.session.get(url, headers=headers, params=params) as response:
@@ -240,20 +240,20 @@ class CarbonIntensityService:
 
                     # Parse WattTime response
                     data = {
-                        'carbon_intensity': raw_data.get('moer', 0),  # Marginal emissions rate
-                        'renewable_percentage': raw_data.get('renewable_pct', 0),
-                        'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
-                        'timestamp': datetime.now()
+                        "carbon_intensity": raw_data.get("moer", 0),  # Marginal emissions rate
+                        "renewable_percentage": raw_data.get("renewable_pct", 0),
+                        "fossil_percentage": 100 - raw_data.get("renewable_pct", 0),
+                        "timestamp": datetime.now(),
                     }
 
                     # Extract forecasts if available
-                    forecast = raw_data.get('forecast', [])
+                    forecast = raw_data.get("forecast", [])
                     if forecast:
-                        data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
-                        data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
+                        data["forecast_1h"] = forecast[0].get("value", 0) if len(forecast) > 0 else 0
+                        data["forecast_24h"] = forecast[23].get("value", 0) if len(forecast) > 23 else 0
                     else:
-                        data['forecast_1h'] = 0
-                        data['forecast_24h'] = 0
+                        data["forecast_1h"] = 0
+                        data["forecast_24h"] = 0
 
                     # Update cache
                     self.cached_data = data
@@ -267,12 +267,12 @@ class CarbonIntensityService:
 
                     return data
 
-                elif response.status == 401:
+                if response.status == 401:
                     # Token expired mid-request, try refresh and retry once
                     log_error_with_context(
                         logger,
                         "Authentication failed (401), attempting token refresh",
-                        service="carbon-intensity-service"
+                        service="carbon-intensity-service",
                     )
 
                     if await self.refresh_token():
@@ -285,20 +285,20 @@ class CarbonIntensityService:
 
                                 # Parse WattTime response
                                 data = {
-                                    'carbon_intensity': raw_data.get('moer', 0),
-                                    'renewable_percentage': raw_data.get('renewable_pct', 0),
-                                    'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
-                                    'timestamp': datetime.now()
+                                    "carbon_intensity": raw_data.get("moer", 0),
+                                    "renewable_percentage": raw_data.get("renewable_pct", 0),
+                                    "fossil_percentage": 100 - raw_data.get("renewable_pct", 0),
+                                    "timestamp": datetime.now(),
                                 }
 
                                 # Extract forecasts
-                                forecast = raw_data.get('forecast', [])
+                                forecast = raw_data.get("forecast", [])
                                 if forecast:
-                                    data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
-                                    data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
+                                    data["forecast_1h"] = forecast[0].get("value", 0) if len(forecast) > 0 else 0
+                                    data["forecast_24h"] = forecast[23].get("value", 0) if len(forecast) > 23 else 0
                                 else:
-                                    data['forecast_1h'] = 0
-                                    data['forecast_24h'] = 0
+                                    data["forecast_1h"] = 0
+                                    data["forecast_24h"] = 0
 
                                 # Update cache and health
                                 self.cached_data = data
@@ -313,22 +313,21 @@ class CarbonIntensityService:
                     self.health_handler.failed_fetches += 1
                     return self.cached_data
 
-                else:
-                    log_error_with_context(
-                        logger,
-                        f"WattTime API returned status {response.status}",
-                        service="carbon-intensity-service",
-                        status_code=response.status
-                    )
-                    self.health_handler.failed_fetches += 1
-                    return self.cached_data
+                log_error_with_context(
+                    logger,
+                    f"WattTime API returned status {response.status}",
+                    service="carbon-intensity-service",
+                    status_code=response.status,
+                )
+                self.health_handler.failed_fetches += 1
+                return self.cached_data
 
         except aiohttp.ClientError as e:
             log_error_with_context(
                 logger,
                 f"Error fetching carbon intensity: {e}",
                 service="carbon-intensity-service",
-                error=str(e)
+                error=str(e),
             )
             self.health_handler.failed_fetches += 1
 
@@ -344,7 +343,7 @@ class CarbonIntensityService:
                 logger,
                 f"Unexpected error: {e}",
                 service="carbon-intensity-service",
-                error=str(e)
+                error=str(e),
             )
             self.health_handler.failed_fetches += 1
             return self.cached_data
@@ -359,13 +358,13 @@ class CarbonIntensityService:
         try:
             point = Point("carbon_intensity") \
                 .tag("region", self.region) \
-                .tag("grid_operator", self.region.split('_')[0]) \
-                .field("carbon_intensity_gco2_kwh", float(data['carbon_intensity'])) \
-                .field("renewable_percentage", float(data['renewable_percentage'])) \
-                .field("fossil_percentage", float(data['fossil_percentage'])) \
-                .field("forecast_1h", float(data['forecast_1h'])) \
-                .field("forecast_24h", float(data['forecast_24h'])) \
-                .time(data['timestamp'])
+                .tag("grid_operator", self.region.split("_")[0]) \
+                .field("carbon_intensity_gco2_kwh", float(data["carbon_intensity"])) \
+                .field("renewable_percentage", float(data["renewable_percentage"])) \
+                .field("fossil_percentage", float(data["fossil_percentage"])) \
+                .field("forecast_1h", float(data["forecast_1h"])) \
+                .field("forecast_24h", float(data["forecast_24h"])) \
+                .time(data["timestamp"])
 
             self.influxdb_client.write(point)
 
@@ -376,7 +375,7 @@ class CarbonIntensityService:
                 logger,
                 f"Error writing to InfluxDB: {e}",
                 service="carbon-intensity-service",
-                error=str(e)
+                error=str(e),
             )
 
     async def run_continuous(self):
@@ -401,7 +400,7 @@ class CarbonIntensityService:
                     logger,
                     f"Error in continuous loop: {e}",
                     service="carbon-intensity-service",
-                    error=str(e)
+                    error=str(e),
                 )
                 # Wait before retrying
                 await asyncio.sleep(60)
@@ -412,7 +411,7 @@ async def create_app(service: CarbonIntensityService):
     app = web.Application()
 
     # Add health check endpoint
-    app.router.add_get('/health', service.health_handler.handle)
+    app.router.add_get("/health", service.health_handler.handle)
 
     return app
 
@@ -431,8 +430,8 @@ async def main():
     await runner.setup()
 
     # Start health check server
-    port = int(os.getenv('SERVICE_PORT', '8010'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    port = int(os.getenv("SERVICE_PORT", "8010"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
     logger.info(f"Health check endpoint available on port {port}")

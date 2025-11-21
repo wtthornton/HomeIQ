@@ -23,7 +23,7 @@ class CorpusRepository:
     def __init__(self, session: AsyncSession):
         """
         Initialize repository with async session
-        
+
         Args:
             session: SQLAlchemy AsyncSession
         """
@@ -31,14 +31,14 @@ class CorpusRepository:
 
     async def save_automation(
         self,
-        metadata: AutomationMetadata
+        metadata: AutomationMetadata,
     ) -> CommunityAutomation:
         """
         Save or update automation in corpus
-        
+
         Args:
             metadata: AutomationMetadata to save
-        
+
         Returns:
             Saved CommunityAutomation instance
         """
@@ -46,8 +46,8 @@ class CorpusRepository:
         stmt = select(CommunityAutomation).where(
             and_(
                 CommunityAutomation.source == metadata.source,
-                CommunityAutomation.source_id == metadata.source_id
-            )
+                CommunityAutomation.source_id == metadata.source_id,
+            ),
         )
         result = await self.session.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -89,7 +89,7 @@ class CorpusRepository:
                 created_at=metadata.created_at,
                 updated_at=metadata.updated_at,
                 last_crawled=datetime.now(timezone.utc),
-                extra_metadata=metadata.metadata
+                extra_metadata=metadata.metadata,
             )
             self.session.add(existing)
 
@@ -102,14 +102,14 @@ class CorpusRepository:
 
     async def save_batch(
         self,
-        metadata_list: list[AutomationMetadata]
+        metadata_list: list[AutomationMetadata],
     ) -> int:
         """
         Save multiple automations in a batch
-        
+
         Args:
             metadata_list: List of AutomationMetadata
-        
+
         Returns:
             Number of automations saved
         """
@@ -124,10 +124,10 @@ class CorpusRepository:
     async def get_by_id(self, automation_id: int) -> dict[str, Any] | None:
         """
         Get automation by ID
-        
+
         Args:
             automation_id: Database ID
-        
+
         Returns:
             Automation dictionary or None
         """
@@ -143,34 +143,34 @@ class CorpusRepository:
     async def get_by_source_id(
         self,
         source: str,
-        source_id: str
+        source_id: str,
     ) -> CommunityAutomation | None:
         """
         Get automation by source and source_id
-        
+
         Args:
             source: 'discourse' or 'github'
             source_id: Unique source identifier
-        
+
         Returns:
             CommunityAutomation or None
         """
         stmt = select(CommunityAutomation).where(
             and_(
                 CommunityAutomation.source == source,
-                CommunityAutomation.source_id == source_id
-            )
+                CommunityAutomation.source_id == source_id,
+            ),
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def search(
         self,
-        filters: dict[str, Any]
+        filters: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """
         Search automations with filters
-        
+
         Args:
             filters: Dictionary with optional keys:
                 - device: Filter by device type
@@ -178,7 +178,7 @@ class CorpusRepository:
                 - use_case: Filter by use case
                 - min_quality: Minimum quality score
                 - limit: Maximum results
-        
+
         Returns:
             List of automation dictionaries
         """
@@ -189,27 +189,27 @@ class CorpusRepository:
         conditions = []
 
         # Device filter (JSON contains check)
-        if 'device' in filters and filters['device']:
-            device = filters['device']
+        if filters.get("device"):
+            device = filters["device"]
             # SQLite JSON support: json_each for array containment
             conditions.append(
-                CommunityAutomation.devices.contains([device])
+                CommunityAutomation.devices.contains([device]),
             )
 
         # Integration filter
-        if 'integration' in filters and filters['integration']:
-            integration = filters['integration']
+        if filters.get("integration"):
+            integration = filters["integration"]
             conditions.append(
-                CommunityAutomation.integrations.contains([integration])
+                CommunityAutomation.integrations.contains([integration]),
             )
 
         # Use case filter
-        if 'use_case' in filters and filters['use_case']:
-            use_case = filters['use_case']
+        if filters.get("use_case"):
+            use_case = filters["use_case"]
             conditions.append(CommunityAutomation.use_case == use_case)
 
         # Quality filter
-        min_quality = filters.get('min_quality', 0.7)
+        min_quality = filters.get("min_quality", 0.7)
         conditions.append(CommunityAutomation.quality_score >= min_quality)
 
         # Apply all conditions
@@ -220,7 +220,7 @@ class CorpusRepository:
         stmt = stmt.order_by(CommunityAutomation.quality_score.desc())
 
         # Limit
-        limit = filters.get('limit', 50)
+        limit = filters.get("limit", 50)
         stmt = stmt.limit(limit)
 
         # Execute query
@@ -232,15 +232,15 @@ class CorpusRepository:
     async def get_all(
         self,
         source: str | None = None,
-        min_quality: float = 0.0
+        min_quality: float = 0.0,
     ) -> list[CommunityAutomation]:
         """
         Get all automations (optionally filtered)
-        
+
         Args:
             source: Optional source filter
             min_quality: Minimum quality score
-        
+
         Returns:
             List of CommunityAutomation instances
         """
@@ -261,7 +261,7 @@ class CorpusRepository:
     async def get_stats(self) -> dict[str, Any]:
         """
         Get corpus statistics
-        
+
         Returns:
             Dictionary with stats:
                 - total: Total automation count
@@ -285,7 +285,7 @@ class CorpusRepository:
         # Count by use case
         use_case_stmt = select(
             CommunityAutomation.use_case,
-            func.count(CommunityAutomation.id)
+            func.count(CommunityAutomation.id),
         ).group_by(CommunityAutomation.use_case)
         use_case_result = await self.session.execute(use_case_stmt)
         by_use_case = {row[0]: row[1] for row in use_case_result.all()}
@@ -293,7 +293,7 @@ class CorpusRepository:
         # Count by complexity
         complexity_stmt = select(
             CommunityAutomation.complexity,
-            func.count(CommunityAutomation.id)
+            func.count(CommunityAutomation.id),
         ).group_by(CommunityAutomation.complexity)
         complexity_result = await self.session.execute(complexity_stmt)
         by_complexity = {row[0]: row[1] for row in complexity_result.all()}
@@ -316,15 +316,15 @@ class CorpusRepository:
                 unique_integrations.update(integrations)
 
         return {
-            'total': total,
-            'avg_quality': round(avg_quality, 3),
-            'device_count': len(unique_devices),
-            'integration_count': len(unique_integrations),
-            'devices': sorted(list(unique_devices)),
-            'integrations': sorted(list(unique_integrations)),
-            'by_use_case': by_use_case,
-            'by_complexity': by_complexity,
-            'last_crawl_time': last_crawl_time.isoformat() if last_crawl_time else None
+            "total": total,
+            "avg_quality": round(avg_quality, 3),
+            "device_count": len(unique_devices),
+            "integration_count": len(unique_integrations),
+            "devices": sorted(unique_devices),
+            "integrations": sorted(unique_integrations),
+            "by_use_case": by_use_case,
+            "by_complexity": by_complexity,
+            "last_crawl_time": last_crawl_time.isoformat() if last_crawl_time else None,
         }
 
     async def set_state(self, key: str, value: str):
@@ -351,25 +351,25 @@ class CorpusRepository:
 
     async def get_last_crawl_timestamp(self) -> datetime | None:
         """Get last crawl timestamp from state"""
-        value = await self.get_state('last_crawl_timestamp')
+        value = await self.get_state("last_crawl_timestamp")
         if value:
             return datetime.fromisoformat(value)
         return None
 
     async def set_last_crawl_timestamp(self, timestamp: datetime):
         """Set last crawl timestamp"""
-        await self.set_state('last_crawl_timestamp', timestamp.isoformat())
+        await self.set_state("last_crawl_timestamp", timestamp.isoformat())
 
     async def is_duplicate(
         self,
-        metadata: AutomationMetadata
+        metadata: AutomationMetadata,
     ) -> bool:
         """
         Quick check if automation already exists
-        
+
         Args:
             metadata: AutomationMetadata to check
-        
+
         Returns:
             True if duplicate exists
         """
@@ -379,19 +379,19 @@ class CorpusRepository:
     async def prune_low_quality(
         self,
         quality_threshold: float,
-        age_days: int
+        age_days: int,
     ) -> int:
         """
         Prune low-quality automations that are old
-        
+
         Removes automations that:
         - Have quality_score < quality_threshold
         - Are older than age_days
-        
+
         Args:
             quality_threshold: Minimum quality score to keep
             age_days: Minimum age in days for pruning (only prune old low-quality items)
-        
+
         Returns:
             Number of automations pruned
         """
@@ -403,8 +403,8 @@ class CorpusRepository:
         stmt = select(CommunityAutomation).where(
             and_(
                 CommunityAutomation.quality_score < quality_threshold,
-                CommunityAutomation.created_at < cutoff_date
-            )
+                CommunityAutomation.created_at < cutoff_date,
+            ),
         )
 
         result = await self.session.execute(stmt)
@@ -425,23 +425,23 @@ class CorpusRepository:
     def _to_dict(self, automation: CommunityAutomation) -> dict[str, Any]:
         """Convert CommunityAutomation to dictionary"""
         return {
-            'id': automation.id,
-            'source': automation.source,
-            'source_id': automation.source_id,
-            'title': automation.title,
-            'description': automation.description,
-            'devices': automation.devices,
-            'integrations': automation.integrations,
-            'triggers': automation.triggers,
-            'conditions': automation.conditions,
-            'actions': automation.actions,
-            'use_case': automation.use_case,
-            'complexity': automation.complexity,
-            'quality_score': automation.quality_score,
-            'vote_count': automation.vote_count,
-            'created_at': automation.created_at.isoformat(),
-            'updated_at': automation.updated_at.isoformat(),
-            'last_crawled': automation.last_crawled.isoformat(),
-            'metadata': automation.extra_metadata
+            "id": automation.id,
+            "source": automation.source,
+            "source_id": automation.source_id,
+            "title": automation.title,
+            "description": automation.description,
+            "devices": automation.devices,
+            "integrations": automation.integrations,
+            "triggers": automation.triggers,
+            "conditions": automation.conditions,
+            "actions": automation.actions,
+            "use_case": automation.use_case,
+            "complexity": automation.complexity,
+            "quality_score": automation.quality_score,
+            "vote_count": automation.vote_count,
+            "created_at": automation.created_at.isoformat(),
+            "updated_at": automation.updated_at.isoformat(),
+            "last_crawled": automation.last_crawled.isoformat(),
+            "metadata": automation.extra_metadata,
         }
 

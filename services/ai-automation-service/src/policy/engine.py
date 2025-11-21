@@ -58,7 +58,7 @@ class PolicyVerdict:
 class PolicyEngine:
     """
     Policy engine that evaluates automations against policy rules.
-    
+
     Simple rule evaluation for v1:
     - Load rules from YAML
     - Evaluate rules against automation
@@ -68,7 +68,7 @@ class PolicyEngine:
     def __init__(self, rules_path: str | None = None):
         """
         Initialize policy engine.
-        
+
         Args:
             rules_path: Path to rules YAML file (default: policy/rules.yaml)
         """
@@ -78,7 +78,7 @@ class PolicyEngine:
         self.rules_path = Path(rules_path)
         self.rules: dict[str, list[PolicyRule]] = {
             "deny": [],
-            "warn": []
+            "warn": [],
         }
         self._load_rules()
         logger.info(f"PolicyEngine initialized with {len(self.rules['deny'])} deny rules, {len(self.rules['warn'])} warn rules")
@@ -109,7 +109,7 @@ class PolicyEngine:
                     condition=rule_dict.get("condition", ""),
                     severity=rule_dict.get("severity", "critical"),
                     message=rule_dict.get("message", ""),
-                    override=rule_dict.get("override")
+                    override=rule_dict.get("override"),
                 )
                 self.rules["deny"].append(rule)
 
@@ -121,30 +121,30 @@ class PolicyEngine:
                     condition=rule_dict.get("condition", ""),
                     severity=rule_dict.get("severity", "warning"),
                     message=rule_dict.get("message", ""),
-                    override=rule_dict.get("override")
+                    override=rule_dict.get("override"),
                 )
                 self.rules["warn"].append(rule)
 
         except Exception as e:
-            logger.error(f"Failed to load policy rules: {e}")
+            logger.exception(f"Failed to load policy rules: {e}")
             # Use minimal default rules
             self.rules = {
                 "deny": [],
-                "warn": []
+                "warn": [],
             }
 
     async def evaluate(
         self,
         automation: dict[str, Any],
-        overrides: dict[str, bool] | None = None
+        overrides: dict[str, bool] | None = None,
     ) -> PolicyVerdict:
         """
         Evaluate automation against policy rules.
-        
+
         Args:
             automation: Automation plan (dict or AutomationPlan)
             overrides: Optional override flags (e.g., {"allow_peak": True})
-            
+
         Returns:
             PolicyVerdict with overall verdict and rule results
         """
@@ -167,7 +167,7 @@ class PolicyEngine:
                     verdict=Verdict.DENY,
                     message=rule.message,
                     severity=rule.severity,
-                    can_override=rule.override is not None
+                    can_override=rule.override is not None,
                 ))
                 reasons.append(f"{rule.name}: {rule.message}")
 
@@ -179,7 +179,7 @@ class PolicyEngine:
                     verdict=Verdict.WARN,
                     message=rule.message,
                     severity=rule.severity,
-                    can_override=False  # Warns don't need override
+                    can_override=False,  # Warns don't need override
                 ))
                 reasons.append(f"{rule.name}: {rule.message}")
 
@@ -197,26 +197,26 @@ class PolicyEngine:
             verdict=verdict,
             results=results,
             reasons=reasons,
-            can_override=can_override
+            can_override=can_override,
         )
 
     def _evaluate_condition(
         self,
         condition: str,
         automation: dict[str, Any],
-        overrides: dict[str, bool]
+        overrides: dict[str, bool],
     ) -> bool:
         """
         Evaluate condition expression (simplified for v1).
-        
+
         For v1, we do basic pattern matching on common patterns.
         Future: Full expression evaluation with AST.
-        
+
         Args:
             condition: Condition expression string
             automation: Automation plan
             overrides: Override flags
-            
+
         Returns:
             True if condition matches
         """

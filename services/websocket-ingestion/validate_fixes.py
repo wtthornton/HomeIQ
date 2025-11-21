@@ -10,12 +10,12 @@ import sys
 from datetime import datetime
 
 # Setup path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,11 @@ async def validate_imports():
         return True
 
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ IMPORT FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ IMPORT FAILED: {e}")
+        logger.exception("=" * 80)
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         return False
 
 async def validate_subscription_logging():
@@ -80,11 +80,11 @@ async def validate_subscription_logging():
         return True
 
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ VALIDATION FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ VALIDATION FAILED: {e}")
+        logger.exception("=" * 80)
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         return False
 
 async def validate_connection_manager_enhancements():
@@ -116,11 +116,11 @@ async def validate_connection_manager_enhancements():
         return True
 
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ VALIDATION FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ VALIDATION FAILED: {e}")
+        logger.exception("=" * 80)
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         return False
 
 async def validate_health_check_enhancements():
@@ -143,7 +143,7 @@ async def validate_health_check_enhancements():
         logger.info("✅ Connection manager set")
 
         # Verify event subscription is accessible
-        if hasattr(manager, 'event_subscription'):
+        if hasattr(manager, "event_subscription"):
             logger.info("✅ Event subscription accessible from connection manager")
         else:
             logger.warning("⚠️  Event subscription not directly accessible")
@@ -154,11 +154,11 @@ async def validate_health_check_enhancements():
         return True
 
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ VALIDATION FAILED: {e}")
-        logger.error("=" * 80)
+        logger.exception("=" * 80)
+        logger.exception(f"❌ VALIDATION FAILED: {e}")
+        logger.exception("=" * 80)
         import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
         return False
 
 async def main():
@@ -194,10 +194,9 @@ async def main():
         logger.info("🎉 ALL VALIDATIONS PASSED!")
         logger.info("✅ Websocket fixes are ready for deployment")
         return 0
-    else:
-        logger.error("❌ SOME VALIDATIONS FAILED")
-        logger.error("⚠️  Please review the errors above")
-        return 1
+    logger.error("❌ SOME VALIDATIONS FAILED")
+    logger.error("⚠️  Please review the errors above")
+    return 1
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

@@ -110,7 +110,7 @@ class ModelManager:
         await self.initialize()
         return await self.service_manager.generate_with_openai(prompt, model, **kwargs)
 
-    async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any] = None) -> dict[str, Any]:
+    async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Perform comprehensive analysis using AI Core service
         """

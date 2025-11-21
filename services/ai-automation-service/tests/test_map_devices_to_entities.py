@@ -12,7 +12,7 @@ import pytest
 
 pytest.importorskip(
     "transformers",
-    reason="transformers dependency not available in this environment"
+    reason="transformers dependency not available in this environment",
 )
 
 import sys
@@ -30,14 +30,14 @@ try:
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "ask_ai_router",
-        src_path / "api" / "ask_ai_router.py"
+        src_path / "api" / "ask_ai_router.py",
     )
     ask_ai_module = importlib.util.module_from_spec(spec)
 
     # Mock dependencies before importing
     import sys
-    sys.modules['shared.logging_config'] = Mock()
-    sys.modules['shared.metrics_collector'] = Mock()
+    sys.modules["shared.logging_config"] = Mock()
+    sys.modules["shared.metrics_collector"] = Mock()
 
     spec.loader.exec_module(ask_ai_module)
     map_devices_to_entities = ask_ai_module.map_devices_to_entities
@@ -59,36 +59,36 @@ class TestMapDevicesToEntities:
                 "friendly_name": "WLED Office",
                 "domain": "light",
                 "area_name": "Office",
-                "capabilities": ["brightness", "rgb_color", "color_temp", "transition", "effect"]
+                "capabilities": ["brightness", "rgb_color", "color_temp", "transition", "effect"],
             },
             "light.lr_front_left_ceiling": {
                 "entity_id": "light.lr_front_left_ceiling",
                 "friendly_name": "LR Front Left Ceiling",
                 "domain": "light",
                 "area_name": "Living Room",
-                "capabilities": ["brightness", "color_temp", "transition"]
+                "capabilities": ["brightness", "color_temp", "transition"],
             },
             "light.lr_back_right_ceiling": {
                 "entity_id": "light.lr_back_right_ceiling",
                 "friendly_name": "LR Back Right Ceiling",
                 "domain": "light",
                 "area_name": "Living Room",
-                "capabilities": ["brightness", "color_temp", "transition"]
+                "capabilities": ["brightness", "color_temp", "transition"],
             },
             "light.lr_front_right_ceiling": {
                 "entity_id": "light.lr_front_right_ceiling",
                 "friendly_name": "LR Front Right Ceiling",
                 "domain": "light",
                 "area_name": "Living Room",
-                "capabilities": ["brightness", "color_temp", "transition"]
+                "capabilities": ["brightness", "color_temp", "transition"],
             },
             "light.lr_back_left_ceiling": {
                 "entity_id": "light.lr_back_left_ceiling",
                 "friendly_name": "LR Back Left Ceiling",
                 "domain": "light",
                 "area_name": "Living Room",
-                "capabilities": ["brightness", "color_temp", "transition"]
-            }
+                "capabilities": ["brightness", "color_temp", "transition"],
+            },
         }
 
     @pytest.fixture
@@ -107,7 +107,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Both should map to same entity, but exact match should be kept
@@ -126,7 +126,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # All should map to same entity
@@ -143,7 +143,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # "ceiling lights" should match one of the LR ceiling lights
@@ -165,7 +165,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         assert len(result) == 1
@@ -181,14 +181,14 @@ class TestMapDevicesToEntities:
             "LR Front Left Ceiling",
             "LR Back Right Ceiling",
             "LR Front Right Ceiling",
-            "LR Back Left Ceiling"
+            "LR Back Left Ceiling",
         ]
 
         result = await map_devices_to_entities(
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Should map all devices
@@ -218,7 +218,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Should map 2 out of 3 devices
@@ -236,7 +236,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             {},
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Should return empty dict
@@ -249,7 +249,7 @@ class TestMapDevicesToEntities:
             [],
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Should return empty dict
@@ -264,7 +264,7 @@ class TestMapDevicesToEntities:
             devices_involved,
             sample_enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=False
+            fuzzy_match=False,
         )
 
         # Should only match exact matches
@@ -280,14 +280,14 @@ class TestMapDevicesToEntities:
         async def mock_verify_entities(entity_ids, ha_client):
             return dict.fromkeys(entity_ids, True)
 
-        with patch('api.ask_ai_router.verify_entities_exist_in_ha', side_effect=mock_verify_entities):
+        with patch("api.ask_ai_router.verify_entities_exist_in_ha", side_effect=mock_verify_entities):
             devices_involved = ["WLED Office", "LR Front Left Ceiling"]
 
             result = await map_devices_to_entities(
                 devices_involved,
                 sample_enriched_data,
                 ha_client=mock_ha_client,
-                fuzzy_match=True
+                fuzzy_match=True,
             )
 
             # Should verify entities exist
@@ -303,7 +303,7 @@ class TestConsolidateDevicesInvolved:
         validated_entities = {
             "wled led strip": "light.wled_office",
             "Office": "light.wled_office",
-            "WLED Office": "light.wled_office"
+            "WLED Office": "light.wled_office",
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
@@ -318,13 +318,13 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling",
             "LR Back Right Ceiling",
             "LR Front Right Ceiling",
-            "LR Back Left Ceiling"
+            "LR Back Left Ceiling",
         ]
         validated_entities = {
             "LR Front Left Ceiling": "light.lr_front_left_ceiling",
             "LR Back Right Ceiling": "light.lr_back_right_ceiling",
             "LR Front Right Ceiling": "light.lr_front_right_ceiling",
-            "LR Back Left Ceiling": "light.lr_back_left_ceiling"
+            "LR Back Left Ceiling": "light.lr_back_left_ceiling",
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
@@ -342,7 +342,7 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling",
             "LR Back Right Ceiling",
             "LR Front Right Ceiling",
-            "LR Back Left Ceiling"
+            "LR Back Left Ceiling",
         ]
         validated_entities = {
             "wled led strip": "light.wled_office",
@@ -350,7 +350,7 @@ class TestConsolidateDevicesInvolved:
             "LR Front Left Ceiling": "light.lr_front_left_ceiling",
             "LR Back Right Ceiling": "light.lr_back_right_ceiling",
             "LR Front Right Ceiling": "light.lr_front_right_ceiling",
-            "LR Back Left Ceiling": "light.lr_back_left_ceiling"
+            "LR Back Left Ceiling": "light.lr_back_left_ceiling",
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
@@ -372,7 +372,7 @@ class TestConsolidateDevicesInvolved:
         devices_involved = ["WLED Office", "Non-existent Device", "LR Front Left Ceiling"]
         validated_entities = {
             "WLED Office": "light.wled_office",
-            "LR Front Left Ceiling": "light.lr_front_left_ceiling"
+            "LR Front Left Ceiling": "light.lr_front_left_ceiling",
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
@@ -395,7 +395,7 @@ class TestConsolidateDevicesInvolved:
         validated_entities = {
             "Office": "light.wled_office",
             "WLED Office": "light.wled_office",
-            "Office WLED Light": "light.wled_office"
+            "Office WLED Light": "light.wled_office",
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
@@ -411,13 +411,13 @@ class TestConsolidateDevicesInvolved:
             "A": "light.entity1",
             "B": "light.entity1",  # Same as A
             "C": "light.entity2",
-            "D": "light.entity2"   # Same as C
+            "D": "light.entity2",   # Same as C
         }
 
         result = consolidate_devices_involved(devices_involved, validated_entities)
 
         # Should preserve order: A (first of entity1), C (first of entity2)
-        assert result == ["A", "C"] or result == ["B", "D"]  # First occurrence kept
+        assert result in (["A", "C"], ["B", "D"])  # First occurrence kept
 
     def test_all_same_entity(self):
         """Test when all devices map to same entity"""
@@ -442,14 +442,14 @@ class TestIntegration:
                 "entity_id": "light.wled_office",
                 "friendly_name": "WLED Office",
                 "domain": "light",
-                "area_name": "Office"
+                "area_name": "Office",
             },
             "light.lr_front_left_ceiling": {
                 "entity_id": "light.lr_front_left_ceiling",
                 "friendly_name": "LR Front Left Ceiling",
                 "domain": "light",
-                "area_name": "Living Room"
-            }
+                "area_name": "Living Room",
+            },
         }
 
         mock_ha_client = AsyncMock()
@@ -460,7 +460,7 @@ class TestIntegration:
             devices_involved,
             enriched_data,
             ha_client=mock_ha_client,
-            fuzzy_match=True
+            fuzzy_match=True,
         )
 
         # Step 2: Consolidate

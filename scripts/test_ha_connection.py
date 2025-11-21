@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test script to verify Home Assistant API connectivity and authentication.
 
@@ -11,17 +10,18 @@ This script tests:
 """
 
 import asyncio
-import aiohttp
 import os
 import sys
 from pathlib import Path
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Fix Windows console encoding
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, "strict")
 
 # Load environment variables
 env_path = Path(__file__).parent.parent / ".env"
@@ -47,25 +47,25 @@ print()
 
 async def test_connection():
     """Test HA API connection and endpoints"""
-    
+
     results = {
         "network": False,
         "authentication": False,
         "api_root": False,
         "api_config": False,
         "version": None,
-        "errors": []
+        "errors": [],
     }
-    
+
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
+
     timeout = aiohttp.ClientTimeout(total=10)
-    
+
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        
+
         # Test 1: Network connectivity (without auth)
         print("[1] Testing network connectivity...")
         try:
@@ -81,16 +81,16 @@ async def test_connection():
             results["errors"].append(f"Network error: {e}")
             return results
         except asyncio.TimeoutError:
-            print(f"   [FAIL] Connection timeout")
+            print("   [FAIL] Connection timeout")
             results["errors"].append("Connection timeout")
             return results
         except Exception as e:
             print(f"   [FAIL] Error: {e}")
             results["errors"].append(f"Connection error: {e}")
             return results
-        
+
         print()
-        
+
         # Test 2: API root endpoint (with auth)
         print("[2] Testing API root endpoint (/api/)...")
         try:
@@ -104,10 +104,10 @@ async def test_connection():
                         results["version"] = data["version"]
                         print(f"   Version from /api/: {data['version']}")
                 elif response.status == 401:
-                    print(f"   [FAIL] Authentication failed (HTTP 401)")
+                    print("   [FAIL] Authentication failed (HTTP 401)")
                     results["errors"].append("Authentication failed (401)")
                 elif response.status == 403:
-                    print(f"   [FAIL] Forbidden (HTTP 403)")
+                    print("   [FAIL] Forbidden (HTTP 403)")
                     results["errors"].append("Forbidden (403)")
                 else:
                     print(f"   [WARN] Unexpected status: HTTP {response.status}")
@@ -117,9 +117,9 @@ async def test_connection():
         except Exception as e:
             print(f"   [FAIL] Error: {e}")
             results["errors"].append(f"API root error: {e}")
-        
+
         print()
-        
+
         # Test 3: API config endpoint (with auth) - This is what we use in health_service
         print("[3] Testing API config endpoint (/api/config)...")
         try:
@@ -129,7 +129,7 @@ async def test_connection():
                     print(f"   [OK] API config accessible (HTTP {response.status})")
                     results["api_config"] = True
                     results["authentication"] = True
-                    
+
                     # Extract version
                     version = data.get("version", "unknown")
                     results["version"] = version
@@ -137,13 +137,13 @@ async def test_connection():
                     print(f"   Location: {data.get('location_name', 'N/A')}")
                     print(f"   Time Zone: {data.get('time_zone', 'N/A')}")
                     print(f"   Components: {len(data.get('components', []))}")
-                    
+
                 elif response.status == 401:
-                    print(f"   [FAIL] Authentication failed (HTTP 401)")
-                    print(f"   [TIP] Check if HA_TOKEN is valid")
+                    print("   [FAIL] Authentication failed (HTTP 401)")
+                    print("   [TIP] Check if HA_TOKEN is valid")
                     results["errors"].append("Authentication failed (401)")
                 elif response.status == 403:
-                    print(f"   [FAIL] Forbidden (HTTP 403)")
+                    print("   [FAIL] Forbidden (HTTP 403)")
                     results["errors"].append("Forbidden (403)")
                 else:
                     print(f"   [WARN] Unexpected status: HTTP {response.status}")
@@ -153,9 +153,9 @@ async def test_connection():
         except Exception as e:
             print(f"   [FAIL] Error: {e}")
             results["errors"].append(f"API config error: {e}")
-        
+
         print()
-        
+
         # Test 4: Test from container perspective (if running in Docker)
         print("[4] Testing from container network perspective...")
         try:
@@ -165,13 +165,13 @@ async def test_connection():
                 "http://192.168.1.86:8123",
                 "http://172.17.0.1:8123",  # Default Docker bridge gateway
             ]
-            
+
             for test_url in container_urls:
                 try:
                     async with session.get(
                         f"{test_url}/api/config",
                         headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=3)
+                        timeout=aiohttp.ClientTimeout(total=3),
                     ) as response:
                         if response.status == 200:
                             print(f"   [OK] Container can reach HA via: {test_url}")
@@ -179,21 +179,21 @@ async def test_connection():
                 except:
                     pass
             else:
-                print(f"   [SKIP] Could not test container connectivity (running locally)")
+                print("   [SKIP] Could not test container connectivity (running locally)")
         except Exception as e:
             print(f"   [SKIP] Container test skipped: {e}")
-    
+
     return results
 
 
 async def main():
     """Main test function"""
-    
+
     if not HA_TOKEN:
         print("[ERROR] HA_TOKEN not set!")
         print("   Set it in .env file or environment variable")
         sys.exit(1)
-    
+
     print()
     results = await test_connection()
     print()
@@ -205,33 +205,33 @@ async def main():
     print(f"API Root Access: {'[OK]' if results['api_root'] else '[FAIL]'}")
     print(f"API Config Access: {'[OK]' if results['api_config'] else '[FAIL]'}")
     print(f"Version Retrieved: {results['version'] or '[FAIL] Not available'}")
-    
-    if results['errors']:
+
+    if results["errors"]:
         print()
         print("Errors:")
-        for error in results['errors']:
+        for error in results["errors"]:
             print(f"  - {error}")
-    
+
     print()
-    
+
     # Recommendations
-    if not results['network']:
+    if not results["network"]:
         print("[TIP] Recommendation: Check network connectivity to HA")
         print(f"   Try: curl {HA_URL}/api/")
-    elif not results['authentication']:
+    elif not results["authentication"]:
         print("[TIP] Recommendation: Check HA_TOKEN is valid")
         print("   Generate new token in HA: Profile -> Long-Lived Access Tokens")
-    elif not results['api_config']:
+    elif not results["api_config"]:
         print("[TIP] Recommendation: Check HA API is accessible")
         print(f"   Try: curl -H 'Authorization: Bearer <token>' {HA_URL}/api/config")
-    elif results['version']:
+    elif results["version"]:
         print("[SUCCESS] All tests passed! HA API is accessible and working.")
         print(f"   Version: {results['version']}")
-    
+
     print("=" * 70)
-    
+
     # Exit code
-    if results['api_config'] and results['version']:
+    if results["api_config"] and results["version"]:
         sys.exit(0)
     else:
         sys.exit(1)

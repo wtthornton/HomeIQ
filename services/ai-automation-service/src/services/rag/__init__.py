@@ -15,11 +15,11 @@ from .exceptions import EmbeddingGenerationError, RAGError, RetrievalError, Stor
 from .models import SemanticKnowledge
 
 __all__ = [
+    "EmbeddingGenerationError",
     "RAGClient",
     "RAGError",
-    "EmbeddingGenerationError",
-    "StorageError",
     "RetrievalError",
     "SemanticKnowledge",
+    "StorageError",
 ]
 

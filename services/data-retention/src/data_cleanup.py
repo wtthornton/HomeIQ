@@ -1,6 +1,7 @@
 """Data cleanup and expiration service."""
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -35,7 +36,7 @@ class CleanupResult:
             "cleanup_duration": self.cleanup_duration,
             "success": self.success,
             "error_message": self.error_message,
-            "cleanup_timestamp": self.cleanup_timestamp.isoformat()
+            "cleanup_timestamp": self.cleanup_timestamp.isoformat(),
         }
 
 class DataCleanupService:
@@ -44,7 +45,7 @@ class DataCleanupService:
     def __init__(self, influxdb_client=None):
         """
         Initialize data cleanup service.
-        
+
         Args:
             influxdb_client: InfluxDB client for data operations
         """
@@ -74,20 +75,18 @@ class DataCleanupService:
 
         if self.cleanup_task and not self.cleanup_task.done():
             self.cleanup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.cleanup_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Data cleanup service stopped")
 
     async def run_cleanup(self, policy_name: str | None = None) -> list[CleanupResult]:
         """
         Run data cleanup for specified policy or all enabled policies.
-        
+
         Args:
             policy_name: Specific policy to run cleanup for (None for all)
-            
+
         Returns:
             List of cleanup results
         """
@@ -96,7 +95,8 @@ class DataCleanupService:
         if policy_name:
             policy = self.policy_manager.get_policy(policy_name)
             if not policy:
-                raise ValueError(f"Policy '{policy_name}' not found")
+                msg = f"Policy '{policy_name}' not found"
+                raise ValueError(msg)
             policies = [policy] if policy.enabled else []
         else:
             policies = self.policy_manager.get_enabled_policies()
@@ -111,14 +111,14 @@ class DataCleanupService:
                           f"{result.records_deleted} records deleted")
 
             except Exception as e:
-                logger.error(f"Cleanup failed for policy '{policy.name}': {e}")
+                logger.exception(f"Cleanup failed for policy '{policy.name}': {e}")
                 error_result = CleanupResult(
                     policy_name=policy.name,
                     records_deleted=0,
                     records_processed=0,
                     cleanup_duration=0.0,
                     success=False,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
                 results.append(error_result)
                 self.cleanup_history.append(error_result)
@@ -128,10 +128,10 @@ class DataCleanupService:
     async def _cleanup_policy(self, policy: RetentionPolicy) -> CleanupResult:
         """
         Clean up data for a specific policy.
-        
+
         Args:
             policy: Retention policy to apply
-            
+
         Returns:
             CleanupResult: Result of the cleanup operation
         """
@@ -155,7 +155,7 @@ class DataCleanupService:
                 records_deleted=records_deleted,
                 records_processed=records_processed,
                 cleanup_duration=cleanup_duration,
-                success=True
+                success=True,
             )
 
         except Exception as e:
@@ -166,16 +166,16 @@ class DataCleanupService:
                 records_processed=0,
                 cleanup_duration=cleanup_duration,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _get_expired_records(self, expiration_date: datetime) -> list[dict[str, Any]]:
         """
         Get records that have expired.
-        
+
         Args:
             expiration_date: Date before which records are considered expired
-            
+
         Returns:
             List of expired records
         """
@@ -203,22 +203,22 @@ class DataCleanupService:
                         "id": record.get_field(),
                         "timestamp": record.get_time().isoformat(),
                         "measurement": record.get_measurement(),
-                        "tags": record.values
+                        "tags": record.values,
                     })
 
             return records
 
         except Exception as e:
-            logger.error(f"Failed to get expired records: {e}")
+            logger.exception(f"Failed to get expired records: {e}")
             return []
 
     async def _delete_expired_records(self, records: list[dict[str, Any]]) -> int:
         """
         Delete expired records.
-        
+
         Args:
             records: List of records to delete
-            
+
         Returns:
             Number of records deleted
         """
@@ -236,7 +236,7 @@ class DataCleanupService:
                         bucket="home-assistant-events",
                         start=record["timestamp"],
                         stop=record["timestamp"],
-                        predicate=f'_measurement="{record["measurement"]}"'
+                        predicate=f'_measurement="{record["measurement"]}"',
                     )
                     deleted_count += 1
 
@@ -246,13 +246,13 @@ class DataCleanupService:
             return deleted_count
 
         except Exception as e:
-            logger.error(f"Failed to delete expired records: {e}")
+            logger.exception(f"Failed to delete expired records: {e}")
             return 0
 
     async def schedule_cleanup(self, interval_hours: int = 24) -> None:
         """
         Schedule periodic cleanup operations.
-        
+
         Args:
             interval_hours: Interval between cleanup runs in hours
         """
@@ -270,7 +270,7 @@ class DataCleanupService:
                     logger.info(f"Scheduled cleanup completed: {total_deleted} records deleted")
 
                 except Exception as e:
-                    logger.error(f"Scheduled cleanup failed: {e}")
+                    logger.exception(f"Scheduled cleanup failed: {e}")
 
                 # Wait for next cleanup
                 await asyncio.sleep(interval_hours * 3600)
@@ -281,10 +281,10 @@ class DataCleanupService:
     def get_cleanup_history(self, limit: int = 100) -> list[CleanupResult]:
         """
         Get cleanup history.
-        
+
         Args:
             limit: Maximum number of history entries to return
-            
+
         Returns:
             List of cleanup results
         """
@@ -293,7 +293,7 @@ class DataCleanupService:
     def get_cleanup_statistics(self) -> dict[str, Any]:
         """
         Get cleanup statistics.
-        
+
         Returns:
             Dictionary containing cleanup statistics
         """
@@ -304,7 +304,7 @@ class DataCleanupService:
                 "total_records_processed": 0,
                 "average_cleanup_duration": 0.0,
                 "success_rate": 0.0,
-                "last_cleanup": None
+                "last_cleanup": None,
             }
 
         total_cleanups = len(self.cleanup_history)
@@ -319,13 +319,13 @@ class DataCleanupService:
             "total_records_processed": total_processed,
             "average_cleanup_duration": total_duration / total_cleanups if total_cleanups > 0 else 0.0,
             "success_rate": successful_cleanups / total_cleanups if total_cleanups > 0 else 0.0,
-            "last_cleanup": self.cleanup_history[-1].cleanup_timestamp.isoformat() if self.cleanup_history else None
+            "last_cleanup": self.cleanup_history[-1].cleanup_timestamp.isoformat() if self.cleanup_history else None,
         }
 
     def get_policy_manager(self) -> RetentionPolicyManager:
         """
         Get the retention policy manager.
-        
+
         Returns:
             RetentionPolicyManager instance
         """

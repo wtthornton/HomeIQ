@@ -4,14 +4,15 @@ Test Home Assistant API connection.
 Verifies token authentication and API access.
 """
 
-import requests
 import sys
 from pathlib import Path
+
+import requests
 
 # Load environment variables
 try:
     from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent / 'infrastructure' / 'env.ai-automation'
+    env_path = Path(__file__).parent.parent / "infrastructure" / "env.ai-automation"
     load_dotenv(env_path)
 except ImportError:
     print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
@@ -20,8 +21,8 @@ except ImportError:
 import os
 
 # Configuration
-HA_URL = os.getenv('HA_URL')
-HA_TOKEN = os.getenv('HA_TOKEN')
+HA_URL = os.getenv("HA_URL")
+HA_TOKEN = os.getenv("HA_TOKEN")
 
 print("=" * 60)
 print("🧪 Testing Home Assistant API Connection")
@@ -39,33 +40,33 @@ if not HA_URL or not HA_TOKEN:
 
 # Test results
 test_results = {
-    'connection': False,
-    'authentication': False,
-    'api_call': False,
-    'automations_access': False
+    "connection": False,
+    "authentication": False,
+    "api_call": False,
+    "automations_access": False,
 }
 
 headers = {
     "Authorization": f"Bearer {HA_TOKEN}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # Test 1: Basic API status
 try:
     print("\n⏳ Test 1: Checking HA API status...")
     response = requests.get(f"{HA_URL}/api/", headers=headers, timeout=10)
-    
+
     if response.status_code == 200:
         print(f"✅ API responding: {response.json().get('message', 'OK')}")
-        test_results['connection'] = True
-        test_results['authentication'] = True
-        test_results['api_call'] = True
+        test_results["connection"] = True
+        test_results["authentication"] = True
+        test_results["api_call"] = True
     elif response.status_code == 401:
         print("❌ Authentication failed - Invalid token")
         print("   Please check your HA_TOKEN in env.ai-automation")
     else:
         print(f"⚠️  Unexpected status code: {response.status_code}")
-        
+
 except requests.exceptions.ConnectionError:
     print(f"❌ Cannot connect to {HA_URL}")
     print("\nTroubleshooting:")
@@ -74,7 +75,7 @@ except requests.exceptions.ConnectionError:
     print("  3. Check firewall isn't blocking port 8123")
     print(f"  4. Try in browser: {HA_URL}")
     sys.exit(1)
-    
+
 except Exception as e:
     print(f"❌ Error: {e}")
     sys.exit(1)
@@ -85,21 +86,21 @@ try:
     response = requests.get(
         f"{HA_URL}/api/config/automation/config",
         headers=headers,
-        timeout=10
+        timeout=10,
     )
-    
+
     if response.status_code == 200:
         automations = response.json()
         print(f"✅ Automation API accessible - Found {len(automations)} existing automations")
-        test_results['automations_access'] = True
-        
+        test_results["automations_access"] = True
+
         # Show sample
         if automations:
             print(f"   Example: {automations[0].get('alias', 'Unnamed')}")
     else:
         print(f"⚠️  Automation API returned {response.status_code}")
         print(f"   Response: {response.text[:200]}")
-        
+
 except Exception as e:
     print(f"⚠️  Automation API error: {e}")
 
@@ -109,9 +110,9 @@ try:
     response = requests.get(
         f"{HA_URL}/api/config",
         headers=headers,
-        timeout=10
+        timeout=10,
     )
-    
+
     if response.status_code == 200:
         config = response.json()
         print(f"✅ HA Version: {config.get('version', 'unknown')}")
@@ -119,7 +120,7 @@ try:
         print(f"   Timezone: {config.get('time_zone', 'unknown')}")
     else:
         print(f"⚠️  Config API returned {response.status_code}")
-        
+
 except Exception as e:
     print(f"⚠️  Config API error: {e}")
 

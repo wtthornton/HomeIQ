@@ -9,5 +9,5 @@ Created: Phase 4 - Function Calling & Device Context
 
 from .context_service import DeviceContextService
 
-__all__ = ['DeviceContextService']
+__all__ = ["DeviceContextService"]
 

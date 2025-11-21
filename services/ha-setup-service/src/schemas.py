@@ -68,18 +68,18 @@ class EnvironmentHealthResponse(BaseModel):
                         "is_configured": True,
                         "is_connected": True,
                         "error_message": None,
-                        "last_check": "2025-01-18T15:30:00Z"
-                    }
+                        "last_check": "2025-01-18T15:30:00Z",
+                    },
                 ],
                 "performance": {
                     "response_time_ms": 45.2,
                     "cpu_usage_percent": 12.5,
                     "memory_usage_mb": 256.0,
-                    "uptime_seconds": 86400
+                    "uptime_seconds": 86400,
                 },
                 "issues_detected": [],
-                "timestamp": "2025-01-18T15:30:00Z"
-            }
+                "timestamp": "2025-01-18T15:30:00Z",
+            },
         }
 
 

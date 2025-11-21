@@ -15,8 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
-from ...services.service_container import ServiceContainer, get_service_container
+from src.database import get_db
+from src.services.service_container import ServiceContainer, get_service_container
+
 from .models import (
     AutomationSuggestion,
     ConversationDetail,
@@ -37,13 +38,13 @@ router = APIRouter(prefix="/api/v2/conversations", tags=["Conversations v2"])
 async def start_conversation(
     request: ConversationStartRequest,
     container: ServiceContainer = Depends(get_service_container),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> ConversationResponse:
     """
     Start a new conversation.
-    
+
     Replaces: POST /api/v1/ask-ai/query
-    
+
     Creates a new conversation and processes the initial query.
     """
     conversation_id = f"conv-{uuid.uuid4().hex[:12]}"
@@ -78,7 +79,7 @@ async def start_conversation(
             "conversation_type": conversation_type.value,
             "initial_query": request.query,
             "context": str(request.context) if request.context else None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         })
 
         # Create context
@@ -86,16 +87,16 @@ async def start_conversation(
         context_manager.create_context(
             conversation_id=conversation_id,
             user_id=request.user_id,
-            initial_query=request.query
+            initial_query=request.query,
         )
 
         # Process initial query (create first turn)
-        turn_response = await _process_message(
+        await _process_message(
             conversation_id=conversation_id,
             message=request.query,
             turn_number=1,
             container=container,
-            db=db
+            db=db,
         )
 
         await db.commit()
@@ -106,7 +107,7 @@ async def start_conversation(
             conversation_type=conversation_type,
             status="active",
             initial_query=request.query,
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.utcnow().isoformat(),
         )
 
     except Exception as e:
@@ -114,7 +115,7 @@ async def start_conversation(
         logger.error(f"Failed to start conversation: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start conversation: {str(e)}"
+            detail=f"Failed to start conversation: {e!s}",
         )
 
 
@@ -123,11 +124,11 @@ async def send_message(
     conversation_id: str,
     request: MessageRequest,
     container: ServiceContainer = Depends(get_service_container),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> ConversationTurnResponse:
     """
     Send message in existing conversation.
-    
+
     Handles: clarification answers, refinements, follow-ups
     """
     # Get conversation (verify it exists)
@@ -139,7 +140,7 @@ async def send_message(
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Conversation {conversation_id} not found"
+            detail=f"Conversation {conversation_id} not found",
         )
 
     # Get current turn number
@@ -157,7 +158,7 @@ async def send_message(
         message=request.message,
         turn_number=turn_number,
         container=container,
-        db=db
+        db=db,
     )
 
     await db.commit()
@@ -168,7 +169,7 @@ async def send_message(
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> ConversationDetail:
     """Get full conversation history with all turns"""
     # Get conversation
@@ -180,7 +181,7 @@ async def get_conversation(
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Conversation {conversation_id} not found"
+            detail=f"Conversation {conversation_id} not found",
         )
 
     # Get turns
@@ -215,7 +216,7 @@ async def get_conversation(
             confidence=None,
             processing_time_ms=processing_time,
             next_actions=[],
-            created_at=created_at_str
+            created_at=created_at_str,
         ))
 
     return ConversationDetail(
@@ -227,14 +228,14 @@ async def get_conversation(
         turns=turns,
         created_at=conversation_row[7].isoformat() if conversation_row[7] else datetime.utcnow().isoformat(),  # created_at
         updated_at=conversation_row[8].isoformat() if conversation_row[8] else datetime.utcnow().isoformat(),  # updated_at
-        completed_at=conversation_row[9].isoformat() if conversation_row[9] else None  # completed_at
+        completed_at=conversation_row[9].isoformat() if conversation_row[9] else None,  # completed_at
     )
 
 
 @router.get("/{conversation_id}/suggestions", response_model=list[AutomationSuggestion])
 async def get_suggestions(
     conversation_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> list[AutomationSuggestion]:
     """Get all automation suggestions from conversation"""
     result = await db.execute(text("""
@@ -261,7 +262,7 @@ async def get_suggestions(
             automation_yaml=row[6] if len(row) > 6 else None,  # automation_yaml
             confidence=row[8] if len(row) > 8 else 0.5,  # confidence
             validated_entities=validated_entities,
-            status=row[10] if len(row) > 10 else "draft"  # status
+            status=row[10] if len(row) > 10 else "draft",  # status
         ))
 
     return suggestions
@@ -272,11 +273,11 @@ async def _process_message(
     message: str,
     turn_number: int,
     container: ServiceContainer,
-    db: AsyncSession
+    db: AsyncSession,
 ) -> ConversationTurnResponse:
     """
     Process a message in a conversation.
-    
+
     This is the core message processing logic that will be enhanced
     in later phases with full entity extraction, suggestion generation, etc.
     """
@@ -300,7 +301,7 @@ async def _process_message(
         content=f"Processing your request: {message}",
         conversation_id=conversation_id,
         turn_number=turn_number,
-        processing_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        processing_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
     )
 
     # Save turn to database
@@ -322,7 +323,7 @@ async def _process_message(
         "intent": intent.value,
         "extracted_entities": str(entities) if entities else None,
         "processing_time_ms": response["processing_time_ms"],
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.utcnow().isoformat(),
     })
 
     return ConversationTurnResponse(**response)

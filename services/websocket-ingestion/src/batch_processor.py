@@ -3,6 +3,7 @@ Batch Processor for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -20,7 +21,7 @@ class BatchProcessor:
     def __init__(self, batch_size: int = 100, batch_timeout: float = 5.0):
         """
         Initialize batch processor
-        
+
         Args:
             batch_size: Maximum number of events per batch
             batch_timeout: Maximum time to wait before processing partial batch (seconds)
@@ -65,7 +66,7 @@ class BatchProcessor:
 
         try:
             # Transition to starting state
-            if current_state == ProcessingState.STOPPED or current_state == ProcessingState.ERROR:
+            if current_state in (ProcessingState.STOPPED, ProcessingState.ERROR):
                 self.state_machine.transition(ProcessingState.STARTING)
 
             self.processing_start_time = datetime.now()
@@ -78,7 +79,7 @@ class BatchProcessor:
 
             logger.info(f"Started batch processor with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
         except InvalidStateTransition as e:
-            logger.error(f"Cannot start batch processor from state {current_state.value}: {e}")
+            logger.exception(f"Cannot start batch processor from state {current_state.value}: {e}")
 
     async def stop(self):
         """Stop the batch processor"""
@@ -99,10 +100,8 @@ class BatchProcessor:
         # Cancel processing task
         if self.processing_task:
             self.processing_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.processing_task
-            except asyncio.CancelledError:
-                pass
 
         # Transition to stopped
         try:
@@ -115,10 +114,10 @@ class BatchProcessor:
     async def add_event(self, event_data: dict[str, Any]) -> bool:
         """
         Add an event to the current batch
-        
+
         Args:
             event_data: Event data to add to batch
-            
+
         Returns:
             True if event was added successfully, False otherwise
         """
@@ -155,16 +154,12 @@ class BatchProcessor:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in processing loop: {e}")
-                try:
+                logger.exception(f"Error in processing loop: {e}")
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.ERROR)
-                except InvalidStateTransition:
-                    pass
                 # Try to recover
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.RUNNING)
-                except InvalidStateTransition:
-                    pass
 
             # Update current state for loop condition
             current_state = self.state_machine.get_state()
@@ -214,10 +209,10 @@ class BatchProcessor:
     async def _process_batch(self, batch: list[dict[str, Any]]) -> bool:
         """
         Process a batch of events
-        
+
         Args:
             batch: List of events to process
-            
+
         Returns:
             True if batch was processed successfully, False otherwise
         """
@@ -231,14 +226,14 @@ class BatchProcessor:
                 return True
 
             except Exception as e:
-                logger.error(f"Error processing batch (attempt {attempt + 1}): {e}")
+                logger.exception(f"Error processing batch (attempt {attempt + 1}): {e}")
 
                 if attempt < self.retry_attempts - 1:
                     # Wait before retry
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
                 else:
                     # All retries failed
-                    logger.error(f"Failed to process batch after {self.retry_attempts} attempts")
+                    logger.exception(f"Failed to process batch after {self.retry_attempts} attempts")
                     return False
 
         return False
@@ -257,7 +252,8 @@ class BatchProcessor:
     def configure_batch_size(self, batch_size: int):
         """Configure batch size"""
         if batch_size <= 0:
-            raise ValueError("batch_size must be positive")
+            msg = "batch_size must be positive"
+            raise ValueError(msg)
 
         self.batch_size = batch_size
         logger.info(f"Updated batch size to {batch_size}")
@@ -265,7 +261,8 @@ class BatchProcessor:
     def configure_batch_timeout(self, timeout: float):
         """Configure batch timeout"""
         if timeout <= 0:
-            raise ValueError("timeout must be positive")
+            msg = "timeout must be positive"
+            raise ValueError(msg)
 
         self.batch_timeout = timeout
         logger.info(f"Updated batch timeout to {timeout}s")
@@ -273,9 +270,11 @@ class BatchProcessor:
     def configure_retry_settings(self, attempts: int, delay: float):
         """Configure retry settings"""
         if attempts < 0:
-            raise ValueError("attempts must be non-negative")
+            msg = "attempts must be non-negative"
+            raise ValueError(msg)
         if delay < 0:
-            raise ValueError("delay must be non-negative")
+            msg = "delay must be non-negative"
+            raise ValueError(msg)
 
         self.retry_attempts = attempts
         self.retry_delay = delay
@@ -326,7 +325,7 @@ class BatchProcessor:
             "uptime_seconds": round(uptime, 2),
             "batch_handlers_count": len(self.batch_handlers),
             "retry_attempts": self.retry_attempts,
-            "retry_delay": self.retry_delay
+            "retry_delay": self.retry_delay,
         }
 
     def reset_statistics(self):

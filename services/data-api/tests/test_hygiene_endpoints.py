@@ -32,7 +32,7 @@ async def test_list_hygiene_issues(monkeypatch, client):
                     "metadata": {},
                     "detected_at": "2025-11-07T17:00:00Z",
                     "updated_at": "2025-11-07T17:05:00Z",
-                }
+                },
             ],
             "count": 1,
             "total": 1,

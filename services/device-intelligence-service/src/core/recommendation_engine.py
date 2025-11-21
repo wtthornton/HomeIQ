@@ -43,8 +43,8 @@ class OptimizationRecommendation:
         confidence_score: float,
         estimated_impact: dict[str, Any],
         implementation_steps: list[str],
-        prerequisites: list[str] = None,
-        expires_at: datetime | None = None
+        prerequisites: list[str] | None = None,
+        expires_at: datetime | None = None,
     ):
         self.id = f"{device_id}_{category.value}_{int(datetime.now().timestamp())}"
         self.device_id = device_id
@@ -74,7 +74,7 @@ class RecommendationEngine:
             "high_response_time": 1000,
             "high_cpu_usage": 80,
             "high_memory_usage": 80,
-            "high_temperature": 40
+            "high_temperature": 40,
         }
 
         # Impact multipliers for different categories
@@ -83,7 +83,7 @@ class RecommendationEngine:
             RecommendationCategory.PERFORMANCE: {"response_time": 0.20, "reliability": 0.25},
             RecommendationCategory.MAINTENANCE: {"uptime": 0.30, "longevity": 0.40},
             RecommendationCategory.CONFIGURATION: {"efficiency": 0.20, "security": 0.15},
-            RecommendationCategory.USAGE_PATTERN: {"optimization": 0.25, "automation": 0.20}
+            RecommendationCategory.USAGE_PATTERN: {"optimization": 0.25, "automation": 0.20},
         }
 
     async def generate_recommendations(
@@ -91,7 +91,7 @@ class RecommendationEngine:
         device_id: str,
         health_score: dict[str, Any],
         device_metrics: dict[str, Any],
-        historical_metrics: list[dict[str, Any]] = None
+        historical_metrics: list[dict[str, Any]] | None = None,
     ) -> list[OptimizationRecommendation]:
         """Generate optimization recommendations for a device."""
         recommendations = []
@@ -99,19 +99,19 @@ class RecommendationEngine:
         try:
             # Generate recommendations for each category
             recommendations.extend(await self._generate_energy_recommendations(
-                device_id, health_score, device_metrics, historical_metrics
+                device_id, health_score, device_metrics, historical_metrics,
             ))
             recommendations.extend(await self._generate_performance_recommendations(
-                device_id, health_score, device_metrics, historical_metrics
+                device_id, health_score, device_metrics, historical_metrics,
             ))
             recommendations.extend(await self._generate_maintenance_recommendations(
-                device_id, health_score, device_metrics, historical_metrics
+                device_id, health_score, device_metrics, historical_metrics,
             ))
             recommendations.extend(await self._generate_configuration_recommendations(
-                device_id, health_score, device_metrics, historical_metrics
+                device_id, health_score, device_metrics, historical_metrics,
             ))
             recommendations.extend(await self._generate_usage_pattern_recommendations(
-                device_id, health_score, device_metrics, historical_metrics
+                device_id, health_score, device_metrics, historical_metrics,
             ))
 
             # Sort by priority and confidence
@@ -121,12 +121,12 @@ class RecommendationEngine:
             return recommendations
 
         except Exception as e:
-            logger.error(f"❌ Error generating recommendations for device {device_id}: {e}")
+            logger.exception(f"❌ Error generating recommendations for device {device_id}: {e}")
             return []
 
     async def _generate_energy_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], historical: list[dict[str, Any]],
     ) -> list[OptimizationRecommendation]:
         """Generate energy optimization recommendations."""
         recommendations = []
@@ -144,15 +144,15 @@ class RecommendationEngine:
                 estimated_impact={
                     "energy_savings": "15-25%",
                     "performance_improvement": "20-30%",
-                    "reliability_increase": "40-50%"
+                    "reliability_increase": "40-50%",
                 },
                 implementation_steps=[
                     "Check device manual for battery replacement procedure",
                     "Order replacement battery if needed",
                     "Schedule maintenance window for replacement",
-                    "Test device functionality after replacement"
+                    "Test device functionality after replacement",
                 ],
-                prerequisites=["Device access", "Replacement battery"]
+                prerequisites=["Device access", "Replacement battery"],
             ))
 
         # Usage pattern optimization
@@ -168,21 +168,21 @@ class RecommendationEngine:
                 estimated_impact={
                     "energy_savings": "10-20%",
                     "cost_reduction": "8-15%",
-                    "device_longevity": "15-25%"
+                    "device_longevity": "15-25%",
                 },
                 implementation_steps=[
                     "Analyze current usage patterns",
                     "Identify peak usage times",
                     "Implement smart scheduling",
-                    "Monitor energy consumption changes"
-                ]
+                    "Monitor energy consumption changes",
+                ],
             ))
 
         return recommendations
 
     async def _generate_performance_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], historical: list[dict[str, Any]],
     ) -> list[OptimizationRecommendation]:
         """Generate performance optimization recommendations."""
         recommendations = []
@@ -200,14 +200,14 @@ class RecommendationEngine:
                 estimated_impact={
                     "response_time_improvement": "30-50%",
                     "user_experience": "Significantly improved",
-                    "reliability": "20-30%"
+                    "reliability": "20-30%",
                 },
                 implementation_steps=[
                     "Check network connectivity",
                     "Verify device firmware is up to date",
                     "Optimize device configuration",
-                    "Consider device replacement if hardware is outdated"
-                ]
+                    "Consider device replacement if hardware is outdated",
+                ],
             ))
 
         # Error rate optimization
@@ -223,21 +223,21 @@ class RecommendationEngine:
                 estimated_impact={
                     "reliability_improvement": "40-60%",
                     "user_satisfaction": "Significantly improved",
-                    "maintenance_costs": "Reduced by 25-40%"
+                    "maintenance_costs": "Reduced by 25-40%",
                 },
                 implementation_steps=[
                     "Investigate error logs",
                     "Check device connectivity",
                     "Verify configuration settings",
-                    "Consider firmware update or device replacement"
-                ]
+                    "Consider firmware update or device replacement",
+                ],
             ))
 
         return recommendations
 
     async def _generate_maintenance_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], historical: list[dict[str, Any]],
     ) -> list[OptimizationRecommendation]:
         """Generate maintenance recommendations."""
         recommendations = []
@@ -254,16 +254,16 @@ class RecommendationEngine:
                 estimated_impact={
                     "uptime_improvement": "30-50%",
                     "longevity": "40-60%",
-                    "performance": "25-40%"
+                    "performance": "25-40%",
                 },
                 implementation_steps=[
                     "Schedule maintenance window",
                     "Prepare maintenance checklist",
                     "Gather required tools and parts",
                     "Perform comprehensive device check",
-                    "Update maintenance records"
+                    "Update maintenance records",
                 ],
-                prerequisites=["Maintenance tools", "Device documentation"]
+                prerequisites=["Maintenance tools", "Device documentation"],
             ))
 
         # Temperature-based maintenance
@@ -279,21 +279,21 @@ class RecommendationEngine:
                 estimated_impact={
                     "performance_stability": "20-30%",
                     "component_longevity": "30-40%",
-                    "energy_efficiency": "10-15%"
+                    "energy_efficiency": "10-15%",
                 },
                 implementation_steps=[
                     "Check device ventilation",
                     "Clean air vents and filters",
                     "Verify ambient temperature",
-                    "Consider additional cooling if needed"
-                ]
+                    "Consider additional cooling if needed",
+                ],
             ))
 
         return recommendations
 
     async def _generate_configuration_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], historical: list[dict[str, Any]],
     ) -> list[OptimizationRecommendation]:
         """Generate configuration optimization recommendations."""
         recommendations = []
@@ -311,15 +311,15 @@ class RecommendationEngine:
                 estimated_impact={
                     "connectivity_reliability": "40-60%",
                     "response_time": "20-30%",
-                    "data_transfer": "25-35%"
+                    "data_transfer": "25-35%",
                 },
                 implementation_steps=[
                     "Check antenna positioning",
                     "Verify router/access point location",
                     "Consider signal booster or repeater",
                     "Update device firmware",
-                    "Test connectivity improvements"
-                ]
+                    "Test connectivity improvements",
+                ],
             ))
 
         # Resource usage optimization
@@ -337,21 +337,21 @@ class RecommendationEngine:
                 estimated_impact={
                     "performance": "25-40%",
                     "stability": "30-50%",
-                    "energy_efficiency": "15-25%"
+                    "energy_efficiency": "15-25%",
                 },
                 implementation_steps=[
                     "Review running processes",
                     "Optimize device configuration",
                     "Close unnecessary applications",
-                    "Consider hardware upgrade if needed"
-                ]
+                    "Consider hardware upgrade if needed",
+                ],
             ))
 
         return recommendations
 
     async def _generate_usage_pattern_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], historical: list[dict[str, Any]],
     ) -> list[OptimizationRecommendation]:
         """Generate usage pattern optimization recommendations."""
         recommendations = []
@@ -370,15 +370,15 @@ class RecommendationEngine:
                 estimated_impact={
                     "automation_efficiency": "30-50%",
                     "energy_savings": "20-30%",
-                    "convenience": "Significantly improved"
+                    "convenience": "Significantly improved",
                 },
                 implementation_steps=[
                     "Analyze usage patterns",
                     "Identify automation opportunities",
                     "Create smart schedules",
                     "Implement automated triggers",
-                    "Monitor effectiveness"
-                ]
+                    "Monitor effectiveness",
+                ],
             ))
 
         elif usage_frequency > 0.8:
@@ -392,14 +392,14 @@ class RecommendationEngine:
                 estimated_impact={
                     "performance": "20-30%",
                     "longevity": "25-40%",
-                    "efficiency": "15-25%"
+                    "efficiency": "15-25%",
                 },
                 implementation_steps=[
                     "Analyze peak usage times",
                     "Implement usage scheduling",
                     "Consider load balancing",
-                    "Monitor performance improvements"
-                ]
+                    "Monitor performance improvements",
+                ],
             ))
 
         return recommendations
@@ -419,7 +419,7 @@ class RecommendationEngine:
                 category_impact[rec.category.value] = {
                     "count": 0,
                     "total_confidence": 0,
-                    "avg_confidence": 0
+                    "avg_confidence": 0,
                 }
 
             category_impact[rec.category.value]["count"] += 1
@@ -442,7 +442,7 @@ class RecommendationEngine:
             "categories": category_impact,
             "priority_distribution": priority_distribution,
             "high_confidence_count": len([r for r in recommendations if r.confidence_score > 0.8]),
-            "critical_priority_count": len([r for r in recommendations if r.priority == RecommendationPriority.CRITICAL])
+            "critical_priority_count": len([r for r in recommendations if r.priority == RecommendationPriority.CRITICAL]),
         }
 
 

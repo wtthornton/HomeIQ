@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class DurationDetector(MLPatternDetector):
     """
     Detects duration-based patterns in device usage.
-    
+
     Analyzes patterns based on:
     - Device usage duration patterns
     - Auto-off timer detection
@@ -39,11 +39,11 @@ class DurationDetector(MLPatternDetector):
         efficiency_threshold: float = 0.8,
         auto_off_tolerance_minutes: int = 5,
         aggregate_client=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize duration detector.
-        
+
         Args:
             min_duration_seconds: Minimum duration to consider
             max_duration_hours: Maximum duration to consider
@@ -66,10 +66,10 @@ class DurationDetector(MLPatternDetector):
     def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect duration patterns in events.
-        
+
         Args:
             events_df: Events DataFrame with time, entity_id, state columns
-            
+
         Returns:
             List of duration pattern dictionaries
         """
@@ -110,8 +110,8 @@ class DurationDetector(MLPatternDetector):
 
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
-        self.detection_stats['total_patterns'] += len(patterns)
-        self.detection_stats['processing_time'] += processing_time
+        self.detection_stats["total_patterns"] += len(patterns)
+        self.detection_stats["processing_time"] += processing_time
 
         logger.info(f"Detected {len(patterns)} duration patterns in {processing_time:.2f}s")
 
@@ -124,33 +124,33 @@ class DurationDetector(MLPatternDetector):
     def _store_daily_aggregates(self, patterns: list[dict], events_df: pd.DataFrame) -> None:
         """
         Store daily aggregates to InfluxDB.
-        
+
         Story AI5.3: Incremental pattern processing with aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events_df: Original events DataFrame
         """
         try:
             # Get date from events
-            if events_df.empty or 'time' not in events_df.columns:
+            if events_df.empty or "time" not in events_df.columns:
                 logger.warning("Cannot determine date from events for aggregate storage")
                 return
 
             # Use the date of the first event (assuming 24h window)
-            date = pd.to_datetime(events_df['time'].min()).date()
+            date = pd.to_datetime(events_df["time"].min()).date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing daily aggregates for {date_str}")
 
             for pattern in patterns:
-                entity_id = pattern.get('entity_id', pattern.get('devices', ['unknown'])[0] if pattern.get('devices') else 'unknown')
-                domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                entity_id = pattern.get("entity_id", pattern.get("devices", ["unknown"])[0] if pattern.get("devices") else "unknown")
+                domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
 
                 # Calculate metrics
-                occurrences = pattern.get('occurrences', 0)
-                confidence = pattern.get('confidence', 0.0)
-                avg_duration = pattern.get('metadata', {}).get('avg_duration_seconds', 0)
+                occurrences = pattern.get("occurrences", 0)
+                confidence = pattern.get("confidence", 0.0)
+                avg_duration = pattern.get("metadata", {}).get("avg_duration_seconds", 0)
 
                 # Store aggregate
                 try:
@@ -160,7 +160,7 @@ class DurationDetector(MLPatternDetector):
                         domain=domain,
                         occurrences=occurrences,
                         confidence=confidence,
-                        avg_duration_seconds=avg_duration
+                        avg_duration_seconds=avg_duration,
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {entity_id}: {e}", exc_info=True)
@@ -173,17 +173,17 @@ class DurationDetector(MLPatternDetector):
     def _detect_usage_duration_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect device usage duration patterns.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of usage duration patterns
         """
         patterns = []
 
         # Group by device and analyze usage durations
-        for entity_id, device_events in events_df.groupby('entity_id'):
+        for entity_id, device_events in events_df.groupby("entity_id"):
             if len(device_events) < self.min_occurrences:
                 continue
 
@@ -207,29 +207,29 @@ class DurationDetector(MLPatternDetector):
 
             # Calculate confidence
             confidence = self._calculate_duration_confidence(
-                len(valid_durations), duration_analysis
+                len(valid_durations), duration_analysis,
             )
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='usage_duration',
-                    pattern_id=self._generate_pattern_id('duration'),
+                    pattern_type="usage_duration",
+                    pattern_id=self._generate_pattern_id("duration"),
                     confidence=confidence,
                     occurrences=len(valid_durations),
                     devices=[entity_id],
                     metadata={
-                        'entity_id': entity_id,
-                        'avg_duration_seconds': duration_analysis['mean'],
-                        'median_duration_seconds': duration_analysis['median'],
-                        'std_duration_seconds': duration_analysis['std'],
-                        'min_duration_seconds': duration_analysis['min'],
-                        'max_duration_seconds': duration_analysis['max'],
-                        'duration_consistency': duration_analysis['consistency'],
-                        'duration_distribution': duration_analysis['distribution'],
-                        'efficiency_score': duration_analysis['efficiency'],
-                        'first_usage': device_events['time'].min().isoformat(),
-                        'last_usage': device_events['time'].max().isoformat()
-                    }
+                        "entity_id": entity_id,
+                        "avg_duration_seconds": duration_analysis["mean"],
+                        "median_duration_seconds": duration_analysis["median"],
+                        "std_duration_seconds": duration_analysis["std"],
+                        "min_duration_seconds": duration_analysis["min"],
+                        "max_duration_seconds": duration_analysis["max"],
+                        "duration_consistency": duration_analysis["consistency"],
+                        "duration_distribution": duration_analysis["distribution"],
+                        "efficiency_score": duration_analysis["efficiency"],
+                        "first_usage": device_events["time"].min().isoformat(),
+                        "last_usage": device_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -238,17 +238,17 @@ class DurationDetector(MLPatternDetector):
     def _detect_auto_off_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect auto-off timer patterns.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of auto-off patterns
         """
         patterns = []
 
         # Group by device and find auto-off patterns
-        for entity_id, device_events in events_df.groupby('entity_id'):
+        for entity_id, device_events in events_df.groupby("entity_id"):
             if len(device_events) < self.min_occurrences:
                 continue
 
@@ -263,25 +263,25 @@ class DurationDetector(MLPatternDetector):
 
             # Calculate confidence
             confidence = self._calculate_auto_off_confidence(
-                len(auto_off_events), auto_off_analysis
+                len(auto_off_events), auto_off_analysis,
             )
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='auto_off',
-                    pattern_id=self._generate_pattern_id('auto_off'),
+                    pattern_type="auto_off",
+                    pattern_id=self._generate_pattern_id("auto_off"),
                     confidence=confidence,
                     occurrences=len(auto_off_events),
                     devices=[entity_id],
                     metadata={
-                        'entity_id': entity_id,
-                        'avg_auto_off_duration_minutes': auto_off_analysis['avg_duration_minutes'],
-                        'auto_off_consistency': auto_off_analysis['consistency'],
-                        'auto_off_timer_accuracy': auto_off_analysis['accuracy'],
-                        'auto_off_distribution': auto_off_analysis['distribution'],
-                        'first_auto_off': auto_off_events[0]['time'].isoformat(),
-                        'last_auto_off': auto_off_events[-1]['time'].isoformat()
-                    }
+                        "entity_id": entity_id,
+                        "avg_auto_off_duration_minutes": auto_off_analysis["avg_duration_minutes"],
+                        "auto_off_consistency": auto_off_analysis["consistency"],
+                        "auto_off_timer_accuracy": auto_off_analysis["accuracy"],
+                        "auto_off_distribution": auto_off_analysis["distribution"],
+                        "first_auto_off": auto_off_events[0]["time"].isoformat(),
+                        "last_auto_off": auto_off_events[-1]["time"].isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -290,24 +290,24 @@ class DurationDetector(MLPatternDetector):
     def _detect_efficiency_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect efficiency patterns in device usage.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of efficiency patterns
         """
         patterns = []
 
         # Group by device and analyze efficiency
-        for entity_id, device_events in events_df.groupby('entity_id'):
+        for entity_id, device_events in events_df.groupby("entity_id"):
             if len(device_events) < self.min_occurrences:
                 continue
 
             # Calculate efficiency metrics
             efficiency_metrics = self._calculate_efficiency_metrics(device_events)
 
-            if efficiency_metrics['efficiency_score'] < self.efficiency_threshold:
+            if efficiency_metrics["efficiency_score"] < self.efficiency_threshold:
                 continue
 
             # Calculate confidence
@@ -315,20 +315,20 @@ class DurationDetector(MLPatternDetector):
 
             if confidence >= self.min_confidence:
                 pattern = self._create_pattern_dict(
-                    pattern_type='efficiency',
-                    pattern_id=self._generate_pattern_id('efficiency'),
+                    pattern_type="efficiency",
+                    pattern_id=self._generate_pattern_id("efficiency"),
                     confidence=confidence,
                     occurrences=len(device_events),
                     devices=[entity_id],
                     metadata={
-                        'entity_id': entity_id,
-                        'efficiency_score': efficiency_metrics['efficiency_score'],
-                        'usage_frequency': efficiency_metrics['usage_frequency'],
-                        'waste_score': efficiency_metrics['waste_score'],
-                        'optimization_potential': efficiency_metrics['optimization_potential'],
-                        'efficiency_trend': efficiency_metrics['trend'],
-                        'recommended_actions': efficiency_metrics['recommendations']
-                    }
+                        "entity_id": entity_id,
+                        "efficiency_score": efficiency_metrics["efficiency_score"],
+                        "usage_frequency": efficiency_metrics["usage_frequency"],
+                        "waste_score": efficiency_metrics["waste_score"],
+                        "optimization_potential": efficiency_metrics["optimization_potential"],
+                        "efficiency_trend": efficiency_metrics["trend"],
+                        "recommended_actions": efficiency_metrics["recommendations"],
+                    },
                 )
                 patterns.append(pattern)
 
@@ -337,10 +337,10 @@ class DurationDetector(MLPatternDetector):
     def _detect_duration_clusters(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect duration clusters using ML clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of duration cluster patterns
         """
@@ -372,24 +372,24 @@ class DurationDetector(MLPatternDetector):
                     continue
 
                 cluster_confidence = self._calculate_cluster_confidence(
-                    cluster_durations, cluster_id, kmeans
+                    cluster_durations, cluster_id, kmeans,
                 )
 
                 if cluster_confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='duration_cluster',
-                        pattern_id=self._generate_pattern_id('duration_cluster'),
+                        pattern_type="duration_cluster",
+                        pattern_id=self._generate_pattern_id("duration_cluster"),
                         confidence=cluster_confidence,
                         occurrences=len(cluster_durations),
                         devices=[],  # Will be filled from cluster data
                         metadata={
-                            'cluster_id': cluster_id,
-                            'cluster_size': len(cluster_durations),
-                            'cluster_characteristics': self._describe_duration_cluster(
-                                cluster_durations, cluster_id
+                            "cluster_id": cluster_id,
+                            "cluster_size": len(cluster_durations),
+                            "cluster_characteristics": self._describe_duration_cluster(
+                                cluster_durations, cluster_id,
                             ),
-                            'cluster_centroid': kmeans.cluster_centers_[cluster_id].tolist()
-                        }
+                            "cluster_centroid": kmeans.cluster_centers_[cluster_id].tolist(),
+                        },
                     )
                     patterns.append(pattern)
 
@@ -401,17 +401,17 @@ class DurationDetector(MLPatternDetector):
     def _detect_statistical_duration_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect statistical patterns in durations.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of statistical duration patterns
         """
         patterns = []
 
         # Group by device and analyze statistical patterns
-        for entity_id, device_events in events_df.groupby('entity_id'):
+        for entity_id, device_events in events_df.groupby("entity_id"):
             if len(device_events) < self.min_occurrences:
                 continue
 
@@ -429,25 +429,25 @@ class DurationDetector(MLPatternDetector):
             statistical_analysis = self._perform_statistical_analysis(valid_durations)
 
             # Check for significant patterns
-            if statistical_analysis['has_pattern']:
+            if statistical_analysis["has_pattern"]:
                 confidence = self._calculate_statistical_confidence(statistical_analysis)
 
                 if confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='statistical_duration',
-                        pattern_id=self._generate_pattern_id('stat_duration'),
+                        pattern_type="statistical_duration",
+                        pattern_id=self._generate_pattern_id("stat_duration"),
                         confidence=confidence,
                         occurrences=len(valid_durations),
                         devices=[entity_id],
                         metadata={
-                            'entity_id': entity_id,
-                            'statistical_test': statistical_analysis['test_name'],
-                            'p_value': statistical_analysis['p_value'],
-                            'test_statistic': statistical_analysis['test_statistic'],
-                            'pattern_description': statistical_analysis['description'],
-                            'confidence_interval': statistical_analysis['confidence_interval'],
-                            'effect_size': statistical_analysis['effect_size']
-                        }
+                            "entity_id": entity_id,
+                            "statistical_test": statistical_analysis["test_name"],
+                            "p_value": statistical_analysis["p_value"],
+                            "test_statistic": statistical_analysis["test_statistic"],
+                            "pattern_description": statistical_analysis["description"],
+                            "confidence_interval": statistical_analysis["confidence_interval"],
+                            "effect_size": statistical_analysis["effect_size"],
+                        },
                     )
                     patterns.append(pattern)
 
@@ -456,27 +456,27 @@ class DurationDetector(MLPatternDetector):
     def _calculate_usage_durations(self, device_events: pd.DataFrame) -> list[float]:
         """
         Calculate usage durations for a device.
-        
+
         Args:
             device_events: Device events DataFrame
-            
+
         Returns:
             List of usage durations in seconds
         """
         durations = []
-        events_sorted = device_events.sort_values('time')
+        events_sorted = device_events.sort_values("time")
 
         # Find on/off pairs
-        on_events = events_sorted[events_sorted['state'] == 'on']
-        off_events = events_sorted[events_sorted['state'] == 'off']
+        on_events = events_sorted[events_sorted["state"] == "on"]
+        off_events = events_sorted[events_sorted["state"] == "off"]
 
         for _, on_event in on_events.iterrows():
             # Find next off event
-            next_off = off_events[off_events['time'] > on_event['time']]
+            next_off = off_events[off_events["time"] > on_event["time"]]
 
             if not next_off.empty:
                 next_off_event = next_off.iloc[0]
-                duration = (next_off_event['time'] - on_event['time']).total_seconds()
+                duration = (next_off_event["time"] - on_event["time"]).total_seconds()
                 durations.append(duration)
 
         return durations
@@ -484,10 +484,10 @@ class DurationDetector(MLPatternDetector):
     def _analyze_duration_patterns(self, durations: list[float]) -> dict[str, Any]:
         """
         Analyze duration patterns using statistical methods.
-        
+
         Args:
             durations: List of durations in seconds
-            
+
         Returns:
             Duration analysis dictionary
         """
@@ -511,23 +511,23 @@ class DurationDetector(MLPatternDetector):
         efficiency = self._calculate_duration_efficiency(durations_array)
 
         return {
-            'mean': mean_duration,
-            'median': median_duration,
-            'std': std_duration,
-            'min': min_duration,
-            'max': max_duration,
-            'consistency': consistency,
-            'distribution': distribution,
-            'efficiency': efficiency
+            "mean": mean_duration,
+            "median": median_duration,
+            "std": std_duration,
+            "min": min_duration,
+            "max": max_duration,
+            "consistency": consistency,
+            "distribution": distribution,
+            "efficiency": efficiency,
         }
 
     def _analyze_duration_distribution(self, durations: np.ndarray) -> dict[str, Any]:
         """
         Analyze duration distribution.
-        
+
         Args:
             durations: Array of durations
-            
+
         Returns:
             Distribution analysis
         """
@@ -540,23 +540,22 @@ class DurationDetector(MLPatternDetector):
         peak_duration = (bin_edges[peak_bin] + bin_edges[peak_bin + 1]) / 2
 
         # Calculate distribution characteristics
-        distribution = {
-            'histogram': hist.tolist(),
-            'bin_edges': bin_edges.tolist(),
-            'peak_duration': peak_duration,
-            'peak_frequency': hist[peak_bin],
-            'distribution_type': self._classify_distribution(durations)
+        return {
+            "histogram": hist.tolist(),
+            "bin_edges": bin_edges.tolist(),
+            "peak_duration": peak_duration,
+            "peak_frequency": hist[peak_bin],
+            "distribution_type": self._classify_distribution(durations),
         }
 
-        return distribution
 
     def _classify_distribution(self, durations: np.ndarray) -> str:
         """
         Classify duration distribution type.
-        
+
         Args:
             durations: Array of durations
-            
+
         Returns:
             Distribution type string
         """
@@ -564,31 +563,31 @@ class DurationDetector(MLPatternDetector):
             # Test for normal distribution
             _, p_value = stats.normaltest(durations)
             if p_value > 0.05:
-                return 'normal'
+                return "normal"
 
             # Test for log-normal distribution
             log_durations = np.log(durations[durations > 0])
             _, p_value = stats.normaltest(log_durations)
             if p_value > 0.05:
-                return 'log_normal'
+                return "log_normal"
 
             # Test for exponential distribution
-            _, p_value = stats.kstest(durations, 'expon', args=(0, durations.mean()))
+            _, p_value = stats.kstest(durations, "expon", args=(0, durations.mean()))
             if p_value > 0.05:
-                return 'exponential'
+                return "exponential"
 
-            return 'unknown'
+            return "unknown"
 
         except Exception:
-            return 'unknown'
+            return "unknown"
 
     def _calculate_duration_efficiency(self, durations: np.ndarray) -> float:
         """
         Calculate duration efficiency score.
-        
+
         Args:
             durations: Array of durations
-            
+
         Returns:
             Efficiency score (0.0 to 1.0)
         """
@@ -615,34 +614,34 @@ class DurationDetector(MLPatternDetector):
     def _find_auto_off_events(self, device_events: pd.DataFrame) -> list[dict]:
         """
         Find auto-off timer events.
-        
+
         Args:
             device_events: Device events DataFrame
-            
+
         Returns:
             List of auto-off events
         """
         auto_off_events = []
-        events_sorted = device_events.sort_values('time')
+        events_sorted = device_events.sort_values("time")
 
         # Find on/off pairs with consistent duration
-        on_events = events_sorted[events_sorted['state'] == 'on']
-        off_events = events_sorted[events_sorted['state'] == 'off']
+        on_events = events_sorted[events_sorted["state"] == "on"]
+        off_events = events_sorted[events_sorted["state"] == "off"]
 
         for _, on_event in on_events.iterrows():
             # Find next off event
-            next_off = off_events[off_events['time'] > on_event['time']]
+            next_off = off_events[off_events["time"] > on_event["time"]]
 
             if not next_off.empty:
                 next_off_event = next_off.iloc[0]
-                duration = (next_off_event['time'] - on_event['time']).total_seconds()
+                duration = (next_off_event["time"] - on_event["time"]).total_seconds()
 
                 # Check if duration is consistent with auto-off timer
                 if self._is_auto_off_duration(duration):
                     auto_off_events.append({
-                        'time': on_event['time'],
-                        'duration_seconds': duration,
-                        'duration_minutes': duration / 60
+                        "time": on_event["time"],
+                        "duration_seconds": duration,
+                        "duration_minutes": duration / 60,
                     })
 
         return auto_off_events
@@ -650,10 +649,10 @@ class DurationDetector(MLPatternDetector):
     def _is_auto_off_duration(self, duration_seconds: float) -> bool:
         """
         Check if duration matches common auto-off timer values.
-        
+
         Args:
             duration_seconds: Duration in seconds
-            
+
         Returns:
             True if duration matches auto-off timer
         """
@@ -662,23 +661,19 @@ class DurationDetector(MLPatternDetector):
 
         duration_minutes = duration_seconds / 60
 
-        for timer in common_timers:
-            if abs(duration_minutes - timer) <= self.auto_off_tolerance_minutes:
-                return True
-
-        return False
+        return any(abs(duration_minutes - timer) <= self.auto_off_tolerance_minutes for timer in common_timers)
 
     def _analyze_auto_off_patterns(self, auto_off_events: list[dict]) -> dict[str, Any]:
         """
         Analyze auto-off patterns.
-        
+
         Args:
             auto_off_events: List of auto-off events
-            
+
         Returns:
             Auto-off analysis
         """
-        durations = [event['duration_minutes'] for event in auto_off_events]
+        durations = [event["duration_minutes"] for event in auto_off_events]
         durations_array = np.array(durations)
 
         # Calculate statistics
@@ -696,19 +691,19 @@ class DurationDetector(MLPatternDetector):
         distribution = self._analyze_duration_distribution(durations_array * 60)  # Convert to seconds
 
         return {
-            'avg_duration_minutes': avg_duration,
-            'consistency': consistency,
-            'accuracy': accuracy,
-            'distribution': distribution
+            "avg_duration_minutes": avg_duration,
+            "consistency": consistency,
+            "accuracy": accuracy,
+            "distribution": distribution,
         }
 
     def _calculate_auto_off_accuracy(self, durations: list[float]) -> float:
         """
         Calculate auto-off timer accuracy.
-        
+
         Args:
             durations: List of durations in minutes
-            
+
         Returns:
             Accuracy score (0.0 to 1.0)
         """
@@ -731,10 +726,10 @@ class DurationDetector(MLPatternDetector):
     def _calculate_efficiency_metrics(self, device_events: pd.DataFrame) -> dict[str, Any]:
         """
         Calculate efficiency metrics for device usage.
-        
+
         Args:
             device_events: Device events DataFrame
-            
+
         Returns:
             Efficiency metrics
         """
@@ -743,12 +738,12 @@ class DurationDetector(MLPatternDetector):
 
         if not durations:
             return {
-                'efficiency_score': 0.0,
-                'usage_frequency': 0.0,
-                'waste_score': 1.0,
-                'optimization_potential': 0.0,
-                'trend': 'stable',
-                'recommendations': []
+                "efficiency_score": 0.0,
+                "usage_frequency": 0.0,
+                "waste_score": 1.0,
+                "optimization_potential": 0.0,
+                "trend": "stable",
+                "recommendations": [],
             }
 
         durations_array = np.array(durations)
@@ -758,7 +753,7 @@ class DurationDetector(MLPatternDetector):
         consistency = max(0.0, min(1.0, consistency))
 
         # Usage frequency (events per day)
-        time_span_days = (device_events['time'].max() - device_events['time'].min()).total_seconds() / 86400
+        time_span_days = (device_events["time"].max() - device_events["time"].min()).total_seconds() / 86400
         usage_frequency = len(device_events) / max(time_span_days, 1)
 
         # Waste score (based on very short or very long durations)
@@ -772,28 +767,28 @@ class DurationDetector(MLPatternDetector):
 
         # Recommendations
         recommendations = self._generate_efficiency_recommendations(
-            durations_array, consistency, waste_score
+            durations_array, consistency, waste_score,
         )
 
         # Overall efficiency score
         efficiency_score = (consistency + (1.0 - waste_score) + (1.0 - optimization_potential)) / 3.0
 
         return {
-            'efficiency_score': max(0.0, min(1.0, efficiency_score)),
-            'usage_frequency': usage_frequency,
-            'waste_score': waste_score,
-            'optimization_potential': optimization_potential,
-            'trend': trend,
-            'recommendations': recommendations
+            "efficiency_score": max(0.0, min(1.0, efficiency_score)),
+            "usage_frequency": usage_frequency,
+            "waste_score": waste_score,
+            "optimization_potential": optimization_potential,
+            "trend": trend,
+            "recommendations": recommendations,
         }
 
     def _calculate_waste_score(self, durations: np.ndarray) -> float:
         """
         Calculate waste score based on duration patterns.
-        
+
         Args:
             durations: Array of durations in seconds
-            
+
         Returns:
             Waste score (0.0 to 1.0, higher = more waste)
         """
@@ -816,21 +811,21 @@ class DurationDetector(MLPatternDetector):
     def _analyze_efficiency_trend(self, device_events: pd.DataFrame) -> str:
         """
         Analyze efficiency trend over time.
-        
+
         Args:
             device_events: Device events DataFrame
-            
+
         Returns:
             Trend description
         """
         if len(device_events) < 4:
-            return 'insufficient_data'
+            return "insufficient_data"
 
         # Calculate durations over time
         durations = self._calculate_usage_durations(device_events)
 
         if len(durations) < 3:
-            return 'insufficient_data'
+            return "insufficient_data"
 
         # Simple trend analysis
         durations_array = np.array(durations)
@@ -841,28 +836,27 @@ class DurationDetector(MLPatternDetector):
             slope, _, _, _, _ = stats.linregress(x, durations_array)
 
             if slope > 0.1:
-                return 'improving'
-            elif slope < -0.1:
-                return 'declining'
-            else:
-                return 'stable'
+                return "improving"
+            if slope < -0.1:
+                return "declining"
+            return "stable"
         except Exception:
-            return 'unknown'
+            return "unknown"
 
     def _generate_efficiency_recommendations(
         self,
         durations: np.ndarray,
         consistency: float,
-        waste_score: float
+        waste_score: float,
     ) -> list[str]:
         """
         Generate efficiency recommendations.
-        
+
         Args:
             durations: Array of durations
             consistency: Consistency score
             waste_score: Waste score
-            
+
         Returns:
             List of recommendations
         """
@@ -885,17 +879,17 @@ class DurationDetector(MLPatternDetector):
     def _extract_duration_features(self, events_df: pd.DataFrame) -> np.ndarray:
         """
         Extract duration features for clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         # Group by device and extract features
-        for entity_id, device_events in events_df.groupby('entity_id'):
+        for _entity_id, device_events in events_df.groupby("entity_id"):
             durations = self._calculate_usage_durations(device_events)
             valid_durations = [
                 d for d in durations
@@ -911,7 +905,7 @@ class DurationDetector(MLPatternDetector):
                     np.median(durations_array),  # Median duration
                     len(valid_durations),      # Usage count
                     np.min(durations_array),   # Min duration
-                    np.max(durations_array)    # Max duration
+                    np.max(durations_array),    # Max duration
                 ]
                 features.append(feature_vector)
 
@@ -920,11 +914,11 @@ class DurationDetector(MLPatternDetector):
     def _calculate_duration_confidence(self, occurrences: int, duration_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for duration patterns.
-        
+
         Args:
             occurrences: Number of occurrences
             duration_analysis: Duration analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -932,11 +926,11 @@ class DurationDetector(MLPatternDetector):
         base_confidence = min(occurrences / 15.0, 1.0)
 
         # Consistency bonus
-        consistency = duration_analysis.get('consistency', 0.0)
+        consistency = duration_analysis.get("consistency", 0.0)
         consistency_bonus = consistency * 0.3
 
         # Efficiency bonus
-        efficiency = duration_analysis.get('efficiency', 0.0)
+        efficiency = duration_analysis.get("efficiency", 0.0)
         efficiency_bonus = efficiency * 0.2
 
         total_confidence = base_confidence + consistency_bonus + efficiency_bonus
@@ -946,11 +940,11 @@ class DurationDetector(MLPatternDetector):
     def _calculate_auto_off_confidence(self, occurrences: int, auto_off_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for auto-off patterns.
-        
+
         Args:
             occurrences: Number of occurrences
             auto_off_analysis: Auto-off analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -958,11 +952,11 @@ class DurationDetector(MLPatternDetector):
         base_confidence = min(occurrences / 10.0, 1.0)
 
         # Consistency bonus
-        consistency = auto_off_analysis.get('consistency', 0.0)
+        consistency = auto_off_analysis.get("consistency", 0.0)
         consistency_bonus = consistency * 0.4
 
         # Accuracy bonus
-        accuracy = auto_off_analysis.get('accuracy', 0.0)
+        accuracy = auto_off_analysis.get("accuracy", 0.0)
         accuracy_bonus = accuracy * 0.3
 
         total_confidence = base_confidence + consistency_bonus + accuracy_bonus
@@ -972,22 +966,22 @@ class DurationDetector(MLPatternDetector):
     def _calculate_efficiency_confidence(self, efficiency_metrics: dict[str, Any]) -> float:
         """
         Calculate confidence for efficiency patterns.
-        
+
         Args:
             efficiency_metrics: Efficiency metrics
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from efficiency score
-        base_confidence = efficiency_metrics.get('efficiency_score', 0.0)
+        base_confidence = efficiency_metrics.get("efficiency_score", 0.0)
 
         # Usage frequency bonus
-        frequency = efficiency_metrics.get('usage_frequency', 0.0)
+        frequency = efficiency_metrics.get("usage_frequency", 0.0)
         frequency_bonus = min(frequency / 10.0, 0.2)
 
         # Waste score penalty
-        waste_score = efficiency_metrics.get('waste_score', 0.0)
+        waste_score = efficiency_metrics.get("waste_score", 0.0)
         waste_penalty = waste_score * 0.2
 
         total_confidence = base_confidence + frequency_bonus - waste_penalty
@@ -997,12 +991,12 @@ class DurationDetector(MLPatternDetector):
     def _calculate_cluster_confidence(self, cluster_durations: np.ndarray, cluster_id: int, kmeans_model) -> float:
         """
         Calculate confidence for duration clusters.
-        
+
         Args:
             cluster_durations: Durations in cluster
             cluster_id: Cluster identifier
             kmeans_model: Fitted KMeans model
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -1023,31 +1017,31 @@ class DurationDetector(MLPatternDetector):
     def _describe_duration_cluster(self, cluster_durations: np.ndarray, cluster_id: int) -> dict[str, Any]:
         """
         Describe duration cluster characteristics.
-        
+
         Args:
             cluster_durations: Durations in cluster
             cluster_id: Cluster identifier
-            
+
         Returns:
             Cluster characteristics
         """
         return {
-            'cluster_id': cluster_id,
-            'duration_count': len(cluster_durations),
-            'avg_duration_seconds': np.mean(cluster_durations),
-            'median_duration_seconds': np.median(cluster_durations),
-            'std_duration_seconds': np.std(cluster_durations),
-            'min_duration_seconds': np.min(cluster_durations),
-            'max_duration_seconds': np.max(cluster_durations)
+            "cluster_id": cluster_id,
+            "duration_count": len(cluster_durations),
+            "avg_duration_seconds": np.mean(cluster_durations),
+            "median_duration_seconds": np.median(cluster_durations),
+            "std_duration_seconds": np.std(cluster_durations),
+            "min_duration_seconds": np.min(cluster_durations),
+            "max_duration_seconds": np.max(cluster_durations),
         }
 
     def _perform_statistical_analysis(self, durations: list[float]) -> dict[str, Any]:
         """
         Perform statistical analysis on durations.
-        
+
         Args:
             durations: List of durations
-            
+
         Returns:
             Statistical analysis results
         """
@@ -1060,60 +1054,59 @@ class DurationDetector(MLPatternDetector):
             if p_value < 0.05:
                 # Not normal, test for other distributions
                 return {
-                    'has_pattern': True,
-                    'test_name': 'normality_test',
-                    'p_value': p_value,
-                    'test_statistic': statistic,
-                    'description': 'Non-normal duration distribution detected',
-                    'confidence_interval': stats.norm.interval(0.95, loc=np.mean(durations_array), scale=np.std(durations_array)),
-                    'effect_size': 'medium'
+                    "has_pattern": True,
+                    "test_name": "normality_test",
+                    "p_value": p_value,
+                    "test_statistic": statistic,
+                    "description": "Non-normal duration distribution detected",
+                    "confidence_interval": stats.norm.interval(0.95, loc=np.mean(durations_array), scale=np.std(durations_array)),
+                    "effect_size": "medium",
                 }
-            else:
-                return {
-                    'has_pattern': False,
-                    'test_name': 'normality_test',
-                    'p_value': p_value,
-                    'test_statistic': statistic,
-                    'description': 'Normal duration distribution',
-                    'confidence_interval': None,
-                    'effect_size': 'small'
-                }
+            return {
+                "has_pattern": False,
+                "test_name": "normality_test",
+                "p_value": p_value,
+                "test_statistic": statistic,
+                "description": "Normal duration distribution",
+                "confidence_interval": None,
+                "effect_size": "small",
+            }
 
         except Exception as e:
             logger.warning(f"Statistical analysis failed: {e}")
             return {
-                'has_pattern': False,
-                'test_name': 'error',
-                'p_value': 1.0,
-                'test_statistic': 0.0,
-                'description': 'Analysis failed',
-                'confidence_interval': None,
-                'effect_size': 'unknown'
+                "has_pattern": False,
+                "test_name": "error",
+                "p_value": 1.0,
+                "test_statistic": 0.0,
+                "description": "Analysis failed",
+                "confidence_interval": None,
+                "effect_size": "unknown",
             }
 
     def _calculate_statistical_confidence(self, statistical_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for statistical patterns.
-        
+
         Args:
             statistical_analysis: Statistical analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
-        if not statistical_analysis['has_pattern']:
+        if not statistical_analysis["has_pattern"]:
             return 0.0
 
         # Base confidence from p-value
-        p_value = statistical_analysis['p_value']
+        p_value = statistical_analysis["p_value"]
         base_confidence = 1.0 - p_value
 
         # Effect size bonus
-        effect_size = statistical_analysis.get('effect_size', 'small')
+        effect_size = statistical_analysis.get("effect_size", "small")
         effect_bonus = {
-            'small': 0.1,
-            'medium': 0.2,
-            'large': 0.3
+            "small": 0.1,
+            "medium": 0.2,
+            "large": 0.3,
         }.get(effect_size, 0.1)
 
         total_confidence = base_confidence + effect_bonus
@@ -1123,10 +1116,10 @@ class DurationDetector(MLPatternDetector):
     def _cluster_duration_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Cluster similar duration patterns using ML.
-        
+
         Args:
             patterns: List of duration patterns
-            
+
         Returns:
             Clustered patterns with cluster information
         """
@@ -1150,38 +1143,38 @@ class DurationDetector(MLPatternDetector):
     def _extract_duration_pattern_features(self, patterns: list[dict]) -> np.ndarray:
         """
         Extract features for duration pattern clustering.
-        
+
         Args:
             patterns: List of duration patterns
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         for pattern in patterns:
-            metadata = pattern['metadata']
+            metadata = pattern["metadata"]
 
             # Extract numerical features
             feature_vector = [
-                pattern['occurrences'],
-                pattern['confidence'],
-                len(pattern['devices']),
-                metadata.get('avg_duration_seconds', 0),
-                metadata.get('duration_consistency', 0.0),
-                metadata.get('efficiency_score', 0.0),
-                metadata.get('auto_off_consistency', 0.0),
-                metadata.get('waste_score', 0.0)
+                pattern["occurrences"],
+                pattern["confidence"],
+                len(pattern["devices"]),
+                metadata.get("avg_duration_seconds", 0),
+                metadata.get("duration_consistency", 0.0),
+                metadata.get("efficiency_score", 0.0),
+                metadata.get("auto_off_consistency", 0.0),
+                metadata.get("waste_score", 0.0),
             ]
 
             # Add pattern type encoding
-            pattern_type = pattern['pattern_type']
+            pattern_type = pattern["pattern_type"]
             type_encoding = {
-                'usage_duration': 0,
-                'auto_off': 1,
-                'efficiency': 2,
-                'duration_cluster': 3,
-                'statistical_duration': 4
+                "usage_duration": 0,
+                "auto_off": 1,
+                "efficiency": 2,
+                "duration_cluster": 3,
+                "statistical_duration": 4,
             }.get(pattern_type, 0)
             feature_vector.append(type_encoding)
 

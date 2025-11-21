@@ -12,13 +12,13 @@ async def show_device_sample():
 
     async for session in get_db_session():
         # Get ALL device fields
-        result = await session.execute(text('''
+        result = await session.execute(text("""
             SELECT id, name, manufacturer, model, integration, area_id, area_name,
                    device_class, sw_version, hw_version, power_source, via_device_id,
                    config_entry_id, connections_json, identifiers_json, zigbee_ieee, is_battery_powered
-            FROM devices 
+            FROM devices
             LIMIT 10
-        '''))
+        """))
 
         devices = result.fetchall()
 

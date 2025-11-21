@@ -24,7 +24,7 @@ class TestCapabilityParser:
         exposes = [
             {"type": "light", "features": [{"name": "state"}, {"name": "brightness"}]},
             {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"], "description": "Smart bulb mode"},
-            {"type": "numeric", "name": "autoTimerOff", "value_min": 0, "value_max": 32767, "unit": "seconds"}
+            {"type": "numeric", "name": "autoTimerOff", "value_min": 0, "value_max": 32767, "unit": "seconds"},
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -59,7 +59,7 @@ class TestCapabilityParser:
         exposes = [
             {"type": "binary", "name": "contact", "value_on": "open", "value_off": "close", "description": "Door/window contact"},
             {"type": "binary", "name": "vibration", "value_on": True, "value_off": False, "description": "Vibration detected"},
-            {"type": "numeric", "name": "battery", "unit": "%", "value_min": 0, "value_max": 100}
+            {"type": "numeric", "name": "battery", "unit": "%", "value_min": 0, "value_max": 100},
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -93,10 +93,10 @@ class TestCapabilityParser:
                 "features": [
                     {"name": "state"},
                     {"name": "brightness"},
-                    {"name": "color_temp"}
-                ]
+                    {"name": "color_temp"},
+                ],
             },
-            {"type": "enum", "name": "effect", "values": ["blink", "breathe", "okay", "finish_effect"]}
+            {"type": "enum", "name": "effect", "values": ["blink", "breathe", "okay", "finish_effect"]},
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -121,7 +121,7 @@ class TestCapabilityParser:
         exposes = [
             {"type": "numeric", "name": "temperature", "unit": "°C", "value_min": -40, "value_max": 125},
             {"type": "numeric", "name": "humidity", "unit": "%", "value_min": 0, "value_max": 100},
-            {"type": "numeric", "name": "battery", "unit": "%", "value_min": 0, "value_max": 100}
+            {"type": "numeric", "name": "battery", "unit": "%", "value_min": 0, "value_max": 100},
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -144,7 +144,7 @@ class TestCapabilityParser:
     def test_parse_unknown_expose_type(self):
         """Test parser doesn't crash on unknown expose type"""
         exposes = [
-            {"type": "unknown_future_type", "name": "future_feature"}
+            {"type": "unknown_future_type", "name": "future_feature"},
         ]
 
         # Should not crash
@@ -166,7 +166,7 @@ class TestCapabilityParser:
             {"type": "enum"},  # Missing 'name'
             {"name": "something"},  # Missing 'type'
             "not a dict",  # Not a dict
-            None  # None
+            None,  # None
         ]
 
         # Should not crash
@@ -178,7 +178,7 @@ class TestCapabilityParser:
         exposes = [
             {"type": "enum", "values": ["a", "b"]},  # Missing name
             {"type": "numeric", "value_min": 0},  # Missing name
-            {"type": "binary", "value_on": True}  # Missing name
+            {"type": "binary", "value_on": True},  # Missing name
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -237,9 +237,9 @@ class TestCapabilityParser:
                 "features": [
                     {"name": "current_heating_setpoint"},
                     {"name": "local_temperature"},
-                    {"name": "system_mode"}
-                ]
-            }
+                    {"name": "system_mode"},
+                ],
+            },
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -256,7 +256,7 @@ class TestCapabilityParser:
     def test_parse_switch_control(self):
         """Test parsing basic switch exposes"""
         exposes = [
-            {"type": "switch"}
+            {"type": "switch"},
         ]
 
         capabilities = self.parser.parse_exposes(exposes)
@@ -269,19 +269,19 @@ class TestCapabilityParser:
     # Multi-Manufacturer Integration Test
     # =========================================================================
 
-    @pytest.mark.parametrize("manufacturer,exposes,expected_count", [
+    @pytest.mark.parametrize(("manufacturer", "exposes", "expected_count"), [
         ("Inovelli", [
             {"type": "light", "features": [{"name": "state"}]},
-            {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]}
+            {"type": "enum", "name": "smartBulbMode", "values": ["Disabled", "Enabled"]},
         ], 2),
         ("Aqara", [
-            {"type": "binary", "name": "contact", "value_on": "open", "value_off": "close"}
+            {"type": "binary", "name": "contact", "value_on": "open", "value_off": "close"},
         ], 1),
         ("IKEA", [
-            {"type": "light", "features": [{"name": "state"}, {"name": "brightness"}]}
+            {"type": "light", "features": [{"name": "state"}, {"name": "brightness"}]},
         ], 1),
         ("Xiaomi", [
-            {"type": "numeric", "name": "temperature", "unit": "°C"}
+            {"type": "numeric", "name": "temperature", "unit": "°C"},
         ], 1),
     ])
     def test_parse_multiple_manufacturers(self, manufacturer, exposes, expected_count):
@@ -292,7 +292,7 @@ class TestCapabilityParser:
         assert isinstance(capabilities, dict)
 
         # All capabilities should have required fields
-        for cap_name, cap_data in capabilities.items():
+        for _cap_name, cap_data in capabilities.items():
             assert "type" in cap_data
             assert "complexity" in cap_data
 

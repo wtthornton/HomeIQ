@@ -44,14 +44,14 @@ class TestDiscoveryService:
                 "id": "device1",
                 "name": "Living Room Light",
                 "manufacturer": "Philips",
-                "model": "Hue Bulb"
+                "model": "Hue Bulb",
             },
             {
                 "id": "device2",
                 "name": "Bedroom Switch",
                 "manufacturer": "Lutron",
-                "model": "Caseta"
-            }
+                "model": "Caseta",
+            },
         ]
 
         mock_response = MagicMock()
@@ -60,7 +60,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": mock_devices
+            "result": mock_devices,
         }
 
         mock_ws.receive.return_value = mock_response
@@ -91,7 +91,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": []
+            "result": [],
         }
 
         mock_ws.receive.return_value = mock_response
@@ -112,7 +112,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": False,
-            "error": {"message": "Permission denied"}
+            "error": {"message": "Permission denied"},
         }
 
         mock_ws.receive.return_value = mock_response
@@ -140,13 +140,13 @@ class TestDiscoveryService:
             {
                 "entity_id": "light.living_room",
                 "platform": "hue",
-                "device_id": "device1"
+                "device_id": "device1",
             },
             {
                 "entity_id": "switch.bedroom",
                 "platform": "caseta",
-                "device_id": "device2"
-            }
+                "device_id": "device2",
+            },
         ]
 
         mock_response = MagicMock()
@@ -155,7 +155,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": mock_entities
+            "result": mock_entities,
         }
 
         mock_ws.receive.return_value = mock_response
@@ -181,14 +181,14 @@ class TestDiscoveryService:
                 "entry_id": "entry1",
                 "title": "Philips Hue",
                 "domain": "hue",
-                "state": "loaded"
+                "state": "loaded",
             },
             {
                 "entry_id": "entry2",
                 "title": "Google Nest",
                 "domain": "nest",
-                "state": "loaded"
-            }
+                "state": "loaded",
+            },
         ]
 
         mock_response = MagicMock()
@@ -197,7 +197,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": mock_entries
+            "result": mock_entries,
         }
 
         mock_ws.receive.return_value = mock_response
@@ -227,8 +227,8 @@ class TestDiscoveryService:
                     "id": 1001,
                     "type": "result",
                     "success": True,
-                    "result": [{"id": "dev1", "name": "Device 1"}]
-                }
+                    "result": [{"id": "dev1", "name": "Device 1"}],
+                },
             ),
             # Entities response
             MagicMock(
@@ -237,8 +237,8 @@ class TestDiscoveryService:
                     "id": 1002,
                     "type": "result",
                     "success": True,
-                    "result": [{"entity_id": "light.test"}]
-                }
+                    "result": [{"entity_id": "light.test"}],
+                },
             ),
             # Config entries response
             MagicMock(
@@ -247,9 +247,9 @@ class TestDiscoveryService:
                     "id": 1003,
                     "type": "result",
                     "success": True,
-                    "result": [{"entry_id": "entry1", "title": "Test"}]
-                }
-            )
+                    "result": [{"entry_id": "entry1", "title": "Test"}],
+                },
+            ),
         ]
 
         mock_ws.receive.side_effect = responses
@@ -276,9 +276,9 @@ class TestDiscoveryService:
                     "id": 1001,
                     "type": "result",
                     "success": True,
-                    "result": [{"id": "dev1"}]
-                }
-            )
+                    "result": [{"id": "dev1"}],
+                },
+            ),
         ]
 
         mock_ws.receive.side_effect = responses + [asyncio.TimeoutError()] * 2
@@ -302,7 +302,7 @@ class TestDiscoveryService:
             "id": 100,
             "type": "result",
             "success": True,
-            "result": []
+            "result": [],
         }
 
         mock_msg = MagicMock()
@@ -356,7 +356,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": None
+            "result": None,
         }
 
         mock_ws.receive.return_value = mock_response
@@ -383,7 +383,7 @@ class TestDiscoveryService:
             "id": 1001,
             "type": "result",
             "success": True,
-            "result": None
+            "result": None,
         }
 
         mock_ws.receive.return_value = mock_response
@@ -410,9 +410,9 @@ class TestDiscoveryService:
                     "id": "dev123",
                     "name": "New Device",
                     "manufacturer": "Acme",
-                    "model": "X1"
-                }
-            }
+                    "model": "X1",
+                },
+            },
         }
 
         result = await self.service.handle_device_registry_event(event)
@@ -426,8 +426,8 @@ class TestDiscoveryService:
             "event_type": "device_registry_updated",
             "data": {
                 "action": "remove",
-                "device_id": "dev123"
-            }
+                "device_id": "dev123",
+            },
         }
 
         result = await self.service.handle_device_registry_event(event)
@@ -445,9 +445,9 @@ class TestDiscoveryService:
                 "entity": {
                     "entity_id": "light.new_light",
                     "platform": "hue",
-                    "device_id": "dev123"
-                }
-            }
+                    "device_id": "dev123",
+                },
+            },
         }
 
         result = await self.service.handle_entity_registry_event(event)
@@ -459,7 +459,7 @@ class TestDiscoveryService:
         """Test handling malformed entity registry event"""
         event = {
             "event_type": "entity_registry_updated",
-            "data": {}
+            "data": {},
         }
 
         result = await self.service.handle_entity_registry_event(event)

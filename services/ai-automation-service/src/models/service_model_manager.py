@@ -36,7 +36,7 @@ class ServiceModelManager:
             "ml": False,
             "ner": False,
             "openai": False,
-            "ai_core": False
+            "ai_core": False,
         }
 
         logger.info("ServiceModelManager initialized with containerized services")
@@ -54,7 +54,7 @@ class ServiceModelManager:
             ("ml", self.ml_url),
             ("ner", self.ner_url),
             ("openai", self.openai_url),
-            ("ai_core", self.ai_core_url)
+            ("ai_core", self.ai_core_url),
         ]
 
         for service_name, url in services:
@@ -76,15 +76,16 @@ class ServiceModelManager:
         Returns: (N, 384) numpy array
         """
         if not self.service_health["openvino"]:
-            raise RuntimeError("OpenVINO service not available")
+            msg = "OpenVINO service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
                 f"{self.openvino_url}/embeddings",
                 json={
                     "texts": texts,
-                    "normalize": normalize
-                }
+                    "normalize": normalize,
+                },
             )
             response.raise_for_status()
 
@@ -92,7 +93,7 @@ class ServiceModelManager:
             return np.array(data["embeddings"])
 
         except Exception as e:
-            logger.error(f"Error generating embeddings: {e}")
+            logger.exception(f"Error generating embeddings: {e}")
             raise
 
     async def rerank(self, query: str, candidates: list[dict], top_k: int = 10) -> list[dict]:
@@ -100,7 +101,8 @@ class ServiceModelManager:
         Re-rank candidates using OpenVINO service
         """
         if not self.service_health["openvino"]:
-            raise RuntimeError("OpenVINO service not available")
+            msg = "OpenVINO service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
@@ -108,8 +110,8 @@ class ServiceModelManager:
                 json={
                     "query": query,
                     "candidates": candidates,
-                    "top_k": top_k
-                }
+                    "top_k": top_k,
+                },
             )
             response.raise_for_status()
 
@@ -117,7 +119,7 @@ class ServiceModelManager:
             return data["ranked_candidates"]
 
         except Exception as e:
-            logger.error(f"Error re-ranking candidates: {e}")
+            logger.exception(f"Error re-ranking candidates: {e}")
             raise
 
     async def classify_pattern(self, pattern_description: str) -> dict[str, str]:
@@ -125,25 +127,26 @@ class ServiceModelManager:
         Classify pattern using OpenVINO service
         """
         if not self.service_health["openvino"]:
-            raise RuntimeError("OpenVINO service not available")
+            msg = "OpenVINO service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
                 f"{self.openvino_url}/classify",
                 json={
-                    "pattern_description": pattern_description
-                }
+                    "pattern_description": pattern_description,
+                },
             )
             response.raise_for_status()
 
             data = response.json()
             return {
                 "category": data["category"],
-                "priority": data["priority"]
+                "priority": data["priority"],
             }
 
         except Exception as e:
-            logger.error(f"Error classifying pattern: {e}")
+            logger.exception(f"Error classifying pattern: {e}")
             raise
 
     async def cluster_data(self, data: list[list[float]], algorithm: str = "kmeans", **kwargs) -> dict[str, Any]:
@@ -151,7 +154,8 @@ class ServiceModelManager:
         Cluster data using ML service
         """
         if not self.service_health["ml"]:
-            raise RuntimeError("ML service not available")
+            msg = "ML service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
@@ -159,15 +163,15 @@ class ServiceModelManager:
                 json={
                     "data": data,
                     "algorithm": algorithm,
-                    **kwargs
-                }
+                    **kwargs,
+                },
             )
             response.raise_for_status()
 
             return response.json()
 
         except Exception as e:
-            logger.error(f"Error clustering data: {e}")
+            logger.exception(f"Error clustering data: {e}")
             raise
 
     async def detect_anomalies(self, data: list[list[float]], contamination: float = 0.1) -> dict[str, Any]:
@@ -175,22 +179,23 @@ class ServiceModelManager:
         Detect anomalies using ML service
         """
         if not self.service_health["ml"]:
-            raise RuntimeError("ML service not available")
+            msg = "ML service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
                 f"{self.ml_url}/anomaly",
                 json={
                     "data": data,
-                    "contamination": contamination
-                }
+                    "contamination": contamination,
+                },
             )
             response.raise_for_status()
 
             return response.json()
 
         except Exception as e:
-            logger.error(f"Error detecting anomalies: {e}")
+            logger.exception(f"Error detecting anomalies: {e}")
             raise
 
     async def extract_entities(self, text: str) -> list[dict[str, Any]]:
@@ -198,14 +203,15 @@ class ServiceModelManager:
         Extract entities using NER service
         """
         if not self.service_health["ner"]:
-            raise RuntimeError("NER service not available")
+            msg = "NER service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
                 f"{self.ner_url}/extract",
                 json={
-                    "text": text
-                }
+                    "text": text,
+                },
             )
             response.raise_for_status()
 
@@ -213,7 +219,7 @@ class ServiceModelManager:
             return data["entities"]
 
         except Exception as e:
-            logger.error(f"Error extracting entities: {e}")
+            logger.exception(f"Error extracting entities: {e}")
             raise
 
     async def generate_with_openai(self, prompt: str, model: str = "gpt-4o-mini", **kwargs) -> str:
@@ -221,7 +227,8 @@ class ServiceModelManager:
         Generate text using OpenAI service
         """
         if not self.service_health["openai"]:
-            raise RuntimeError("OpenAI service not available")
+            msg = "OpenAI service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
@@ -229,8 +236,8 @@ class ServiceModelManager:
                 json={
                     "prompt": prompt,
                     "model": model,
-                    **kwargs
-                }
+                    **kwargs,
+                },
             )
             response.raise_for_status()
 
@@ -238,15 +245,16 @@ class ServiceModelManager:
             return data["response"]
 
         except Exception as e:
-            logger.error(f"Error generating with OpenAI: {e}")
+            logger.exception(f"Error generating with OpenAI: {e}")
             raise
 
-    async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any] = None) -> dict[str, Any]:
+    async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Perform comprehensive analysis using AI Core service
         """
         if not self.service_health["ai_core"]:
-            raise RuntimeError("AI Core service not available")
+            msg = "AI Core service not available"
+            raise RuntimeError(msg)
 
         try:
             response = await self.client.post(
@@ -254,15 +262,15 @@ class ServiceModelManager:
                 json={
                     "data": data,
                     "analysis_type": analysis_type,
-                    "options": options or {}
-                }
+                    "options": options or {},
+                },
             )
             response.raise_for_status()
 
             return response.json()
 
         except Exception as e:
-            logger.error(f"Error analyzing data: {e}")
+            logger.exception(f"Error analyzing data: {e}")
             raise
 
     def get_model_info(self) -> dict[str, Any]:
@@ -273,29 +281,29 @@ class ServiceModelManager:
                 "openvino": {
                     "url": self.openvino_url,
                     "healthy": self.service_health["openvino"],
-                    "models": ["all-MiniLM-L6-v2", "bge-reranker-base", "flan-t5-small"]
+                    "models": ["all-MiniLM-L6-v2", "bge-reranker-base", "flan-t5-small"],
                 },
                 "ml": {
                     "url": self.ml_url,
                     "healthy": self.service_health["ml"],
-                    "algorithms": ["kmeans", "dbscan", "isolation_forest"]
+                    "algorithms": ["kmeans", "dbscan", "isolation_forest"],
                 },
                 "ner": {
                     "url": self.ner_url,
                     "healthy": self.service_health["ner"],
-                    "models": ["dslim/bert-base-NER", "spaCy"]
+                    "models": ["dslim/bert-base-NER", "spaCy"],
                 },
                 "openai": {
                     "url": self.openai_url,
                     "healthy": self.service_health["openai"],
-                    "models": ["gpt-4o-mini"]
+                    "models": ["gpt-4o-mini"],
                 },
                 "ai_core": {
                     "url": self.ai_core_url,
                     "healthy": self.service_health["ai_core"],
-                    "purpose": "orchestrator"
-                }
-            }
+                    "purpose": "orchestrator",
+                },
+            },
         }
 
     async def cleanup(self):

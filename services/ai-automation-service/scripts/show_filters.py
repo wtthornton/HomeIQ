@@ -35,20 +35,20 @@ print(f"  Minimum confidence: {MIN_CONFIDENCE}")
 
 print("\n=== TEST EXAMPLES ===")
 test_devices = [
-    'light.bedroom',
-    'switch.living_room',
-    'media_player.tv',
-    'sensor.battery',
-    'sensor.dal_team_tracker',
-    'sensor.home_assistant_cpu',
-    'sensor.slzb_coordinator_temp',
-    'image.roborock_map_0',
-    'event.backup_automatic',
-    'device_tracker.phone',
-    'person.bill',
-    'binary_sensor.motion',
-    'climate.thermostat',
-    'fan.ceiling_fan',
+    "light.bedroom",
+    "switch.living_room",
+    "media_player.tv",
+    "sensor.battery",
+    "sensor.dal_team_tracker",
+    "sensor.home_assistant_cpu",
+    "sensor.slzb_coordinator_temp",
+    "image.roborock_map_0",
+    "event.backup_automatic",
+    "device_tracker.phone",
+    "person.bill",
+    "binary_sensor.motion",
+    "climate.thermostat",
+    "fan.ceiling_fan",
 ]
 
 for device in test_devices:
@@ -60,10 +60,10 @@ print("\n=== CO-OCCURRENCE PATTERN VALIDATION ===")
 print("For co-occurrence patterns, BOTH devices must be actionable.")
 print("Examples:")
 test_co_occurrence = [
-    ('light.bedroom', 'switch.living_room', True),
-    ('light.bedroom', 'sensor.battery', False),
-    ('media_player.tv', 'sensor.dal_team_tracker', False),
-    ('light.living_room', 'media_player.tv', True),
+    ("light.bedroom", "switch.living_room", True),
+    ("light.bedroom", "sensor.battery", False),
+    ("media_player.tv", "sensor.dal_team_tracker", False),
+    ("light.living_room", "media_player.tv", True),
 ]
 
 for device1, device2, expected in test_co_occurrence:

@@ -17,13 +17,13 @@ What this does:
 Usage:
     # 1. Stop service first!
     docker-compose stop ai-automation-service
-    
+
     # 2. Run this script
     python scripts/alpha_reset_database.py
-    
+
     # 3. Restart service
     docker-compose up -d ai-automation-service
-    
+
     # 4. Reprocess patterns
     python scripts/reprocess_patterns.py
 """
@@ -62,7 +62,7 @@ def confirm_deletion():
     print("")
 
     response = input("Type 'yes' to continue or anything else to cancel: ")
-    return response.lower() == 'yes'
+    return response.lower() == "yes"
 
 
 async def reset_database():
@@ -101,12 +101,12 @@ async def reset_database():
     suggestion_fields = [c.name for c in Suggestion.__table__.columns]
 
     required_fields = [
-        'description_only',
-        'conversation_history',
-        'device_capabilities',
-        'refinement_count',
-        'yaml_generated_at',
-        'approved_at'
+        "description_only",
+        "conversation_history",
+        "device_capabilities",
+        "refinement_count",
+        "yaml_generated_at",
+        "approved_at",
     ]
 
     missing_fields = [f for f in required_fields if f not in suggestion_fields]
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n⚠️  Interrupted by user")
     except Exception as e:
-        logger.error(f"\n❌ Fatal error: {e}")
+        logger.exception(f"\n❌ Fatal error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

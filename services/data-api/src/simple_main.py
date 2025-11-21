@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../../shared"))
 
 from shared.endpoints import create_integration_router, simple_health_router
 from src.config_manager import config_manager
@@ -38,7 +38,7 @@ app = FastAPI(
     title="HA Ingestor Admin API - Simplified",
     description="Simplified Admin API for Dashboard Integration",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -63,7 +63,7 @@ async def root():
     return {
         "message": "HA Ingestor Admin API - Simplified",
         "version": "1.0.0",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 

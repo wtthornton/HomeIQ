@@ -23,7 +23,7 @@ class DeviceHealthScorer:
             "error_rate": 0.30,
             "battery_level": 0.20,
             "signal_strength": 0.15,
-            "usage_pattern": 0.10
+            "usage_pattern": 0.10,
         }
 
         # Thresholds for different performance levels
@@ -32,7 +32,7 @@ class DeviceHealthScorer:
             "error_rate": {"excellent": 0.01, "good": 0.05, "fair": 0.10, "poor": 0.20},
             "battery_level": {"excellent": 80, "good": 60, "fair": 40, "poor": 20},
             "signal_strength": {"excellent": -50, "good": -60, "fair": -70, "poor": -80},
-            "usage_pattern": {"excellent": 0.8, "good": 0.6, "fair": 0.4, "poor": 0.2}
+            "usage_pattern": {"excellent": 0.8, "good": 0.6, "fair": 0.4, "poor": 0.2},
         }
 
         # Health status thresholds
@@ -41,10 +41,10 @@ class DeviceHealthScorer:
             "good": 75,
             "fair": 60,
             "poor": 40,
-            "critical": 0
+            "critical": 0,
         }
 
-    async def calculate_health_score(self, device_id: str, metrics: dict[str, Any], historical_metrics: list[dict[str, Any]] = None) -> dict[str, Any]:
+    async def calculate_health_score(self, device_id: str, metrics: dict[str, Any], historical_metrics: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Calculate comprehensive health score for device."""
         try:
             # Use provided historical metrics or empty list
@@ -85,7 +85,7 @@ class DeviceHealthScorer:
                     "error_rate": round(error_rate_score, 1),
                     "battery_level": round(battery_score, 1),
                     "signal_strength": round(signal_score, 1),
-                    "usage_pattern": round(usage_score, 1)
+                    "usage_pattern": round(usage_score, 1),
                 },
                 "weights": self.weights,
                 "trend_adjustment": round(trend_adjustment, 1),
@@ -94,17 +94,17 @@ class DeviceHealthScorer:
                 "calculated_at": datetime.now(timezone.utc).isoformat(),
                 "metrics_used": {
                     "current": metrics,
-                    "historical_count": len(historical_metrics)
-                }
+                    "historical_count": len(historical_metrics),
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error calculating health score for device {device_id}: {e}")
+            logger.exception(f"Error calculating health score for device {device_id}: {e}")
             return {
                 "device_id": device_id,
                 "overall_score": 0,
                 "error": str(e),
-                "calculated_at": datetime.now(timezone.utc).isoformat()
+                "calculated_at": datetime.now(timezone.utc).isoformat(),
             }
 
     async def _calculate_response_time_score(self, metrics: dict[str, Any], historical: list[dict[str, Any]]) -> float:
@@ -273,14 +273,13 @@ class DeviceHealthScorer:
         """Get health status based on score."""
         if score >= self.health_status_thresholds["excellent"]:
             return "excellent"
-        elif score >= self.health_status_thresholds["good"]:
+        if score >= self.health_status_thresholds["good"]:
             return "good"
-        elif score >= self.health_status_thresholds["fair"]:
+        if score >= self.health_status_thresholds["fair"]:
             return "fair"
-        elif score >= self.health_status_thresholds["poor"]:
+        if score >= self.health_status_thresholds["poor"]:
             return "poor"
-        else:
-            return "critical"
+        return "critical"
 
     async def _generate_recommendations(self, device_id: str, metrics: dict[str, Any], score: float) -> list[str]:
         """Generate recommendations based on health score and metrics."""
@@ -322,7 +321,7 @@ class DeviceHealthScorer:
                 "total_devices": 0,
                 "average_score": 0,
                 "health_distribution": {},
-                "recommendations_summary": []
+                "recommendations_summary": [],
             }
 
         scores = [hs["overall_score"] for hs in health_scores]
@@ -334,7 +333,7 @@ class DeviceHealthScorer:
             "good": len([hs for hs in health_scores if hs["health_status"] == "good"]),
             "fair": len([hs for hs in health_scores if hs["health_status"] == "fair"]),
             "poor": len([hs for hs in health_scores if hs["health_status"] == "poor"]),
-            "critical": len([hs for hs in health_scores if hs["health_status"] == "critical"])
+            "critical": len([hs for hs in health_scores if hs["health_status"] == "critical"]),
         }
 
         # Collect common recommendations
@@ -356,7 +355,7 @@ class DeviceHealthScorer:
             "min_score": min(scores),
             "max_score": max(scores),
             "health_distribution": health_distribution,
-            "recommendations_summary": [{"recommendation": rec, "count": count} for rec, count in top_recommendations]
+            "recommendations_summary": [{"recommendation": rec, "count": count} for rec, count in top_recommendations],
         }
 
 

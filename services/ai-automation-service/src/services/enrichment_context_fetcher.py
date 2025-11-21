@@ -59,20 +59,20 @@ class EnrichmentContextFetcher:
                 self.get_carbon_intensity(),
                 self.get_electricity_pricing(),
                 self.get_air_quality(),
-                return_exceptions=True
+                return_exceptions=True,
             )
 
             # Unpack results
             weather, carbon, energy, air = results
 
             if isinstance(weather, dict) and weather:
-                enrichment['weather'] = weather
+                enrichment["weather"] = weather
             if isinstance(carbon, dict) and carbon:
-                enrichment['carbon'] = carbon
+                enrichment["carbon"] = carbon
             if isinstance(energy, dict) and energy:
-                enrichment['energy'] = energy
+                enrichment["energy"] = energy
             if isinstance(air, dict) and air:
-                enrichment['air_quality'] = air
+                enrichment["air_quality"] = air
 
             logger.info(f"✅ Fetched {len(enrichment)} enrichment types")
             return enrichment
@@ -88,20 +88,20 @@ class EnrichmentContextFetcher:
         Returns:
             Weather context dictionary or None if unavailable
         """
-        cache_key = 'weather'
+        cache_key = "weather"
 
         # Check cache
         if self._is_cache_valid(cache_key):
-            return self._cache[cache_key]['data']
+            return self._cache[cache_key]["data"]
 
         try:
             # Query latest weather data from InfluxDB
-            query = '''
+            query = """
             from(bucket: "weather_data")
               |> range(start: -1h)
               |> filter(fn: (r) => r._measurement == "weather")
               |> last()
-            '''
+            """
 
             result = await self.influxdb.query(query)
 
@@ -114,8 +114,8 @@ class EnrichmentContextFetcher:
 
             # Cache result
             self._cache[cache_key] = {
-                'data': weather,
-                'timestamp': datetime.now(timezone.utc)
+                "data": weather,
+                "timestamp": datetime.now(timezone.utc),
             }
 
             logger.debug(f"Weather: {weather.get('current_temperature')}°F, {weather.get('condition')}")
@@ -132,20 +132,20 @@ class EnrichmentContextFetcher:
         Returns:
             Carbon context dictionary or None if unavailable
         """
-        cache_key = 'carbon'
+        cache_key = "carbon"
 
         # Check cache
         if self._is_cache_valid(cache_key):
-            return self._cache[cache_key]['data']
+            return self._cache[cache_key]["data"]
 
         try:
             # Query latest carbon intensity from InfluxDB
-            query = '''
+            query = """
             from(bucket: "home_assistant_events")
               |> range(start: -1h)
               |> filter(fn: (r) => r._measurement == "carbon_intensity")
               |> last()
-            '''
+            """
 
             result = await self.influxdb.query(query)
 
@@ -158,8 +158,8 @@ class EnrichmentContextFetcher:
 
             # Cache result
             self._cache[cache_key] = {
-                'data': carbon,
-                'timestamp': datetime.now(timezone.utc)
+                "data": carbon,
+                "timestamp": datetime.now(timezone.utc),
             }
 
             logger.debug(f"Carbon: {carbon.get('carbon_intensity')} gCO2/kWh, {carbon.get('renewable_percentage')}% renewable")
@@ -176,20 +176,20 @@ class EnrichmentContextFetcher:
         Returns:
             Energy pricing context dictionary or None if unavailable
         """
-        cache_key = 'energy'
+        cache_key = "energy"
 
         # Check cache
         if self._is_cache_valid(cache_key):
-            return self._cache[cache_key]['data']
+            return self._cache[cache_key]["data"]
 
         try:
             # Query latest electricity pricing from InfluxDB
-            query = '''
+            query = """
             from(bucket: "home_assistant_events")
               |> range(start: -1h)
               |> filter(fn: (r) => r._measurement == "electricity_pricing")
               |> last()
-            '''
+            """
 
             result = await self.influxdb.query(query)
 
@@ -202,8 +202,8 @@ class EnrichmentContextFetcher:
 
             # Cache result
             self._cache[cache_key] = {
-                'data': energy,
-                'timestamp': datetime.now(timezone.utc)
+                "data": energy,
+                "timestamp": datetime.now(timezone.utc),
             }
 
             logger.debug(f"Energy: ${energy.get('current_price')}/kWh, peak={energy.get('peak_period')}")
@@ -220,20 +220,20 @@ class EnrichmentContextFetcher:
         Returns:
             Air quality context dictionary or None if unavailable
         """
-        cache_key = 'air_quality'
+        cache_key = "air_quality"
 
         # Check cache
         if self._is_cache_valid(cache_key):
-            return self._cache[cache_key]['data']
+            return self._cache[cache_key]["data"]
 
         try:
             # Query latest air quality from InfluxDB
-            query = '''
+            query = """
             from(bucket: "home_assistant_events")
               |> range(start: -2h)
               |> filter(fn: (r) => r._measurement == "air_quality")
               |> last()
-            '''
+            """
 
             result = await self.influxdb.query(query)
 
@@ -246,8 +246,8 @@ class EnrichmentContextFetcher:
 
             # Cache result
             self._cache[cache_key] = {
-                'data': air,
-                'timestamp': datetime.now(timezone.utc)
+                "data": air,
+                "timestamp": datetime.now(timezone.utc),
             }
 
             logger.debug(f"Air Quality: AQI {air.get('aqi')} ({air.get('category')})")
@@ -262,7 +262,7 @@ class EnrichmentContextFetcher:
         if key not in self._cache:
             return False
 
-        age = (datetime.now(timezone.utc) - self._cache[key]['timestamp']).total_seconds()
+        age = (datetime.now(timezone.utc) - self._cache[key]["timestamp"]).total_seconds()
         return age < self._cache_ttl
 
     def _parse_weather_data(self, result) -> dict[str, Any]:
@@ -270,28 +270,27 @@ class EnrichmentContextFetcher:
         try:
             # Extract latest values from result
             # InfluxDB returns pandas DataFrame or list of records
-            if hasattr(result, 'iloc'):
+            if hasattr(result, "iloc"):
                 # DataFrame format
                 row = result.iloc[-1]
                 return {
-                    'current_temperature': float(row.get('temperature', 0)),
-                    'feels_like': float(row.get('feels_like', 0)),
-                    'condition': str(row.get('condition', 'Unknown')),
-                    'humidity': int(row.get('humidity', 0)),
-                    'wind_speed': float(row.get('wind_speed', 0)),
-                    'timestamp': row.get('_time', datetime.now(timezone.utc)).isoformat()
+                    "current_temperature": float(row.get("temperature", 0)),
+                    "feels_like": float(row.get("feels_like", 0)),
+                    "condition": str(row.get("condition", "Unknown")),
+                    "humidity": int(row.get("humidity", 0)),
+                    "wind_speed": float(row.get("wind_speed", 0)),
+                    "timestamp": row.get("_time", datetime.now(timezone.utc)).isoformat(),
                 }
-            else:
-                # List format
-                record = result[-1] if isinstance(result, list) and result else {}
-                return {
-                    'current_temperature': float(record.get('temperature', 0)),
-                    'feels_like': float(record.get('feels_like', 0)),
-                    'condition': str(record.get('condition', 'Unknown')),
-                    'humidity': int(record.get('humidity', 0)),
-                    'wind_speed': float(record.get('wind_speed', 0)),
-                    'timestamp': record.get('_time', datetime.now(timezone.utc))
-                }
+            # List format
+            record = result[-1] if isinstance(result, list) and result else {}
+            return {
+                "current_temperature": float(record.get("temperature", 0)),
+                "feels_like": float(record.get("feels_like", 0)),
+                "condition": str(record.get("condition", "Unknown")),
+                "humidity": int(record.get("humidity", 0)),
+                "wind_speed": float(record.get("wind_speed", 0)),
+                "timestamp": record.get("_time", datetime.now(timezone.utc)),
+            }
         except Exception as e:
             logger.warning(f"Failed to parse weather data: {e}")
             return {}
@@ -299,24 +298,23 @@ class EnrichmentContextFetcher:
     def _parse_carbon_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB carbon intensity query result"""
         try:
-            if hasattr(result, 'iloc'):
+            if hasattr(result, "iloc"):
                 row = result.iloc[-1]
                 return {
-                    'carbon_intensity': float(row.get('carbon_intensity_gco2_kwh', 0)),
-                    'renewable_percentage': float(row.get('renewable_percentage', 0)),
-                    'fossil_percentage': float(row.get('fossil_percentage', 0)),
-                    'forecast_1h': float(row.get('forecast_1h', 0)),
-                    'timestamp': row.get('_time', datetime.now(timezone.utc)).isoformat()
+                    "carbon_intensity": float(row.get("carbon_intensity_gco2_kwh", 0)),
+                    "renewable_percentage": float(row.get("renewable_percentage", 0)),
+                    "fossil_percentage": float(row.get("fossil_percentage", 0)),
+                    "forecast_1h": float(row.get("forecast_1h", 0)),
+                    "timestamp": row.get("_time", datetime.now(timezone.utc)).isoformat(),
                 }
-            else:
-                record = result[-1] if isinstance(result, list) and result else {}
-                return {
-                    'carbon_intensity': float(record.get('carbon_intensity_gco2_kwh', 0)),
-                    'renewable_percentage': float(record.get('renewable_percentage', 0)),
-                    'fossil_percentage': float(record.get('fossil_percentage', 0)),
-                    'forecast_1h': float(record.get('forecast_1h', 0)),
-                    'timestamp': record.get('_time', datetime.now(timezone.utc))
-                }
+            record = result[-1] if isinstance(result, list) and result else {}
+            return {
+                "carbon_intensity": float(record.get("carbon_intensity_gco2_kwh", 0)),
+                "renewable_percentage": float(record.get("renewable_percentage", 0)),
+                "fossil_percentage": float(record.get("fossil_percentage", 0)),
+                "forecast_1h": float(record.get("forecast_1h", 0)),
+                "timestamp": record.get("_time", datetime.now(timezone.utc)),
+            }
         except Exception as e:
             logger.warning(f"Failed to parse carbon data: {e}")
             return {}
@@ -324,22 +322,21 @@ class EnrichmentContextFetcher:
     def _parse_energy_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB electricity pricing query result"""
         try:
-            if hasattr(result, 'iloc'):
+            if hasattr(result, "iloc"):
                 row = result.iloc[-1]
                 return {
-                    'current_price': float(row.get('current_price', 0)),
-                    'currency': str(row.get('currency', 'USD')),
-                    'peak_period': bool(row.get('peak_period', False)),
-                    'timestamp': row.get('_time', datetime.now(timezone.utc)).isoformat()
+                    "current_price": float(row.get("current_price", 0)),
+                    "currency": str(row.get("currency", "USD")),
+                    "peak_period": bool(row.get("peak_period", False)),
+                    "timestamp": row.get("_time", datetime.now(timezone.utc)).isoformat(),
                 }
-            else:
-                record = result[-1] if isinstance(result, list) and result else {}
-                return {
-                    'current_price': float(record.get('current_price', 0)),
-                    'currency': str(record.get('currency', 'USD')),
-                    'peak_period': bool(record.get('peak_period', False)),
-                    'timestamp': record.get('_time', datetime.now(timezone.utc))
-                }
+            record = result[-1] if isinstance(result, list) and result else {}
+            return {
+                "current_price": float(record.get("current_price", 0)),
+                "currency": str(record.get("currency", "USD")),
+                "peak_period": bool(record.get("peak_period", False)),
+                "timestamp": record.get("_time", datetime.now(timezone.utc)),
+            }
         except Exception as e:
             logger.warning(f"Failed to parse energy pricing data: {e}")
             return {}
@@ -347,26 +344,25 @@ class EnrichmentContextFetcher:
     def _parse_air_quality_data(self, result) -> dict[str, Any]:
         """Parse InfluxDB air quality query result"""
         try:
-            if hasattr(result, 'iloc'):
+            if hasattr(result, "iloc"):
                 row = result.iloc[-1]
                 return {
-                    'aqi': int(row.get('aqi', 0)),
-                    'category': str(row.get('category', 'Unknown')),
-                    'pm25': int(row.get('pm25', 0)),
-                    'pm10': int(row.get('pm10', 0)),
-                    'ozone': int(row.get('ozone', 0)),
-                    'timestamp': row.get('_time', datetime.now(timezone.utc)).isoformat()
+                    "aqi": int(row.get("aqi", 0)),
+                    "category": str(row.get("category", "Unknown")),
+                    "pm25": int(row.get("pm25", 0)),
+                    "pm10": int(row.get("pm10", 0)),
+                    "ozone": int(row.get("ozone", 0)),
+                    "timestamp": row.get("_time", datetime.now(timezone.utc)).isoformat(),
                 }
-            else:
-                record = result[-1] if isinstance(result, list) and result else {}
-                return {
-                    'aqi': int(record.get('aqi', 0)),
-                    'category': str(record.get('category', 'Unknown')),
-                    'pm25': int(record.get('pm25', 0)),
-                    'pm10': int(record.get('pm10', 0)),
-                    'ozone': int(record.get('ozone', 0)),
-                    'timestamp': record.get('_time', datetime.now(timezone.utc))
-                }
+            record = result[-1] if isinstance(result, list) and result else {}
+            return {
+                "aqi": int(record.get("aqi", 0)),
+                "category": str(record.get("category", "Unknown")),
+                "pm25": int(record.get("pm25", 0)),
+                "pm10": int(record.get("pm10", 0)),
+                "ozone": int(record.get("ozone", 0)),
+                "timestamp": record.get("_time", datetime.now(timezone.utc)),
+            }
         except Exception as e:
             logger.warning(f"Failed to parse air quality data: {e}")
             return {}
@@ -389,17 +385,17 @@ def should_include_weather(query_text: str, entity_ids: set[str]) -> bool:
 
     # Weather keywords
     weather_keywords = [
-        'weather', 'temperature', 'cold', 'hot', 'warm', 'cool',
-        'frost', 'freeze', 'heat', 'rain', 'snow', 'sun', 'outdoor'
+        "weather", "temperature", "cold", "hot", "warm", "cool",
+        "frost", "freeze", "heat", "rain", "snow", "sun", "outdoor",
     ]
 
     if any(keyword in query_lower for keyword in weather_keywords):
         return True
 
     # Climate entities
-    climate_domains = {'climate', 'thermostat', 'switch', 'fan'}
+    climate_domains = {"climate", "thermostat", "switch", "fan"}
     for entity_id in entity_ids:
-        domain = entity_id.split('.')[0] if '.' in entity_id else ''
+        domain = entity_id.split(".")[0] if "." in entity_id else ""
         if domain in climate_domains:
             return True
 
@@ -421,20 +417,16 @@ def should_include_carbon(query_text: str, entity_ids: set[str]) -> bool:
 
     # Carbon keywords
     carbon_keywords = [
-        'green', 'eco', 'sustainable', 'carbon', 'renewable',
-        'clean', 'environment', 'grid'
+        "green", "eco", "sustainable", "carbon", "renewable",
+        "clean", "environment", "grid",
     ]
 
     if any(keyword in query_lower for keyword in carbon_keywords):
         return True
 
     # High-power schedulable devices
-    high_power_keywords = ['charger', 'hvac', 'pool', 'heater', 'dryer', 'washer']
-    for entity_id in entity_ids:
-        if any(keyword in entity_id.lower() for keyword in high_power_keywords):
-            return True
-
-    return False
+    high_power_keywords = ["charger", "hvac", "pool", "heater", "dryer", "washer"]
+    return any(any(keyword in entity_id.lower() for keyword in high_power_keywords) for entity_id in entity_ids)
 
 
 def should_include_energy(query_text: str, entity_ids: set[str]) -> bool:
@@ -452,20 +444,16 @@ def should_include_energy(query_text: str, entity_ids: set[str]) -> bool:
 
     # Energy/cost keywords
     energy_keywords = [
-        'schedule', 'save', 'cost', 'cheap', 'expensive', 'price',
-        'off-peak', 'peak', 'rate', 'bill', 'money'
+        "schedule", "save", "cost", "cheap", "expensive", "price",
+        "off-peak", "peak", "rate", "bill", "money",
     ]
 
     if any(keyword in query_lower for keyword in energy_keywords):
         return True
 
     # High-power schedulable devices
-    high_power_keywords = ['charger', 'hvac', 'pool', 'heater', 'dryer', 'washer', 'dishwasher']
-    for entity_id in entity_ids:
-        if any(keyword in entity_id.lower() for keyword in high_power_keywords):
-            return True
-
-    return False
+    high_power_keywords = ["charger", "hvac", "pool", "heater", "dryer", "washer", "dishwasher"]
+    return any(any(keyword in entity_id.lower() for keyword in high_power_keywords) for entity_id in entity_ids)
 
 
 def should_include_air_quality(query_text: str, entity_ids: set[str]) -> bool:
@@ -483,26 +471,22 @@ def should_include_air_quality(query_text: str, entity_ids: set[str]) -> bool:
 
     # Air quality keywords
     air_keywords = [
-        'air', 'purifier', 'ventilation', 'indoor', 'quality',
-        'filter', 'clean', 'breathe', 'pollution'
+        "air", "purifier", "ventilation", "indoor", "quality",
+        "filter", "clean", "breathe", "pollution",
     ]
 
     if any(keyword in query_lower for keyword in air_keywords):
         return True
 
     # Air quality entities
-    air_entity_keywords = ['purifier', 'fan', 'ventilat', 'air']
-    for entity_id in entity_ids:
-        if any(keyword in entity_id.lower() for keyword in air_entity_keywords):
-            return True
-
-    return False
+    air_entity_keywords = ["purifier", "fan", "ventilat", "air"]
+    return any(any(keyword in entity_id.lower() for keyword in air_entity_keywords) for entity_id in entity_ids)
 
 
 def get_selective_enrichment(
     query_text: str,
     entity_ids: set[str],
-    fetcher: EnrichmentContextFetcher
+    fetcher: EnrichmentContextFetcher,
 ) -> dict[str, Any]:
     """
     Get only relevant enrichment data based on query and entities.
@@ -525,19 +509,19 @@ def get_selective_enrichment(
     # Determine which enrichment to fetch
     if should_include_weather(query_text, entity_ids):
         tasks.append(fetcher.get_current_weather())
-        enrichment_types.append('weather')
+        enrichment_types.append("weather")
 
     if should_include_carbon(query_text, entity_ids):
         tasks.append(fetcher.get_carbon_intensity())
-        enrichment_types.append('carbon')
+        enrichment_types.append("carbon")
 
     if should_include_energy(query_text, entity_ids):
         tasks.append(fetcher.get_electricity_pricing())
-        enrichment_types.append('energy')
+        enrichment_types.append("energy")
 
     if should_include_air_quality(query_text, entity_ids):
         tasks.append(fetcher.get_air_quality())
-        enrichment_types.append('air_quality')
+        enrichment_types.append("air_quality")
 
     # Fetch selected enrichment types in parallel
     if not tasks:

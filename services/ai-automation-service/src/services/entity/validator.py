@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class EntityValidator:
     """
     Unified entity validator that consolidates all validation methods.
-    
+
     Validates that entities exist in Home Assistant and provides
     suggestions for similar entities if not found.
     """
@@ -31,11 +31,11 @@ class EntityValidator:
         self,
         ha_client: HomeAssistantClient | None = None,
         data_api_client: DataAPIClient | None = None,
-        enable_ensemble: bool = True
+        enable_ensemble: bool = True,
     ):
         """
         Initialize unified entity validator.
-        
+
         Args:
             ha_client: Home Assistant client for entity validation
             data_api_client: Data API client for entity lookups
@@ -56,7 +56,7 @@ class EntityValidator:
             self._legacy_validator = LegacyEntityValidator(
                 data_api_client=self.data_api_client,
                 ha_client=self.ha_client,
-                enable_full_chain=True
+                enable_full_chain=True,
             )
         return self._legacy_validator
 
@@ -64,16 +64,16 @@ class EntityValidator:
         self,
         entity_ids: list[str],
         query_context: str | None = None,
-        available_entities: list[dict[str, Any]] | None = None
+        available_entities: list[dict[str, Any]] | None = None,
     ) -> dict[str, bool]:
         """
         Validate that entities exist in Home Assistant.
-        
+
         Args:
             entity_ids: List of entity IDs to validate
             query_context: Optional query context for better matching
             available_entities: Optional pre-fetched entity list
-        
+
         Returns:
             Dictionary mapping entity_id to validation result (True/False)
         """
@@ -89,7 +89,7 @@ class EntityValidator:
                 ha_client=self.ha_client,
                 use_ensemble=self.enable_ensemble,
                 query_context=query_context,
-                available_entities=available_entities
+                available_entities=available_entities,
             )
 
             valid_count = sum(1 for v in results.values() if v)
@@ -105,20 +105,20 @@ class EntityValidator:
     async def suggest_alternatives(
         self,
         entity_id: str,
-        query_context: str | None = None
+        query_context: str | None = None,
     ) -> list[str]:
         """
         Suggest alternative entities if the given entity doesn't exist.
-        
+
         Args:
             entity_id: Entity ID that wasn't found
             query_context: Optional query context for better suggestions
-        
+
         Returns:
             List of suggested alternative entity IDs
         """
         try:
-            validator = self._get_validator()
+            self._get_validator()
 
             # Use legacy validator's suggestion logic
             # This will be enhanced in future iterations

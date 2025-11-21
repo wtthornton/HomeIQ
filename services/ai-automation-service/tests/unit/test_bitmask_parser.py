@@ -36,13 +36,13 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_light_features(bitmask)
 
-        assert features['brightness'] is True
-        assert features['color_temp'] is True
-        assert features['effect'] is True
-        assert features['flash'] is True
-        assert features['rgb_color'] is True
-        assert features['transition'] is True
-        assert features['white_value'] is True
+        assert features["brightness"] is True
+        assert features["color_temp"] is True
+        assert features["effect"] is True
+        assert features["flash"] is True
+        assert features["rgb_color"] is True
+        assert features["transition"] is True
+        assert features["white_value"] is True
 
     def test_parse_light_features_minimal(self):
         """Test parsing light with minimal features (bitmask 1)."""
@@ -51,10 +51,10 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_light_features(bitmask)
 
-        assert features['brightness'] is True
-        assert features['color_temp'] is False
-        assert features['rgb_color'] is False
-        assert features['flash'] is False
+        assert features["brightness"] is True
+        assert features["color_temp"] is False
+        assert features["rgb_color"] is False
+        assert features["flash"] is False
 
     def test_parse_light_features_common(self):
         """Test parsing light with common features (brightness + color + transition)."""
@@ -67,11 +67,11 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_light_features(bitmask)
 
-        assert features['brightness'] is True
-        assert features['rgb_color'] is True
-        assert features['transition'] is True
-        assert features['color_temp'] is False
-        assert features['flash'] is False
+        assert features["brightness"] is True
+        assert features["rgb_color"] is True
+        assert features["transition"] is True
+        assert features["color_temp"] is False
+        assert features["flash"] is False
 
     def test_parse_climate_features(self):
         """Test parsing climate entity features."""
@@ -83,10 +83,10 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_climate_features(bitmask)
 
-        assert features['temperature'] is True
-        assert features['fan_mode'] is True
-        assert features['preset'] is True
-        assert features['humidity'] is False
+        assert features["temperature"] is True
+        assert features["fan_mode"] is True
+        assert features["preset"] is True
+        assert features["humidity"] is False
 
     def test_parse_cover_features(self):
         """Test parsing cover entity features."""
@@ -98,10 +98,10 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_cover_features(bitmask)
 
-        assert features['open'] is True
-        assert features['close'] is True
-        assert features['position'] is True
-        assert features['tilt_open'] is False
+        assert features["open"] is True
+        assert features["close"] is True
+        assert features["position"] is True
+        assert features["tilt_open"] is False
 
     def test_parse_fan_features(self):
         """Test parsing fan entity features."""
@@ -113,38 +113,38 @@ class TestBitmaskCapabilityParser:
 
         features = self.parser._parse_fan_features(bitmask)
 
-        assert features['speed'] is True
-        assert features['direction'] is True
-        assert features['oscillate'] is True
-        assert features['preset'] is False
+        assert features["speed"] is True
+        assert features["direction"] is True
+        assert features["oscillate"] is True
+        assert features["preset"] is False
 
     def test_parse_capabilities_integration(self):
         """Test full parse_capabilities integration."""
         # Real-world example: Philips Hue bulb
         result = self.parser.parse_capabilities(
-            domain='light',
+            domain="light",
             supported_features=147,  # brightness, color_temp, color, transition
             attributes={
-                'brightness': 128,
-                'rgb_color': [255, 0, 0]
-            }
+                "brightness": 128,
+                "rgb_color": [255, 0, 0],
+            },
         )
 
-        assert 'supported_features' in result
-        assert 'friendly_capabilities' in result
-        assert result['supported_features']['brightness'] is True
-        assert result['supported_features']['rgb_color'] is True
-        assert len(result['friendly_capabilities']) > 0
+        assert "supported_features" in result
+        assert "friendly_capabilities" in result
+        assert result["supported_features"]["brightness"] is True
+        assert result["supported_features"]["rgb_color"] is True
+        assert len(result["friendly_capabilities"]) > 0
 
     def test_unknown_domain_fallback(self):
         """Test fallback for unknown domains."""
         result = self.parser.parse_capabilities(
-            domain='unknown_domain',
-            supported_features=0
+            domain="unknown_domain",
+            supported_features=0,
         )
 
-        assert result['supported_features'] == {'on_off': True}
-        assert len(result['friendly_capabilities']) > 0
+        assert result["supported_features"] == {"on_off": True}
+        assert len(result["friendly_capabilities"]) > 0
 
     def test_empty_bitmask(self):
         """Test handling of empty bitmask (no features)."""
@@ -156,18 +156,18 @@ class TestBitmaskCapabilityParser:
     def test_friendly_capabilities_generation(self):
         """Test that friendly capabilities are generated."""
         result = self.parser.parse_capabilities(
-            domain='light',
+            domain="light",
             supported_features=(
                 LightEntityFeature.SUPPORT_BRIGHTNESS |
                 LightEntityFeature.SUPPORT_COLOR
-            )
+            ),
         )
 
-        friendly_caps = result['friendly_capabilities']
+        friendly_caps = result["friendly_capabilities"]
 
         assert len(friendly_caps) >= 2
-        assert any('brightness' in cap.lower() for cap in friendly_caps)
-        assert any('color' in cap.lower() for cap in friendly_caps)
+        assert any("brightness" in cap.lower() for cap in friendly_caps)
+        assert any("color" in cap.lower() for cap in friendly_caps)
 
 
 class TestRealWorldScenarios:
@@ -183,8 +183,8 @@ class TestRealWorldScenarios:
         bitmask = LightEntityFeature.SUPPORT_BRIGHTNESS
         features = self.parser._parse_light_features(bitmask)
 
-        assert features['brightness'] is True
-        assert features['rgb_color'] is False
+        assert features["brightness"] is True
+        assert features["rgb_color"] is False
 
     def test_philips_hue_color(self):
         """Test parsing capabilities for Philips Hue Color (full features)."""
@@ -198,11 +198,11 @@ class TestRealWorldScenarios:
         )
         features = self.parser._parse_light_features(bitmask)
 
-        assert features['brightness'] is True
-        assert features['rgb_color'] is True
-        assert features['color_temp'] is True
-        assert features['effect'] is True
-        assert features['transition'] is True
+        assert features["brightness"] is True
+        assert features["rgb_color"] is True
+        assert features["color_temp"] is True
+        assert features["effect"] is True
+        assert features["transition"] is True
 
     def test_nest_thermostat(self):
         """Test parsing capabilities for Nest thermostat."""
@@ -214,9 +214,9 @@ class TestRealWorldScenarios:
         )
         features = self.parser._parse_climate_features(bitmask)
 
-        assert features['temperature'] is True
-        assert features['fan_mode'] is True
-        assert features['preset'] is True
+        assert features["temperature"] is True
+        assert features["fan_mode"] is True
+        assert features["preset"] is True
 
 
 if __name__ == "__main__":

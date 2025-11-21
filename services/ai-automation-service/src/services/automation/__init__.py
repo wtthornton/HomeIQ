@@ -18,10 +18,10 @@ from .yaml_generator import AutomationYAMLGenerator
 from .yaml_validator import AutomationYAMLValidator
 
 __all__ = [
-    'AutomationYAMLGenerator',
-    'AutomationYAMLValidator',
-    'AutomationYAMLCorrector',
-    'AutomationTestExecutor',
-    'AutomationDeployer'
+    "AutomationDeployer",
+    "AutomationTestExecutor",
+    "AutomationYAMLCorrector",
+    "AutomationYAMLGenerator",
+    "AutomationYAMLValidator",
 ]
 

@@ -34,7 +34,7 @@ from .core.predictive_analytics import PredictiveAnalyticsEngine
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence"}'
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence"}',
 )
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -118,8 +118,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "error": "Validation Error",
             "detail": exc.errors(),
-            "path": str(request.url)
-        }
+            "path": str(request.url),
+        },
     )
 
 @app.exception_handler(Exception)
@@ -131,8 +131,8 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={
             "error": "Internal Server Error",
             "detail": "An unexpected error occurred",
-            "path": str(request.url)
-        }
+            "path": str(request.url),
+        },
     )
 
 # Include API routers
@@ -158,7 +158,7 @@ async def root() -> dict[str, Any]:
         "status": "operational",
         "port": settings.DEVICE_INTELLIGENCE_PORT,
         "docs": "/docs",
-        "health": "/health/"
+        "health": "/health/",
     }
 
 if __name__ == "__main__":
@@ -167,5 +167,5 @@ if __name__ == "__main__":
         "src.main:app",
         host=settings.DEVICE_INTELLIGENCE_HOST,
         port=settings.DEVICE_INTELLIGENCE_PORT,
-        reload=True
+        reload=True,
     )

@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """Test MQTT connection WITHOUT authentication (anonymous)"""
 
-import paho.mqtt.client as mqtt
-import time
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+import sys
+import time
+from pathlib import Path
 
-env_path = Path(__file__).parent.parent / 'infrastructure' / 'env.ai-automation'
+import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
+
+env_path = Path(__file__).parent.parent / "infrastructure" / "env.ai-automation"
 load_dotenv(env_path)
 
-MQTT_BROKER = os.getenv('MQTT_BROKER')
-MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
+MQTT_BROKER = os.getenv("MQTT_BROKER")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
 print("🧪 Testing MQTT with ANONYMOUS access (no username/password)")
 print(f"Broker: {MQTT_BROKER}:{MQTT_PORT}")
@@ -36,14 +37,14 @@ try:
     client.loop_start()
     time.sleep(2)
     client.loop_stop()
-    
+
     if connected:
         print("\n✅ Anonymous MQTT access works!")
         print("   You can remove MQTT_USERNAME and MQTT_PASSWORD from config")
     else:
         print("\n❌ Anonymous access not allowed")
         print("   MQTT credentials required")
-        
+
 except Exception as e:
     print(f"❌ Error: {e}")
 

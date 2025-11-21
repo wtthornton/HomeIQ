@@ -13,7 +13,9 @@ from typing import Any
 import aiohttp
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../shared"))
+
+import contextlib
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -65,7 +67,7 @@ class EventsEndpoints:
         """Initialize events endpoints"""
         self.router = APIRouter()
         self.service_urls = {
-            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001")
+            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"),
         }
 
         self._add_routes()
@@ -79,7 +81,7 @@ class EventsEndpoints:
         @self.router.get("/events/stats", response_model=dict[str, Any])
         async def get_events_stats(
             period: str = Query("1h", description="Time period for statistics"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get event statistics"""
             try:
@@ -91,24 +93,23 @@ class EventsEndpoints:
                 return stats
 
             except Exception as e:
-                logger.error(f"Error getting events stats: {e}")
+                logger.exception(f"Error getting events stats: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events statistics"
+                    detail="Failed to get events statistics",
                 ) from e
 
         @self.router.post("/events/search", response_model=list[EventData])
         async def search_events(search: EventSearch):
             """Search events with text query"""
             try:
-                events = await self._search_events(search)
-                return events
+                return await self._search_events(search)
 
             except Exception as e:
-                logger.error(f"Error searching events: {e}")
+                logger.exception(f"Error searching events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to search events"
+                    detail="Failed to search events",
                 ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
@@ -117,26 +118,25 @@ class EventsEndpoints:
                 60,
                 description="Stream duration in seconds (max 1 hour)",
                 ge=10,
-                le=3600
+                le=3600,
             ),
-            entity_id: str | None = Query(None, description="Filter by entity ID")
+            entity_id: str | None = Query(None, description="Filter by entity ID"),
         ):
             """Get real-time event stream"""
             try:
-                stream_data = await self._get_events_stream(duration, entity_id)
-                return stream_data
+                return await self._get_events_stream(duration, entity_id)
 
             except Exception as e:
-                logger.error(f"Error getting events stream: {e}")
+                logger.exception(f"Error getting events stream: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events stream"
+                    detail="Failed to get events stream",
                 ) from e
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
             limit: int = Query(100, description="Maximum number of entities to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of active entities"""
             try:
@@ -148,16 +148,16 @@ class EventsEndpoints:
                 return entities
 
             except Exception as e:
-                logger.error(f"Error getting active entities: {e}")
+                logger.exception(f"Error getting active entities: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get active entities"
+                    detail="Failed to get active entities",
                 ) from e
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
             limit: int = Query(50, description="Maximum number of event types to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of event types"""
             try:
@@ -169,10 +169,10 @@ class EventsEndpoints:
                 return event_types
 
             except Exception as e:
-                logger.error(f"Error getting event types: {e}")
+                logger.exception(f"Error getting event types: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event types"
+                    detail="Failed to get event types",
                 ) from e
 
         # Epic 23.1: Automation Trace Endpoint
@@ -180,33 +180,32 @@ class EventsEndpoints:
         async def trace_automation_chain(
             context_id: str,
             max_depth: int = Query(10, description="Maximum chain depth to traverse"),
-            include_details: bool = Query(True, description="Include event details")
+            include_details: bool = Query(True, description="Include event details"),
         ):
             """
             Trace automation chain by following context.parent_id relationships
-            
+
             This endpoint finds all events in an automation chain by:
             1. Starting with the provided context_id
             2. Finding all events that have this context_id as their parent
             3. Recursively following the chain up to max_depth levels
-            
+
             Args:
                 context_id: The context ID to trace
                 max_depth: Maximum depth to traverse (default: 10)
                 include_details: Whether to include full event details (default: True)
-            
+
             Returns:
                 List of events in the automation chain, ordered by depth
             """
             try:
-                chain = await self._trace_automation_chain(context_id, max_depth, include_details)
-                return chain
+                return await self._trace_automation_chain(context_id, max_depth, include_details)
 
             except Exception as e:
-                logger.error(f"Error tracing automation chain: {e}")
+                logger.exception(f"Error tracing automation chain: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to trace automation chain: {str(e)}"
+                    detail=f"Failed to trace automation chain: {e!s}",
                 ) from e
 
         # General /events route - should come after specific routes
@@ -224,15 +223,15 @@ class EventsEndpoints:
             area_id: str | None = Query(None, description="Filter by area ID (room)"),
             # Epic 23.4: Entity classification filtering
             entity_category: str | None = Query(None, description="Filter by entity category (config, diagnostic)"),
-            exclude_category: str | None = Query(None, description="Exclude entity category (config, diagnostic)")
+            exclude_category: str | None = Query(None, description="Exclude entity category (config, diagnostic)"),
         ):
             """
             Get recent events with optional filtering
-            
+
             Epic 23.2: Supports filtering by device_id and area_id for spatial analytics
             - device_id: Filter events from a specific device
             - area_id: Filter events from a specific room/area
-            
+
             Epic 23.4: Supports filtering by entity_category to show/hide diagnostic and config entities
             - entity_category: Include only entities with this category
             - exclude_category: Exclude entities with this category (commonly 'diagnostic')
@@ -247,7 +246,7 @@ class EventsEndpoints:
                     device_id=device_id,
                     area_id=area_id,
                     entity_category=entity_category,
-                    exclude_category=exclude_category
+                    exclude_category=exclude_category,
                 )
 
                 if service and service in self.service_urls:
@@ -260,10 +259,10 @@ class EventsEndpoints:
                 return events
 
             except Exception as e:
-                logger.error(f"Error getting recent events: {e}")
+                logger.exception(f"Error getting recent events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get recent events"
+                    detail="Failed to get recent events",
                 ) from e
 
         # Parameterized route MUST be last to avoid matching specific routes
@@ -275,7 +274,7 @@ class EventsEndpoints:
                 if not event:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Event {event_id} not found"
+                        detail=f"Event {event_id} not found",
                     )
 
                 return event
@@ -283,10 +282,10 @@ class EventsEndpoints:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Error getting event {event_id}: {e}")
+                logger.exception(f"Error getting event {event_id}: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event"
+                    detail="Failed to get event",
                 ) from e
 
     async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
@@ -302,7 +301,7 @@ class EventsEndpoints:
             # Return proper error instead of mock data
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"InfluxDB service unavailable: {str(e)}"
+                detail=f"InfluxDB service unavailable: {e!s}",
             ) from e
 
     async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
@@ -313,7 +312,7 @@ class EventsEndpoints:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                 params = {
                     "limit": limit,
-                    "offset": offset
+                    "offset": offset,
                 }
 
                 if event_filter.entity_id:
@@ -329,10 +328,10 @@ class EventsEndpoints:
                     if response.status == 200:
                         data = await response.json()
                         return [EventData(**event) for event in data]
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting events from {service}: {e}")
+            logger.exception(f"Error getting events from {service}: {e}")
             return []
 
     async def _get_event_by_id(self, event_id: str) -> EventData | None:
@@ -352,10 +351,10 @@ class EventsEndpoints:
                             event = EventData(**data)
                             event.tags["service"] = service_name
                             return event
-                        elif response.status == 404:
+                        if response.status == 404:
                             continue  # Try next service
-                        else:
-                            raise Exception(f"HTTP {response.status}")
+                        msg = f"HTTP {response.status}"
+                        raise Exception(msg)
             except Exception as e:
                 logger.warning(f"Failed to get event {event_id} from {service_name}: {e}")
 
@@ -364,7 +363,7 @@ class EventsEndpoints:
     async def _get_event_from_influxdb(self, event_id: str) -> EventData | None:
         """
         Retrieve a single event from InfluxDB with full detail payload.
-        
+
         Strategy:
             - If the identifier is a context_id (default HA pattern), query by context_id using direct field filter
             - If the identifier is the synthetic `event_<timestamp>_<entity>` format,
@@ -392,7 +391,7 @@ class EventsEndpoints:
                 event_ts = datetime.fromtimestamp(float(ts_part), tz=timezone.utc)
                 timestamp_window = (
                     event_ts - timedelta(seconds=5),
-                    event_ts + timedelta(seconds=5)
+                    event_ts + timedelta(seconds=5),
                 )
                 entity_id = entity_part.replace("_", ".")
             except Exception as parse_err:
@@ -416,14 +415,14 @@ class EventsEndpoints:
                 logger.info(f"Looking up event by context_id: {event_id} (sanitized: {context_value})")
 
                 # Query 1: Find the event by context_id to get timestamp and entity_id
-                context_query = f'''
+                context_query = f"""
 from(bucket: "{influxdb_bucket}")
   |> range(start: -30d)
   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
   |> filter(fn: (r) => r["_field"] == "context_id")
   |> filter(fn: (r) => r["_value"] == "{context_value}")
   |> limit(n: 1)
-'''
+"""
                 context_result = query_api.query(context_query)
 
                 event_time = None
@@ -446,7 +445,7 @@ from(bucket: "{influxdb_bucket}")
                 # Create timestamp window for detail query
                 timestamp_window = (
                     event_time - timedelta(seconds=5),
-                    event_time + timedelta(seconds=5)
+                    event_time + timedelta(seconds=5),
                 )
                 entity_id = event_entity
 
@@ -464,14 +463,14 @@ from(bucket: "{influxdb_bucket}")
                     filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
 
             # Query 2: Get full event details with pivot
-            detail_query = f'''
+            detail_query = f"""
 from(bucket: "{influxdb_bucket}")
   |> range(start: time(v: "{start_iso}"), stop: time(v: "{stop_iso}"))
   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
 {filter_entity_clause}  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> sort(columns: ["_time"], desc: true)
   |> limit(n: 1)
-'''
+"""
             logger.debug(f"Executing event detail query:\n{detail_query}")
             detail_result = query_api.query(detail_query)
 
@@ -489,10 +488,8 @@ from(bucket: "{influxdb_bucket}")
             return None
         finally:
             if client:
-                try:
+                with contextlib.suppress(Exception):
                     client.close()
-                except Exception:
-                    pass
 
     def _build_event_from_record(self, record, fallback_id: str) -> EventData | None:
         """Build EventData object from a pivoted Flux record."""
@@ -529,7 +526,7 @@ from(bucket: "{influxdb_bucket}")
                         return {"raw": attr_value}
                 return {}
 
-            event = EventData(
+            return EventData(
                 id=context_id,
                 timestamp=timestamp,
                 entity_id=entity_id,
@@ -540,10 +537,9 @@ from(bucket: "{influxdb_bucket}")
                 tags={
                     "domain": values.get("domain") or "unknown",
                     "device_class": values.get("device_class") or "unknown",
-                    "service": "home-assistant"
-                }
+                    "service": "home-assistant",
+                },
             )
-            return event
         except Exception as e:
             logger.error(f"Failed to build EventData from record: {e}", exc_info=True)
             return None
@@ -563,7 +559,8 @@ from(bucket: "{influxdb_bucket}")
                                 event.tags["service"] = service_name
                             all_events.extend(events)
                         else:
-                            raise Exception(f"HTTP {response.status}")
+                            msg = f"HTTP {response.status}"
+                            raise Exception(msg)
             except Exception as e:
                 logger.warning(f"Failed to search events in {service_name}: {e}")
 
@@ -579,10 +576,10 @@ from(bucket: "{influxdb_bucket}")
             "events_per_minute": 0,
             "unique_entities": 0,
             "event_types": {},
-            "services": {}
+            "services": {},
         }
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 stats = await self._get_service_events_stats(service_name, period)
                 all_stats["services"][service_name] = stats
@@ -609,17 +606,17 @@ from(bucket: "{influxdb_bucket}")
                 async with session.get(f"{service_url}/events/stats", params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting events stats from {service}: {e}")
+            logger.exception(f"Error getting events stats from {service}: {e}")
             return {"error": str(e)}
 
     async def _get_all_active_entities(self, limit: int) -> list[dict[str, Any]]:
         """Get active entities from all services"""
         all_entities = []
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 entities = await self._get_service_active_entities(service_name, limit)
                 for entity in entities:
@@ -650,17 +647,17 @@ from(bucket: "{influxdb_bucket}")
                 async with session.get(f"{service_url}/events/entities", params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting active entities from {service}: {e}")
+            logger.exception(f"Error getting active entities from {service}: {e}")
             return []
 
     async def _get_all_event_types(self, limit: int) -> list[dict[str, Any]]:
         """Get event types from all services"""
         all_event_types = {}
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 event_types = await self._get_service_event_types(service_name, limit)
                 for event_type in event_types:
@@ -669,7 +666,7 @@ from(bucket: "{influxdb_bucket}")
                         all_event_types[event_type_name] = {
                             "event_type": event_type_name,
                             "count": 0,
-                            "services": []
+                            "services": [],
                         }
                     all_event_types[event_type_name]["count"] += event_type["count"]
                     all_event_types[event_type_name]["services"].append(service_name)
@@ -691,10 +688,10 @@ from(bucket: "{influxdb_bucket}")
                 async with session.get(f"{service_url}/events/types", params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+                    msg = f"HTTP {response.status}"
+                    raise Exception(msg)
         except Exception as e:
-            logger.error(f"Error getting event types from {service}: {e}")
+            logger.exception(f"Error getting event types from {service}: {e}")
             return []
 
     async def _get_events_stream(self, duration: int, entity_id: str | None) -> dict[str, Any]:
@@ -704,7 +701,7 @@ from(bucket: "{influxdb_bucket}")
             "entity_id": entity_id,
             "events": [],
             "start_time": datetime.now().isoformat(),
-            "end_time": None
+            "end_time": None,
         }
 
         # This would typically involve WebSocket connections or Server-Sent Events
@@ -715,7 +712,7 @@ from(bucket: "{influxdb_bucket}")
         event_filter = EventFilter(
             entity_id=entity_id,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
 
         events = await self._get_all_events(event_filter, limit=1000, offset=0)
@@ -726,21 +723,18 @@ from(bucket: "{influxdb_bucket}")
 
     def _format_flux_time(self, value: datetime) -> str:
         """Format datetime for Flux queries in UTC."""
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        else:
-            value = value.astimezone(timezone.utc)
+        value = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
         return value.isoformat().replace("+00:00", "Z")
 
     async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """
         Retrieve and transform events from InfluxDB using Flux query language.
-        
+
         Builds optimized Flux queries with tag-based filtering for efficient event retrieval.
         Handles schema transformation from InfluxDB time-series format to EventData objects.
-        
+
         Complexity: C (20) - High complexity due to query building and data transformation
-        
+
         Args:
             event_filter (EventFilter): Filter criteria including:
                 - entity_id: Filter by specific Home Assistant entity
@@ -750,7 +744,7 @@ from(bucket: "{influxdb_bucket}")
                 - area_id: Filter by area ID (Epic 23.2)
             limit (int): Maximum number of events to return
             offset (int): Number of events to skip (pagination)
-            
+
         Returns:
             List[EventData]: List of transformed event objects with:
                 - id: Event identifier
@@ -760,21 +754,21 @@ from(bucket: "{influxdb_bucket}")
                 - state_value: Current state
                 - attributes: Event metadata
                 - domain, device_id, area_id, integration (if available)
-        
+
         Query Strategy:
             1. Filter to single _field (context_id) to avoid duplicates
             2. Use tag-based filtering for efficiency (entity_id, event_type, domain)
             3. Apply time range (-24h default)
             4. Limit and offset for pagination
             5. Sort by _time descending (newest first)
-        
+
         Example:
             >>> filter = EventFilter(entity_id="light.living_room", event_type="state_changed")
             >>> events = await endpoints._get_events_from_influxdb(filter, limit=10, offset=0)
             >>> print(f"Found {len(events)} events")
             >>> for event in events:
             ...     print(f"{event.timestamp}: {event.entity_id} = {event.state_value}")
-        
+
         Note:
             High complexity arises from:
             - Dynamic Flux query construction based on filters
@@ -783,7 +777,7 @@ from(bucket: "{influxdb_bucket}")
             - Null handling for optional fields
             - Pagination logic
             - Error handling for network/query failures
-            
+
         Performance:
             - Tag-based filters are indexed (fast)
             - Field filter reduces duplicate records
@@ -818,27 +812,27 @@ from(bucket: "{influxdb_bucket}")
                 start_dt = event_filter.start_time or (datetime.now(timezone.utc) - timedelta(hours=24))
                 start_iso = self._format_flux_time(start_dt)
 
-                query = f'''
+                query = f"""
                 from(bucket: "{influxdb_bucket}")
                   |> range(start: time(v: "{start_iso}"))
-                '''
+                """
 
                 if event_filter.end_time:
                     end_iso = self._format_flux_time(event_filter.end_time)
-                    query = f'''
+                    query = f"""
                 from(bucket: "{influxdb_bucket}")
                   |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
-                '''
+                """
             else:
-                query = f'''
+                query = f"""
                 from(bucket: "{influxdb_bucket}")
                   |> range(start: -24h)
-                '''
+                """
 
-            query += '''
+            query += """
               |> filter(fn: (r) => r._measurement == "home_assistant_events")
               |> filter(fn: (r) => r._field == "context_id")
-            '''
+            """
 
             # Add tag-based filters (these are indexed and efficient) - SANITIZED
             if event_filter.entity_id:
@@ -867,12 +861,12 @@ from(bucket: "{influxdb_bucket}")
                 query += f'  |> filter(fn: (r) => r.entity_category != "{exclude_safe}")\n'
 
             # Group all tag-based series together, then get distinct records
-            query += '  |> group()\n'
+            query += "  |> group()\n"
             query += '  |> sort(columns: ["_time"], desc: true)\n'
-            query += f'  |> limit(n: {limit})\n'
+            query += f"  |> limit(n: {limit})\n"
 
             if offset > 0:
-                query += f'  |> offset(n: {offset})\n'
+                query += f"  |> offset(n: {offset})\n"
 
             # Log the query for debugging
             logger.debug(f"Executing Flux query:\n{query}")
@@ -923,8 +917,8 @@ from(bucket: "{influxdb_bucket}")
                         attributes={},  # Not available (would need second query or pivot)
                         tags={
                             "domain": record.values.get("domain") or "unknown",
-                            "device_class": record.values.get("device_class") or "unknown"
-                        }
+                            "device_class": record.values.get("device_class") or "unknown",
+                        },
                     )
                     events.append(event)
 
@@ -946,7 +940,7 @@ from(bucket: "{influxdb_bucket}")
             return unique_events
 
         except Exception as e:
-            logger.error(f"Error querying InfluxDB: {e}")
+            logger.exception(f"Error querying InfluxDB: {e}")
             return []
         finally:
             if client:
@@ -958,14 +952,14 @@ from(bucket: "{influxdb_bucket}")
     async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> list[dict[str, Any]]:
         """
         Trace automation chain by following context.parent_id relationships
-        
+
         Epic 23.1: Implementation of automation causality tracking
-        
+
         Args:
             context_id: Starting context ID
             max_depth: Maximum depth to traverse
             include_details: Whether to include full event details
-        
+
         Returns:
             List of events in the automation chain
         """
@@ -1001,14 +995,14 @@ from(bucket: "{influxdb_bucket}")
                     logger.warning("Invalid context_id supplied for automation trace; aborting traversal")
                     break
 
-                query = f'''
+                query = f"""
                 from(bucket: "{influxdb_bucket}")
                     |> range(start: -30d)
                     |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
                     |> filter(fn: (r) => r["_field"] == "context_parent_id")
                     |> filter(fn: (r) => r["_value"] == "{current_context_safe}")
                     |> limit(n: 100)
-                '''
+                """
 
                 result = query_api.query(query)
 
@@ -1026,14 +1020,14 @@ from(bucket: "{influxdb_bucket}")
                             if not event_context_safe:
                                 logger.warning("Skipping automation trace detail due to invalid context_id")
                                 continue
-                            event_detail_query = f'''
+                            event_detail_query = f"""
                             from(bucket: "{influxdb_bucket}")
                                 |> range(start: -30d)
                                 |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
                                 |> filter(fn: (r) => r["context_id"] == "{event_context_safe}")
                                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                                 |> limit(n: 1)
-                            '''
+                            """
                             detail_result = query_api.query(event_detail_query)
 
                             for detail_table in detail_result:
@@ -1046,7 +1040,7 @@ from(bucket: "{influxdb_bucket}")
                                         "entity_id": detail_record.values.get("entity_id", "unknown"),
                                         "event_type": detail_record.values.get("event_type", "unknown"),
                                         "state": detail_record.values.get("state"),
-                                        "old_state": detail_record.values.get("old_state")
+                                        "old_state": detail_record.values.get("old_state"),
                                     }
                                     found_events.append(event_info)
                         else:
@@ -1055,7 +1049,7 @@ from(bucket: "{influxdb_bucket}")
                                 "depth": depth,
                                 "context_id": event_context_id,
                                 "context_parent_id": current_context,
-                                "timestamp": record.get_time().isoformat()
+                                "timestamp": record.get_time().isoformat(),
                             }
                             found_events.append(event_info)
 
@@ -1073,9 +1067,9 @@ from(bucket: "{influxdb_bucket}")
             return chain
 
         except Exception as e:
-            logger.error(f"Error tracing automation chain: {e}")
+            logger.exception(f"Error tracing automation chain: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
             return []
         finally:
             if client:

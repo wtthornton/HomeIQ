@@ -34,7 +34,7 @@ class TestAICoreService:
             {"description": "Set temperature to 72 degrees", "type": "automation"},
             {"description": "Lock door at 10 PM", "type": "automation"},
             {"description": "Turn off TV when leaving", "type": "automation"},
-            {"description": "Dim lights in evening", "type": "automation"}
+            {"description": "Dim lights in evening", "type": "automation"},
         ]
 
     @pytest.fixture
@@ -44,13 +44,13 @@ class TestAICoreService:
             {
                 "description": "Motion sensor triggers lights in living room",
                 "frequency": "daily",
-                "devices": ["motion_sensor", "living_room_lights"]
+                "devices": ["motion_sensor", "living_room_lights"],
             },
             {
                 "description": "Temperature control based on time of day",
                 "frequency": "continuous",
-                "devices": ["thermostat", "hvac_system"]
-            }
+                "devices": ["thermostat", "hvac_system"],
+            },
         ]
 
     @pytest.mark.asyncio
@@ -96,8 +96,8 @@ class TestAICoreService:
                 "analysis_type": "pattern_detection",
                 "options": {
                     "n_clusters": 3,
-                    "contamination": 0.1
-                }
+                    "contamination": 0.1,
+                },
             },
             headers=auth_headers,
         )
@@ -118,7 +118,7 @@ class TestAICoreService:
             f"{AI_CORE_SERVICE_URL}/patterns",
             json={
                 "patterns": sample_pattern_data,
-                "detection_type": "full"
+                "detection_type": "full",
             },
             headers=auth_headers,
         )
@@ -139,14 +139,14 @@ class TestAICoreService:
         context = {
             "user_preferences": ["energy_saving", "comfort"],
             "current_automations": 5,
-            "devices": ["lights", "thermostat", "locks"]
+            "devices": ["lights", "thermostat", "locks"],
         }
 
         response = await client.post(
             f"{AI_CORE_SERVICE_URL}/suggestions",
             json={
                 "context": context,
-                "suggestion_type": "automation_improvements"
+                "suggestion_type": "automation_improvements",
             },
             headers=auth_headers,
         )
@@ -170,7 +170,7 @@ class TestAICoreService:
             json={
                 "data": [],
                 "analysis_type": "invalid_type",
-                "options": {}
+                "options": {},
             },
             headers=auth_headers,
         )
@@ -188,7 +188,7 @@ class TestAICoreService:
             json={
                 "data": [{"description": "test pattern"}],
                 "analysis_type": "basic",
-                "options": {}
+                "options": {},
             },
             headers=auth_headers,
         )
@@ -210,7 +210,7 @@ class TestAICoreService:
             json={
                 "data": large_data,
                 "analysis_type": "pattern_detection",
-                "options": {"n_clusters": 5}
+                "options": {"n_clusters": 5},
             },
             headers=auth_headers,
         )

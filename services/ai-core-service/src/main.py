@@ -114,7 +114,8 @@ async def lifespan(app: FastAPI):
     try:
         api_key_value = os.getenv("AI_CORE_API_KEY")
         if not api_key_value:
-            raise RuntimeError("AI_CORE_API_KEY environment variable must be set")
+            msg = "AI_CORE_API_KEY environment variable must be set"
+            raise RuntimeError(msg)
 
         # Get service URLs from environment
         openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
@@ -126,13 +127,13 @@ async def lifespan(app: FastAPI):
             openvino_url=openvino_url,
             ml_url=ml_url,
             ner_url=ner_url,
-            openai_url=openai_url
+            openai_url=openai_url,
         )
 
         await service_manager.initialize()
         logger.info("✅ AI Core Service started successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to start AI Core Service: {e}")
+        logger.exception(f"❌ Failed to start AI Core Service: {e}")
         raise
 
     yield
@@ -148,7 +149,7 @@ app = FastAPI(
     title="AI Core Service",
     description="Orchestrator for containerized AI models",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -201,7 +202,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "ai-core-service",
-        "services": service_status
+        "services": service_status,
     }
 
 @app.get("/services/status")
@@ -227,7 +228,7 @@ async def analyze_data(
         results, services_used = await service_manager.analyze_data(
             data=request.data,
             analysis_type=request.analysis_type,
-            options=request.options
+            options=request.options,
         )
 
         processing_time = time.time() - start_time
@@ -235,7 +236,7 @@ async def analyze_data(
         return AnalysisResponse(
             results=results,
             services_used=services_used,
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except Exception:
@@ -256,7 +257,7 @@ async def detect_patterns(
 
         patterns, services_used = await service_manager.detect_patterns(
             patterns=request.patterns,
-            detection_type=request.detection_type
+            detection_type=request.detection_type,
         )
 
         processing_time = time.time() - start_time
@@ -264,7 +265,7 @@ async def detect_patterns(
         return PatternDetectionResponse(
             detected_patterns=patterns,
             services_used=services_used,
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except Exception:
@@ -285,7 +286,7 @@ async def generate_suggestions(
 
         suggestions, services_used = await service_manager.generate_suggestions(
             context=request.context,
-            suggestion_type=request.suggestion_type
+            suggestion_type=request.suggestion_type,
         )
 
         processing_time = time.time() - start_time
@@ -293,7 +294,7 @@ async def generate_suggestions(
         return SuggestionResponse(
             suggestions=suggestions,
             services_used=services_used,
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except Exception:

@@ -26,7 +26,7 @@ class TestClarificationConfidenceCalibrator:
     @pytest.fixture
     def temp_model_path(self):
         """Create a temporary file path for model storage"""
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             temp_path = f.name
         yield temp_path
         # Cleanup
@@ -47,7 +47,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=2,
             critical_ambiguity_count=1,
             rounds=1,
-            answer_count=2
+            answer_count=2,
         )
 
         assert isinstance(features, np.ndarray)
@@ -66,7 +66,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=10,  # Should be capped at 1.0
             critical_ambiguity_count=5,  # Should be capped at 1.0
             rounds=5,  # Should be capped at 1.0
-            answer_count=10  # Should be capped at 1.0
+            answer_count=10,  # Should be capped at 1.0
         )
 
         assert features[1] == 1.0  # ambiguity_count normalized
@@ -83,7 +83,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=1,
             critical_ambiguity_count=0,
             rounds=1,
-            answer_count=1
+            answer_count=1,
         )
 
         assert len(calibrator.features_history) == 1
@@ -100,7 +100,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=0,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
         assert calibrator.labels_history[0] == 1
 
@@ -112,7 +112,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=0,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
         assert calibrator.labels_history[1] == 1
 
@@ -124,7 +124,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=0,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
         assert calibrator.labels_history[2] == 0
 
@@ -139,7 +139,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=0,
                 critical_ambiguity_count=0,
                 rounds=0,
-                answer_count=0
+                answer_count=0,
             )
 
         # Training should not fit model
@@ -157,7 +157,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=i % 3,
                 critical_ambiguity_count=i % 2,
                 rounds=i % 3,
-                answer_count=i % 4
+                answer_count=i % 4,
             )
 
         calibrator.train(min_samples=10)
@@ -172,7 +172,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=1,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
 
         assert calibrated == raw_confidence
@@ -188,7 +188,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=i % 3,
                 critical_ambiguity_count=i % 2,
                 rounds=i % 3,
-                answer_count=i % 4
+                answer_count=i % 4,
             )
 
         calibrator.train(min_samples=10)
@@ -201,7 +201,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=1,
             critical_ambiguity_count=0,
             rounds=1,
-            answer_count=1
+            answer_count=1,
         )
 
         # Calibrated should be in valid range
@@ -212,7 +212,7 @@ class TestClarificationConfidenceCalibrator:
     def test_calibrate_blending(self, calibrator):
         """Test that calibration blends with raw confidence based on training data"""
         # Add minimal training data (should have low weight)
-        for i in range(15):
+        for _i in range(15):
             calibrator.add_feedback(
                 raw_confidence=0.7,
                 actually_proceeded=True,
@@ -220,7 +220,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=0,
                 critical_ambiguity_count=0,
                 rounds=0,
-                answer_count=0
+                answer_count=0,
             )
 
         calibrator.train(min_samples=10)
@@ -231,7 +231,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=0,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
 
         # With only 15 samples, weight should be 15/50 = 0.3
@@ -249,7 +249,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=i % 3,
                 critical_ambiguity_count=i % 2,
                 rounds=i % 3,
-                answer_count=i % 4
+                answer_count=i % 4,
             )
 
         calibrator.train(min_samples=10)
@@ -286,16 +286,16 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=0,
                 critical_ambiguity_count=0,
                 rounds=0,
-                answer_count=0
+                answer_count=0,
             )
 
         stats = calibrator.get_stats()
 
-        assert stats['is_fitted'] is False
-        assert stats['training_samples'] == 10
-        assert stats['positive_feedback'] == 5
-        assert stats['negative_feedback'] == 5
-        assert 'model_path' in stats
+        assert stats["is_fitted"] is False
+        assert stats["training_samples"] == 10
+        assert stats["positive_feedback"] == 5
+        assert stats["negative_feedback"] == 5
+        assert "model_path" in stats
 
     def test_auto_retrain_trigger(self, calibrator):
         """Test auto-retraining triggers at 50 samples"""
@@ -308,7 +308,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=i % 3,
                 critical_ambiguity_count=i % 2,
                 rounds=i % 3,
-                answer_count=i % 4
+                answer_count=i % 4,
             )
 
         assert calibrator.is_fitted is False
@@ -321,7 +321,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=1,
             critical_ambiguity_count=0,
             rounds=1,
-            answer_count=1
+            answer_count=1,
         )
 
         # Should be fitted after auto-retrain (if we have enough samples and both classes)
@@ -332,7 +332,7 @@ class TestClarificationConfidenceCalibrator:
     def test_calibrate_error_handling(self, calibrator):
         """Test calibration error handling returns raw confidence"""
         # Train model
-        for i in range(15):
+        for _i in range(15):
             calibrator.add_feedback(
                 raw_confidence=0.7,
                 actually_proceeded=True,
@@ -340,7 +340,7 @@ class TestClarificationConfidenceCalibrator:
                 ambiguity_count=0,
                 critical_ambiguity_count=0,
                 rounds=0,
-                answer_count=0
+                answer_count=0,
             )
 
         calibrator.train(min_samples=10)
@@ -354,7 +354,7 @@ class TestClarificationConfidenceCalibrator:
             ambiguity_count=0,
             critical_ambiguity_count=0,
             rounds=0,
-            answer_count=0
+            answer_count=0,
         )
 
         # Should fallback to raw confidence

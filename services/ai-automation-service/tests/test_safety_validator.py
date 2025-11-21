@@ -269,7 +269,7 @@ action:
             rule="test_rule",
             severity="warning",
             message="Test message",
-            suggested_fix="Test fix"
+            suggested_fix="Test fix",
         )
 
         assert issue.rule == "test_rule"

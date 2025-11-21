@@ -113,7 +113,7 @@ class DeviceHygieneAnalyzer:
                             "entities": [e.entity_id for e in entity_lookup.get(device.id, [])],
                             "normalized_name": normalized,
                         },
-                    )
+                    ),
                 )
         return findings
 
@@ -145,7 +145,7 @@ class DeviceHygieneAnalyzer:
                             "entities": [e.entity_id for e in entity_lookup.get(device.id, [])],
                             "integration": device.integration,
                         },
-                    )
+                    ),
                 )
         return findings
 
@@ -176,7 +176,7 @@ class DeviceHygieneAnalyzer:
                         "suggested_area_id": suggested,
                         "entities": [e.entity_id for e in entity_lookup.get(device.id, [])],
                     },
-                )
+                ),
             )
         return findings
 
@@ -211,7 +211,7 @@ class DeviceHygieneAnalyzer:
                         "age_days": round(age.total_seconds() / 86400, 1),
                         "integration": device.integration,
                     },
-                )
+                ),
             )
         return findings
 
@@ -238,7 +238,7 @@ class DeviceHygieneAnalyzer:
                         "entity_category": entity.entity_category,
                         "domain": entity.domain,
                     },
-                )
+                ),
             )
         return findings
 

@@ -24,14 +24,14 @@ class HealthCheckHandler:
                 "status": "healthy",
                 "service": "admin-api",
                 "uptime": str(datetime.now() - self.start_time),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             return web.json_response(health_data, status=200)
 
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
+            logger.exception(f"Health check failed: {e}")
             return web.json_response(
                 {"status": "unhealthy", "error": str(e)},
-                status=500
+                status=500,
             )

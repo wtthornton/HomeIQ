@@ -11,7 +11,7 @@ This module provides:
 
 Usage:
     from nlevel_synergy import NLevelSynergyDetector
-    
+
     detector = NLevelSynergyDetector(db_session, data_api_client)
     synergies = await detector.detect_nlevel_synergies(devices, max_depth=3)
 """
@@ -25,9 +25,9 @@ from .embedding_cache import EmbeddingCache
 from .embedding_model import DeviceEmbeddingModel
 
 __all__ = [
-    'DeviceDescriptorBuilder',
-    'DeviceEmbeddingModel',
-    'EmbeddingCache',
-    'DeviceEmbeddingGenerator',
+    "DeviceDescriptorBuilder",
+    "DeviceEmbeddingGenerator",
+    "DeviceEmbeddingModel",
+    "EmbeddingCache",
 ]
 

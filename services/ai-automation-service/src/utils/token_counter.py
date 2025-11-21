@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 def get_encoding(model: str) -> tiktoken.Encoding:
     """
     Get tiktoken encoding for a given model.
-    
+
     Args:
         model: Model name (gpt-4o, gpt-4o-mini)
-    
+
     Returns:
         tiktoken.Encoding instance
     """
@@ -41,11 +41,11 @@ def get_encoding(model: str) -> tiktoken.Encoding:
 def count_tokens(text: str, model: str = "gpt-4o") -> int:
     """
     Count tokens for a given text and model.
-    
+
     Args:
         text: Text to count tokens for
         model: Model name (gpt-4o, gpt-4o-mini)
-    
+
     Returns:
         Number of tokens
     """
@@ -59,11 +59,11 @@ def count_tokens(text: str, model: str = "gpt-4o") -> int:
 def count_message_tokens(messages: list[dict], model: str = "gpt-4o") -> int:
     """
     Count tokens in OpenAI message format.
-    
+
     Args:
         messages: List of message dicts with 'role' and 'content' keys
         model: Model name (gpt-4o, gpt-4o-mini)
-    
+
     Returns:
         Total number of tokens
     """
@@ -87,31 +87,31 @@ def count_message_tokens(messages: list[dict], model: str = "gpt-4o") -> int:
 def get_token_breakdown(messages: list[dict], model: str = "gpt-4o") -> dict:
     """
     Break down token usage by component.
-    
+
     Args:
         messages: List of message dicts with 'role' and 'content' keys
         model: Model name (gpt-4o, gpt-4o-mini)
-    
+
     Returns:
         Dictionary with token breakdown by component
     """
     encoding = get_encoding(model)
     breakdown = {
-        'system_prompt': 0,
-        'user_prompt': 0,
-        'developer_notes': 0,
-        'entity_context': 0,
-        'conversation_history': 0,
-        'other': 0,
-        'overhead': 0,
-        'total': 0
+        "system_prompt": 0,
+        "user_prompt": 0,
+        "developer_notes": 0,
+        "entity_context": 0,
+        "conversation_history": 0,
+        "other": 0,
+        "overhead": 0,
+        "total": 0,
     }
 
     overhead = 3  # Base overhead for message formatting
 
     for message in messages:
-        role = message.get('role', '')
-        content = message.get('content', '')
+        role = message.get("role", "")
+        content = message.get("content", "")
 
         if not content:
             continue
@@ -119,23 +119,23 @@ def get_token_breakdown(messages: list[dict], model: str = "gpt-4o") -> dict:
         tokens = len(encoding.encode(content))
         overhead += 3  # Per-message overhead
 
-        if role == 'system':
-            breakdown['system_prompt'] += tokens
-        elif role == 'user':
+        if role == "system":
+            breakdown["system_prompt"] += tokens
+        elif role == "user":
             # Try to identify components in user prompt
-            if 'entity context' in content.lower() or 'entities:' in content.lower():
-                breakdown['entity_context'] += tokens
-            elif 'conversation' in content.lower() or 'history' in content.lower():
-                breakdown['conversation_history'] += tokens
+            if "entity context" in content.lower() or "entities:" in content.lower():
+                breakdown["entity_context"] += tokens
+            elif "conversation" in content.lower() or "history" in content.lower():
+                breakdown["conversation_history"] += tokens
             else:
-                breakdown['user_prompt'] += tokens
-        elif role == 'developer':
-            breakdown['developer_notes'] += tokens
+                breakdown["user_prompt"] += tokens
+        elif role == "developer":
+            breakdown["developer_notes"] += tokens
         else:
-            breakdown['other'] += tokens
+            breakdown["other"] += tokens
 
-    breakdown['overhead'] = overhead
-    breakdown['total'] = sum(breakdown.values())
+    breakdown["overhead"] = overhead
+    breakdown["total"] = sum(breakdown.values())
 
     return breakdown
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import relationship
 
-from ..database import Base
+from src.database import Base
 
 
 class Device(Base):
@@ -50,9 +50,9 @@ class Device(Base):
 
 
 # Indexes for common queries
-Index('idx_device_area', Device.area_id)
-Index('idx_device_integration', Device.integration)
-Index('idx_device_manufacturer', Device.manufacturer)
-Index('idx_device_config_entry', Device.config_entry_id)
-Index('idx_device_via_device', Device.via_device)
+Index("idx_device_area", Device.area_id)
+Index("idx_device_integration", Device.integration)
+Index("idx_device_manufacturer", Device.manufacturer)
+Index("idx_device_config_entry", Device.config_entry_id)
+Index("idx_device_via_device", Device.via_device)
 

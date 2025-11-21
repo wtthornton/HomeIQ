@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -34,18 +34,18 @@ async def test_map_devices_to_entities():
         "light.office_1": {
             "friendly_name": "Office light 1",
             "state": "off",
-            "attributes": {}
+            "attributes": {},
         },
         "light.office_2": {
             "friendly_name": "Office light 2",
             "state": "off",
-            "attributes": {}
+            "attributes": {},
         },
         "light.kitchen": {
             "friendly_name": "Kitchen light",
             "state": "on",
-            "attributes": {}
-        }
+            "attributes": {},
+        },
     }
 
     # Test with matching devices
@@ -113,20 +113,20 @@ def check_code_structure():
     # Check map_devices_to_entities exists
     assert callable(map_devices_to_entities), "map_devices_to_entities function not found"
     sig = inspect.signature(map_devices_to_entities)
-    assert 'devices_involved' in sig.parameters
-    assert 'enriched_data' in sig.parameters
+    assert "devices_involved" in sig.parameters
+    assert "enriched_data" in sig.parameters
     logger.info("✅ map_devices_to_entities function exists with correct signature")
 
     # Check generate_suggestions_from_query includes validated_entities logic
     source = inspect.getsource(generate_suggestions_from_query)
-    assert 'validated_entities' in source, "generate_suggestions_from_query should include validated_entities"
-    assert 'map_devices_to_entities' in source, "generate_suggestions_from_query should use map_devices_to_entities"
+    assert "validated_entities" in source, "generate_suggestions_from_query should include validated_entities"
+    assert "map_devices_to_entities" in source, "generate_suggestions_from_query should use map_devices_to_entities"
     logger.info("✅ generate_suggestions_from_query includes validated_entities logic")
 
     # Check test_suggestion_from_query has fast path check
     source = inspect.getsource(test_suggestion_from_query)
-    assert 'validated_entities' in source, "test_suggestion_from_query should check validated_entities"
-    assert 'FAST PATH' in source or 'fast path' in source.lower(), "Should have fast path logging"
+    assert "validated_entities" in source, "test_suggestion_from_query should check validated_entities"
+    assert "FAST PATH" in source or "fast path" in source.lower(), "Should have fast path logging"
     logger.info("✅ test_suggestion_from_query includes fast path check")
 
     logger.info("\n✅ All code structure checks passed!")

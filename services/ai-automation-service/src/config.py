@@ -55,14 +55,14 @@ class Settings(BaseSettings):
         "light": 8,
         "switch": 8,
         "media_player": 6,
-        "lock": 4
+        "lock": 4,
     }
     time_of_day_confidence_overrides: dict[str, float] = {
         "light": 0.6,
         "switch": 0.6,
         "media_player": 0.6,
         "lock": 0.85,
-        "climate": 0.75
+        "climate": 0.75,
     }
 
     co_occurrence_min_support: int = 10
@@ -71,14 +71,14 @@ class Settings(BaseSettings):
         "light": 6,
         "switch": 6,
         "media_player": 4,
-        "lock": 4
+        "lock": 4,
     }
     co_occurrence_confidence_overrides: dict[str, float] = {
         "light": 0.6,
         "switch": 0.6,
         "media_player": 0.6,
         "lock": 0.85,
-        "climate": 0.75
+        "climate": 0.75,
     }
 
     manual_refresh_cooldown_hours: int = 24
@@ -174,7 +174,7 @@ class Settings(BaseSettings):
     # Synergy Selection Configuration
     synergy_max_suggestions: int = 7
     """Maximum number of synergy suggestions to generate in daily batch (default: 7)
-    
+
     Increased from hardcoded 5 to better utilize 6,324 available opportunities.
     Rationale: With 82.6% pattern-validated synergies, we can safely increase
     the limit to improve suggestion diversity while maintaining quality.
@@ -182,7 +182,7 @@ class Settings(BaseSettings):
 
     synergy_min_priority: float = 0.6
     """Minimum priority score threshold for synergy selection (default: 0.6)
-    
+
     Only synergies with calculated priority score >= this value will be
     considered for suggestion generation. Priority score combines:
     - 40% impact_score
@@ -194,7 +194,7 @@ class Settings(BaseSettings):
 
     synergy_use_priority_scoring: bool = True
     """Enable priority-based synergy selection (default: True)
-    
+
     When enabled, synergies are selected using calculated priority score
     instead of simple impact_score ranking. This prioritizes pattern-validated
     synergies (5,224 out of 6,324) for better suggestion quality.
@@ -293,7 +293,7 @@ class Settings(BaseSettings):
         "script.turn_on",
         "automation.reload",
         "homeassistant.restart",
-        "homeassistant.stop"
+        "homeassistant.stop",
     ]
     """Services blocked in expert mode unless allow_dangerous_operations=true"""
 
@@ -302,7 +302,7 @@ class Settings(BaseSettings):
         "camera",
         "lock",
         "cover",
-        "climate"
+        "climate",
     ]
     """Services that require explicit user confirmation before deployment"""
 
@@ -326,7 +326,7 @@ class Settings(BaseSettings):
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",
         case_sensitive=False,
-        extra="ignore"  # Ignore extra fields from environment to prevent validation errors
+        extra="ignore",  # Ignore extra fields from environment to prevent validation errors
     )
 
 

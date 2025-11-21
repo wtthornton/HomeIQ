@@ -26,17 +26,17 @@ class DeviceIntelligenceClient:
         limit: int = 100,
         manufacturer: str | None = None,
         model: str | None = None,
-        area_id: str | None = None
+        area_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Get devices from Device Intelligence Service.
-        
+
         Args:
             limit: Maximum number of devices to return
             manufacturer: Filter by manufacturer
             model: Filter by model
             area_id: Filter by area/room
-            
+
         Returns:
             Dictionary with devices, count, and limit
         """
@@ -57,22 +57,22 @@ class DeviceIntelligenceClient:
             return data
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error getting devices: {e}")
+            logger.exception(f"HTTP error getting devices: {e}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error getting devices: {e}")
+            logger.exception(f"Request error getting devices: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error getting devices: {e}")
+            logger.exception(f"Unexpected error getting devices: {e}")
             raise
 
     async def get_device_by_id(self, device_id: str) -> dict[str, Any]:
         """
         Get a specific device by ID.
-        
+
         Args:
             device_id: Device identifier
-            
+
         Returns:
             Device data dictionary
         """
@@ -88,19 +88,19 @@ class DeviceIntelligenceClient:
             if e.response.status_code == 404:
                 logger.warning(f"Device {device_id} not found in Device Intelligence Service")
                 return None
-            logger.error(f"HTTP error getting device {device_id}: {e}")
+            logger.exception(f"HTTP error getting device {device_id}: {e}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error getting device {device_id}: {e}")
+            logger.exception(f"Request error getting device {device_id}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error getting device {device_id}: {e}")
+            logger.exception(f"Unexpected error getting device {device_id}: {e}")
             raise
 
     async def get_device_stats(self) -> dict[str, Any]:
         """
         Get device statistics from Device Intelligence Service.
-        
+
         Returns:
             Device statistics dictionary
         """
@@ -113,22 +113,22 @@ class DeviceIntelligenceClient:
             return data
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error getting device stats: {e}")
+            logger.exception(f"HTTP error getting device stats: {e}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error getting device stats: {e}")
+            logger.exception(f"Request error getting device stats: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error getting device stats: {e}")
+            logger.exception(f"Unexpected error getting device stats: {e}")
             raise
 
     async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """
         Get device capabilities from Device Intelligence Service.
-        
+
         Args:
             device_id: Device identifier
-            
+
         Returns:
             List of device capabilities
         """
@@ -144,13 +144,13 @@ class DeviceIntelligenceClient:
             if e.response.status_code == 404:
                 logger.warning(f"Device {device_id} not found for capabilities")
                 return []
-            logger.error(f"HTTP error getting capabilities for device {device_id}: {e}")
+            logger.exception(f"HTTP error getting capabilities for device {device_id}: {e}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error getting capabilities for device {device_id}: {e}")
+            logger.exception(f"Request error getting capabilities for device {device_id}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error getting capabilities for device {device_id}: {e}")
+            logger.exception(f"Unexpected error getting capabilities for device {device_id}: {e}")
             raise
 
     async def close(self):
@@ -159,7 +159,7 @@ class DeviceIntelligenceClient:
             await self.client.aclose()
             logger.info("Device Intelligence Client closed")
         except Exception as e:
-            logger.error(f"Error closing Device Intelligence Client: {e}")
+            logger.exception(f"Error closing Device Intelligence Client: {e}")
 
 # Global client instance
 _device_intelligence_client = None

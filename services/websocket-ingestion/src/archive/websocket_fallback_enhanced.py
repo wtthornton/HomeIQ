@@ -18,7 +18,7 @@ from aiohttp import ClientTimeout, ClientWebSocketResponse, web
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ class EnhancedHAWebSocketService:
                 timeout=30,
                 heartbeat=20.0,
                 max_retries=3,
-                retry_delay=5.0
+                retry_delay=5.0,
             )
             self.connections.append(config)
             self.connection_stats[config.name] = ConnectionStats()
@@ -129,7 +129,7 @@ class EnhancedHAWebSocketService:
                 timeout=45,  # Longer timeout for cloud connection
                 heartbeat=30.0,  # Longer heartbeat for cloud
                 max_retries=5,
-                retry_delay=10.0
+                retry_delay=10.0,
             )
             self.connections.append(config)
             self.connection_stats[config.name] = ConnectionStats()
@@ -147,7 +147,7 @@ class EnhancedHAWebSocketService:
                 timeout=30,
                 heartbeat=20.0,
                 max_retries=3,
-                retry_delay=5.0
+                retry_delay=5.0,
             )
             self.connections.append(config)
             self.connection_stats[config.name] = ConnectionStats()
@@ -174,7 +174,7 @@ class EnhancedHAWebSocketService:
         # Sort by priority and success rate
         available_connections.sort(key=lambda x: (
             x.priority,
-            self.connection_stats[x.name].failed_connections
+            self.connection_stats[x.name].failed_connections,
         ))
 
         return available_connections[0] if available_connections else None
@@ -218,16 +218,17 @@ class EnhancedHAWebSocketService:
                     autoping=True,
                     heartbeat=connection.heartbeat,
                     headers={
-                        'User-Agent': 'HomeIQ/1.0',
-                        'Origin': connection.url
-                    }
+                        "User-Agent": "HomeIQ/1.0",
+                        "Origin": connection.url,
+                    },
                 )
 
                 logger.info(f"✅ WebSocket connection established to {connection.name}")
 
                 # Authenticate using Context7 KB patterns
                 if not await self._authenticate(connection):
-                    raise Exception("Authentication failed")
+                    msg = "Authentication failed"
+                    raise Exception(msg)
 
                 # Subscribe to events
                 await self._subscribe_to_events()
@@ -251,7 +252,7 @@ class EnhancedHAWebSocketService:
                 return True
 
             except Exception as e:
-                logger.error(f"❌ Failed to connect to {connection.name}: {e}")
+                logger.exception(f"❌ Failed to connect to {connection.name}: {e}")
                 self.state = ConnectionState.FAILED
                 stats.failed_connections += 1
                 self.fallback_attempts += 1
@@ -283,7 +284,7 @@ class EnhancedHAWebSocketService:
             # Send authentication using Context7 KB patterns
             auth_message = {
                 "type": "auth",
-                "access_token": connection.token
+                "access_token": connection.token,
             }
             await self.ws.send_json(auth_message)
 
@@ -295,12 +296,11 @@ class EnhancedHAWebSocketService:
                 self.is_authenticated = True
                 logger.info(f"✅ Authentication successful with {connection.name}")
                 return True
-            else:
-                logger.error(f"❌ Authentication failed with {connection.name}: {auth_response}")
-                return False
+            logger.error(f"❌ Authentication failed with {connection.name}: {auth_response}")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Authentication error with {connection.name}: {e}")
+            logger.exception(f"❌ Authentication error with {connection.name}: {e}")
             return False
 
     async def _subscribe_to_events(self):
@@ -308,7 +308,7 @@ class EnhancedHAWebSocketService:
         try:
             subscribe_msg = {
                 "id": 1,
-                "type": "subscribe_events"
+                "type": "subscribe_events",
             }
             await self.ws.send_json(subscribe_msg)
 
@@ -319,10 +319,11 @@ class EnhancedHAWebSocketService:
             if response.get("type") == "result" and response.get("success"):
                 logger.info("✅ Event subscription successful")
             else:
-                raise Exception(f"Event subscription failed: {response}")
+                msg = f"Event subscription failed: {response}"
+                raise Exception(msg)
 
         except Exception as e:
-            logger.error(f"❌ Event subscription error: {e}")
+            logger.exception(f"❌ Event subscription error: {e}")
             raise
 
     async def _cleanup_connection(self):
@@ -388,7 +389,7 @@ class EnhancedHAWebSocketService:
                     logger.debug(f"📨 Received message: {message}")
 
             except Exception as e:
-                logger.error(f"❌ Error processing events: {e}")
+                logger.exception(f"❌ Error processing events: {e}")
                 self.state = ConnectionState.FAILED
                 await asyncio.sleep(5)
 
@@ -409,7 +410,7 @@ class EnhancedHAWebSocketService:
             await self._send_to_enrichment_pipeline(event)
 
         except Exception as e:
-            logger.error(f"❌ Error handling event: {e}")
+            logger.exception(f"❌ Error handling event: {e}")
 
     async def _enrich_with_weather(self, event: dict[str, Any]):
         """Enrich event with weather data using Context7 KB patterns"""
@@ -432,7 +433,7 @@ class EnhancedHAWebSocketService:
                         logger.warning(f"⚠️  Weather API unavailable: {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Weather enrichment error: {e}")
+            logger.exception(f"❌ Weather enrichment error: {e}")
 
     async def _send_to_enrichment_pipeline(self, event: dict[str, Any]):
         """Send event to enrichment pipeline using Context7 KB patterns"""
@@ -441,7 +442,7 @@ class EnhancedHAWebSocketService:
             async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
                 f"{self.enrichment_service_url}/enrich",
                 json=event,
-                headers={'Content-Type': 'application/json'}
+                headers={"Content-Type": "application/json"},
             ) as response:
                 if response.status == 200:
                     logger.debug("📤 Event sent to enrichment pipeline")
@@ -449,7 +450,7 @@ class EnhancedHAWebSocketService:
                     logger.warning(f"⚠️  Enrichment pipeline error: {response.status}")
 
         except Exception as e:
-            logger.error(f"❌ Enrichment pipeline error: {e}")
+            logger.exception(f"❌ Enrichment pipeline error: {e}")
 
     async def start_health_server(self):
         """Start health check server using Context7 KB patterns"""
@@ -476,18 +477,18 @@ class EnhancedHAWebSocketService:
                         "last_connection": stats.last_connection.isoformat() if stats.last_connection else None,
                         "last_success": stats.last_success.isoformat() if stats.last_success else None,
                         "total_uptime_seconds": stats.total_uptime.total_seconds(),
-                        "current_uptime_seconds": (datetime.now() - stats.current_uptime).seconds if stats.current_uptime else 0
+                        "current_uptime_seconds": (datetime.now() - stats.current_uptime).seconds if stats.current_uptime else 0,
                     }
                     for name, stats in self.connection_stats.items()
-                }
+                },
             }
             return web.json_response(stats)
 
-        app.router.add_get('/health', health_check)
+        app.router.add_get("/health", health_check)
 
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', 8000)
+        site = web.TCPSite(runner, "0.0.0.0", 8000)
         await site.start()
         logger.info("🌐 Health check server started on port 8000")
 
@@ -512,7 +513,7 @@ class EnhancedHAWebSocketService:
         except KeyboardInterrupt:
             logger.info("🛑 Service stopped by user")
         except Exception as e:
-            logger.error(f"❌ Service error: {e}")
+            logger.exception(f"❌ Service error: {e}")
         finally:
             await self.cleanup()
 

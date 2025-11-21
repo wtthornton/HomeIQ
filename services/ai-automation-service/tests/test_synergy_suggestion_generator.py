@@ -75,24 +75,24 @@ PRIORITY: medium
 def sample_device_pair_synergy():
     """Sample device pair synergy"""
     return {
-        'synergy_id': 'test-synergy-123',
-        'synergy_type': 'device_pair',
-        'trigger_entity': 'binary_sensor.bedroom_motion',
-        'action_entity': 'light.bedroom_ceiling',
-        'area': 'bedroom',
-        'relationship': 'motion_to_light',
-        'impact_score': 0.85,
-        'complexity': 'low',
-        'confidence': 0.90,
-        'devices': ['binary_sensor.bedroom_motion', 'light.bedroom_ceiling'],
-        'opportunity_metadata': {
-            'trigger_name': 'Bedroom Motion',
-            'action_name': 'Bedroom Light',
-            'trigger_entity': 'binary_sensor.bedroom_motion',
-            'action_entity': 'light.bedroom_ceiling',
-            'relationship': 'motion_to_light',
-            'rationale': 'Motion sensor and light in bedroom with no automation'
-        }
+        "synergy_id": "test-synergy-123",
+        "synergy_type": "device_pair",
+        "trigger_entity": "binary_sensor.bedroom_motion",
+        "action_entity": "light.bedroom_ceiling",
+        "area": "bedroom",
+        "relationship": "motion_to_light",
+        "impact_score": 0.85,
+        "complexity": "low",
+        "confidence": 0.90,
+        "devices": ["binary_sensor.bedroom_motion", "light.bedroom_ceiling"],
+        "opportunity_metadata": {
+            "trigger_name": "Bedroom Motion",
+            "action_name": "Bedroom Light",
+            "trigger_entity": "binary_sensor.bedroom_motion",
+            "action_entity": "light.bedroom_ceiling",
+            "relationship": "motion_to_light",
+            "rationale": "Motion sensor and light in bedroom with no automation",
+        },
     }
 
 
@@ -102,24 +102,24 @@ def sample_synergies(sample_device_pair_synergy):
     return [
         sample_device_pair_synergy,
         {
-            'synergy_id': 'test-synergy-456',
-            'synergy_type': 'device_pair',
-            'trigger_entity': 'binary_sensor.front_door',
-            'action_entity': 'lock.front_door',
-            'area': 'entry',
-            'relationship': 'door_to_lock',
-            'impact_score': 0.95,
-            'complexity': 'medium',
-            'confidence': 0.88,
-            'devices': ['binary_sensor.front_door', 'lock.front_door'],
-            'opportunity_metadata': {
-                'trigger_name': 'Front Door',
-                'action_name': 'Front Door Lock',
-                'trigger_entity': 'binary_sensor.front_door',
-                'action_entity': 'lock.front_door',
-                'relationship': 'door_to_lock'
-            }
-        }
+            "synergy_id": "test-synergy-456",
+            "synergy_type": "device_pair",
+            "trigger_entity": "binary_sensor.front_door",
+            "action_entity": "lock.front_door",
+            "area": "entry",
+            "relationship": "door_to_lock",
+            "impact_score": 0.95,
+            "complexity": "medium",
+            "confidence": 0.88,
+            "devices": ["binary_sensor.front_door", "lock.front_door"],
+            "opportunity_metadata": {
+                "trigger_name": "Front Door",
+                "action_name": "Front Door Lock",
+                "trigger_entity": "binary_sensor.front_door",
+                "action_entity": "lock.front_door",
+                "relationship": "door_to_lock",
+            },
+        },
     ]
 
 
@@ -149,22 +149,22 @@ async def test_suggestion_structure(mock_llm_client, sample_device_pair_synergy)
     suggestion = suggestions[0]
 
     # Check required fields
-    assert 'type' in suggestion
-    assert 'synergy_id' in suggestion
-    assert 'title' in suggestion
-    assert 'description' in suggestion
-    assert 'automation_yaml' in suggestion
-    assert 'rationale' in suggestion
-    assert 'category' in suggestion
-    assert 'priority' in suggestion
-    assert 'confidence' in suggestion
-    assert 'complexity' in suggestion
+    assert "type" in suggestion
+    assert "synergy_id" in suggestion
+    assert "title" in suggestion
+    assert "description" in suggestion
+    assert "automation_yaml" in suggestion
+    assert "rationale" in suggestion
+    assert "category" in suggestion
+    assert "priority" in suggestion
+    assert "confidence" in suggestion
+    assert "complexity" in suggestion
 
     # Check field types and values
-    assert suggestion['type'] == 'synergy_device_pair'
-    assert suggestion['synergy_id'] == 'test-synergy-123'
-    assert suggestion['category'] in ['energy', 'comfort', 'security', 'convenience']
-    assert suggestion['priority'] in ['high', 'medium', 'low']
+    assert suggestion["type"] == "synergy_device_pair"
+    assert suggestion["synergy_id"] == "test-synergy-123"
+    assert suggestion["category"] in ["energy", "comfort", "security", "convenience"]
+    assert suggestion["priority"] in ["high", "medium", "low"]
 
 
 @pytest.mark.asyncio
@@ -173,17 +173,17 @@ async def test_max_suggestions_limit(mock_llm_client):
     # Create 20 synergies
     synergies = [
         {
-            'synergy_id': f'synergy-{i}',
-            'synergy_type': 'device_pair',
-            'trigger_entity': f'sensor.{i}',
-            'action_entity': f'light.{i}',
-            'area': 'test',
-            'relationship': 'motion_to_light',
-            'impact_score': 0.8,
-            'complexity': 'low',
-            'confidence': 0.9,
-            'devices': [f'sensor.{i}', f'light.{i}'],
-            'opportunity_metadata': {}
+            "synergy_id": f"synergy-{i}",
+            "synergy_type": "device_pair",
+            "trigger_entity": f"sensor.{i}",
+            "action_entity": f"light.{i}",
+            "area": "test",
+            "relationship": "motion_to_light",
+            "impact_score": 0.8,
+            "complexity": "low",
+            "confidence": 0.9,
+            "devices": [f"sensor.{i}", f"light.{i}"],
+            "opportunity_metadata": {},
         }
         for i in range(20)
     ]
@@ -218,10 +218,10 @@ async def test_device_pair_prompt_building(sample_device_pair_synergy):
     prompt = generator._build_device_pair_prompt(sample_device_pair_synergy)
 
     # Check prompt contains key information
-    assert 'Bedroom Motion' in prompt or 'bedroom_motion' in prompt
-    assert 'Bedroom Light' in prompt or 'bedroom_ceiling' in prompt
-    assert 'bedroom' in prompt.lower()
-    assert 'motion' in prompt.lower()
+    assert "Bedroom Motion" in prompt or "bedroom_motion" in prompt
+    assert "Bedroom Light" in prompt or "bedroom_ceiling" in prompt
+    assert "bedroom" in prompt.lower()
+    assert "motion" in prompt.lower()
 
 
 def test_unknown_synergy_type_handling():
@@ -229,8 +229,8 @@ def test_unknown_synergy_type_handling():
     generator = SynergySuggestionGenerator(MagicMock())
 
     invalid_synergy = {
-        'synergy_type': 'unknown_type',
-        'synergy_id': 'test'
+        "synergy_type": "unknown_type",
+        "synergy_id": "test",
     }
 
     # Should raise ValueError
@@ -263,22 +263,22 @@ PRIORITY: medium
 """
 
     synergy = {
-        'synergy_id': 'test-123',
-        'synergy_type': 'device_pair',
-        'confidence': 0.85,
-        'complexity': 'low',
-        'impact_score': 0.7,
-        'devices': ['test.sensor', 'test.action']
+        "synergy_id": "test-123",
+        "synergy_type": "device_pair",
+        "confidence": 0.85,
+        "complexity": "low",
+        "impact_score": 0.7,
+        "devices": ["test.sensor", "test.action"],
     }
 
     suggestion = generator._parse_response(response_content, synergy)
 
-    assert suggestion['title'] == "AI Suggested: Test Automation"
-    assert suggestion['description'] == "Test description"
-    assert 'alias:' in suggestion['automation_yaml']
-    assert suggestion['rationale'] == "This is a test rationale"
-    assert suggestion['category'] == 'convenience'
-    assert suggestion['priority'] == 'medium'
+    assert suggestion["title"] == "AI Suggested: Test Automation"
+    assert suggestion["description"] == "Test description"
+    assert "alias:" in suggestion["automation_yaml"]
+    assert suggestion["rationale"] == "This is a test rationale"
+    assert suggestion["category"] == "convenience"
+    assert suggestion["priority"] == "medium"
 
 
 def test_parse_response_missing_fields():
@@ -295,23 +295,23 @@ No rationale or category provided
 """
 
     synergy = {
-        'synergy_id': 'test-123',
-        'synergy_type': 'device_pair',
-        'relationship': 'test_relationship',
-        'confidence': 0.85,
-        'complexity': 'low',
-        'impact_score': 0.7,
-        'devices': [],
-        'rationale': 'Fallback rationale'
+        "synergy_id": "test-123",
+        "synergy_type": "device_pair",
+        "relationship": "test_relationship",
+        "confidence": 0.85,
+        "complexity": "low",
+        "impact_score": 0.7,
+        "devices": [],
+        "rationale": "Fallback rationale",
     }
 
     suggestion = generator._parse_response(response_content, synergy)
 
     # Should extract title from alias
-    assert suggestion['title'] == "Test Automation"
-    assert suggestion['description'] == "Test description"
-    assert suggestion['category'] == 'convenience'  # Default
-    assert suggestion['priority'] == 'medium'  # Default
+    assert suggestion["title"] == "Test Automation"
+    assert suggestion["description"] == "Test description"
+    assert suggestion["category"] == "convenience"  # Default
+    assert suggestion["priority"] == "medium"  # Default
 
 
 # ============================================================================
@@ -353,10 +353,10 @@ async def test_llm_failure_graceful_handling():
     generator = SynergySuggestionGenerator(mock_client)
 
     synergy = {
-        'synergy_id': 'test',
-        'synergy_type': 'device_pair',
-        'impact_score': 0.7,  # Required for sorting
-        'opportunity_metadata': {}
+        "synergy_id": "test",
+        "synergy_type": "device_pair",
+        "impact_score": 0.7,  # Required for sorting
+        "opportunity_metadata": {},
     }
 
     # Should continue and log error, not return suggestions
@@ -366,6 +366,6 @@ async def test_llm_failure_graceful_handling():
     assert suggestions == []
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 

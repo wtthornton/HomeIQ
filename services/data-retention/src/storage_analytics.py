@@ -17,10 +17,10 @@ class StorageAnalytics:
     """Monitor and analyze storage usage"""
 
     def __init__(self):
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         self.client: InfluxDBClient3 = None
 
@@ -30,7 +30,7 @@ class StorageAnalytics:
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
 
     async def calculate_storage_metrics(self) -> dict[str, Any]:
@@ -40,29 +40,29 @@ class StorageAnalytics:
 
         try:
             # Count records in each tier
-            raw_count_query = '''
+            raw_count_query = """
             SELECT COUNT(*) as count
             FROM home_assistant_events
             WHERE time >= NOW() - INTERVAL '7 days'
-            '''
+            """
 
-            hourly_count_query = '''
+            hourly_count_query = """
             SELECT COUNT(*) as count
             FROM hourly_aggregates
-            '''
+            """
 
-            daily_count_query = '''
+            daily_count_query = """
             SELECT COUNT(*) as count
             FROM daily_aggregates
-            '''
+            """
 
-            raw_result = self.client.query(raw_count_query, language='sql', mode='pandas')
-            hourly_result = self.client.query(hourly_count_query, language='sql', mode='pandas')
-            daily_result = self.client.query(daily_count_query, language='sql', mode='pandas')
+            raw_result = self.client.query(raw_count_query, language="sql", mode="pandas")
+            hourly_result = self.client.query(hourly_count_query, language="sql", mode="pandas")
+            daily_result = self.client.query(daily_count_query, language="sql", mode="pandas")
 
-            raw_count = int(raw_result['count'].iloc[0]) if not raw_result.empty else 0
-            hourly_count = int(hourly_result['count'].iloc[0]) if not hourly_result.empty else 0
-            daily_count = int(daily_result['count'].iloc[0]) if not daily_result.empty else 0
+            raw_count = int(raw_result["count"].iloc[0]) if not raw_result.empty else 0
+            hourly_count = int(hourly_result["count"].iloc[0]) if not hourly_result.empty else 0
+            daily_count = int(daily_result["count"].iloc[0]) if not daily_result.empty else 0
 
             # Estimate storage sizes (rough)
             avg_event_size = 200  # bytes
@@ -87,14 +87,14 @@ class StorageAnalytics:
             annual_cost_savings = (storage_saved_mb / 1024) * cost_per_gb_month * 12
 
             metrics = {
-                'current_db_size_mb': current_db_size_mb,
-                'storage_saved_mb': storage_saved_mb,
-                'reduction_percentage': reduction_percentage,
-                'annual_cost_savings': annual_cost_savings,
-                'raw_records': raw_count,
-                'hourly_records': hourly_count,
-                'daily_records': daily_count,
-                'timestamp': datetime.now()
+                "current_db_size_mb": current_db_size_mb,
+                "storage_saved_mb": storage_saved_mb,
+                "reduction_percentage": reduction_percentage,
+                "annual_cost_savings": annual_cost_savings,
+                "raw_records": raw_count,
+                "hourly_records": hourly_count,
+                "daily_records": daily_count,
+                "timestamp": datetime.now(),
             }
 
             logger.info(f"Storage metrics: {current_db_size_mb:.0f}MB current, {reduction_percentage:.1f}% reduction")
@@ -115,8 +115,8 @@ class StorageAnalytics:
             return metrics
 
         except Exception as e:
-            logger.error(f"Error calculating storage metrics: {e}")
-            return {'status': 'error', 'error': str(e)}
+            logger.exception(f"Error calculating storage metrics: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def log_retention_operation(
         self,
@@ -124,7 +124,7 @@ class StorageAnalytics:
         records_processed: int,
         storage_freed_mb: float,
         duration_seconds: float,
-        errors: int = 0
+        errors: int = 0,
     ):
         """Log retention operation for tracking"""
 
@@ -143,5 +143,5 @@ class StorageAnalytics:
             logger.info(f"Logged {operation_type} operation: {records_processed} records, {storage_freed_mb:.1f}MB freed")
 
         except Exception as e:
-            logger.error(f"Error logging operation: {e}")
+            logger.exception(f"Error logging operation: {e}")
 

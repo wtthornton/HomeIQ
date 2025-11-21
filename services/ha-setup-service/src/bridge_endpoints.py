@@ -39,7 +39,7 @@ bridge_manager = ZigbeeBridgeManager()
 async def get_bridge_status():
     """
     Get comprehensive Zigbee2MQTT bridge health status
-    
+
     Returns detailed bridge metrics, health score, and recommendations.
     """
     try:
@@ -62,21 +62,21 @@ async def get_bridge_status():
                     action=attempt.action.value,
                     success=attempt.success,
                     error_message=attempt.error_message,
-                    duration_seconds=attempt.duration_seconds
+                    duration_seconds=attempt.duration_seconds,
                 ) for attempt in health_status.recovery_attempts
-            ]
+            ],
         )
 
     except Exception as e:
-        logger.error(f"Failed to get bridge status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {str(e)}")
+        logger.exception(f"Failed to get bridge status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bridge status: {e!s}")
 
 
 @router.post("/bridge/recovery", response_model=RecoveryResponse)
 async def attempt_bridge_recovery(request: RecoveryRequest):
     """
     Attempt to recover Zigbee2MQTT bridge connectivity
-    
+
     Executes recovery actions based on current bridge status.
     """
     try:
@@ -85,19 +85,19 @@ async def attempt_bridge_recovery(request: RecoveryRequest):
         return RecoveryResponse(
             success=success,
             message=message,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     except Exception as e:
-        logger.error(f"Bridge recovery failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}")
+        logger.exception(f"Bridge recovery failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Recovery failed: {e!s}")
 
 
 @router.get("/bridge/logs")
 async def get_bridge_logs():
     """
     Get Zigbee2MQTT bridge logs from Home Assistant
-    
+
     Returns recent bridge logs for troubleshooting.
     """
     try:
@@ -106,21 +106,21 @@ async def get_bridge_logs():
         return {
             "logs": [
                 "Bridge log retrieval not yet implemented",
-                "Will integrate with HA log API in future update"
+                "Will integrate with HA log API in future update",
             ],
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
-        logger.error(f"Failed to get bridge logs: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get bridge logs: {str(e)}")
+        logger.exception(f"Failed to get bridge logs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bridge logs: {e!s}")
 
 
 @router.post("/bridge/monitoring/start")
 async def start_bridge_monitoring(background_tasks: BackgroundTasks):
     """
     Start continuous bridge health monitoring
-    
+
     Begins background monitoring with auto-recovery capabilities.
     """
     try:
@@ -133,12 +133,12 @@ async def start_bridge_monitoring(background_tasks: BackgroundTasks):
         return {
             "message": "Bridge monitoring started",
             "status": "started",
-            "monitoring_interval": bridge_manager.monitoring_interval
+            "monitoring_interval": bridge_manager.monitoring_interval,
         }
 
     except Exception as e:
-        logger.error(f"Failed to start bridge monitoring: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start monitoring: {str(e)}")
+        logger.exception(f"Failed to start bridge monitoring: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start monitoring: {e!s}")
 
 
 @router.post("/bridge/monitoring/stop")
@@ -151,19 +151,19 @@ async def stop_bridge_monitoring():
 
         return {
             "message": "Bridge monitoring stopped",
-            "status": "stopped"
+            "status": "stopped",
         }
 
     except Exception as e:
-        logger.error(f"Failed to stop bridge monitoring: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to stop monitoring: {str(e)}")
+        logger.exception(f"Failed to stop bridge monitoring: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop monitoring: {e!s}")
 
 
 @router.get("/bridge/recovery/history")
 async def get_recovery_history():
     """
     Get recovery attempt history
-    
+
     Returns list of recent recovery attempts with results.
     """
     try:
@@ -176,24 +176,24 @@ async def get_recovery_history():
                     "action": attempt.action.value,
                     "success": attempt.success,
                     "error_message": attempt.error_message,
-                    "duration_seconds": attempt.duration_seconds
+                    "duration_seconds": attempt.duration_seconds,
                 } for attempt in history
             ],
             "total_attempts": len(history),
             "successful_attempts": sum(1 for attempt in history if attempt.success),
-            "failed_attempts": sum(1 for attempt in history if not attempt.success)
+            "failed_attempts": sum(1 for attempt in history if not attempt.success),
         }
 
     except Exception as e:
-        logger.error(f"Failed to get recovery history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get recovery history: {str(e)}")
+        logger.exception(f"Failed to get recovery history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recovery history: {e!s}")
 
 
 @router.delete("/bridge/recovery/history")
 async def clear_recovery_history():
     """
     Clear recovery attempt history
-    
+
     Removes all recovery attempt records.
     """
     try:
@@ -201,19 +201,19 @@ async def clear_recovery_history():
 
         return {
             "message": "Recovery history cleared",
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
-        logger.error(f"Failed to clear recovery history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to clear recovery history: {str(e)}")
+        logger.exception(f"Failed to clear recovery history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear recovery history: {e!s}")
 
 
 @router.get("/bridge/metrics")
 async def get_bridge_metrics():
     """
     Get detailed bridge performance metrics
-    
+
     Returns comprehensive metrics for network analysis.
     """
     try:
@@ -229,19 +229,19 @@ async def get_bridge_metrics():
             "coordinator_uptime_hours": metrics.coordinator_uptime_hours,
             "health_score": health_status.health_score,
             "bridge_state": health_status.bridge_state.value,
-            "last_check": health_status.last_check
+            "last_check": health_status.last_check,
         }
 
     except Exception as e:
-        logger.error(f"Failed to get bridge metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get bridge metrics: {str(e)}")
+        logger.exception(f"Failed to get bridge metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bridge metrics: {e!s}")
 
 
 @router.post("/bridge/restart")
 async def restart_bridge():
     """
     Restart Zigbee2MQTT bridge (alias for recovery)
-    
+
     Convenience endpoint for bridge restart.
     """
     try:
@@ -251,25 +251,24 @@ async def restart_bridge():
             return {
                 "message": "Bridge restart initiated successfully",
                 "success": True,
-                "timestamp": datetime.now()
+                "timestamp": datetime.now(),
             }
-        else:
-            return {
-                "message": f"Bridge restart failed: {message}",
-                "success": False,
-                "timestamp": datetime.now()
-            }
+        return {
+            "message": f"Bridge restart failed: {message}",
+            "success": False,
+            "timestamp": datetime.now(),
+        }
 
     except Exception as e:
-        logger.error(f"Bridge restart failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {str(e)}")
+        logger.exception(f"Bridge restart failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Bridge restart failed: {e!s}")
 
 
 @router.get("/bridge/health")
 async def get_bridge_health():
     """
     Simple health check endpoint for bridge status
-    
+
     Returns basic health information for monitoring systems.
     """
     try:
@@ -280,15 +279,15 @@ async def get_bridge_health():
             "state": health_status.bridge_state.value,
             "health_score": health_status.health_score,
             "device_count": health_status.metrics.device_count,
-            "last_check": health_status.last_check
+            "last_check": health_status.last_check,
         }
 
     except Exception as e:
-        logger.error(f"Bridge health check failed: {e}")
+        logger.exception(f"Bridge health check failed: {e}")
         return {
             "healthy": False,
             "state": "error",
             "health_score": 0,
             "error": str(e),
-            "last_check": datetime.now()
+            "last_check": datetime.now(),
         }

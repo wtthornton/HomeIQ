@@ -33,11 +33,11 @@ class ConfidenceCalculator:
         rl_calibrator: RLConfidenceCalibrator | None = None,
         rl_calibration_enabled: bool = False,  # Phase 3: Optional RL calibration
         uncertainty_quantifier: UncertaintyQuantifier | None = None,
-        uncertainty_enabled: bool = False  # Phase 3: Optional uncertainty quantification
+        uncertainty_enabled: bool = False,  # Phase 3: Optional uncertainty quantification
     ):
         """
         Initialize confidence calculator.
-        
+
         Args:
             default_threshold: Default confidence threshold for proceeding
             rag_client: Optional RAG client for historical success checking
@@ -65,11 +65,11 @@ class ConfidenceCalculator:
         clarification_answers: list[ClarificationAnswer] | None = None,
         base_confidence: float = 0.75,
         rag_client: Any | None = None,
-        return_uncertainty: bool = False
+        return_uncertainty: bool = False,
     ) -> float | ConfidenceWithUncertainty:
         """
         Calculate confidence score.
-        
+
         Factors:
         - Base confidence (from entity extraction)
         - Historical success (RAG-based similarity to successful queries)
@@ -78,7 +78,7 @@ class ConfidenceCalculator:
         - Answer quality (validated answers increase confidence)
         - Phase 3: RL calibration (optional)
         - Phase 3: Uncertainty quantification (optional)
-        
+
         Args:
             query: Original user query (or enriched query)
             extracted_entities: Extracted entities
@@ -87,7 +87,7 @@ class ConfidenceCalculator:
             base_confidence: Base confidence from extraction
             rag_client: Optional RAG client for historical success checking (if not set in __init__)
             return_uncertainty: If True and uncertainty_enabled, returns ConfidenceWithUncertainty
-            
+
         Returns:
             Confidence score (0.0 to 1.0) or ConfidenceWithUncertainty if return_uncertainty=True
         """
@@ -102,14 +102,14 @@ class ConfidenceCalculator:
                 # Check for similar successful queries
                 similar_queries = await active_rag_client.retrieve(
                     query=query,
-                    knowledge_type='query',
+                    knowledge_type="query",
                     top_k=1,
-                    min_similarity=0.75  # Moderate threshold for historical matching
+                    min_similarity=0.75,  # Moderate threshold for historical matching
                 )
 
-                if similar_queries and similar_queries[0]['similarity'] > 0.75:
-                    similarity = similar_queries[0]['similarity']
-                    success_score = similar_queries[0].get('success_score', 0.5)
+                if similar_queries and similar_queries[0]["similarity"] > 0.75:
+                    similarity = similar_queries[0]["similarity"]
+                    success_score = similar_queries[0].get("success_score", 0.5)
 
                     # Boost base_confidence based on similarity and historical success
                     # Formula: similarity * success_score * max_boost
@@ -119,7 +119,7 @@ class ConfidenceCalculator:
 
                     logger.debug(
                         f"📚 Historical success boost: similarity={similarity:.2f}, "
-                        f"success_score={success_score:.2f}, boost=+{historical_boost:.2f}"
+                        f"success_score={success_score:.2f}, boost=+{historical_boost:.2f}",
                     )
             except Exception as e:
                 # Non-critical: continue even if RAG check fails
@@ -241,13 +241,13 @@ class ConfidenceCalculator:
                     ambiguity_count=len(ambiguities),
                     critical_ambiguity_count=critical_count,
                     rounds=rounds,
-                    answer_count=answer_count
+                    answer_count=answer_count,
                 )
 
                 logger.debug(
                     f"📊 Confidence calibrated: {raw_confidence:.2f} → {calibrated_confidence:.2f} "
                     f"(base: {base_confidence:.2f}, ambiguities: {len(ambiguities)}, "
-                    f"answers: {len(clarification_answers or [])})"
+                    f"answers: {len(clarification_answers or [])})",
                 )
                 final_confidence = calibrated_confidence
             except Exception as e:
@@ -271,11 +271,11 @@ class ConfidenceCalculator:
                     ambiguity_count=len(ambiguities),
                     critical_ambiguity_count=critical_count,
                     rounds=rounds,
-                    answer_count=answer_count
+                    answer_count=answer_count,
                 )
 
                 logger.debug(
-                    f"🤖 RL calibration: {final_confidence:.2f} → {rl_calibrated:.2f}"
+                    f"🤖 RL calibration: {final_confidence:.2f} → {rl_calibrated:.2f}",
                 )
                 final_confidence = rl_calibrated
             except Exception as e:
@@ -291,11 +291,11 @@ class ConfidenceCalculator:
                 uncertainty = self.uncertainty_quantifier.calculate_uncertainty(
                     raw_confidence=final_confidence,
                     historical_data=historical_data,
-                    confidence_level=0.90
+                    confidence_level=0.90,
                 )
 
                 logger.debug(
-                    f"📊 Uncertainty: {self.uncertainty_quantifier.get_uncertainty_summary(uncertainty)}"
+                    f"📊 Uncertainty: {self.uncertainty_quantifier.get_uncertainty_summary(uncertainty)}",
                 )
                 return uncertainty
             except Exception as e:
@@ -305,7 +305,7 @@ class ConfidenceCalculator:
 
         logger.debug(
             f"📊 Confidence calculated: {final_confidence:.2f} (base: {base_confidence:.2f}, "
-            f"ambiguities: {len(ambiguities)}, answers: {len(clarification_answers or [])})"
+            f"ambiguities: {len(ambiguities)}, answers: {len(clarification_answers or [])})",
         )
         return final_confidence
 
@@ -313,16 +313,16 @@ class ConfidenceCalculator:
         self,
         confidence: float,
         ambiguities: list[Ambiguity],
-        threshold: float | None = None
+        threshold: float | None = None,
     ) -> bool:
         """
         Determine if clarification should be requested.
-        
+
         Args:
             confidence: Current confidence score
             ambiguities: Detected ambiguities
             threshold: Confidence threshold (defaults to instance default)
-            
+
         Returns:
             True if clarification should be requested
         """
@@ -345,18 +345,18 @@ class ConfidenceCalculator:
         self,
         query: str,
         extracted_entities: list[dict[str, Any]],
-        ambiguities: list[Ambiguity]
+        ambiguities: list[Ambiguity],
     ) -> Literal["simple", "medium", "complex"]:
         """
         Calculate query complexity level.
-        
+
         Uses 2025 best practices: Literal type for type-safe return value.
-        
+
         Args:
             query: User query
             extracted_entities: Extracted entities
             ambiguities: Detected ambiguities
-            
+
         Returns:
             Complexity level: 'simple', 'medium', or 'complex'
         """
@@ -366,34 +366,34 @@ class ConfidenceCalculator:
 
         # Simple: < 3 entities, no conditions, few words
         if entity_count < 3 and ambiguity_count == 0 and word_count < 10:
-            return 'simple'
+            return "simple"
 
         # Complex: 5+ entities, multiple ambiguities, long query
         if entity_count >= 5 or ambiguity_count >= 3 or word_count >= 20:
-            return 'complex'
+            return "complex"
 
         # Medium: everything else
-        return 'medium'
+        return "medium"
 
     def calculate_adaptive_threshold(
         self,
         query: str,
         extracted_entities: list[dict[str, Any]],
         ambiguities: list[Ambiguity],
-        user_preferences: dict[str, str] | None = None
+        user_preferences: dict[str, str] | None = None,
     ) -> float:
         """
         Calculate adaptive confidence threshold based on context.
-        
+
         Uses 2025 best practices: type hints, context-aware adjustments.
-        
+
         Args:
             query: User query
             extracted_entities: Extracted entities
             ambiguities: Detected ambiguities
             user_preferences: Optional user preferences dict with 'risk_tolerance' key
                 ('high', 'medium', or 'low')
-            
+
         Returns:
             Adaptive threshold (0.65 to 0.95)
         """
@@ -402,9 +402,9 @@ class ConfidenceCalculator:
 
         # Adjust based on query complexity
         complexity = self.calculate_query_complexity(query, extracted_entities, ambiguities)
-        if complexity == 'simple':
+        if complexity == "simple":
             threshold -= 0.10  # Lower threshold for simple queries
-        elif complexity == 'complex':
+        elif complexity == "complex":
             threshold += 0.05  # Higher threshold for complex queries
 
         # Adjust based on ambiguity count
@@ -416,10 +416,10 @@ class ConfidenceCalculator:
 
         # Adjust based on user preferences (2025: type-safe with Literal if using Pydantic)
         if user_preferences:
-            risk_tolerance: str = user_preferences.get('risk_tolerance', 'medium')
-            if risk_tolerance == 'high':  # User wants fewer questions
+            risk_tolerance: str = user_preferences.get("risk_tolerance", "medium")
+            if risk_tolerance == "high":  # User wants fewer questions
                 threshold -= 0.10
-            elif risk_tolerance == 'low':  # User wants more certainty
+            elif risk_tolerance == "low":  # User wants more certainty
                 threshold += 0.10
 
         # Clamp to safe range [0.65, 0.95]
@@ -428,7 +428,7 @@ class ConfidenceCalculator:
         logger.debug(
             f"Adaptive threshold calculated: {threshold:.2f} "
             f"(base: {base_threshold:.2f}, complexity: {complexity}, "
-            f"ambiguities: {ambiguity_count})"
+            f"ambiguities: {ambiguity_count})",
         )
 
         return threshold

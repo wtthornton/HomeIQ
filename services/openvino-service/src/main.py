@@ -4,7 +4,7 @@ Phase 1: Containerized AI Models
 
 Provides optimized model inference for:
 - all-MiniLM-L6-v2 (INT8) - Embeddings
-- bge-reranker-base (INT8) - Re-ranking  
+- bge-reranker-base (INT8) - Re-ranking
 - flan-t5-small (INT8) - Classification
 """
 
@@ -75,7 +75,7 @@ app = FastAPI(
     title="OpenVINO Service",
     description="Optimized model inference using OpenVINO INT8 quantization",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -149,7 +149,7 @@ def _validate_rerank_payload(query: str, candidates: list[dict[str, Any]], top_k
     if len(candidates) > MAX_RERANK_CANDIDATES:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many candidates (max {MAX_RERANK_CANDIDATES})"
+            detail=f"Too many candidates (max {MAX_RERANK_CANDIDATES})",
         )
 
     for idx, candidate in enumerate(candidates):
@@ -157,14 +157,14 @@ def _validate_rerank_payload(query: str, candidates: list[dict[str, Any]], top_k
         if len(description) > MAX_TEXT_LENGTH:
             raise HTTPException(
                 status_code=400,
-                detail=f"Candidate description at index {idx} exceeds {MAX_TEXT_LENGTH} characters"
+                detail=f"Candidate description at index {idx} exceeds {MAX_TEXT_LENGTH} characters",
             )
 
     max_allowed = min(MAX_TOP_K, len(candidates))
     if top_k < 1 or top_k > max_allowed:
         raise HTTPException(
             status_code=400,
-            detail=f"top_k must be between 1 and {max_allowed}"
+            detail=f"top_k must be between 1 and {max_allowed}",
         )
 
 
@@ -174,7 +174,7 @@ def _validate_pattern_description(description: str) -> None:
     if len(description) > MAX_PATTERN_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail=f"pattern_description exceeds {MAX_PATTERN_LENGTH} characters"
+            detail=f"pattern_description exceeds {MAX_PATTERN_LENGTH} characters",
         )
 
 # API Endpoints
@@ -187,13 +187,13 @@ async def health_check():
     model_status = manager.get_model_status()
 
     model_status = openvino_manager.get_model_status()
-    ready_state = "ready" if model_status.get("all_models_loaded") else "warming"
+    "ready" if model_status.get("all_models_loaded") else "warming"
 
     return {
         "status": "healthy" if readiness else "initializing",
         "service": "openvino-service",
         "ready": readiness,
-        "models_loaded": model_status
+        "models_loaded": model_status,
     }
 
 @app.get("/models/status")
@@ -215,7 +215,7 @@ async def generate_embeddings(request: EmbeddingRequest):
 
         embeddings = await manager.generate_embeddings(
             texts=request.texts,
-            normalize=request.normalize
+            normalize=request.normalize,
         )
 
         processing_time = time.perf_counter() - start_time
@@ -223,7 +223,7 @@ async def generate_embeddings(request: EmbeddingRequest):
         return EmbeddingResponse(
             embeddings=embeddings.tolist(),
             model_name="all-MiniLM-L6-v2",
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except asyncio.TimeoutError:
@@ -251,7 +251,7 @@ async def rerank_candidates(request: RerankRequest):
         ranked_candidates = await manager.rerank(
             query=request.query,
             candidates=request.candidates,
-            top_k=top_k
+            top_k=top_k,
         )
 
         processing_time = time.perf_counter() - start_time
@@ -259,7 +259,7 @@ async def rerank_candidates(request: RerankRequest):
         return RerankResponse(
             ranked_candidates=ranked_candidates,
             model_name="bge-reranker-base",
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except asyncio.TimeoutError:
@@ -284,16 +284,16 @@ async def classify_pattern(request: ClassifyRequest):
         start_time = time.perf_counter()
 
         classification = await manager.classify_pattern(
-            pattern_description=request.pattern_description
+            pattern_description=request.pattern_description,
         )
 
         processing_time = time.perf_counter() - start_time
 
         return ClassifyResponse(
-            category=classification['category'],
-            priority=classification['priority'],
+            category=classification["category"],
+            priority=classification["priority"],
             model_name="flan-t5-small",
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
     except asyncio.TimeoutError:

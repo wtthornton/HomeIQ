@@ -118,7 +118,7 @@ class OpenWeatherMapClient:
         return await self._fetch_weather(params)
 
     async def get_current_weather_by_coordinates(
-        self, latitude: float, longitude: float, *, units: str = "metric"
+        self, latitude: float, longitude: float, *, units: str = "metric",
     ) -> WeatherData | None:
         """Fetch current weather by latitude/longitude."""
         params = {"lat": latitude, "lon": longitude, "appid": self.api_key, "units": units}
@@ -127,7 +127,8 @@ class OpenWeatherMapClient:
     def configure_rate_limit(self, delay_seconds: float) -> None:
         """Adjust rate limit delay applied between requests."""
         if delay_seconds <= 0:
-            raise ValueError("Rate limit delay must be greater than zero")
+            msg = "Rate limit delay must be greater than zero"
+            raise ValueError(msg)
         self.rate_limit_delay = delay_seconds
 
     def get_statistics(self) -> dict[str, Any]:

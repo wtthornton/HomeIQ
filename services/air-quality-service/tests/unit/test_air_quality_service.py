@@ -15,8 +15,8 @@ class TestLocationFetching:
     async def test_fetch_location_from_ha_success(self, service_instance, mock_aiohttp_session, sample_ha_config_response):
         """GIVEN: HA configured | WHEN: Fetch location | THEN: Return lat/lon"""
         service_instance.session = mock_aiohttp_session
-        service_instance.ha_url = 'http://homeassistant:8123'
-        service_instance.ha_token = 'test-token'
+        service_instance.ha_url = "http://homeassistant:8123"
+        service_instance.ha_token = "test-token"
 
         # Mock the response
         mock_response = AsyncMock()
@@ -32,8 +32,8 @@ class TestLocationFetching:
         location = await service_instance.fetch_location_from_ha()
 
         assert location is not None
-        assert location['latitude'] == 36.1699
-        assert location['longitude'] == -115.1398
+        assert location["latitude"] == 36.1699
+        assert location["longitude"] == -115.1398
 
     @pytest.mark.asyncio
     async def test_fetch_location_no_ha_config(self, service_instance):
@@ -49,8 +49,8 @@ class TestLocationFetching:
     async def test_fetch_location_ha_error(self, service_instance, mock_aiohttp_session):
         """GIVEN: HA returns error | WHEN: Fetch location | THEN: Return None"""
         service_instance.session = mock_aiohttp_session
-        service_instance.ha_url = 'http://homeassistant:8123'
-        service_instance.ha_token = 'test-token'
+        service_instance.ha_url = "http://homeassistant:8123"
+        service_instance.ha_token = "test-token"
 
         mock_response = AsyncMock()
         mock_response.status = 500
@@ -85,12 +85,12 @@ class TestDataFetching:
         data = await service_instance.fetch_air_quality()
 
         assert data is not None
-        assert data['aqi'] == 25  # Converted from OpenWeather AQI 1
-        assert data['category'] == 'Good'
-        assert data['parameter'] == 'Combined'
-        assert 'pm25' in data
-        assert 'pm10' in data
-        assert 'ozone' in data
+        assert data["aqi"] == 25  # Converted from OpenWeather AQI 1
+        assert data["category"] == "Good"
+        assert data["parameter"] == "Combined"
+        assert "pm25" in data
+        assert "pm10" in data
+        assert "ozone" in data
 
     @pytest.mark.asyncio
     async def test_fetch_aqi_scale_conversion(self, service_instance, mock_aiohttp_session):
@@ -99,20 +99,20 @@ class TestDataFetching:
 
         # Test all 5 AQI levels
         test_cases = [
-            (1, 25, 'Good'),
-            (2, 75, 'Fair'),
-            (3, 125, 'Moderate'),
-            (4, 175, 'Poor'),
-            (5, 250, 'Very Poor')
+            (1, 25, "Good"),
+            (2, 75, "Fair"),
+            (3, 125, "Moderate"),
+            (4, 175, "Poor"),
+            (5, 250, "Very Poor"),
         ]
 
         for ow_aqi, expected_aqi, expected_category in test_cases:
             response = {
-                'list': [{
-                    'dt': int(datetime.now().timestamp()),
-                    'main': {'aqi': ow_aqi},
-                    'components': {'pm2_5': 10, 'pm10': 15, 'o3': 50, 'co': 200, 'no2': 5, 'so2': 2}
-                }]
+                "list": [{
+                    "dt": int(datetime.now().timestamp()),
+                    "main": {"aqi": ow_aqi},
+                    "components": {"pm2_5": 10, "pm10": 15, "o3": 50, "co": 200, "no2": 5, "so2": 2},
+                }],
             }
 
             mock_response = AsyncMock()
@@ -126,8 +126,8 @@ class TestDataFetching:
 
             data = await service_instance.fetch_air_quality()
 
-            assert data['aqi'] == expected_aqi
-            assert data['category'] == expected_category
+            assert data["aqi"] == expected_aqi
+            assert data["category"] == expected_category
 
     @pytest.mark.asyncio
     async def test_fetch_aqi_updates_cache(self, service_instance, mock_aiohttp_session, sample_openweather_response):
@@ -175,7 +175,7 @@ class TestDataFetching:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={'list': []})
+        mock_response.json = AsyncMock(return_value={"list": []})
 
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
@@ -194,14 +194,14 @@ class TestCategoryTracking:
     async def test_category_change_logged(self, service_instance, mock_aiohttp_session):
         """GIVEN: Category changes | WHEN: Fetch | THEN: Log change"""
         service_instance.session = mock_aiohttp_session
-        service_instance.last_category = 'Good'
+        service_instance.last_category = "Good"
 
         response = {
-            'list': [{
-                'dt': int(datetime.now().timestamp()),
-                'main': {'aqi': 4},  # Poor
-                'components': {'pm2_5': 75, 'pm10': 120, 'o3': 150, 'co': 450, 'no2': 45, 'so2': 25}
-            }]
+            "list": [{
+                "dt": int(datetime.now().timestamp()),
+                "main": {"aqi": 4},  # Poor
+                "components": {"pm2_5": 75, "pm10": 120, "o3": 150, "co": 450, "no2": 45, "so2": 25},
+            }],
         }
 
         mock_response = AsyncMock()
@@ -215,8 +215,8 @@ class TestCategoryTracking:
 
         data = await service_instance.fetch_air_quality()
 
-        assert data['category'] == 'Poor'
-        assert service_instance.last_category == 'Poor'
+        assert data["category"] == "Poor"
+        assert service_instance.last_category == "Poor"
 
 
 class TestInfluxDBStorage:
@@ -264,8 +264,8 @@ class TestAPIEndpoints:
 
         assert response.status == 200
         body = response.body
-        assert b'aqi' in body
-        assert b'category' in body
+        assert b"aqi" in body
+        assert b"category" in body
 
     @pytest.mark.asyncio
     async def test_get_current_aqi_no_data(self, service_instance):

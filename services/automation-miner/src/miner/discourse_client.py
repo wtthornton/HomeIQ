@@ -16,7 +16,7 @@ from uuid import uuid4
 import httpx
 from bs4 import BeautifulSoup
 
-from ..config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,9 @@ class DiscourseClient:
 
     def __init__(
         self,
-        base_url: str = None,
-        rate_limit_per_sec: float = None,
-        retries: int = None
+        base_url: str | None = None,
+        rate_limit_per_sec: float | None = None,
+        retries: int | None = None,
     ):
         self.base_url = base_url or settings.discourse_base_url
         self.rate_limit = rate_limit_per_sec or settings.discourse_rate_limit_per_sec
@@ -46,13 +46,13 @@ class DiscourseClient:
             connect=settings.http_timeout_connect,
             read=settings.http_timeout_read,
             write=settings.http_timeout_write,
-            pool=settings.http_timeout_pool
+            pool=settings.http_timeout_pool,
         )
 
         # Configure connection limits (Context7 pattern)
         self._limits = httpx.Limits(
             max_keepalive_connections=settings.http_max_keepalive,
-            max_connections=settings.http_max_connections
+            max_connections=settings.http_max_connections,
         )
 
         # Client will be created in async context
@@ -64,7 +64,7 @@ class DiscourseClient:
             transport=self._transport,
             timeout=self._timeout,
             limits=self._limits,
-            headers={"User-Agent": "homeiq-miner/1.0"}
+            headers={"User-Agent": "homeiq-miner/1.0"},
         )
         return self
 
@@ -89,11 +89,12 @@ class DiscourseClient:
         method: str,
         endpoint: str,
         params: dict[str, Any] | None = None,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """Make HTTP request with rate limiting and error handling"""
         if not self._client:
-            raise RuntimeError("Client not initialized. Use 'async with' context manager.")
+            msg = "Client not initialized. Use 'async with' context manager."
+            raise RuntimeError(msg)
 
         correlation_id = correlation_id or str(uuid4())
         url = f"{self.base_url}{endpoint}"
@@ -113,33 +114,33 @@ class DiscourseClient:
             return data
 
         except httpx.TimeoutException as e:
-            logger.error(f"[{correlation_id}] Timeout: {url} - {e}")
+            logger.exception(f"[{correlation_id}] Timeout: {url} - {e}")
             raise
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"[{correlation_id}] HTTP {e.response.status_code}: {url}")
+            logger.exception(f"[{correlation_id}] HTTP {e.response.status_code}: {url}")
             raise
 
         except Exception as e:
-            logger.error(f"[{correlation_id}] Unexpected error: {url} - {e}")
+            logger.exception(f"[{correlation_id}] Unexpected error: {url} - {e}")
             raise
 
     async def fetch_blueprints(
         self,
-        min_likes: int = None,
+        min_likes: int | None = None,
         since: datetime | None = None,
-        limit: int = None,
-        page: int = 0
+        limit: int | None = None,
+        page: int = 0,
     ) -> list[dict[str, Any]]:
         """
         Fetch blueprint posts from Discourse Blueprints Exchange
-        
+
         Args:
             min_likes: Minimum likes threshold (default from settings)
             since: Only fetch posts updated since this date
             limit: Maximum posts to fetch
             page: Page number for pagination
-        
+
         Returns:
             List of post metadata dictionaries
         """
@@ -151,14 +152,14 @@ class DiscourseClient:
 
         # Query category 53 (Blueprints Exchange)
         params = {
-            "page": page
+            "page": page,
         }
 
         data = await self._request(
             "GET",
             f"/c/blueprints-exchange/{settings.discourse_category_id}.json",
             params=params,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Extract topic list
@@ -177,7 +178,7 @@ class DiscourseClient:
             # Filter by date if provided
             if since:
                 updated_at = datetime.fromisoformat(
-                    topic.get("last_posted_at", "").replace("Z", "+00:00")
+                    topic.get("last_posted_at", "").replace("Z", "+00:00"),
                 )
                 # Ensure both datetimes are timezone-aware for comparison
                 since_aware = since
@@ -200,12 +201,12 @@ class DiscourseClient:
                 "created_at": topic.get("created_at"),
                 "last_posted_at": topic.get("last_posted_at"),
                 "category_id": topic.get("category_id"),
-                "tags": topic.get("tags", [])
+                "tags": topic.get("tags", []),
             })
 
         logger.info(
             f"[{correlation_id}] Found {len(filtered_topics)} blueprints "
-            f"(filtered from {len(topics)} total)"
+            f"(filtered from {len(topics)} total)",
         )
 
         return filtered_topics[:limit]
@@ -213,15 +214,15 @@ class DiscourseClient:
     async def fetch_post_details(
         self,
         post_id: int,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Fetch full post content including YAML blueprints
-        
+
         Args:
             post_id: Discourse topic ID
             correlation_id: Optional correlation ID for logging
-        
+
         Returns:
             Dictionary with post content and metadata
         """
@@ -232,7 +233,7 @@ class DiscourseClient:
         data = await self._request(
             "GET",
             f"/t/{post_id}.json",
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Extract first post (main content)
@@ -276,13 +277,13 @@ class DiscourseClient:
             "likes": first_post.get("like_count", 0),
             "tags": data.get("tags", []),
             "category_id": data.get("category_id"),
-            "views": data.get("views", 0)
+            "views": data.get("views", 0),
         }
 
         logger.debug(
             f"[{correlation_id}] Post {post_id}: "
             f"{len(yaml_blocks)} YAML blocks, "
-            f"{len(description)} chars description"
+            f"{len(description)} chars description",
         )
 
         return result
@@ -290,15 +291,15 @@ class DiscourseClient:
     async def fetch_post_metadata(
         self,
         post_id: int,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Fetch only post metadata (for quality score updates)
-        
+
         Args:
             post_id: Discourse topic ID
             correlation_id: Optional correlation ID
-        
+
         Returns:
             Dictionary with updated metadata (likes, views, etc.)
         """
@@ -307,7 +308,7 @@ class DiscourseClient:
         data = await self._request(
             "GET",
             f"/t/{post_id}.json",
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         posts = data.get("post_stream", {}).get("posts", [])
@@ -320,6 +321,6 @@ class DiscourseClient:
             "id": post_id,
             "likes": first_post.get("like_count", 0),
             "views": data.get("views", 0),
-            "updated_at": first_post.get("updated_at", "")
+            "updated_at": first_post.get("updated_at", ""),
         }
 

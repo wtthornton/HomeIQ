@@ -14,7 +14,8 @@ def _load_add_service_src():
     path_setup = repo_root / "tests" / "path_setup.py"
     spec = importlib.util.spec_from_file_location("repo_tests.path_setup", path_setup)
     if spec is None or spec.loader is None:
-        raise RuntimeError("Unable to load shared test path utilities")
+        msg = "Unable to load shared test path utilities"
+        raise RuntimeError(msg)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.add_service_src

@@ -24,7 +24,7 @@ async def test_get_entities_by_device():
             name="Test Device",
             manufacturer="Test Co",
             model="Model X",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         session.add(device)
 
@@ -34,14 +34,14 @@ async def test_get_entities_by_device():
             device_id="test_device_1",
             domain="light",
             platform="test",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         entity2 = Entity(
             entity_id="sensor.test_1",
             device_id="test_device_1",
             domain="sensor",
             platform="test",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         session.add(entity1)
         session.add(entity2)
@@ -81,7 +81,7 @@ async def test_get_device_for_entity():
             device_id="test_device_2",
             name="Test Device 2",
             manufacturer="Test Co",
-            config_entry_id="entry_456"
+            config_entry_id="entry_456",
         )
         session.add(device)
 
@@ -89,7 +89,7 @@ async def test_get_device_for_entity():
             entity_id="light.test_2",
             device_id="test_device_2",
             domain="light",
-            platform="test"
+            platform="test",
         )
         session.add(entity)
         await session.commit()
@@ -241,7 +241,7 @@ async def test_get_device_hierarchy():
             device_id="child_device",
             name="Child Device",
             manufacturer="Test Co",
-            via_device="parent_device"
+            via_device="parent_device",
         )
         session.add(child_device)
         await session.commit()
@@ -315,7 +315,7 @@ async def test_entity_registry_entry_from_entity_and_device():
             model="Model Y",
             sw_version="1.0.0",
             via_device=None,
-            config_entry_id="entry_999"
+            config_entry_id="entry_999",
         )
         session.add(device)
 
@@ -327,7 +327,7 @@ async def test_entity_registry_entry_from_entity_and_device():
             config_entry_id="entry_999",
             name="Test Light",
             name_by_user="My Light",
-            friendly_name="My Light"
+            friendly_name="My Light",
         )
         session.add(entity)
         await session.commit()
@@ -336,7 +336,7 @@ async def test_entity_registry_entry_from_entity_and_device():
         entry = EntityRegistryEntry.from_entity_and_device(
             entity=entity,
             device=device,
-            related_entities=["sensor.test_8"]
+            related_entities=["sensor.test_8"],
         )
 
         assert entry.entity_id == "light.test_8"

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class ConfidenceWithUncertainty:
     """
     Confidence score with uncertainty quantification.
-    
+
     Uses 2025 best practices: type hints, Literal types, dataclasses.
     """
     mean: float  # Expected confidence
@@ -48,17 +48,17 @@ class ConfidenceWithUncertainty:
 class UncertaintyQuantifier:
     """
     Quantify uncertainty in confidence scores.
-    
+
     Provides confidence intervals and probability distributions using
     bootstrap sampling or Bayesian methods.
-    
+
     Uses 2025 best practices: type hints, numpy/scipy for statistics.
     """
 
     def __init__(self, method: Literal["bootstrap", "bayesian"] = "bootstrap"):
         """
         Initialize uncertainty quantifier.
-        
+
         Args:
             method: Method for uncertainty quantification
                 - "bootstrap": Bootstrap sampling (simpler, faster)
@@ -71,22 +71,22 @@ class UncertaintyQuantifier:
         raw_confidence: float,
         historical_data: np.ndarray,
         n_samples: int = 1000,
-        confidence_level: float = 0.90
+        confidence_level: float = 0.90,
     ) -> ConfidenceWithUncertainty:
         """
         Calculate uncertainty using bootstrap sampling.
-        
+
         Bootstrap method:
         1. Resample historical confidence scores
         2. Calculate statistics on resampled data
         3. Estimate confidence intervals
-        
+
         Args:
             raw_confidence: Raw confidence score
             historical_data: Historical confidence scores for uncertainty estimation
             n_samples: Number of bootstrap samples
             confidence_level: Confidence interval level (0.90 for 90% CI)
-        
+
         Returns:
             ConfidenceWithUncertainty with mean, std, and confidence intervals
         """
@@ -99,7 +99,7 @@ class UncertaintyQuantifier:
                 lower_bound=max(0.0, raw_confidence - 1.645 * std_estimate),  # 90% CI
                 upper_bound=min(1.0, raw_confidence + 1.645 * std_estimate),
                 distribution="normal",
-                confidence_level=confidence_level
+                confidence_level=confidence_level,
             )
 
         # Bootstrap sampling
@@ -128,25 +128,25 @@ class UncertaintyQuantifier:
             lower_bound=lower_bound,
             upper_bound=upper_bound,
             distribution="normal",
-            confidence_level=confidence_level
+            confidence_level=confidence_level,
         )
 
     def calculate_uncertainty_bayesian(
         self,
         raw_confidence: float,
         historical_data: np.ndarray,
-        confidence_level: float = 0.90
+        confidence_level: float = 0.90,
     ) -> ConfidenceWithUncertainty:
         """
         Calculate uncertainty using Bayesian approach.
-        
+
         Uses Beta distribution (conjugate prior for binomial) to model confidence.
-        
+
         Args:
             raw_confidence: Raw confidence score
             historical_data: Historical confidence scores for uncertainty estimation
             confidence_level: Confidence interval level (0.90 for 90% CI)
-        
+
         Returns:
             ConfidenceWithUncertainty with mean, std, and confidence intervals
         """
@@ -197,23 +197,23 @@ class UncertaintyQuantifier:
             lower_bound=lower_bound,
             upper_bound=upper_bound,
             distribution="beta",
-            confidence_level=confidence_level
+            confidence_level=confidence_level,
         )
 
     def calculate_uncertainty(
         self,
         raw_confidence: float,
         historical_data: np.ndarray | None = None,
-        confidence_level: float = 0.90
+        confidence_level: float = 0.90,
     ) -> ConfidenceWithUncertainty:
         """
         Calculate confidence with uncertainty bounds.
-        
+
         Args:
             raw_confidence: Raw confidence score
             historical_data: Optional historical confidence scores for uncertainty estimation
             confidence_level: Confidence interval level (0.90 for 90% CI)
-        
+
         Returns:
             ConfidenceWithUncertainty with mean, std, and confidence intervals
         """
@@ -222,22 +222,22 @@ class UncertaintyQuantifier:
 
         if self.method == "bootstrap":
             return self.calculate_uncertainty_bootstrap(
-                raw_confidence, historical_data, confidence_level=confidence_level
+                raw_confidence, historical_data, confidence_level=confidence_level,
             )
-        elif self.method == "bayesian":
+        if self.method == "bayesian":
             return self.calculate_uncertainty_bayesian(
-                raw_confidence, historical_data, confidence_level=confidence_level
+                raw_confidence, historical_data, confidence_level=confidence_level,
             )
-        else:
-            raise ValueError(f"Unknown method: {self.method}")
+        msg = f"Unknown method: {self.method}"
+        raise ValueError(msg)
 
     def get_uncertainty_summary(self, uncertainty: ConfidenceWithUncertainty) -> str:
         """
         Get human-readable summary of uncertainty.
-        
+
         Args:
             uncertainty: ConfidenceWithUncertainty object
-        
+
         Returns:
             Human-readable summary string
         """

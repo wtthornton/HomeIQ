@@ -46,10 +46,10 @@ class DiscoveryService:
     async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
         """
         Discover devices via WebSocket (original implementation)
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             List of device dictionaries
         """
@@ -60,7 +60,7 @@ class DiscoveryService:
             # Send device registry list command
             await websocket.send_json({
                 "id": message_id,
-                "type": "config/device_registry/list"
+                "type": "config/device_registry/list",
             })
 
             # Wait for response
@@ -71,24 +71,23 @@ class DiscoveryService:
                 logger.error(f"❌ Device registry command failed: {error_msg}")
                 return []
 
-            devices = response.get("result", [])
-            return devices
+            return response.get("result", [])
 
         except Exception as e:
-            logger.error(f"❌ Error discovering devices via WebSocket: {e}")
+            logger.exception(f"❌ Error discovering devices via WebSocket: {e}")
             return []
 
     async def discover_devices(self, websocket: ClientWebSocketResponse | None = None) -> list[dict[str, Any]]:
         """
         Discover all devices from Home Assistant device registry
-        
+
         Note: Home Assistant doesn't have HTTP API for device registry.
         Uses WebSocket if provided, otherwise returns empty list.
         Device info can be extracted from entities instead.
-        
+
         Args:
             websocket: Optional WebSocket client (required for device discovery)
-            
+
         Returns:
             List of device dictionaries
         """
@@ -126,7 +125,7 @@ class DiscoveryService:
                         "model": device.get("model"),
                         "sw_version": device.get("sw_version"),
                         "name": device.get("name"),
-                        "name_by_user": device.get("name_by_user")
+                        "name_by_user": device.get("name_by_user"),
                     }
 
             logger.info(f"📍 Cached {len(self.device_to_area)} device → area mappings")
@@ -145,23 +144,23 @@ class DiscoveryService:
             return devices
 
         except Exception as e:
-            logger.error(f"❌ Error discovering devices: {e}")
+            logger.exception(f"❌ Error discovering devices: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
             return []
 
     async def discover_entities(self, websocket: ClientWebSocketResponse | None = None) -> list[dict[str, Any]]:
         """
         Discover all entities from Home Assistant entity registry
-        
+
         Uses HTTP API to avoid WebSocket concurrency issues.
-        
+
         Args:
             websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
-            
+
         Returns:
             List of entity dictionaries
-            
+
         Raises:
             Exception: If command fails or response is invalid
         """
@@ -175,22 +174,22 @@ class DiscoveryService:
             logger.info("=" * 80)
 
             # Use HTTP API to fetch entity registry (avoids WebSocket concurrency issues)
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
-            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+            ha_url = os.getenv("HA_HTTP_URL") or os.getenv("HOME_ASSISTANT_URL", "http://192.168.1.86:8123")
+            ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
 
             if not ha_token:
                 logger.error("❌ No HA token available for entity discovery")
                 return []
 
             # Normalize URL (ensure http:// not ws://)
-            ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
+            ha_url = ha_url.replace("ws://", "http://").replace("wss://", "https://").rstrip("/")
 
             logger.info(f"🔗 Connecting to Home Assistant at: {ha_url}")
             logger.info(f"🔑 Using token: {ha_token[:20]}..." if ha_token else "❌ No token!")
 
             headers = {
                 "Authorization": f"Bearer {ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Create session with connector to avoid SSL issues
@@ -200,7 +199,7 @@ class DiscoveryService:
                 async with session.get(
                     f"{ha_url}/api/config/entity_registry/list",
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    timeout=aiohttp.ClientTimeout(total=30),
                 ) as response:
                     logger.info(f"📥 Response status: {response.status}")
                     if response.status != 200:
@@ -217,8 +216,8 @@ class DiscoveryService:
                                     logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
                                 return entities
                             except Exception as ws_error:
-                                logger.error(f"❌ WebSocket fallback failed: {ws_error}")
-                                logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
+                                logger.exception(f"❌ WebSocket fallback failed: {ws_error}")
+                                logger.exception("Entity discovery completely failed - both HTTP and WebSocket methods failed")
                                 return []
                         else:
                             logger.error("❌ No WebSocket available for fallback - entity discovery failed")
@@ -230,7 +229,7 @@ class DiscoveryService:
 
                     # Handle both list and dict responses
                     if isinstance(entities, dict):
-                        entities = entities.get('entities', entities.get('result', []))
+                        entities = entities.get("entities", entities.get("result", []))
 
                     entity_count = len(entities)
                     logger.info(f"✅ Discovered {entity_count} entities")
@@ -258,8 +257,8 @@ class DiscoveryService:
                     # Log sample entity if available
                     if entities:
                         sample = entities[0]
-                        entity_id = sample.get('entity_id', 'Unknown')
-                        domain = entity_id.split('.')[0] if '.' in entity_id else 'Unknown'
+                        entity_id = sample.get("entity_id", "Unknown")
+                        domain = entity_id.split(".")[0] if "." in entity_id else "Unknown"
                         logger.info(f"🔌 Sample entity: {entity_id} "
                                   f"(platform: {sample.get('platform', 'Unknown')}, "
                                   f"domain: {domain})")
@@ -271,9 +270,9 @@ class DiscoveryService:
                     return entities
 
         except Exception as e:
-            logger.error(f"❌ HTTP entity discovery failed with exception: {e}")
+            logger.exception(f"❌ HTTP entity discovery failed with exception: {e}")
             import traceback
-            logger.error(f"Exception traceback: {traceback.format_exc()}")
+            logger.exception(f"Exception traceback: {traceback.format_exc()}")
             # Fallback to WebSocket if available
             if websocket:
                 logger.info("🔄 Attempting WebSocket fallback for entity discovery...")
@@ -282,25 +281,25 @@ class DiscoveryService:
                     if entities:
                         logger.info(f"✅ Entity discovery succeeded via WebSocket fallback: {len(entities)} entities")
                     else:
-                        logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
+                        logger.exception("❌ WebSocket fallback returned empty result - entity discovery failed")
                     return entities
                 except Exception as ws_error:
-                    logger.error(f"❌ WebSocket fallback also failed: {ws_error}")
-                    logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
-                    logger.error(f"WebSocket error traceback: {traceback.format_exc()}")
+                    logger.exception(f"❌ WebSocket fallback also failed: {ws_error}")
+                    logger.exception("Entity discovery completely failed - both HTTP and WebSocket methods failed")
+                    logger.exception(f"WebSocket error traceback: {traceback.format_exc()}")
                     return []
             else:
-                logger.error(f"❌ Error discovering entities and no WebSocket available: {e}")
-                logger.error("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
+                logger.exception(f"❌ Error discovering entities and no WebSocket available: {e}")
+                logger.exception("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
                 return []
 
     async def _discover_entities_websocket(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
         """
         Discover entities via WebSocket (fallback method)
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             List of entity dictionaries
         """
@@ -311,7 +310,7 @@ class DiscoveryService:
             # Send entity registry list command
             await websocket.send_json({
                 "id": message_id,
-                "type": "config/entity_registry/list"
+                "type": "config/entity_registry/list",
             })
 
             # Wait for response
@@ -349,21 +348,21 @@ class DiscoveryService:
             return entities
 
         except Exception as e:
-            logger.error(f"❌ Error discovering entities via WebSocket: {e}")
+            logger.exception(f"❌ Error discovering entities via WebSocket: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
             return []
 
     async def discover_config_entries(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
         """
         Discover all config entries (integrations) from Home Assistant
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             List of config entry dictionaries
-            
+
         Raises:
             Exception: If command fails or response is invalid
         """
@@ -376,7 +375,7 @@ class DiscoveryService:
             # Send config entries list command
             await websocket.send_json({
                 "id": message_id,
-                "type": "config_entries/list"
+                "type": "config_entries/list",
             })
 
             logger.info("✅ Config entries command sent, waiting for response...")
@@ -408,28 +407,28 @@ class DiscoveryService:
             return config_entries
 
         except asyncio.TimeoutError:
-            logger.error("❌ Timeout waiting for config entries response")
+            logger.exception("❌ Timeout waiting for config entries response")
             return []
         except Exception as e:
-            logger.error(f"❌ Error discovering config entries: {e}")
+            logger.exception(f"❌ Error discovering config entries: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
             return []
 
     async def _wait_for_response(
         self,
         websocket: ClientWebSocketResponse,
         message_id: int,
-        timeout: float = 10.0
+        timeout: float = 10.0,
     ) -> dict[str, Any] | None:
         """
         Wait for response with specific message ID
-        
+
         Args:
             websocket: WebSocket connection
             message_id: Message ID to wait for
             timeout: Timeout in seconds
-            
+
         Returns:
             Response dictionary or None if timeout/error
         """
@@ -440,13 +439,14 @@ class DiscoveryService:
                 # Check timeout
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > timeout:
-                    raise asyncio.TimeoutError(f"Timeout waiting for message {message_id}")
+                    msg = f"Timeout waiting for message {message_id}"
+                    raise asyncio.TimeoutError(msg)
 
                 # Wait for message with remaining timeout
                 remaining_timeout = timeout - elapsed
                 msg = await asyncio.wait_for(
                     websocket.receive(),
-                    timeout=remaining_timeout
+                    timeout=remaining_timeout,
                 )
 
                 if msg.type == 1:  # TEXT message
@@ -455,30 +455,28 @@ class DiscoveryService:
                     # Check if this is our response
                     if data.get("id") == message_id:
                         return data
-                    else:
-                        # Log and continue waiting for our message
-                        logger.debug(f"Received message for different ID: {data.get('id')}, waiting for {message_id}")
-                        continue
-                else:
-                    logger.warning(f"Received non-text message type: {msg.type}")
+                    # Log and continue waiting for our message
+                    logger.debug(f"Received message for different ID: {data.get('id')}, waiting for {message_id}")
                     continue
+                logger.warning(f"Received non-text message type: {msg.type}")
+                continue
 
         except asyncio.TimeoutError:
             raise
         except Exception as e:
-            logger.error(f"Error waiting for response: {e}")
+            logger.exception(f"Error waiting for response: {e}")
             return None
 
     async def discover_all(self, websocket: ClientWebSocketResponse | None = None, store: bool = True) -> dict[str, Any]:
         """
         Discover all devices, entities, config entries, and services
-        
+
         Uses HTTP API for devices and entities to avoid WebSocket concurrency issues.
-        
+
         Args:
             websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
             store: Whether to store results in SQLite via data-api (default: True)
-            
+
         Returns:
             Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
         """
@@ -516,18 +514,18 @@ class DiscoveryService:
             "devices": devices_data,
             "entities": entities_data,
             "config_entries": config_entries_data,
-            "services": services_data
+            "services": services_data,
         }
 
     async def discover_services(self, websocket: ClientWebSocketResponse) -> dict[str, dict[str, Any]]:
         """
         Discover available services from Home Assistant Services API.
-        
+
         Epic 2025: Fetch all available services per domain for service validation.
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             Dictionary mapping domain -> {service_name -> service_data}
         """
@@ -539,8 +537,8 @@ class DiscoveryService:
 
             import aiohttp
 
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
-            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+            ha_url = os.getenv("HA_HTTP_URL") or os.getenv("HOME_ASSISTANT_URL", "http://192.168.1.86:8123")
+            ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
 
             if not ha_token:
                 logger.warning("⚠️  No HA token available for services discovery")
@@ -548,7 +546,7 @@ class DiscoveryService:
 
             headers = {
                 "Authorization": f"Bearer {ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             async with aiohttp.ClientSession() as session:
@@ -557,9 +555,8 @@ class DiscoveryService:
                         services_data = await response.json()
                         logger.info(f"✅ Retrieved {len(services_data)} service domains from HA")
                         return services_data
-                    else:
-                        logger.warning(f"Failed to get services from HA: {response.status}")
-                        return {}
+                    logger.warning(f"Failed to get services from HA: {response.status}")
+                    return {}
         except Exception as e:
             logger.error(f"Error discovering services: {e}", exc_info=True)
             return {}
@@ -569,16 +566,16 @@ class DiscoveryService:
         devices_data: list[dict[str, Any]],
         entities_data: list[dict[str, Any]],
         config_entries_data: list[dict[str, Any]],
-        services_data: dict[str, dict[str, Any]] = None
+        services_data: dict[str, dict[str, Any]] | None = None,
     ) -> bool:
         """
         Store discovery results to SQLite (via data-api) and optionally to InfluxDB
-        
+
         Args:
             devices_data: List of device dictionaries from HA
             entities_data: List of entity dictionaries from HA
             config_entries_data: List of config entry dictionaries from HA
-            
+
         Returns:
             True if storage successful
         """
@@ -589,22 +586,22 @@ class DiscoveryService:
         try:
             # Primary storage: SQLite via data-api (simple HTTP POST)
             # Use service name from docker-compose (data-api) as default
-            data_api_url = os.getenv('DATA_API_URL', 'http://data-api:8006')
-            api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
+            data_api_url = os.getenv("DATA_API_URL", "http://data-api:8006")
+            api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
 
             # Create session with proper connector (disable SSL for internal HTTP)
             # Use connector_kwargs to ensure SSL is completely disabled
             connector = aiohttp.TCPConnector(
                 ssl=False,
                 limit=100,
-                limit_per_host=30
+                limit_per_host=30,
             )
             timeout = aiohttp.ClientTimeout(total=30)
 
             async with aiohttp.ClientSession(
                 connector=connector,
                 timeout=timeout,
-                connector_owner=True
+                connector_owner=True,
             ) as session:
                 # Store devices to SQLite
                 if devices_data:
@@ -613,7 +610,7 @@ class DiscoveryService:
                             f"{data_api_url}/internal/devices/bulk_upsert",
                             json=devices_data,
                             headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
-                            timeout=aiohttp.ClientTimeout(total=30)
+                            timeout=aiohttp.ClientTimeout(total=30),
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
@@ -622,7 +619,7 @@ class DiscoveryService:
                                 error_text = await response.text()
                                 logger.error(f"❌ Failed to store devices to SQLite: {response.status} - {error_text}")
                     except Exception as e:
-                        logger.error(f"❌ Error posting devices to data-api: {e}")
+                        logger.exception(f"❌ Error posting devices to data-api: {e}")
 
                 # Store entities to SQLite
                 if entities_data:
@@ -636,7 +633,7 @@ class DiscoveryService:
                             f"{data_api_url}/internal/entities/bulk_upsert",
                             json=entities_data,
                             headers=headers,
-                            timeout=aiohttp.ClientTimeout(total=30)
+                            timeout=aiohttp.ClientTimeout(total=30),
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
@@ -645,7 +642,7 @@ class DiscoveryService:
                                 error_text = await response.text()
                                 logger.error(f"❌ Failed to store entities to SQLite: {response.status} - {error_text}")
                     except Exception as e:
-                        logger.error(f"❌ Error posting entities to data-api: {e}")
+                        logger.exception(f"❌ Error posting entities to data-api: {e}")
 
                 # Store services to SQLite (Epic 2025) - with graceful degradation
                 if services_data:
@@ -662,7 +659,7 @@ class DiscoveryService:
                             endpoint_url,
                             json=services_data,
                             headers=headers,
-                            timeout=aiohttp.ClientTimeout(total=30)
+                            timeout=aiohttp.ClientTimeout(total=30),
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
@@ -676,7 +673,7 @@ class DiscoveryService:
                                 logger.warning("   1. Endpoint not yet implemented in data-api (expected)")
                                 logger.warning("   2. Incorrect endpoint URL (configuration issue)")
                                 logger.warning("   Discovery will continue, but services will not be stored")
-                            elif response.status == 401 or response.status == 403:
+                            elif response.status in {401, 403}:
                                 error_text = await response.text()
                                 logger.error(f"❌ Services storage failed: Authentication/Authorization error ({response.status})")
                                 logger.error(f"   Error: {error_text}")
@@ -692,7 +689,7 @@ class DiscoveryService:
                         logger.info("💡 Services storage error is non-critical - discovery will continue")
 
             # Optional: Store snapshot to InfluxDB for historical tracking
-            store_influx_history = os.getenv('STORE_DEVICE_HISTORY_IN_INFLUXDB', 'false').lower() == 'true'
+            store_influx_history = os.getenv("STORE_DEVICE_HISTORY_IN_INFLUXDB", "false").lower() == "true"
 
             if store_influx_history and self.influxdb_manager:
                 logger.info("📊 Storing device history snapshot to InfluxDB...")
@@ -744,18 +741,18 @@ class DiscoveryService:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Error storing discovery results: {e}")
+            logger.exception(f"❌ Error storing discovery results: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(traceback.format_exc())
             return False
 
     async def subscribe_to_device_registry_events(self, websocket: ClientWebSocketResponse) -> bool:
         """
         Subscribe to device registry update events
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             True if subscription successful
         """
@@ -766,7 +763,7 @@ class DiscoveryService:
             await websocket.send_json({
                 "id": message_id,
                 "type": "subscribe_events",
-                "event_type": "device_registry_updated"
+                "event_type": "device_registry_updated",
             })
 
             # Wait for subscription confirmation
@@ -775,21 +772,20 @@ class DiscoveryService:
             if response and response.get("success"):
                 logger.info("✅ Subscribed to device registry events")
                 return True
-            else:
-                logger.error("❌ Failed to subscribe to device registry events")
-                return False
+            logger.error("❌ Failed to subscribe to device registry events")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Error subscribing to device registry events: {e}")
+            logger.exception(f"❌ Error subscribing to device registry events: {e}")
             return False
 
     async def subscribe_to_entity_registry_events(self, websocket: ClientWebSocketResponse) -> bool:
         """
         Subscribe to entity registry update events
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             True if subscription successful
         """
@@ -800,7 +796,7 @@ class DiscoveryService:
             await websocket.send_json({
                 "id": message_id,
                 "type": "subscribe_events",
-                "event_type": "entity_registry_updated"
+                "event_type": "entity_registry_updated",
             })
 
             # Wait for subscription confirmation
@@ -809,21 +805,20 @@ class DiscoveryService:
             if response and response.get("success"):
                 logger.info("✅ Subscribed to entity registry events")
                 return True
-            else:
-                logger.error("❌ Failed to subscribe to entity registry events")
-                return False
+            logger.error("❌ Failed to subscribe to entity registry events")
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Error subscribing to entity registry events: {e}")
+            logger.exception(f"❌ Error subscribing to entity registry events: {e}")
             return False
 
     async def handle_device_registry_event(self, event: dict[str, Any]) -> bool:
         """
         Handle device registry update event
-        
+
         Args:
             event: Event data from Home Assistant
-            
+
         Returns:
             True if handled successfully
         """
@@ -855,16 +850,16 @@ class DiscoveryService:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Error handling device registry event: {e}")
+            logger.exception(f"❌ Error handling device registry event: {e}")
             return False
 
     async def handle_entity_registry_event(self, event: dict[str, Any]) -> bool:
         """
         Handle entity registry update event
-        
+
         Args:
             event: Event data from Home Assistant
-            
+
         Returns:
             True if handled successfully
         """
@@ -907,17 +902,17 @@ class DiscoveryService:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Error handling entity registry event: {e}")
+            logger.exception(f"❌ Error handling entity registry event: {e}")
             return False
 
     # Epic 23.2: Helper methods for device/area lookup
     def get_device_id(self, entity_id: str) -> str | None:
         """
         Get device_id for an entity
-        
+
         Args:
             entity_id: The entity ID to look up
-            
+
         Returns:
             device_id if found, None otherwise
         """
@@ -928,15 +923,15 @@ class DiscoveryService:
     def get_area_id(self, entity_id: str, device_id: str | None = None) -> str | None:
         """
         Get area_id for an entity or device
-        
+
         Checks in this order:
         1. Entity direct area assignment
         2. Device area assignment (if device_id provided or looked up)
-        
+
         Args:
             entity_id: The entity ID to look up
             device_id: Optional device ID (will be looked up if not provided)
-            
+
         Returns:
             area_id if found, None otherwise
         """
@@ -958,10 +953,10 @@ class DiscoveryService:
     def get_device_metadata(self, device_id: str) -> dict[str, Any] | None:
         """
         Get device metadata (manufacturer, model, sw_version)
-        
+
         Args:
             device_id: The device ID to look up
-            
+
         Returns:
             Device metadata dict if found, None otherwise
         """
@@ -970,10 +965,10 @@ class DiscoveryService:
     def _check_cache_freshness(self):
         """
         Check if cache is stale and log warning if needed.
-        
+
         Cache is considered stale if it's older than TTL and has entries.
         This helps identify when discovery hasn't run recently.
-        
+
         Only logs warning once per interval to avoid log spam.
         """
         if self._cache_timestamp and len(self.entity_to_device) > 0:
@@ -990,14 +985,14 @@ class DiscoveryService:
                     logger.warning(
                         f"⚠️ Discovery cache is stale ({cache_age/60:.1f} minutes old, "
                         f"TTL: {self._cache_ttl_seconds/60:.1f} minutes). "
-                        f"Consider triggering discovery to refresh device/area mappings."
+                        f"Consider triggering discovery to refresh device/area mappings.",
                     )
                     self._last_stale_warning_timestamp = current_time
 
     def is_cache_stale(self) -> bool:
         """
         Check if cache is stale.
-        
+
         Returns:
             True if cache is older than TTL, False otherwise
         """
@@ -1009,7 +1004,7 @@ class DiscoveryService:
     def clear_caches(self):
         """
         Clear all mapping caches.
-        
+
         Useful when discovery fails or needs to be reset.
         """
         self.entity_to_device.clear()
@@ -1022,7 +1017,7 @@ class DiscoveryService:
     def get_cache_statistics(self) -> dict[str, Any]:
         """
         Get statistics about mapping caches
-        
+
         Returns:
             Dictionary with cache statistics
         """
@@ -1037,6 +1032,6 @@ class DiscoveryService:
             "device_metadata_entries": len(self.device_metadata),
             "cache_age_minutes": round(cache_age_minutes, 1) if cache_age_minutes else None,
             "cache_ttl_minutes": self._cache_ttl_seconds / 60,
-            "is_stale": self.is_cache_stale()
+            "is_stale": self.is_cache_stale(),
         }
 

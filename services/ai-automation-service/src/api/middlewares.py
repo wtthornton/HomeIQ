@@ -11,7 +11,8 @@ from fastapi import Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from ..config import settings
+from src.config import settings
+
 from .dependencies.auth import AuthContext
 
 logger = logging.getLogger(__name__)
@@ -25,14 +26,14 @@ _rate_limit_buckets: dict[str, dict] = defaultdict(lambda: {
     "tokens": 100,  # Default: 100 requests (10x increase)
     "last_refill": time.time(),
     "capacity": 100,  # 10x increase: 100 tokens capacity
-    "refill_rate": 10.0  # 10 tokens per second (supports 600/min = 10/sec)
+    "refill_rate": 10.0,  # 10 tokens per second (supports 600/min = 10/sec)
 })
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
     """
     Idempotency middleware for POST endpoints.
-    
+
     Requires Idempotency-Key header on POST requests.
     Returns cached response for duplicate keys.
     """
@@ -63,11 +64,10 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     logger.info(f"Idempotent request: {idempotency_key}")
                     return JSONResponse(
                         content=cached_response,
-                        status_code=status.HTTP_200_OK
+                        status_code=status.HTTP_200_OK,
                     )
-                else:
-                    # Expired, remove from cache
-                    del _idempotency_store[cache_key]
+                # Expired, remove from cache
+                del _idempotency_store[cache_key]
 
             # Process request
             response = await call_next(request)
@@ -94,9 +94,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     logger.warning(f"Failed to cache idempotent response: {e}")
 
             return response
-        else:
-            # No idempotency key, process normally
-            return await call_next(request)
+        # No idempotency key, process normally
+        return await call_next(request)
 
     def _cleanup_old_entries(self):
         """Clean up expired entries (simple cleanup every 100 requests)"""
@@ -113,7 +112,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware using token bucket algorithm.
-    
+
     Per-user/IP rate limiting with configurable limits.
     """
 
@@ -123,7 +122,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         requests_per_minute: int = 600,  # External API consumers
         requests_per_hour: int = 10000,
         internal_requests_per_minute: int = 2000,  # Internal traffic (Docker network)
-        key_header: str = "X-User-ID"
+        key_header: str = "X-User-ID",
     ):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
@@ -132,7 +131,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.key_header = key_header
         # Internal network prefixes (Docker, private networks)
         # Context7 Best Practice: Clear configuration for maintainability
-        self.internal_network_prefixes = ['172.', '10.', '192.168.', '127.0.0.1']
+        self.internal_network_prefixes = ["172.", "10.", "192.168.", "127.0.0.1"]
         # Calculate refill rates: requests_per_minute / 60 = tokens per second
         self.refill_rate = requests_per_minute / 60.0
         self.internal_refill_rate = internal_requests_per_minute / 60.0
@@ -148,21 +147,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Exempt health checks, status endpoints, and read-only GET endpoints from rate limiting
         # Context7 Best Practice: Early return for exempt paths (performance)
         exempt_paths = [
-            '/health',
-            '/api/health',
-            '/api/analysis/status',
-            '/api/analysis/schedule'
+            "/health",
+            "/api/health",
+            "/api/analysis/status",
+            "/api/analysis/schedule",
         ]
 
         # Exempt read-only GET endpoints (they're just reading data, not causing load)
         read_only_get_paths = [
-            '/api/patterns/list',
-            '/api/patterns/stats',
-            '/api/patterns/',  # Pattern detail endpoints (GET)
-            '/api/synergies',  # Synergies list (GET)
-            '/api/synergies/stats',
-            '/api/suggestions',  # Suggestions list (GET)
-            '/api/devices/names',  # Device name lookup (GET)
+            "/api/patterns/list",
+            "/api/patterns/stats",
+            "/api/patterns/",  # Pattern detail endpoints (GET)
+            "/api/synergies",  # Synergies list (GET)
+            "/api/synergies/stats",
+            "/api/suggestions",  # Suggestions list (GET)
+            "/api/devices/names",  # Device name lookup (GET)
         ]
 
         # Check if this is a read-only GET request
@@ -206,11 +205,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={
                     "error": "Rate limit exceeded",
-                    "message": f"Too many requests. Limit: {effective_limit}/min, {self.requests_per_hour}/hour"
+                    "message": f"Too many requests. Limit: {effective_limit}/min, {self.requests_per_hour}/hour",
                 },
                 headers={
-                    "Retry-After": "60"
-                }
+                    "Retry-After": "60",
+                },
             )
 
         # Process request
@@ -227,18 +226,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self,
         identifier: str,
         refill_rate: float | None = None,
-        capacity: int | None = None
+        capacity: int | None = None,
     ) -> bool:
         """
         Check if request is within rate limit.
-        
+
         Context7 Best Practice: Flexible parameters for different rate limit configurations.
-        
+
         Args:
             identifier: Client identifier (IP or user ID)
             refill_rate: Tokens per second (uses instance default if None)
             capacity: Maximum bucket capacity (uses instance default if None)
-        
+
         Returns:
             True if request allowed, False if rate limit exceeded
         """
@@ -262,7 +261,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         tokens_to_add = time_since_refill * bucket["refill_rate"]
         bucket["tokens"] = min(
             bucket["capacity"],
-            bucket["tokens"] + tokens_to_add
+            bucket["tokens"] + tokens_to_add,
         )
         bucket["last_refill"] = current_time
 
@@ -312,7 +311,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         elif self.api_key == "change-me":
             logger.warning(
                 "Authentication middleware enabled but default API key is still 'change-me'. "
-                "Update infrastructure/env.ai-automation."
+                "Update infrastructure/env.ai-automation.",
             )
 
     async def dispatch(self, request: Request, call_next: Callable):

@@ -15,9 +15,9 @@ async def check_devices():
 
     # Now check count
     async for session in get_db_session():
-        result = await session.execute(text('SELECT COUNT(*) FROM devices'))
+        result = await session.execute(text("SELECT COUNT(*) FROM devices"))
         count = result.scalar()
-        print(f'Devices in database: {count}')
+        print(f"Devices in database: {count}")
         break
 
 if __name__ == "__main__":

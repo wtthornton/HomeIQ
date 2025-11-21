@@ -25,11 +25,11 @@ async def store_reverse_engineering_metrics(
     automation_created: bool | None = None,
     automation_id: str | None = None,
     had_validation_errors: bool | None = None,
-    errors_fixed_count: int = 0
+    errors_fixed_count: int = 0,
 ) -> ReverseEngineeringMetrics:
     """
     Store reverse engineering metrics in the database.
-    
+
     Args:
         db_session: Database session
         suggestion_id: Suggestion ID
@@ -39,7 +39,7 @@ async def store_reverse_engineering_metrics(
         automation_id: HA automation ID if created
         had_validation_errors: Whether original YAML had validation errors
         errors_fixed_count: Number of errors fixed by reverse engineering
-        
+
     Returns:
         Stored ReverseEngineeringMetrics object
     """
@@ -62,7 +62,7 @@ async def store_reverse_engineering_metrics(
                 "iteration": iter_result.iteration,
                 "similarity_score": iter_result.similarity_score,
                 "correction_feedback": iter_result.correction_feedback,
-                "improvement_actions": iter_result.improvement_actions
+                "improvement_actions": iter_result.improvement_actions,
             }
             for iter_result in correction_result.iteration_history
         ]
@@ -73,17 +73,17 @@ async def store_reverse_engineering_metrics(
             query_id=query_id,
 
             # Similarity metrics
-            initial_similarity=getattr(correction_result, 'initial_similarity', None),
+            initial_similarity=getattr(correction_result, "initial_similarity", None),
             final_similarity=correction_result.final_similarity,
-            similarity_improvement=getattr(correction_result, 'similarity_improvement', None),
-            improvement_percentage=getattr(correction_result, 'improvement_percentage', None),
+            similarity_improvement=getattr(correction_result, "similarity_improvement", None),
+            improvement_percentage=getattr(correction_result, "improvement_percentage", None),
 
             # Performance metrics
             iterations_completed=correction_result.iterations_completed,
             max_iterations=correction_result.max_iterations,
             convergence_achieved=correction_result.convergence_achieved,
-            total_processing_time_ms=getattr(correction_result, 'total_processing_time_ms', None),
-            time_per_iteration_ms=getattr(correction_result, 'time_per_iteration_ms', None),
+            total_processing_time_ms=getattr(correction_result, "total_processing_time_ms", None),
+            time_per_iteration_ms=getattr(correction_result, "time_per_iteration_ms", None),
 
             # Cost metrics
             total_tokens_used=correction_result.total_tokens_used,
@@ -97,12 +97,12 @@ async def store_reverse_engineering_metrics(
             errors_fixed_count=errors_fixed_count,
 
             # YAML comparison
-            original_yaml=getattr(correction_result, 'original_yaml', None),
+            original_yaml=getattr(correction_result, "original_yaml", None),
             corrected_yaml=correction_result.final_yaml,
-            yaml_changed=getattr(correction_result, 'yaml_changed', False),
+            yaml_changed=getattr(correction_result, "yaml_changed", False),
 
             # Iteration history
-            iteration_history_json=iteration_history_json
+            iteration_history_json=iteration_history_json,
         )
 
         db_session.add(metrics)
@@ -112,7 +112,7 @@ async def store_reverse_engineering_metrics(
         logger.info(
             f"✅ Stored reverse engineering metrics: "
             f"similarity {metrics.initial_similarity:.2%} → {metrics.final_similarity:.2%}, "
-            f"{metrics.iterations_completed} iterations, ${metrics.estimated_cost_usd:.4f}"
+            f"{metrics.iterations_completed} iterations, ${metrics.estimated_cost_usd:.4f}",
         )
 
         return metrics
@@ -125,15 +125,15 @@ async def store_reverse_engineering_metrics(
 
 async def get_reverse_engineering_analytics(
     db_session: AsyncSession,
-    days: int = 30
+    days: int = 30,
 ) -> dict[str, Any]:
     """
     Get aggregated analytics for reverse engineering metrics.
-    
+
     Args:
         db_session: Database session
         days: Number of days to analyze (default: 30)
-        
+
     Returns:
         Dictionary with aggregated analytics
     """
@@ -142,7 +142,7 @@ async def get_reverse_engineering_analytics(
 
         # Query all metrics in time range
         query = select(ReverseEngineeringMetrics).where(
-            ReverseEngineeringMetrics.created_at >= cutoff_date
+            ReverseEngineeringMetrics.created_at >= cutoff_date,
         )
 
         result = await db_session.execute(query)
@@ -151,7 +151,7 @@ async def get_reverse_engineering_analytics(
         if not all_metrics:
             return {
                 "total_automations": 0,
-                "message": f"No metrics found in the last {days} days"
+                "message": f"No metrics found in the last {days} days",
             }
 
         total = len(all_metrics)
@@ -217,7 +217,7 @@ async def get_reverse_engineering_analytics(
             "total_automations": total,
             "date_range": {
                 "from": cutoff_date.isoformat(),
-                "to": datetime.utcnow().isoformat()
+                "to": datetime.utcnow().isoformat(),
             },
 
             # Similarity metrics
@@ -229,7 +229,7 @@ async def get_reverse_engineering_analytics(
                 "improved_count": improved_count,
                 "improved_rate": round(improved_rate, 4),
                 "significantly_improved_count": significantly_improved,
-                "significantly_improved_rate": round(significantly_improved_rate, 4)
+                "significantly_improved_rate": round(significantly_improved_rate, 4),
             },
 
             # Performance metrics
@@ -237,7 +237,7 @@ async def get_reverse_engineering_analytics(
                 "avg_iterations": round(avg_iterations, 2),
                 "convergence_rate": round(convergence_rate, 4),
                 "avg_processing_time_ms": round(avg_time_ms, 0),
-                "avg_processing_time_seconds": round(avg_time_ms / 1000, 2)
+                "avg_processing_time_seconds": round(avg_time_ms / 1000, 2),
             },
 
             # Cost metrics
@@ -246,7 +246,7 @@ async def get_reverse_engineering_analytics(
                 "total_cost_usd": round(total_cost, 4),
                 "avg_cost_per_automation": round(avg_cost, 4),
                 "avg_tokens_per_iteration": round(avg_tokens_per_iteration, 0),
-                "estimated_monthly_cost": round(avg_cost * 30, 2)  # Rough estimate
+                "estimated_monthly_cost": round(avg_cost * 30, 2),  # Rough estimate
             },
 
             # Success metrics
@@ -254,7 +254,7 @@ async def get_reverse_engineering_analytics(
                 "created_count": created_count,
                 "created_rate": round(created_rate, 4),
                 "yaml_changed_count": yaml_changed_count,
-                "yaml_changed_rate": round(yaml_changed_rate, 4)
+                "yaml_changed_rate": round(yaml_changed_rate, 4),
             },
 
             # Value indicators
@@ -263,7 +263,7 @@ async def get_reverse_engineering_analytics(
                 "percent_improved": round(improved_rate * 100, 1),
                 "percent_significantly_improved": round(significantly_improved_rate * 100, 1),
                 "convergence_rate": round(convergence_rate * 100, 1),
-                "cost_per_improvement": round(avg_cost / max(avg_improvement, 0.01), 4) if avg_improvement > 0 else None
+                "cost_per_improvement": round(avg_cost / max(avg_improvement, 0.01), 4) if avg_improvement > 0 else None,
             },
 
             # KPIs (Key Performance Indicators)
@@ -282,8 +282,8 @@ async def get_reverse_engineering_analytics(
 
                 "improvement_rate_target": "> 60%",
                 "improvement_rate_actual": f"{improved_rate * 100:.1f}%",
-                "meets_improvement_rate_target": improved_rate > 0.60
-            }
+                "meets_improvement_rate_target": improved_rate > 0.60,
+            },
         }
 
     except Exception as e:

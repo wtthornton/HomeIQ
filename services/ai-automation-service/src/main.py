@@ -105,7 +105,7 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "⚠️ Analysis schedule deviates from the default 03:00 run (current: %s). "
             "Confirm capability refresh still precedes the job.",
-            settings.analysis_schedule
+            settings.analysis_schedule,
         )
     else:
         logger.info("✅ Analysis schedule confirmed for 03:00 daily run")
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("✅ Database initialized")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.exception(f"❌ Database initialization failed: {e}")
         raise
 
     # Initialize MQTT client (Epic AI-1 + AI-2)
@@ -125,7 +125,7 @@ async def lifespan(app: FastAPI):
             broker=settings.mqtt_broker,
             port=settings.mqtt_port,
             username=settings.mqtt_username,
-            password=settings.mqtt_password
+            password=settings.mqtt_password,
         )
         # Use improved connection with retry logic
         if mqtt_client.connect(max_retries=3, retry_delay=2.0):
@@ -134,7 +134,7 @@ async def lifespan(app: FastAPI):
             logger.warning("⚠️ MQTT client connection failed - continuing without MQTT")
             mqtt_client = None
     except Exception as e:
-        logger.error(f"❌ MQTT client initialization failed: {e}")
+        logger.exception(f"❌ MQTT client initialization failed: {e}")
         mqtt_client = None
         # Continue without MQTT - don't block service startup
 
@@ -145,13 +145,13 @@ async def lifespan(app: FastAPI):
             capability_listener = MQTTCapabilityListener(
                 mqtt_client=mqtt_client,
                 db_session=None,  # Story 2.2 will add database session
-                parser=capability_parser
+                parser=capability_parser,
             )
             await capability_listener.start()
             set_capability_listener(capability_listener)  # Connect to health endpoint
             logger.info("✅ Device Intelligence capability listener started")
         except Exception as e:
-            logger.error(f"❌ Device Intelligence initialization failed: {e}")
+            logger.exception(f"❌ Device Intelligence initialization failed: {e}")
             # Continue without Device Intelligence - don't block service startup
     else:
         logger.warning("⚠️ Device Intelligence not started (MQTT unavailable)")
@@ -165,7 +165,7 @@ async def lifespan(app: FastAPI):
         scheduler.start()
         logger.info("✅ Daily analysis scheduler started")
     except Exception as e:
-        logger.error(f"❌ Scheduler startup failed: {e}")
+        logger.exception(f"❌ Scheduler startup failed: {e}")
         # Don't raise - service can still run without scheduler
 
     # Initialize containerized AI models (Phase 1)
@@ -174,7 +174,7 @@ async def lifespan(app: FastAPI):
         await model_manager.initialize()
         logger.info("✅ Containerized AI models initialized")
     except Exception as e:
-        logger.error(f"❌ AI models initialization failed: {e}")
+        logger.exception(f"❌ AI models initialization failed: {e}")
         # Continue without models - service can still run with fallbacks
 
     # Set extractor references for stats endpoint
@@ -196,7 +196,7 @@ async def lifespan(app: FastAPI):
         if not extractor and not orchestrator:
             logger.warning("⚠️ No extractor available for stats endpoint")
     except Exception as e:
-        logger.error(f"❌ Failed to set extractor for stats: {e}")
+        logger.exception(f"❌ Failed to set extractor for stats: {e}")
 
     # Initialize ActionExecutor (start worker tasks)
     try:
@@ -206,7 +206,7 @@ async def lifespan(app: FastAPI):
         await action_executor.start()
         logger.info("✅ ActionExecutor started")
     except Exception as e:
-        logger.error(f"❌ ActionExecutor startup failed: {e}")
+        logger.exception(f"❌ ActionExecutor startup failed: {e}")
         # Continue without ActionExecutor - will fall back to old method
 
     logger.info("✅ AI Automation Service ready")
@@ -220,25 +220,25 @@ async def lifespan(app: FastAPI):
     try:
         from .services.service_container import ServiceContainer
         service_container = ServiceContainer()
-        if hasattr(service_container, '_action_executor') and service_container._action_executor:
+        if hasattr(service_container, "_action_executor") and service_container._action_executor:
             await service_container._action_executor.shutdown()
             logger.info("✅ ActionExecutor shutdown complete")
     except Exception as e:
-        logger.error(f"❌ ActionExecutor shutdown failed: {e}")
+        logger.exception(f"❌ ActionExecutor shutdown failed: {e}")
 
     # Close device intelligence client
     try:
         await device_intelligence_client.close()
         logger.info("✅ Device Intelligence client closed")
     except Exception as e:
-        logger.error(f"❌ Device Intelligence client shutdown failed: {e}")
+        logger.exception(f"❌ Device Intelligence client shutdown failed: {e}")
 
     # Stop scheduler
     try:
         scheduler.stop()
         logger.info("✅ Scheduler stopped")
     except Exception as e:
-        logger.error(f"❌ Scheduler shutdown failed: {e}")
+        logger.exception(f"❌ Scheduler shutdown failed: {e}")
 
     # Disconnect MQTT
     if mqtt_client:
@@ -246,7 +246,7 @@ async def lifespan(app: FastAPI):
             mqtt_client.disconnect()
             logger.info("✅ MQTT client disconnected")
         except Exception as e:
-            logger.error(f"❌ MQTT disconnect failed: {e}")
+            logger.exception(f"❌ MQTT disconnect failed: {e}")
 
     # Cleanup AI models (Phase 1)
     try:
@@ -254,7 +254,7 @@ async def lifespan(app: FastAPI):
         await model_manager.cleanup()
         logger.info("✅ AI models cleaned up")
     except Exception as e:
-        logger.error(f"❌ AI models cleanup failed: {e}")
+        logger.exception(f"❌ AI models cleanup failed: {e}")
 
 # Create FastAPI application
 app = FastAPI(
@@ -263,13 +263,13 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Observability setup (tracing and correlation ID)
 if OBSERVABILITY_AVAILABLE:
     # Set up OpenTelemetry tracing
-    otlp_endpoint = os.getenv('OTLP_ENDPOINT')
+    otlp_endpoint = os.getenv("OTLP_ENDPOINT")
     if setup_tracing("ai-automation-service", otlp_endpoint):
         logger.info("✅ OpenTelemetry tracing configured")
 
@@ -292,7 +292,7 @@ app.add_middleware(
         "http://ai-automation-ui",  # Container network
         "http://ai-automation-ui:80",
         "http://homeiq-dashboard",  # Health dashboard container
-        "http://homeiq-dashboard:80"
+        "http://homeiq-dashboard:80",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -302,7 +302,7 @@ app.add_middleware(
 # Authentication middleware (API key with optional admin override)
 app.add_middleware(
     AuthenticationMiddleware,
-    enabled=settings.enable_authentication
+    enabled=settings.enable_authentication,
 )
 
 # Rate limiting middleware (before idempotency) - only if enabled
@@ -312,7 +312,7 @@ if settings.rate_limit_enabled:
         requests_per_minute=settings.rate_limit_requests_per_minute,
         requests_per_hour=settings.rate_limit_requests_per_hour,
         internal_requests_per_minute=settings.rate_limit_internal_requests_per_minute,
-        key_header="X-HomeIQ-API-Key"
+        key_header="X-HomeIQ-API-Key",
     )
     logger.info("✅ Rate limiting middleware enabled")
 else:
@@ -338,8 +338,8 @@ else:
                 "error": "Validation Error",
                 "detail": exc.errors(),
                 "path": str(request.url.path),
-                "method": request.method
-            }
+                "method": request.method,
+            },
         )
 
     @app.exception_handler(Exception)
@@ -352,8 +352,8 @@ else:
                 "error": "Internal Server Error",
                 "detail": str(exc),
                 "path": str(request.url.path),
-                "method": request.method
-            }
+                "method": request.method,
+            },
         )
 
 # Include routers
@@ -412,6 +412,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8018,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
 

@@ -2,5 +2,5 @@
 
 from .base import MeterAdapter
 
-__all__ = ['MeterAdapter']
+__all__ = ["MeterAdapter"]
 

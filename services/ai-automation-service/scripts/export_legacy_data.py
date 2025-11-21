@@ -59,7 +59,7 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "suggestions": query.suggestions,
                     "confidence": query.confidence,
                     "processing_time_ms": query.processing_time_ms,
-                    "created_at": query.created_at.isoformat() if query.created_at else None
+                    "created_at": query.created_at.isoformat() if query.created_at else None,
                 })
 
             logger.info(f"✅ Exported {len(queries_data)} queries")
@@ -87,7 +87,7 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "created_at": session.created_at.isoformat() if session.created_at else None,
                     "updated_at": session.updated_at.isoformat() if session.updated_at else None,
                     "completed_at": session.completed_at.isoformat() if session.completed_at else None,
-                    "clarification_query_id": session.clarification_query_id
+                    "clarification_query_id": session.clarification_query_id,
                 })
 
             logger.info(f"✅ Exported {len(sessions_data)} clarification sessions")
@@ -103,13 +103,13 @@ async def export_legacy_data(output_path: Path) -> bool:
                     "total_queries": len(queries_data),
                     "total_sessions": len(sessions_data),
                     "queries_with_suggestions": sum(1 for q in queries_data if q.get("suggestions")),
-                    "active_sessions": sum(1 for s in sessions_data if s.get("status") == "in_progress")
-                }
+                    "active_sessions": sum(1 for s in sessions_data if s.get("status") == "in_progress"),
+                },
             }
 
             # Write to file
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(export_data, f, indent=2, ensure_ascii=False)
 
             logger.info(f"✅ Export completed: {output_path}")
@@ -131,7 +131,7 @@ async def main():
         "--output",
         type=Path,
         default=Path(__file__).parent.parent / "data" / "legacy_export.json",
-        help="Output JSON file path"
+        help="Output JSON file path",
     )
     args = parser.parse_args()
 

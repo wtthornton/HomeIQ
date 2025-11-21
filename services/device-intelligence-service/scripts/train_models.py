@@ -29,11 +29,11 @@ from src.core.predictive_analytics import PredictiveAnalyticsEngine
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('training.log')
-    ]
+        logging.FileHandler("training.log"),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,8 @@ async def train_models(days_back: int = 180, force: bool = False, verbose: bool 
         if engine.is_trained:
             # Get training results
             status = engine.get_model_status()
-            metadata = status.get('model_metadata', {})
-            performance = status.get('model_performance', {})
+            metadata = status.get("model_metadata", {})
+            performance = status.get("model_performance", {})
 
             logger.info("")
             logger.info("=" * 80)
@@ -91,7 +91,7 @@ async def train_models(days_back: int = 180, force: bool = False, verbose: bool 
             logger.info(f"Training Duration: {metadata.get('training_duration_seconds', 0):.2f} seconds")
             logger.info("")
             logger.info("Training Data Stats:")
-            stats = metadata.get('training_data_stats', {})
+            stats = metadata.get("training_data_stats", {})
             logger.info(f"  - Sample Count: {stats.get('sample_count', 0)}")
             logger.info(f"  - Unique Devices: {stats.get('unique_devices', 0)}")
             logger.info(f"  - Days Back: {stats.get('days_back', 0)}")
@@ -105,9 +105,8 @@ async def train_models(days_back: int = 180, force: bool = False, verbose: bool 
             logger.info("=" * 80)
 
             return 0
-        else:
-            logger.error("❌ Training failed - models not trained")
-            return 1
+        logger.error("❌ Training failed - models not trained")
+        return 1
 
     except Exception as e:
         logger.error(f"❌ Error during training: {e}", exc_info=True)
@@ -130,35 +129,35 @@ def main():
 Examples:
   # Train with default settings (180 days)
   python scripts/train_models.py
-  
+
   # Train with custom days back
   python scripts/train_models.py --days-back 90
-  
+
   # Force retrain even if models exist
   python scripts/train_models.py --force
-  
+
   # Verbose output
   python scripts/train_models.py --verbose
-        """
+        """,
     )
 
     parser.add_argument(
-        '--days-back',
+        "--days-back",
         type=int,
         default=180,
-        help='Number of days of historical data to use for training (default: 180)'
+        help="Number of days of historical data to use for training (default: 180)",
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force retraining even if models already exist'
+        "--force",
+        action="store_true",
+        help="Force retraining even if models already exist",
     )
 
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
     )
 
     args = parser.parse_args()
@@ -167,7 +166,7 @@ Examples:
     exit_code = asyncio.run(train_models(
         days_back=args.days_back,
         force=args.force,
-        verbose=args.verbose
+        verbose=args.verbose,
     ))
 
     sys.exit(exit_code)

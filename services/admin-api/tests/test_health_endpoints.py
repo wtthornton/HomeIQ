@@ -20,7 +20,7 @@ class TestHealthEndpoints:
     def test_init(self):
         """Test HealthEndpoints initialization"""
         assert self.health_endpoints.router is not None
-        assert hasattr(self.health_endpoints, 'router')
+        assert hasattr(self.health_endpoints, "router")
 
     def test_health_endpoint(self):
         """Test health endpoint"""
@@ -82,7 +82,7 @@ class TestHealthEndpoints:
         assert isinstance(timestamp, str)
 
         # Try to parse timestamp
-        parsed_timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        parsed_timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         assert isinstance(parsed_timestamp, datetime)
 
     def test_health_endpoint_ingestion_service_timestamp(self):
@@ -98,7 +98,7 @@ class TestHealthEndpoints:
         assert isinstance(timestamp, str)
 
         # Try to parse timestamp
-        parsed_timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        parsed_timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         assert isinstance(parsed_timestamp, datetime)
 
     def test_health_endpoint_websocket_connection(self):
@@ -179,7 +179,7 @@ class TestHealthEndpoints:
     def test_health_endpoint_error_handling(self):
         """Test health endpoint error handling"""
         # Mock the get_ingestion_service_health function to raise an exception
-        with patch.object(self.health_endpoints, '_get_ingestion_service_health', side_effect=Exception("Test error")):
+        with patch.object(self.health_endpoints, "_get_ingestion_service_health", side_effect=Exception("Test error")):
             response = self.client.get("/health")
 
             # Should handle error gracefully
@@ -194,13 +194,13 @@ class TestHealthEndpoints:
     def test_health_endpoint_degraded_status(self):
         """Test health endpoint degraded status"""
         # Mock the get_ingestion_service_health function to return degraded status
-        with patch.object(self.health_endpoints, '_get_ingestion_service_health', return_value={
+        with patch.object(self.health_endpoints, "_get_ingestion_service_health", return_value={
             "status": "degraded",
             "websocket_connection": {"is_connected": True, "last_connection_time": "2024-01-01T12:00:00Z", "connection_attempts": 5, "last_error": None},
             "event_processing": {"total_events": 1000, "events_per_minute": 50, "error_rate": 0.01},
             "weather_enrichment": {"enabled": True, "cache_hits": 100, "api_calls": 10, "last_error": None},
             "influxdb_storage": {"is_connected": True, "last_write_time": "2024-01-01T12:00:00Z", "write_errors": 0},
-            "timestamp": "2024-01-01T12:00:00Z"
+            "timestamp": "2024-01-01T12:00:00Z",
         }):
             response = self.client.get("/health")
 
@@ -214,13 +214,13 @@ class TestHealthEndpoints:
     def test_health_endpoint_unhealthy_status(self):
         """Test health endpoint unhealthy status"""
         # Mock the get_ingestion_service_health function to return unhealthy status
-        with patch.object(self.health_endpoints, '_get_ingestion_service_health', return_value={
+        with patch.object(self.health_endpoints, "_get_ingestion_service_health", return_value={
             "status": "unhealthy",
             "websocket_connection": {"is_connected": False, "last_connection_time": "2024-01-01T12:00:00Z", "connection_attempts": 5, "last_error": "Connection failed"},
             "event_processing": {"total_events": 1000, "events_per_minute": 0, "error_rate": 0.5},
             "weather_enrichment": {"enabled": True, "cache_hits": 100, "api_calls": 10, "last_error": "API error"},
             "influxdb_storage": {"is_connected": False, "last_write_time": "2024-01-01T12:00:00Z", "write_errors": 100},
-            "timestamp": "2024-01-01T12:00:00Z"
+            "timestamp": "2024-01-01T12:00:00Z",
         }):
             response = self.client.get("/health")
 

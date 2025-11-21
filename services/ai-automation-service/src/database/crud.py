@@ -2,6 +2,7 @@
 CRUD operations for AI Automation Service database
 """
 
+import contextlib
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -9,7 +10,8 @@ from typing import Any
 from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..pattern_detection.pattern_filters import validate_pattern
+from src.pattern_detection.pattern_filters import validate_pattern
+
 from .models import (
     AnalysisRunStatus,
     DeviceCapability,
@@ -30,22 +32,21 @@ logger = logging.getLogger(__name__)
 def _get_attr_safe(obj: dict | Any, attr: str, default: Any) -> Any:
     """
     Safely get attribute from dict or object.
-    
+
     Context7 Best Practice: Type-safe attribute access that handles
     both dict and SQLAlchemy objects without raising exceptions.
-    
+
     Args:
         obj: Dictionary or object instance (e.g., SQLAlchemy model)
         attr: Attribute name
         default: Default value if attribute not found
-    
+
     Returns:
         Attribute value or default
     """
     if isinstance(obj, dict):
         return obj.get(attr, default)
-    else:
-        return getattr(obj, attr, default)
+    return getattr(obj, attr, default)
 
 
 # ============================================================================
@@ -53,22 +54,22 @@ def _get_attr_safe(obj: dict | Any, attr: str, default: Any) -> Any:
 # ============================================================================
 
 _SYSTEM_SETTINGS_FIELDS = {
-    'schedule_enabled',
-    'schedule_time',
-    'min_confidence',
-    'max_suggestions',
-    'enabled_categories',
-    'budget_limit',
-    'notifications_enabled',
-    'notification_email',
-    'soft_prompt_enabled',
-    'soft_prompt_model_dir',
-    'soft_prompt_confidence_threshold',
-    'guardrail_enabled',
-    'guardrail_model_name',
-    'guardrail_threshold',
-    'enable_parallel_model_testing',
-    'parallel_testing_models',
+    "schedule_enabled",
+    "schedule_time",
+    "min_confidence",
+    "max_suggestions",
+    "enabled_categories",
+    "budget_limit",
+    "notifications_enabled",
+    "notification_email",
+    "soft_prompt_enabled",
+    "soft_prompt_model_dir",
+    "soft_prompt_confidence_threshold",
+    "guardrail_enabled",
+    "guardrail_model_name",
+    "guardrail_threshold",
+    "enable_parallel_model_testing",
+    "parallel_testing_models",
 }
 
 
@@ -86,15 +87,14 @@ async def get_system_settings(db: AsyncSession) -> SystemSettings:
         await db.commit()
         await db.refresh(system_settings)
         logger.info("Created default system settings record")
-    else:
-        # Ensure parallel_testing_models has default if None (for existing records after migration)
-        if system_settings.parallel_testing_models is None:
-            system_settings.parallel_testing_models = {
-                "suggestion": ["gpt-5.1"],
-                "yaml": ["gpt-5.1"]
-            }
-            await db.commit()
-            await db.refresh(system_settings)
+    # Ensure parallel_testing_models has default if None (for existing records after migration)
+    elif system_settings.parallel_testing_models is None:
+        system_settings.parallel_testing_models = {
+            "suggestion": ["gpt-5.1"],
+            "yaml": ["gpt-5.1"],
+        }
+        await db.commit()
+        await db.refresh(system_settings)
 
     return system_settings
 
@@ -109,17 +109,17 @@ async def update_system_settings(db: AsyncSession, updates: dict[str, Any]) -> S
             logger.debug("Ignoring unknown system settings field: %s", field)
             continue
 
-        if field == 'enabled_categories' and isinstance(value, dict):
+        if field == "enabled_categories" and isinstance(value, dict):
             # Merge with defaults to avoid missing keys
             from .models import _default_enabled_categories
             defaults = _default_enabled_categories()
             value = {**defaults, **value}
-        elif field == 'parallel_testing_models' and isinstance(value, dict):
+        elif field == "parallel_testing_models" and isinstance(value, dict):
             # Ensure both suggestion and yaml keys exist
-            if 'suggestion' not in value:
-                value['suggestion'] = ["gpt-5.1"]
-            if 'yaml' not in value:
-                value['yaml'] = ["gpt-5.1"]
+            if "suggestion" not in value:
+                value["suggestion"] = ["gpt-5.1"]
+            if "yaml" not in value:
+                value["yaml"] = ["gpt-5.1"]
             setattr(settings_record, field, value)
         elif value is not None:
             setattr(settings_record, field, value)
@@ -139,7 +139,7 @@ async def get_active_training_run(db: AsyncSession) -> TrainingRun | None:
     """Fetch the currently running training run if one exists."""
 
     result = await db.execute(
-        select(TrainingRun).where(TrainingRun.status == 'running').limit(1)
+        select(TrainingRun).where(TrainingRun.status == "running").limit(1),
     )
     return result.scalar_one_or_none()
 
@@ -175,7 +175,7 @@ async def list_training_runs(db: AsyncSession, limit: int = 20) -> list[Training
     """Return recent training runs ordered by newest first."""
 
     result = await db.execute(
-        select(TrainingRun).order_by(TrainingRun.started_at.desc()).limit(limit)
+        select(TrainingRun).order_by(TrainingRun.started_at.desc()).limit(limit),
     )
     return list(result.scalars().all())
 
@@ -187,13 +187,13 @@ async def list_training_runs(db: AsyncSession, limit: int = 20) -> list[Training
 async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
     """
     Store detected patterns in database with history tracking.
-    
+
     Phase 1: Enhanced to track pattern history and update trend cache.
-    
+
     Args:
         db: Database session
         patterns: List of pattern dictionaries from detector
-    
+
     Returns:
         Number of patterns stored/updated
     """
@@ -202,7 +202,7 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
         return 0
 
     try:
-        from ..integration.pattern_history_validator import PatternHistoryValidator
+        from src.integration.pattern_history_validator import PatternHistoryValidator
 
         history_validator = PatternHistoryValidator(db)
         stored_count = 0
@@ -218,17 +218,17 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
         for pattern_data in valid_patterns:
             # Check if pattern already exists (same type and device)
             query = select(Pattern).where(
-                Pattern.pattern_type == pattern_data['pattern_type'],
-                Pattern.device_id == pattern_data['device_id']
+                Pattern.pattern_type == pattern_data["pattern_type"],
+                Pattern.device_id == pattern_data["device_id"],
             )
             result = await db.execute(query)
             existing_pattern = result.scalar_one_or_none()
 
             if existing_pattern:
                 # Update existing pattern
-                existing_pattern.confidence = pattern_data['confidence']
-                existing_pattern.occurrences = pattern_data['occurrences']
-                existing_pattern.pattern_metadata = pattern_data.get('metadata', {})
+                existing_pattern.confidence = pattern_data["confidence"]
+                existing_pattern.occurrences = pattern_data["occurrences"]
+                existing_pattern.pattern_metadata = pattern_data.get("metadata", {})
                 existing_pattern.last_seen = now
                 existing_pattern.updated_at = now
                 pattern = existing_pattern
@@ -236,16 +236,16 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
             else:
                 # Create new pattern
                 pattern = Pattern(
-                    pattern_type=pattern_data['pattern_type'],
-                    device_id=pattern_data['device_id'],
-                    pattern_metadata=pattern_data.get('metadata', {}),
-                    confidence=pattern_data['confidence'],
-                    occurrences=pattern_data['occurrences'],
+                    pattern_type=pattern_data["pattern_type"],
+                    device_id=pattern_data["device_id"],
+                    pattern_metadata=pattern_data.get("metadata", {}),
+                    confidence=pattern_data["confidence"],
+                    occurrences=pattern_data["occurrences"],
                     created_at=now,
                     updated_at=now,
                     first_seen=now,
                     last_seen=now,
-                    confidence_history_count=1
+                    confidence_history_count=1,
                 )
                 db.add(pattern)
 
@@ -255,11 +255,11 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
         await db.flush()
 
         # Store history snapshots and update trends
-        for i, pattern_data in enumerate(valid_patterns):
+        for _i, pattern_data in enumerate(valid_patterns):
             # Find the pattern we just created/updated
             query = select(Pattern).where(
-                Pattern.pattern_type == pattern_data['pattern_type'],
-                Pattern.device_id == pattern_data['device_id']
+                Pattern.pattern_type == pattern_data["pattern_type"],
+                Pattern.device_id == pattern_data["device_id"],
             )
             result = await db.execute(query)
             pattern = result.scalar_one_or_none()
@@ -270,7 +270,7 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
                     await history_validator.store_snapshot(
                         pattern_id=pattern.id,
                         confidence=pattern.confidence,
-                        occurrences=pattern.occurrences
+                        occurrences=pattern.occurrences,
                     )
 
                     # Update trend cache (async, but we'll wait for it)
@@ -295,18 +295,18 @@ async def get_patterns(
     pattern_type: str | None = None,
     device_id: str | None = None,
     min_confidence: float | None = None,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[Pattern]:
     """
     Retrieve patterns from database with optional filters.
-    
+
     Args:
         db: Database session
         pattern_type: Filter by pattern type (time_of_day, co_occurrence, anomaly)
         device_id: Filter by device ID
         min_confidence: Minimum confidence threshold
         limit: Maximum number of patterns to return
-    
+
     Returns:
         List of Pattern objects
     """
@@ -338,11 +338,11 @@ async def get_patterns(
 async def delete_old_patterns(db: AsyncSession, days_old: int = 30) -> int:
     """
     Delete patterns older than specified days.
-    
+
     Args:
         db: Database session
         days_old: Delete patterns older than this many days
-    
+
     Returns:
         Number of patterns deleted
     """
@@ -366,7 +366,7 @@ async def delete_old_patterns(db: AsyncSession, days_old: int = 30) -> int:
 async def get_pattern_stats(db: AsyncSession) -> dict:
     """
     Get pattern statistics from database.
-    
+
     Returns:
         Dictionary with pattern counts and statistics
     """
@@ -378,14 +378,14 @@ async def get_pattern_stats(db: AsyncSession) -> dict:
         # Patterns by type
         type_result = await db.execute(
             select(Pattern.pattern_type, func.count())
-            .group_by(Pattern.pattern_type)
+            .group_by(Pattern.pattern_type),
         )
         by_type = {row[0]: row[1] for row in type_result.all()}
 
         # Unique devices - need to handle combined device_ids (e.g., "device1+device2" for co-occurrence patterns)
         # Fetch all device_ids and split by '+' to get individual devices
         device_ids_result = await db.execute(
-            select(Pattern.device_id).select_from(Pattern)
+            select(Pattern.device_id).select_from(Pattern),
         )
         device_ids = [row[0] for row in device_ids_result.all()]
 
@@ -394,22 +394,22 @@ async def get_pattern_stats(db: AsyncSession) -> dict:
         for device_id in device_ids:
             if device_id:
                 # Split by '+' to handle co-occurrence patterns (e.g., "device1+device2")
-                individual_devices = device_id.split('+')
+                individual_devices = device_id.split("+")
                 unique_device_set.update(individual_devices)
 
         unique_devices = len(unique_device_set)
 
         # Average confidence
         avg_conf_result = await db.execute(
-            select(func.avg(Pattern.confidence)).select_from(Pattern)
+            select(func.avg(Pattern.confidence)).select_from(Pattern),
         )
         avg_confidence = avg_conf_result.scalar() or 0.0
 
         return {
-            'total_patterns': total_patterns,
-            'by_type': by_type,
-            'unique_devices': unique_devices,
-            'avg_confidence': float(avg_confidence)
+            "total_patterns": total_patterns,
+            "by_type": by_type,
+            "unique_devices": unique_devices,
+            "avg_confidence": float(avg_confidence),
         }
 
     except Exception as e:
@@ -424,14 +424,16 @@ async def get_pattern_stats(db: AsyncSession) -> dict:
 async def store_suggestion(db: AsyncSession, suggestion_data: dict, commit: bool = True) -> Suggestion:
     """Store automation suggestion in database with enriched metadata."""
     try:
-        if 'title' not in suggestion_data:
-            raise ValueError("suggestion_data must include a title field")
-        if 'confidence' not in suggestion_data:
-            raise ValueError("suggestion_data must include a confidence field")
+        if "title" not in suggestion_data:
+            msg = "suggestion_data must include a title field"
+            raise ValueError(msg)
+        if "confidence" not in suggestion_data:
+            msg = "suggestion_data must include a confidence field"
+            raise ValueError(msg)
 
-        description_text = suggestion_data.get('description_only') or suggestion_data.get('description') or ''
+        description_text = suggestion_data.get("description_only") or suggestion_data.get("description") or ""
 
-        conversation_history = suggestion_data.get('conversation_history')
+        conversation_history = suggestion_data.get("conversation_history")
         if isinstance(conversation_history, str):
             try:
                 import json
@@ -441,27 +443,27 @@ async def store_suggestion(db: AsyncSession, suggestion_data: dict, commit: bool
         if conversation_history is None:
             conversation_history = []
 
-        refinement_count = int(suggestion_data.get('refinement_count') or 0)
+        refinement_count = int(suggestion_data.get("refinement_count") or 0)
 
-        status = suggestion_data.get('status', 'draft')
+        status = suggestion_data.get("status", "draft")
 
-        device_capabilities = suggestion_data.get('device_capabilities') or {}
+        device_capabilities = suggestion_data.get("device_capabilities") or {}
 
-        device_info = suggestion_data.get('device_info') or []
-        devices_involved = suggestion_data.get('devices_involved') or []
+        device_info = suggestion_data.get("device_info") or []
+        devices_involved = suggestion_data.get("devices_involved") or []
 
         def _collect_device_ids() -> list[str]:
             candidates: list[str] = []
-            for key in ('device_id', 'device1', 'device2'):
+            for key in ("device_id", "device1", "device2"):
                 value = suggestion_data.get(key)
                 if isinstance(value, str):
                     candidates.append(value)
                 elif isinstance(value, list):
                     candidates.extend([v for v in value if isinstance(v, str)])
 
-            metadata = suggestion_data.get('metadata') or {}
+            metadata = suggestion_data.get("metadata") or {}
             if isinstance(metadata, dict):
-                for key in ('device_id', 'device1', 'device2', 'devices'):
+                for key in ("device_id", "device1", "device2", "devices"):
                     value = metadata.get(key)
                     if isinstance(value, str):
                         candidates.append(value)
@@ -477,67 +479,65 @@ async def store_suggestion(db: AsyncSession, suggestion_data: dict, commit: bool
 
         if not device_info and collected_ids:
             def _friendly_name(entity_id: str) -> str:
-                if '.' in entity_id:
-                    name_part = entity_id.split('.', 1)[1]
-                    return name_part.replace('_', ' ').title()
+                if "." in entity_id:
+                    name_part = entity_id.split(".", 1)[1]
+                    return name_part.replace("_", " ").title()
                 return entity_id
 
             for entity_id in collected_ids:
-                domain = entity_id.split('.', 1)[0] if '.' in entity_id else 'device'
+                domain = entity_id.split(".", 1)[0] if "." in entity_id else "device"
                 device_info.append({
-                    'entity_id': entity_id,
-                    'friendly_name': _friendly_name(entity_id),
-                    'domain': domain,
-                    'selected': True
+                    "entity_id": entity_id,
+                    "friendly_name": _friendly_name(entity_id),
+                    "domain": domain,
+                    "selected": True,
                 })
 
         if device_info:
             # Merge with existing device list stored in device_capabilities if present
             existing_devices = []
             if isinstance(device_capabilities, dict):
-                existing_devices = device_capabilities.get('devices', []) or []
+                existing_devices = device_capabilities.get("devices", []) or []
             else:
                 device_capabilities = {}
 
             merged_devices: dict[str, dict[str, Any]] = {}
             for entry in existing_devices:
-                entity_id = entry.get('entity_id') if isinstance(entry, dict) else None
+                entity_id = entry.get("entity_id") if isinstance(entry, dict) else None
                 if entity_id:
                     merged_devices[entity_id] = entry
             for entry in device_info:
-                entity_id = entry.get('entity_id') if isinstance(entry, dict) else None
+                entity_id = entry.get("entity_id") if isinstance(entry, dict) else None
                 if entity_id:
                     merged_devices.setdefault(entity_id, entry)
-            device_capabilities['devices'] = list(merged_devices.values())
+            device_capabilities["devices"] = list(merged_devices.values())
 
         suggestion = Suggestion(
-            pattern_id=suggestion_data.get('pattern_id'),
-            title=suggestion_data['title'],
+            pattern_id=suggestion_data.get("pattern_id"),
+            title=suggestion_data["title"],
             description_only=description_text,
-            automation_yaml=suggestion_data.get('automation_yaml'),
+            automation_yaml=suggestion_data.get("automation_yaml"),
             status=status,
-            confidence=suggestion_data['confidence'],
-            category=suggestion_data.get('category'),
-            priority=suggestion_data.get('priority'),
+            confidence=suggestion_data["confidence"],
+            category=suggestion_data.get("category"),
+            priority=suggestion_data.get("priority"),
             conversation_history=conversation_history,
             refinement_count=refinement_count,
             device_capabilities=device_capabilities,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         )
 
-        if suggestion_data.get('ha_automation_id'):
-            suggestion.ha_automation_id = suggestion_data.get('ha_automation_id')
+        if suggestion_data.get("ha_automation_id"):
+            suggestion.ha_automation_id = suggestion_data.get("ha_automation_id")
 
-        yaml_generated_at = suggestion_data.get('yaml_generated_at')
+        yaml_generated_at = suggestion_data.get("yaml_generated_at")
         if yaml_generated_at:
             if isinstance(yaml_generated_at, datetime):
                 suggestion.yaml_generated_at = yaml_generated_at
             else:
-                try:
+                with contextlib.suppress(Exception):
                     suggestion.yaml_generated_at = datetime.fromisoformat(yaml_generated_at)
-                except Exception:
-                    pass
 
         db.add(suggestion)
 
@@ -558,30 +558,30 @@ async def store_suggestion(db: AsyncSession, suggestion_data: dict, commit: bool
 async def get_suggestions(
     db: AsyncSession,
     status: str | None = None,
-    limit: int = 50
+    limit: int = 50,
 ) -> list[Suggestion]:
     """
     Retrieve automation suggestions from database.
-    
+
     Args:
         db: Database session
         status: Filter by status (pending, approved, deployed, rejected)
         limit: Maximum number of suggestions to return
-    
+
     Returns:
         List of Suggestion objects
     """
     try:
         feedback_summary = (
             select(
-                UserFeedback.suggestion_id.label('suggestion_id'),
+                UserFeedback.suggestion_id.label("suggestion_id"),
                 func.sum(
-                    case((UserFeedback.action == 'approved', 1), else_=0)
-                ).label('approvals'),
+                    case((UserFeedback.action == "approved", 1), else_=0),
+                ).label("approvals"),
                 func.sum(
-                    case((UserFeedback.action == 'rejected', 1), else_=0)
-                ).label('rejections'),
-                func.max(UserFeedback.created_at).label('last_feedback')
+                    case((UserFeedback.action == "rejected", 1), else_=0),
+                ).label("rejections"),
+                func.max(UserFeedback.created_at).label("last_feedback"),
             )
             .group_by(UserFeedback.suggestion_id)
             .subquery()
@@ -594,10 +594,10 @@ async def get_suggestions(
         query = (
             select(
                 Suggestion,
-                weighted_score.label('weighted_score'),
-                approval_weight.label('approvals'),
-                rejection_weight.label('rejections'),
-                feedback_summary.c.last_feedback.label('last_feedback')
+                weighted_score.label("weighted_score"),
+                approval_weight.label("approvals"),
+                rejection_weight.label("rejections"),
+                feedback_summary.c.last_feedback.label("last_feedback"),
             )
             .outerjoin(feedback_summary, feedback_summary.c.suggestion_id == Suggestion.id)
         )
@@ -614,9 +614,9 @@ async def get_suggestions(
         for suggestion, score, approvals, rejections, last_feedback in rows:
             suggestion.weighted_score = float(score) if score is not None else float(suggestion.confidence)
             suggestion.feedback_summary = {
-                'approvals': int(approvals or 0),
-                'rejections': int(rejections or 0),
-                'last_feedback': last_feedback.isoformat() if last_feedback else None
+                "approvals": int(approvals or 0),
+                "rejections": int(rejections or 0),
+                "last_feedback": last_feedback.isoformat() if last_feedback else None,
             }
             suggestions.append(suggestion)
 
@@ -634,7 +634,7 @@ async def get_suggestions(
 
 async def can_trigger_manual_refresh(
     db: AsyncSession,
-    cooldown_hours: int = 24
+    cooldown_hours: int = 24,
 ) -> tuple[bool, datetime | None]:
     """
     Determine whether a manual refresh can be triggered based on cooldown.
@@ -691,15 +691,15 @@ async def record_analysis_run(db: AsyncSession, job_result: dict) -> AnalysisRun
     Persist the outcome of an analysis run for telemetry.
     """
     try:
-        started_at = _parse_iso_datetime(job_result.get('start_time')) or datetime.now(timezone.utc)
-        finished_at = _parse_iso_datetime(job_result.get('end_time'))
+        started_at = _parse_iso_datetime(job_result.get("start_time")) or datetime.now(timezone.utc)
+        finished_at = _parse_iso_datetime(job_result.get("end_time"))
 
         run = AnalysisRunStatus(
-            status=job_result.get('status', 'unknown'),
+            status=job_result.get("status", "unknown"),
             started_at=started_at,
             finished_at=finished_at,
-            duration_seconds=job_result.get('duration_seconds'),
-            details=job_result
+            duration_seconds=job_result.get("duration_seconds"),
+            details=job_result,
         )
 
         db.add(run)
@@ -718,7 +718,7 @@ async def get_latest_analysis_run(db: AsyncSession) -> AnalysisRunStatus | None:
     Retrieve the most recent analysis run record.
     """
     result = await db.execute(
-        select(AnalysisRunStatus).order_by(AnalysisRunStatus.started_at.desc()).limit(1)
+        select(AnalysisRunStatus).order_by(AnalysisRunStatus.started_at.desc()).limit(1),
     )
     return result.scalars().first()
 
@@ -730,28 +730,28 @@ async def get_latest_analysis_run(db: AsyncSession) -> AnalysisRunStatus | None:
 async def store_feedback(db: AsyncSession, feedback_data: dict) -> UserFeedback:
     """
     Store user feedback on a suggestion.
-    
+
     Args:
         db: Database session
         feedback_data: Feedback dictionary
-    
+
     Returns:
         Stored UserFeedback object
     """
     try:
         feedback = UserFeedback(
-            suggestion_id=feedback_data['suggestion_id'],
-            action=feedback_data['action'],
-            feedback_text=feedback_data.get('feedback_text'),
-            created_at=datetime.now(timezone.utc)
+            suggestion_id=feedback_data["suggestion_id"],
+            action=feedback_data["action"],
+            feedback_text=feedback_data.get("feedback_text"),
+            created_at=datetime.now(timezone.utc),
         )
 
         db.add(feedback)
 
-        suggestion = await db.get(Suggestion, feedback_data['suggestion_id'])
+        suggestion = await db.get(Suggestion, feedback_data["suggestion_id"])
         if suggestion:
             suggestion.updated_at = feedback.created_at
-            if feedback_data['action'] == 'approved' and not suggestion.approved_at:
+            if feedback_data["action"] == "approved" and not suggestion.approved_at:
                 suggestion.approved_at = feedback.created_at
 
         await db.commit()
@@ -779,11 +779,11 @@ async def store_clarification_confidence_feedback(
     ambiguity_count: int = 0,
     critical_ambiguity_count: int = 0,
     rounds: int = 0,
-    answer_count: int = 0
-) -> 'ClarificationConfidenceFeedback':
+    answer_count: int = 0,
+) -> "ClarificationConfidenceFeedback":
     """
     Store feedback for clarification confidence calibration.
-    
+
     Args:
         db: Database session
         session_id: Clarification session ID
@@ -794,11 +794,11 @@ async def store_clarification_confidence_feedback(
         critical_ambiguity_count: Number of critical ambiguities
         rounds: Number of clarification rounds
         answer_count: Number of answers provided
-    
+
     Returns:
         Stored ClarificationConfidenceFeedback object
     """
-    from ..database.models import ClarificationConfidenceFeedback
+    from src.database.models import ClarificationConfidenceFeedback
 
     try:
         feedback = ClarificationConfidenceFeedback(
@@ -810,7 +810,7 @@ async def store_clarification_confidence_feedback(
             critical_ambiguity_count=critical_ambiguity_count,
             rounds=rounds,
             answer_count=answer_count,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
 
         db.add(feedback)
@@ -819,7 +819,7 @@ async def store_clarification_confidence_feedback(
 
         logger.debug(
             f"Stored clarification confidence feedback: session_id={session_id}, "
-            f"raw_confidence={raw_confidence:.2f}, proceeded={proceeded}"
+            f"raw_confidence={raw_confidence:.2f}, proceeded={proceeded}",
         )
         return feedback
 
@@ -832,20 +832,20 @@ async def store_clarification_confidence_feedback(
 async def get_clarification_confidence_feedback(
     db: AsyncSession,
     session_id: str | None = None,
-    limit: int = 1000
-) -> list['ClarificationConfidenceFeedback']:
+    limit: int = 1000,
+) -> list["ClarificationConfidenceFeedback"]:
     """
     Get clarification confidence feedback for calibration training.
-    
+
     Args:
         db: Database session
         session_id: Optional session ID to filter by
         limit: Maximum number of records to return
-    
+
     Returns:
         List of ClarificationConfidenceFeedback objects
     """
-    from ..database.models import ClarificationConfidenceFeedback
+    from src.database.models import ClarificationConfidenceFeedback
 
     try:
         query = select(ClarificationConfidenceFeedback)
@@ -868,11 +868,11 @@ async def store_clarification_outcome(
     proceeded: bool,
     suggestion_approved: bool | None = None,
     rounds: int = 0,
-    suggestion_id: int | None = None
-) -> 'ClarificationOutcome':
+    suggestion_id: int | None = None,
+) -> "ClarificationOutcome":
     """
     Store clarification session outcome for learning.
-    
+
     Args:
         db: Database session
         session_id: Clarification session ID
@@ -881,11 +881,11 @@ async def store_clarification_outcome(
         suggestion_approved: Whether suggestion was approved (None if unknown)
         rounds: Number of clarification rounds
         suggestion_id: Optional suggestion ID if linked
-    
+
     Returns:
         Stored ClarificationOutcome object
     """
-    from ..database.models import ClarificationOutcome
+    from src.database.models import ClarificationOutcome
 
     try:
         outcome = ClarificationOutcome(
@@ -895,7 +895,7 @@ async def store_clarification_outcome(
             suggestion_approved=suggestion_approved,
             rounds=rounds,
             suggestion_id=suggestion_id,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
 
         db.add(outcome)
@@ -905,7 +905,7 @@ async def store_clarification_outcome(
         logger.debug(
             f"Stored clarification outcome: session_id={session_id}, "
             f"final_confidence={final_confidence:.2f}, proceeded={proceeded}, "
-            f"approved={suggestion_approved}"
+            f"approved={suggestion_approved}",
         )
         return outcome
 
@@ -918,20 +918,20 @@ async def store_clarification_outcome(
 async def get_clarification_outcomes(
     db: AsyncSession,
     session_id: str | None = None,
-    limit: int = 1000
-) -> list['ClarificationOutcome']:
+    limit: int = 1000,
+) -> list["ClarificationOutcome"]:
     """
     Get clarification outcomes for analysis.
-    
+
     Args:
         db: Database session
         session_id: Optional session ID to filter by
         limit: Maximum number of records to return
-    
+
     Returns:
         List of ClarificationOutcome objects
     """
-    from ..database.models import ClarificationOutcome
+    from src.database.models import ClarificationOutcome
 
     try:
         query = select(ClarificationOutcome)
@@ -951,73 +951,73 @@ async def get_past_clarification_sessions(
     db: AsyncSession,
     user_id: str,
     limit: int = 50,
-    days_back: int = 90
+    days_back: int = 90,
 ) -> list[dict[str, Any]]:
     """
     Retrieve past clarification sessions with Q&A pairs for answer caching.
-    
+
     Args:
         db: Database session
         user_id: User ID to filter sessions
         limit: Maximum number of sessions to return
         days_back: How many days back to look (default 90 days)
-    
+
     Returns:
         List of dictionaries containing session data with questions and answers
     """
-    from ..database.models import ClarificationSessionDB
-    
+    from src.database.models import ClarificationSessionDB
+
     try:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
-        
+
         stmt = select(ClarificationSessionDB).where(
             and_(
                 ClarificationSessionDB.user_id == user_id,
-                ClarificationSessionDB.status == 'complete',
+                ClarificationSessionDB.status == "complete",
                 ClarificationSessionDB.created_at >= cutoff_date,
-                ClarificationSessionDB.answers.isnot(None)  # Only sessions with answers
-            )
+                ClarificationSessionDB.answers.isnot(None),  # Only sessions with answers
+            ),
         ).order_by(ClarificationSessionDB.created_at.desc()).limit(limit)
-        
+
         result = await db.execute(stmt)
         sessions = result.scalars().all()
-        
+
         # Extract Q&A pairs from sessions
         past_qa_pairs = []
         for session in sessions:
             questions = session.questions or []
             answers = session.answers or []
-            
+
             # Match questions with answers
             for answer in answers:
-                question_id = answer.get('question_id') if isinstance(answer, dict) else getattr(answer, 'question_id', None)
+                question_id = answer.get("question_id") if isinstance(answer, dict) else getattr(answer, "question_id", None)
                 if not question_id:
                     continue
-                
+
                 # Find matching question
                 question = next(
-                    (q for q in questions if (q.get('id') if isinstance(q, dict) else getattr(q, 'id', None)) == question_id),
-                    None
+                    (q for q in questions if (q.get("id") if isinstance(q, dict) else getattr(q, "id", None)) == question_id),
+                    None,
                 )
-                
+
                 if question:
-                    question_text = question.get('question_text') if isinstance(question, dict) else getattr(question, 'question_text', '')
-                    answer_text = answer.get('answer_text') if isinstance(answer, dict) else getattr(answer, 'answer_text', '')
-                    selected_entities = answer.get('selected_entities') if isinstance(answer, dict) else getattr(answer, 'selected_entities', None)
-                    
+                    question_text = question.get("question_text") if isinstance(question, dict) else getattr(question, "question_text", "")
+                    answer_text = answer.get("answer_text") if isinstance(answer, dict) else getattr(answer, "answer_text", "")
+                    selected_entities = answer.get("selected_entities") if isinstance(answer, dict) else getattr(answer, "selected_entities", None)
+
                     if question_text and answer_text:
                         past_qa_pairs.append({
-                            'question_text': question_text,
-                            'question_category': question.get('category') if isinstance(question, dict) else getattr(question, 'category', 'general'),
-                            'answer_text': answer_text,
-                            'selected_entities': selected_entities,
-                            'session_id': session.session_id,
-                            'created_at': session.created_at.isoformat() if hasattr(session.created_at, 'isoformat') else str(session.created_at)
+                            "question_text": question_text,
+                            "question_category": question.get("category") if isinstance(question, dict) else getattr(question, "category", "general"),
+                            "answer_text": answer_text,
+                            "selected_entities": selected_entities,
+                            "session_id": session.session_id,
+                            "created_at": session.created_at.isoformat() if hasattr(session.created_at, "isoformat") else str(session.created_at),
                         })
-        
+
         logger.debug(f"Retrieved {len(past_qa_pairs)} Q&A pairs from {len(sessions)} past sessions for user {user_id}")
         return past_qa_pairs
-        
+
     except Exception as e:
         logger.error(f"Failed to get past clarification sessions: {e}", exc_info=True)
         return []
@@ -1025,21 +1025,21 @@ async def get_past_clarification_sessions(
 
 async def _validate_entities_exist(
     db: AsyncSession,
-    entity_ids: list[str] | None
+    entity_ids: list[str] | None,
 ) -> list[str]:
     """
     Validate that entity IDs still exist in the system.
-    
+
     Args:
         db: Database session
         entity_ids: List of entity IDs to validate
-        
+
     Returns:
         List of valid entity IDs
     """
     if not entity_ids:
         return []
-    
+
     # TODO: Implement entity validation by querying Home Assistant or entity database
     # For now, return all entities (assume they exist)
     # In production, this should check against actual entity registry
@@ -1052,17 +1052,17 @@ async def find_similar_past_answers(
     current_questions: list[dict[str, Any]],
     rag_client: Any | None = None,
     similarity_threshold: float = 0.75,
-    ha_client: Any | None = None
+    ha_client: Any | None = None,
 ) -> dict[str, dict[str, Any]]:
     """
     Find similar past answers for current questions using direct vector similarity (2025 best practice).
-    
+
     FIXED: Uses direct vector similarity instead of wrong RAG search.
     - Checks user preference first
     - Uses batch embeddings for efficiency
     - Applies time decay to similarity scores
     - Validates entities still exist
-    
+
     Args:
         db: Database session
         user_id: User ID to filter sessions
@@ -1070,14 +1070,13 @@ async def find_similar_past_answers(
         rag_client: RAG client for embedding generation (required for vector similarity)
         similarity_threshold: Minimum similarity score to consider a match (0.0-1.0)
         ha_client: Optional Home Assistant client for entity validation
-    
+
     Returns:
         Dictionary mapping question_id to cached answer data
     """
-    from ..database.models import ClarificationSessionDB
-    from ..services.rag.client import cosine_similarity
-    import numpy as np
-    
+
+    from src.services.rag.client import cosine_similarity
+
     try:
         # FIX #8: Check user preference first
         # Import here to avoid circular dependency
@@ -1085,89 +1084,89 @@ async def find_similar_past_answers(
         stmt = select(SystemSettings).order_by(SystemSettings.id.desc()).limit(1)
         result = await db.execute(stmt)
         system_settings = result.scalar_one_or_none()
-        if system_settings and not getattr(system_settings, 'enable_answer_caching', True):
+        if system_settings and not getattr(system_settings, "enable_answer_caching", True):
             logger.debug("Answer caching disabled by user preference")
             return {}
-        
+
         # Get past Q&A pairs
         past_qa_pairs = await get_past_clarification_sessions(db, user_id, limit=100)
-        
+
         if not past_qa_pairs or not current_questions:
             return {}
-        
+
         # FIX #6 & #9: Use direct vector similarity (not wrong RAG search)
         if not rag_client:
             logger.debug("RAG client not available, skipping answer caching")
             return {}
-        
+
         # Extract question texts
         current_question_texts = []
         current_question_map = {}  # Map index to question_id
-        
+
         for i, current_q in enumerate(current_questions):
-            question_id = current_q.get('id') or current_q.get('question_id')
-            question_text = current_q.get('question_text') or current_q.get('question', '')
-            
+            question_id = current_q.get("id") or current_q.get("question_id")
+            question_text = current_q.get("question_text") or current_q.get("question", "")
+
             if question_id and question_text:
                 current_question_texts.append(question_text)
                 current_question_map[i] = question_id
-        
+
         if not current_question_texts:
             return {}
-        
+
         # Batch embed current questions
         try:
             current_embeddings = await rag_client._batch_get_embeddings(current_question_texts)
         except Exception as e:
             logger.warning(f"Failed to generate embeddings for current questions: {e}")
             return {}
-        
+
         # Extract past question texts
-        past_question_texts = [qa['question_text'] for qa in past_qa_pairs]
-        
+        past_question_texts = [qa["question_text"] for qa in past_qa_pairs]
+
         # Batch embed past questions
         try:
             past_embeddings = await rag_client._batch_get_embeddings(past_question_texts)
         except Exception as e:
             logger.warning(f"Failed to generate embeddings for past questions: {e}")
             return {}
-        
+
         # FIX #7: Calculate similarities with time decay
         cached_answers: dict[str, dict[str, Any]] = {}
         current_time = datetime.now(timezone.utc)
-        
+
         for i, current_emb in enumerate(current_embeddings):
             question_id = current_question_map.get(i)
             if not question_id:
                 continue
-            
+
             question_text = current_question_texts[i]
             best_match_idx = None
             best_similarity = 0.0
-            
+
             # Calculate cosine similarity with all past questions
             for j, past_emb in enumerate(past_embeddings):
                 similarity = cosine_similarity(current_emb, past_emb)
-                
+
                 # FIX #7: Apply time decay (older answers have lower weight)
                 past_qa = past_qa_pairs[j]
-                created_at_str = past_qa.get('created_at')
+                created_at_str = past_qa.get("created_at")
                 if created_at_str:
                     try:
                         if isinstance(created_at_str, str):
                             # Try ISO format first (what we store)
                             try:
-                                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
                             except (ValueError, AttributeError):
                                 # Fallback to datetime parsing
-                                created_at = datetime.strptime(created_at_str, '%Y-%m-%dT%H:%M:%S.%f')
+                                created_at = datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%S.%f")
                         else:
                             created_at = created_at_str
-                        
+
                         # Ensure timezone-aware
                         if created_at.tzinfo is None:
                             created_at = created_at.replace(tzinfo=timezone.utc)
-                        
+
                         days_old = (current_time - created_at).days
                         # Decay: 100% for 0 days, 50% after 180 days
                         decay_factor = max(0.5, 1.0 - (days_old / 180.0))
@@ -1175,43 +1174,43 @@ async def find_similar_past_answers(
                     except Exception as e:
                         logger.debug(f"Failed to parse date for time decay: {e}")
                         # Continue without decay if date parsing fails
-                
+
                 if similarity > best_similarity and similarity >= similarity_threshold:
                     best_similarity = similarity
                     best_match_idx = j
-            
+
             # Store best match if found
             if best_match_idx is not None and best_similarity >= similarity_threshold:
                 best_match = past_qa_pairs[best_match_idx]
-                
+
                 # FIX #7: Validate entities still exist
-                selected_entities = best_match.get('selected_entities')
+                selected_entities = best_match.get("selected_entities")
                 if selected_entities:
                     valid_entities = await _validate_entities_exist(db, selected_entities)
                     if not valid_entities:
                         logger.debug(
                             f"Skipping cached answer for question '{question_text[:50]}...' "
-                            f"- entities no longer exist"
+                            f"- entities no longer exist",
                         )
                         continue
                     # Use only valid entities
                     selected_entities = valid_entities
-                
+
                 cached_answers[question_id] = {
-                    'answer_text': best_match['answer_text'],
-                    'selected_entities': selected_entities,
-                    'similarity': best_similarity,
-                    'source_session': best_match['session_id'],
-                    'question_category': best_match.get('question_category', 'general')
+                    "answer_text": best_match["answer_text"],
+                    "selected_entities": selected_entities,
+                    "similarity": best_similarity,
+                    "source_session": best_match["session_id"],
+                    "question_category": best_match.get("question_category", "general"),
                 }
                 logger.debug(
                     f"Found cached answer for question '{question_text[:50]}...' "
-                    f"(similarity={best_similarity:.2f}, answer='{best_match['answer_text'][:50]}...')"
+                    f"(similarity={best_similarity:.2f}, answer='{best_match['answer_text'][:50]}...')",
                 )
-        
+
         logger.info(f"Found {len(cached_answers)} cached answers out of {len(current_questions)} questions")
         return cached_answers
-        
+
     except Exception as e:
         logger.error(f"Failed to find similar past answers: {e}", exc_info=True)
         return {}
@@ -1228,16 +1227,16 @@ async def upsert_device_capability(
     description: str,
     capabilities: dict,
     mqtt_exposes: list,
-    integration_type: str = 'zigbee2mqtt'
+    integration_type: str = "zigbee2mqtt",
 ) -> DeviceCapability:
     """
     Insert or update device capability.
-    
+
     Uses merge() for upsert semantics (insert if new, update if exists).
-    
+
     Story AI2.2: Capability Database Schema & Storage
     Epic AI-2: Device Intelligence System
-    
+
     Args:
         db: Database session
         device_model: Device model identifier (primary key)
@@ -1246,10 +1245,10 @@ async def upsert_device_capability(
         capabilities: Parsed capabilities dict
         mqtt_exposes: Raw MQTT exposes array
         integration_type: Integration type (default: zigbee2mqtt)
-        
+
     Returns:
         DeviceCapability record (new or updated)
-        
+
     Example:
         capability = await upsert_device_capability(
             db=session,
@@ -1282,7 +1281,7 @@ async def upsert_device_capability(
                 description=description,
                 capabilities=capabilities,
                 mqtt_exposes=mqtt_exposes,
-                last_updated=datetime.now(timezone.utc)
+                last_updated=datetime.now(timezone.utc),
             )
             db.add(capability)
 
@@ -1301,14 +1300,14 @@ async def upsert_device_capability(
 async def get_device_capability(db: AsyncSession, device_model: str) -> DeviceCapability | None:
     """
     Get device capability by model.
-    
+
     Args:
         db: Database session
         device_model: Device model identifier
-        
+
     Returns:
         DeviceCapability or None if not found
-        
+
     Example:
         capability = await get_device_capability(db, "VZM31-SN")
         if capability:
@@ -1316,7 +1315,7 @@ async def get_device_capability(db: AsyncSession, device_model: str) -> DeviceCa
     """
     try:
         result = await db.execute(
-            select(DeviceCapability).where(DeviceCapability.device_model == device_model)
+            select(DeviceCapability).where(DeviceCapability.device_model == device_model),
         )
         capability = result.scalars().first()
 
@@ -1335,19 +1334,19 @@ async def get_device_capability(db: AsyncSession, device_model: str) -> DeviceCa
 async def get_all_capabilities(
     db: AsyncSession,
     manufacturer: str | None = None,
-    integration_type: str | None = None
+    integration_type: str | None = None,
 ) -> list[DeviceCapability]:
     """
     Get all device capabilities with optional filters.
-    
+
     Args:
         db: Database session
         manufacturer: Filter by manufacturer (e.g., "Inovelli")
         integration_type: Filter by integration (e.g., "zigbee2mqtt")
-        
+
     Returns:
         List of all DeviceCapability records matching filters
-        
+
     Example:
         # Get all Inovelli devices
         inovelli_devices = await get_all_capabilities(db, manufacturer="Inovelli")
@@ -1376,7 +1375,7 @@ async def get_all_capabilities(
 
 async def get_capability_freshness(
     db: AsyncSession,
-    max_age_hours: int = 24
+    max_age_hours: int = 24,
 ) -> dict[str, Any]:
     """
     Summarize freshness of capability data.
@@ -1395,7 +1394,7 @@ async def get_capability_freshness(
             "total_models": 0,
             "stale_count": 0,
             "stale_models": [],
-            "threshold_iso": threshold.isoformat()
+            "threshold_iso": threshold.isoformat(),
         }
 
     stale_query = await db.execute(
@@ -1403,21 +1402,21 @@ async def get_capability_freshness(
         .where(
             or_(
                 DeviceCapability.last_updated.is_(None),
-                DeviceCapability.last_updated < threshold
-            )
-        )
+                DeviceCapability.last_updated < threshold,
+            ),
+        ),
     )
     stale_rows = stale_query.all()
     stale_models = [
         {
             "model": row[0],
-            "last_updated": row[1].isoformat() if row[1] else None
+            "last_updated": row[1].isoformat() if row[1] else None,
         }
         for row in stale_rows
     ]
 
     newest_result = await db.execute(
-        select(func.max(DeviceCapability.last_updated))
+        select(func.max(DeviceCapability.last_updated)),
     )
     newest_timestamp = newest_result.scalar()
 
@@ -1426,32 +1425,32 @@ async def get_capability_freshness(
         "stale_count": len(stale_models),
         "stale_models": stale_models,
         "threshold_iso": threshold.isoformat(),
-        "newest_update": newest_timestamp.isoformat() if newest_timestamp else None
+        "newest_update": newest_timestamp.isoformat() if newest_timestamp else None,
     }
 
 
 async def initialize_feature_usage(
     db: AsyncSession,
     device_id: str,
-    features: list[str]
+    features: list[str],
 ) -> list[DeviceFeatureUsage]:
     """
     Initialize feature usage tracking for a device.
-    
+
     Creates DeviceFeatureUsage records for all device features,
     initially marked as unconfigured (Story 2.3 will detect configured).
-    
+
     Story AI2.2: Capability Database Schema & Storage
     Epic AI-2: Device Intelligence System
-    
+
     Args:
         db: Database session
         device_id: Device instance ID (e.g., "light.kitchen_switch")
         features: List of feature names from capabilities
-        
+
     Returns:
         List of created DeviceFeatureUsage records
-        
+
     Example:
         await initialize_feature_usage(
             db=session,
@@ -1467,8 +1466,8 @@ async def initialize_feature_usage(
             result = await db.execute(
                 select(DeviceFeatureUsage).where(
                     DeviceFeatureUsage.device_id == device_id,
-                    DeviceFeatureUsage.feature_name == feature_name
-                )
+                    DeviceFeatureUsage.feature_name == feature_name,
+                ),
             )
             existing = result.scalars().first()
 
@@ -1483,7 +1482,7 @@ async def initialize_feature_usage(
                     feature_name=feature_name,
                     configured=False,  # Story 2.3 will detect configured features
                     discovered_date=datetime.now(timezone.utc),
-                    last_checked=datetime.now(timezone.utc)
+                    last_checked=datetime.now(timezone.utc),
                 )
                 db.add(usage)
 
@@ -1503,17 +1502,17 @@ async def initialize_feature_usage(
 async def get_device_feature_usage(db: AsyncSession, device_id: str) -> list[DeviceFeatureUsage]:
     """
     Get all feature usage records for a device.
-    
+
     Args:
         db: Database session
         device_id: Device instance ID
-        
+
     Returns:
         List of DeviceFeatureUsage records for the device
     """
     try:
         result = await db.execute(
-            select(DeviceFeatureUsage).where(DeviceFeatureUsage.device_id == device_id)
+            select(DeviceFeatureUsage).where(DeviceFeatureUsage.device_id == device_id),
         )
         usage = result.scalars().all()
 
@@ -1528,10 +1527,10 @@ async def get_device_feature_usage(db: AsyncSession, device_id: str) -> list[Dev
 async def get_capability_stats(db: AsyncSession) -> dict:
     """
     Get capability database statistics.
-    
+
     Returns:
         Dictionary with capability and usage statistics
-        
+
     Example:
         stats = await get_capability_stats(db)
         print(f"Total models: {stats['total_models']}")
@@ -1545,7 +1544,7 @@ async def get_capability_stats(db: AsyncSession) -> dict:
         # Models by manufacturer
         manuf_result = await db.execute(
             select(DeviceCapability.manufacturer, func.count())
-            .group_by(DeviceCapability.manufacturer)
+            .group_by(DeviceCapability.manufacturer),
         )
         by_manufacturer = {row[0]: row[1] for row in manuf_result.all()}
 
@@ -1556,16 +1555,16 @@ async def get_capability_stats(db: AsyncSession) -> dict:
         # Configured vs unconfigured features
         configured_result = await db.execute(
             select(DeviceFeatureUsage.configured, func.count())
-            .group_by(DeviceFeatureUsage.configured)
+            .group_by(DeviceFeatureUsage.configured),
         )
         by_configured = {bool(row[0]): row[1] for row in configured_result.all()}
 
         return {
-            'total_models': total_models,
-            'by_manufacturer': by_manufacturer,
-            'total_usage_records': total_usage_records,
-            'configured_features': by_configured.get(True, 0),
-            'unconfigured_features': by_configured.get(False, 0)
+            "total_models": total_models,
+            "by_manufacturer": by_manufacturer,
+            "total_usage_records": total_usage_records,
+            "configured_features": by_configured.get(True, 0),
+            "unconfigured_features": by_configured.get(False, 0),
         }
 
     except Exception as e:
@@ -1580,14 +1579,14 @@ async def get_capability_stats(db: AsyncSession) -> dict:
 async def store_synergy_opportunity(db: AsyncSession, synergy_data: dict) -> SynergyOpportunity:
     """
     Store a synergy opportunity in database.
-    
+
     Args:
         db: Database session
         synergy_data: Synergy opportunity dictionary from detector
-    
+
     Returns:
         Created SynergyOpportunity instance
-        
+
     Story AI3.1: Device Synergy Detector Foundation
     Phase 2: Supports pattern validation fields
     """
@@ -1595,19 +1594,19 @@ async def store_synergy_opportunity(db: AsyncSession, synergy_data: dict) -> Syn
 
     try:
         synergy = SynergyOpportunity(
-            synergy_id=synergy_data['synergy_id'],
-            synergy_type=synergy_data['synergy_type'],
-            device_ids=json.dumps(synergy_data['devices']),
-            opportunity_metadata=synergy_data.get('opportunity_metadata', {}),
-            impact_score=synergy_data['impact_score'],
-            complexity=synergy_data['complexity'],
-            confidence=synergy_data['confidence'],
-            area=synergy_data.get('area'),
+            synergy_id=synergy_data["synergy_id"],
+            synergy_type=synergy_data["synergy_type"],
+            device_ids=json.dumps(synergy_data["devices"]),
+            opportunity_metadata=synergy_data.get("opportunity_metadata", {}),
+            impact_score=synergy_data["impact_score"],
+            complexity=synergy_data["complexity"],
+            confidence=synergy_data["confidence"],
+            area=synergy_data.get("area"),
             created_at=datetime.now(timezone.utc),
             # Phase 2: Pattern validation fields (defaults if not provided)
-            pattern_support_score=synergy_data.get('pattern_support_score', 0.0),
-            validated_by_patterns=synergy_data.get('validated_by_patterns', False),
-            supporting_pattern_ids=json.dumps(synergy_data.get('supporting_pattern_ids', [])) if synergy_data.get('supporting_pattern_ids') else None
+            pattern_support_score=synergy_data.get("pattern_support_score", 0.0),
+            validated_by_patterns=synergy_data.get("validated_by_patterns", False),
+            supporting_pattern_ids=json.dumps(synergy_data.get("supporting_pattern_ids", [])) if synergy_data.get("supporting_pattern_ids") else None,
         )
 
         db.add(synergy)
@@ -1627,22 +1626,22 @@ async def store_synergy_opportunities(
     db: AsyncSession,
     synergies: list[dict],
     validate_with_patterns: bool = True,
-    min_pattern_confidence: float = 0.7
+    min_pattern_confidence: float = 0.7,
 ) -> int:
     """
     Store multiple synergy opportunities in database with optional pattern validation.
-    
+
     Phase 2: Enhanced to validate synergies against patterns.
-    
+
     Args:
         db: Database session
         synergies: List of synergy dictionaries from detector
         validate_with_patterns: Whether to validate against patterns (default: True)
         min_pattern_confidence: Minimum pattern confidence for validation (default: 0.7)
-    
+
     Returns:
         Number of synergies stored
-        
+
     Story AI3.1: Device Synergy Detector Foundation
     Phase 2: Pattern-Synergy Cross-Validation
     """
@@ -1657,7 +1656,7 @@ async def store_synergy_opportunities(
     # Ensure session is in a good state before starting
     try:
         # Check if session needs rollback
-        if hasattr(db, 'in_transaction') and db.in_transaction():
+        if hasattr(db, "in_transaction") and db.in_transaction():
             try:
                 # Try a simple query to check session health
                 await db.execute(select(1))
@@ -1676,7 +1675,7 @@ async def store_synergy_opportunities(
         pattern_validator = None
         if validate_with_patterns:
             try:
-                from ..integration.pattern_synergy_validator import PatternSynergyValidator
+                from src.integration.pattern_synergy_validator import PatternSynergyValidator
                 pattern_validator = PatternSynergyValidator(db)
             except ImportError:
                 logger.warning("PatternSynergyValidator not available, skipping pattern validation")
@@ -1689,23 +1688,23 @@ async def store_synergy_opportunities(
 
         for synergy_data in synergies:
             try:
-                synergy_id = synergy_data['synergy_id']
+                synergy_id = synergy_data["synergy_id"]
 
                 # Check if synergy already exists (upsert pattern)
                 query = select(SynergyOpportunity).where(
-                    SynergyOpportunity.synergy_id == synergy_id
+                    SynergyOpportunity.synergy_id == synergy_id,
                 )
                 result = await db.execute(query)
                 existing_synergy = result.scalar_one_or_none()
 
                 # Create metadata dict from synergy data
                 metadata = {
-                    'trigger_entity': synergy_data.get('trigger_entity'),
-                    'trigger_name': synergy_data.get('trigger_name'),
-                    'action_entity': synergy_data.get('action_entity'),
-                    'action_name': synergy_data.get('action_name'),
-                    'relationship': synergy_data.get('relationship'),
-                    'rationale': synergy_data.get('rationale')
+                    "trigger_entity": synergy_data.get("trigger_entity"),
+                    "trigger_name": synergy_data.get("trigger_name"),
+                    "action_entity": synergy_data.get("action_entity"),
+                    "action_name": synergy_data.get("action_name"),
+                    "relationship": synergy_data.get("relationship"),
+                    "rationale": synergy_data.get("rationale"),
                 }
 
                 # Phase 2: Validate with patterns if enabled
@@ -1716,33 +1715,33 @@ async def store_synergy_opportunities(
                 if validate_with_patterns and pattern_validator:
                     try:
                         validation_result = await pattern_validator.validate_synergy_with_patterns(
-                            synergy_data, min_pattern_confidence
+                            synergy_data, min_pattern_confidence,
                         )
-                        pattern_support_score = validation_result.get('pattern_support_score', 0.0)
-                        validated_by_patterns = validation_result.get('validated_by_patterns', False)
-                        supporting_patterns = validation_result.get('supporting_patterns', [])
-                        supporting_pattern_ids = [p['pattern_id'] for p in supporting_patterns]
+                        pattern_support_score = validation_result.get("pattern_support_score", 0.0)
+                        validated_by_patterns = validation_result.get("validated_by_patterns", False)
+                        supporting_patterns = validation_result.get("supporting_patterns", [])
+                        supporting_pattern_ids = [p["pattern_id"] for p in supporting_patterns]
 
                         # Optionally adjust confidence based on pattern support
-                        confidence_adjustment = validation_result.get('recommended_confidence_adjustment', 0.0)
-                        synergy_data['confidence'] = min(1.0, max(0.0, synergy_data['confidence'] + confidence_adjustment))
+                        confidence_adjustment = validation_result.get("recommended_confidence_adjustment", 0.0)
+                        synergy_data["confidence"] = min(1.0, max(0.0, synergy_data["confidence"] + confidence_adjustment))
 
                     except Exception as e:
                         logger.warning(f"Failed to validate synergy {synergy_data.get('synergy_id')} with patterns: {e}")
 
                 # Epic AI-4: Extract n-level synergy fields
-                synergy_depth = synergy_data.get('synergy_depth', 2)  # Default to 2 for pairs
-                chain_devices = synergy_data.get('chain_devices', synergy_data.get('devices', []))
+                synergy_depth = synergy_data.get("synergy_depth", 2)  # Default to 2 for pairs
+                chain_devices = synergy_data.get("chain_devices", synergy_data.get("devices", []))
 
                 if existing_synergy:
                     # Update existing synergy
-                    existing_synergy.synergy_type = synergy_data['synergy_type']
-                    existing_synergy.device_ids = json.dumps(synergy_data['devices'])
+                    existing_synergy.synergy_type = synergy_data["synergy_type"]
+                    existing_synergy.device_ids = json.dumps(synergy_data["devices"])
                     existing_synergy.opportunity_metadata = metadata
-                    existing_synergy.impact_score = synergy_data['impact_score']
-                    existing_synergy.complexity = synergy_data['complexity']
-                    existing_synergy.confidence = synergy_data['confidence']
-                    existing_synergy.area = synergy_data.get('area')
+                    existing_synergy.impact_score = synergy_data["impact_score"]
+                    existing_synergy.complexity = synergy_data["complexity"]
+                    existing_synergy.confidence = synergy_data["confidence"]
+                    existing_synergy.area = synergy_data.get("area")
                     existing_synergy.pattern_support_score = pattern_support_score
                     existing_synergy.validated_by_patterns = validated_by_patterns
                     existing_synergy.supporting_pattern_ids = json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
@@ -1755,13 +1754,13 @@ async def store_synergy_opportunities(
                     # Create new synergy
                     synergy = SynergyOpportunity(
                         synergy_id=synergy_id,
-                        synergy_type=synergy_data['synergy_type'],
-                        device_ids=json.dumps(synergy_data['devices']),
+                        synergy_type=synergy_data["synergy_type"],
+                        device_ids=json.dumps(synergy_data["devices"]),
                         opportunity_metadata=metadata,
-                        impact_score=synergy_data['impact_score'],
-                        complexity=synergy_data['complexity'],
-                        confidence=synergy_data['confidence'],
-                        area=synergy_data.get('area'),
+                        impact_score=synergy_data["impact_score"],
+                        complexity=synergy_data["complexity"],
+                        confidence=synergy_data["confidence"],
+                        area=synergy_data.get("area"),
                         created_at=now,
                         # Phase 2: Pattern validation fields
                         pattern_support_score=pattern_support_score,
@@ -1769,7 +1768,7 @@ async def store_synergy_opportunities(
                         supporting_pattern_ids=json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None,
                         # Epic AI-4: N-level synergy fields
                         synergy_depth=synergy_depth,
-                        chain_devices=json.dumps(chain_devices) if chain_devices else None
+                        chain_devices=json.dumps(chain_devices) if chain_devices else None,
                     )
                     db.add(synergy)
                     stored_count += 1
@@ -1787,20 +1786,18 @@ async def store_synergy_opportunities(
                 logger.warning(f"Error processing synergy {synergy_data.get('synergy_id')}: {e}")
                 skipped_count += 1
                 # Rollback this transaction and continue
-                try:
+                with contextlib.suppress(Exception):
                     await db.rollback()
-                except Exception:
-                    pass
                 continue
 
         # Commit all changes
         try:
             await db.commit()
-            validated_count = sum(1 for s in synergies if s.get('_validated', False)) if validate_with_patterns else 0
+            validated_count = sum(1 for s in synergies if s.get("_validated", False)) if validate_with_patterns else 0
             logger.info(
                 f"✅ Stored {stored_count} new, updated {updated_count} existing synergy opportunities"
                 + (f" ({validated_count} validated by patterns)" if validate_with_patterns else "")
-                + (f", skipped {skipped_count} duplicates/errors" if skipped_count > 0 else "")
+                + (f", skipped {skipped_count} duplicates/errors" if skipped_count > 0 else ""),
             )
             return stored_count + updated_count
         except IntegrityError as e:
@@ -1815,17 +1812,14 @@ async def store_synergy_opportunities(
 
     except PendingRollbackError as e:
         logger.error(f"Session in bad state (PendingRollbackError): {e}", exc_info=True)
-        try:
+        with contextlib.suppress(Exception):
             await db.rollback()
-        except Exception:
-            pass
-        raise Exception("Database session error - please retry the request")
+        msg = "Database session error - please retry the request"
+        raise Exception(msg)
     except Exception as e:
         logger.error(f"Failed to store synergy opportunities: {e}", exc_info=True)
-        try:
+        with contextlib.suppress(Exception):
             await db.rollback()
-        except Exception:
-            pass
         raise
 
 
@@ -1836,11 +1830,11 @@ async def get_synergy_opportunities(
     synergy_depth: int | None = None,
     limit: int = 100,
     order_by_priority: bool = False,
-    min_priority: float | None = None
+    min_priority: float | None = None,
 ) -> list[SynergyOpportunity]:
     """
     Retrieve synergy opportunities from database.
-    
+
     Args:
         db: Database session
         synergy_type: Optional filter by synergy type
@@ -1848,10 +1842,10 @@ async def get_synergy_opportunities(
         limit: Maximum number of results
         order_by_priority: If True, order by calculated priority score instead of impact_score
         min_priority: Optional minimum priority score threshold (only used if order_by_priority=True)
-    
+
     Returns:
         List of SynergyOpportunity instances
-        
+
     Story AI3.1: Device Synergy Detector Foundation
     Enhanced: Priority-based selection support
     """
@@ -1882,13 +1876,13 @@ async def get_synergy_opportunities(
                 SynergyOpportunity.confidence * 0.25 +
                 func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.25 +
                 case(
-                    (SynergyOpportunity.validated_by_patterns == True, 0.10),
-                    else_=0.0
+                    (SynergyOpportunity.validated_by_patterns, 0.10),
+                    else_=0.0,
                 ) +
                 case(
-                    (SynergyOpportunity.complexity == 'low', 0.10),
-                    (SynergyOpportunity.complexity == 'high', -0.10),
-                    else_=0.0
+                    (SynergyOpportunity.complexity == "low", 0.10),
+                    (SynergyOpportunity.complexity == "high", -0.10),
+                    else_=0.0,
                 )
             )
 
@@ -1902,7 +1896,7 @@ async def get_synergy_opportunities(
         from sqlalchemy.dialects import sqlite
         compiled_query = query.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True})
         logger.info(f"Executing query with filters: synergy_type={synergy_type!r}, min_confidence={min_confidence}")
-        logger.info(f"Query SQL: {str(compiled_query)}")
+        logger.info(f"Query SQL: {compiled_query!s}")
 
         result = await db.execute(query)
         synergies = result.scalars().all()
@@ -1933,11 +1927,11 @@ async def get_synergy_opportunities(
     except Exception as e:
         # Check if error is due to missing Phase 2 columns (pattern_support_score, etc.)
         error_str = str(e)
-        if 'pattern_support_score' in error_str or 'validated_by_patterns' in error_str or 'supporting_pattern_ids' in error_str:
+        if "pattern_support_score" in error_str or "validated_by_patterns" in error_str or "supporting_pattern_ids" in error_str:
             logger.warning(
                 "Phase 2 columns (pattern_support_score, validated_by_patterns, supporting_pattern_ids) "
                 "not found in database. Migration may not have been run. "
-                "Using explicit column selection to work around missing columns."
+                "Using explicit column selection to work around missing columns.",
             )
             # Fallback: Use explicit column selection to avoid Phase 2 columns
             # Note: This will return objects without Phase 2 fields, but they can be accessed safely with getattr
@@ -1952,11 +1946,11 @@ async def get_synergy_opportunities(
                 SynergyOpportunity.complexity,
                 SynergyOpportunity.confidence,
                 SynergyOpportunity.area,
-                SynergyOpportunity.created_at
+                SynergyOpportunity.created_at,
             ]
 
             fallback_query = select(*base_columns).where(
-                SynergyOpportunity.confidence >= min_confidence
+                SynergyOpportunity.confidence >= min_confidence,
             )
 
             if synergy_type:
@@ -1986,7 +1980,7 @@ async def get_synergy_opportunities(
                     # Phase 2 fields with defaults
                     pattern_support_score=0.0,
                     validated_by_patterns=False,
-                    supporting_pattern_ids=None
+                    supporting_pattern_ids=None,
                 )
                 synergies.append(synergy)
 
@@ -2000,10 +1994,10 @@ async def get_synergy_opportunities(
 async def get_synergy_stats(db: AsyncSession) -> dict:
     """
     Get synergy opportunity statistics.
-    
+
     Returns:
         Dictionary with synergy statistics
-        
+
     Story AI3.1: Device Synergy Detector Foundation
     """
     try:
@@ -2014,20 +2008,20 @@ async def get_synergy_stats(db: AsyncSession) -> dict:
         # By type
         type_result = await db.execute(
             select(SynergyOpportunity.synergy_type, func.count())
-            .group_by(SynergyOpportunity.synergy_type)
+            .group_by(SynergyOpportunity.synergy_type),
         )
         by_type = {row[0]: row[1] for row in type_result.all()}
 
         # By complexity
         complexity_result = await db.execute(
             select(SynergyOpportunity.complexity, func.count())
-            .group_by(SynergyOpportunity.complexity)
+            .group_by(SynergyOpportunity.complexity),
         )
         by_complexity = {row[0]: row[1] for row in complexity_result.all()}
 
         # Average impact score
         avg_impact_result = await db.execute(
-            select(func.avg(SynergyOpportunity.impact_score))
+            select(func.avg(SynergyOpportunity.impact_score)),
         )
         avg_impact = avg_impact_result.scalar() or 0.0
 
@@ -2037,13 +2031,13 @@ async def get_synergy_stats(db: AsyncSession) -> dict:
         try:
             validated_result = await db.execute(
                 select(func.count()).select_from(SynergyOpportunity).where(
-                    SynergyOpportunity.validated_by_patterns == True
-                )
+                    SynergyOpportunity.validated_by_patterns,
+                ),
             )
             validated_count = validated_result.scalar() or 0
 
             pattern_support_result = await db.execute(
-                select(func.avg(SynergyOpportunity.pattern_support_score))
+                select(func.avg(SynergyOpportunity.pattern_support_score)),
             )
             avg_pattern_support = pattern_support_result.scalar() or 0.0
         except Exception as e:
@@ -2051,16 +2045,16 @@ async def get_synergy_stats(db: AsyncSession) -> dict:
             logger.debug(f"Phase 2 columns not available in stats: {e}")
 
         result = {
-            'total_synergies': total,
-            'by_type': by_type,
-            'by_complexity': by_complexity,
-            'avg_impact_score': round(float(avg_impact), 2)
+            "total_synergies": total,
+            "by_type": by_type,
+            "by_complexity": by_complexity,
+            "avg_impact_score": round(float(avg_impact), 2),
         }
 
         # Add Phase 2 stats if available
         if validated_count > 0 or avg_pattern_support > 0:
-            result['validated_by_patterns'] = validated_count
-            result['avg_pattern_support_score'] = round(float(avg_pattern_support), 2)
+            result["validated_by_patterns"] = validated_count
+            result["avg_pattern_support_score"] = round(float(avg_pattern_support), 2)
 
         return result
 
@@ -2072,22 +2066,22 @@ async def get_synergy_stats(db: AsyncSession) -> dict:
 def calculate_synergy_priority_score(synergy: dict) -> float:
     """
     Calculate priority score for a synergy opportunity.
-    
+
     Priority score formula:
     - 40% impact_score
     - 25% confidence
     - 25% pattern_support_score
     - 10% validation bonus (if validated_by_patterns)
     - Complexity adjustment: low=+0.10, medium=0, high=-0.10
-    
+
     Args:
         synergy: Synergy opportunity dictionary or SynergyOpportunity instance
                  Must have: impact_score, confidence, complexity
                  Optional: pattern_support_score, validated_by_patterns
-    
+
     Returns:
         Priority score (0.0-1.0)
-        
+
     Example:
         synergy = {
             'impact_score': 0.7,
@@ -2100,11 +2094,11 @@ def calculate_synergy_priority_score(synergy: dict) -> float:
     """
     # Extract values safely (works with both dict and object)
     # Context7 Best Practice: Use helper function for type-safe attribute access
-    impact_score = float(_get_attr_safe(synergy, 'impact_score', 0.5))
-    confidence = float(_get_attr_safe(synergy, 'confidence', 0.7))
-    pattern_support_score = float(_get_attr_safe(synergy, 'pattern_support_score', 0.0))
-    validated_by_patterns = bool(_get_attr_safe(synergy, 'validated_by_patterns', False))
-    complexity = str(_get_attr_safe(synergy, 'complexity', 'medium')).lower()
+    impact_score = float(_get_attr_safe(synergy, "impact_score", 0.5))
+    confidence = float(_get_attr_safe(synergy, "confidence", 0.7))
+    pattern_support_score = float(_get_attr_safe(synergy, "pattern_support_score", 0.0))
+    validated_by_patterns = bool(_get_attr_safe(synergy, "validated_by_patterns", False))
+    complexity = str(_get_attr_safe(synergy, "complexity", "medium")).lower()
 
     # Base score calculation
     base_score = (
@@ -2115,9 +2109,9 @@ def calculate_synergy_priority_score(synergy: dict) -> float:
     )
 
     # Complexity adjustment
-    if complexity == 'low':
+    if complexity == "low":
         base_score += 0.10
-    elif complexity == 'high':
+    elif complexity == "high":
         base_score -= 0.10
     # medium complexity: no adjustment
 

@@ -26,7 +26,7 @@ class TestDataRetentionService:
         assert service.monitoring_interval_minutes == 5
         assert service.compression_interval_hours == 24
         assert service.backup_interval_hours == 24
-        assert service.backup_dir == '/backups'
+        assert service.backup_dir == "/backups"
 
     @pytest.mark.asyncio
     async def test_start_stop(self, service):
@@ -52,10 +52,10 @@ class TestDataRetentionService:
         mock_backup.stop = AsyncMock()
         mock_backup.schedule_backups = AsyncMock()
 
-        with patch('src.main.DataCleanupService', return_value=mock_cleanup), \
-             patch('src.main.StorageMonitor', return_value=mock_storage), \
-             patch('src.main.DataCompressionService', return_value=mock_compression), \
-             patch('src.main.BackupRestoreService', return_value=mock_backup):
+        with patch("src.main.DataCleanupService", return_value=mock_cleanup), \
+             patch("src.main.StorageMonitor", return_value=mock_storage), \
+             patch("src.main.DataCompressionService", return_value=mock_compression), \
+             patch("src.main.BackupRestoreService", return_value=mock_backup):
 
             await service.start()
 
@@ -105,7 +105,7 @@ class TestDataRetentionService:
             "description": "Test policy",
             "retention_period": 30,
             "retention_unit": RetentionPeriod.DAYS,
-            "enabled": True
+            "enabled": True,
         }
         service.add_retention_policy(policy_data)
 
@@ -122,7 +122,7 @@ class TestDataRetentionService:
             "description": "Test policy",
             "retention_period": 30,
             "retention_unit": RetentionPeriod.DAYS,
-            "enabled": True
+            "enabled": True,
         }
 
         service.add_retention_policy(policy_data)
@@ -150,7 +150,7 @@ class TestDataRetentionService:
             "description": "Test policy",
             "retention_period": 30,
             "retention_unit": RetentionPeriod.DAYS,
-            "enabled": True
+            "enabled": True,
         }
         service.add_retention_policy(policy_data)
 
@@ -160,7 +160,7 @@ class TestDataRetentionService:
             "description": "Updated policy",
             "retention_period": 60,
             "retention_unit": RetentionPeriod.DAYS,
-            "enabled": False
+            "enabled": False,
         }
         service.update_retention_policy(updated_data)
 
@@ -184,7 +184,7 @@ class TestDataRetentionService:
             "description": "Test policy",
             "retention_period": 30,
             "retention_unit": RetentionPeriod.DAYS,
-            "enabled": True
+            "enabled": True,
         }
         service.add_retention_policy(policy_data)
 
@@ -272,7 +272,7 @@ class TestDataRetentionService:
         mock_compression = Mock()
         mock_compression.get_compression_statistics.return_value = {
             "compression_ratio": 0.5,
-            "space_saved_bytes": 1000
+            "space_saved_bytes": 1000,
         }
 
         service.compression_service = mock_compression
@@ -297,7 +297,7 @@ class TestDataRetentionService:
         mock_backup_info.to_dict.return_value = {
             "backup_id": "test_backup",
             "backup_type": "full",
-            "success": True
+            "success": True,
         }
         mock_backup.create_backup = AsyncMock(return_value=mock_backup_info)
 
@@ -312,7 +312,7 @@ class TestDataRetentionService:
             backup_type="full",
             include_data=True,
             include_config=True,
-            include_logs=False
+            include_logs=False,
         )
 
     @pytest.mark.asyncio
@@ -337,7 +337,7 @@ class TestDataRetentionService:
             backup_id="test_backup",
             restore_data=True,
             restore_config=True,
-            restore_logs=False
+            restore_logs=False,
         )
 
     def test_get_backup_history_not_initialized(self, service):
@@ -352,7 +352,7 @@ class TestDataRetentionService:
         mock_backup_info = Mock()
         mock_backup_info.to_dict.return_value = {
             "backup_id": "test_backup",
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_backup.get_backup_history.return_value = [mock_backup_info]
 
@@ -376,7 +376,7 @@ class TestDataRetentionService:
         mock_backup.get_backup_statistics.return_value = {
             "total_backups": 5,
             "successful_backups": 4,
-            "failed_backups": 1
+            "failed_backups": 1,
         }
 
         service.backup_service = mock_backup

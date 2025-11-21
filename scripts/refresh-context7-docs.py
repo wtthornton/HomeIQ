@@ -11,12 +11,11 @@ This script:
 Note: Requires Context7 MCP server to be configured with valid API key.
 """
 
-import os
 import sys
-import yaml
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from pathlib import Path
+
+import yaml
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -50,39 +49,39 @@ def load_index() -> dict:
     if not INDEX_FILE.exists():
         print(f"Error: Index file not found: {INDEX_FILE}")
         sys.exit(1)
-    
-    with open(INDEX_FILE, 'r') as f:
+
+    with open(INDEX_FILE) as f:
         return yaml.safe_load(f) or {}
 
 
 def save_index(index_data: dict):
     """Save the KB index.yaml file."""
-    with open(INDEX_FILE, 'w') as f:
+    with open(INDEX_FILE, "w") as f:
         yaml.dump(index_data, f, default_flow_style=False, sort_keys=False)
 
 
-def get_libraries_to_refresh(index_data: dict) -> List[Dict]:
+def get_libraries_to_refresh(index_data: dict) -> list[dict]:
     """Get list of libraries that need documentation refresh."""
     libraries = []
-    
-    if 'libraries' not in index_data:
+
+    if "libraries" not in index_data:
         return libraries
-    
-    for lib_name, lib_data in index_data['libraries'].items():
+
+    for lib_name, lib_data in index_data["libraries"].items():
         # Only refresh libraries with versions
-        if 'version' in lib_data and 'context7_id' in lib_data:
+        if "version" in lib_data and "context7_id" in lib_data:
             libraries.append({
-                'name': lib_name,
-                'version': lib_data['version'],
-                'context7_id': lib_data['context7_id'],
-                'topics': lib_data.get('topics', DEFAULT_TOPICS.get(lib_name, ['general'])),
-                'docs_file': lib_data.get('docs_file', f"libraries/{lib_name}/docs.md"),
+                "name": lib_name,
+                "version": lib_data["version"],
+                "context7_id": lib_data["context7_id"],
+                "topics": lib_data.get("topics", DEFAULT_TOPICS.get(lib_name, ["general"])),
+                "docs_file": lib_data.get("docs_file", f"libraries/{lib_name}/docs.md"),
             })
-    
+
     return libraries
 
 
-def print_refresh_instructions(libraries: List[Dict]):
+def print_refresh_instructions(libraries: list[dict]):
     """Print instructions for manually refreshing documentation."""
     print("\n" + "="*80)
     print("CONTEXT7 DOCUMENTATION REFRESH INSTRUCTIONS")
@@ -90,29 +89,29 @@ def print_refresh_instructions(libraries: List[Dict]):
     print("\nTo refresh documentation, use BMAD Master commands with Context7 MCP:")
     print("\nPython Libraries:")
     print("-" * 80)
-    
-    python_libs = [lib for lib in libraries if lib['name'] in [
-        'fastapi', 'aiohttp', 'pytest', 'influxdb', 'sqlalchemy', 'alembic',
-        'pydantic', 'sentence-transformers', 'huggingface-transformers', 'docker'
+
+    python_libs = [lib for lib in libraries if lib["name"] in [
+        "fastapi", "aiohttp", "pytest", "influxdb", "sqlalchemy", "alembic",
+        "pydantic", "sentence-transformers", "huggingface-transformers", "docker",
     ]]
-    
+
     for lib in python_libs:
-        topics = lib['topics'][:2]  # Show first 2 topics
+        topics = lib["topics"][:2]  # Show first 2 topics
         topic_str = " ".join(topics)
         print(f"  *context7-docs {lib['name']} {topic_str}")
-    
+
     print("\nJavaScript Libraries:")
     print("-" * 80)
-    
-    js_libs = [lib for lib in libraries if lib['name'] in [
-        'react', 'typescript', 'vite', 'vitest', 'playwright', 'tailwindcss', 'puppeteer'
+
+    js_libs = [lib for lib in libraries if lib["name"] in [
+        "react", "typescript", "vite", "vitest", "playwright", "tailwindcss", "puppeteer",
     ]]
-    
+
     for lib in js_libs:
-        topics = lib['topics'][:2]  # Show first 2 topics
+        topics = lib["topics"][:2]  # Show first 2 topics
         topic_str = " ".join(topics)
         print(f"  *context7-docs {lib['name']} {topic_str}")
-    
+
     print("\n" + "="*80)
     print("NOTE: These commands require Context7 MCP server with valid API key.")
     print("The KB cache will be automatically updated when documentation is fetched.")
@@ -121,50 +120,50 @@ def print_refresh_instructions(libraries: List[Dict]):
 
 def update_refresh_timestamp(index_data: dict, library: str):
     """Update the last_fetched timestamp for a library."""
-    if 'libraries' not in index_data:
+    if "libraries" not in index_data:
         return
-    
-    if library not in index_data['libraries']:
+
+    if library not in index_data["libraries"]:
         return
-    
-    lib_data = index_data['libraries'][library]
-    lib_data['last_fetched'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-    lib_data['refresh_requested'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+    lib_data = index_data["libraries"][library]
+    lib_data["last_fetched"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    lib_data["refresh_requested"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def main():
     """Main execution function."""
-    import sys
     import io
-    
+    import sys
+
     # Fix encoding for Windows console
-    if sys.platform == 'win32':
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
     print("[*] Loading Context7 KB index...")
     index_data = load_index()
-    
+
     print("[*] Finding libraries with versions...")
     libraries = get_libraries_to_refresh(index_data)
-    
+
     print(f"[OK] Found {len(libraries)} libraries with versions")
-    
+
     # Print summary
     print("\n[*] Libraries to refresh:")
     for lib in libraries:
         print(f"   - {lib['name']:30} v{lib['version']:15} {lib['context7_id']}")
-    
+
     # Update refresh timestamps
     print("\n[*] Updating refresh request timestamps...")
     for lib in libraries:
-        update_refresh_timestamp(index_data, lib['name'])
-    
+        update_refresh_timestamp(index_data, lib["name"])
+
     save_index(index_data)
     print("[OK] Index updated with refresh request timestamps")
-    
+
     # Print instructions
     print_refresh_instructions(libraries)
-    
+
     print("\n[*] Next steps:")
     print("   1. Ensure Context7 MCP server is configured with valid API key")
     print("   2. Use the commands above to refresh documentation")

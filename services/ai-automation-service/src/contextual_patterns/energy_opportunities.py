@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 class EnergyOpportunityDetector:
     """
     Detects energy price-aware automation opportunities.
-    
+
     Uses electricity pricing data from InfluxDB to suggest off-peak
     scheduling for high-power devices.
-    
+
     Story AI3.6: Energy Price Context Integration
     """
 
@@ -28,7 +28,7 @@ class EnergyOpportunityDetector:
         influxdb_client,
         data_api_client,
         peak_price_threshold: float = 0.15,  # $/kWh
-        min_confidence: float = 0.7
+        min_confidence: float = 0.7,
     ):
         """Initialize energy opportunity detector."""
         self.influxdb = influxdb_client
@@ -45,7 +45,7 @@ class EnergyOpportunityDetector:
     async def detect_opportunities(self) -> list[dict]:
         """
         Detect energy price-aware opportunities.
-        
+
         Returns:
             List of energy opportunity dictionaries
         """
@@ -71,41 +71,41 @@ class EnergyOpportunityDetector:
             # For each high-power device, suggest off-peak scheduling
             for device in high_power_devices:
                 opportunities.append({
-                    'synergy_id': str(uuid.uuid4()),
-                    'synergy_type': 'energy_context',
-                    'devices': [device['entity_id']],
-                    'action_entity': device['entity_id'],
-                    'area': device.get('area_id', 'unknown'),
-                    'relationship': 'offpeak_scheduling',
-                    'impact_score': 0.80,  # High - cost savings
-                    'complexity': 'medium',
-                    'confidence': 0.82,
-                    'opportunity_metadata': {
-                        'action_name': device.get('friendly_name', device['entity_id']),
-                        'energy_context': 'High-power device with variable electricity pricing',
-                        'suggested_action': 'Schedule during off-peak hours (2-6 AM)',
-                        'estimated_savings': '$10-15/month',
-                        'rationale': f"Schedule {device.get('friendly_name', device['entity_id'])} during off-peak hours to reduce electricity costs"
-                    }
+                    "synergy_id": str(uuid.uuid4()),
+                    "synergy_type": "energy_context",
+                    "devices": [device["entity_id"]],
+                    "action_entity": device["entity_id"],
+                    "area": device.get("area_id", "unknown"),
+                    "relationship": "offpeak_scheduling",
+                    "impact_score": 0.80,  # High - cost savings
+                    "complexity": "medium",
+                    "confidence": 0.82,
+                    "opportunity_metadata": {
+                        "action_name": device.get("friendly_name", device["entity_id"]),
+                        "energy_context": "High-power device with variable electricity pricing",
+                        "suggested_action": "Schedule during off-peak hours (2-6 AM)",
+                        "estimated_savings": "$10-15/month",
+                        "rationale": f"Schedule {device.get('friendly_name', device['entity_id'])} during off-peak hours to reduce electricity costs",
+                    },
                 })
 
             logger.info(f"✅ Energy opportunities: {len(opportunities)}")
             return opportunities
 
         except Exception as e:
-            logger.error(f"❌ Energy opportunity detection failed: {e}")
+            logger.exception(f"❌ Energy opportunity detection failed: {e}")
             return []
 
     async def _get_pricing_data(self) -> list[dict]:
         """Get electricity pricing data from InfluxDB."""
         # Simplified - check if pricing data exists
         try:
-            query = '''
+            query = """
             from(bucket: "home_assistant_events")
               |> range(start: -7d)
               |> filter(fn: (r) => r["_measurement"] == "electricity_price")
               |> limit(n: 1)
-            '''
+            """
 
             result = self.influxdb.query_api.query(query, org=self.influxdb.org)
 
@@ -115,7 +115,7 @@ class EnergyOpportunityDetector:
                     has_data = True
                     break
 
-            return [{'has_pricing': has_data}] if has_data else []
+            return [{"has_pricing": has_data}] if has_data else []
 
         except Exception as e:
             logger.debug(f"Energy pricing query failed: {e}")
@@ -127,15 +127,14 @@ class EnergyOpportunityDetector:
             entities = await self.data_api.fetch_entities()
 
             # Filter for high-power device types
-            high_power = [
+            return [
                 e for e in entities
-                if any(keyword in e['entity_id'].lower() for keyword in [
-                    'dishwasher', 'washer', 'dryer', 'water_heater',
-                    'ev_charger', 'pool_pump', 'ac_unit'
+                if any(keyword in e["entity_id"].lower() for keyword in [
+                    "dishwasher", "washer", "dryer", "water_heater",
+                    "ev_charger", "pool_pump", "ac_unit",
                 ])
             ]
 
-            return high_power
 
         except Exception as e:
             logger.warning(f"Failed to get high-power devices: {e}")

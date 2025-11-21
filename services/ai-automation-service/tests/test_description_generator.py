@@ -14,8 +14,7 @@ from src.llm.description_generator import SYSTEM_PROMPT_DESCRIPTION, Description
 @pytest.fixture
 def mock_openai_client():
     """Mock AsyncOpenAI client"""
-    client = AsyncMock()
-    return client
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -48,18 +47,18 @@ async def test_generate_description_time_of_day(description_generator, mock_open
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.living_room',
-        'hour': 18,
-        'minute': 0,
-        'occurrences': 24,
-        'confidence': 0.89
+        "pattern_type": "time_of_day",
+        "device_id": "light.living_room",
+        "hour": 18,
+        "minute": 0,
+        "occurrences": 24,
+        "confidence": 0.89,
     }
 
     device_context = {
-        'name': 'Living Room Light',
-        'area': 'Living Room',
-        'domain': 'light'
+        "name": "Living Room Light",
+        "area": "Living Room",
+        "domain": "light",
     }
 
     # Execute
@@ -74,11 +73,11 @@ async def test_generate_description_time_of_day(description_generator, mock_open
     # Verify OpenAI was called correctly
     mock_openai_client.chat.completions.create.assert_called_once()
     call_args = mock_openai_client.chat.completions.create.call_args
-    assert call_args.kwargs['model'] == 'gpt-4o-mini'
-    assert call_args.kwargs['temperature'] == 0.7
-    assert call_args.kwargs['max_tokens'] == 200
-    assert call_args.kwargs['messages'][0]['role'] == 'system'
-    assert call_args.kwargs['messages'][0]['content'] == SYSTEM_PROMPT_DESCRIPTION
+    assert call_args.kwargs["model"] == "gpt-4o-mini"
+    assert call_args.kwargs["temperature"] == 0.7
+    assert call_args.kwargs["max_tokens"] == 200
+    assert call_args.kwargs["messages"][0]["role"] == "system"
+    assert call_args.kwargs["messages"][0]["content"] == SYSTEM_PROMPT_DESCRIPTION
 
 
 @pytest.mark.asyncio
@@ -96,17 +95,17 @@ async def test_generate_description_co_occurrence(description_generator, mock_op
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     pattern = {
-        'pattern_type': 'co_occurrence',
-        'device1': 'light.living_room',
-        'device2': 'fan.living_room',
-        'occurrences': 22,
-        'confidence': 0.85,
-        'metadata': {'avg_time_delta_seconds': 45}
+        "pattern_type": "co_occurrence",
+        "device1": "light.living_room",
+        "device2": "fan.living_room",
+        "occurrences": 22,
+        "confidence": 0.85,
+        "metadata": {"avg_time_delta_seconds": 45},
     }
 
     device_context = {
-        'device1': {'name': 'Living Room Light'},
-        'device2': {'name': 'Living Room Fan'}
+        "device1": {"name": "Living Room Light"},
+        "device2": {"name": "Living Room Fan"},
     }
 
     # Execute
@@ -134,14 +133,14 @@ async def test_generate_description_anomaly(description_generator, mock_openai_c
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     pattern = {
-        'pattern_type': 'anomaly',
-        'device_id': 'cover.garage_door',
-        'confidence': 0.78,
-        'metadata': {'anomaly_score': 0.92}
+        "pattern_type": "anomaly",
+        "device_id": "cover.garage_door",
+        "confidence": 0.78,
+        "metadata": {"anomaly_score": 0.92},
     }
 
     device_context = {
-        'name': 'Garage Door'
+        "name": "Garage Door",
     }
 
     # Execute
@@ -175,10 +174,10 @@ trigger:
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 7,
-        'minute': 0
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 7,
+        "minute": 0,
     }
 
     # Execute
@@ -201,10 +200,10 @@ async def test_tracks_token_usage(description_generator, mock_openai_client, moc
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 7,
-        'minute': 0
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 7,
+        "minute": 0,
     }
 
     # Execute
@@ -212,11 +211,11 @@ async def test_tracks_token_usage(description_generator, mock_openai_client, moc
 
     # Assert
     stats = description_generator.get_usage_stats()
-    assert stats['total_tokens'] == 175
-    assert stats['input_tokens'] == 150
-    assert stats['output_tokens'] == 25
-    assert stats['estimated_cost_usd'] > 0
-    assert stats['model'] == 'gpt-4o-mini'
+    assert stats["total_tokens"] == 175
+    assert stats["input_tokens"] == 150
+    assert stats["output_tokens"] == 25
+    assert stats["estimated_cost_usd"] > 0
+    assert stats["model"] == "gpt-4o-mini"
 
 
 @pytest.mark.asyncio
@@ -226,23 +225,23 @@ async def test_resets_token_usage(description_generator, mock_openai_client, moc
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 7
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 7,
     }
 
     # Generate description to accumulate tokens
     await description_generator.generate_description(pattern, None)
-    assert description_generator.get_usage_stats()['total_tokens'] == 175
+    assert description_generator.get_usage_stats()["total_tokens"] == 175
 
     # Reset
     description_generator.reset_usage_stats()
 
     # Assert reset
     stats = description_generator.get_usage_stats()
-    assert stats['total_tokens'] == 0
-    assert stats['input_tokens'] == 0
-    assert stats['output_tokens'] == 0
+    assert stats["total_tokens"] == 0
+    assert stats["input_tokens"] == 0
+    assert stats["output_tokens"] == 0
 
 
 # ============================================================================
@@ -257,14 +256,14 @@ async def test_retries_on_failure(description_generator, mock_openai_client, moc
         side_effect=[
             Exception("API timeout"),
             Exception("Rate limit"),
-            mock_openai_response
-        ]
+            mock_openai_response,
+        ],
     )
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 7
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 7,
     }
 
     # Execute - should succeed after retries
@@ -280,13 +279,13 @@ async def test_raises_after_max_retries(description_generator, mock_openai_clien
     """Test that exception is raised after max retries"""
     # Setup - always fail
     mock_openai_client.chat.completions.create = AsyncMock(
-        side_effect=Exception("API error")
+        side_effect=Exception("API error"),
     )
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 7
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 7,
     }
 
     # Execute - should raise after 3 retries
@@ -304,18 +303,18 @@ async def test_raises_after_max_retries(description_generator, mock_openai_clien
 def test_build_time_of_day_prompt(description_generator):
     """Test time-of-day prompt includes correct information"""
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen',
-        'hour': 18,
-        'minute': 30,
-        'occurrences': 24,
-        'confidence': 0.89
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen",
+        "hour": 18,
+        "minute": 30,
+        "occurrences": 24,
+        "confidence": 0.89,
     }
 
     device_context = {
-        'name': 'Kitchen Light',
-        'area': 'Kitchen',
-        'domain': 'light'
+        "name": "Kitchen Light",
+        "area": "Kitchen",
+        "domain": "light",
     }
 
     prompt = description_generator._build_time_of_day_prompt(pattern, device_context)
@@ -332,17 +331,17 @@ def test_build_time_of_day_prompt(description_generator):
 def test_build_co_occurrence_prompt(description_generator):
     """Test co-occurrence prompt includes both devices"""
     pattern = {
-        'pattern_type': 'co_occurrence',
-        'device1': 'light.living_room',
-        'device2': 'fan.living_room',
-        'occurrences': 22,
-        'confidence': 0.85,
-        'metadata': {'avg_time_delta_seconds': 45}
+        "pattern_type": "co_occurrence",
+        "device1": "light.living_room",
+        "device2": "fan.living_room",
+        "occurrences": 22,
+        "confidence": 0.85,
+        "metadata": {"avg_time_delta_seconds": 45},
     }
 
     device_context = {
-        'device1': {'name': 'Living Room Light'},
-        'device2': {'name': 'Living Room Fan'}
+        "device1": {"name": "Living Room Light"},
+        "device2": {"name": "Living Room Fan"},
     }
 
     prompt = description_generator._build_co_occurrence_prompt(pattern, device_context)
@@ -366,16 +365,16 @@ async def test_generate_from_real_pattern_structure(description_generator, mock_
 
     # Real pattern structure from database
     pattern = {
-        'id': 123,
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.kitchen_ceiling',
-        'confidence': 0.92,
-        'occurrences': 28,
-        'metadata': {
-            'hour': 7,
-            'minute': 0,
-            'avg_time_decimal': 7.0
-        }
+        "id": 123,
+        "pattern_type": "time_of_day",
+        "device_id": "light.kitchen_ceiling",
+        "confidence": 0.92,
+        "occurrences": 28,
+        "metadata": {
+            "hour": 7,
+            "minute": 0,
+            "avg_time_decimal": 7.0,
+        },
     }
 
     # Execute
@@ -394,10 +393,10 @@ async def test_handles_missing_device_context(description_generator, mock_openai
     mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
 
     pattern = {
-        'pattern_type': 'time_of_day',
-        'device_id': 'light.unknown_device',
-        'hour': 12,
-        'minute': 0
+        "pattern_type": "time_of_day",
+        "device_id": "light.unknown_device",
+        "hour": 12,
+        "minute": 0,
     }
 
     # Execute - no device_context provided

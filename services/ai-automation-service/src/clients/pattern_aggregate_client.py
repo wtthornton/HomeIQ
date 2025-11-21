@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class PatternAggregateClient:
     """
     Client for writing and reading pattern aggregates to/from InfluxDB.
-    
+
     Supports Layer 2 (Daily Aggregates) storage for all detector types.
     Story: AI5.2 - InfluxDB Daily Aggregates Implementation
     """
@@ -30,7 +30,7 @@ class PatternAggregateClient:
         token: str,
         org: str,
         bucket_daily: str = "pattern_aggregates_daily",
-        bucket_weekly: str = "pattern_aggregates_weekly"
+        bucket_weekly: str = "pattern_aggregates_weekly",
     ):
         """Initialize Pattern Aggregate client."""
         self.url = url
@@ -56,11 +56,11 @@ class PatternAggregateClient:
         peak_hours: list[int],
         frequency: float,
         confidence: float,
-        occurrences: int
+        occurrences: int,
     ) -> None:
         """
         Write time-based daily aggregate to InfluxDB.
-        
+
         Args:
             date: Date string (YYYY-MM-DD)
             entity_id: Entity identifier
@@ -92,7 +92,7 @@ class PatternAggregateClient:
         co_occurrence_count: int,
         time_window_seconds: int,
         confidence: float,
-        typical_hours: list[int]
+        typical_hours: list[int],
     ) -> None:
         """Write co-occurrence daily aggregate."""
         point = Point("co_occurrence_daily") \
@@ -114,7 +114,7 @@ class PatternAggregateClient:
         sequence: list[str],
         frequency: int,
         avg_duration_seconds: float,
-        confidence: float
+        confidence: float,
     ) -> None:
         """Write sequence daily aggregate."""
         point = Point("sequence_daily") \
@@ -136,7 +136,7 @@ class PatternAggregateClient:
         activity_level: float,
         device_usage: dict[str, Any],
         transition_patterns: list[dict[str, Any]],
-        peak_activity_hours: list[int]
+        peak_activity_hours: list[int],
     ) -> None:
         """Write room-based daily aggregate."""
         point = Point("room_based_daily") \
@@ -159,7 +159,7 @@ class PatternAggregateClient:
         min_duration_seconds: float,
         max_duration_seconds: float,
         duration_variance: float,
-        efficiency_score: float
+        efficiency_score: float,
     ) -> None:
         """Write duration daily aggregate."""
         point = Point("duration_daily") \
@@ -183,7 +183,7 @@ class PatternAggregateClient:
         anomaly_score: float,
         baseline_deviation: float,
         occurrences: int,
-        severity: str
+        severity: str,
     ) -> None:
         """Write anomaly daily aggregate."""
         point = Point("anomaly_daily") \
@@ -209,11 +209,11 @@ class PatternAggregateClient:
         session_count: int,
         typical_start_times: list[int],
         devices_used: list[str],
-        confidence: float = 1.0
+        confidence: float = 1.0,
     ) -> None:
         """
         Write session weekly aggregate to InfluxDB.
-        
+
         Args:
             week: Week identifier (YYYY-WW format, e.g., '2025-W03')
             session_type: Type of session
@@ -243,11 +243,11 @@ class PatternAggregateClient:
         avg_events: float,
         typical_hours: list[int],
         device_usage: dict[str, Any],
-        confidence: float = 1.0
+        confidence: float = 1.0,
     ) -> None:
         """
         Write day-type weekly aggregate to InfluxDB.
-        
+
         Args:
             week: Week identifier (YYYY-WW format)
             day_type: 'weekday' or 'weekend'
@@ -277,11 +277,11 @@ class PatternAggregateClient:
         device_activity: dict[str, Any],
         correlation_score: float,
         occurrences: int,
-        confidence: float = 1.0
+        confidence: float = 1.0,
     ) -> None:
         """
         Write contextual monthly aggregate to InfluxDB.
-        
+
         Args:
             month: Month identifier (YYYY-MM format, e.g., '2025-01')
             weather_context: Weather context classification
@@ -308,11 +308,11 @@ class PatternAggregateClient:
         season: str,
         seasonal_patterns: dict[str, Any],
         trend_direction: str,
-        confidence: float = 1.0
+        confidence: float = 1.0,
     ) -> None:
         """
         Write seasonal monthly aggregate to InfluxDB.
-        
+
         Args:
             month: Month identifier (YYYY-MM format)
             season: Season identifier
@@ -338,33 +338,33 @@ class PatternAggregateClient:
         measurement: str,
         start_date: str,
         end_date: str,
-        **tags
+        **tags,
     ) -> list[dict[str, Any]]:
         """
         Query daily aggregates by date range.
-        
+
         Args:
             measurement: Measurement name (e.g., 'time_based_daily')
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
             **tags: Additional tag filters (e.g., entity_id='light.living_room')
-        
+
         Returns:
             List of records as dictionaries
         """
-        flux_query = f'''
+        flux_query = f"""
             from(bucket: "{self.bucket_daily}")
               |> range(start: {start_date}T00:00:00Z, stop: {end_date}T23:59:59Z)
               |> filter(fn: (r) => r["_measurement"] == "{measurement}")
-        '''
+        """
 
         # Add tag filters
         for tag_key, tag_value in tags.items():
             flux_query += f'\n  |> filter(fn: (r) => r["{tag_key}"] == "{tag_value}")'
 
-        flux_query += '''
+        flux_query += """
               |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-        '''
+        """
 
         logger.debug(f"Querying {measurement} from {start_date} to {end_date}")
         tables = self.query_api.query(flux_query, org=self.org)
@@ -380,16 +380,16 @@ class PatternAggregateClient:
         self,
         measurement: str,
         entity_id: str,
-        days: int = 30
+        days: int = 30,
     ) -> list[dict[str, Any]]:
         """
         Query daily aggregates for a specific entity.
-        
+
         Args:
             measurement: Measurement name
             entity_id: Entity identifier
             days: Number of days to query (default: 30)
-        
+
         Returns:
             List of records
         """
@@ -400,15 +400,15 @@ class PatternAggregateClient:
             measurement=measurement,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
     # ==================== BATCH OPERATIONS ====================
 
-    def write_batch(self, points: list[Point], bucket: str = None) -> None:
+    def write_batch(self, points: list[Point], bucket: str | None = None) -> None:
         """
         Write multiple points in a single batch operation.
-        
+
         Args:
             points: List of Point objects to write
             bucket: Bucket name (default: bucket_daily)
@@ -432,18 +432,18 @@ def create_pattern_aggregate_client(
     token: str,
     org: str,
     bucket_daily: str = "pattern_aggregates_daily",
-    bucket_weekly: str = "pattern_aggregates_weekly"
+    bucket_weekly: str = "pattern_aggregates_weekly",
 ) -> PatternAggregateClient:
     """
     Create a PatternAggregateClient instance.
-    
+
     Args:
         url: InfluxDB URL
         token: InfluxDB token
         org: Organization name
         bucket_daily: Daily aggregates bucket name
         bucket_weekly: Weekly aggregates bucket name
-    
+
     Returns:
         PatternAggregateClient instance
     """
@@ -452,5 +452,5 @@ def create_pattern_aggregate_client(
         token=token,
         org=org,
         bucket_daily=bucket_daily,
-        bucket_weekly=bucket_weekly
+        bucket_weekly=bucket_weekly,
     )

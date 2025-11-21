@@ -62,7 +62,7 @@ async def get_failure_predictions(
     risk_level: str | None = None,
     session: AsyncSession = Depends(get_db_session),
     repository: DeviceRepository = Depends(get_device_repository),
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Get failure predictions for all devices."""
     try:
@@ -86,7 +86,7 @@ async def get_failure_predictions(
                     "uptime_hours": latest_metric.uptime_hours or 0,
                     "restart_count": latest_metric.restart_count or 0,
                     "connection_drops": latest_metric.connection_drops or 0,
-                    "data_transfer_rate": latest_metric.data_transfer_rate or 0
+                    "data_transfer_rate": latest_metric.data_transfer_rate or 0,
                 }
             else:
                 # Default metrics if no data available
@@ -94,7 +94,7 @@ async def get_failure_predictions(
                     "response_time": 0, "error_rate": 0, "battery_level": 0,
                     "signal_strength": 0, "usage_frequency": 0, "temperature": 0,
                     "humidity": 0, "uptime_hours": 0, "restart_count": 0,
-                    "connection_drops": 0, "data_transfer_rate": 0
+                    "connection_drops": 0, "data_transfer_rate": 0,
                 }
             devices_metrics[device.id] = metrics
 
@@ -115,13 +115,13 @@ async def get_failure_predictions(
             "filters": {
                 "min_probability": min_probability,
                 "max_probability": max_probability,
-                "risk_level": risk_level
-            }
+                "risk_level": risk_level,
+            },
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting failure predictions: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting predictions: {str(e)}")
+        logger.exception(f"❌ Error getting failure predictions: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting predictions: {e!s}")
 
 
 @router.get("/failures/{device_id}")
@@ -129,7 +129,7 @@ async def get_device_failure_prediction(
     device_id: str,
     session: AsyncSession = Depends(get_db_session),
     repository: DeviceRepository = Depends(get_device_repository),
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Get failure prediction for specific device."""
     try:
@@ -154,24 +154,23 @@ async def get_device_failure_prediction(
             "uptime_hours": latest_metric.uptime_hours or 0,
             "restart_count": latest_metric.restart_count or 0,
             "connection_drops": latest_metric.connection_drops or 0,
-            "data_transfer_rate": latest_metric.data_transfer_rate or 0
+            "data_transfer_rate": latest_metric.data_transfer_rate or 0,
         }
-        prediction = await analytics_engine.predict_device_failure(device_id, metrics)
+        return await analytics_engine.predict_device_failure(device_id, metrics)
 
-        return prediction
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting prediction for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting prediction: {str(e)}")
+        logger.exception(f"❌ Error getting prediction for device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting prediction: {e!s}")
 
 
 @router.get("/maintenance")
 async def get_maintenance_recommendations(
     session: AsyncSession = Depends(get_db_session),
     repository: DeviceRepository = Depends(get_device_repository),
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Get maintenance recommendations for all devices."""
     try:
@@ -190,7 +189,7 @@ async def get_maintenance_recommendations(
                     "risk_level": prediction["risk_level"],
                     "recommendations": prediction["recommendations"],
                     "priority": "high" if prediction["failure_probability"] > 60 else "medium",
-                    "predicted_at": prediction["predicted_at"]
+                    "predicted_at": prediction["predicted_at"],
                 })
 
         # Sort by failure probability (highest first)
@@ -198,19 +197,19 @@ async def get_maintenance_recommendations(
 
         return {
             "total_recommendations": len(recommendations),
-            "recommendations": recommendations
+            "recommendations": recommendations,
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting maintenance recommendations: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.exception(f"❌ Error getting maintenance recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {e!s}")
 
 
 @router.post("/train")
 async def trigger_model_training(
     request: TrainingRequest,
     background_tasks: BackgroundTasks,
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Trigger model retraining."""
     try:
@@ -223,39 +222,37 @@ async def trigger_model_training(
                 "status": "training",
                 "force_retrain": request.force_retrain,
                 "days_back": request.days_back,
-                "started_at": datetime.now(timezone.utc).isoformat()
+                "started_at": datetime.now(timezone.utc).isoformat(),
             }
-        else:
-            return {
-                "message": "Models are already trained",
-                "status": "trained",
-                "force_retrain": request.force_retrain,
-                "current_version": analytics_engine.model_metadata.get("version", "unknown"),
-                "started_at": datetime.now(timezone.utc).isoformat()
-            }
+        return {
+            "message": "Models are already trained",
+            "status": "trained",
+            "force_retrain": request.force_retrain,
+            "current_version": analytics_engine.model_metadata.get("version", "unknown"),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     except Exception as e:
-        logger.error(f"❌ Error starting model training: {e}")
-        raise HTTPException(status_code=500, detail=f"Error starting training: {str(e)}")
+        logger.exception(f"❌ Error starting model training: {e}")
+        raise HTTPException(status_code=500, detail=f"Error starting training: {e!s}")
 
 
 @router.get("/models/status")
 async def get_model_status(
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Get model status and performance."""
     try:
-        status = analytics_engine.get_model_status()
-        return status
+        return analytics_engine.get_model_status()
 
     except Exception as e:
-        logger.error(f"❌ Error getting model status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting status: {str(e)}")
+        logger.exception(f"❌ Error getting model status: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting status: {e!s}")
 
 
 @router.get("/models/compare")
 async def compare_models(
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Compare current model with previous version (if backup exists)."""
     try:
@@ -263,7 +260,7 @@ async def compare_models(
         from pathlib import Path
 
         models_dir = Path(analytics_engine.models_dir)
-        metadata_path = models_dir / "model_metadata.json"
+        models_dir / "model_metadata.json"
 
         # Get current model metadata
         current_metadata = analytics_engine.model_metadata
@@ -272,14 +269,14 @@ async def compare_models(
         backup_files = sorted(
             models_dir.glob("failure_prediction_model.pkl.backup_*"),
             key=lambda p: p.stat().st_mtime,
-            reverse=True
+            reverse=True,
         )
 
         if not backup_files:
             return {
                 "message": "No backup models found for comparison",
                 "current_version": current_metadata.get("version", "unknown"),
-                "comparison_available": False
+                "comparison_available": False,
             }
 
         # Try to load backup metadata (if it exists)
@@ -301,14 +298,14 @@ async def compare_models(
         comparison = {
             "current_version": current_metadata.get("version", "unknown"),
             "backup_timestamp": backup_timestamp,
-            "comparison_available": backup_metadata is not None
+            "comparison_available": backup_metadata is not None,
         }
 
         if backup_metadata:
             # Compare versions
             comparison["version_change"] = {
                 "from": backup_metadata.get("version", "unknown"),
-                "to": current_metadata.get("version", "unknown")
+                "to": current_metadata.get("version", "unknown"),
             }
 
             # Compare performance
@@ -318,7 +315,7 @@ async def compare_models(
             comparison["performance"] = {
                 "current": current_perf,
                 "previous": backup_perf,
-                "changes": {}
+                "changes": {},
             }
 
             for metric in ["accuracy", "precision", "recall", "f1_score"]:
@@ -329,7 +326,7 @@ async def compare_models(
                     comparison["performance"]["changes"][metric] = {
                         "difference": round(diff, 4),
                         "percent_change": round((diff / backup_val) * 100, 2) if backup_val > 0 else 0,
-                        "improved": diff > 0
+                        "improved": diff > 0,
                     }
 
             # Compare training data
@@ -338,39 +335,38 @@ async def compare_models(
 
             comparison["training_data"] = {
                 "current": current_stats,
-                "previous": backup_stats
+                "previous": backup_stats,
             }
 
             # Compare data sources
             comparison["data_source"] = {
                 "current": current_metadata.get("data_source", "unknown"),
-                "previous": backup_metadata.get("data_source", "unknown")
+                "previous": backup_metadata.get("data_source", "unknown"),
             }
 
         return comparison
 
     except Exception as e:
-        logger.error(f"❌ Error comparing models: {e}")
-        raise HTTPException(status_code=500, detail=f"Error comparing models: {str(e)}")
+        logger.exception(f"❌ Error comparing models: {e}")
+        raise HTTPException(status_code=500, detail=f"Error comparing models: {e!s}")
 
 
 @router.post("/predict")
 async def predict_device_failure(
     request: PredictionRequest,
-    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine)
+    analytics_engine: PredictiveAnalyticsEngine = Depends(get_analytics_engine),
 ):
     """Predict device failure with custom metrics."""
     try:
-        prediction = await analytics_engine.predict_device_failure(
+        return await analytics_engine.predict_device_failure(
             request.device_id,
-            request.metrics
+            request.metrics,
         )
 
-        return prediction
 
     except Exception as e:
-        logger.error(f"❌ Error predicting failure for device {request.device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error making prediction: {str(e)}")
+        logger.exception(f"❌ Error predicting failure for device {request.device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error making prediction: {e!s}")
 
 
 @router.get("/health")
@@ -384,14 +380,14 @@ async def get_predictions_health():
             "status": "operational",
             "models_trained": analytics_engine.is_trained,
             "feature_count": len(analytics_engine.feature_columns),
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting predictions health: {e}")
+        logger.exception(f"❌ Error getting predictions health: {e}")
         return {
             "service": "Predictive Analytics",
             "status": "error",
             "error": str(e),
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }

@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingCache:
     """
     In-memory embedding cache for fast access during detection.
-    
+
     Story AI4.6: Performance Optimization
     Context7: Minimize I/O, maximize cache hits
-    
+
     Usage:
         >>> cache = EmbeddingCache(db_session, max_cache_mb=200)
         >>> embeddings = cache.load_embeddings(["light.kitchen", "sensor.motion"])
@@ -36,7 +36,7 @@ class EmbeddingCache:
     def __init__(self, db_session, max_cache_mb: int = 200):
         """
         Initialize embedding cache.
-        
+
         Args:
             db_session: SQLite database session
             max_cache_mb: Maximum cache size in megabytes
@@ -51,27 +51,27 @@ class EmbeddingCache:
 
         logger.info(
             f"Embedding cache initialized: max {max_cache_mb}MB "
-            f"(~{self.max_cache_entries} embeddings)"
+            f"(~{self.max_cache_entries} embeddings)",
         )
 
     def load_embeddings(
         self,
         entity_ids: list[str],
-        convert_to_tensor: bool = True
+        convert_to_tensor: bool = True,
     ) -> dict[str, torch.Tensor]:
         """
         Load embeddings with intelligent caching.
-        
+
         Strategy:
         1. Check in-memory cache first
         2. Load from database if miss
         3. Convert to tensors for GPU compatibility
         4. LRU eviction if cache full
-        
+
         Args:
             entity_ids: List of entity IDs to load
             convert_to_tensor: Convert to PyTorch tensors
-        
+
         Returns:
             Dict mapping entity_id to embedding tensor
         """
@@ -95,10 +95,7 @@ class EmbeddingCache:
                 embedding_np = np.frombuffer(embedding_bytes, dtype=np.float32)
 
                 # Convert to tensor if requested
-                if convert_to_tensor:
-                    embedding = torch.from_numpy(embedding_np)
-                else:
-                    embedding = embedding_np
+                embedding = torch.from_numpy(embedding_np) if convert_to_tensor else embedding_np
 
                 # Cache if space available (with LRU eviction)
                 self._add_to_cache(entity_id, embedding)
@@ -108,7 +105,7 @@ class EmbeddingCache:
         logger.debug(
             f"Embedding cache: {len(self._cache)} cached, "
             f"{len(to_load)} loaded from DB, "
-            f"hit rate: {len(embeddings) - len(to_load)}/{len(entity_ids)}"
+            f"hit rate: {len(embeddings) - len(to_load)}/{len(entity_ids)}",
         )
 
         return embeddings
@@ -116,10 +113,10 @@ class EmbeddingCache:
     def load_area(self, area_id: str):
         """
         Batch load all embeddings for an area.
-        
+
         Performance optimization: Load entire area at once instead of
         individual device lookups.
-        
+
         Args:
             area_id: Area identifier (e.g., "kitchen", "living_room")
         """
@@ -135,7 +132,7 @@ class EmbeddingCache:
             JOIN entities e ON de.entity_id = e.entity_id
             WHERE e.area_id = ?
             """,
-            (area_id,)
+            (area_id,),
         ).fetchall()
 
         # Cache all (with LRU eviction if needed)
@@ -153,25 +150,25 @@ class EmbeddingCache:
     def _load_from_db(self, entity_ids: list[str]) -> dict[str, bytes]:
         """
         Load embeddings from database.
-        
+
         Args:
             entity_ids: List of entity IDs
-        
+
         Returns:
             Dict mapping entity_id to embedding bytes
         """
-        placeholders = ','.join(['?' for _ in entity_ids])
+        placeholders = ",".join(["?" for _ in entity_ids])
         results = self.db.execute(
             f"SELECT entity_id, embedding FROM device_embeddings WHERE entity_id IN ({placeholders})",
-            entity_ids
+            entity_ids,
         ).fetchall()
 
-        return {entity_id: embedding for entity_id, embedding in results}
+        return dict(results)
 
     def _add_to_cache(self, entity_id: str, embedding: torch.Tensor):
         """
         Add embedding to cache with LRU eviction.
-        
+
         Args:
             entity_id: Entity identifier
             embedding: Embedding tensor
@@ -187,7 +184,7 @@ class EmbeddingCache:
     def _update_access(self, entity_id: str):
         """
         Update access order for LRU tracking.
-        
+
         Args:
             entity_id: Entity identifier
         """
@@ -206,19 +203,19 @@ class EmbeddingCache:
     def get_cache_stats(self) -> dict:
         """
         Get cache statistics.
-        
+
         Returns:
             Dict with cache stats
         """
         current_mb = len(self._cache) * self.EMBEDDING_SIZE_BYTES / (1024 * 1024)
 
         return {
-            'cached_embeddings': len(self._cache),
-            'max_embeddings': self.max_cache_entries,
-            'current_size_mb': current_mb,
-            'max_size_mb': self.max_cache_mb,
-            'utilization': len(self._cache) / self.max_cache_entries if self.max_cache_entries > 0 else 0,
-            'loaded_areas': list(self._loaded_areas)
+            "cached_embeddings": len(self._cache),
+            "max_embeddings": self.max_cache_entries,
+            "current_size_mb": current_mb,
+            "max_size_mb": self.max_cache_mb,
+            "utilization": len(self._cache) / self.max_cache_entries if self.max_cache_entries > 0 else 0,
+            "loaded_areas": list(self._loaded_areas),
         }
 
     def clear(self):

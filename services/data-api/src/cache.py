@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[3]  # Go up to project root
 except Exception:
@@ -52,7 +52,7 @@ class SimpleCache(BaseCache):
     - Automatic cleanup of expired entries
     - Thread-safe operations
     - LRU eviction when max size reached
-    
+
     Inherits from shared BaseCache for consistency.
     """
 

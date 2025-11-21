@@ -14,7 +14,7 @@ def _healthy_service_stub():
     now = datetime.utcnow().replace(tzinfo=timezone.utc)
     task = SimpleNamespace(
         done=lambda: False,
-        cancelled=lambda: False
+        cancelled=lambda: False,
     )
     return SimpleNamespace(
         session=object(),
@@ -28,7 +28,7 @@ def _healthy_service_stub():
         background_task=task,
         last_successful_fetch=now,
         last_influx_write=now,
-        last_background_error=None
+        last_background_error=None,
     )
 
 

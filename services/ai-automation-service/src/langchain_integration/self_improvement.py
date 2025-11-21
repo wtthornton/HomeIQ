@@ -21,7 +21,7 @@ from langchain_core.prompts import (
 )
 from sqlalchemy import select
 
-from ..database.models import AskAIQuery
+from src.database.models import AskAIQuery
 
 
 async def _collect_metrics(db_session_factory) -> dict[str, Any]:
@@ -37,7 +37,7 @@ async def _collect_metrics(db_session_factory) -> dict[str, Any]:
     try:
         async with db_session_factory() as session:
             result = await session.execute(
-                select(AskAIQuery).order_by(AskAIQuery.created_at.desc()).limit(20)
+                select(AskAIQuery).order_by(AskAIQuery.created_at.desc()).limit(20),
             )
             queries: list[AskAIQuery] = result.scalars().all()
     except Exception:
@@ -100,7 +100,7 @@ def _build_plan_text(metrics: dict[str, Any], recommendations: list[str]) -> str
     chat_prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessagePromptTemplate.from_template(
-                "You are documenting a weekly Ask-AI prompt tuning review. Do not apply changes automatically."
+                "You are documenting a weekly Ask-AI prompt tuning review. Do not apply changes automatically.",
             ),
             HumanMessagePromptTemplate.from_template(
                 """Metrics Summary:
@@ -113,9 +113,9 @@ Next Steps:
 1. Present this report to the HomeIQ maintainer.
 2. Apply approved changes manually via configuration or prompt files.
 3. Record decision outcome in implementation notes.
-"""
+""",
             ),
-        ]
+        ],
     )
 
     formatted = chat_prompt.format_prompt(

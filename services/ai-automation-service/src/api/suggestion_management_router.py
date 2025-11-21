@@ -11,19 +11,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from ..config import settings
-from ..database.models import ClarificationOutcome, Suggestion, get_db_session
-from ..safety_validator import get_safety_validator
+from src.config import settings
+from src.database.models import ClarificationOutcome, Suggestion, get_db_session
+from src.safety_validator import get_safety_validator
+
 from .dependencies.auth import require_admin_user
 
 logger = logging.getLogger(__name__)
 
-safety_validator = get_safety_validator(getattr(settings, 'safety_level', 'moderate'))
+safety_validator = get_safety_validator(getattr(settings, "safety_level", "moderate"))
 
 router = APIRouter(
     prefix="/api/suggestions",
     tags=["suggestion-management"],
-    dependencies=[Depends(require_admin_user)]
+    dependencies=[Depends(require_admin_user)],
 )
 
 
@@ -47,12 +48,12 @@ class FeedbackRequest(BaseModel):
 async def approve_suggestion(suggestion_id: int):
     """
     Approve a suggestion.
-    
+
     Changes status from 'pending' to 'approved', making it ready for deployment.
-    
+
     Args:
         suggestion_id: ID of the suggestion to approve
-    
+
     Returns:
         Updated suggestion
     """
@@ -60,7 +61,7 @@ async def approve_suggestion(suggestion_id: int):
         async with get_db_session() as db:
             # Get suggestion
             result = await db.execute(
-                select(Suggestion).where(Suggestion.id == suggestion_id)
+                select(Suggestion).where(Suggestion.id == suggestion_id),
             )
             suggestion = result.scalar_one_or_none()
 
@@ -68,7 +69,7 @@ async def approve_suggestion(suggestion_id: int):
                 raise HTTPException(status_code=404, detail="Suggestion not found")
 
             # Update status
-            suggestion.status = 'approved'
+            suggestion.status = "approved"
             suggestion.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
@@ -79,8 +80,8 @@ async def approve_suggestion(suggestion_id: int):
                 # Find outcome by suggestion_id
                 outcome_result = await db.execute(
                     select(ClarificationOutcome).where(
-                        ClarificationOutcome.suggestion_id == suggestion_id
-                    )
+                        ClarificationOutcome.suggestion_id == suggestion_id,
+                    ),
                 )
                 outcome = outcome_result.scalar_one_or_none()
                 if outcome:
@@ -100,8 +101,8 @@ async def approve_suggestion(suggestion_id: int):
                     "id": suggestion.id,
                     "title": suggestion.title,
                     "status": suggestion.status,
-                    "updated_at": suggestion.updated_at.isoformat()
-                }
+                    "updated_at": suggestion.updated_at.isoformat(),
+                },
             }
 
     except HTTPException:
@@ -115,13 +116,13 @@ async def approve_suggestion(suggestion_id: int):
 async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None = None):
     """
     Reject a suggestion.
-    
+
     Changes status to 'rejected' and optionally stores feedback for learning.
-    
+
     Args:
         suggestion_id: ID of the suggestion to reject
         feedback: Optional feedback about why it was rejected
-    
+
     Returns:
         Updated suggestion
     """
@@ -129,7 +130,7 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
         async with get_db_session() as db:
             # Get suggestion
             result = await db.execute(
-                select(Suggestion).where(Suggestion.id == suggestion_id)
+                select(Suggestion).where(Suggestion.id == suggestion_id),
             )
             suggestion = result.scalar_one_or_none()
 
@@ -137,7 +138,7 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
                 raise HTTPException(status_code=404, detail="Suggestion not found")
 
             # Update status
-            suggestion.status = 'rejected'
+            suggestion.status = "rejected"
             suggestion.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
@@ -145,11 +146,11 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
 
             # Store feedback if provided
             if feedback:
-                from ..database.crud import store_feedback
+                from src.database.crud import store_feedback
                 await store_feedback(db, {
-                    'suggestion_id': suggestion_id,
-                    'action': 'rejected',
-                    'feedback_text': feedback.feedback_text
+                    "suggestion_id": suggestion_id,
+                    "action": "rejected",
+                    "feedback_text": feedback.feedback_text,
                 })
 
             # Update clarification outcome if linked (Phase 2.1)
@@ -157,8 +158,8 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
                 # Find outcome by suggestion_id
                 outcome_result = await db.execute(
                     select(ClarificationOutcome).where(
-                        ClarificationOutcome.suggestion_id == suggestion_id
-                    )
+                        ClarificationOutcome.suggestion_id == suggestion_id,
+                    ),
                 )
                 outcome = outcome_result.scalar_one_or_none()
                 if outcome:
@@ -178,8 +179,8 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
                     "id": suggestion.id,
                     "title": suggestion.title,
                     "status": suggestion.status,
-                    "updated_at": suggestion.updated_at.isoformat()
-                }
+                    "updated_at": suggestion.updated_at.isoformat(),
+                },
             }
 
     except HTTPException:
@@ -193,11 +194,11 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
 async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionRequest):
     """
     Update a suggestion (edit YAML, change status, etc.).
-    
+
     Args:
         suggestion_id: ID of the suggestion to update
         update_data: Fields to update
-    
+
     Returns:
         Updated suggestion
     """
@@ -205,7 +206,7 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
         async with get_db_session() as db:
             # Get suggestion
             result = await db.execute(
-                select(Suggestion).where(Suggestion.id == suggestion_id)
+                select(Suggestion).where(Suggestion.id == suggestion_id),
             )
             suggestion = result.scalar_one_or_none()
 
@@ -230,11 +231,11 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
                                     "rule": issue.rule,
                                     "severity": issue.severity,
                                     "message": issue.message,
-                                    "suggested_fix": issue.suggested_fix
+                                    "suggested_fix": issue.suggested_fix,
                                 }
                                 for issue in safety_result.issues
-                            ]
-                        }
+                            ],
+                        },
                     )
                 suggestion.automation_yaml = update_data.automation_yaml
                 suggestion.safety_score = safety_result.safety_score
@@ -261,8 +262,8 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
                     "id": suggestion.id,
                     "title": suggestion.title,
                     "status": suggestion.status,
-                    "updated_at": suggestion.updated_at.isoformat()
-                }
+                    "updated_at": suggestion.updated_at.isoformat(),
+                },
             }
 
     except HTTPException:
@@ -276,10 +277,10 @@ async def update_suggestion(suggestion_id: int, update_data: UpdateSuggestionReq
 async def delete_suggestion(suggestion_id: int):
     """
     Delete a suggestion.
-    
+
     Args:
         suggestion_id: ID of the suggestion to delete
-    
+
     Returns:
         Success message
     """
@@ -287,7 +288,7 @@ async def delete_suggestion(suggestion_id: int):
         async with get_db_session() as db:
             # Check if exists
             result = await db.execute(
-                select(Suggestion).where(Suggestion.id == suggestion_id)
+                select(Suggestion).where(Suggestion.id == suggestion_id),
             )
             suggestion = result.scalar_one_or_none()
 
@@ -296,7 +297,7 @@ async def delete_suggestion(suggestion_id: int):
 
             # Delete
             await db.execute(
-                delete(Suggestion).where(Suggestion.id == suggestion_id)
+                delete(Suggestion).where(Suggestion.id == suggestion_id),
             )
             await db.commit()
 
@@ -307,8 +308,8 @@ async def delete_suggestion(suggestion_id: int):
                 "message": "Suggestion deleted successfully",
                 "data": {
                     "id": suggestion_id,
-                    "title": suggestion.title
-                }
+                    "title": suggestion.title,
+                },
             }
 
     except HTTPException:
@@ -322,10 +323,10 @@ async def delete_suggestion(suggestion_id: int):
 async def batch_approve_suggestions(suggestion_ids: list[int]):
     """
     Approve multiple suggestions at once.
-    
+
     Args:
         suggestion_ids: List of suggestion IDs to approve
-    
+
     Returns:
         Summary of batch operation
     """
@@ -337,19 +338,19 @@ async def batch_approve_suggestions(suggestion_ids: list[int]):
             for suggestion_id in suggestion_ids:
                 try:
                     result = await db.execute(
-                        select(Suggestion).where(Suggestion.id == suggestion_id)
+                        select(Suggestion).where(Suggestion.id == suggestion_id),
                     )
                     suggestion = result.scalar_one_or_none()
 
                     if suggestion:
-                        suggestion.status = 'approved'
+                        suggestion.status = "approved"
                         suggestion.updated_at = datetime.now(timezone.utc)
                         approved_count += 1
                     else:
                         failed_count += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to approve suggestion {suggestion_id}: {e}")
+                    logger.exception(f"Failed to approve suggestion {suggestion_id}: {e}")
                     failed_count += 1
 
             await db.commit()
@@ -362,8 +363,8 @@ async def batch_approve_suggestions(suggestion_ids: list[int]):
                 "data": {
                     "approved_count": approved_count,
                     "failed_count": failed_count,
-                    "total_requested": len(suggestion_ids)
-                }
+                    "total_requested": len(suggestion_ids),
+                },
             }
 
     except Exception as e:
@@ -375,10 +376,10 @@ async def batch_approve_suggestions(suggestion_ids: list[int]):
 async def batch_reject_suggestions(suggestion_ids: list[int]):
     """
     Reject multiple suggestions at once.
-    
+
     Args:
         suggestion_ids: List of suggestion IDs to reject
-    
+
     Returns:
         Summary of batch operation
     """
@@ -390,19 +391,19 @@ async def batch_reject_suggestions(suggestion_ids: list[int]):
             for suggestion_id in suggestion_ids:
                 try:
                     result = await db.execute(
-                        select(Suggestion).where(Suggestion.id == suggestion_id)
+                        select(Suggestion).where(Suggestion.id == suggestion_id),
                     )
                     suggestion = result.scalar_one_or_none()
 
                     if suggestion:
-                        suggestion.status = 'rejected'
+                        suggestion.status = "rejected"
                         suggestion.updated_at = datetime.now(timezone.utc)
                         rejected_count += 1
                     else:
                         failed_count += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to reject suggestion {suggestion_id}: {e}")
+                    logger.exception(f"Failed to reject suggestion {suggestion_id}: {e}")
                     failed_count += 1
 
             await db.commit()
@@ -415,8 +416,8 @@ async def batch_reject_suggestions(suggestion_ids: list[int]):
                 "data": {
                     "rejected_count": rejected_count,
                     "failed_count": failed_count,
-                    "total_requested": len(suggestion_ids)
-                }
+                    "total_requested": len(suggestion_ids),
+                },
             }
 
     except Exception as e:

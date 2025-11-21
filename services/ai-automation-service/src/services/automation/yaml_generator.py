@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class AutomationYAMLGenerator:
     """
     Unified YAML generator for Home Assistant automations.
-    
+
     Generates valid YAML from natural language suggestions with
     entity validation and capability awareness.
     """
@@ -27,11 +27,11 @@ class AutomationYAMLGenerator:
     def __init__(
         self,
         openai_client: OpenAIClient,
-        ha_client: HomeAssistantClient | None = None
+        ha_client: HomeAssistantClient | None = None,
     ):
         """
         Initialize YAML generator.
-        
+
         Args:
             openai_client: OpenAI client for YAML generation
             ha_client: Optional Home Assistant client for validation
@@ -46,17 +46,17 @@ class AutomationYAMLGenerator:
         suggestion: dict[str, Any],
         original_query: str,
         entities: list[dict[str, Any]] | None = None,
-        validated_entities: dict[str, str] | None = None
+        validated_entities: dict[str, str] | None = None,
     ) -> str:
         """
         Generate automation YAML from suggestion.
-        
+
         Args:
             suggestion: Suggestion dictionary with description, devices, etc.
             original_query: Original user query for context
             entities: Optional list of entities
             validated_entities: Dictionary mapping device names to entity IDs
-        
+
         Returns:
             YAML string for the automation
         """
@@ -70,7 +70,7 @@ class AutomationYAMLGenerator:
                 original_query=original_query,
                 entities=entities,
                 db_session=None,  # Will be passed in later
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
             )
 
             logger.info("✅ Generated automation YAML")

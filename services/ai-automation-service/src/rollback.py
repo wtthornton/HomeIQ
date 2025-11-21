@@ -23,18 +23,18 @@ async def store_version(
     db: AsyncSession,
     automation_id: str,
     yaml_content: str,
-    safety_score: int
+    safety_score: int,
 ) -> AutomationVersion:
     """
     Store automation version.
     Automatically keeps only last 3 versions per automation.
-    
+
     Args:
         db: Database session
         automation_id: HA automation ID
         yaml_content: Complete YAML content
         safety_score: Safety validation score (0-100)
-    
+
     Returns:
         Created version record
     """
@@ -43,7 +43,7 @@ async def store_version(
         automation_id=automation_id,
         yaml_content=yaml_content,
         deployed_at=datetime.utcnow(),
-        safety_score=safety_score
+        safety_score=safety_score,
     )
     db.add(version)
     await db.commit()
@@ -72,15 +72,15 @@ async def store_version(
 
 async def get_versions(
     db: AsyncSession,
-    automation_id: str
+    automation_id: str,
 ) -> list[AutomationVersion]:
     """
     Get version history for automation.
-    
+
     Args:
         db: Database session
         automation_id: HA automation ID
-    
+
     Returns:
         List of versions (most recent first, max 3)
     """
@@ -101,21 +101,21 @@ async def rollback_to_previous(
     db: AsyncSession,
     automation_id: str,
     ha_client: HomeAssistantClient,
-    safety_validator: SafetyValidator
+    safety_validator: SafetyValidator,
 ) -> dict:
     """
     Rollback automation to previous version.
     Simple: just restores the last version with safety check.
-    
+
     Args:
         db: Database session
         automation_id: HA automation ID to rollback
         ha_client: HA API client
         safety_validator: Safety validator instance
-    
+
     Returns:
         Result dict with success status and details
-    
+
     Raises:
         ValueError: If no previous version or safety validation fails
     """
@@ -123,9 +123,12 @@ async def rollback_to_previous(
     versions = await get_versions(db, automation_id)
 
     if len(versions) < 2:
-        raise ValueError(
+        msg = (
             f"No previous version available for {automation_id}. "
             "Need at least 2 versions to rollback."
+        )
+        raise ValueError(
+            msg,
         )
 
     # Previous version is index 1 (0 is current)
@@ -133,12 +136,12 @@ async def rollback_to_previous(
 
     logger.info(
         f"⏪ Rolling back {automation_id} to version from "
-        f"{previous_version.deployed_at.isoformat()}"
+        f"{previous_version.deployed_at.isoformat()}",
     )
 
     # Validate safety of previous version
     safety_result: SafetyResult = await safety_validator.validate(
-        previous_version.yaml_content
+        previous_version.yaml_content,
     )
 
     if not safety_result.passed:
@@ -151,25 +154,26 @@ async def rollback_to_previous(
         raise ValueError(error_msg)
 
     logger.info(
-        f"✅ Previous version passes safety (score: {safety_result.safety_score})"
+        f"✅ Previous version passes safety (score: {safety_result.safety_score})",
     )
 
     # Deploy previous version to HA
     deployment_result = await ha_client.deploy_automation(
         automation_yaml=previous_version.yaml_content,
-        automation_id=automation_id
+        automation_id=automation_id,
     )
 
-    if not deployment_result.get('success'):
-        error = deployment_result.get('error', 'Unknown error')
-        raise ValueError(f"Failed to deploy previous version: {error}")
+    if not deployment_result.get("success"):
+        error = deployment_result.get("error", "Unknown error")
+        msg = f"Failed to deploy previous version: {error}"
+        raise ValueError(msg)
 
     # Store this rollback as new version (creates audit trail)
     await store_version(
         db,
         automation_id,
         previous_version.yaml_content,
-        safety_result.safety_score
+        safety_result.safety_score,
     )
 
     logger.info(f"✅ Successfully rolled back {automation_id}")
@@ -180,21 +184,21 @@ async def rollback_to_previous(
         "rolled_back_to": previous_version.deployed_at.isoformat(),
         "rolled_back_at": datetime.utcnow().isoformat(),
         "safety_score": safety_result.safety_score,
-        "previous_version_id": previous_version.id
+        "previous_version_id": previous_version.id,
     }
 
 
 async def get_latest_version(
     db: AsyncSession,
-    automation_id: str
+    automation_id: str,
 ) -> AutomationVersion | None:
     """
     Get the most recent version for an automation.
-    
+
     Args:
         db: Database session
         automation_id: HA automation ID
-    
+
     Returns:
         Latest version or None if not found
     """

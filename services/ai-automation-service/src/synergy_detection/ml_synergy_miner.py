@@ -34,7 +34,7 @@ class DiscoveredSynergy:
         consistency: float,
         time_window_seconds: int,
         discovered_at: datetime,
-        source: str = 'mined'
+        source: str = "mined",
     ):
         """
         Initialize discovered synergy.
@@ -65,16 +65,16 @@ class DiscoveredSynergy:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
         return {
-            'trigger_entity': self.trigger_entity,
-            'action_entity': self.action_entity,
-            'support': self.support,
-            'confidence': self.confidence,
-            'lift': self.lift,
-            'frequency': self.frequency,
-            'consistency': self.consistency,
-            'time_window_seconds': self.time_window_seconds,
-            'discovered_at': self.discovered_at.isoformat(),
-            'source': self.source
+            "trigger_entity": self.trigger_entity,
+            "action_entity": self.action_entity,
+            "support": self.support,
+            "confidence": self.confidence,
+            "lift": self.lift,
+            "frequency": self.frequency,
+            "consistency": self.consistency,
+            "time_window_seconds": self.time_window_seconds,
+            "discovered_at": self.discovered_at.isoformat(),
+            "source": self.source,
         }
 
     def __str__(self):
@@ -103,7 +103,7 @@ class DynamicSynergyMiner:
         min_consistency: float = 0.8,
         time_window_seconds: int = 60,
         lookback_days: int = 30,
-        min_occurrences: int = 10
+        min_occurrences: int = 10,
     ):
         """
         Initialize dynamic synergy miner.
@@ -132,24 +132,24 @@ class DynamicSynergyMiner:
             min_support=min_support,
             min_confidence=min_confidence,
             min_lift=min_lift,
-            max_itemset_size=4
+            max_itemset_size=4,
         )
 
         self.transaction_builder = TransactionBuilder(
             time_window_seconds=time_window_seconds,
-            min_transaction_size=2
+            min_transaction_size=2,
         )
 
         logger.info(
             f"DynamicSynergyMiner initialized: support={min_support}, "
             f"confidence={min_confidence}, consistency={min_consistency}, "
-            f"lookback={lookback_days}d"
+            f"lookback={lookback_days}d",
         )
 
     async def mine_synergies(
         self,
         start_time: datetime | None = None,
-        end_time: datetime | None = None
+        end_time: datetime | None = None,
     ) -> list[DiscoveredSynergy]:
         """
         Mine synergies from historical event data.
@@ -176,7 +176,7 @@ class DynamicSynergyMiner:
 
         logger.info(
             f"⛏️ Mining synergies from {start_time.date()} to {end_time.date()} "
-            f"({self.lookback_days} days)..."
+            f"({self.lookback_days} days)...",
         )
 
         # Phase 1: Query co-occurring events
@@ -194,7 +194,7 @@ class DynamicSynergyMiner:
         transactions = self.transaction_builder.build_transactions(
             events_df,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
 
         if not transactions:
@@ -236,7 +236,7 @@ class DynamicSynergyMiner:
         duration = (datetime.now(timezone.utc) - overall_start).total_seconds()
         logger.info(
             f"✅ Synergy mining complete in {duration:.2f}s: "
-            f"{len(validated_synergies)} validated synergies discovered"
+            f"{len(validated_synergies)} validated synergies discovered",
         )
 
         # Log top 5 discoveries
@@ -250,7 +250,7 @@ class DynamicSynergyMiner:
     async def _query_cooccurring_events(
         self,
         start_time: datetime,
-        end_time: datetime
+        end_time: datetime,
     ) -> pd.DataFrame:
         """
         Query co-occurring state changes from InfluxDB.
@@ -270,28 +270,27 @@ class DynamicSynergyMiner:
             events_df = await self.influxdb_client.query_events(
                 start=start_time,
                 stop=end_time,
-                measurement='home_assistant_events',
-                filters={'event_type': 'state_changed'}
+                measurement="home_assistant_events",
+                filters={"event_type": "state_changed"},
             )
 
             if events_df.empty:
                 return pd.DataFrame()
 
             # Ensure required columns
-            required_cols = ['time', 'entity_id']
+            required_cols = ["time", "entity_id"]
             for col in required_cols:
                 if col not in events_df.columns:
                     logger.error(f"Missing required column: {col}")
                     return pd.DataFrame()
 
             # Convert time to datetime if needed
-            if not pd.api.types.is_datetime64_any_dtype(events_df['time']):
-                events_df['time'] = pd.to_datetime(events_df['time'])
+            if not pd.api.types.is_datetime64_any_dtype(events_df["time"]):
+                events_df["time"] = pd.to_datetime(events_df["time"])
 
             # Sort by time
-            events_df = events_df.sort_values('time').reset_index(drop=True)
+            return events_df.sort_values("time").reset_index(drop=True)
 
-            return events_df
 
         except Exception as e:
             logger.error(f"Failed to query events from InfluxDB: {e}", exc_info=True)
@@ -300,7 +299,7 @@ class DynamicSynergyMiner:
     async def _analyze_temporal_patterns(
         self,
         rules: list[AssociationRule],
-        events_df: pd.DataFrame
+        events_df: pd.DataFrame,
     ) -> list[tuple[AssociationRule, float, int]]:
         """
         Analyze temporal consistency of association rules.
@@ -323,14 +322,14 @@ class DynamicSynergyMiner:
             if len(rule.antecedent) != 1 or len(rule.consequent) != 1:
                 continue
 
-            trigger_entity = list(rule.antecedent)[0]
-            action_entity = list(rule.consequent)[0]
+            trigger_entity = next(iter(rule.antecedent))
+            action_entity = next(iter(rule.consequent))
 
             # Calculate temporal consistency
             consistency, frequency = self._calculate_temporal_consistency(
                 events_df,
                 trigger_entity,
-                action_entity
+                action_entity,
             )
 
             if consistency >= self.min_consistency and frequency >= self.min_occurrences:
@@ -339,7 +338,7 @@ class DynamicSynergyMiner:
         # Sort by confidence * consistency * frequency
         temporal_patterns.sort(
             key=lambda x: x[0].confidence * x[1] * np.log1p(x[2]),
-            reverse=True
+            reverse=True,
         )
 
         return temporal_patterns
@@ -348,7 +347,7 @@ class DynamicSynergyMiner:
         self,
         events_df: pd.DataFrame,
         trigger_entity: str,
-        action_entity: str
+        action_entity: str,
     ) -> tuple[float, int]:
         """
         Calculate temporal consistency for trigger → action pattern.
@@ -364,7 +363,7 @@ class DynamicSynergyMiner:
             (consistency, frequency) tuple
         """
         # Get trigger events
-        trigger_events = events_df[events_df['entity_id'] == trigger_entity].copy()
+        trigger_events = events_df[events_df["entity_id"] == trigger_entity].copy()
 
         if trigger_events.empty:
             return (0.0, 0)
@@ -374,14 +373,14 @@ class DynamicSynergyMiner:
         window_delta = timedelta(seconds=self.time_window_seconds)
 
         for _, trigger_event in trigger_events.iterrows():
-            trigger_time = trigger_event['time']
+            trigger_time = trigger_event["time"]
             window_end = trigger_time + window_delta
 
             # Check if action entity changed state within window
             action_in_window = events_df[
-                (events_df['entity_id'] == action_entity) &
-                (events_df['time'] > trigger_time) &
-                (events_df['time'] <= window_end)
+                (events_df["entity_id"] == action_entity) &
+                (events_df["time"] > trigger_time) &
+                (events_df["time"] <= window_end)
             ]
 
             if not action_in_window.empty:
@@ -394,7 +393,7 @@ class DynamicSynergyMiner:
 
     def _validate_synergies(
         self,
-        temporal_patterns: list[tuple[AssociationRule, float, int]]
+        temporal_patterns: list[tuple[AssociationRule, float, int]],
     ) -> list[DiscoveredSynergy]:
         """
         Validate and convert temporal patterns to DiscoveredSynergy objects.
@@ -413,8 +412,8 @@ class DynamicSynergyMiner:
         seen_pairs = set()
 
         for rule, consistency, frequency in temporal_patterns:
-            trigger_entity = list(rule.antecedent)[0]
-            action_entity = list(rule.consequent)[0]
+            trigger_entity = next(iter(rule.antecedent))
+            action_entity = next(iter(rule.consequent))
 
             # Skip self-loops
             if trigger_entity == action_entity:
@@ -437,7 +436,7 @@ class DynamicSynergyMiner:
                 consistency=consistency,
                 time_window_seconds=self.time_window_seconds,
                 discovered_at=datetime.now(timezone.utc),
-                source='mined'
+                source="mined",
             )
 
             validated.append(synergy)
@@ -445,14 +444,14 @@ class DynamicSynergyMiner:
         # Sort by impact score (confidence * consistency * log(frequency))
         validated.sort(
             key=lambda s: s.confidence * s.consistency * np.log1p(s.frequency),
-            reverse=True
+            reverse=True,
         )
 
         return validated
 
     def get_statistics(
         self,
-        discovered_synergies: list[DiscoveredSynergy]
+        discovered_synergies: list[DiscoveredSynergy],
     ) -> dict[str, Any]:
         """
         Calculate statistics for discovered synergies.
@@ -465,19 +464,19 @@ class DynamicSynergyMiner:
         """
         if not discovered_synergies:
             return {
-                'total_count': 0,
-                'avg_confidence': 0,
-                'avg_consistency': 0,
-                'avg_frequency': 0,
-                'avg_lift': 0
+                "total_count": 0,
+                "avg_confidence": 0,
+                "avg_consistency": 0,
+                "avg_frequency": 0,
+                "avg_lift": 0,
             }
 
         return {
-            'total_count': len(discovered_synergies),
-            'avg_confidence': np.mean([s.confidence for s in discovered_synergies]),
-            'avg_consistency': np.mean([s.consistency for s in discovered_synergies]),
-            'avg_frequency': np.mean([s.frequency for s in discovered_synergies]),
-            'avg_lift': np.mean([s.lift for s in discovered_synergies]),
-            'max_frequency': max([s.frequency for s in discovered_synergies]),
-            'min_frequency': min([s.frequency for s in discovered_synergies])
+            "total_count": len(discovered_synergies),
+            "avg_confidence": np.mean([s.confidence for s in discovered_synergies]),
+            "avg_consistency": np.mean([s.consistency for s in discovered_synergies]),
+            "avg_frequency": np.mean([s.frequency for s in discovered_synergies]),
+            "avg_lift": np.mean([s.lift for s in discovered_synergies]),
+            "max_frequency": max([s.frequency for s in discovered_synergies]),
+            "min_frequency": min([s.frequency for s in discovered_synergies]),
         }

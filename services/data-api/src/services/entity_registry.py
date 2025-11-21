@@ -11,9 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models.device import Device
-from ..models.entity import Entity
-from ..models.entity_registry_entry import EntityRegistryEntry
+from src.models.device import Device
+from src.models.entity import Entity
+from src.models.entity_registry_entry import EntityRegistryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class EntityRegistry:
     def __init__(self, db: AsyncSession):
         """
         Initialize EntityRegistry service
-        
+
         Args:
             db: Async database session
         """
@@ -36,10 +36,10 @@ class EntityRegistry:
     async def get_entities_by_device(self, device_id: str) -> list[EntityRegistryEntry]:
         """
         Get all entities for a device
-        
+
         Args:
             device_id: Device ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -48,13 +48,13 @@ class EntityRegistry:
             result = await self.db.execute(
                 select(Entity)
                 .where(Entity.device_id == device_id)
-                .options(selectinload(Entity.device))
+                .options(selectinload(Entity.device)),
             )
             entities = result.scalars().all()
 
             # Get device for metadata
             device_result = await self.db.execute(
-                select(Device).where(Device.device_id == device_id)
+                select(Device).where(Device.device_id == device_id),
             )
             device = device_result.scalar_one_or_none()
 
@@ -69,23 +69,23 @@ class EntityRegistry:
                 entry = EntityRegistryEntry.from_entity_and_device(
                     entity=entity,
                     device=device,
-                    related_entities=related_entities
+                    related_entities=related_entities,
                 )
                 registry_entries.append(entry)
 
             return registry_entries
 
         except Exception as e:
-            logger.error(f"Error getting entities by device {device_id}: {e}")
+            logger.exception(f"Error getting entities by device {device_id}: {e}")
             return []
 
     async def get_device_for_entity(self, entity_id: str) -> Device | None:
         """
         Get device for an entity
-        
+
         Args:
             entity_id: Entity ID
-            
+
         Returns:
             Device instance or None
         """
@@ -93,29 +93,29 @@ class EntityRegistry:
             result = await self.db.execute(
                 select(Entity)
                 .where(Entity.entity_id == entity_id)
-                .options(selectinload(Entity.device))
+                .options(selectinload(Entity.device)),
             )
             entity = result.scalar_one_or_none()
 
             if entity and entity.device_id:
                 device_result = await self.db.execute(
-                    select(Device).where(Device.device_id == entity.device_id)
+                    select(Device).where(Device.device_id == entity.device_id),
                 )
                 return device_result.scalar_one_or_none()
 
             return None
 
         except Exception as e:
-            logger.error(f"Error getting device for entity {entity_id}: {e}")
+            logger.exception(f"Error getting device for entity {entity_id}: {e}")
             return None
 
     async def get_sibling_entities(self, entity_id: str) -> list[EntityRegistryEntry]:
         """
         Get entities from same device (siblings)
-        
+
         Args:
             entity_id: Entity ID
-            
+
         Returns:
             List of EntityRegistryEntry instances (sibling entities)
         """
@@ -124,7 +124,7 @@ class EntityRegistry:
             result = await self.db.execute(
                 select(Entity)
                 .where(Entity.entity_id == entity_id)
-                .options(selectinload(Entity.device))
+                .options(selectinload(Entity.device)),
             )
             entity = result.scalar_one_or_none()
 
@@ -135,16 +135,16 @@ class EntityRegistry:
             return await self.get_entities_by_device(entity.device_id)
 
         except Exception as e:
-            logger.error(f"Error getting sibling entities for {entity_id}: {e}")
+            logger.exception(f"Error getting sibling entities for {entity_id}: {e}")
             return []
 
     async def get_entities_in_area(self, area_id: str) -> list[EntityRegistryEntry]:
         """
         Get all entities in an area
-        
+
         Args:
             area_id: Area ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -153,7 +153,7 @@ class EntityRegistry:
             result = await self.db.execute(
                 select(Entity)
                 .where(Entity.area_id == area_id)
-                .options(selectinload(Entity.device))
+                .options(selectinload(Entity.device)),
             )
             entities = result.scalars().all()
 
@@ -162,7 +162,7 @@ class EntityRegistry:
             devices = {}
             if device_ids:
                 devices_result = await self.db.execute(
-                    select(Device).where(Device.device_id.in_(device_ids))
+                    select(Device).where(Device.device_id.in_(device_ids)),
                 )
                 for device in devices_result.scalars().all():
                     devices[device.device_id] = device
@@ -192,23 +192,23 @@ class EntityRegistry:
                 entry = EntityRegistryEntry.from_entity_and_device(
                     entity=entity,
                     device=device,
-                    related_entities=related_entities
+                    related_entities=related_entities,
                 )
                 registry_entries.append(entry)
 
             return registry_entries
 
         except Exception as e:
-            logger.error(f"Error getting entities in area {area_id}: {e}")
+            logger.exception(f"Error getting entities in area {area_id}: {e}")
             return []
 
     async def get_entities_by_config_entry(self, config_entry_id: str) -> list[EntityRegistryEntry]:
         """
         Get entities by config entry ID
-        
+
         Args:
             config_entry_id: Config entry ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -217,7 +217,7 @@ class EntityRegistry:
             result = await self.db.execute(
                 select(Entity)
                 .where(Entity.config_entry_id == config_entry_id)
-                .options(selectinload(Entity.device))
+                .options(selectinload(Entity.device)),
             )
             entities = result.scalars().all()
 
@@ -226,7 +226,7 @@ class EntityRegistry:
             devices = {}
             if device_ids:
                 devices_result = await self.db.execute(
-                    select(Device).where(Device.device_id.in_(device_ids))
+                    select(Device).where(Device.device_id.in_(device_ids)),
                 )
                 for device in devices_result.scalars().all():
                     devices[device.device_id] = device
@@ -256,88 +256,88 @@ class EntityRegistry:
                 entry = EntityRegistryEntry.from_entity_and_device(
                     entity=entity,
                     device=device,
-                    related_entities=related_entities
+                    related_entities=related_entities,
                 )
                 registry_entries.append(entry)
 
             return registry_entries
 
         except Exception as e:
-            logger.error(f"Error getting entities by config entry {config_entry_id}: {e}")
+            logger.exception(f"Error getting entities by config entry {config_entry_id}: {e}")
             return []
 
     async def get_device_hierarchy(self, device_id: str) -> dict[str, Any]:
         """
         Get device hierarchy (via_device relationships)
-        
+
         Args:
             device_id: Device ID
-            
+
         Returns:
             Dictionary with device hierarchy information
         """
         try:
             # Get the device
             result = await self.db.execute(
-                select(Device).where(Device.device_id == device_id)
+                select(Device).where(Device.device_id == device_id),
             )
             device = result.scalar_one_or_none()
 
             if not device:
                 return {
-                    'device_id': device_id,
-                    'device': None,
-                    'parent_device': None,
-                    'child_devices': []
+                    "device_id": device_id,
+                    "device": None,
+                    "parent_device": None,
+                    "child_devices": [],
                 }
 
             # Get parent device (via via_device)
             parent_device = None
             if device.via_device:
                 parent_result = await self.db.execute(
-                    select(Device).where(Device.device_id == device.via_device)
+                    select(Device).where(Device.device_id == device.via_device),
                 )
                 parent_device = parent_result.scalar_one_or_none()
 
             # Get child devices (devices that have this device as via_device)
             child_result = await self.db.execute(
-                select(Device).where(Device.via_device == device_id)
+                select(Device).where(Device.via_device == device_id),
             )
             child_devices = child_result.scalars().all()
 
             return {
-                'device_id': device_id,
-                'device': {
-                    'device_id': device.device_id,
-                    'name': device.name,
-                    'manufacturer': device.manufacturer,
-                    'model': device.model,
-                    'via_device': device.via_device,
-                    'config_entry_id': device.config_entry_id
+                "device_id": device_id,
+                "device": {
+                    "device_id": device.device_id,
+                    "name": device.name,
+                    "manufacturer": device.manufacturer,
+                    "model": device.model,
+                    "via_device": device.via_device,
+                    "config_entry_id": device.config_entry_id,
                 },
-                'parent_device': {
-                    'device_id': parent_device.device_id,
-                    'name': parent_device.name,
-                    'manufacturer': parent_device.manufacturer,
-                    'model': parent_device.model
+                "parent_device": {
+                    "device_id": parent_device.device_id,
+                    "name": parent_device.name,
+                    "manufacturer": parent_device.manufacturer,
+                    "model": parent_device.model,
                 } if parent_device else None,
-                'child_devices': [
+                "child_devices": [
                     {
-                        'device_id': child.device_id,
-                        'name': child.name,
-                        'manufacturer': child.manufacturer,
-                        'model': child.model
+                        "device_id": child.device_id,
+                        "name": child.name,
+                        "manufacturer": child.manufacturer,
+                        "model": child.model,
                     }
                     for child in child_devices
-                ]
+                ],
             }
 
         except Exception as e:
-            logger.error(f"Error getting device hierarchy for {device_id}: {e}")
+            logger.exception(f"Error getting device hierarchy for {device_id}: {e}")
             return {
-                'device_id': device_id,
-                'device': None,
-                'parent_device': None,
-                'child_devices': []
+                "device_id": device_id,
+                "device": None,
+                "parent_device": None,
+                "child_devices": [],
             }
 

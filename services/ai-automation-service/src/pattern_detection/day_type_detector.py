@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class DayTypeDetector(MLPatternDetector):
     """
     Detects day type patterns (weekday vs weekend).
-    
+
     Analyzes patterns based on:
     - Weekday vs weekend behavior differences
     - Holiday pattern detection
@@ -34,11 +34,11 @@ class DayTypeDetector(MLPatternDetector):
         holiday_detection: bool = True,
         work_hours: tuple[int, int] = (9, 17),
         aggregate_client=None,  # Story AI5.6: Weekly aggregation
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize day type detector.
-        
+
         Args:
             min_day_type_occurrences: Minimum occurrences for valid day type patterns
             holiday_detection: Whether to detect holiday patterns
@@ -57,10 +57,10 @@ class DayTypeDetector(MLPatternDetector):
     def detect_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect day type patterns in events.
-        
+
         Args:
             events_df: Events DataFrame with time, entity_id, state columns
-            
+
         Returns:
             List of day type pattern dictionaries
         """
@@ -105,8 +105,8 @@ class DayTypeDetector(MLPatternDetector):
 
         # Update statistics
         processing_time = (datetime.utcnow() - start_time).total_seconds()
-        self.detection_stats['total_patterns'] += len(patterns)
-        self.detection_stats['processing_time'] += processing_time
+        self.detection_stats["total_patterns"] += len(patterns)
+        self.detection_stats["processing_time"] += processing_time
 
         logger.info(f"Detected {len(patterns)} day type patterns in {processing_time:.2f}s")
         return patterns
@@ -114,47 +114,47 @@ class DayTypeDetector(MLPatternDetector):
     def _store_weekly_aggregates(self, patterns: list[dict], events_df: pd.DataFrame) -> None:
         """
         Store weekly aggregates to InfluxDB.
-        
+
         Story AI5.6: Incremental pattern processing with weekly aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events_df: Original events DataFrame
         """
         try:
             # Get week identifier from events
-            if events_df.empty or 'time' not in events_df.columns:
+            if events_df.empty or "time" not in events_df.columns:
                 logger.warning("Cannot determine week from events for aggregate storage")
                 return
 
             # Use ISO week format (YYYY-WW)
-            first_date = pd.to_datetime(events_df['time'].min())
-            week_str = first_date.strftime('%Y-W%V')
+            first_date = pd.to_datetime(events_df["time"].min())
+            week_str = first_date.strftime("%Y-W%V")
 
             logger.info(f"Storing weekly aggregates for {week_str}")
 
             for pattern in patterns:
                 # Extract day type from pattern
-                day_type = pattern.get('metadata', {}).get('day_type', 'unknown')
-                if 'weekday' in str(day_type).lower():
-                    day_type = 'weekday'
-                elif 'weekend' in str(day_type).lower():
-                    day_type = 'weekend'
+                day_type = pattern.get("metadata", {}).get("day_type", "unknown")
+                if "weekday" in str(day_type).lower():
+                    day_type = "weekday"
+                elif "weekend" in str(day_type).lower():
+                    day_type = "weekend"
                 else:
-                    day_type = 'unknown'
+                    day_type = "unknown"
 
                 # Calculate metrics
-                occurrences = pattern.get('occurrences', 0)
+                occurrences = pattern.get("occurrences", 0)
                 avg_events = occurrences / 7.0  # Average per day
 
                 # Extract typical hours from pattern metadata
-                typical_hours = pattern.get('metadata', {}).get('typical_hours', list(range(9, 17)))
+                typical_hours = pattern.get("metadata", {}).get("typical_hours", list(range(9, 17)))
 
                 # Device usage statistics
-                devices = pattern.get('devices', [])
+                devices = pattern.get("devices", [])
                 device_usage = dict.fromkeys(devices, 1)  # Simple count
 
-                confidence = pattern.get('confidence', 0.0)
+                confidence = pattern.get("confidence", 0.0)
 
                 # Store aggregate
                 try:
@@ -164,7 +164,7 @@ class DayTypeDetector(MLPatternDetector):
                         avg_events=avg_events,
                         typical_hours=typical_hours,
                         device_usage=device_usage,
-                        confidence=confidence
+                        confidence=confidence,
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {day_type}: {e}", exc_info=True)
@@ -177,69 +177,68 @@ class DayTypeDetector(MLPatternDetector):
     def _add_day_type_features(self, events_df: pd.DataFrame) -> pd.DataFrame:
         """
         Add day type features to events DataFrame.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             DataFrame with day type features
         """
         df = events_df.copy()
 
         # Basic day type features
-        df['dayofweek'] = df['time'].dt.dayofweek
-        df['is_weekend'] = df['dayofweek'].isin([5, 6]).astype(int)
-        df['is_weekday'] = (df['dayofweek'] < 5).astype(int)
+        df["dayofweek"] = df["time"].dt.dayofweek
+        df["is_weekend"] = df["dayofweek"].isin([5, 6]).astype(int)
+        df["is_weekday"] = (df["dayofweek"] < 5).astype(int)
 
         # Work hours
-        df['is_work_hours'] = (
-            (df['time'].dt.hour >= self.work_hours[0]) &
-            (df['time'].dt.hour < self.work_hours[1]) &
-            (df['is_weekday'] == 1)
+        df["is_work_hours"] = (
+            (df["time"].dt.hour >= self.work_hours[0]) &
+            (df["time"].dt.hour < self.work_hours[1]) &
+            (df["is_weekday"] == 1)
         ).astype(int)
 
         # Day type categories
-        df['day_type'] = df['dayofweek'].map({
-            0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday',
-            5: 'saturday', 6: 'sunday'
+        df["day_type"] = df["dayofweek"].map({
+            0: "monday", 1: "tuesday", 2: "wednesday", 3: "thursday", 4: "friday",
+            5: "saturday", 6: "sunday",
         })
 
         # Work vs non-work
-        df['work_status'] = df.apply(self._classify_work_status, axis=1)
+        df["work_status"] = df.apply(self._classify_work_status, axis=1)
 
         return df
 
     def _classify_work_status(self, row: pd.Series) -> str:
         """
         Classify work status for an event.
-        
+
         Args:
             row: Event row
-            
+
         Returns:
             Work status string
         """
-        if row['is_weekend']:
-            return 'weekend'
-        elif row['is_work_hours']:
-            return 'work_hours'
-        else:
-            return 'non_work_hours'
+        if row["is_weekend"]:
+            return "weekend"
+        if row["is_work_hours"]:
+            return "work_hours"
+        return "non_work_hours"
 
     def _detect_weekday_weekend_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect weekday vs weekend patterns.
-        
+
         Args:
             events_df: Events DataFrame with day type features
-            
+
         Returns:
             List of weekday/weekend patterns
         """
         patterns = []
 
         # Group by day type
-        for day_type, day_events in events_df.groupby('is_weekend'):
+        for day_type, day_events in events_df.groupby("is_weekend"):
             if len(day_events) < self.min_day_type_occurrences:
                 continue
 
@@ -250,27 +249,27 @@ class DayTypeDetector(MLPatternDetector):
             confidence = self._calculate_day_type_confidence(day_type_analysis)
 
             if confidence >= self.min_confidence:
-                pattern_type = 'weekend' if day_type else 'weekday'
-                devices = list(day_events['entity_id'].unique())
+                pattern_type = "weekend" if day_type else "weekday"
+                devices = list(day_events["entity_id"].unique())
 
                 pattern = self._create_pattern_dict(
-                    pattern_type=f'day_type_{pattern_type}',
-                    pattern_id=self._generate_pattern_id(f'day_{pattern_type}'),
+                    pattern_type=f"day_type_{pattern_type}",
+                    pattern_id=self._generate_pattern_id(f"day_{pattern_type}"),
                     confidence=confidence,
                     occurrences=len(day_events),
                     devices=devices,
                     metadata={
-                        'day_type': pattern_type,
-                        'event_count': len(day_events),
-                        'device_count': len(devices),
-                        'avg_events_per_day': day_type_analysis['avg_events_per_day'],
-                        'peak_hour': day_type_analysis['peak_hour'],
-                        'activity_intensity': day_type_analysis['activity_intensity'],
-                        'device_diversity': day_type_analysis['device_diversity'],
-                        'time_distribution': day_type_analysis['time_distribution'],
-                        'first_occurrence': day_events['time'].min().isoformat(),
-                        'last_occurrence': day_events['time'].max().isoformat()
-                    }
+                        "day_type": pattern_type,
+                        "event_count": len(day_events),
+                        "device_count": len(devices),
+                        "avg_events_per_day": day_type_analysis["avg_events_per_day"],
+                        "peak_hour": day_type_analysis["peak_hour"],
+                        "activity_intensity": day_type_analysis["activity_intensity"],
+                        "device_diversity": day_type_analysis["device_diversity"],
+                        "time_distribution": day_type_analysis["time_distribution"],
+                        "first_occurrence": day_events["time"].min().isoformat(),
+                        "last_occurrence": day_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -279,17 +278,17 @@ class DayTypeDetector(MLPatternDetector):
     def _detect_work_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect work vs non-work patterns.
-        
+
         Args:
             events_df: Events DataFrame with work features
-            
+
         Returns:
             List of work patterns
         """
         patterns = []
 
         # Group by work status
-        for work_status, work_events in events_df.groupby('work_status'):
+        for work_status, work_events in events_df.groupby("work_status"):
             if len(work_events) < self.min_day_type_occurrences:
                 continue
 
@@ -300,26 +299,26 @@ class DayTypeDetector(MLPatternDetector):
             confidence = self._calculate_work_confidence(work_analysis)
 
             if confidence >= self.min_confidence:
-                devices = list(work_events['entity_id'].unique())
+                devices = list(work_events["entity_id"].unique())
 
                 pattern = self._create_pattern_dict(
-                    pattern_type=f'work_{work_status}',
-                    pattern_id=self._generate_pattern_id(f'work_{work_status}'),
+                    pattern_type=f"work_{work_status}",
+                    pattern_id=self._generate_pattern_id(f"work_{work_status}"),
                     confidence=confidence,
                     occurrences=len(work_events),
                     devices=devices,
                     metadata={
-                        'work_status': work_status,
-                        'event_count': len(work_events),
-                        'device_count': len(devices),
-                        'avg_events_per_day': work_analysis['avg_events_per_day'],
-                        'peak_hour': work_analysis['peak_hour'],
-                        'activity_intensity': work_analysis['activity_intensity'],
-                        'work_efficiency': work_analysis['work_efficiency'],
-                        'time_distribution': work_analysis['time_distribution'],
-                        'first_occurrence': work_events['time'].min().isoformat(),
-                        'last_occurrence': work_events['time'].max().isoformat()
-                    }
+                        "work_status": work_status,
+                        "event_count": len(work_events),
+                        "device_count": len(devices),
+                        "avg_events_per_day": work_analysis["avg_events_per_day"],
+                        "peak_hour": work_analysis["peak_hour"],
+                        "activity_intensity": work_analysis["activity_intensity"],
+                        "work_efficiency": work_analysis["work_efficiency"],
+                        "time_distribution": work_analysis["time_distribution"],
+                        "first_occurrence": work_events["time"].min().isoformat(),
+                        "last_occurrence": work_events["time"].max().isoformat(),
+                    },
                 )
                 patterns.append(pattern)
 
@@ -328,10 +327,10 @@ class DayTypeDetector(MLPatternDetector):
     def _detect_holiday_patterns(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect holiday patterns.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of holiday patterns
         """
@@ -341,34 +340,34 @@ class DayTypeDetector(MLPatternDetector):
         # This is a basic implementation - could be enhanced with actual holiday data
 
         # Group by date and analyze daily patterns
-        events_df['date'] = events_df['time'].dt.date
-        daily_stats = events_df.groupby('date').agg({
-            'entity_id': 'count',
-            'time': ['min', 'max']
+        events_df["date"] = events_df["time"].dt.date
+        daily_stats = events_df.groupby("date").agg({
+            "entity_id": "count",
+            "time": ["min", "max"],
         }).reset_index()
 
-        daily_stats.columns = ['date', 'event_count', 'first_event', 'last_event']
-        daily_stats['dayofweek'] = pd.to_datetime(daily_stats['date']).dt.dayofweek
-        daily_stats['is_weekend'] = daily_stats['dayofweek'].isin([5, 6])
+        daily_stats.columns = ["date", "event_count", "first_event", "last_event"]
+        daily_stats["dayofweek"] = pd.to_datetime(daily_stats["date"]).dt.dayofweek
+        daily_stats["is_weekend"] = daily_stats["dayofweek"].isin([5, 6])
 
         # Find unusual activity days (potential holidays)
         for is_weekend in [True, False]:
-            subset = daily_stats[daily_stats['is_weekend'] == is_weekend]
+            subset = daily_stats[daily_stats["is_weekend"] == is_weekend]
 
             if len(subset) < 3:
                 continue
 
             # Calculate activity statistics
-            mean_activity = subset['event_count'].mean()
-            std_activity = subset['event_count'].std()
+            mean_activity = subset["event_count"].mean()
+            std_activity = subset["event_count"].std()
 
             # Find unusual days (2+ standard deviations from mean)
             threshold = mean_activity + 2 * std_activity
-            unusual_days = subset[subset['event_count'] > threshold]
+            unusual_days = subset[subset["event_count"] > threshold]
 
             if len(unusual_days) >= 2:  # Need at least 2 unusual days
                 # Analyze unusual day patterns
-                unusual_events = events_df[events_df['date'].isin(unusual_days['date'])]
+                unusual_events = events_df[events_df["date"].isin(unusual_days["date"])]
 
                 if len(unusual_events) >= self.min_day_type_occurrences:
                     holiday_analysis = self._analyze_holiday_characteristics(unusual_events, is_weekend)
@@ -376,8 +375,8 @@ class DayTypeDetector(MLPatternDetector):
                     confidence = self._calculate_holiday_confidence(holiday_analysis)
 
                     if confidence >= self.min_confidence:
-                        pattern_type = 'holiday_weekend' if is_weekend else 'holiday_weekday'
-                        devices = list(unusual_events['entity_id'].unique())
+                        pattern_type = "holiday_weekend" if is_weekend else "holiday_weekday"
+                        devices = list(unusual_events["entity_id"].unique())
 
                         pattern = self._create_pattern_dict(
                             pattern_type=pattern_type,
@@ -386,15 +385,15 @@ class DayTypeDetector(MLPatternDetector):
                             occurrences=len(unusual_events),
                             devices=devices,
                             metadata={
-                                'pattern_type': pattern_type,
-                                'unusual_days': len(unusual_days),
-                                'avg_activity_increase': holiday_analysis['activity_increase'],
-                                'device_count': len(devices),
-                                'peak_hour': holiday_analysis['peak_hour'],
-                                'activity_intensity': holiday_analysis['activity_intensity'],
-                                'first_occurrence': unusual_events['time'].min().isoformat(),
-                                'last_occurrence': unusual_events['time'].max().isoformat()
-                            }
+                                "pattern_type": pattern_type,
+                                "unusual_days": len(unusual_days),
+                                "avg_activity_increase": holiday_analysis["activity_increase"],
+                                "device_count": len(devices),
+                                "peak_hour": holiday_analysis["peak_hour"],
+                                "activity_intensity": holiday_analysis["activity_intensity"],
+                                "first_occurrence": unusual_events["time"].min().isoformat(),
+                                "last_occurrence": unusual_events["time"].max().isoformat(),
+                            },
                         )
                         patterns.append(pattern)
 
@@ -403,10 +402,10 @@ class DayTypeDetector(MLPatternDetector):
     def _detect_day_type_clusters(self, events_df: pd.DataFrame) -> list[dict]:
         """
         Detect day type clusters using ML clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             List of day type cluster patterns
         """
@@ -438,24 +437,24 @@ class DayTypeDetector(MLPatternDetector):
                     continue
 
                 cluster_confidence = self._calculate_cluster_confidence(
-                    cluster_days, cluster_id, kmeans
+                    cluster_days, cluster_id, kmeans,
                 )
 
                 if cluster_confidence >= self.min_confidence:
                     pattern = self._create_pattern_dict(
-                        pattern_type='day_type_cluster',
-                        pattern_id=self._generate_pattern_id('day_cluster'),
+                        pattern_type="day_type_cluster",
+                        pattern_id=self._generate_pattern_id("day_cluster"),
                         confidence=cluster_confidence,
                         occurrences=len(cluster_days),
                         devices=[],  # Will be filled from cluster data
                         metadata={
-                            'cluster_id': cluster_id,
-                            'cluster_size': len(cluster_days),
-                            'cluster_characteristics': self._describe_day_type_cluster(
-                                cluster_days, cluster_id
+                            "cluster_id": cluster_id,
+                            "cluster_size": len(cluster_days),
+                            "cluster_characteristics": self._describe_day_type_cluster(
+                                cluster_days, cluster_id,
                             ),
-                            'cluster_centroid': kmeans.cluster_centers_[cluster_id].tolist()
-                        }
+                            "cluster_centroid": kmeans.cluster_centers_[cluster_id].tolist(),
+                        },
                     )
                     patterns.append(pattern)
 
@@ -467,28 +466,28 @@ class DayTypeDetector(MLPatternDetector):
     def _analyze_day_type_characteristics(self, day_events: pd.DataFrame, is_weekend: bool) -> dict[str, Any]:
         """
         Analyze day type characteristics.
-        
+
         Args:
             day_events: Events for day type
             is_weekend: Whether this is weekend data
-            
+
         Returns:
             Day type analysis
         """
         # Basic statistics
         event_count = len(day_events)
-        device_count = day_events['entity_id'].nunique()
+        device_count = day_events["entity_id"].nunique()
 
         # Daily statistics
-        daily_events = day_events.groupby(day_events['time'].dt.date).size()
+        daily_events = day_events.groupby(day_events["time"].dt.date).size()
         avg_events_per_day = daily_events.mean()
 
         # Time analysis
-        hourly_counts = day_events['time'].dt.hour.value_counts()
+        hourly_counts = day_events["time"].dt.hour.value_counts()
         peak_hour = hourly_counts.index[0] if len(hourly_counts) > 0 else 0
 
         # Activity intensity (events per hour)
-        time_span_hours = (day_events['time'].max() - day_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (day_events["time"].max() - day_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # Device diversity
@@ -498,46 +497,46 @@ class DayTypeDetector(MLPatternDetector):
         time_distribution = hourly_counts.to_dict()
 
         return {
-            'avg_events_per_day': avg_events_per_day,
-            'peak_hour': peak_hour,
-            'activity_intensity': activity_intensity,
-            'device_diversity': device_diversity,
-            'time_distribution': time_distribution
+            "avg_events_per_day": avg_events_per_day,
+            "peak_hour": peak_hour,
+            "activity_intensity": activity_intensity,
+            "device_diversity": device_diversity,
+            "time_distribution": time_distribution,
         }
 
     def _analyze_work_characteristics(self, work_events: pd.DataFrame, work_status: str) -> dict[str, Any]:
         """
         Analyze work pattern characteristics.
-        
+
         Args:
             work_events: Events for work status
             work_status: Work status string
-            
+
         Returns:
             Work analysis
         """
         # Basic statistics
         event_count = len(work_events)
-        device_count = work_events['entity_id'].nunique()
+        work_events["entity_id"].nunique()
 
         # Daily statistics
-        daily_events = work_events.groupby(work_events['time'].dt.date).size()
+        daily_events = work_events.groupby(work_events["time"].dt.date).size()
         avg_events_per_day = daily_events.mean()
 
         # Time analysis
-        hourly_counts = work_events['time'].dt.hour.value_counts()
+        hourly_counts = work_events["time"].dt.hour.value_counts()
         peak_hour = hourly_counts.index[0] if len(hourly_counts) > 0 else 0
 
         # Activity intensity
-        time_span_hours = (work_events['time'].max() - work_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (work_events["time"].max() - work_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         # Work efficiency (based on activity during work hours)
         work_efficiency = 1.0
-        if work_status == 'work_hours':
+        if work_status == "work_hours":
             # Higher efficiency = more activity during work hours
             work_efficiency = min(activity_intensity / 10.0, 1.0)
-        elif work_status == 'non_work_hours':
+        elif work_status == "non_work_hours":
             # Lower activity during non-work hours = higher efficiency
             work_efficiency = max(0.0, 1.0 - activity_intensity / 5.0)
 
@@ -545,72 +544,72 @@ class DayTypeDetector(MLPatternDetector):
         time_distribution = hourly_counts.to_dict()
 
         return {
-            'avg_events_per_day': avg_events_per_day,
-            'peak_hour': peak_hour,
-            'activity_intensity': activity_intensity,
-            'work_efficiency': work_efficiency,
-            'time_distribution': time_distribution
+            "avg_events_per_day": avg_events_per_day,
+            "peak_hour": peak_hour,
+            "activity_intensity": activity_intensity,
+            "work_efficiency": work_efficiency,
+            "time_distribution": time_distribution,
         }
 
     def _analyze_holiday_characteristics(self, holiday_events: pd.DataFrame, is_weekend: bool) -> dict[str, Any]:
         """
         Analyze holiday pattern characteristics.
-        
+
         Args:
             holiday_events: Events for holiday periods
             is_weekend: Whether this is weekend holiday data
-            
+
         Returns:
             Holiday analysis
         """
         # Basic statistics
         event_count = len(holiday_events)
-        device_count = holiday_events['entity_id'].nunique()
+        holiday_events["entity_id"].nunique()
 
         # Activity increase calculation
         # This would need baseline data for proper calculation
         activity_increase = 1.5  # Placeholder - would calculate from baseline
 
         # Time analysis
-        hourly_counts = holiday_events['time'].dt.hour.value_counts()
+        hourly_counts = holiday_events["time"].dt.hour.value_counts()
         peak_hour = hourly_counts.index[0] if len(hourly_counts) > 0 else 0
 
         # Activity intensity
-        time_span_hours = (holiday_events['time'].max() - holiday_events['time'].min()).total_seconds() / 3600
+        time_span_hours = (holiday_events["time"].max() - holiday_events["time"].min()).total_seconds() / 3600
         activity_intensity = event_count / max(time_span_hours, 1)
 
         return {
-            'activity_increase': activity_increase,
-            'peak_hour': peak_hour,
-            'activity_intensity': activity_intensity
+            "activity_increase": activity_increase,
+            "peak_hour": peak_hour,
+            "activity_intensity": activity_intensity,
         }
 
     def _extract_day_type_features(self, events_df: pd.DataFrame) -> np.ndarray:
         """
         Extract day type features for clustering.
-        
+
         Args:
             events_df: Events DataFrame
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         # Group by date and extract daily features
-        events_df['date'] = events_df['time'].dt.date
+        events_df["date"] = events_df["time"].dt.date
 
-        for date, day_events in events_df.groupby('date'):
+        for _date, day_events in events_df.groupby("date"):
             # Extract daily features
             feature_vector = [
                 len(day_events),  # Event count
-                day_events['entity_id'].nunique(),  # Device count
-                day_events['time'].dt.hour.nunique(),  # Active hours
-                day_events['time'].dt.hour.min(),  # First activity hour
-                day_events['time'].dt.hour.max(),  # Last activity hour
-                day_events['time'].dt.hour.max() - day_events['time'].dt.hour.min(),  # Activity span
-                day_events['is_weekend'].iloc[0],  # Is weekend
-                day_events['is_work_hours'].sum()  # Work hours events
+                day_events["entity_id"].nunique(),  # Device count
+                day_events["time"].dt.hour.nunique(),  # Active hours
+                day_events["time"].dt.hour.min(),  # First activity hour
+                day_events["time"].dt.hour.max(),  # Last activity hour
+                day_events["time"].dt.hour.max() - day_events["time"].dt.hour.min(),  # Activity span
+                day_events["is_weekend"].iloc[0],  # Is weekend
+                day_events["is_work_hours"].sum(),  # Work hours events
             ]
             features.append(feature_vector)
 
@@ -619,21 +618,21 @@ class DayTypeDetector(MLPatternDetector):
     def _calculate_day_type_confidence(self, day_type_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for day type patterns.
-        
+
         Args:
             day_type_analysis: Day type analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity intensity
-        base_confidence = min(day_type_analysis['activity_intensity'] / 5.0, 1.0)
+        base_confidence = min(day_type_analysis["activity_intensity"] / 5.0, 1.0)
 
         # Device diversity bonus
-        diversity_bonus = day_type_analysis['device_diversity'] * 0.2
+        diversity_bonus = day_type_analysis["device_diversity"] * 0.2
 
         # Consistency bonus (based on peak hour consistency)
-        peak_hour = day_type_analysis['peak_hour']
+        peak_hour = day_type_analysis["peak_hour"]
         consistency_bonus = 0.1 if peak_hour in [7, 8, 9, 18, 19, 20] else 0.0  # Common activity hours
 
         total_confidence = base_confidence + diversity_bonus + consistency_bonus
@@ -643,18 +642,18 @@ class DayTypeDetector(MLPatternDetector):
     def _calculate_work_confidence(self, work_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for work patterns.
-        
+
         Args:
             work_analysis: Work analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity intensity
-        base_confidence = min(work_analysis['activity_intensity'] / 3.0, 1.0)
+        base_confidence = min(work_analysis["activity_intensity"] / 3.0, 1.0)
 
         # Work efficiency bonus
-        efficiency_bonus = work_analysis['work_efficiency'] * 0.3
+        efficiency_bonus = work_analysis["work_efficiency"] * 0.3
 
         total_confidence = base_confidence + efficiency_bonus
 
@@ -663,18 +662,18 @@ class DayTypeDetector(MLPatternDetector):
     def _calculate_holiday_confidence(self, holiday_analysis: dict[str, Any]) -> float:
         """
         Calculate confidence for holiday patterns.
-        
+
         Args:
             holiday_analysis: Holiday analysis results
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
         # Base confidence from activity increase
-        base_confidence = min(holiday_analysis['activity_increase'] / 2.0, 1.0)
+        base_confidence = min(holiday_analysis["activity_increase"] / 2.0, 1.0)
 
         # Activity intensity bonus
-        intensity_bonus = min(holiday_analysis['activity_intensity'] / 10.0, 0.3)
+        intensity_bonus = min(holiday_analysis["activity_intensity"] / 10.0, 0.3)
 
         total_confidence = base_confidence + intensity_bonus
 
@@ -683,12 +682,12 @@ class DayTypeDetector(MLPatternDetector):
     def _calculate_cluster_confidence(self, cluster_days: np.ndarray, cluster_id: int, kmeans_model) -> float:
         """
         Calculate confidence for day type clusters.
-        
+
         Args:
             cluster_days: Days in cluster
             cluster_id: Cluster identifier
             kmeans_model: Fitted KMeans model
-            
+
         Returns:
             Confidence score (0.0 to 1.0)
         """
@@ -709,32 +708,32 @@ class DayTypeDetector(MLPatternDetector):
     def _describe_day_type_cluster(self, cluster_days: np.ndarray, cluster_id: int) -> dict[str, Any]:
         """
         Describe day type cluster characteristics.
-        
+
         Args:
             cluster_days: Days in cluster
             cluster_id: Cluster identifier
-            
+
         Returns:
             Cluster characteristics
         """
         return {
-            'cluster_id': cluster_id,
-            'day_count': len(cluster_days),
-            'avg_events_per_day': np.mean(cluster_days[:, 0]) if len(cluster_days) > 0 else 0,
-            'avg_devices_per_day': np.mean(cluster_days[:, 1]) if len(cluster_days) > 0 else 0,
-            'avg_active_hours': np.mean(cluster_days[:, 2]) if len(cluster_days) > 0 else 0,
-            'avg_activity_span': np.mean(cluster_days[:, 5]) if len(cluster_days) > 0 else 0,
-            'weekend_ratio': np.mean(cluster_days[:, 6]) if len(cluster_days) > 0 else 0,
-            'work_hours_ratio': np.mean(cluster_days[:, 7]) if len(cluster_days) > 0 else 0
+            "cluster_id": cluster_id,
+            "day_count": len(cluster_days),
+            "avg_events_per_day": np.mean(cluster_days[:, 0]) if len(cluster_days) > 0 else 0,
+            "avg_devices_per_day": np.mean(cluster_days[:, 1]) if len(cluster_days) > 0 else 0,
+            "avg_active_hours": np.mean(cluster_days[:, 2]) if len(cluster_days) > 0 else 0,
+            "avg_activity_span": np.mean(cluster_days[:, 5]) if len(cluster_days) > 0 else 0,
+            "weekend_ratio": np.mean(cluster_days[:, 6]) if len(cluster_days) > 0 else 0,
+            "work_hours_ratio": np.mean(cluster_days[:, 7]) if len(cluster_days) > 0 else 0,
         }
 
     def _cluster_day_type_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Cluster similar day type patterns using ML.
-        
+
         Args:
             patterns: List of day type patterns
-            
+
         Returns:
             Clustered patterns with cluster information
         """
@@ -758,43 +757,43 @@ class DayTypeDetector(MLPatternDetector):
     def _extract_day_type_pattern_features(self, patterns: list[dict]) -> np.ndarray:
         """
         Extract features for day type pattern clustering.
-        
+
         Args:
             patterns: List of day type patterns
-            
+
         Returns:
             Feature matrix for clustering
         """
         features = []
 
         for pattern in patterns:
-            metadata = pattern['metadata']
+            metadata = pattern["metadata"]
 
             # Extract numerical features
             feature_vector = [
-                pattern['occurrences'],
-                pattern['confidence'],
-                len(pattern['devices']),
-                metadata.get('event_count', 0),
-                metadata.get('device_count', 0),
-                metadata.get('avg_events_per_day', 0),
-                metadata.get('peak_hour', 0),
-                metadata.get('activity_intensity', 0),
-                metadata.get('device_diversity', 0),
-                metadata.get('work_efficiency', 0)
+                pattern["occurrences"],
+                pattern["confidence"],
+                len(pattern["devices"]),
+                metadata.get("event_count", 0),
+                metadata.get("device_count", 0),
+                metadata.get("avg_events_per_day", 0),
+                metadata.get("peak_hour", 0),
+                metadata.get("activity_intensity", 0),
+                metadata.get("device_diversity", 0),
+                metadata.get("work_efficiency", 0),
             ]
 
             # Add pattern type encoding
-            pattern_type = pattern['pattern_type']
+            pattern_type = pattern["pattern_type"]
             type_encoding = {
-                'day_type_weekday': 0,
-                'day_type_weekend': 1,
-                'work_work_hours': 2,
-                'work_non_work_hours': 3,
-                'work_weekend': 4,
-                'holiday_weekday': 5,
-                'holiday_weekend': 6,
-                'day_type_cluster': 7
+                "day_type_weekday": 0,
+                "day_type_weekend": 1,
+                "work_work_hours": 2,
+                "work_non_work_hours": 3,
+                "work_weekend": 4,
+                "holiday_weekday": 5,
+                "holiday_weekend": 6,
+                "day_type_cluster": 7,
             }.get(pattern_type, 0)
             feature_vector.append(type_encoding)
 

@@ -92,11 +92,11 @@ async def shutdown_discovery_service():
 
 @router.get("/status", response_model=DiscoveryStatusResponse)
 async def get_discovery_status(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DiscoveryStatusResponse:
     """
     Get discovery service status.
-    
+
     Returns:
         DiscoveryStatusResponse: Current status of the discovery service
     """
@@ -110,21 +110,21 @@ async def get_discovery_status(
             last_discovery=status.last_discovery.isoformat() if status.last_discovery else None,
             devices_count=status.devices_count,
             areas_count=status.areas_count,
-            errors=status.errors
+            errors=status.errors,
         )
 
     except Exception as e:
-        logger.error(f"❌ Error getting discovery status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting discovery status: {str(e)}")
+        logger.exception(f"❌ Error getting discovery status: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting discovery status: {e!s}")
 
 
 @router.get("/sources", response_model=DiscoverySourcesResponse)
 async def get_discovery_sources(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DiscoverySourcesResponse:
     """
     Get available discovery sources and their status.
-    
+
     Returns:
         DiscoverySourcesResponse: Available discovery sources
     """
@@ -136,30 +136,30 @@ async def get_discovery_sources(
                 "name": "Home Assistant",
                 "type": "websocket",
                 "connected": status.ha_connected,
-                "description": "Device, entity, and area registry discovery via WebSocket API"
+                "description": "Device, entity, and area registry discovery via WebSocket API",
             },
             {
                 "name": "Zigbee2MQTT",
                 "type": "mqtt",
                 "connected": status.mqtt_connected,
-                "description": "Device capabilities and network topology via MQTT bridge"
-            }
+                "description": "Device capabilities and network topology via MQTT bridge",
+            },
         ]
 
         return DiscoverySourcesResponse(sources=sources)
 
     except Exception as e:
-        logger.error(f"❌ Error getting discovery sources: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting discovery sources: {str(e)}")
+        logger.exception(f"❌ Error getting discovery sources: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting discovery sources: {e!s}")
 
 
 @router.post("/refresh")
 async def refresh_discovery(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> dict[str, Any]:
     """
     Force a complete discovery refresh.
-    
+
     Returns:
         Dict[str, Any]: Refresh operation result
     """
@@ -174,33 +174,32 @@ async def refresh_discovery(
                 "status": "success",
                 "message": "Discovery refresh completed",
                 "devices_discovered": status.devices_count,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-        else:
-            return {
-                "status": "error",
-                "message": "Discovery refresh failed",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+        return {
+            "status": "error",
+            "message": "Discovery refresh failed",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
     except Exception as e:
-        logger.error(f"❌ Error during discovery refresh: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during discovery refresh: {str(e)}")
+        logger.exception(f"❌ Error during discovery refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during discovery refresh: {e!s}")
 
 
 @router.get("/devices", response_model=DeviceSummaryResponse)
 async def get_devices_summary(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DeviceSummaryResponse:
     """
     Get summary of discovered devices.
-    
+
     Returns:
         DeviceSummaryResponse: Device discovery summary
     """
     try:
         devices = discovery_service.get_devices()
-        areas = discovery_service.get_areas()
+        discovery_service.get_areas()
 
         # Count devices by integration
         devices_by_integration = {}
@@ -222,28 +221,28 @@ async def get_devices_summary(
             devices_by_integration=devices_by_integration,
             devices_by_area=devices_by_area,
             devices_with_capabilities=devices_with_capabilities,
-            last_updated=datetime.now(timezone.utc).isoformat()
+            last_updated=datetime.now(timezone.utc).isoformat(),
         )
 
     except Exception as e:
-        logger.error(f"❌ Error getting devices summary: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting devices summary: {str(e)}")
+        logger.exception(f"❌ Error getting devices summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting devices summary: {e!s}")
 
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse)
 async def get_device(
     device_id: str,
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DeviceResponse:
     """
     Get specific device by ID.
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         DeviceResponse: Device information
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -266,14 +265,14 @@ async def get_device(
             health_score=device.health_score,
             last_seen=device.last_seen.isoformat() if device.last_seen else None,
             created_at=device.created_at.isoformat(),
-            updated_at=device.updated_at.isoformat()
+            updated_at=device.updated_at.isoformat(),
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting device: {str(e)}")
+        logger.exception(f"❌ Error getting device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting device: {e!s}")
 
 
 @router.get("/devices", response_model=list[DeviceResponse])
@@ -281,16 +280,16 @@ async def get_all_devices(
     area_id: str | None = None,
     integration: str | None = None,
     limit: int = 100,
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[DeviceResponse]:
     """
     Get all discovered devices with optional filtering.
-    
+
     Args:
         area_id: Filter by area ID
         integration: Filter by integration type
         limit: Maximum number of devices to return
-        
+
     Returns:
         List[DeviceResponse]: List of devices
     """
@@ -323,23 +322,23 @@ async def get_all_devices(
                 health_score=device.health_score,
                 last_seen=device.last_seen.isoformat() if device.last_seen else None,
                 created_at=device.created_at.isoformat(),
-                updated_at=device.updated_at.isoformat()
+                updated_at=device.updated_at.isoformat(),
             ))
 
         return device_responses
 
     except Exception as e:
-        logger.error(f"❌ Error getting devices: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting devices: {str(e)}")
+        logger.exception(f"❌ Error getting devices: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting devices: {e!s}")
 
 
 @router.get("/areas")
 async def get_areas(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[dict[str, Any]]:
     """
     Get all discovered areas.
-    
+
     Returns:
         List[Dict[str, Any]]: List of areas
     """
@@ -353,23 +352,23 @@ async def get_areas(
                 "normalized_name": area.normalized_name,
                 "aliases": area.aliases,
                 "created_at": area.created_at.isoformat(),
-                "updated_at": area.updated_at.isoformat()
+                "updated_at": area.updated_at.isoformat(),
             }
             for area in areas
         ]
 
     except Exception as e:
-        logger.error(f"❌ Error getting areas: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting areas: {str(e)}")
+        logger.exception(f"❌ Error getting areas: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting areas: {e!s}")
 
 
 @router.get("/groups")
 async def get_zigbee_groups(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[dict[str, Any]]:
     """
     Get all discovered Zigbee groups.
-    
+
     Returns:
         List[Dict[str, Any]]: List of Zigbee groups
     """
@@ -381,11 +380,11 @@ async def get_zigbee_groups(
                 "id": group.id,
                 "friendly_name": group.friendly_name,
                 "members": group.members,
-                "scenes": group.scenes
+                "scenes": group.scenes,
             }
             for group in groups
         ]
 
     except Exception as e:
-        logger.error(f"❌ Error getting Zigbee groups: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting Zigbee groups: {str(e)}")
+        logger.exception(f"❌ Error getting Zigbee groups: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting Zigbee groups: {e!s}")

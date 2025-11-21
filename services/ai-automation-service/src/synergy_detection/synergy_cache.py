@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DeviceCache:
     """
     Simple in-memory cache with TTL support.
-    
+
     Reuses pattern from device-intelligence-service DeviceCache.
     """
     def __init__(self, max_size: int = 1000, default_ttl: int = 300):
@@ -38,9 +38,8 @@ class DeviceCache:
                     # Move to end (LRU)
                     self.cache.move_to_end(key)
                     return value
-                else:
-                    # Expired, remove it
-                    del self.cache[key]
+                # Expired, remove it
+                del self.cache[key]
             return None
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
@@ -58,7 +57,7 @@ class DeviceCache:
                     self.cache.popitem(last=False)  # Remove oldest
                 return True
             except Exception as e:
-                logger.error(f"Cache set error for key {key}: {e}")
+                logger.exception(f"Cache set error for key {key}: {e}")
                 return False
 
 
@@ -97,7 +96,7 @@ class SynergyCache:
         return {
             "pair_cache_size": len(self._pair_cache.cache),
             "usage_cache_size": len(self._usage_cache.cache),
-            "chain_cache_size": len(self._chain_cache.cache)
+            "chain_cache_size": len(self._chain_cache.cache),
         }
 
     async def clear(self):

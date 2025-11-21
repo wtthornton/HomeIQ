@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
     app_root = Path(__file__).resolve().parents[4]  # Go up to project root
 except Exception:
@@ -49,7 +49,7 @@ class DeviceCache(BaseCache):
     def __init__(self, max_size: int = 1000, default_ttl: int = 300):
         """
         Initialize device cache.
-        
+
         Args:
             max_size: Maximum cache entries
             default_ttl: Default TTL in seconds
@@ -97,7 +97,7 @@ class DeviceCache(BaseCache):
             "evictions": self.stats.evictions,
             "memory_usage": f"{self.stats.size} entries",
             "connected": True,
-            **base_stats  # Include base stats for compatibility
+            **base_stats,  # Include base stats for compatibility
         }
 
     async def get_device(self, device_id: str) -> dict[str, Any] | None:
@@ -149,8 +149,8 @@ class DeviceCache(BaseCache):
         """Invalidate all device-related cache entries."""
         async with self._lock:
             keys_to_delete = []
-            for key in self.cache.keys():
-                if key.startswith("device:") or key.startswith("devices:"):
+            for key in self.cache:
+                if key.startswith(("device:", "devices:")):
                     keys_to_delete.append(key)
 
             for key in keys_to_delete:
@@ -185,7 +185,7 @@ async def start_cache_cleanup_task():
                 if expired_count > 0:
                     logger.debug(f"🧹 Cleaned up {expired_count} expired cache entries")
             except Exception as e:
-                logger.error(f"❌ Cache cleanup error: {e}")
+                logger.exception(f"❌ Cache cleanup error: {e}")
 
     # Start cleanup task
     asyncio.create_task(cleanup_loop())

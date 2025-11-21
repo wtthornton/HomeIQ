@@ -40,7 +40,7 @@ class DetectedComponent:
 class ComponentDetector:
     """
     Detects timing/delay/repeat components in automation descriptions and YAML.
-    
+
     Uses rapidfuzz for fuzzy matching to handle variations like:
     - "wait 30 seconds" vs "delay 30s"
     - "repeat 3 times" vs "loop 3x"
@@ -61,36 +61,36 @@ class ComponentDetector:
         ]
 
         self.repeat_patterns = [
-            r'repeat[:\s]+(\d+)',
-            r'(\d+)\s*times',
-            r'loop[:\s]+(\d+)',
-            r'cycle[:\s]+(\d+)',
+            r"repeat[:\s]+(\d+)",
+            r"(\d+)\s*times",
+            r"loop[:\s]+(\d+)",
+            r"cycle[:\s]+(\d+)",
         ]
 
         self.time_condition_patterns = [
-            r'after[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)',
-            r'before[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)',
-            r'at[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)',
-            r'between[:\s]+(\d{1,2}:?\d{0,2})\s+and\s+(\d{1,2}:?\d{0,2})',
+            r"after[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)",
+            r"before[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)",
+            r"at[:\s]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?)",
+            r"between[:\s]+(\d{1,2}:?\d{0,2})\s+and\s+(\d{1,2}:?\d{0,2})",
         ]
 
         # Fuzzy search keywords
-        self.delay_keywords = ['delay', 'wait', 'for', 'pause', 'sleep', 'hold']
-        self.repeat_keywords = ['repeat', 'loop', 'cycle', 'times', 'iterations']
-        self.time_keywords = ['after', 'before', 'at', 'between', 'sunset', 'sunrise', 'pm', 'am']
+        self.delay_keywords = ["delay", "wait", "for", "pause", "sleep", "hold"]
+        self.repeat_keywords = ["repeat", "loop", "cycle", "times", "iterations"]
+        self.time_keywords = ["after", "before", "at", "between", "sunset", "sunrise", "pm", "am"]
 
     def detect_stripped_components(
         self,
         yaml_content: str,
-        original_description: str
+        original_description: str,
     ) -> list[DetectedComponent]:
         """
         Detect components that were stripped for testing.
-        
+
         Args:
             yaml_content: Generated test YAML (should not have delays/repeats)
             original_description: Original automation description
-            
+
         Returns:
             List of detected components with type, value, and confidence
         """
@@ -120,51 +120,50 @@ class ComponentDetector:
                 return detected
 
             # Detect delays in action blocks
-            actions = yaml_data.get('action', [])
+            actions = yaml_data.get("action", [])
             if isinstance(actions, list):
-                for i, action in enumerate(actions):
+                for _i, action in enumerate(actions):
                     if isinstance(action, dict):
                         # Check for delay
-                        if 'delay' in action:
-                            delay_value = action['delay']
+                        if "delay" in action:
+                            delay_value = action["delay"]
                             detected.append(DetectedComponent(
-                                component_type='delay',
+                                component_type="delay",
                                 original_value=str(delay_value),
-                                detected_from='yaml',
+                                detected_from="yaml",
                                 confidence=1.0,
-                                reason='Found delay in YAML action block'
+                                reason="Found delay in YAML action block",
                             ))
 
                         # Check for repeat
-                        if 'repeat' in action:
-                            repeat_value = action.get('repeat', {})
-                            if isinstance(repeat_value, dict) and 'count' in repeat_value:
-                                count = repeat_value['count']
+                        if "repeat" in action:
+                            repeat_value = action.get("repeat", {})
+                            if isinstance(repeat_value, dict) and "count" in repeat_value:
+                                count = repeat_value["count"]
                                 detected.append(DetectedComponent(
-                                    component_type='repeat',
+                                    component_type="repeat",
                                     original_value=str(count),
-                                    detected_from='yaml',
+                                    detected_from="yaml",
                                     confidence=1.0,
-                                    reason='Found repeat block in YAML'
+                                    reason="Found repeat block in YAML",
                                 ))
 
             # Detect time conditions
-            conditions = yaml_data.get('condition', [])
+            conditions = yaml_data.get("condition", [])
             if isinstance(conditions, list):
                 for condition in conditions:
-                    if isinstance(condition, dict):
-                        if condition.get('condition') == 'time':
-                            after = condition.get('after')
-                            before = condition.get('before')
-                            if after or before:
-                                time_value = f"after={after}" if after else f"before={before}"
-                                detected.append(DetectedComponent(
-                                    component_type='time_condition',
-                                    original_value=time_value,
-                                    detected_from='yaml',
-                                    confidence=1.0,
-                                    reason='Found time condition in YAML'
-                                ))
+                    if isinstance(condition, dict) and condition.get("condition") == "time":
+                        after = condition.get("after")
+                        before = condition.get("before")
+                        if after or before:
+                            time_value = f"after={after}" if after else f"before={before}"
+                            detected.append(DetectedComponent(
+                                component_type="time_condition",
+                                original_value=time_value,
+                                detected_from="yaml",
+                                confidence=1.0,
+                                reason="Found time condition in YAML",
+                            ))
 
         except Exception as e:
             logger.warning(f"Error parsing YAML for component detection: {e}")
@@ -200,11 +199,11 @@ class ComponentDetector:
             for match in matches:
                 value = match.group(0)
                 detected.append(DetectedComponent(
-                    component_type='delay',
+                    component_type="delay",
                     original_value=value,
-                    detected_from='description',
+                    detected_from="description",
                     confidence=0.95,
-                    reason=f'Matched delay pattern: {pattern}'
+                    reason=f"Matched delay pattern: {pattern}",
                 ))
 
         # Fuzzy matching for variations
@@ -219,12 +218,12 @@ class ComponentDetector:
                     context = description_lower[start:end]
 
                     # Check if context contains time references
-                    if re.search(r'\d+\s*(?:second|Using|min|hour|sec)', context):
+                    if re.search(r"\d+\s*(?:second|Using|min|hour|sec)", context):
                         # Calculate fuzzy score with common delay phrases
                         delay_phrases = [
                             f"{keyword} 30 seconds",
                             f"{keyword} for 30 seconds",
-                            f"{keyword} 1 minute"
+                            f"{keyword} 1 minute",
                         ]
 
                         max_score = 0.0
@@ -237,11 +236,11 @@ class ComponentDetector:
 
                         if best_match:
                             detected.append(DetectedComponent(
-                                component_type='delay',
+                                component_type="delay",
                                 original_value=context.strip(),
-                                detected_from='description',
+                                detected_from="description",
                                 confidence=max_score * 0.8,  # Lower confidence for fuzzy
-                                reason=f'Fuzzy matched delay keyword: {keyword}'
+                                reason=f"Fuzzy matched delay keyword: {keyword}",
                             ))
 
         return detected
@@ -257,11 +256,11 @@ class ComponentDetector:
                 value = match.group(0)
                 count = match.group(1) if match.groups() else None
                 detected.append(DetectedComponent(
-                    component_type='repeat',
+                    component_type="repeat",
                     original_value=f"{count} times" if count else value,
-                    detected_from='description',
+                    detected_from="description",
                     confidence=0.95,
-                    reason=f'Matched repeat pattern: {pattern}'
+                    reason=f"Matched repeat pattern: {pattern}",
                 ))
 
         # Fuzzy matching
@@ -271,11 +270,11 @@ class ComponentDetector:
                 if keyword_pos != -1:
                     context = description_lower[max(0, keyword_pos - 5):min(len(description_lower), keyword_pos + 30)]
 
-                    if re.search(r'\d+', context):
+                    if re.search(r"\d+", context):
                         repeat_phrases = [
                             "repeat 3 times",
                             "loop 3 times",
-                            f"{keyword} 3"
+                            f"{keyword} 3",
                         ]
 
                         max_score = 0.0
@@ -286,11 +285,11 @@ class ComponentDetector:
 
                         if max_score > 0.6:
                             detected.append(DetectedComponent(
-                                component_type='repeat',
+                                component_type="repeat",
                                 original_value=context.strip(),
-                                detected_from='description',
+                                detected_from="description",
                                 confidence=max_score * 0.8,
-                                reason=f'Fuzzy matched repeat keyword: {keyword}'
+                                reason=f"Fuzzy matched repeat keyword: {keyword}",
                             ))
 
         return detected
@@ -305,23 +304,23 @@ class ComponentDetector:
             for match in matches:
                 value = match.group(0)
                 detected.append(DetectedComponent(
-                    component_type='time_condition',
+                    component_type="time_condition",
                     original_value=value,
-                    detected_from='description',
+                    detected_from="description",
                     confidence=0.95,
-                    reason=f'Matched time condition pattern: {pattern}'
+                    reason=f"Matched time condition pattern: {pattern}",
                 ))
 
         # Special time references
-        special_times = ['sunset', 'sunrise', 'dawn', 'dusk']
+        special_times = ["sunset", "sunrise", "dawn", "dusk"]
         for time_ref in special_times:
             if time_ref in description_lower:
                 detected.append(DetectedComponent(
-                    component_type='time_condition',
+                    component_type="time_condition",
                     original_value=time_ref,
-                    detected_from='description',
+                    detected_from="description",
                     confidence=0.9,
-                    reason=f'Found special time reference: {time_ref}'
+                    reason=f"Found special time reference: {time_ref}",
                 ))
 
         return detected
@@ -341,7 +340,7 @@ class ComponentDetector:
     def format_components_for_preview(self, components: list[DetectedComponent]) -> list[dict[str, Any]]:
         """
         Format detected components for user-friendly preview.
-        
+
         Returns:
             List of dictionaries with formatted component info
         """
@@ -349,21 +348,21 @@ class ComponentDetector:
 
         for comp in components:
             # Format based on component type
-            if comp.component_type == 'delay':
+            if comp.component_type == "delay":
                 preview = f"Delay: {comp.original_value}"
-            elif comp.component_type == 'repeat':
+            elif comp.component_type == "repeat":
                 preview = f"Repeat: {comp.original_value}"
-            elif comp.component_type == 'time_condition':
+            elif comp.component_type == "time_condition":
                 preview = f"Time condition: {comp.original_value}"
             else:
                 preview = f"{comp.component_type}: {comp.original_value}"
 
             formatted.append({
-                'type': comp.component_type,
-                'preview': preview,
-                'original_value': comp.original_value,
-                'confidence': round(comp.confidence, 2),
-                'reason': comp.reason
+                "type": comp.component_type,
+                "preview": preview,
+                "original_value": comp.original_value,
+                "confidence": round(comp.confidence, 2),
+                "reason": comp.reason,
             })
 
         return formatted

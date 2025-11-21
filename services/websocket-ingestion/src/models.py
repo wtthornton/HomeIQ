@@ -25,15 +25,17 @@ class Device:
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.device_id:
-            raise ValueError("device_id is required")
+            msg = "device_id is required"
+            raise ValueError(msg)
         if not self.name:
-            raise ValueError("name is required")
+            msg = "name is required"
+            raise ValueError(msg)
         return True
 
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert device to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -43,24 +45,24 @@ class Device:
                 "device_id": self.device_id,
                 "manufacturer": self.manufacturer or "Unknown",
                 "model": self.model or "Unknown",
-                "area_id": self.area_id or "unassigned"
+                "area_id": self.area_id or "unassigned",
             },
             "fields": {
                 "name": self.name,
                 "sw_version": self.sw_version or "Unknown",
-                "entity_count": self.entity_count
+                "entity_count": self.entity_count,
             },
-            "time": self.timestamp
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_device(cls, ha_device: dict[str, Any]) -> 'Device':
+    def from_ha_device(cls, ha_device: dict[str, Any]) -> "Device":
         """
         Create Device from Home Assistant device registry entry
-        
+
         Args:
             ha_device: Device dictionary from HA registry
-            
+
         Returns:
             Device instance
         """
@@ -71,7 +73,7 @@ class Device:
             model=ha_device.get("model", "Unknown"),
             sw_version=ha_device.get("sw_version"),
             area_id=ha_device.get("area_id"),
-            entity_count=0  # Will be calculated later
+            entity_count=0,  # Will be calculated later
         )
 
 
@@ -91,13 +93,14 @@ class Entity:
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.entity_id:
-            raise ValueError("entity_id is required")
+            msg = "entity_id is required"
+            raise ValueError(msg)
         return True
 
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert entity to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -108,23 +111,23 @@ class Entity:
                 "device_id": self.device_id or "unknown",
                 "domain": self.domain,
                 "platform": self.platform,
-                "area_id": self.area_id or "unassigned"
+                "area_id": self.area_id or "unassigned",
             },
             "fields": {
                 "unique_id": self.unique_id or "",
-                "disabled": self.disabled
+                "disabled": self.disabled,
             },
-            "time": self.timestamp
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_entity(cls, ha_entity: dict[str, Any]) -> 'Entity':
+    def from_ha_entity(cls, ha_entity: dict[str, Any]) -> "Entity":
         """
         Create Entity from Home Assistant entity registry entry
-        
+
         Args:
             ha_entity: Entity dictionary from HA registry
-            
+
         Returns:
             Entity instance
         """
@@ -138,7 +141,7 @@ class Entity:
             platform=ha_entity.get("platform", "unknown"),
             unique_id=ha_entity.get("unique_id"),
             area_id=ha_entity.get("area_id"),
-            disabled=ha_entity.get("disabled_by") is not None
+            disabled=ha_entity.get("disabled_by") is not None,
         )
 
 
@@ -156,15 +159,17 @@ class ConfigEntry:
     def validate(self) -> bool:
         """Validate required fields"""
         if not self.entry_id:
-            raise ValueError("entry_id is required")
+            msg = "entry_id is required"
+            raise ValueError(msg)
         if not self.domain:
-            raise ValueError("domain is required")
+            msg = "domain is required"
+            raise ValueError(msg)
         return True
 
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert config entry to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -173,23 +178,23 @@ class ConfigEntry:
             "tags": {
                 "entry_id": self.entry_id,
                 "domain": self.domain,
-                "state": self.state
+                "state": self.state,
             },
             "fields": {
                 "title": self.title,
-                "version": self.version
+                "version": self.version,
             },
-            "time": self.timestamp
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> 'ConfigEntry':
+    def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> "ConfigEntry":
         """
         Create ConfigEntry from Home Assistant config entry
-        
+
         Args:
             ha_entry: Config entry dictionary from HA
-            
+
         Returns:
             ConfigEntry instance
         """
@@ -198,6 +203,6 @@ class ConfigEntry:
             domain=ha_entry.get("domain", "unknown"),
             title=ha_entry.get("title", "Unknown Integration"),
             state=ha_entry.get("state", "unknown"),
-            version=ha_entry.get("version", 1)
+            version=ha_entry.get("version", 1),
         )
 

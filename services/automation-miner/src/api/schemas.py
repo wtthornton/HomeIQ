@@ -58,8 +58,8 @@ class AutomationResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00",
                 "updated_at": "2024-10-01T00:00:00",
                 "last_crawled": "2025-10-18T00:00:00",
-                "metadata": {"tags": ["lighting", "motion"], "views": 1500}
-            }
+                "metadata": {"tags": ["lighting", "motion"], "views": 1500},
+            },
         }
 
 
@@ -77,17 +77,17 @@ class SearchResponse(BaseModel):
                         "id": 1,
                         "title": "Motion-activated night lighting",
                         "use_case": "comfort",
-                        "quality_score": 0.85
-                    }
+                        "quality_score": 0.85,
+                    },
                 ],
                 "count": 1,
                 "filters": {
                     "device": "motion_sensor",
                     "use_case": "comfort",
                     "min_quality": 0.7,
-                    "limit": 50
-                }
-            }
+                    "limit": 50,
+                },
+            },
         }
 
 
@@ -116,14 +116,14 @@ class StatsResponse(BaseModel):
                     "energy": 450,
                     "comfort": 890,
                     "security": 780,
-                    "convenience": 423
+                    "convenience": 423,
                 },
                 "by_complexity": {
                     "low": 1200,
                     "medium": 980,
-                    "high": 363
+                    "high": 363,
                 },
-                "last_crawl_time": "2025-10-18T02:00:00"
-            }
+                "last_crawl_time": "2025-10-18T02:00:00",
+            },
         }
 

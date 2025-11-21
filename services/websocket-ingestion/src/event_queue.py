@@ -20,7 +20,7 @@ class EventQueue:
     def __init__(self, maxsize: int = 10000, persistence_path: str | None = None):
         """
         Initialize event queue
-        
+
         Args:
             maxsize: Maximum queue size
             persistence_path: Path for queue persistence (optional)
@@ -59,11 +59,11 @@ class EventQueue:
     async def put(self, event_data: dict[str, Any], priority: int = 0) -> bool:
         """
         Put an event in the queue
-        
+
         Args:
             event_data: Event data to queue
             priority: Event priority (higher = more important)
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -74,7 +74,7 @@ class EventQueue:
             "data": event_data,
             "priority": priority,
             "timestamp": datetime.now().isoformat(),
-            "id": f"{self.total_events_received}_{datetime.now().timestamp()}"
+            "id": f"{self.total_events_received}_{datetime.now().timestamp()}",
         }
 
         try:
@@ -103,7 +103,7 @@ class EventQueue:
     async def get(self) -> dict[str, Any] | None:
         """
         Get an event from the queue
-        
+
         Returns:
             Event data or None if queue is empty
         """
@@ -131,7 +131,7 @@ class EventQueue:
     async def get_nowait(self) -> dict[str, Any] | None:
         """
         Get an event from the queue without waiting
-        
+
         Returns:
             Event data or None if queue is empty
         """
@@ -172,12 +172,12 @@ class EventQueue:
                 f.write(json.dumps(queue_item) + "\n")
 
         except Exception as e:
-            logger.error(f"Error persisting overflow event: {e}")
+            logger.exception(f"Error persisting overflow event: {e}")
 
     async def recover_overflow_events(self) -> int:
         """
         Recover overflow events from persistence files
-        
+
         Returns:
             Number of events recovered
         """
@@ -203,13 +203,13 @@ class EventQueue:
                     filepath.unlink()
 
                 except Exception as e:
-                    logger.error(f"Error recovering from {filepath}: {e}")
+                    logger.exception(f"Error recovering from {filepath}: {e}")
 
             if recovered_count > 0:
                 logger.info(f"Recovered {recovered_count} overflow events")
 
         except Exception as e:
-            logger.error(f"Error recovering overflow events: {e}")
+            logger.exception(f"Error recovering overflow events: {e}")
 
         return recovered_count
 
@@ -243,7 +243,7 @@ class EventQueue:
             "average_queue_size": round(avg_queue_size, 2),
             "last_processing_time": self.last_processing_time.isoformat() if self.last_processing_time else None,
             "persistence_enabled": self.persistence_path is not None,
-            "persistence_path": self.persistence_path
+            "persistence_path": self.persistence_path,
         }
 
     def get_health_status(self) -> dict[str, Any]:
@@ -266,13 +266,14 @@ class EventQueue:
             "overflow_size": overflow_size,
             "utilization_percent": round((current_size / self.maxsize) * 100, 2),
             "last_health_check": self.last_health_check.isoformat(),
-            "persistence_enabled": self.persistence_path is not None
+            "persistence_enabled": self.persistence_path is not None,
         }
 
     def configure_maxsize(self, maxsize: int):
         """Configure maximum queue size"""
         if maxsize <= 0:
-            raise ValueError("maxsize must be positive")
+            msg = "maxsize must be positive"
+            raise ValueError(msg)
 
         self.maxsize = maxsize
         logger.info(f"Updated queue maxsize to {maxsize}")

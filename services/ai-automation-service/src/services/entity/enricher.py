@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class EntityEnricher:
     """
     Unified entity enricher that consolidates all enrichment methods.
-    
+
     Enriches entities with comprehensive data from all available sources:
     - Device Intelligence (capabilities, health, manufacturer, model)
     - Entity Attributes (friendly_name, state, attributes)
@@ -36,11 +36,11 @@ class EntityEnricher:
         self,
         ha_client: HomeAssistantClient | None = None,
         device_intelligence_client: DeviceIntelligenceClient | None = None,
-        data_api_client: DataAPIClient | None = None
+        data_api_client: DataAPIClient | None = None,
     ):
         """
         Initialize unified entity enricher.
-        
+
         Args:
             ha_client: Home Assistant client
             device_intelligence_client: Device Intelligence client
@@ -56,16 +56,16 @@ class EntityEnricher:
         self,
         entity_ids: list[str],
         include_historical: bool = False,
-        enrichment_context: dict[str, Any] | None = None
+        enrichment_context: dict[str, Any] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """
         Enrich entities with comprehensive data.
-        
+
         Args:
             entity_ids: List of entity IDs to enrich
             include_historical: Whether to include historical usage patterns
             enrichment_context: Optional enrichment data (weather, carbon, etc.)
-        
+
         Returns:
             Dictionary mapping entity_id to enriched data
         """
@@ -80,7 +80,7 @@ class EntityEnricher:
                 device_intelligence_client=self.device_intelligence_client,
                 data_api_client=self.data_api_client,
                 include_historical=include_historical,
-                enrichment_context=enrichment_context
+                enrichment_context=enrichment_context,
             )
 
             logger.info(f"✅ Enriched {len(enriched)}/{len(entity_ids)} entities")

@@ -56,7 +56,8 @@ class CodeValidator:
     def validate(self, code: str) -> None:
         """Validate code string raises CodeValidationError when unsafe."""
         if not code or not code.strip():
-            raise CodeValidationError("Code payload is empty")
+            msg = "Code payload is empty"
+            raise CodeValidationError(msg)
 
         self._enforce_size_limit(code)
         tree = self._parse_ast(code)
@@ -67,21 +68,24 @@ class CodeValidator:
     def _enforce_size_limit(self, code: str) -> None:
         byte_len = len(code.encode("utf-8"))
         if byte_len > self.config.max_bytes:
+            msg = f"Code payload is {byte_len} bytes; limit is {self.config.max_bytes} bytes"
             raise CodeValidationError(
-                f"Code payload is {byte_len} bytes; limit is {self.config.max_bytes} bytes"
+                msg,
             )
 
     def _parse_ast(self, code: str) -> ast.AST:
         try:
             return ast.parse(code, mode="exec", type_comments=True)
         except SyntaxError as exc:
-            raise CodeValidationError(f"Code failed to parse: {exc.msg}") from exc
+            msg = f"Code failed to parse: {exc.msg}"
+            raise CodeValidationError(msg) from exc
 
     def _enforce_node_limit(self, tree: ast.AST) -> None:
         node_count = sum(1 for _ in ast.walk(tree))
         if node_count > self.config.max_ast_nodes:
+            msg = f"Code is too complex ({node_count} AST nodes); limit is {self.config.max_ast_nodes}"
             raise CodeValidationError(
-                f"Code is too complex ({node_count} AST nodes); limit is {self.config.max_ast_nodes}"
+                msg,
             )
 
     def _enforce_import_whitelist(self, tree: ast.AST) -> None:
@@ -92,17 +96,22 @@ class CodeValidator:
                 for alias in node.names:
                     root = alias.name.split(".")[0]
                     if root not in allowed:
-                        raise CodeValidationError(f"Import of '{root}' is not permitted")
+                        msg = f"Import of '{root}' is not permitted"
+                        raise CodeValidationError(msg)
             elif isinstance(node, ast.ImportFrom):
                 if node.level and node.level > 0:
-                    raise CodeValidationError("Relative imports are not permitted")
+                    msg = "Relative imports are not permitted"
+                    raise CodeValidationError(msg)
                 module = (node.module or "").split(".")[0]
                 if module and module not in allowed:
-                    raise CodeValidationError(f"Import of '{module}' is not permitted")
+                    msg = f"Import of '{module}' is not permitted"
+                    raise CodeValidationError(msg)
 
     def _enforce_forbidden_names(self, tree: ast.AST) -> None:
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
-                raise CodeValidationError(f"Use of '{node.id}' is not allowed in sandbox")
+                msg = f"Use of '{node.id}' is not allowed in sandbox"
+                raise CodeValidationError(msg)
             if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_NAMES:
-                raise CodeValidationError(f"Attribute '{node.attr}' is not allowed in sandbox")
+                msg = f"Attribute '{node.attr}' is not allowed in sandbox"
+                raise CodeValidationError(msg)

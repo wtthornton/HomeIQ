@@ -77,7 +77,7 @@ class ClarificationAnswer:
 class ClarificationSession:
     """
     Multi-round clarification conversation.
-    
+
     Uses 2025 best practices: dataclass for type-safe structure.
     """
     session_id: str

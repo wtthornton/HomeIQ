@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 # Fix Windows encoding
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Database path
 db_path = Path(__file__).parent.parent / "data" / "ai_automation.db"
@@ -27,7 +27,7 @@ cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sema
 if cursor.fetchone():
     print("✅ Table 'semantic_knowledge' already exists")
     conn.close()
-    exit(0)
+    sys.exit(0)
 
 print("Creating semantic_knowledge table...")
 
@@ -61,7 +61,7 @@ if cursor.fetchone():
 else:
     print("❌ Failed to create table")
     conn.close()
-    exit(1)
+    sys.exit(1)
 
 # Show table structure
 cursor.execute("PRAGMA table_info(semantic_knowledge)")

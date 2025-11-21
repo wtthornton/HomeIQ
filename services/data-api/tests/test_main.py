@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from main import DataAPIService, app, data_api_service
 
@@ -24,8 +24,8 @@ class TestDataAPIService:
         service = DataAPIService()
 
         assert service.api_port == 8006
-        assert service.api_title == 'Data API - Feature Data Hub'
-        assert service.api_version == '1.0.0'
+        assert service.api_title == "Data API - Feature Data Hub"
+        assert service.api_version == "1.0.0"
         assert service.is_running is False
         assert service.auth_manager is not None
         assert service.influxdb_client is not None
@@ -35,7 +35,7 @@ class TestDataAPIService:
         """Test service startup"""
         service = DataAPIService()
 
-        with patch.object(service.influxdb_client, 'connect', return_value=True):
+        with patch.object(service.influxdb_client, "connect", return_value=True):
             await service.startup()
 
             assert service.is_running is True
@@ -45,7 +45,7 @@ class TestDataAPIService:
         """Test service startup with InfluxDB connection failure"""
         service = DataAPIService()
 
-        with patch.object(service.influxdb_client, 'connect', return_value=False):
+        with patch.object(service.influxdb_client, "connect", return_value=False):
             await service.startup()
 
             # Service should still start even if InfluxDB fails
@@ -57,7 +57,7 @@ class TestDataAPIService:
         service = DataAPIService()
         service.is_running = True
 
-        with patch.object(service.influxdb_client, 'close', new_callable=AsyncMock):
+        with patch.object(service.influxdb_client, "close", new_callable=AsyncMock):
             await service.shutdown()
 
             assert service.is_running is False
@@ -120,7 +120,7 @@ class TestInfluxDBIntegration:
         """Test successful InfluxDB connection"""
         service = DataAPIService()
 
-        with patch.object(service.influxdb_client, 'connect', return_value=True):
+        with patch.object(service.influxdb_client, "connect", return_value=True):
             await service.startup()
 
             status = service.influxdb_client.get_connection_status()
@@ -133,7 +133,7 @@ class TestInfluxDBIntegration:
         """Test InfluxDB connection failure handling"""
         service = DataAPIService()
 
-        with patch.object(service.influxdb_client, 'connect', side_effect=Exception("Connection failed")):
+        with patch.object(service.influxdb_client, "connect", side_effect=Exception("Connection failed")):
             await service.startup()
 
             # Service should start despite InfluxDB failure
@@ -171,7 +171,8 @@ class TestErrorHandling:
         # Create endpoint that raises exception
         @app.get("/test/error")
         async def error_endpoint():
-            raise ValueError("Test error")
+            msg = "Test error"
+            raise ValueError(msg)
 
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.get("/test/error")

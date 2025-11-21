@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 def generate_json_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
     """
     Generate JSON diff between two automation plans.
-    
+
     Args:
         old: Original automation plan
         new: New automation plan
-        
+
     Returns:
         Dict with added, removed, and modified fields
     """
     diff = {
         "added": {},
         "removed": {},
-        "modified": {}
+        "modified": {},
     }
 
     # Compare recursively
@@ -37,11 +37,11 @@ def generate_json_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, An
 def generate_yaml_diff(old_yaml: str, new_yaml: str) -> dict[str, Any]:
     """
     Generate diff between two YAML strings.
-    
+
     Args:
         old_yaml: Original YAML
         new_yaml: New YAML
-        
+
     Returns:
         Dict with diff information
     """
@@ -50,12 +50,12 @@ def generate_yaml_diff(old_yaml: str, new_yaml: str) -> dict[str, Any]:
         new_dict = yaml.safe_load(new_yaml) or {}
         return generate_json_diff(old_dict, new_dict)
     except Exception as e:
-        logger.error(f"Failed to generate YAML diff: {e}")
+        logger.exception(f"Failed to generate YAML diff: {e}")
         return {
             "added": {},
             "removed": {},
             "modified": {},
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -83,7 +83,7 @@ def _compare_dicts(old: dict[str, Any], new: dict[str, Any], diff: dict[str, Any
             elif old_val != new_val:
                 _set_nested_value(diff["modified"], full_path, {
                     "old": old_val,
-                    "new": new_val
+                    "new": new_val,
                 })
 
 
@@ -93,11 +93,11 @@ def _compare_lists(old: list[Any], new: list[Any], diff: dict[str, Any], path: s
         _set_nested_value(diff["modified"], path, {
             "old": old,
             "new": new,
-            "type": "list_length_change"
+            "type": "list_length_change",
         })
     else:
         # Compare elements
-        for i, (old_item, new_item) in enumerate(zip(old, new)):
+        for i, (old_item, new_item) in enumerate(zip(old, new, strict=False)):
             if old_item != new_item:
                 item_path = f"{path}[{i}]"
                 if isinstance(old_item, dict) and isinstance(new_item, dict):
@@ -105,7 +105,7 @@ def _compare_lists(old: list[Any], new: list[Any], diff: dict[str, Any], path: s
                 else:
                     _set_nested_value(diff["modified"], item_path, {
                         "old": old_item,
-                        "new": new_item
+                        "new": new_item,
                     })
 
 
@@ -123,10 +123,10 @@ def _set_nested_value(d: dict[str, Any], path: str, value: Any):
 def format_diff_for_display(diff: dict[str, Any]) -> str:
     """
     Format diff for human-readable display.
-    
+
     Args:
         diff: Diff dict from generate_json_diff
-        
+
     Returns:
         Human-readable diff string
     """

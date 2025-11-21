@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from src.influxdb_client import AdminAPIInfluxDBClient
 
@@ -62,8 +62,8 @@ async def test_period_to_seconds():
 async def test_connection_failure_handling():
     """Test that connection failures are handled gracefully"""
     with patch.dict(os.environ, {
-        'INFLUXDB_URL': 'http://invalid-host:8086',
-        'INFLUXDB_TOKEN': 'fake-token'
+        "INFLUXDB_URL": "http://invalid-host:8086",
+        "INFLUXDB_TOKEN": "fake-token",
     }):
         client = AdminAPIInfluxDBClient()
 
@@ -100,8 +100,8 @@ async def test_close_without_connection():
 
 
 @pytest.mark.asyncio
-@patch('src.influxdb_client.AdminAPIInfluxDBClient._test_connection')
-@patch('src.influxdb_client.InfluxDBClient')
+@patch("src.influxdb_client.AdminAPIInfluxDBClient._test_connection")
+@patch("src.influxdb_client.InfluxDBClient")
 async def test_successful_connection(mock_client_class, mock_test_connection):
     """Test successful connection flow"""
     # Mock the InfluxDB client
@@ -113,7 +113,7 @@ async def test_successful_connection(mock_client_class, mock_test_connection):
 
     # Mock query_api
     client.client = mock_client
-    result = await client.connect()
+    await client.connect()
 
     # Should succeed but will fail due to missing query_api in mock
     # This is a simple test, just verify it tried to connect

@@ -12,13 +12,13 @@ import aiohttp
 async def register_watttime(username: str, password: str, email: str, org: str):
     """
     Register a new WattTime account
-    
+
     Args:
         username: Desired username (must be unique)
         password: Strong password
         email: Valid email address
         org: Organization name
-        
+
     Returns:
         bool: True if registration successful
     """
@@ -29,7 +29,7 @@ async def register_watttime(username: str, password: str, email: str, org: str):
         "username": username,
         "password": password,
         "email": email,
-        "org": org
+        "org": org,
     }
 
     print("\n🔐 Registering WattTime Account")
@@ -40,48 +40,46 @@ async def register_watttime(username: str, password: str, email: str, org: str):
     print()
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data) as response:
-                response_text = await response.text()
+        async with aiohttp.ClientSession() as session, session.post(url, json=data) as response:
+            response_text = await response.text()
 
-                if response.status == 200 or response.status == 201:
-                    print("✅ Registration Successful!")
-                    print(f"   Response: {response_text}")
+            if response.status in {200, 201}:
+                print("✅ Registration Successful!")
+                print(f"   Response: {response_text}")
+                print()
+                print("📧 Check your email for verification (if required)")
+                print()
+                print("🔑 Testing login with new credentials...")
+
+                # Test login immediately
+                login_success = await test_login(username, password)
+
+                if login_success:
+                    print("✅ Login test successful! Your credentials work.")
                     print()
-                    print("📧 Check your email for verification (if required)")
-                    print()
-                    print("🔑 Testing login with new credentials...")
-
-                    # Test login immediately
-                    login_success = await test_login(username, password)
-
-                    if login_success:
-                        print("✅ Login test successful! Your credentials work.")
-                        print()
-                        print("📝 Add to your .env file:")
-                        print(f"   WATTTIME_USERNAME={username}")
-                        print("   WATTTIME_PASSWORD=your_password")
-                    else:
-                        print("⚠️  Registration succeeded but login test failed.")
-                        print("   You may need to verify your email first.")
-
-                    return True
-
-                elif response.status == 400:
-                    print("❌ Registration Failed (400 Bad Request)")
-                    print(f"   Response: {response_text}")
-                    print()
-                    print("💡 Common Issues:")
-                    print("   - Username already taken")
-                    print("   - Invalid email format")
-                    print("   - Password too weak")
-                    print("   - Missing required fields")
-                    return False
-
+                    print("📝 Add to your .env file:")
+                    print(f"   WATTTIME_USERNAME={username}")
+                    print("   WATTTIME_PASSWORD=your_password")
                 else:
-                    print(f"❌ Registration Failed (HTTP {response.status})")
-                    print(f"   Response: {response_text}")
-                    return False
+                    print("⚠️  Registration succeeded but login test failed.")
+                    print("   You may need to verify your email first.")
+
+                return True
+
+            if response.status == 400:
+                print("❌ Registration Failed (400 Bad Request)")
+                print(f"   Response: {response_text}")
+                print()
+                print("💡 Common Issues:")
+                print("   - Username already taken")
+                print("   - Invalid email format")
+                print("   - Password too weak")
+                print("   - Missing required fields")
+                return False
+
+            print(f"❌ Registration Failed (HTTP {response.status})")
+            print(f"   Response: {response_text}")
+            return False
 
     except Exception as e:
         print(f"❌ Error during registration: {e}")
@@ -96,16 +94,14 @@ async def test_login(username: str, password: str):
     try:
         auth = aiohttp.BasicAuth(username, password)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, auth=auth) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    token = data.get('token', '')
-                    print(f"   Token received: {token[:30]}...")
-                    return True
-                else:
-                    print(f"   Login failed: HTTP {response.status}")
-                    return False
+        async with aiohttp.ClientSession() as session, session.post(url, auth=auth) as response:
+            if response.status == 200:
+                data = await response.json()
+                token = data.get("token", "")
+                print(f"   Token received: {token[:30]}...")
+                return True
+            print(f"   Login failed: HTTP {response.status}")
+            return False
 
     except Exception as e:
         print(f"   Login error: {e}")
@@ -121,17 +117,15 @@ async def check_username_available(username: str):
     try:
         auth = aiohttp.BasicAuth(username, "fake_password_12345")
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, auth=auth) as response:
-                if response.status == 401:
-                    print(f"⚠️  Username '{username}' already exists")
-                    return False
-                elif response.status == 404:
-                    print(f"✅ Username '{username}' appears to be available")
-                    return True
-                else:
-                    print(f"❓ Unknown response: {response.status}")
-                    return None
+        async with aiohttp.ClientSession() as session, session.post(url, auth=auth) as response:
+            if response.status == 401:
+                print(f"⚠️  Username '{username}' already exists")
+                return False
+            if response.status == 404:
+                print(f"✅ Username '{username}' appears to be available")
+                return True
+            print(f"❓ Unknown response: {response.status}")
+            return None
 
     except Exception as e:
         print(f"Error checking username: {e}")

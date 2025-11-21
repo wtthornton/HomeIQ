@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 class HomeAssistantAutomationChecker:
     """
     Checks Home Assistant for existing automations to avoid duplicates.
-    
+
     Queries HA API for automation configurations and parses them to identify
     entity relationships. Used to filter out synergies that already have automations.
-    
+
     Story AI3.3: Unconnected Relationship Analysis
     """
 
     def __init__(self, ha_client):
         """
         Initialize automation checker.
-        
+
         Args:
             ha_client: Home Assistant API client
         """
@@ -39,7 +39,7 @@ class HomeAssistantAutomationChecker:
     async def get_existing_automations(self) -> list[dict]:
         """
         Fetch all automations from Home Assistant.
-        
+
         Returns:
             List of automation configurations
         """
@@ -63,7 +63,7 @@ class HomeAssistantAutomationChecker:
     async def get_connected_entity_pairs(self) -> set[tuple[str, str]]:
         """
         Extract connected entity pairs from existing automations.
-        
+
         Returns:
             Set of (trigger_entity, action_entity) tuples
         """
@@ -97,10 +97,10 @@ class HomeAssistantAutomationChecker:
     def _parse_automation_relationships(self, automation: dict) -> list[tuple[str, str]]:
         """
         Parse automation to extract trigger→action entity relationships.
-        
+
         Args:
             automation: Automation configuration dict
-        
+
         Returns:
             List of (trigger_entity, action_entity) tuples
         """
@@ -108,7 +108,7 @@ class HomeAssistantAutomationChecker:
 
         try:
             # Extract trigger entities
-            triggers = automation.get('trigger', [])
+            triggers = automation.get("trigger", [])
             if not isinstance(triggers, list):
                 triggers = [triggers]
 
@@ -116,14 +116,14 @@ class HomeAssistantAutomationChecker:
             for trigger in triggers:
                 if isinstance(trigger, dict):
                     # State trigger
-                    if 'entity_id' in trigger:
-                        trigger_entities.append(trigger['entity_id'])
+                    if "entity_id" in trigger:
+                        trigger_entities.append(trigger["entity_id"])
                     # Numeric state trigger
-                    elif 'entity' in trigger:
-                        trigger_entities.append(trigger['entity'])
+                    elif "entity" in trigger:
+                        trigger_entities.append(trigger["entity"])
 
             # Extract action entities
-            actions = automation.get('action', [])
+            actions = automation.get("action", [])
             if not isinstance(actions, list):
                 actions = [actions]
 
@@ -131,15 +131,15 @@ class HomeAssistantAutomationChecker:
             for action in actions:
                 if isinstance(action, dict):
                     # Service call with target
-                    if 'target' in action and 'entity_id' in action['target']:
-                        entity_id = action['target']['entity_id']
+                    if "target" in action and "entity_id" in action["target"]:
+                        entity_id = action["target"]["entity_id"]
                         if isinstance(entity_id, list):
                             action_entities.extend(entity_id)
                         else:
                             action_entities.append(entity_id)
                     # Direct entity_id in action
-                    elif 'entity_id' in action:
-                        entity_id = action['entity_id']
+                    elif "entity_id" in action:
+                        entity_id = action["entity_id"]
                         if isinstance(entity_id, list):
                             action_entities.extend(entity_id)
                         else:
@@ -159,11 +159,11 @@ class HomeAssistantAutomationChecker:
     async def is_connected(self, trigger_entity: str, action_entity: str) -> bool:
         """
         Check if two entities have an existing automation connecting them.
-        
+
         Args:
             trigger_entity: Trigger entity ID
             action_entity: Action entity ID
-        
+
         Returns:
             True if automation exists, False otherwise
         """

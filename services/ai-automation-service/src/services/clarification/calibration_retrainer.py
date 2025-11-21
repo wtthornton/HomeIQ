@@ -25,17 +25,17 @@ async def retrain_calibration_model(
     db: AsyncSession,
     calibrator: ClarificationConfidenceCalibrator | None = None,
     min_samples: int = 10,
-    days_back: int = 30
+    days_back: int = 30,
 ) -> bool:
     """
     Retrain clarification confidence calibration model from database feedback.
-    
+
     Args:
         db: Database session
         calibrator: Optional calibrator instance (creates new one if not provided)
         min_samples: Minimum number of samples required for training
         days_back: Number of days to look back for feedback data
-        
+
     Returns:
         True if retraining was successful, False otherwise
     """
@@ -51,7 +51,7 @@ async def retrain_calibration_model(
         if len(feedback_records) < min_samples:
             logger.warning(
                 f"Insufficient feedback data for retraining: "
-                f"{len(feedback_records)} < {min_samples} samples"
+                f"{len(feedback_records)} < {min_samples} samples",
             )
             return False
 
@@ -65,7 +65,7 @@ async def retrain_calibration_model(
                 critical_ambiguity_count=record.critical_ambiguity_count,
                 rounds=record.rounds,
                 answer_count=record.answer_count,
-                save_immediately=False  # Don't save after each addition
+                save_immediately=False,  # Don't save after each addition
             )
 
         # Train and save
@@ -77,7 +77,7 @@ async def retrain_calibration_model(
             f"✅ Calibration model retrained successfully: "
             f"{stats['training_samples']} samples, "
             f"{stats['positive_feedback']} positive, "
-            f"{stats['negative_feedback']} negative"
+            f"{stats['negative_feedback']} negative",
         )
 
         return True
@@ -91,17 +91,17 @@ async def should_retrain_calibration(
     db: AsyncSession,
     last_retrain_date: datetime | None = None,
     retrain_interval_days: int = 7,
-    min_new_samples: int = 50
+    min_new_samples: int = 50,
 ) -> bool:
     """
     Check if calibration model should be retrained.
-    
+
     Args:
         db: Database session
         last_retrain_date: Date of last retraining (None if never retrained)
         retrain_interval_days: Minimum days between retraining
         min_new_samples: Minimum new samples since last retrain
-        
+
     Returns:
         True if retraining is recommended
     """
@@ -125,10 +125,7 @@ async def should_retrain_calibration(
             if record.created_at >= cutoff_date
         )
 
-        if new_samples >= min_new_samples:
-            return True
-
-        return False
+        return new_samples >= min_new_samples
 
     except Exception as e:
         logger.error(f"Failed to check retrain condition: {e}", exc_info=True)

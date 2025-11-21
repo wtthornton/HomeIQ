@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Check device names in devices table"""
+import os
 import sqlite3
 import sys
-import os
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-db_path = 'services/data-api/data/metadata.db'
+db_path = "services/data-api/data/metadata.db"
 
 if not os.path.exists(db_path):
     print(f"Database not found at {db_path}")
@@ -53,7 +53,7 @@ if rows:
     print("-" * 150)
     for row in rows:
         device_id, name, name_by_user, manufacturer, model, area_id = row
-        print(f"{str(device_id or ''):<50} {str(name or ''):<40} {str(name_by_user or ''):<40} {str(area_id or ''):<20}")
+        print(f"{device_id or ''!s:<50} {name or ''!s:<40} {name_by_user or ''!s:<40} {area_id or ''!s:<20}")
 else:
     print("No Hue devices found in devices table")
 
@@ -79,7 +79,7 @@ if rows:
     print("-" * 200)
     for row in rows:
         entity_id, device_id, entity_friendly_name, entity_name, entity_name_by_user, device_name, device_name_by_user = row
-        print(f"{str(entity_id or ''):<40} {str(device_id or ''):<50} {str(entity_friendly_name or ''):<30} {str(device_name or ''):<40} {str(device_name_by_user or ''):<40}")
+        print(f"{entity_id or ''!s:<40} {device_id or ''!s:<50} {entity_friendly_name or ''!s:<30} {device_name or ''!s:<40} {device_name_by_user or ''!s:<40}")
 
 conn.close()
 

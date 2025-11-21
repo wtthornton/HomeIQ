@@ -8,7 +8,8 @@ import logging
 
 from rapidfuzz import fuzz
 
-from ..config import settings
+from src.config import settings
+
 from .models import AutomationMetadata
 
 logger = logging.getLogger(__name__)
@@ -17,10 +18,10 @@ logger = logging.getLogger(__name__)
 class Deduplicator:
     """Detect and handle duplicate automations"""
 
-    def __init__(self, similarity_threshold: float = None):
+    def __init__(self, similarity_threshold: float | None = None):
         """
         Initialize deduplicator
-        
+
         Args:
             similarity_threshold: Minimum similarity score (0.0-1.0) to consider duplicates
                                  Default from settings (0.85 = 85% similar)
@@ -30,17 +31,17 @@ class Deduplicator:
     def calculate_similarity_hash(self, metadata: AutomationMetadata) -> str:
         """
         Calculate hash for quick duplicate detection
-        
+
         Based on normalized title + devices
-        
+
         Args:
             metadata: AutomationMetadata instance
-        
+
         Returns:
             MD5 hash string
         """
         # Normalize title (lowercase, no spaces)
-        normalized_title = metadata.title.lower().replace(' ', '').replace('-', '')
+        normalized_title = metadata.title.lower().replace(" ", "").replace("-", "")
 
         # Sort devices for consistent hashing
         sorted_devices = sorted(metadata.devices)
@@ -54,11 +55,11 @@ class Deduplicator:
     def calculate_title_similarity(self, title1: str, title2: str) -> float:
         """
         Calculate similarity between two titles using fuzzy matching
-        
+
         Args:
             title1: First title
             title2: Second title
-        
+
         Returns:
             Similarity score (0.0-1.0)
         """
@@ -71,15 +72,15 @@ class Deduplicator:
     def is_duplicate(
         self,
         metadata: AutomationMetadata,
-        existing: AutomationMetadata
+        existing: AutomationMetadata,
     ) -> bool:
         """
         Check if two automations are duplicates
-        
+
         Args:
             metadata: New automation to check
             existing: Existing automation in corpus
-        
+
         Returns:
             True if duplicate, False otherwise
         """
@@ -90,7 +91,7 @@ class Deduplicator:
         # Calculate title similarity
         title_similarity = self.calculate_title_similarity(
             metadata.title,
-            existing.title
+            existing.title,
         )
 
         # If titles are very similar (>= threshold), check devices
@@ -113,7 +114,7 @@ class Deduplicator:
                 if device_similarity >= 0.7:
                     logger.debug(
                         f"Duplicate detected: '{metadata.title}' vs '{existing.title}' "
-                        f"(title: {title_similarity:.2f}, devices: {device_similarity:.2f})"
+                        f"(title: {title_similarity:.2f}, devices: {device_similarity:.2f})",
                     )
                     return True
 
@@ -122,15 +123,15 @@ class Deduplicator:
     def find_duplicates(
         self,
         metadata: AutomationMetadata,
-        existing_automations: list[AutomationMetadata]
+        existing_automations: list[AutomationMetadata],
     ) -> list[AutomationMetadata]:
         """
         Find all duplicates of an automation in existing corpus
-        
+
         Args:
             metadata: Automation to check
             existing_automations: List of existing automations
-        
+
         Returns:
             List of duplicate automations
         """
@@ -144,21 +145,22 @@ class Deduplicator:
 
     def select_best(
         self,
-        automations: list[AutomationMetadata]
+        automations: list[AutomationMetadata],
     ) -> AutomationMetadata:
         """
         Select the best automation from a list of duplicates
-        
+
         Criteria: highest quality_score
-        
+
         Args:
             automations: List of duplicate automations
-        
+
         Returns:
             Best automation
         """
         if not automations:
-            raise ValueError("No automations to select from")
+            msg = "No automations to select from"
+            raise ValueError(msg)
 
         # Sort by quality_score descending
         sorted_autos = sorted(automations, key=lambda a: a.quality_score, reverse=True)
@@ -167,7 +169,7 @@ class Deduplicator:
 
         logger.debug(
             f"Selected best from {len(automations)} duplicates: "
-            f"'{best.title}' (quality: {best.quality_score})"
+            f"'{best.title}' (quality: {best.quality_score})",
         )
 
         return best
@@ -175,15 +177,15 @@ class Deduplicator:
     def deduplicate_batch(
         self,
         new_automations: list[AutomationMetadata],
-        existing_automations: list[AutomationMetadata]
+        existing_automations: list[AutomationMetadata],
     ) -> list[AutomationMetadata]:
         """
         Deduplicate a batch of new automations against existing corpus
-        
+
         Args:
             new_automations: List of new automations to add
             existing_automations: Existing corpus
-        
+
         Returns:
             Deduplicated list of automations to add
         """
@@ -196,7 +198,7 @@ class Deduplicator:
 
             if duplicates:
                 # Compare quality scores
-                all_candidates = duplicates + [new_auto]
+                all_candidates = [*duplicates, new_auto]
                 best = self.select_best(all_candidates)
 
                 if best.source_id == new_auto.source_id:
@@ -204,21 +206,21 @@ class Deduplicator:
                     to_add.append(new_auto)
                     logger.info(
                         f"Adding '{new_auto.title}' - better quality than existing "
-                        f"({new_auto.quality_score} vs {duplicates[0].quality_score})"
+                        f"({new_auto.quality_score} vs {duplicates[0].quality_score})",
                     )
                 else:
                     # Existing is better, skip new
                     to_skip.append(new_auto)
                     logger.debug(
                         f"Skipping '{new_auto.title}' - duplicate of existing "
-                        f"with higher quality"
+                        f"with higher quality",
                     )
             else:
                 # No duplicates, add it
                 to_add.append(new_auto)
 
         logger.info(
-            f"Deduplication complete: {len(to_add)} to add, {len(to_skip)} to skip"
+            f"Deduplication complete: {len(to_add)} to add, {len(to_skip)} to skip",
         )
 
         return to_add

@@ -10,9 +10,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from ..clients.data_api_client import DataAPIClient
-from ..clients.device_intelligence_client import DeviceIntelligenceClient
-from ..config import settings
+from src.clients.data_api_client import DataAPIClient
+from src.clients.device_intelligence_client import DeviceIntelligenceClient
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +34,13 @@ async def check_data_api_health():
         return {
             "success": True,
             "data": health,
-            "message": "Data API is healthy"
+            "message": "Data API is healthy",
         }
     except Exception as e:
-        logger.error(f"Data API health check failed: {e}")
+        logger.exception(f"Data API health check failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Data API health check failed: {str(e)}"
+            detail=f"Data API health check failed: {e!s}",
         )
 
 
@@ -50,11 +50,11 @@ async def get_events(
     entity_id: str | None = Query(default=None, description="Filter by entity ID"),
     device_id: str | None = Query(default=None, description="Filter by device ID"),
     event_type: str | None = Query(default=None, description="Filter by event type"),
-    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of events")
+    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of events"),
 ) -> dict[str, Any]:
     """
     Fetch historical events from Data API.
-    
+
     Returns events as JSON array with DataFrame structure.
     """
     try:
@@ -71,7 +71,7 @@ async def get_events(
             entity_id=entity_id,
             device_id=device_id,
             event_type=event_type,
-            limit=limit
+            limit=limit,
         )
 
         # Convert DataFrame to JSON-serializable format
@@ -84,17 +84,17 @@ async def get_events(
                     "time_range": {
                         "start": start_time.isoformat(),
                         "end": end_time.isoformat(),
-                        "days": days
-                    }
+                        "days": days,
+                    },
                 },
-                "message": "No events found for the specified criteria"
+                "message": "No events found for the specified criteria",
             }
 
         # Convert timestamps to ISO format strings
-        events_dict = df.to_dict(orient='records')
+        events_dict = df.to_dict(orient="records")
         for event in events_dict:
-            if 'timestamp' in event and hasattr(event['timestamp'], 'isoformat'):
-                event['timestamp'] = event['timestamp'].isoformat()
+            if "timestamp" in event and hasattr(event["timestamp"], "isoformat"):
+                event["timestamp"] = event["timestamp"].isoformat()
 
         return {
             "success": True,
@@ -104,18 +104,18 @@ async def get_events(
                 "time_range": {
                     "start": start_time.isoformat(),
                     "end": end_time.isoformat(),
-                    "days": days
+                    "days": days,
                 },
-                "columns": list(df.columns)
+                "columns": list(df.columns),
             },
-            "message": f"Fetched {len(events_dict)} events successfully"
+            "message": f"Fetched {len(events_dict)} events successfully",
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch events: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch events: {str(e)}"
+            detail=f"Failed to fetch events: {e!s}",
         )
 
 
@@ -124,7 +124,7 @@ async def get_devices(
     manufacturer: str | None = Query(default=None, description="Filter by manufacturer"),
     model: str | None = Query(default=None, description="Filter by model"),
     area_id: str | None = Query(default=None, description="Filter by area/room"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices"),
 ) -> dict[str, Any]:
     """
     Fetch devices from Device Intelligence Service.
@@ -135,26 +135,26 @@ async def get_devices(
 
         devices = await device_intelligence_client.get_devices(
             limit=limit,
-            area_id=area_id
+            area_id=area_id,
         )
 
         # Filter by manufacturer and model if specified
         if manufacturer:
-            devices = [d for d in devices if d.get('manufacturer', '').lower() == manufacturer.lower()]
+            devices = [d for d in devices if d.get("manufacturer", "").lower() == manufacturer.lower()]
         if model:
-            devices = [d for d in devices if d.get('model', '').lower() == model.lower()]
+            devices = [d for d in devices if d.get("model", "").lower() == model.lower()]
 
         # Return format expected by Discovery.tsx frontend
         return {
             "devices": devices,
-            "count": len(devices)
+            "count": len(devices),
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch devices: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch devices: {str(e)}"
+            detail=f"Failed to fetch devices: {e!s}",
         )
 
 
@@ -164,7 +164,7 @@ async def get_entities(
     domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: str | None = Query(default=None, description="Filter by platform"),
     area_id: str | None = Query(default=None, description="Filter by area/room"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of entities"),
 ) -> dict[str, Any]:
     """
     Fetch entities from Data API.
@@ -178,7 +178,7 @@ async def get_entities(
             domain=domain,
             platform=platform,
             area_id=area_id,
-            limit=limit
+            limit=limit,
         )
 
         # Return format expected by frontend (can handle both formats)
@@ -187,15 +187,15 @@ async def get_entities(
             "count": len(entities),
             "data": {
                 "entities": entities,
-                "count": len(entities)
-            }
+                "count": len(entities),
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch entities: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch entities: {str(e)}"
+            detail=f"Failed to fetch entities: {e!s}",
         )
 
 
@@ -204,17 +204,17 @@ async def get_devices(
     manufacturer: str | None = Query(default=None, description="Filter by manufacturer"),
     model: str | None = Query(default=None, description="Filter by model"),
     area_id: str | None = Query(default=None, description="Filter by area ID"),
-    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of devices")
+    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of devices"),
 ) -> dict[str, Any]:
     """
     Get devices from Home Assistant via Data API.
-    
+
     Args:
         manufacturer: Filter devices by manufacturer
         model: Filter devices by model
         area_id: Filter devices by area ID
         limit: Maximum number of devices to return
-        
+
     Returns:
         Dictionary containing devices list and metadata
     """
@@ -223,7 +223,7 @@ async def get_devices(
             manufacturer=manufacturer,
             model=model,
             area_id=area_id,
-            limit=limit
+            limit=limit,
         )
 
         return {
@@ -234,15 +234,15 @@ async def get_devices(
                 "manufacturer": manufacturer,
                 "model": model,
                 "area_id": area_id,
-                "limit": limit
-            }
+                "limit": limit,
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to fetch devices: {e}")
+        logger.exception(f"Failed to fetch devices: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch devices: {str(e)}"
+            detail=f"Failed to fetch devices: {e!s}",
         )
 
 

@@ -2,4 +2,4 @@
 
 from .daily_analysis import DailyAnalysisScheduler
 
-__all__ = ['DailyAnalysisScheduler']
+__all__ = ["DailyAnalysisScheduler"]

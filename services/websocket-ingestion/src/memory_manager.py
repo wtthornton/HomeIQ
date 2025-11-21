@@ -3,6 +3,7 @@ Memory Manager for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import gc
 import logging
 import weakref
@@ -24,7 +25,7 @@ class MemoryManager:
                  gc_threshold: float = 0.8):
         """
         Initialize memory manager
-        
+
         Args:
             max_memory_mb: Maximum memory usage in MB
             memory_check_interval: Interval for memory checks in seconds
@@ -80,10 +81,8 @@ class MemoryManager:
         # Cancel monitoring task
         if self.monitoring_task:
             self.monitoring_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.monitoring_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopped memory manager")
 
@@ -100,7 +99,7 @@ class MemoryManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in memory monitoring loop: {e}")
+                logger.exception(f"Error in memory monitoring loop: {e}")
 
     async def _check_memory_usage(self):
         """Check current memory usage and take action if needed"""
@@ -113,7 +112,7 @@ class MemoryManager:
             self.memory_samples.append({
                 "timestamp": datetime.now(),
                 "memory_mb": memory_mb,
-                "memory_percent": self.process.memory_percent()
+                "memory_percent": self.process.memory_percent(),
             })
 
             # Check if memory usage exceeds threshold
@@ -125,7 +124,7 @@ class MemoryManager:
                 await self._run_garbage_collection()
 
         except Exception as e:
-            logger.error(f"Error checking memory usage: {e}")
+            logger.exception(f"Error checking memory usage: {e}")
 
     async def _handle_memory_overflow(self, current_memory_mb: float):
         """Handle memory overflow"""
@@ -137,7 +136,7 @@ class MemoryManager:
             "type": "memory_overflow",
             "current_memory_mb": current_memory_mb,
             "max_memory_mb": self.max_memory_mb,
-            "excess_mb": current_memory_mb - self.max_memory_mb
+            "excess_mb": current_memory_mb - self.max_memory_mb,
         }
         self.memory_alerts.append(alert)
 
@@ -164,7 +163,7 @@ class MemoryManager:
                 "timestamp": datetime.now(),
                 "collected": collected,
                 "counts_before": gc_counts_before,
-                "counts_after": gc_counts_after
+                "counts_after": gc_counts_after,
             })
 
             self.total_gc_runs += 1
@@ -172,7 +171,7 @@ class MemoryManager:
             logger.debug(f"Garbage collection: collected {collected} objects")
 
         except Exception as e:
-            logger.error(f"Error running garbage collection: {e}")
+            logger.exception(f"Error running garbage collection: {e}")
 
     async def _run_memory_cleanup(self):
         """Run memory cleanup"""
@@ -182,7 +181,7 @@ class MemoryManager:
                 try:
                     await callback()
                 except Exception as e:
-                    logger.error(f"Error in memory cleanup callback: {e}")
+                    logger.exception(f"Error in memory cleanup callback: {e}")
 
             # Clean up weak references
             self._cleanup_weak_references()
@@ -192,7 +191,7 @@ class MemoryManager:
             logger.debug("Memory cleanup completed")
 
         except Exception as e:
-            logger.error(f"Error running memory cleanup: {e}")
+            logger.exception(f"Error running memory cleanup: {e}")
 
     def _cleanup_weak_references(self):
         """Clean up dead weak references"""
@@ -273,11 +272,11 @@ class MemoryManager:
                 "memory_alerts_count": len(self.memory_alerts),
                 "uptime_seconds": round(uptime, 2),
                 "gc_threshold": self.gc_threshold,
-                "memory_check_interval": self.memory_check_interval
+                "memory_check_interval": self.memory_check_interval,
             }
 
         except Exception as e:
-            logger.error(f"Error getting memory statistics: {e}")
+            logger.exception(f"Error getting memory statistics: {e}")
             return {"error": str(e)}
 
     def get_memory_alerts(self, limit: int = 10) -> list[dict[str, Any]]:
@@ -287,9 +286,11 @@ class MemoryManager:
     def configure_memory_limits(self, max_memory_mb: int, gc_threshold: float):
         """Configure memory limits"""
         if max_memory_mb <= 0:
-            raise ValueError("max_memory_mb must be positive")
+            msg = "max_memory_mb must be positive"
+            raise ValueError(msg)
         if not 0.0 <= gc_threshold <= 1.0:
-            raise ValueError("gc_threshold must be between 0.0 and 1.0")
+            msg = "gc_threshold must be between 0.0 and 1.0"
+            raise ValueError(msg)
 
         self.max_memory_mb = max_memory_mb
         self.gc_threshold = gc_threshold
@@ -299,7 +300,8 @@ class MemoryManager:
     def configure_monitoring_interval(self, interval: float):
         """Configure monitoring interval"""
         if interval <= 0:
-            raise ValueError("interval must be positive")
+            msg = "interval must be positive"
+            raise ValueError(msg)
 
         self.memory_check_interval = interval
         logger.info(f"Updated monitoring interval to {interval}s")

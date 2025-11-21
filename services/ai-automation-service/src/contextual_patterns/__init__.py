@@ -11,5 +11,5 @@ from .energy_opportunities import EnergyOpportunityDetector
 from .event_opportunities import EventOpportunityDetector
 from .weather_opportunities import WeatherOpportunityDetector
 
-__all__ = ['WeatherOpportunityDetector', 'EnergyOpportunityDetector', 'EventOpportunityDetector']
+__all__ = ["EnergyOpportunityDetector", "EventOpportunityDetector", "WeatherOpportunityDetector"]
 

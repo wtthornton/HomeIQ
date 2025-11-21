@@ -7,7 +7,7 @@ from datetime import datetime
 
 from sqlalchemy import JSON, Column, DateTime, Index, String
 
-from ..database import Base
+from src.database import Base
 
 
 class Service(Base):
@@ -33,5 +33,5 @@ class Service(Base):
 
 
 # Indexes for common queries
-Index('idx_services_domain', Service.domain)
+Index("idx_services_domain", Service.domain)
 

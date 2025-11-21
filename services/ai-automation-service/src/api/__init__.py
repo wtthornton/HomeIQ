@@ -16,19 +16,19 @@ from .suggestion_management_router import router as suggestion_management_router
 from .suggestion_router import router as suggestion_router
 
 __all__ = [
-    'health_router',
-    'data_router',
-    'pattern_router',
-    'suggestion_router',
-    'analysis_router',
-    'suggestion_management_router',
-    'deployment_router',
-    'nl_generation_router',
-    'conversational_router',  # Story AI1.23: Conversational Refinement
-    'ask_ai_router',  # Ask AI Tab: Natural Language Query Interface
-    'devices_router',
-    'settings_router',
-    'admin_router',
-    'set_device_intelligence_client'
+    "admin_router",
+    "analysis_router",
+    "ask_ai_router",  # Ask AI Tab: Natural Language Query Interface
+    "conversational_router",  # Story AI1.23: Conversational Refinement
+    "data_router",
+    "deployment_router",
+    "devices_router",
+    "health_router",
+    "nl_generation_router",
+    "pattern_router",
+    "set_device_intelligence_client",
+    "settings_router",
+    "suggestion_management_router",
+    "suggestion_router",
 ]
 

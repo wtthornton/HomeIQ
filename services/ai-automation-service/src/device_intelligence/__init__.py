@@ -24,9 +24,9 @@ from .mqtt_capability_listener import MQTTCapabilityListener
 
 __all__ = [
     "CapabilityParser",
-    "MQTTCapabilityListener",
     "FeatureAnalyzer",
     "FeatureSuggestionGenerator",
+    "MQTTCapabilityListener",
     "update_device_capabilities_batch",
 ]
 

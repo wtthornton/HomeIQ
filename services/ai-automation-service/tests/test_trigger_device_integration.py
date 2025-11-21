@@ -8,7 +8,7 @@ import pytest
 
 pytest.importorskip(
     "transformers",
-    reason="transformers dependency not available in this environment"
+    reason="transformers dependency not available in this environment",
 )
 
 from unittest.mock import AsyncMock, MagicMock
@@ -35,31 +35,31 @@ class TestTriggerDeviceDiscoveryIntegration:
         """Create MultiModelEntityExtractor with mocked dependencies"""
         return MultiModelEntityExtractor(
             openai_api_key="test-key",
-            device_intelligence_client=mock_device_client
+            device_intelligence_client=mock_device_client,
         )
 
     @pytest.fixture
     def sample_presence_sensor(self):
         """Sample presence sensor device"""
         return {
-            'device_id': 'presence-sensor-fp2-8b8a',
-            'name': 'PS FP2 Desk',
-            'entity_id': 'binary_sensor.ps_fp2_desk',
-            'domain': 'binary_sensor',
-            'device_class': 'occupancy',
-            'area_name': 'office',
-            'area': 'office',
-            'manufacturer': 'FP2',
-            'model': 'Presence Sensor FP2',
-            'capabilities': ['presence_detection'],
-            'health_score': 95,
-            'entities': [
+            "device_id": "presence-sensor-fp2-8b8a",
+            "name": "PS FP2 Desk",
+            "entity_id": "binary_sensor.ps_fp2_desk",
+            "domain": "binary_sensor",
+            "device_class": "occupancy",
+            "area_name": "office",
+            "area": "office",
+            "manufacturer": "FP2",
+            "model": "Presence Sensor FP2",
+            "capabilities": ["presence_detection"],
+            "health_score": 95,
+            "entities": [
                 {
-                    'entity_id': 'binary_sensor.ps_fp2_desk',
-                    'domain': 'binary_sensor',
-                    'device_class': 'occupancy'
-                }
-            ]
+                    "entity_id": "binary_sensor.ps_fp2_desk",
+                    "domain": "binary_sensor",
+                    "device_class": "occupancy",
+                },
+            ],
         }
 
     @pytest.mark.asyncio
@@ -76,21 +76,21 @@ class TestTriggerDeviceDiscoveryIntegration:
         entities = await extractor.extract_entities(query)
 
         # Verify trigger device was discovered
-        trigger_devices = [e for e in entities if e.get('extraction_method') == 'trigger_discovery']
+        trigger_devices = [e for e in entities if e.get("extraction_method") == "trigger_discovery"]
         assert len(trigger_devices) > 0
 
         # Verify presence sensor was found
-        presence_device = next((e for e in trigger_devices if e.get('entity_id') == 'binary_sensor.ps_fp2_desk'), None)
+        presence_device = next((e for e in trigger_devices if e.get("entity_id") == "binary_sensor.ps_fp2_desk"), None)
         assert presence_device is not None
-        assert presence_device['name'] == 'PS FP2 Desk'
-        assert presence_device['trigger_type'] == 'presence'
-        assert presence_device['device_class'] == 'occupancy'
+        assert presence_device["name"] == "PS FP2 Desk"
+        assert presence_device["trigger_type"] == "presence"
+        assert presence_device["device_class"] == "occupancy"
 
         # Verify search was called correctly
         mock_device_client.search_sensors_by_condition.assert_called()
         call_args = mock_device_client.search_sensors_by_condition.call_args
-        assert call_args.kwargs['trigger_type'] == 'presence'
-        assert call_args.kwargs['device_class'] == 'occupancy'
+        assert call_args.kwargs["trigger_type"] == "presence"
+        assert call_args.kwargs["device_class"] == "occupancy"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -113,13 +113,13 @@ class TestTriggerDeviceDiscoveryIntegration:
         query = "When motion is detected in the kitchen, turn on the lights"
 
         motion_sensor = {
-            'device_id': 'motion-kitchen',
-            'name': 'Kitchen Motion Sensor',
-            'entity_id': 'binary_sensor.motion_kitchen',
-            'domain': 'binary_sensor',
-            'device_class': 'motion',
-            'area_name': 'kitchen',
-            'entities': [{'entity_id': 'binary_sensor.motion_kitchen'}]
+            "device_id": "motion-kitchen",
+            "name": "Kitchen Motion Sensor",
+            "entity_id": "binary_sensor.motion_kitchen",
+            "domain": "binary_sensor",
+            "device_class": "motion",
+            "area_name": "kitchen",
+            "entities": [{"entity_id": "binary_sensor.motion_kitchen"}],
         }
 
         mock_device_client.search_sensors_by_condition.return_value = [motion_sensor]
@@ -127,12 +127,12 @@ class TestTriggerDeviceDiscoveryIntegration:
         entities = await extractor.extract_entities(query)
 
         # Verify motion sensor was discovered
-        trigger_devices = [e for e in entities if e.get('extraction_method') == 'trigger_discovery']
+        trigger_devices = [e for e in entities if e.get("extraction_method") == "trigger_discovery"]
         assert len(trigger_devices) > 0
 
-        motion_device = next((e for e in trigger_devices if e.get('entity_id') == 'binary_sensor.motion_kitchen'), None)
+        motion_device = next((e for e in trigger_devices if e.get("entity_id") == "binary_sensor.motion_kitchen"), None)
         assert motion_device is not None
-        assert motion_device['trigger_type'] == 'motion'
+        assert motion_device["trigger_type"] == "motion"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -157,26 +157,26 @@ class TestTriggerDeviceDiscoveryIntegration:
 
         # Mock action device
         light_device = {
-            'device_id': 'light-office',
-            'name': 'Office Lights',
-            'entities': [
-                {'entity_id': 'light.office', 'domain': 'light'}
-            ]
+            "device_id": "light-office",
+            "name": "Office Lights",
+            "entities": [
+                {"entity_id": "light.office", "domain": "light"},
+            ],
         }
 
         mock_device_client.get_all_devices.return_value = [light_device]
         mock_device_client.get_device_details.return_value = {
-            'name': 'Office Lights',
-            'entities': [{'entity_id': 'light.office', 'domain': 'light'}],
-            'area_name': 'office'
+            "name": "Office Lights",
+            "entities": [{"entity_id": "light.office", "domain": "light"}],
+            "area_name": "office",
         }
         mock_device_client.search_sensors_by_condition.return_value = [sample_presence_sensor]
 
         entities = await extractor.extract_entities(query)
 
         # Should have both action devices and trigger devices
-        action_devices = [e for e in entities if e.get('extraction_method') != 'trigger_discovery']
-        trigger_devices = [e for e in entities if e.get('extraction_method') == 'trigger_discovery']
+        [e for e in entities if e.get("extraction_method") != "trigger_discovery"]
+        [e for e in entities if e.get("extraction_method") == "trigger_discovery"]
 
         # Both should be present (exact counts depend on entity extraction)
         assert len(entities) > 0
@@ -190,12 +190,12 @@ class TestTriggerDeviceDiscoveryIntegration:
         mock_device_client.search_sensors_by_condition.return_value = [sample_presence_sensor]
 
         initial_stats = extractor.get_stats()
-        initial_trigger_count = initial_stats.get('trigger_devices_discovered', 0)
+        initial_trigger_count = initial_stats.get("trigger_devices_discovered", 0)
 
         await extractor.extract_entities(query)
 
         updated_stats = extractor.get_stats()
-        updated_trigger_count = updated_stats.get('trigger_devices_discovered', 0)
+        updated_trigger_count = updated_stats.get("trigger_devices_discovered", 0)
 
         # Should increment trigger device count
         assert updated_trigger_count >= initial_trigger_count
@@ -207,26 +207,26 @@ class TestTriggerDeviceDiscoveryIntegration:
         query = "When motion is detected or the door opens, turn on the lights"
 
         motion_sensor = {
-            'device_id': 'motion-1',
-            'name': 'Motion Sensor',
-            'entity_id': 'binary_sensor.motion',
-            'device_class': 'motion',
-            'entities': [{'entity_id': 'binary_sensor.motion'}]
+            "device_id": "motion-1",
+            "name": "Motion Sensor",
+            "entity_id": "binary_sensor.motion",
+            "device_class": "motion",
+            "entities": [{"entity_id": "binary_sensor.motion"}],
         }
 
         door_sensor = {
-            'device_id': 'door-1',
-            'name': 'Door Sensor',
-            'entity_id': 'binary_sensor.door',
-            'device_class': 'door',
-            'entities': [{'entity_id': 'binary_sensor.door'}]
+            "device_id": "door-1",
+            "name": "Door Sensor",
+            "entity_id": "binary_sensor.door",
+            "device_class": "door",
+            "entities": [{"entity_id": "binary_sensor.door"}],
         }
 
         # Return different sensors based on trigger type
         async def mock_search(trigger_type, location, device_class):
-            if trigger_type == 'motion':
+            if trigger_type == "motion":
                 return [motion_sensor]
-            elif trigger_type == 'door':
+            if trigger_type == "door":
                 return [door_sensor]
             return []
 
@@ -235,8 +235,8 @@ class TestTriggerDeviceDiscoveryIntegration:
         entities = await extractor.extract_entities(query)
 
         # Should discover both trigger types
-        trigger_devices = [e for e in entities if e.get('extraction_method') == 'trigger_discovery']
-        trigger_types = [e.get('trigger_type') for e in trigger_devices]
+        trigger_devices = [e for e in entities if e.get("extraction_method") == "trigger_discovery"]
+        [e.get("trigger_type") for e in trigger_devices]
 
         # Should have at least one trigger type discovered
         assert len(trigger_devices) > 0

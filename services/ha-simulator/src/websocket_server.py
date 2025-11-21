@@ -48,7 +48,7 @@ class HASimulatorWebSocketServer:
                     logger.info("Client closed connection")
                     break
         except Exception as e:
-            logger.error(f"Error in WebSocket handler: {e}")
+            logger.exception(f"Error in WebSocket handler: {e}")
         finally:
             self.clients.remove(ws)
             self.subscription_manager.remove_client(ws)
@@ -74,10 +74,10 @@ class HASimulatorWebSocketServer:
                 await self.send_error(ws, f"Unknown message type: {message_type}")
 
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON message: {e}")
+            logger.exception(f"Invalid JSON message: {e}")
             await self.send_error(ws, "Invalid JSON")
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
+            logger.exception(f"Error handling message: {e}")
             await self.send_error(ws, "Internal error")
 
     async def send_error(self, ws: WebSocketResponse, message: str):
@@ -87,13 +87,13 @@ class HASimulatorWebSocketServer:
             "success": False,
             "error": {
                 "code": "unknown_error",
-                "message": message
-            }
+                "message": message,
+            },
         }
         try:
             await ws.send_str(json.dumps(error_msg))
         except Exception as e:
-            logger.error(f"Error sending error message: {e}")
+            logger.exception(f"Error sending error message: {e}")
 
     async def broadcast_event(self, event: dict[str, Any]):
         """Broadcast event to all authenticated and subscribed clients"""
@@ -108,7 +108,7 @@ class HASimulatorWebSocketServer:
                     self.subscription_manager.has_subscriptions(client)):
                     await client.send_str(json.dumps(event))
             except Exception as e:
-                logger.error(f"Error sending event to client: {e}")
+                logger.exception(f"Error sending event to client: {e}")
                 disconnected_clients.add(client)
 
         # Remove disconnected clients
@@ -130,20 +130,20 @@ class HASimulatorWebSocketServer:
             "subscribed_clients": len([
                 c for c in self.clients
                 if self.subscription_manager.has_subscriptions(c)
-            ])
+            ]),
         })
 
     async def start_server(self):
         """Start the WebSocket server"""
         self.app = web.Application()
-        self.app.router.add_get('/api/websocket', self.websocket_handler)
-        self.app.router.add_get('/health', self.health_check)
+        self.app.router.add_get("/api/websocket", self.websocket_handler)
+        self.app.router.add_get("/health", self.health_check)
 
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
 
         port = self.config["simulator"]["port"]
-        self.site = web.TCPSite(self.runner, '0.0.0.0', port)
+        self.site = web.TCPSite(self.runner, "0.0.0.0", port)
         await self.site.start()
 
         logger.info(f"HA Simulator WebSocket server started on port {port}")

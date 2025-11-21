@@ -14,6 +14,8 @@ try:
 except ImportError:
     Point = None
 
+import contextlib
+
 from .influxdb_schema import InfluxDBSchema
 from .influxdb_wrapper import InfluxDBConnectionManager
 
@@ -33,7 +35,7 @@ class InfluxDBBatchWriter:
                  overflow_strategy: str = "drop_oldest"):
         """
         Initialize InfluxDB batch writer
-        
+
         Args:
             connection_manager: InfluxDB connection manager
             batch_size: Maximum number of points per batch
@@ -104,20 +106,18 @@ class InfluxDBBatchWriter:
         # Cancel processing task
         if self.processing_task:
             self.processing_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.processing_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopped InfluxDB batch writer")
 
     async def write_event(self, event_data: dict[str, Any]) -> bool:
         """
         Write event data to InfluxDB
-        
+
         Args:
             event_data: Event data to write
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -131,17 +131,17 @@ class InfluxDBBatchWriter:
             return await self._enqueue_point(point)
 
         except Exception as e:
-            logger.error(f"Error writing event to InfluxDB: {e}")
+            logger.exception(f"Error writing event to InfluxDB: {e}")
             return False
 
     async def write_weather_data(self, weather_data: dict[str, Any], location: str) -> bool:
         """
         Write weather data to InfluxDB
-        
+
         Args:
             weather_data: Weather data to write
             location: Location string
-            
+
         Returns:
             True if weather data was queued successfully, False otherwise
         """
@@ -155,7 +155,7 @@ class InfluxDBBatchWriter:
             return await self._enqueue_point(point)
 
         except Exception as e:
-            logger.error(f"Error writing weather data to InfluxDB: {e}")
+            logger.exception(f"Error writing weather data to InfluxDB: {e}")
             return False
 
     async def _processing_loop(self):
@@ -171,7 +171,7 @@ class InfluxDBBatchWriter:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in processing loop: {e}")
+                logger.exception(f"Error in processing loop: {e}")
 
     async def _process_current_batch(self):
         """Process the current batch"""
@@ -274,10 +274,10 @@ class InfluxDBBatchWriter:
     async def _write_batch(self, batch: list[Point]) -> bool:
         """
         Write a batch of points to InfluxDB
-        
+
         Args:
             batch: List of InfluxDB points to write
-            
+
         Returns:
             True if batch was written successfully, False otherwise
         """
@@ -302,19 +302,7 @@ class InfluxDBBatchWriter:
                 if success:
                     logger.debug(f"Successfully wrote batch of {len(valid_points)} points to InfluxDB")
                     return True
-                else:
-                    logger.error(f"Failed to write batch to InfluxDB (attempt {attempt + 1})")
-
-                    if attempt < self.max_retries - 1:
-                        # Wait before retry
-                        await asyncio.sleep(self.retry_delay * (attempt + 1))
-                    else:
-                        # All retries failed
-                        logger.error(f"Failed to write batch after {self.max_retries} attempts")
-                        return False
-
-            except Exception as e:
-                logger.error(f"Error writing batch (attempt {attempt + 1}): {e}")
+                logger.error(f"Failed to write batch to InfluxDB (attempt {attempt + 1})")
 
                 if attempt < self.max_retries - 1:
                     # Wait before retry
@@ -322,6 +310,17 @@ class InfluxDBBatchWriter:
                 else:
                     # All retries failed
                     logger.error(f"Failed to write batch after {self.max_retries} attempts")
+                    return False
+
+            except Exception as e:
+                logger.exception(f"Error writing batch (attempt {attempt + 1}): {e}")
+
+                if attempt < self.max_retries - 1:
+                    # Wait before retry
+                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                else:
+                    # All retries failed
+                    logger.exception(f"Failed to write batch after {self.max_retries} attempts")
                     return False
 
         return False
@@ -340,7 +339,8 @@ class InfluxDBBatchWriter:
     def configure_batch_size(self, batch_size: int):
         """Configure batch size"""
         if batch_size <= 0:
-            raise ValueError("batch_size must be positive")
+            msg = "batch_size must be positive"
+            raise ValueError(msg)
 
         self.batch_size = batch_size
         logger.info(f"Updated batch size to {batch_size}")
@@ -348,7 +348,8 @@ class InfluxDBBatchWriter:
     def configure_batch_timeout(self, timeout: float):
         """Configure batch timeout"""
         if timeout <= 0:
-            raise ValueError("timeout must be positive")
+            msg = "timeout must be positive"
+            raise ValueError(msg)
 
         self.batch_timeout = timeout
         logger.info(f"Updated batch timeout to {timeout}s")
@@ -356,9 +357,11 @@ class InfluxDBBatchWriter:
     def configure_retry_settings(self, max_retries: int, retry_delay: float):
         """Configure retry settings"""
         if max_retries < 0:
-            raise ValueError("max_retries must be non-negative")
+            msg = "max_retries must be non-negative"
+            raise ValueError(msg)
         if retry_delay < 0:
-            raise ValueError("retry_delay must be non-negative")
+            msg = "retry_delay must be non-negative"
+            raise ValueError(msg)
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -412,7 +415,7 @@ class InfluxDBBatchWriter:
             "max_pending_points": self.max_pending_points,
             "overflow_strategy": self.overflow_strategy,
             "queue_overflow_events": self.queue_overflow_events,
-            "dropped_points": self.dropped_points
+            "dropped_points": self.dropped_points,
         }
 
     def reset_statistics(self):
@@ -431,7 +434,8 @@ class InfluxDBBatchWriter:
     def configure_queue_limits(self, max_pending_points: int, overflow_strategy: str = "drop_oldest"):
         """Update queue/backpressure configuration"""
         if max_pending_points <= 0:
-            raise ValueError("max_pending_points must be positive")
+            msg = "max_pending_points must be positive"
+            raise ValueError(msg)
 
         self.max_pending_points = max_pending_points
         self.overflow_strategy = overflow_strategy

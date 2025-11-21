@@ -19,7 +19,7 @@ from src.core.database import initialize_database, recreate_tables
 
 logging.basicConfig(
     level=logging.INFO,
-    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence-recreate-db"}'
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence-recreate-db"}',
 )
 logger = logging.getLogger(__name__)
 
@@ -67,12 +67,12 @@ async def main():
         logger.info("")
 
     except Exception as e:
-        logger.error("")
-        logger.error("=" * 80)
-        logger.error("❌ FAILED TO RECREATE DATABASE TABLES")
-        logger.error("=" * 80)
-        logger.error(f"Error: {e}")
-        logger.error("")
+        logger.exception("")
+        logger.exception("=" * 80)
+        logger.exception("❌ FAILED TO RECREATE DATABASE TABLES")
+        logger.exception("=" * 80)
+        logger.exception(f"Error: {e}")
+        logger.exception("")
         sys.exit(1)
 
 

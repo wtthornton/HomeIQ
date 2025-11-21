@@ -10,9 +10,9 @@ report using LangChain templating, and writes the result to
 """
 
 import asyncio
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SERVICE_PACKAGE = PROJECT_ROOT / "services" / "ai-automation-service"

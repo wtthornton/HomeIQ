@@ -15,7 +15,7 @@ from src.clients.ha_client import HomeAssistantClient
 class TestHomeAssistantClient(AioHTTPTestCase):
     """
     Test suite for HomeAssistantClient
-    
+
     Story AI4.1: Tests authentication, retry logic, error handling, and health checks
     """
 
@@ -34,7 +34,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                 "location_name": "Home",
                 "latitude": 36.1699,
                 "longitude": -115.1398,
-                "time_zone": "America/Los_Angeles"
+                "time_zone": "America/Los_Angeles",
             })
 
         async def states_endpoint(request):
@@ -43,18 +43,18 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                 {
                     "entity_id": "automation.morning_lights",
                     "state": "on",
-                    "attributes": {"friendly_name": "Morning Lights"}
+                    "attributes": {"friendly_name": "Morning Lights"},
                 },
                 {
                     "entity_id": "automation.night_mode",
                     "state": "on",
-                    "attributes": {"friendly_name": "Night Mode"}
+                    "attributes": {"friendly_name": "Night Mode"},
                 },
                 {
                     "entity_id": "light.living_room",
                     "state": "off",
-                    "attributes": {"friendly_name": "Living Room Light"}
-                }
+                    "attributes": {"friendly_name": "Living Room Light"},
+                },
             ])
 
         async def automation_config_endpoint(request):
@@ -66,16 +66,16 @@ class TestHomeAssistantClient(AioHTTPTestCase):
                     "trigger": [
                         {
                             "platform": "sun",
-                            "event": "sunrise"
-                        }
+                            "event": "sunrise",
+                        },
                     ],
                     "action": [
                         {
                             "service": "light.turn_on",
-                            "target": {"entity_id": "light.living_room"}
-                        }
-                    ]
-                }
+                            "target": {"entity_id": "light.living_room"},
+                        },
+                    ],
+                },
             ])
 
         async def server_error_endpoint(request):
@@ -88,12 +88,12 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             return web.json_response({"message": "OK"})
 
         app = web.Application()
-        app.router.add_get('/api/', health_endpoint)
-        app.router.add_get('/api/config', config_endpoint)
-        app.router.add_get('/api/states', states_endpoint)
-        app.router.add_get('/api/config/automation/config', automation_config_endpoint)
-        app.router.add_get('/api/error', server_error_endpoint)
-        app.router.add_get('/api/timeout', timeout_endpoint)
+        app.router.add_get("/api/", health_endpoint)
+        app.router.add_get("/api/config", config_endpoint)
+        app.router.add_get("/api/states", states_endpoint)
+        app.router.add_get("/api/config/automation/config", automation_config_endpoint)
+        app.router.add_get("/api/error", server_error_endpoint)
+        app.router.add_get("/api/timeout", timeout_endpoint)
         return app
 
     async def test_initialization(self):
@@ -105,7 +105,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token_12345",
             max_retries=3,
             retry_delay=0.1,
-            timeout=5
+            timeout=5,
         )
 
         assert client.ha_url == "http://test.local:8123"
@@ -123,7 +123,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         # Test connection
@@ -143,7 +143,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         version_info = await client.get_version()
@@ -164,7 +164,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         is_healthy, status_info = await client.health_check()
@@ -186,7 +186,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         automations = await client.list_automations()
@@ -205,7 +205,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         configs = await client.get_automations()
@@ -226,7 +226,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         # Get session
@@ -251,14 +251,14 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             max_retries=3,
             retry_delay=0.1,  # Fast retry for testing
-            timeout=5
+            timeout=5,
         )
 
         # This should retry and eventually return the error response
-        result = await client._retry_request('GET', '/api/error')
+        result = await client._retry_request("GET", "/api/error")
 
         assert result is not None
-        assert result['status'] == 500
+        assert result["status"] == 500
 
         await client.close()
 
@@ -272,7 +272,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
             access_token="test_token",
             max_retries=2,
             retry_delay=0.1,
-            timeout=2
+            timeout=2,
         )
 
         # Should handle connection failure gracefully
@@ -294,7 +294,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         client = HomeAssistantClient(
             ha_url=server_url,
             access_token="test_token",
-            timeout=5
+            timeout=5,
         )
 
         # Create session
@@ -312,7 +312,7 @@ class TestHomeAssistantClient(AioHTTPTestCase):
         """
         client = HomeAssistantClient(
             ha_url="http://test.local:8123",
-            access_token="my_secret_token"
+            access_token="my_secret_token",
         )
 
         assert client.headers["Authorization"] == "Bearer my_secret_token"
@@ -329,7 +329,7 @@ async def test_invalid_url_handling():
         access_token="test_token",
         max_retries=1,
         retry_delay=0.1,
-        timeout=2
+        timeout=2,
     )
 
     result = await client.test_connection()
@@ -346,7 +346,7 @@ async def test_configuration_validation():
     # Test with minimal config
     client1 = HomeAssistantClient(
         ha_url="http://test.local:8123",
-        access_token="token"
+        access_token="token",
     )
     assert client1.max_retries == 3  # Default
     assert client1.retry_delay == 1.0  # Default
@@ -358,7 +358,7 @@ async def test_configuration_validation():
         access_token="token",
         max_retries=5,
         retry_delay=2.0,
-        timeout=30
+        timeout=30,
     )
     assert client2.max_retries == 5
     assert client2.retry_delay == 2.0
@@ -375,7 +375,7 @@ async def test_url_normalization():
     """
     client = HomeAssistantClient(
         ha_url="http://test.local:8123/",  # With trailing slash
-        access_token="token"
+        access_token="token",
     )
 
     assert client.ha_url == "http://test.local:8123"  # Should be stripped

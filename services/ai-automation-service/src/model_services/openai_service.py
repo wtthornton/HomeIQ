@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="OpenAI Client Service",
     description="OpenAI API client for complex entity extraction",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Global OpenAI client
@@ -54,7 +54,7 @@ async def startup_event():
         openai_client = AsyncOpenAI(api_key=api_key)
         logger.info("OpenAI client initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize OpenAI client: {e}")
+        logger.exception(f"Failed to initialize OpenAI client: {e}")
 
 @app.get("/health")
 async def health_check():
@@ -62,17 +62,17 @@ async def health_check():
     return {
         "status": "healthy" if openai_client else "disabled",
         "client_initialized": openai_client is not None,
-        "api_key_configured": bool(os.getenv("OPENAI_API_KEY"))
+        "api_key_configured": bool(os.getenv("OPENAI_API_KEY")),
     }
 
 @app.post("/extract", response_model=OpenAIExtractionResponse)
 async def extract_entities(request: OpenAIExtractionRequest):
     """
     Extract entities from query using OpenAI
-    
+
     Args:
         request: OpenAI extraction request
-        
+
     Returns:
         OpenAIExtractionResponse with extracted entities and metadata
     """
@@ -84,7 +84,7 @@ async def extract_entities(request: OpenAIExtractionRequest):
     try:
         prompt = f"""
         Extract entities from this Home Assistant automation query: "{request.query}"
-        
+
         Return JSON with:
         {{
             "areas": ["office", "kitchen", "bedroom"],
@@ -92,7 +92,7 @@ async def extract_entities(request: OpenAIExtractionRequest):
             "actions": ["turn on", "flash", "monitor"],
             "intent": "automation"
         }}
-        
+
         Focus on:
         - Room/area names
         - Device types (lights, sensors, switches, etc.)
@@ -104,10 +104,10 @@ async def extract_entities(request: OpenAIExtractionRequest):
             model=request.model,
             messages=[
                 {"role": "system", "content": "You are a Home Assistant entity extraction expert. Extract entities from user queries for home automation."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=request.temperature,
-            max_completion_tokens=request.max_tokens  # Use max_completion_tokens for newer models
+            max_completion_tokens=request.max_tokens,  # Use max_completion_tokens for newer models
         )
 
         # Parse response
@@ -127,44 +127,44 @@ async def extract_entities(request: OpenAIExtractionRequest):
             processing_time=processing_time,
             model_used=request.model,
             tokens_used=tokens_used,
-            cost_usd=cost_usd
+            cost_usd=cost_usd,
         )
 
     except Exception as e:
-        logger.error(f"OpenAI extraction failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+        logger.exception(f"OpenAI extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}")
 
 def _parse_openai_response(content: str) -> list[dict[str, Any]]:
     """Parse OpenAI JSON response into entity format"""
     try:
         # Extract JSON from response
-        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        json_match = re.search(r"\{.*\}", content, re.DOTALL)
         if json_match:
             data = json.loads(json_match.group())
 
             entities = []
             # Convert OpenAI format to our entity format
-            for area in data.get('areas', []):
+            for area in data.get("areas", []):
                 entities.append({
-                    'name': area,
-                    'type': 'area',
-                    'domain': 'unknown',
-                    'confidence': 0.9,
-                    'extraction_method': 'openai'
+                    "name": area,
+                    "type": "area",
+                    "domain": "unknown",
+                    "confidence": 0.9,
+                    "extraction_method": "openai",
                 })
 
-            for device in data.get('devices', []):
+            for device in data.get("devices", []):
                 entities.append({
-                    'name': device,
-                    'type': 'device',
-                    'domain': 'unknown',
-                    'confidence': 0.9,
-                    'extraction_method': 'openai'
+                    "name": device,
+                    "type": "device",
+                    "domain": "unknown",
+                    "confidence": 0.9,
+                    "extraction_method": "openai",
                 })
 
             return entities
     except Exception as e:
-        logger.error(f"Failed to parse OpenAI response: {e}")
+        logger.exception(f"Failed to parse OpenAI response: {e}")
 
     return []
 
@@ -176,7 +176,7 @@ async def get_model_info():
         "default_model": "gpt-4o-mini",
         "cost_per_1k_tokens": 0.0004,
         "max_tokens": 300,
-        "temperature_range": [0.0, 2.0]
+        "temperature_range": [0.0, 2.0],
     }
 
 @app.get("/stats")
@@ -185,7 +185,7 @@ async def get_stats():
     return {
         "service": "OpenAI Client Service",
         "status": "running" if openai_client else "disabled",
-        "client_initialized": openai_client is not None
+        "client_initialized": openai_client is not None,
     }
 
 if __name__ == "__main__":

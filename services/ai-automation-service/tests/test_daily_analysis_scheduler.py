@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip(
     "transformers",
-    reason="transformers dependency not available in this environment"
+    reason="transformers dependency not available in this environment",
 )
 
 from datetime import datetime
@@ -20,14 +20,14 @@ from src.scheduler.daily_analysis import DailyAnalysisScheduler
 def mock_events_df():
     """Create mock events DataFrame"""
     return pd.DataFrame({
-        'event_id': [1, 2, 3],
-        'entity_id': ['light.bedroom', 'light.living_room', 'sensor.temp'],
-        'state': ['on', 'on', '72'],
-        'last_changed': pd.to_datetime([
-            '2025-10-01 07:00:00',
-            '2025-10-01 08:00:00',
-            '2025-10-01 15:00:00'
-        ])
+        "event_id": [1, 2, 3],
+        "entity_id": ["light.bedroom", "light.living_room", "sensor.temp"],
+        "state": ["on", "on", "72"],
+        "last_changed": pd.to_datetime([
+            "2025-10-01 07:00:00",
+            "2025-10-01 08:00:00",
+            "2025-10-01 15:00:00",
+        ]),
     })
 
 
@@ -36,12 +36,12 @@ def mock_patterns():
     """Create mock patterns"""
     return [
         {
-            'pattern_type': 'time_of_day',
-            'device_id': 'light.bedroom',
-            'confidence': 0.95,
-            'occurrences': 28,
-            'metadata': {}
-        }
+            "pattern_type": "time_of_day",
+            "device_id": "light.bedroom",
+            "confidence": 0.95,
+            "occurrences": 28,
+            "metadata": {},
+        },
     ]
 
 
@@ -56,7 +56,7 @@ def test_scheduler_initialization():
 
 def test_scheduler_initialization_default_schedule():
     """Test scheduler uses default schedule from settings"""
-    with patch('src.scheduler.daily_analysis.settings') as mock_settings:
+    with patch("src.scheduler.daily_analysis.settings") as mock_settings:
         mock_settings.analysis_schedule = "0 4 * * *"
 
         scheduler = DailyAnalysisScheduler()
@@ -74,9 +74,9 @@ def test_scheduler_start():
         assert scheduler.scheduler.running is True
 
         # Check job was added
-        job = scheduler.scheduler.get_job('daily_pattern_analysis')
+        job = scheduler.scheduler.get_job("daily_pattern_analysis")
         assert job is not None
-        assert job.name == 'Daily Pattern Analysis and Suggestion Generation'
+        assert job.name == "Daily Pattern Analysis and Suggestion Generation"
 
     finally:
         scheduler.stop()
@@ -116,14 +116,14 @@ def test_get_job_history():
     scheduler = DailyAnalysisScheduler()
 
     # Add some job history
-    scheduler._store_job_history({'status': 'success', 'duration': 60})
-    scheduler._store_job_history({'status': 'failed', 'error': 'Test error'})
+    scheduler._store_job_history({"status": "success", "duration": 60})
+    scheduler._store_job_history({"status": "failed", "error": "Test error"})
 
     history = scheduler.get_job_history(limit=10)
 
     assert len(history) == 2
-    assert history[0]['status'] == 'success'
-    assert history[1]['status'] == 'failed'
+    assert history[0]["status"] == "success"
+    assert history[1]["status"] == "failed"
 
 
 def test_job_history_limit():
@@ -132,12 +132,12 @@ def test_job_history_limit():
 
     # Add 35 job results (more than 30 limit)
     for i in range(35):
-        scheduler._store_job_history({'run_id': i, 'status': 'success'})
+        scheduler._store_job_history({"run_id": i, "status": "success"})
 
     # Should only keep last 30
     assert len(scheduler._job_history) == 30
     # First entry should be run_id 5 (0-4 were removed)
-    assert scheduler._job_history[0]['run_id'] == 5
+    assert scheduler._job_history[0]["run_id"] == 5
 
 
 @pytest.mark.asyncio
@@ -160,14 +160,14 @@ async def test_run_daily_analysis_success(mock_events_df, mock_patterns):
     scheduler = DailyAnalysisScheduler()
 
     # Mock DataAPIClient
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = mock_events_df
         mock_data_client.return_value = mock_client_instance
 
         # Mock pattern detectors
-        with patch('src.scheduler.daily_analysis.TimeOfDayPatternDetector') as mock_tod:
-            with patch('src.scheduler.daily_analysis.CoOccurrencePatternDetector') as mock_co:
+        with patch("src.scheduler.daily_analysis.TimeOfDayPatternDetector") as mock_tod:
+            with patch("src.scheduler.daily_analysis.CoOccurrencePatternDetector") as mock_co:
                 mock_tod_instance = MagicMock()
                 mock_tod_instance.detect_patterns.return_value = mock_patterns
                 mock_tod.return_value = mock_tod_instance
@@ -177,13 +177,13 @@ async def test_run_daily_analysis_success(mock_events_df, mock_patterns):
                 mock_co.return_value = mock_co_instance
 
                 # Mock database operations
-                with patch('src.scheduler.daily_analysis.store_patterns') as mock_store_patterns:
-                    with patch('src.scheduler.daily_analysis.store_suggestion') as mock_store_suggestion:
-                        with patch('src.scheduler.daily_analysis.get_db'):
+                with patch("src.scheduler.daily_analysis.store_patterns") as mock_store_patterns:
+                    with patch("src.scheduler.daily_analysis.store_suggestion"):
+                        with patch("src.scheduler.daily_analysis.get_db"):
                             mock_store_patterns.return_value = 1
 
                             # Mock OpenAI client
-                            with patch('src.scheduler.daily_analysis.OpenAIClient') as mock_openai:
+                            with patch("src.scheduler.daily_analysis.OpenAIClient") as mock_openai:
                                 from src.llm.openai_client import AutomationSuggestion
 
                                 mock_suggestion = AutomationSuggestion(
@@ -193,7 +193,7 @@ async def test_run_daily_analysis_success(mock_events_df, mock_patterns):
                                     rationale="Test",
                                     category="convenience",
                                     priority="medium",
-                                    confidence=0.95
+                                    confidence=0.95,
                                 )
 
                                 mock_openai_instance = AsyncMock()
@@ -209,11 +209,11 @@ async def test_run_daily_analysis_success(mock_events_df, mock_patterns):
     # Check job history
     history = scheduler.get_job_history()
     assert len(history) == 1
-    assert history[0]['status'] == 'success'
-    assert history[0]['events_count'] == 3
-    assert history[0]['patterns_detected'] == 1
-    assert history[0]['suggestions_generated'] == 1
-    assert 'duration_seconds' in history[0]
+    assert history[0]["status"] == "success"
+    assert history[0]["events_count"] == 3
+    assert history[0]["patterns_detected"] == 1
+    assert history[0]["suggestions_generated"] == 1
+    assert "duration_seconds" in history[0]
 
 
 @pytest.mark.asyncio
@@ -224,7 +224,7 @@ async def test_run_daily_analysis_no_events():
     # Mock empty DataFrame
     empty_df = pd.DataFrame()
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = empty_df
         mock_data_client.return_value = mock_client_instance
@@ -234,8 +234,8 @@ async def test_run_daily_analysis_no_events():
     # Check job history
     history = scheduler.get_job_history()
     assert len(history) == 1
-    assert history[0]['status'] == 'no_data'
-    assert history[0]['events_count'] == 0
+    assert history[0]["status"] == "no_data"
+    assert history[0]["events_count"] == 0
 
 
 @pytest.mark.asyncio
@@ -243,14 +243,14 @@ async def test_run_daily_analysis_no_patterns(mock_events_df):
     """Test daily analysis handles no patterns detected"""
     scheduler = DailyAnalysisScheduler()
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = mock_events_df
         mock_data_client.return_value = mock_client_instance
 
         # Mock pattern detectors returning empty lists
-        with patch('src.scheduler.daily_analysis.TimeOfDayPatternDetector') as mock_tod:
-            with patch('src.scheduler.daily_analysis.CoOccurrencePatternDetector') as mock_co:
+        with patch("src.scheduler.daily_analysis.TimeOfDayPatternDetector") as mock_tod:
+            with patch("src.scheduler.daily_analysis.CoOccurrencePatternDetector") as mock_co:
                 mock_tod_instance = MagicMock()
                 mock_tod_instance.detect_patterns.return_value = []
                 mock_tod.return_value = mock_tod_instance
@@ -264,8 +264,8 @@ async def test_run_daily_analysis_no_patterns(mock_events_df):
     # Check job history
     history = scheduler.get_job_history()
     assert len(history) == 1
-    assert history[0]['status'] == 'no_patterns'
-    assert history[0]['patterns_detected'] == 0
+    assert history[0]["status"] == "no_patterns"
+    assert history[0]["patterns_detected"] == 0
 
 
 @pytest.mark.asyncio
@@ -273,7 +273,7 @@ async def test_run_daily_analysis_handles_errors(mock_events_df):
     """Test daily analysis handles exceptions gracefully"""
     scheduler = DailyAnalysisScheduler()
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         # Simulate exception
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.side_effect = Exception("Connection failed")
@@ -285,9 +285,9 @@ async def test_run_daily_analysis_handles_errors(mock_events_df):
     # Check job history shows failure
     history = scheduler.get_job_history()
     assert len(history) == 1
-    assert history[0]['status'] == 'failed'
-    assert 'error' in history[0]
-    assert 'Connection failed' in history[0]['error']
+    assert history[0]["status"] == "failed"
+    assert "error" in history[0]
+    assert "Connection failed" in history[0]["error"]
 
 
 @pytest.mark.asyncio
@@ -297,23 +297,23 @@ async def test_run_daily_analysis_uses_optimized_detectors():
 
     # Create large DataFrame (>50,000 events)
     large_df = pd.DataFrame({
-        'event_id': range(60000),
-        'entity_id': ['light.test'] * 60000,
-        'state': ['on'] * 60000,
-        'last_changed': pd.to_datetime(['2025-10-01 00:00:00'] * 60000)
+        "event_id": range(60000),
+        "entity_id": ["light.test"] * 60000,
+        "state": ["on"] * 60000,
+        "last_changed": pd.to_datetime(["2025-10-01 00:00:00"] * 60000),
     })
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = large_df
         mock_data_client.return_value = mock_client_instance
 
-        with patch('src.scheduler.daily_analysis.TimeOfDayPatternDetector') as mock_tod:
+        with patch("src.scheduler.daily_analysis.TimeOfDayPatternDetector") as mock_tod:
             mock_tod_instance = MagicMock()
             mock_tod_instance.detect_patterns_optimized.return_value = []
             mock_tod.return_value = mock_tod_instance
 
-            with patch('src.scheduler.daily_analysis.CoOccurrencePatternDetector') as mock_co:
+            with patch("src.scheduler.daily_analysis.CoOccurrencePatternDetector") as mock_co:
                 mock_co_instance = MagicMock()
                 mock_co_instance.detect_patterns_optimized.return_value = []
                 mock_co.return_value = mock_co_instance
@@ -333,34 +333,34 @@ async def test_run_daily_analysis_limits_suggestions(mock_events_df):
     # Create 20 patterns
     many_patterns = [
         {
-            'pattern_type': 'time_of_day',
-            'device_id': f'light.test_{i}',
-            'confidence': 0.95 - (i * 0.01),
-            'occurrences': 20,
-            'metadata': {}
+            "pattern_type": "time_of_day",
+            "device_id": f"light.test_{i}",
+            "confidence": 0.95 - (i * 0.01),
+            "occurrences": 20,
+            "metadata": {},
         }
         for i in range(20)
     ]
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = mock_events_df
         mock_data_client.return_value = mock_client_instance
 
-        with patch('src.scheduler.daily_analysis.TimeOfDayPatternDetector') as mock_tod:
+        with patch("src.scheduler.daily_analysis.TimeOfDayPatternDetector") as mock_tod:
             mock_tod_instance = MagicMock()
             mock_tod_instance.detect_patterns.return_value = many_patterns
             mock_tod.return_value = mock_tod_instance
 
-            with patch('src.scheduler.daily_analysis.CoOccurrencePatternDetector') as mock_co:
+            with patch("src.scheduler.daily_analysis.CoOccurrencePatternDetector") as mock_co:
                 mock_co_instance = MagicMock()
                 mock_co_instance.detect_patterns.return_value = []
                 mock_co.return_value = mock_co_instance
 
-                with patch('src.scheduler.daily_analysis.store_patterns'):
-                    with patch('src.scheduler.daily_analysis.store_suggestion'):
-                        with patch('src.scheduler.daily_analysis.get_db'):
-                            with patch('src.scheduler.daily_analysis.OpenAIClient') as mock_openai:
+                with patch("src.scheduler.daily_analysis.store_patterns"):
+                    with patch("src.scheduler.daily_analysis.store_suggestion"):
+                        with patch("src.scheduler.daily_analysis.get_db"):
+                            with patch("src.scheduler.daily_analysis.OpenAIClient") as mock_openai:
                                 from src.llm.openai_client import AutomationSuggestion
 
                                 mock_suggestion = AutomationSuggestion(
@@ -370,7 +370,7 @@ async def test_run_daily_analysis_limits_suggestions(mock_events_df):
                                     rationale="Test",
                                     category="convenience",
                                     priority="medium",
-                                    confidence=0.95
+                                    confidence=0.95,
                                 )
 
                                 mock_openai_instance = AsyncMock()
@@ -391,7 +391,7 @@ async def test_trigger_manual_run():
     """Test manual trigger creates async task"""
     scheduler = DailyAnalysisScheduler()
 
-    with patch('src.scheduler.daily_analysis.asyncio.create_task') as mock_create_task:
+    with patch("src.scheduler.daily_analysis.asyncio.create_task") as mock_create_task:
         await scheduler.trigger_manual_run()
 
         # Should create background task
@@ -405,30 +405,30 @@ async def test_run_daily_analysis_handles_partial_failures(mock_events_df, mock_
 
     # Create multiple patterns
     patterns = [
-        {**mock_patterns[0], 'device_id': 'light.test1'},
-        {**mock_patterns[0], 'device_id': 'light.test2'},
-        {**mock_patterns[0], 'device_id': 'light.test3'}
+        {**mock_patterns[0], "device_id": "light.test1"},
+        {**mock_patterns[0], "device_id": "light.test2"},
+        {**mock_patterns[0], "device_id": "light.test3"},
     ]
 
-    with patch('src.scheduler.daily_analysis.DataAPIClient') as mock_data_client:
+    with patch("src.scheduler.daily_analysis.DataAPIClient") as mock_data_client:
         mock_client_instance = AsyncMock()
         mock_client_instance.fetch_events.return_value = mock_events_df
         mock_data_client.return_value = mock_client_instance
 
-        with patch('src.scheduler.daily_analysis.TimeOfDayPatternDetector') as mock_tod:
+        with patch("src.scheduler.daily_analysis.TimeOfDayPatternDetector") as mock_tod:
             mock_tod_instance = MagicMock()
             mock_tod_instance.detect_patterns.return_value = patterns
             mock_tod.return_value = mock_tod_instance
 
-            with patch('src.scheduler.daily_analysis.CoOccurrencePatternDetector') as mock_co:
+            with patch("src.scheduler.daily_analysis.CoOccurrencePatternDetector") as mock_co:
                 mock_co_instance = MagicMock()
                 mock_co_instance.detect_patterns.return_value = []
                 mock_co.return_value = mock_co_instance
 
-                with patch('src.scheduler.daily_analysis.store_patterns'):
-                    with patch('src.scheduler.daily_analysis.store_suggestion'):
-                        with patch('src.scheduler.daily_analysis.get_db'):
-                            with patch('src.scheduler.daily_analysis.OpenAIClient') as mock_openai:
+                with patch("src.scheduler.daily_analysis.store_patterns"):
+                    with patch("src.scheduler.daily_analysis.store_suggestion"):
+                        with patch("src.scheduler.daily_analysis.get_db"):
+                            with patch("src.scheduler.daily_analysis.OpenAIClient") as mock_openai:
                                 from src.llm.openai_client import AutomationSuggestion
 
                                 mock_suggestion = AutomationSuggestion(
@@ -438,7 +438,7 @@ async def test_run_daily_analysis_handles_partial_failures(mock_events_df, mock_
                                     rationale="Test",
                                     category="convenience",
                                     priority="medium",
-                                    confidence=0.95
+                                    confidence=0.95,
                                 )
 
                                 mock_openai_instance = AsyncMock()
@@ -446,7 +446,7 @@ async def test_run_daily_analysis_handles_partial_failures(mock_events_df, mock_
                                 mock_openai_instance.generate_automation_suggestion.side_effect = [
                                     mock_suggestion,
                                     Exception("OpenAI error"),
-                                    mock_suggestion
+                                    mock_suggestion,
                                 ]
                                 mock_openai_instance.total_tokens_used = 1500
                                 mock_openai_instance.total_input_tokens = 900
@@ -458,7 +458,7 @@ async def test_run_daily_analysis_handles_partial_failures(mock_events_df, mock_
     # Check job history
     history = scheduler.get_job_history()
     assert len(history) == 1
-    assert history[0]['status'] == 'success'
-    assert history[0]['suggestions_generated'] == 2
-    assert history[0]['suggestions_failed'] == 1
+    assert history[0]["status"] == "success"
+    assert history[0]["suggestions_generated"] == 2
+    assert history[0]["suggestions_failed"] == 1
 

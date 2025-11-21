@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 class ServiceContainer:
     """
     Centralized dependency injection container.
-    
+
     Provides lazy-loaded singleton instances of all services.
     Thread-safe singleton pattern.
     """
 
-    _instance: Optional['ServiceContainer'] = None
+    _instance: Optional["ServiceContainer"] = None
     _initialized: bool = False
 
     def __new__(cls):
@@ -85,13 +85,14 @@ class ServiceContainer:
         """Get or create Home Assistant client"""
         if self._ha_client is None:
             if not settings.ha_url or not settings.ha_token:
-                raise ValueError("HA URL and token must be configured")
+                msg = "HA URL and token must be configured"
+                raise ValueError(msg)
             self._ha_client = HomeAssistantClient(
                 ha_url=settings.ha_url,
                 access_token=settings.ha_token,
                 max_retries=settings.ha_max_retries,
                 retry_delay=settings.ha_retry_delay,
-                timeout=settings.ha_timeout
+                timeout=settings.ha_timeout,
             )
             logger.info("✅ HomeAssistantClient initialized")
         return self._ha_client
@@ -101,10 +102,11 @@ class ServiceContainer:
         """Get or create OpenAI client"""
         if self._openai_client is None:
             if not settings.openai_api_key:
-                raise ValueError("OpenAI API key must be configured")
+                msg = "OpenAI API key must be configured"
+                raise ValueError(msg)
             self._openai_client = OpenAIClient(
                 api_key=settings.openai_api_key,
-                model=settings.openai_model
+                model=settings.openai_model,
             )
             logger.info("✅ OpenAIClient initialized")
         return self._openai_client
@@ -112,16 +114,15 @@ class ServiceContainer:
     @property
     def device_intelligence(self) -> DeviceIntelligenceClient | None:
         """Get or create Device Intelligence client"""
-        if self._device_intelligence is None:
-            if settings.device_intelligence_enabled:
-                try:
-                    self._device_intelligence = DeviceIntelligenceClient(
-                        base_url=settings.device_intelligence_url
-                    )
-                    logger.info("✅ DeviceIntelligenceClient initialized")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to initialize DeviceIntelligenceClient: {e}")
-                    return None
+        if self._device_intelligence is None and settings.device_intelligence_enabled:
+            try:
+                self._device_intelligence = DeviceIntelligenceClient(
+                    base_url=settings.device_intelligence_url,
+                )
+                logger.info("✅ DeviceIntelligenceClient initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to initialize DeviceIntelligenceClient: {e}")
+                return None
         return self._device_intelligence
 
     # Entity services properties
@@ -134,7 +135,7 @@ class ServiceContainer:
                 device_intelligence_client=self.device_intelligence,
                 openai_api_key=settings.openai_api_key,
                 ner_model=settings.ner_model,
-                openai_model=settings.openai_model
+                openai_model=settings.openai_model,
             )
             logger.info("✅ EntityExtractor initialized")
         return self._entity_extractor
@@ -147,7 +148,7 @@ class ServiceContainer:
             from .entity.validator import EntityValidator
             self._entity_validator = EntityValidator(
                 ha_client=self.ha_client,
-                data_api_client=DataAPIClient()
+                data_api_client=DataAPIClient(),
             )
             logger.info("✅ EntityValidator initialized")
         return self._entity_validator
@@ -161,7 +162,7 @@ class ServiceContainer:
             self._entity_enricher = EntityEnricher(
                 ha_client=self.ha_client,
                 device_intelligence_client=self.device_intelligence,
-                data_api_client=DataAPIClient()
+                data_api_client=DataAPIClient(),
             )
             logger.info("✅ EntityEnricher initialized")
         return self._entity_enricher
@@ -186,7 +187,7 @@ class ServiceContainer:
             self._entity_resolver = EntityResolver(
                 ha_client=self.ha_client,
                 data_api_client=DataAPIClient(),
-                rag_client=rag_client  # None for now, can be set later
+                rag_client=rag_client,  # None for now, can be set later
             )
             logger.info("✅ EntityResolver initialized")
         return self._entity_resolver
@@ -199,7 +200,7 @@ class ServiceContainer:
             from .automation.yaml_generator import AutomationYAMLGenerator
             self._yaml_generator = AutomationYAMLGenerator(
                 openai_client=self.openai_client,
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
             )
             logger.info("✅ AutomationYAMLGenerator initialized")
         return self._yaml_generator
@@ -210,7 +211,7 @@ class ServiceContainer:
         if self._yaml_validator is None:
             from .automation.yaml_validator import AutomationYAMLValidator
             self._yaml_validator = AutomationYAMLValidator(
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
             )
             logger.info("✅ AutomationYAMLValidator initialized")
         return self._yaml_validator
@@ -222,13 +223,14 @@ class ServiceContainer:
 
             from .automation.yaml_corrector import AutomationYAMLCorrector
             # Get AsyncOpenAI client from OpenAIClient wrapper
-            async_openai = self.openai_client.client if hasattr(self.openai_client, 'client') else None
+            async_openai = self.openai_client.client if hasattr(self.openai_client, "client") else None
             if async_openai is None:
-                raise ValueError("OpenAI client not properly initialized")
+                msg = "OpenAI client not properly initialized"
+                raise ValueError(msg)
             self._yaml_corrector = AutomationYAMLCorrector(
                 openai_client=async_openai,
                 ha_client=self.ha_client,
-                device_intelligence_client=self.device_intelligence
+                device_intelligence_client=self.device_intelligence,
             )
             logger.info("✅ AutomationYAMLCorrector initialized")
         return self._yaml_corrector
@@ -242,7 +244,7 @@ class ServiceContainer:
             action_executor = self.action_executor
             self._test_executor = AutomationTestExecutor(
                 ha_client=self.ha_client,
-                action_executor=action_executor
+                action_executor=action_executor,
             )
             logger.info("✅ AutomationTestExecutor initialized")
         return self._test_executor
@@ -253,7 +255,7 @@ class ServiceContainer:
         if self._deployer is None:
             from .automation.deployer import AutomationDeployer
             self._deployer = AutomationDeployer(
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
             )
             logger.info("✅ AutomationDeployer initialized")
         return self._deployer
@@ -273,9 +275,9 @@ class ServiceContainer:
             self._action_executor = ActionExecutor(
                 ha_client=self.ha_client,
                 template_engine=template_engine,
-                num_workers=getattr(settings, 'action_executor_workers', 2),
-                max_retries=getattr(settings, 'action_executor_max_retries', 3),
-                retry_delay=getattr(settings, 'action_executor_retry_delay', 1.0)
+                num_workers=getattr(settings, "action_executor_workers", 2),
+                max_retries=getattr(settings, "action_executor_max_retries", 3),
+                retry_delay=getattr(settings, "action_executor_retry_delay", 1.0),
             )
             logger.info("✅ ActionExecutor initialized")
         return self._action_executor

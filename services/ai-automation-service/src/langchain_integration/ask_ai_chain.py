@@ -93,7 +93,7 @@ def build_prompt_with_langchain(
                 """{baseline_system}
 
 You are using LangChain prompt assembly. Maintain all original safety and device
-guardrails while incorporating clarifications and enriched context summaries."""
+guardrails while incorporating clarifications and enriched context summaries.""",
             ),
             HumanMessagePromptTemplate.from_template(
                 """User request:
@@ -109,9 +109,9 @@ Enriched context (truncated to fit):
 {enriched_block}
 
 Base prompt:
-{baseline_user}"""
+{baseline_user}""",
             ),
-        ]
+        ],
     )
 
     formatted_messages = chat_template.format_prompt(

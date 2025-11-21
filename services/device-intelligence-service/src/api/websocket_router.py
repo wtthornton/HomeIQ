@@ -40,21 +40,21 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket_manager._send_to_client(websocket, {
                     "type": "error",
                     "message": "Invalid JSON format",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             except Exception as e:
-                logger.error(f"Error handling WebSocket message: {e}")
+                logger.exception(f"Error handling WebSocket message: {e}")
                 await websocket_manager._send_to_client(websocket, {
                     "type": "error",
-                    "message": f"Internal error: {str(e)}",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "message": f"Internal error: {e!s}",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
 
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
         logger.info(f"WebSocket client disconnected: {client_id}")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.exception(f"WebSocket error: {e}")
         websocket_manager.disconnect(websocket)
 
 
@@ -82,27 +82,27 @@ async def websocket_test_page():
     <body>
         <div class="container">
             <h1>Device Intelligence WebSocket Test</h1>
-            
+
             <div id="status" class="status disconnected">Disconnected</div>
-            
+
             <div class="controls">
                 <button onclick="connect()">Connect</button>
                 <button onclick="disconnect()">Disconnect</button>
                 <button onclick="ping()">Ping</button>
                 <button onclick="getStats()">Get Stats</button>
             </div>
-            
+
             <div class="controls">
                 <input type="text" id="deviceId" placeholder="Device ID" value="test-device">
                 <button onclick="subscribeDevice()">Subscribe to Device</button>
                 <button onclick="unsubscribeDevice()">Unsubscribe from Device</button>
             </div>
-            
+
             <div class="controls">
                 <button onclick="simulateDeviceUpdate()">Simulate Device Update</button>
                 <button onclick="clearMessages()">Clear Messages</button>
             </div>
-            
+
             <h3>Messages:</h3>
             <div id="messages" class="messages"></div>
         </div>
@@ -114,24 +114,24 @@ async def websocket_test_page():
             function connect() {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/ws/`;
-                
+
                 ws = new WebSocket(wsUrl);
-                
+
                 ws.onopen = function(event) {
                     updateStatus('Connected', 'connected');
                     addMessage('Connected to WebSocket server');
                 };
-                
+
                 ws.onmessage = function(event) {
                     const data = JSON.parse(event.data);
                     addMessage(`Received: ${JSON.stringify(data, null, 2)}`);
                 };
-                
+
                 ws.onclose = function(event) {
                     updateStatus('Disconnected', 'disconnected');
                     addMessage('Disconnected from WebSocket server');
                 };
-                
+
                 ws.onerror = function(error) {
                     addMessage(`Error: ${error}`);
                 };
@@ -220,7 +220,7 @@ async def get_websocket_stats():
         "websocket_manager": websocket_manager.get_connection_stats(),
         "device_state_tracker": device_state_tracker.get_stats(),
         "performance_collector": performance_collector.get_stats(),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -230,18 +230,18 @@ async def broadcast_test_message(message: dict[str, Any]):
     await websocket_manager.broadcast_to_all({
         "type": "test_message",
         "data": message,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
     return {
         "status": "success",
         "message": "Test message broadcasted",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @router.post("/device/{device_id}/simulate")
-async def simulate_device_update(device_id: str, update_data: dict[str, Any] = None):
+async def simulate_device_update(device_id: str, update_data: dict[str, Any] | None = None):
     """Simulate device update for testing."""
     if update_data is None:
         update_data = {
@@ -252,7 +252,7 @@ async def simulate_device_update(device_id: str, update_data: dict[str, Any] = N
             "cpu_usage": 25,
             "memory_usage": 40,
             "temperature": 35,
-            "uptime": 86400
+            "uptime": 86400,
         }
 
     # Update device state
@@ -266,5 +266,5 @@ async def simulate_device_update(device_id: str, update_data: dict[str, Any] = N
         "message": f"Simulated update for device {device_id}",
         "device_id": device_id,
         "update_data": update_data,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

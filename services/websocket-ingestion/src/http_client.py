@@ -59,7 +59,7 @@ class SimpleHTTPClient:
                 async with self.session.post(
                     f"{self.enrichment_url}/events",
                     json=event_data,
-                    timeout=aiohttp.ClientTimeout(total=5)
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as response:
                     if response.status == 200:
                         # Success - reset circuit breaker
@@ -67,8 +67,7 @@ class SimpleHTTPClient:
                         self.successful_requests += 1
                         logging.debug(f"Event sent successfully on attempt {attempt + 1}")
                         return True
-                    else:
-                        logging.warning(f"HTTP {response.status} on attempt {attempt + 1}")
+                    logging.warning(f"HTTP {response.status} on attempt {attempt + 1}")
 
             except Exception as e:
                 logging.warning(f"Attempt {attempt + 1} failed: {e}")
@@ -103,6 +102,6 @@ class SimpleHTTPClient:
             "circuit_breaker": {
                 "is_open": self.circuit_open,
                 "consecutive_failures": self.consecutive_failures,
-                "reopens_at": self.circuit_open_until.isoformat() if self.circuit_open_until else None
-            }
+                "reopens_at": self.circuit_open_until.isoformat() if self.circuit_open_until else None,
+            },
         }

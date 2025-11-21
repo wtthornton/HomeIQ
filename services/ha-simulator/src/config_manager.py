@@ -46,11 +46,11 @@ class ConfigManager:
             "simulator": {
                 "name": "HA Development Simulator",
                 "version": "2025.10.1",
-                "port": 8123
+                "port": 8123,
             },
             "authentication": {
                 "enabled": True,
-                "token": "dev_simulator_token"
+                "token": "dev_simulator_token",
             },
             "entities": [
                 {
@@ -61,7 +61,7 @@ class ConfigManager:
                     "variance": 2.0,
                     "update_interval": 30,
                     "unit_of_measurement": "°C",
-                    "friendly_name": "Living Room Temperature"
+                    "friendly_name": "Living Room Temperature",
                 },
                 {
                     "entity_id": "sensor.wled_estimated_current",
@@ -71,7 +71,7 @@ class ConfigManager:
                     "variance": 0.2,
                     "update_interval": 10,
                     "unit_of_measurement": "A",
-                    "friendly_name": "WLED Estimated Current"
+                    "friendly_name": "WLED Estimated Current",
                 },
                 {
                     "entity_id": "sensor.bar_estimated_current",
@@ -81,7 +81,7 @@ class ConfigManager:
                     "variance": 0.1,
                     "update_interval": 10,
                     "unit_of_measurement": "A",
-                    "friendly_name": "Bar Estimated Current"
+                    "friendly_name": "Bar Estimated Current",
                 },
                 {
                     "entity_id": "sensor.archer_be800_download_speed",
@@ -91,7 +91,7 @@ class ConfigManager:
                     "variance": 50.0,
                     "update_interval": 30,
                     "unit_of_measurement": "Mbit/s",
-                    "friendly_name": "Archer BE800 Download Speed"
+                    "friendly_name": "Archer BE800 Download Speed",
                 },
                 {
                     "entity_id": "sensor.archer_be800_upload_speed",
@@ -101,7 +101,7 @@ class ConfigManager:
                     "variance": 25.0,
                     "update_interval": 30,
                     "unit_of_measurement": "Mbit/s",
-                    "friendly_name": "Archer BE800 Upload Speed"
+                    "friendly_name": "Archer BE800 Upload Speed",
                 },
                 {
                     "entity_id": "sun.sun",
@@ -111,7 +111,7 @@ class ConfigManager:
                     "variance": None,
                     "update_interval": 300,
                     "unit_of_measurement": None,
-                    "friendly_name": "Sun"
+                    "friendly_name": "Sun",
                 },
                 {
                     "entity_id": "sensor.slzb_06p7_coordinator_zigbee_chip_temp",
@@ -121,7 +121,7 @@ class ConfigManager:
                     "variance": 5.0,
                     "update_interval": 60,
                     "unit_of_measurement": "°C",
-                    "friendly_name": "SLZB-06P7 Coordinator Zigbee Chip Temperature"
+                    "friendly_name": "SLZB-06P7 Coordinator Zigbee Chip Temperature",
                 },
                 {
                     "entity_id": "sensor.home_assistant_core_cpu_percent",
@@ -131,32 +131,32 @@ class ConfigManager:
                     "variance": 10.0,
                     "update_interval": 60,
                     "unit_of_measurement": "%",
-                    "friendly_name": "Home Assistant Core CPU Percent"
-                }
+                    "friendly_name": "Home Assistant Core CPU Percent",
+                },
             ],
             "scenarios": [
                 {
                     "name": "normal_operation",
                     "description": "Normal home operation patterns",
                     "event_rate": "medium",
-                    "duration": "unlimited"
+                    "duration": "unlimited",
                 },
                 {
                     "name": "high_activity",
                     "description": "High activity simulation",
                     "event_rate": "high",
-                    "duration": 3600
+                    "duration": 3600,
                 },
                 {
                     "name": "low_activity",
                     "description": "Low activity simulation",
                     "event_rate": "low",
-                    "duration": 3600
-                }
+                    "duration": 3600,
+                },
             ],
             "logging": {
-                "level": "INFO"
-            }
+                "level": "INFO",
+            },
         }
 
     def _apply_environment_overrides(self):
@@ -165,7 +165,7 @@ class ConfigManager:
             "SIMULATOR_PORT": ["simulator", "port"],
             "SIMULATOR_AUTH_TOKEN": ["authentication", "token"],
             "SIMULATOR_HA_VERSION": ["simulator", "version"],
-            "SIMULATOR_LOG_LEVEL": ["logging", "level"]
+            "SIMULATOR_LOG_LEVEL": ["logging", "level"],
         }
 
         for env_var, config_path in env_mappings.items():
@@ -195,28 +195,32 @@ class ConfigManager:
         required_keys = ["simulator", "authentication", "entities"]
         for key in required_keys:
             if key not in self.config:
-                raise ValueError(f"Missing required configuration key: {key}")
+                msg = f"Missing required configuration key: {key}"
+                raise ValueError(msg)
 
         # Validate port
         port = self.config["simulator"]["port"]
         if not isinstance(port, int) or port < 1 or port > 65535:
-            raise ValueError(f"Invalid port: {port}")
+            msg = f"Invalid port: {port}"
+            raise ValueError(msg)
 
         # Validate entities
         entities = self.config["entities"]
         if not isinstance(entities, list) or len(entities) == 0:
-            raise ValueError("Entities must be a non-empty list")
+            msg = "Entities must be a non-empty list"
+            raise ValueError(msg)
 
         # Validate each entity
         for entity in entities:
             required_entity_keys = ["entity_id", "domain", "update_interval"]
             for key in required_entity_keys:
                 if key not in entity:
-                    raise ValueError(f"Entity {entity.get('entity_id', 'unknown')} missing required key: {key}")
+                    msg = f"Entity {entity.get('entity_id', 'unknown')} missing required key: {key}"
+                    raise ValueError(msg)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value using dot notation"""
-        keys = key.split('.')
+        keys = key.split(".")
         config = self.config
 
         for k in keys:

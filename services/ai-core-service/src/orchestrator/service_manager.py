@@ -90,8 +90,9 @@ class ServiceManager:
                 logger.warning("❌ %s service is unavailable: %s", service_name, e)
 
         if fail_on_unhealthy and unavailable:
+            msg = f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}"
             raise RuntimeError(
-                f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}"
+                msg,
             )
 
     async def get_service_status(self) -> dict[str, Any]:
@@ -102,29 +103,29 @@ class ServiceManager:
             "openvino": {
                 "url": self.openvino_url,
                 "healthy": self.service_health["openvino"],
-                "models": ["all-MiniLM-L6-v2", "bge-reranker-base", "flan-t5-small"]
+                "models": ["all-MiniLM-L6-v2", "bge-reranker-base", "flan-t5-small"],
             },
             "ml": {
                 "url": self.ml_url,
                 "healthy": self.service_health["ml"],
-                "algorithms": ["kmeans", "dbscan", "isolation_forest"]
+                "algorithms": ["kmeans", "dbscan", "isolation_forest"],
             },
             "ner": {
                 "url": self.ner_url,
                 "healthy": self.service_health["ner"],
-                "models": ["dslim/bert-base-NER", "spaCy"]
+                "models": ["dslim/bert-base-NER", "spaCy"],
             },
             "openai": {
                 "url": self.openai_url,
                 "healthy": self.service_health["openai"],
-                "models": ["gpt-4o-mini"]
-            }
+                "models": ["gpt-4o-mini"],
+            },
         }
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError))
+        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
     )
     async def _call_service(self, service_name: str, url: str, endpoint: str, data: dict[str, Any]) -> dict[str, Any]:
         """Call a service with retry logic"""
@@ -133,7 +134,7 @@ class ServiceManager:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            logger.error(f"Error calling {service_name} service: {e}")
+            logger.exception(f"Error calling {service_name} service: {e}")
             raise
 
     async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -150,7 +151,7 @@ class ServiceManager:
                         "openvino",
                         self.openvino_url,
                         "/embeddings",
-                        {"texts": texts, "normalize": True}
+                        {"texts": texts, "normalize": True},
                     )
                     results["embeddings"] = embedding_response["embeddings"]
                     services_used.append("openvino")
@@ -167,8 +168,8 @@ class ServiceManager:
                         {
                             "data": results["embeddings"],
                             "algorithm": "kmeans",
-                            "n_clusters": options.get("n_clusters", 5)
-                        }
+                            "n_clusters": options.get("n_clusters", 5),
+                        },
                     )
                     results["clusters"] = clustering_response["labels"]
                     results["n_clusters"] = clustering_response["n_clusters"]
@@ -185,8 +186,8 @@ class ServiceManager:
                         "/anomaly",
                         {
                             "data": results["embeddings"],
-                            "contamination": options.get("contamination", 0.1)
-                        }
+                            "contamination": options.get("contamination", 0.1),
+                        },
                     )
                     results["anomalies"] = anomaly_response["labels"]
                     results["anomaly_scores"] = anomaly_response["scores"]
@@ -198,7 +199,7 @@ class ServiceManager:
             return results, services_used
 
         except Exception as e:
-            logger.error(f"Error in data analysis: {e}")
+            logger.exception(f"Error in data analysis: {e}")
             raise
 
     async def detect_patterns(self, patterns: list[dict[str, Any]], detection_type: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -216,14 +217,14 @@ class ServiceManager:
                             "openvino",
                             self.openvino_url,
                             "/classify",
-                            {"pattern_description": description}
+                            {"pattern_description": description},
                         )
 
                         detected_pattern = {
                             **pattern,
                             "category": classification_response["category"],
                             "priority": classification_response["priority"],
-                            "confidence": 0.8  # Default confidence
+                            "confidence": 0.8,  # Default confidence
                         }
                         detected_patterns.append(detected_pattern)
 
@@ -237,7 +238,7 @@ class ServiceManager:
             return detected_patterns, services_used
 
         except Exception as e:
-            logger.error(f"Error in pattern detection: {e}")
+            logger.exception(f"Error in pattern detection: {e}")
             raise
 
     async def generate_suggestions(self, context: dict[str, Any], suggestion_type: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -260,8 +261,8 @@ class ServiceManager:
                             "prompt": prompt,
                             "model": "gpt-4o-mini",
                             "temperature": 0.7,
-                            "max_tokens": 500
-                        }
+                            "max_tokens": 500,
+                        },
                     )
 
                     # Parse response into suggestions
@@ -276,16 +277,16 @@ class ServiceManager:
             return suggestions, services_used
 
         except Exception as e:
-            logger.error(f"Error generating suggestions: {e}")
+            logger.exception(f"Error generating suggestions: {e}")
             raise
 
     def _build_suggestion_prompt(self, context: dict[str, Any], suggestion_type: str) -> str:
         """Build prompt for suggestion generation"""
         return f"""
         Generate {suggestion_type} suggestions based on the following context:
-        
+
         Context: {context}
-        
+
         Please provide 3-5 specific, actionable suggestions in JSON format.
         Each suggestion should include:
         - title: Brief title
@@ -310,7 +311,7 @@ class ServiceManager:
                 "description": response,
                 "priority": "medium",
                 "category": "convenience",
-            }
+            },
         ]
 
     def _generate_fallback_suggestions(self, context: dict[str, Any], suggestion_type: str) -> list[dict[str, Any]]:
@@ -320,6 +321,6 @@ class ServiceManager:
                 "title": "Basic Suggestion",
                 "description": f"Consider reviewing your {suggestion_type} configuration",
                 "priority": "medium",
-                "category": "convenience"
-            }
+                "category": "convenience",
+            },
         ]

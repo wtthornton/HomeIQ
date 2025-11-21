@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 
-from ..ranking.score import rank_automations
+from src.ranking.score import rank_automations
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +35,10 @@ class RankResponse(BaseModel):
 async def rank_automation_plans(request: RankRequest = Body(...)):
     """
     Rank automation plans using heuristic scoring.
-    
+
     Returns top-K automations sorted by score with feature breakdown.
     Excludes automations missing mandatory capabilities.
-    
+
     Returns:
         Ranked automations with scores and feature breakdown
     """
@@ -48,7 +48,7 @@ async def rank_automation_plans(request: RankRequest = Body(...)):
             capabilities=request.capabilities,
             top_k=request.top_k,
             reliability_history=request.reliability_history,
-            user_preferences=request.user_preferences
+            user_preferences=request.user_preferences,
         )
 
         # Convert to response format
@@ -66,17 +66,17 @@ async def rank_automation_plans(request: RankRequest = Body(...)):
                     "user_recent_preference": ranked_automation.score.user_recent_preference,
                     "feature_breakdown": ranked_automation.score.feature_breakdown,
                     "excluded": ranked_automation.score.excluded,
-                    "exclusion_reason": ranked_automation.score.exclusion_reason
-                }
+                    "exclusion_reason": ranked_automation.score.exclusion_reason,
+                },
             })
 
         return RankResponse(
             ranked=ranked_dicts,
             total_count=len(request.automations),
-            excluded_count=len(request.automations) - len(ranked)
+            excluded_count=len(request.automations) - len(ranked),
         )
 
     except Exception as e:
         logger.error(f"Ranking error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Ranking failed: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Ranking failed: {e!s}") from e
 

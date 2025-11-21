@@ -38,7 +38,8 @@ class PDLInterpreter:
     @classmethod
     def from_file(cls, path: Path, logger: logging.Logger) -> PDLInterpreter:
         if not path.exists():
-            raise FileNotFoundError(f"PDL script not found: {path}")
+            msg = f"PDL script not found: {path}"
+            raise FileNotFoundError(msg)
         with path.open("r", encoding="utf-8") as handle:
             script = yaml.safe_load(handle) or {}
         return cls(script, logger)
@@ -72,11 +73,11 @@ class PDLInterpreter:
                 failure_msg = reason or message or "Guard condition failed."
                 if on_failure == "error":
                     self._logger.error("❌ [%s] %s", step_id, failure_msg)
-                    raise PDLExecutionError(f"{step_id}: {failure_msg}")
-                else:
-                    self._logger.warning("⚠️ [%s] %s", step_id, failure_msg)
-                    results.append(StepResult(step_id, "warn", failure_msg))
-                    continue
+                    msg = f"{step_id}: {failure_msg}"
+                    raise PDLExecutionError(msg)
+                self._logger.warning("⚠️ [%s] %s", step_id, failure_msg)
+                results.append(StepResult(step_id, "warn", failure_msg))
+                continue
 
             # Default fall-through (unknown step type)
             self._logger.debug("ℹ️ [%s] Skipping unsupported step type '%s'", step_id, step_type)

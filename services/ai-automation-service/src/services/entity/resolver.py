@@ -34,7 +34,7 @@ except ImportError:
 class EntityResolver:
     """
     Unified entity resolver for mapping device names to entity IDs.
-    
+
     Resolves:
     - Generic device names ("office lights") to specific entity IDs
     - Group entities to individual members
@@ -47,11 +47,11 @@ class EntityResolver:
         self,
         ha_client: HomeAssistantClient | None = None,
         data_api_client: DataAPIClient | None = None,
-        rag_client: Any | None = None  # RAGClient type, but optional
+        rag_client: Any | None = None,  # RAGClient type, but optional
     ):
         """
         Initialize unified entity resolver.
-        
+
         Args:
             ha_client: Home Assistant client
             data_api_client: Data API client
@@ -74,7 +74,7 @@ class EntityResolver:
         if self._validator is None:
             self._validator = LegacyEntityValidator(
                 data_api_client=self.data_api_client,
-                ha_client=self.ha_client
+                ha_client=self.ha_client,
             )
         return self._validator
 
@@ -82,18 +82,18 @@ class EntityResolver:
         self,
         device_names: list[str],
         query: str | None = None,
-        area_id: str | None = None
+        area_id: str | None = None,
     ) -> dict[str, str]:
         """
         Resolve device names to entity IDs.
-        
+
         Uses RAG for semantic disambiguation when exact matches are ambiguous.
-        
+
         Args:
             device_names: List of device names to resolve
             query: Optional query context for better matching
             area_id: Optional area filter
-        
+
         Returns:
             Dictionary mapping device_name to entity_id
         """
@@ -106,7 +106,7 @@ class EntityResolver:
             # Step 1: Try exact matching first
             mapping = await validator.map_query_to_entities(
                 query=query or " ".join(device_names),
-                device_names=device_names
+                device_names=device_names,
             )
 
             # Step 2: Use RAG for unresolved or ambiguous matches
@@ -123,7 +123,7 @@ class EntityResolver:
                         knowledge_type="entity",  # Filter for entity knowledge
                         top_k=10,
                         min_similarity=0.6,  # Lower threshold for entity matching
-                        filter_metadata={"area_id": area_id} if area_id else None
+                        filter_metadata={"area_id": area_id} if area_id else None,
                     )
 
                     # Merge RAG results with exact matches
@@ -141,13 +141,13 @@ class EntityResolver:
                                     mapping[unresolved_name] = entity_id
                                     logger.debug(
                                         f"RAG match: '{unresolved_name}' → {entity_id} "
-                                        f"(similarity: {result.get('similarity', 0):.2f})"
+                                        f"(similarity: {result.get('similarity', 0):.2f})",
                                     )
                                     break
 
                     if len(mapping) > len([name for name in device_names if name in mapping]):
                         logger.info(
-                            f"✅ RAG enhanced resolution: {len(mapping)}/{len(device_names)} device names resolved"
+                            f"✅ RAG enhanced resolution: {len(mapping)}/{len(device_names)} device names resolved",
                         )
 
                 except Exception as e:
@@ -163,14 +163,14 @@ class EntityResolver:
 
     async def expand_group_entities(
         self,
-        entity_ids: list[str]
+        entity_ids: list[str],
     ) -> list[str]:
         """
         Expand group entities to their individual member entities.
-        
+
         Args:
             entity_ids: List of entity IDs (may include groups)
-        
+
         Returns:
             Expanded list of entity IDs (groups replaced with members)
         """
@@ -213,15 +213,15 @@ class EntityResolver:
     async def resolve_aliases(
         self,
         aliases: list[str],
-        user_id: str = "anonymous"
+        user_id: str = "anonymous",
     ) -> dict[str, str]:
         """
         Resolve user-defined aliases to entity IDs.
-        
+
         Args:
             aliases: List of aliases to resolve
             user_id: User ID for alias lookup
-        
+
         Returns:
             Dictionary mapping alias to entity_id
         """

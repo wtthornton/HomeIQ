@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/mcp/tools", tags=["mcp"])
 
 # Import pattern detection dependencies
-from ..clients.data_api_client import DataAPIClient
-from ..config import settings
-from ..database import get_db
-from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
-from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from src.clients.data_api_client import DataAPIClient
+from src.config import settings
+from src.database import get_db
+from src.pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from src.pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 
 # Initialize clients
 data_api_client = DataAPIClient(base_url=settings.data_api_url)
 
 
-def parse_relative_time(time_str: str, base_time: datetime = None) -> datetime:
+def parse_relative_time(time_str: str, base_time: datetime | None = None) -> datetime:
     """
     Parse relative time strings like '-7d', '-24h', 'now' to datetime objects.
 
@@ -40,27 +40,28 @@ def parse_relative_time(time_str: str, base_time: datetime = None) -> datetime:
     if base_time is None:
         base_time = datetime.now(timezone.utc)
 
-    if time_str.lower() == 'now':
+    if time_str.lower() == "now":
         return base_time
 
     # Parse relative time (e.g., '-7d', '-24h', '-30m')
-    match = re.match(r'^(-?\d+)([dhm])$', time_str.lower())
+    match = re.match(r"^(-?\d+)([dhm])$", time_str.lower())
     if match:
         value = int(match.group(1))
         unit = match.group(2)
 
-        if unit == 'd':
+        if unit == "d":
             return base_time + timedelta(days=value)
-        elif unit == 'h':
+        if unit == "h":
             return base_time + timedelta(hours=value)
-        elif unit == 'm':
+        if unit == "m":
             return base_time + timedelta(minutes=value)
 
     # Try parsing as ISO format
     try:
-        return datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+        return datetime.fromisoformat(time_str.replace("Z", "+00:00"))
     except ValueError:
-        raise ValueError(f"Invalid time format: {time_str}. Use '-7d', '-24h', 'now', or ISO format.")
+        msg = f"Invalid time format: {time_str}. Use '-7d', '-24h', 'now', or ISO format."
+        raise ValueError(msg)
 
 
 class DetectPatternsRequest(BaseModel):
@@ -73,7 +74,7 @@ class DetectPatternsRequest(BaseModel):
 @router.post("/detect_patterns")
 async def detect_patterns(
     request: DetectPatternsRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     MCP Tool: Detect automation patterns.
@@ -97,7 +98,7 @@ async def detect_patterns(
     try:
         logger.info(
             f"MCP detect_patterns: {request.start_time} to {request.end_time}, "
-            f"types={request.pattern_types}"
+            f"types={request.pattern_types}",
         )
 
         # Parse time strings
@@ -106,8 +107,7 @@ async def detect_patterns(
 
         # Calculate days for context
         days = (end_dt - start_dt).days
-        if days < 1:
-            days = 1
+        days = max(days, 1)
 
         logger.info(f"Analyzing {days} days of data: {start_dt} to {end_dt}")
 
@@ -115,7 +115,7 @@ async def detect_patterns(
         events_df = await data_api_client.fetch_events(
             start_time=start_dt,
             end_time=end_dt,
-            limit=10000
+            limit=10000,
         )
 
         if events_df.empty:
@@ -123,12 +123,12 @@ async def detect_patterns(
                 "success": True,
                 "patterns": [],
                 "message": "No events found for the specified time range",
-                "events_analyzed": 0
+                "events_analyzed": 0,
             }
 
         # Ensure required columns
-        if 'entity_id' in events_df.columns and 'device_id' not in events_df.columns:
-            events_df['device_id'] = events_df['entity_id']
+        if "entity_id" in events_df.columns and "device_id" not in events_df.columns:
+            events_df["device_id"] = events_df["entity_id"]
 
         all_patterns = []
 
@@ -139,7 +139,7 @@ async def detect_patterns(
                 min_occurrences=settings.time_of_day_min_occurrences,
                 min_confidence=settings.time_of_day_base_confidence,
                 domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
-                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
+                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides),
             )
             time_patterns = time_detector.detect_patterns(events_df)
 
@@ -151,7 +151,7 @@ async def detect_patterns(
                     "pattern": pattern.get("pattern", ""),
                     "confidence": pattern.get("confidence", 0.0),
                     "occurrences": pattern.get("occurrences", 0),
-                    "time_window": pattern.get("time_window", "")
+                    "time_window": pattern.get("time_window", ""),
                 })
 
         # Detect co-occurrence patterns
@@ -162,7 +162,7 @@ async def detect_patterns(
                 min_support=settings.co_occurrence_min_support,
                 min_confidence=settings.co_occurrence_base_confidence,
                 domain_support_overrides=dict(settings.co_occurrence_support_overrides),
-                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
+                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides),
             )
             cooccur_patterns = cooccur_detector.detect_patterns(events_df)
 
@@ -174,7 +174,7 @@ async def detect_patterns(
                     "action_device": pattern.get("action_device"),
                     "confidence": pattern.get("confidence", 0.0),
                     "support": pattern.get("support", 0),
-                    "pattern": pattern.get("pattern", "")
+                    "pattern": pattern.get("pattern", ""),
                 })
 
         logger.info(f"✅ Detected {len(all_patterns)} total patterns")
@@ -187,9 +187,9 @@ async def detect_patterns(
                 "time_based": len([p for p in all_patterns if p["type"] == "time-based"]),
                 "co_occurrence": len([p for p in all_patterns if p["type"] == "co-occurrence"]),
                 "events_analyzed": len(events_df),
-                "unique_devices": int(events_df['device_id'].nunique()),
-                "time_range_days": days
-            }
+                "unique_devices": int(events_df["device_id"].nunique()),
+                "time_range_days": days,
+            },
         }
 
     except Exception as e:

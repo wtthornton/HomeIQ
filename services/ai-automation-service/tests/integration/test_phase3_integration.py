@@ -21,7 +21,7 @@ def mock_settings():
         "HA_URL": "http://test:8123",
         "HA_TOKEN": "test_token",
         "MQTT_BROKER": "test_broker",
-        "OPENAI_API_KEY": "test_key"
+        "OPENAI_API_KEY": "test_key",
     }):
         yield
 
@@ -32,7 +32,7 @@ def rl_calibrator_trained():
     config = RLCalibrationConfig(
         learning_rate=0.01,
         min_samples_for_training=5,
-        update_frequency=3
+        update_frequency=3,
     )
     calibrator = RLConfidenceCalibrator(config=config)
 
@@ -54,7 +54,7 @@ def rl_calibrator_trained():
             critical_ambiguity_count=crit_amb,
             rounds=rounds,
             answer_count=answers,
-            auto_train=False
+            auto_train=False,
         )
     calibrator.train()
 
@@ -74,7 +74,7 @@ async def test_rl_calibration_in_clarification_flow(mock_settings, rl_calibrator
         mock_openai_instance = Mock()
         mock_openai_instance.extract_entities = AsyncMock(return_value={
             "entities": [],
-            "confidence": 0.8
+            "confidence": 0.8,
         })
         mock_openai.return_value = mock_openai_instance
 
@@ -89,7 +89,7 @@ async def test_rl_calibration_in_clarification_flow(mock_settings, rl_calibrator
             calibration_enabled=True,
             rl_calibrator=rl_calibrator_trained,
             rl_calibration_enabled=True,
-            uncertainty_enabled=False
+            uncertainty_enabled=False,
         )
 
         # Simulate clarification flow
@@ -101,8 +101,8 @@ async def test_rl_calibration_in_clarification_flow(mock_settings, rl_calibrator
                 type=AmbiguityType.DEVICE,
                 severity=AmbiguitySeverity.IMPORTANT,
                 description="Multiple devices",
-                related_entities=["light.living_room", "light.kitchen"]
-            )
+                related_entities=["light.living_room", "light.kitchen"],
+            ),
         ]
 
         # Calculate confidence with RL calibration
@@ -110,7 +110,7 @@ async def test_rl_calibration_in_clarification_flow(mock_settings, rl_calibrator
             query="turn on the light",
             extracted_entities=[],
             ambiguities=ambiguities,
-            base_confidence=0.8
+            base_confidence=0.8,
         )
 
         assert isinstance(confidence, float)
@@ -131,7 +131,7 @@ async def test_uncertainty_quantification_in_clarification_flow(mock_settings):
         calibration_enabled=True,
         rl_calibration_enabled=False,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     ambiguities = [
@@ -140,8 +140,8 @@ async def test_uncertainty_quantification_in_clarification_flow(mock_settings):
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
     # Calculate confidence with uncertainty
@@ -150,7 +150,7 @@ async def test_uncertainty_quantification_in_clarification_flow(mock_settings):
         extracted_entities=[],
         ambiguities=ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     assert isinstance(result, ConfidenceWithUncertainty)
@@ -164,7 +164,7 @@ async def test_rl_calibration_learning_from_outcomes(mock_settings, rl_calibrato
     """Test that RL calibrator learns from clarification outcomes."""
 
     # Get initial adjustment weights
-    initial_weights = rl_calibrator_trained.adjustment_weights.copy()
+    rl_calibrator_trained.adjustment_weights.copy()
 
     # Add new feedback
     rl_calibrator_trained.add_feedback(
@@ -174,7 +174,7 @@ async def test_rl_calibration_learning_from_outcomes(mock_settings, rl_calibrato
         critical_ambiguity_count=0,
         rounds=1,
         answer_count=1,
-        auto_train=True
+        auto_train=True,
     )
 
     # Check that model was updated (if auto-train triggered)
@@ -198,7 +198,7 @@ async def test_uncertainty_with_historical_data(mock_settings):
         calibration_enabled=True,
         rl_calibration_enabled=False,
         uncertainty_quantifier=uncertainty_quantifier,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     ambiguities = [
@@ -207,8 +207,8 @@ async def test_uncertainty_with_historical_data(mock_settings):
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
     # Calculate uncertainty (will use empty historical data for now)
@@ -217,7 +217,7 @@ async def test_uncertainty_with_historical_data(mock_settings):
         extracted_entities=[],
         ambiguities=ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     assert isinstance(result, ConfidenceWithUncertainty)
@@ -238,7 +238,7 @@ async def test_phase3_features_backward_compatibility(mock_settings):
         calibrator=Mock(),
         calibration_enabled=True,
         rl_calibration_enabled=False,  # Disabled by default
-        uncertainty_enabled=False  # Disabled by default
+        uncertainty_enabled=False,  # Disabled by default
     )
 
     ambiguities = [
@@ -247,8 +247,8 @@ async def test_phase3_features_backward_compatibility(mock_settings):
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
     # Should work exactly like before Phase 3
@@ -256,7 +256,7 @@ async def test_phase3_features_backward_compatibility(mock_settings):
         query="turn on the light",
         extracted_entities=[],
         ambiguities=ambiguities,
-        base_confidence=0.8
+        base_confidence=0.8,
     )
 
     assert isinstance(confidence, float)
@@ -268,7 +268,7 @@ async def test_phase3_features_backward_compatibility(mock_settings):
         extracted_entities=[],
         ambiguities=ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True  # Requested but disabled
+        return_uncertainty=True,  # Requested but disabled
     )
 
     assert isinstance(confidence2, float)  # Should return float, not ConfidenceWithUncertainty
@@ -291,7 +291,7 @@ async def test_rl_calibration_with_multiple_rounds(mock_settings, rl_calibrator_
         calibration_enabled=True,
         rl_calibrator=rl_calibrator_trained,
         rl_calibration_enabled=True,
-        uncertainty_enabled=False
+        uncertainty_enabled=False,
     )
 
     ambiguities = [
@@ -300,8 +300,8 @@ async def test_rl_calibration_with_multiple_rounds(mock_settings, rl_calibrator_
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
     # Round 1: No answers yet
@@ -309,7 +309,7 @@ async def test_rl_calibration_with_multiple_rounds(mock_settings, rl_calibrator_
         query="turn on the light",
         extracted_entities=[],
         ambiguities=ambiguities,
-        base_confidence=0.7
+        base_confidence=0.7,
     )
 
     # Round 2: With answers
@@ -318,8 +318,8 @@ async def test_rl_calibration_with_multiple_rounds(mock_settings, rl_calibrator_
             question_id="q1",
             answer_text="light.living_room",
             validated=True,
-            confidence=0.9
-        )
+            confidence=0.9,
+        ),
     ]
 
     confidence_round2 = await calculator.calculate_confidence(
@@ -327,7 +327,7 @@ async def test_rl_calibration_with_multiple_rounds(mock_settings, rl_calibrator_
         extracted_entities=[],
         ambiguities=ambiguities,
         clarification_answers=answers,
-        base_confidence=0.7
+        base_confidence=0.7,
     )
 
     # Both should be valid
@@ -349,8 +349,8 @@ async def test_uncertainty_quantification_different_methods(mock_settings):
             type=AmbiguityType.DEVICE,
             severity=AmbiguitySeverity.IMPORTANT,
             description="Multiple devices",
-            related_entities=["light.living_room", "light.kitchen"]
-        )
+            related_entities=["light.living_room", "light.kitchen"],
+        ),
     ]
 
     # Test bootstrap method
@@ -360,7 +360,7 @@ async def test_uncertainty_quantification_different_methods(mock_settings):
         calibrator=Mock(),
         calibration_enabled=True,
         uncertainty_quantifier=quantifier_bootstrap,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     result_bootstrap = await calculator_bootstrap.calculate_confidence(
@@ -368,7 +368,7 @@ async def test_uncertainty_quantification_different_methods(mock_settings):
         extracted_entities=[],
         ambiguities=ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     assert isinstance(result_bootstrap, ConfidenceWithUncertainty)
@@ -381,7 +381,7 @@ async def test_uncertainty_quantification_different_methods(mock_settings):
         calibrator=Mock(),
         calibration_enabled=True,
         uncertainty_quantifier=quantifier_bayesian,
-        uncertainty_enabled=True
+        uncertainty_enabled=True,
     )
 
     result_bayesian = await calculator_bayesian.calculate_confidence(
@@ -389,7 +389,7 @@ async def test_uncertainty_quantification_different_methods(mock_settings):
         extracted_entities=[],
         ambiguities=ambiguities,
         base_confidence=0.8,
-        return_uncertainty=True
+        return_uncertainty=True,
     )
 
     assert isinstance(result_bayesian, ConfidenceWithUncertainty)

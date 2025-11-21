@@ -32,10 +32,11 @@ class DeviceHygieneRemediationService:
             return await self._enable_entity(issue)
         if action == "start_config_flow":
             return await self._start_config_flow(issue, value)
-        raise ValueError(f"Unsupported remediation action: {action}")
+        msg = f"Unsupported remediation action: {action}"
+        raise ValueError(msg)
 
     async def _rename_device(
-        self, issue: DeviceHygieneIssue, name: str | None
+        self, issue: DeviceHygieneIssue, name: str | None,
     ) -> bool:
         if not issue.device_id or not name or not name.strip():
             return False
@@ -47,7 +48,7 @@ class DeviceHygieneRemediationService:
         return await self._mark_resolved(issue, {"applied_value": result.get("name", name.strip())})
 
     async def _assign_area(
-        self, issue: DeviceHygieneIssue, area_id: str | None
+        self, issue: DeviceHygieneIssue, area_id: str | None,
     ) -> bool:
         if not issue.device_id or not area_id:
             return False
@@ -69,7 +70,7 @@ class DeviceHygieneRemediationService:
         return await self._mark_resolved(issue, {})
 
     async def _start_config_flow(
-        self, issue: DeviceHygieneIssue, handler: str | None
+        self, issue: DeviceHygieneIssue, handler: str | None,
     ) -> bool:
         integration = handler or (issue.metadata_json or {}).get("integration")
         if not integration:
