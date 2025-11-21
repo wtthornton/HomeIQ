@@ -76,6 +76,14 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🏠 **Area Filtering** - Automatically filters devices by area when specified in queries (e.g., "In the office, flash all lights")
 - 📍 **Multi-Area Support** - Handles queries specifying multiple areas with proper device filtering
 
+**Q&A Learning System (January 2025):**
+- 🧠 **User Preference Learning** - Learns from consistent answers, skips repetitive questions, pre-fills based on patterns
+- 📊 **Question Quality Tracking** - Tracks which questions lead to successful automations, improves over time
+- 📈 **Outcome Tracking** - Links Q&A sessions to automation success, measures effectiveness rate
+- ⚡ **Auto-Resolution** - Automatically resolves ambiguities when confidence is high
+- 🔗 **Pattern Learning** - Learns correlations between Q&A patterns and automation types
+- 📊 **Metrics Collection** - Tracks effectiveness rate, hit rate, and accuracy for continuous improvement
+
 **LangChain Integration (Feature Flags):**
 - 🔧 `USE_LANGCHAIN_ASK_AI` - Enable LangChain for Ask AI prompts
 - 🔧 `USE_LANGCHAIN_PATTERNS` - Enable LangChain for pattern detection
@@ -117,16 +125,16 @@ HOST=0.0.0.0
 DATA_API_URL=http://data-api:8006
 DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
 
-# Home Assistant (Standard)
-HOME_ASSISTANT_URL=http://homeassistant:8123
-HOME_ASSISTANT_TOKEN=your-ha-long-lived-access-token
+# Home Assistant (Single NUC Deployment)
+HOME_ASSISTANT_URL=http://192.168.1.86:8123  # Your Home Assistant IP (example - use your actual IP)
+HOME_ASSISTANT_TOKEN=your-ha-long-lived-access-token  # From HA Profile → Long-Lived Access Tokens
 
 # Nabu Casa Cloud Fallback (Optional)
 NABU_CASA_URL=https://your-instance.ui.nabu.casa
 NABU_CASA_TOKEN=your-nabu-casa-token
 
-# MQTT Configuration
-MQTT_BROKER=192.168.1.86
+# MQTT Configuration (Home Assistant's MQTT Broker - Single NUC)
+MQTT_BROKER=192.168.1.86  # Home Assistant's MQTT broker IP (same NUC network)
 MQTT_PORT=1883
 MQTT_USERNAME=your-mqtt-username
 MQTT_PASSWORD=your-mqtt-password

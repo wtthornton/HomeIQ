@@ -1,6 +1,7 @@
 # AI Core Service
 
 **Port:** 8018
+**Technology:** Python 3.11+, FastAPI 0.121, aiohttp 3.13
 **Purpose:** Orchestrator for containerized AI models
 **Status:** Production Ready
 
@@ -98,8 +99,20 @@ Body: {
 
 ### Running Locally
 ```bash
-  export AI_CORE_API_KEY=<your-key>
-  uvicorn src.main:app --reload --port 8018
+cd services/ai-core-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export AI_CORE_API_KEY=<your-key>
+
+# Start service
+uvicorn src.main:app --reload --port 8018
 ```
 
 ### Testing
@@ -116,9 +129,12 @@ Body: {
 
 ## Dependencies
 
-- FastAPI (web framework)
-- aiohttp (async HTTP client)
-- pydantic (data validation)
+### Core
+- FastAPI 0.121+ (web framework)
+- uvicorn[standard] 0.38+ (ASGI server)
+- aiohttp 3.13+ (async HTTP client)
+- pydantic 2.12+ (data validation)
+- pydantic-settings 2.12+ (settings management)
 
 ## Related Services
 

@@ -50,6 +50,7 @@ from .api import (
     deployment_router,
     devices_router,
     health_router,
+    learning_router,
     nl_generation_router,
     pattern_router,
     set_device_intelligence_client,
@@ -373,6 +374,7 @@ app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interfac
 app.include_router(devices_router)  # Devices endpoint
 app.include_router(settings_router)  # System settings management
 app.include_router(admin_router)  # Admin dashboard endpoints
+app.include_router(learning_router)  # Q&A Learning Enhancement Plan
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
 app.include_router(mcp_router)  # MCP Code Execution Tools

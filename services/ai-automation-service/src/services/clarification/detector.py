@@ -559,3 +559,244 @@ class ClarificationDetector:
 
         return ambiguities
 
+    async def auto_resolve_ambiguities(
+        self,
+        ambiguities: list[Ambiguity],
+        query: str,
+        extracted_entities: list[dict[str, Any]],
+        available_devices: dict[str, Any],
+        rag_client: Any | None = None,
+        user_preferences: list[dict[str, Any]] | None = None
+    ) -> tuple[list[Ambiguity], dict[str, Any]]:
+        """
+        Auto-resolve ambiguities using context and historical patterns.
+        
+        Uses 2025 best practices:
+        - Hybrid RAG retrieval (dense + sparse + reranking)
+        - Embedding-based similarity matching
+        - Location-aware resolution
+        - Historical pattern matching
+        
+        Args:
+            ambiguities: List of detected ambiguities
+            query: Original user query
+            extracted_entities: Extracted entities from query
+            available_devices: Available devices/entities in system
+            rag_client: Optional RAG client for historical pattern lookup
+            user_preferences: Optional user preferences for auto-resolution
+            
+        Returns:
+            Tuple of (remaining_ambiguities, auto_resolved_answers)
+            auto_resolved_answers is a dict mapping ambiguity_id to resolution data
+        """
+        auto_resolved = {}
+        remaining = []
+        
+        # Use provided rag_client or instance rag_client
+        active_rag_client = rag_client or self.rag_client
+        
+        for amb in ambiguities:
+            if amb.type == AmbiguityType.DEVICE:
+                # Try location-based auto-resolution
+                location_resolution = await self._try_location_based_resolution(
+                    amb, query, available_devices
+                )
+                if location_resolution:
+                    auto_resolved[amb.id] = location_resolution
+                    logger.info(f"✅ Auto-resolved ambiguity {amb.id} via location context")
+                    continue
+                
+                # Try historical pattern matching via RAG
+                if active_rag_client:
+                    historical_resolution = await self._try_historical_pattern_resolution(
+                        amb, query, active_rag_client
+                    )
+                    if historical_resolution:
+                        auto_resolved[amb.id] = historical_resolution
+                        logger.info(f"✅ Auto-resolved ambiguity {amb.id} via historical pattern")
+                        continue
+                
+                # Try user preference matching
+                if user_preferences:
+                    preference_resolution = self._try_user_preference_resolution(
+                        amb, user_preferences, available_devices
+                    )
+                    if preference_resolution:
+                        auto_resolved[amb.id] = preference_resolution
+                        logger.info(f"✅ Auto-resolved ambiguity {amb.id} via user preference")
+                        continue
+            
+            # Can't auto-resolve, keep for question
+            remaining.append(amb)
+        
+        logger.info(f"🔍 Auto-resolution: {len(auto_resolved)} resolved, {len(remaining)} remaining")
+        return remaining, auto_resolved
+
+    async def _try_location_based_resolution(
+        self,
+        ambiguity: Ambiguity,
+        query: str,
+        available_devices: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """
+        Try to resolve device ambiguity using location context.
+        
+        If query mentions a location and multiple devices match in that location,
+        auto-select all devices in that location if confidence is high enough.
+        
+        Returns:
+            Resolution dict with 'entities', 'confidence', 'method' if resolved, else None
+        """
+        # Extract location from ambiguity context
+        mentioned_locations = ambiguity.context.get('mentioned_locations', [])
+        if not mentioned_locations:
+            return None
+        
+        # Get matching entities from ambiguity
+        related_entities = ambiguity.related_entities or []
+        if not related_entities:
+            return None
+        
+        # Filter entities by location
+        location_matched_entities = []
+        entities_list = available_devices.get('entities', [])
+        entities_by_domain = available_devices.get('entities_by_domain', {})
+        
+        # Check all entity sources
+        all_entities = []
+        if isinstance(entities_list, list):
+            all_entities.extend(entities_list)
+        for domain_entities in entities_by_domain.values():
+            if isinstance(domain_entities, list):
+                all_entities.extend(domain_entities)
+        
+        for entity_id in related_entities:
+            # Find entity in available devices
+            entity = None
+            for e in all_entities:
+                if e.get('entity_id') == entity_id:
+                    entity = e
+                    break
+            
+            if not entity:
+                continue
+            
+            # Check if entity is in mentioned location
+            entity_area = (
+                entity.get('area_id', '') or
+                entity.get('device_area_id', '') or
+                entity.get('area_name', '') or
+                entity.get('area', '')
+            ).lower()
+            
+            for mentioned_location in mentioned_locations:
+                if mentioned_location.lower() in entity_area or entity_area in mentioned_location.lower():
+                    location_matched_entities.append(entity_id)
+                    break
+        
+        # If we have location-matched entities and they're a reasonable subset
+        # (not too many, not too few), auto-resolve
+        if location_matched_entities and len(location_matched_entities) <= 5:
+            # Calculate confidence based on how many entities match location
+            location_match_ratio = len(location_matched_entities) / len(related_entities) if related_entities else 0
+            confidence = min(0.95, 0.75 + (location_match_ratio * 0.20))
+            
+            if confidence >= 0.85:  # High confidence threshold for auto-resolution
+                return {
+                    'entities': location_matched_entities,
+                    'confidence': confidence,
+                    'method': 'location',
+                    'reason': f"Auto-selected {len(location_matched_entities)} devices in {', '.join(mentioned_locations)}"
+                }
+        
+        return None
+
+    async def _try_historical_pattern_resolution(
+        self,
+        ambiguity: Ambiguity,
+        query: str,
+        rag_client: Any
+    ) -> dict[str, Any] | None:
+        """
+        Try to resolve ambiguity using historical successful patterns via RAG.
+        
+        Uses hybrid retrieval (2025 best practice) to find similar queries and
+        apply their device selections if similarity is high enough.
+        
+        Returns:
+            Resolution dict if resolved, else None
+        """
+        try:
+            # Use hybrid retrieval for better accuracy
+            similar_queries = await rag_client.retrieve_hybrid(
+                query=query,
+                knowledge_type='query',
+                top_k=1,
+                min_similarity=0.80,  # High threshold for pattern matching
+                use_query_expansion=True,
+                use_reranking=True
+            )
+            
+            if not similar_queries:
+                return None
+            
+            top_result = similar_queries[0]
+            similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
+            success_score = top_result.get('success_score', 0.5)
+            
+            # Need high similarity AND high success score
+            if similarity >= 0.80 and success_score >= 0.8:
+                # Extract device selection from historical query metadata
+                metadata = top_result.get('metadata', {})
+                selected_entities = metadata.get('selected_entities', [])
+                
+                if selected_entities:
+                    # Calculate confidence based on similarity and success
+                    confidence = min(0.95, (similarity * 0.6) + (success_score * 0.4))
+                    
+                    return {
+                        'entities': selected_entities,
+                        'confidence': confidence,
+                        'method': 'historical_pattern',
+                        'reason': f"Applied pattern from similar successful query (similarity={similarity:.2f})"
+                    }
+        
+        except Exception as e:
+            logger.debug(f"Historical pattern resolution failed: {e}")
+        
+        return None
+
+    def _try_user_preference_resolution(
+        self,
+        ambiguity: Ambiguity,
+        user_preferences: list[dict[str, Any]],
+        available_devices: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """
+        Try to resolve ambiguity using user preferences.
+        
+        Returns:
+            Resolution dict if resolved, else None
+        """
+        # Look for matching preference
+        for preference in user_preferences:
+            consistency_score = preference.get('consistency_score', 0.0)
+            question_category = preference.get('question_category', '')
+            
+            # Need high consistency and matching category
+            if consistency_score >= 0.90 and question_category == 'device':
+                answer_pattern = preference.get('answer_pattern', '').lower()
+                
+                # If user typically selects "all" for similar situations
+                if 'all' in answer_pattern:
+                    related_entities = ambiguity.related_entities or []
+                    if related_entities and len(related_entities) <= 5:
+                        return {
+                            'entities': related_entities,
+                            'confidence': min(0.95, consistency_score),
+                            'method': 'user_preference',
+                            'reason': "Applied user preference: typically selects all devices"
+                        }
+        
+        return None
+

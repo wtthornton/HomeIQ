@@ -1,19 +1,25 @@
-# 📖 Home Assistant Ingestor - User Manual
+# 📖 HomeIQ - User Manual
+
+**Last Updated:** November 2025  
+**Deployment:** Single NUC (Intel NUC or similar), Docker Compose
 
 ## 🎯 **Getting Started**
 
-### **What is Home Assistant Ingestor?**
-Home Assistant Ingestor is a comprehensive system that captures, enriches, and stores Home Assistant events with weather context, providing real-time monitoring, data analysis, and production-ready deployment capabilities.
+### **What is HomeIQ?**
+HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment (weather, energy pricing, air quality, sports, carbon intensity), providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
+
+**Deployment Model:** Single NUC deployment - all 24 microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
 
 ### **Key Features**
-- **🚀 Interactive Deployment Wizard** - Guided setup in 30-60 minutes (NEW!)
-- **✅ Connection Validator** - Pre-deployment testing and validation (NEW!)
+- **🤖 AI-Powered Automation** - Conversational automation creation via natural language
+- **🚀 Interactive Deployment Wizard** - Guided setup in 30-60 minutes
+- **✅ Connection Validator** - Pre-deployment testing and validation
 - **Real-time Event Capture** - Direct WebSocket connection to Home Assistant
-- **Multi-Source Data Enrichment** - Weather, carbon intensity, electricity pricing, air quality, and more
-- **Calendar Integration** - Event-based automation triggers
-- **Smart Meter Integration** - Real-time energy consumption data
-- **Advanced Data Storage** - InfluxDB with tiered retention and S3 archival
-- **Web Dashboard** - Real-time monitoring and administration
+- **Multi-Source Data Enrichment** - OpenWeatherMap, WattTime, Awattar, AirNow, ESPN APIs
+- **Calendar Integration** - Event-based automation triggers (optional, currently disabled)
+- **Smart Meter Integration** - SMETS2/P1 protocol support for real-time energy consumption
+- **Advanced Data Storage** - Hybrid architecture: InfluxDB (time-series) + SQLite (metadata)
+- **Web Dashboards** - Health Dashboard (port 3000) and AI Automation UI (port 3001)
 - **Data Export** - Multiple formats (CSV, JSON, PDF, Excel)
 - **Mobile Support** - Responsive design with touch gestures
 
@@ -37,10 +43,10 @@ open http://localhost:3000
 ```
 
 The deployment wizard will:
-- ✅ Guide you through deployment options (same machine, separate, remote)
-- ✅ Configure Home Assistant connection
-- ✅ Auto-detect system resources
-- ✅ Generate secure configuration files
+- ✅ Guide you through deployment options (same machine, separate NUC, remote)
+- ✅ Configure Home Assistant connection (typically `192.168.1.86:8123`)
+- ✅ Auto-detect system resources (RAM, disk space)
+- ✅ Generate secure configuration files (`.env`)
 - ✅ Validate connectivity before deployment
 
 **See:** [`docs/DEPLOYMENT_WIZARD_GUIDE.md`](DEPLOYMENT_WIZARD_GUIDE.md) for detailed wizard usage.

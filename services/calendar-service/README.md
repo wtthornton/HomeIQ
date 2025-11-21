@@ -49,7 +49,7 @@ Configure calendar integration in Home Assistant:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `HOME_ASSISTANT_URL` | Home Assistant instance URL | `http://homeassistant.local:8123` |
+| `HOME_ASSISTANT_URL` | Home Assistant instance URL | `http://192.168.1.86:8123` (single NUC deployment - use your HA IP) |
 | `HOME_ASSISTANT_TOKEN` | Long-lived access token | `eyJhbGc...` |
 | `CALENDAR_ENTITIES` | Comma-separated calendar entity IDs | `calendar.primary,calendar.work` |
 | `INFLUXDB_TOKEN` | InfluxDB authentication token | `your_token` |
@@ -77,16 +77,16 @@ Developer Tools → States → Filter by "calendar"
 **Using API:**
 ```bash
 curl -H "Authorization: Bearer YOUR_TOKEN" \
-     http://homeassistant.local:8123/api/states | \
+     http://192.168.1.86:8123/api/states | \
      jq '.[] | select(.entity_id | startswith("calendar."))'
 ```
 
 ### 2. Add to .env
 
 ```bash
-# Home Assistant Connection
-HOME_ASSISTANT_URL=http://homeassistant.local:8123
-HOME_ASSISTANT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# Home Assistant Connection (Single NUC Deployment)
+HOME_ASSISTANT_URL=http://192.168.1.86:8123  # Your Home Assistant IP (example - use your actual IP)
+HOME_ASSISTANT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...  # From HA Profile → Long-Lived Access Tokens
 
 # Calendar Configuration
 CALENDAR_ENTITIES=calendar.primary,calendar.work
@@ -290,7 +290,7 @@ CALENDAR_ENTITIES=calendar.google,calendar.icloud,calendar.work
 **Solutions:**
 1. Verify `HOME_ASSISTANT_URL` is accessible from container:
    ```bash
-   docker exec -it calendar-service curl -I http://homeassistant.local:8123
+   docker exec -it calendar-service curl -I http://192.168.1.86:8123  # Single NUC deployment
    ```
 
 2. Check token hasn't expired:
@@ -310,8 +310,8 @@ CALENDAR_ENTITIES=calendar.google,calendar.icloud,calendar.work
    ```bash
    # List all calendar entities
    curl -H "Authorization: Bearer YOUR_TOKEN" \
-        http://homeassistant.local:8123/api/states | \
-        jq '.[] | select(.entity_id | startswith("calendar."))'
+        http://192.168.1.86:8123/api/states | \
+        jq '.[] | select(.entity_id | startswith("calendar."))'  # Single NUC deployment
    ```
 
 2. Check calendar integration status in HA:
@@ -451,7 +451,7 @@ If migrating from direct Google Calendar integration:
    GOOGLE_REFRESH_TOKEN=...
    
    # Add new variables
-   HOME_ASSISTANT_URL=http://homeassistant.local:8123
+   HOME_ASSISTANT_URL=http://192.168.1.86:8123  # Single NUC deployment (use your HA IP)
    HOME_ASSISTANT_TOKEN=your_ha_token
    CALENDAR_ENTITIES=calendar.primary
    ```

@@ -1,6 +1,9 @@
-# ⚡ HA-Ingestor Quick Start Guide
+# ⚡ HomeIQ Quick Start Guide
 
 **Get up and running in under 5 minutes!**
+
+**Deployment:** Single NUC (Intel NUC or similar), Docker Compose  
+**Last Updated:** November 2025
 
 ---
 
@@ -27,11 +30,13 @@ open http://localhost:3000
 
 ## 📋 What You Need
 
-- ✅ Docker & Docker Compose
-- ✅ Home Assistant instance
-- ✅ Long-lived access token from Home Assistant
-- ✅ 4GB RAM minimum
-- ✅ 20GB storage
+- ✅ **Single NUC or dedicated machine** (Intel NUC or similar)
+- ✅ **Docker & Docker Compose** (Docker Compose v2.0+)
+- ✅ **Home Assistant instance** on local network (e.g., `192.168.1.86:8123`)
+- ✅ **Long-lived access token** from Home Assistant (Profile → Long-Lived Access Tokens)
+- ✅ **4GB RAM minimum** (8GB+ recommended for full stack)
+- ✅ **20GB+ free disk space** (for InfluxDB data retention)
+- ✅ **Network access** to Home Assistant instance
 
 ---
 
@@ -82,10 +87,11 @@ Get instant feedback on:
 - **Best for:** Testing, development
 - **Resources:** 8GB+ RAM recommended
 
-### Option 2: Separate Machine (Recommended)
-- **URL:** `http://192.168.1.X:8123`
-- **Best for:** Production
-- **Resources:** 4GB+ RAM
+### Option 2: Separate Machine on Same Network (Recommended for Single NUC)
+- **URL:** `http://192.168.1.86:8123` (example - use your HA IP)
+- **Best for:** Production, single NUC deployment
+- **Resources:** 4GB+ RAM (8GB+ recommended)
+- **Note:** HomeIQ runs on NUC, connects to Home Assistant on same network
 
 ### Option 3: Remote/Nabu Casa
 - **URL:** `https://xxxxx.ui.nabu.casa`

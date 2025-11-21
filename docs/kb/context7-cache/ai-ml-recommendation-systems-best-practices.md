@@ -9,6 +9,8 @@
 
 This document outlines best practices for building AI-powered recommendation and pattern recognition systems, specifically for IoT and home automation contexts.
 
+**⚠️ Single-Home NUC Deployment:** This document includes both practical recommendations and advanced techniques. For single-home setups, focus on the "Minimal Viable Stack" and practical improvements. Advanced techniques (deep learning, federated learning) are over-engineered for single-home use cases.
+
 ## Architecture Patterns
 
 ### 1. Hybrid Recommendation Systems
@@ -38,9 +40,10 @@ This document outlines best practices for building AI-powered recommendation and
   - Random Forest for feature importance
   - Isolation Forest for anomaly detection
   
-# Deep Learning (if needed)
-- PyTorch or TensorFlow - Neural networks for complex patterns
-- LSTM/GRU - Sequence modeling for temporal patterns
+# Deep Learning (⚠️ FUTURE ONLY - Not needed for single-home)
+- PyTorch or TensorFlow - Neural networks for complex patterns (only if classical ML insufficient)
+- LSTM/GRU - Sequence modeling for temporal patterns (overkill for single-home patterns)
+- **Recommendation:** Start with classical ML, add deep learning only if patterns are too complex
 
 # LLM Integration
 - LangChain - LLM orchestration and prompt management
@@ -48,7 +51,7 @@ This document outlines best practices for building AI-powered recommendation and
 - Anthropic Claude - Alternative LLM with strong reasoning
 ```
 
-**Rationale:** Start with classical ML (scikit-learn), add time-series analysis (Prophet), only use deep learning if patterns are too complex for simpler approaches.
+**Rationale:** Start with classical ML (scikit-learn), add time-series analysis (Prophet) only if needed. For single-home NUC deployment, classical ML is usually sufficient. Deep learning is overkill unless patterns are extremely complex.
 
 ## Data Pipeline Best Practices
 
@@ -111,9 +114,9 @@ This document outlines best practices for building AI-powered recommendation and
 ```
 
 **Tools:**
-- `Prophet` for automatic seasonality detection
-- `scikit-learn KMeans` for usage clustering
-- `scipy.signal.find_peaks` for pattern peak detection
+- `scikit-learn KMeans` for usage clustering (✅ Start here)
+- `scipy.signal.find_peaks` for pattern peak detection (✅ Practical)
+- `Prophet` for automatic seasonality detection (⚠️ Optional - may be overkill for single-home)
 
 ### 2. Anomaly Detection
 
@@ -387,11 +390,14 @@ CATEGORIES = {
 ### Future Enhancements
 
 ```python
-# When to Scale Up
-- More than 100 devices → Consider distributed processing
-- Complex patterns → Add deep learning (LSTM/Transformers)
-- Multi-user → Add federated learning for privacy
-- Real-time suggestions → Add streaming pattern detection
+# When to Scale Up (⚠️ FUTURE ONLY - Single-home usually doesn't need this)
+- More than 100 devices → Consider distributed processing (single-home unlikely)
+- Complex patterns → Add deep learning (LSTM/Transformers) - only if classical ML insufficient
+- Multi-user → Add federated learning for privacy (⚠️ Single-home doesn't need this)
+- Real-time suggestions → Add streaming pattern detection (⚠️ Batch processing is sufficient)
+```
+
+**For Single-Home NUC:** Focus on practical, incremental improvements. Avoid over-engineering.
 
 # Cost Optimization
 - Use local LLMs (Ollama) for development/testing
@@ -423,19 +429,26 @@ CATEGORIES = {
 - pydantic 2.0+ (data validation)
 ```
 
-### Advanced Stack (If Needed Later)
+### Advanced Stack (⚠️ FUTURE ONLY - Not needed for single-home NUC)
+
+**Note:** These are over-engineered for single-home deployment. Only consider if:
+- You have 100+ devices
+- Classical ML is insufficient
+- You need distributed processing
 
 ```python
-# Deep Learning
+# Deep Learning (⚠️ Only if classical ML insufficient)
 - pytorch 2.0+ (if classical ML insufficient)
 - transformers 4.36+ (for NLP tasks)
 
-# Vector Search
+# Vector Search (⚠️ SQLite + simple caching is sufficient)
 - chromadb or faiss (similarity search for automations)
 
-# Experiment Tracking
+# Experiment Tracking (⚠️ Overkill for single-home)
 - mlflow (model versioning and experiments)
 ```
+
+**For Single-Home NUC:** Stick with minimal viable stack. Add advanced tools only if proven necessary.
 
 ## References and Further Reading
 

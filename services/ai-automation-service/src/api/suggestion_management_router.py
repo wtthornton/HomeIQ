@@ -169,6 +169,44 @@ async def reject_suggestion(suggestion_id: int, feedback: FeedbackRequest | None
                 logger.debug(f"Failed to update clarification outcome: {e}")
                 # Non-blocking: continue even if outcome update fails
 
+            # Track Q&A outcome for learning (rejected suggestion)
+            try:
+                from ...services.learning.qa_outcome_tracker import QAOutcomeTracker
+                from ...database.models import SystemSettings, AskAIQuery, ClarificationSessionDB
+                
+                # Check if learning is enabled
+                settings_result = await db.execute(select(SystemSettings).limit(1))
+                settings = settings_result.scalar_one_or_none()
+                if settings and getattr(settings, 'enable_qa_learning', True):
+                    # Find clarification session through AskAIQuery
+                    query_result = await db.execute(
+                        select(AskAIQuery).where(
+                            AskAIQuery.suggestions.contains([{"id": suggestion_id}])
+                        )
+                    )
+                    ask_query = query_result.scalar_one_or_none()
+                    
+                    if ask_query:
+                        # Find clarification session linked to this query
+                        session_result = await db.execute(
+                            select(ClarificationSessionDB).where(
+                                ClarificationSessionDB.clarification_query_id == ask_query.query_id
+                            )
+                        )
+                        clarification_session = session_result.scalar_one_or_none()
+                        
+                        if clarification_session:
+                            outcome_tracker = QAOutcomeTracker()
+                            await outcome_tracker.update_automation_outcome(
+                                db=db,
+                                session_id=clarification_session.session_id,
+                                outcome_type='rejected'
+                            )
+                            logger.debug(f"✅ Updated Q&A outcome to rejected for session {clarification_session.session_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to update Q&A outcome for rejection: {e}")
+                # Non-critical: continue even if tracking fails
+
             logger.info(f"❌ Rejected suggestion {suggestion_id}: {suggestion.title}")
 
             return {

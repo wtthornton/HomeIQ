@@ -1,6 +1,7 @@
 # Log Aggregator Service
 
-**Port:** 8022
+**Port:** 8015
+**Technology:** Python 3.11+, aiohttp 3.13, docker-py
 **Purpose:** Centralized log collection from all Docker containers
 **Status:** Production Ready
 
@@ -57,7 +58,7 @@ Streams logs in real-time as they are collected
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `8022` | Service port |
+| `PORT` | `8015` | Service port |
 | `LOG_DIRECTORY` | `/app/logs` | Directory for log file storage |
 | `MAX_LOGS_MEMORY` | `10000` | Maximum logs to keep in memory |
 | `COLLECTION_INTERVAL` | `5` | Log collection interval (seconds) |
@@ -76,7 +77,7 @@ volumes:
 ```
 ┌──────────────────────┐
 │  Log Aggregator Svc  │
-│     (Port 8022)      │
+│     (Port 8015)      │
 └──────────┬───────────┘
            │
     ┌──────┴──────┐
@@ -148,26 +149,26 @@ docker-compose up --build
 ### Testing
 ```bash
 # Health check
-curl http://localhost:8022/health
+curl http://localhost:8015/health
 
 # Get all logs
-curl http://localhost:8022/logs
+curl http://localhost:8015/logs
 
 # Filter logs by container
-curl "http://localhost:8022/logs?container=data-api&limit=50"
+curl "http://localhost:8015/logs?container=data-api&limit=50"
 
 # Filter by log level
-curl "http://localhost:8022/logs?level=ERROR"
+curl "http://localhost:8015/logs?level=ERROR"
 
 # Submit custom log
-curl -X POST http://localhost:8022/logs \
+curl -X POST http://localhost:8015/logs \
   -H "Content-Type: application/json" \
   -d '{"service":"test","level":"INFO","message":"Test log"}'
 ```
 
 ### WebSocket Client Example
 ```javascript
-const ws = new WebSocket('ws://localhost:8022/ws/logs');
+const ws = new WebSocket('ws://localhost:8015/ws/logs');
 
 ws.onmessage = (event) => {
   const log = JSON.parse(event.data);
@@ -258,4 +259,4 @@ The service logs its own operations:
 **Last Updated:** November 15, 2025
 **Version:** 2.1
 **Status:** Production Ready ✅
-**Port:** 8022 (Note: Port conflict - update to 8015 in deployment)
+**Port:** 8015
