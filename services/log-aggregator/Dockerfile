@@ -1,8 +1,11 @@
 # Multi-stage build for Log Aggregator Service
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # Set working directory
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,7 +17,7 @@ COPY services/log-aggregator/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim AS production
+FROM python:3.12-slim AS production
 
 # Set working directory
 WORKDIR /app

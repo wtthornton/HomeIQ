@@ -2,6 +2,10 @@
 FROM python:3.12-alpine AS builder
 
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
 RUN apk add --no-cache gcc musl-dev linux-headers
 
 COPY services/air-quality-service/requirements-prod.txt .

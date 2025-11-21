@@ -1,9 +1,12 @@
 # Data API Service - Production Dockerfile
 # Multi-stage build for minimal image size
 
-FROM python:3.11-alpine AS builder
+FROM python:3.12-alpine AS builder
 
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev cargo
@@ -15,7 +18,7 @@ COPY services/data-api/requirements-prod.txt .
 RUN pip install --no-cache-dir --user -r requirements-prod.txt
 
 # Production stage
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 WORKDIR /app
 

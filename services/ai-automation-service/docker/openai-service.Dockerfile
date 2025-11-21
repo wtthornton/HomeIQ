@@ -1,8 +1,11 @@
 # OpenAI Client Service Container
 # Lightweight container for OpenAI API calls
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
 
 # Install minimal dependencies
 RUN pip install --no-cache-dir \
