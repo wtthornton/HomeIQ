@@ -21,6 +21,7 @@ Updated: 2025 - Enhanced with type hints, better error handling, GPT-5.1 optimiz
 """
 
 import logging
+import re
 from typing import Any, TypedDict
 
 import yaml as yaml_lib
@@ -263,7 +264,6 @@ def extract_device_mentions_from_text(
 
         friendly_name_lower = friendly_name.lower()
         # Check if friendly name appears in text (word boundary matching)
-        import re
         pattern = r'\b' + re.escape(friendly_name_lower) + r'\b'
         if re.search(pattern, text_lower):
             mentions[friendly_name] = entity_id
@@ -455,7 +455,7 @@ Trigger mentions: "{suggestion.get('trigger_summary', '')[:100]}..."
 Action mentions: "{suggestion.get('action_summary', '')[:100]}..."
 
 ENTITY ID MAPPINGS FOR THIS AUTOMATION:
-{chr(10).join(mappings[:10])}  # Limit to first 10 to avoid prompt bloat
+{chr(10).join(mappings[:10])}
 
 CRITICAL: When generating YAML, use the entity IDs above. For example, if you see "wled" in the description, use the full entity ID from above (NOT just "wled").
 """
@@ -1053,7 +1053,10 @@ Generate ONLY the YAML content:
         # Check if parallel testing enabled
         from ...database.crud import get_system_settings
         system_settings = await get_system_settings(db_session) if db_session else None
-        enable_parallel = system_settings and getattr(system_settings, 'enable_parallel_model_testing', False) if system_settings else False
+        enable_parallel = (
+            system_settings is not None and
+            getattr(system_settings, 'enable_parallel_model_testing', False)
+        )
 
         if enable_parallel:
             # Parallel model testing mode
@@ -1100,7 +1103,11 @@ Generate ONLY the YAML content:
             yaml_content = result['primary_result']  # Use first model's result
             comparison_metrics = result['comparison']  # Store for metrics
 
-            logger.info(f"Parallel YAML testing: {models[0]} vs {models[1]} - using {models[0]} result")
+            # Log parallel testing info (safely handle case where only one model is provided)
+            if len(models) >= 2:
+                logger.info(f"Parallel YAML testing: {models[0]} vs {models[1]} - using {models[0]} result")
+            else:
+                logger.info(f"Parallel YAML testing: {models[0]} - using result")
 
             # Store model info in suggestion for later metrics update
             if suggestion and comparison_metrics and comparison_metrics.get('model_results'):

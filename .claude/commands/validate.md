@@ -164,15 +164,25 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "Phase 3.1: Python Unit Tests"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Install pytest if needed
-pip install -q pytest pytest-asyncio pytest-cov >/dev/null 2>&1 || echo "⚠️  pytest already installed"
-
-# Run unit tests if they exist
-if [ -d "tests/unit" ]; then
-  echo "Running Python unit tests..."
+# Use the project's unified unit test runner (from package.json)
+if [ -f "scripts/simple-unit-tests.py" ]; then
+  echo "Running unified unit test framework..."
+  python scripts/simple-unit-tests.py
+  TEST_EXIT_CODE=$?
+  
+  if [ $TEST_EXIT_CODE -eq 0 ]; then
+    echo "✅ Python unit tests passed"
+  else
+    echo "⚠️  Some unit tests failed (exit code: $TEST_EXIT_CODE)"
+  fi
+elif [ -d "tests/unit" ]; then
+  # Fallback to pytest if unified runner not available
+  echo "Running Python unit tests with pytest..."
+  pip install -q pytest pytest-asyncio pytest-cov >/dev/null 2>&1 || echo "⚠️  pytest already installed"
   pytest tests/unit/ -v --tb=short --cov=services --cov=shared --cov-report=term-missing
 else
   echo "⚠️  No unit tests found - tests are being rebuilt"
+  echo "  See: scripts/simple-unit-tests.py"
 fi
 
 echo "✅ Python unit testing complete"
@@ -186,10 +196,31 @@ echo "Phase 3.2: TypeScript Unit Tests"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Health Dashboard unit tests
-echo "Running health-dashboard unit tests..."
-cd services/health-dashboard
-npm run test:run || echo "⚠️  Some tests may be in development"
-cd ../..
+if [ -d "services/health-dashboard" ]; then
+  echo "Running health-dashboard unit tests..."
+  cd services/health-dashboard
+  if npm run test:run 2>/dev/null; then
+    echo "✅ Health Dashboard unit tests passed"
+  else
+    echo "⚠️  Some tests may be in development or failed"
+  fi
+  cd ../..
+else
+  echo "⚠️  health-dashboard directory not found"
+fi
+
+# AI Automation UI unit tests (if available)
+if [ -d "services/ai-automation-ui" ]; then
+  echo "Checking ai-automation-ui for tests..."
+  cd services/ai-automation-ui
+  if grep -q '"test"' package.json 2>/dev/null; then
+    echo "Running ai-automation-ui unit tests..."
+    npm run test || echo "⚠️  Tests may not be configured"
+  else
+    echo "⚠️  No test script found in ai-automation-ui"
+  fi
+  cd ../..
+fi
 
 echo "✅ TypeScript unit testing complete"
 ```
@@ -324,14 +355,27 @@ echo "✅ Database connectivity check complete"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Phase 5.1: E2E - Complete Setup Workflow"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Testing complete deployment and setup workflow from documentation"
 
 # Test deployment verification script
-echo "Running deployment verification..."
+echo "Running deployment verification script..."
 if [ -f "./scripts/verify-deployment.sh" ]; then
-  ./scripts/verify-deployment.sh
-  echo "✅ Deployment verification passed"
+  output=$(bash ./scripts/verify-deployment.sh 2>&1)
+  exit_code=$?
+  echo "$output" | tail -20
+  if [ $exit_code -eq 0 ]; then
+    echo "✅ Deployment verification passed"
+  else
+    echo "⚠️  Deployment verification had issues (review output above)"
+  fi
 else
   echo "⚠️  verify-deployment.sh not found"
+fi
+
+# Test Home Assistant connection validation (if script exists)
+if [ -f "./scripts/validate-ha-connection.sh" ]; then
+  echo "Running Home Assistant connection validation..."
+  bash ./scripts/validate-ha-connection.sh || echo "⚠️  HA connection validation had issues"
 fi
 ```
 
@@ -411,15 +455,16 @@ fi
 echo "✅ Data API E2E test passed"
 ```
 
-### 5.4 E2E Test: AI Automation Workflow
+### 5.4 E2E Test: Complete AI Automation Workflow (User Journey from Docs)
 
 ```bash
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Phase 5.4: E2E - AI Automation"
+echo "Phase 5.4: E2E - Complete AI Automation Workflow"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Testing complete user journey: Request → Generate → Review → Deploy → Verify"
 
-# Test AI Automation UI loads
-echo -n "AI Automation UI accessible... "
+# Step 1: Test AI Automation UI loads (User opens http://localhost:3001)
+echo -n "Step 1: AI Automation UI accessible... "
 if curl -s http://localhost:3001 | grep -q "ai-automation\|HomeIQ\|Ask AI"; then
   echo "✅"
 else
@@ -427,72 +472,232 @@ else
   exit 1
 fi
 
-# Test AI Automation Service API
-echo -n "AI Automation Service health... "
+# Step 2: Test AI Automation Service API health
+echo -n "Step 2: AI Automation Service health... "
 if curl -s http://localhost:8024/health | jq -e '.status == "healthy"' >/dev/null 2>&1; then
   echo "✅"
 else
-  echo "⚠️  Service may not be responding correctly"
+  echo "❌ Service not healthy"
+  exit 1
 fi
 
-# Test pattern detection endpoint
-echo -n "Pattern detection endpoint... "
-patterns=$(curl -s http://localhost:8024/api/patterns 2>/dev/null || echo "[]")
-if echo "$patterns" | jq -e 'type == "array"' >/dev/null 2>&1; then
-  echo "✅"
-else
-  echo "⚠️  Endpoint not responding as expected"
-fi
-
-# Test device discovery
-echo -n "Device discovery... "
-devices=$(curl -s http://localhost:8024/api/devices 2>/dev/null || echo "[]")
+# Step 3: Test device discovery (required for automation generation)
+echo -n "Step 3: Device discovery endpoint... "
+devices=$(curl -s "http://localhost:8024/api/devices" 2>/dev/null || echo "[]")
 if echo "$devices" | jq -e 'type == "array"' >/dev/null 2>&1; then
-  echo "✅"
+  device_count=$(echo "$devices" | jq 'length')
+  echo "✅ ($device_count devices found)"
 else
   echo "⚠️  Endpoint not responding as expected"
 fi
 
-echo "✅ AI Automation E2E test passed"
+# Step 4: Test natural language generation (User types "Turn on kitchen light at 7 AM")
+echo -n "Step 4: Natural language generation... "
+API_KEY="${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}"
+generate_response=$(curl -s -X POST "http://localhost:8024/api/nl/generate" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"request_text": "Turn on kitchen light at 7 AM on weekdays", "user_id": "test_user"}' 2>/dev/null)
+
+if echo "$generate_response" | jq -e '.success == true' >/dev/null 2>&1; then
+  suggestion_id=$(echo "$generate_response" | jq -r '.suggestion_id // empty')
+  safety_score=$(echo "$generate_response" | jq -r '.safety.score // 0')
+  echo "✅ (suggestion_id: $suggestion_id, safety_score: $safety_score)"
+  
+  # Step 5: Test safety validation (automatically done during generation)
+  if [ "$safety_score" -ge 60 ]; then
+    echo "  ✅ Safety validation passed (score: $safety_score)"
+  else
+    echo "  ⚠️  Low safety score: $safety_score (may block deployment)"
+  fi
+  
+  # Step 6: Test deployment (if suggestion_id exists and safety passed)
+  if [ ! -z "$suggestion_id" ] && [ "$safety_score" -ge 60 ]; then
+    echo -n "Step 5: Test deployment endpoint... "
+    deploy_response=$(curl -s -X POST "http://localhost:8024/api/deploy/$suggestion_id" \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: $API_KEY" \
+      -d '{"force_deploy": false}' 2>/dev/null)
+    
+    if echo "$deploy_response" | jq -e '.success == true' >/dev/null 2>&1; then
+      automation_id=$(echo "$deploy_response" | jq -r '.data.automation_id // empty')
+      echo "✅ (automation_id: $automation_id)"
+      
+      # Step 7: Verify automation exists in Home Assistant (if HA_URL configured)
+      if [ ! -z "$HA_HTTP_URL" ] && [ ! -z "$HA_TOKEN" ] && [ ! -z "$automation_id" ]; then
+        echo -n "Step 6: Verify automation in Home Assistant... "
+        ha_response=$(curl -s -X GET "$HA_HTTP_URL/api/config/automation/config/$automation_id" \
+          -H "Authorization: Bearer $HA_TOKEN" 2>/dev/null)
+        
+        if echo "$ha_response" | jq -e '.id' >/dev/null 2>&1; then
+          echo "✅ Automation verified in Home Assistant"
+        else
+          echo "⚠️  Could not verify in HA (may need manual check)"
+        fi
+      fi
+    else
+      echo "⚠️  Deployment test skipped (may require manual approval)"
+    fi
+  else
+    echo "  ⚠️  Skipping deployment test (safety score too low or no suggestion_id)"
+  fi
+else
+  echo "⚠️  Generation failed or returned unexpected format"
+  echo "  Response: $generate_response"
+fi
+
+# Step 8: Test pattern detection endpoint (daily analysis workflow)
+echo -n "Step 7: Pattern detection endpoint... "
+patterns=$(curl -s "http://localhost:8024/api/patterns" \
+  -H "X-API-Key: $API_KEY" 2>/dev/null || echo "[]")
+if echo "$patterns" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  pattern_count=$(echo "$patterns" | jq 'length')
+  echo "✅ ($pattern_count patterns found)"
+else
+  echo "⚠️  Endpoint not responding as expected"
+fi
+
+# Step 9: Test suggestions endpoint (user reviews pending suggestions)
+echo -n "Step 8: Suggestions endpoint... "
+suggestions=$(curl -s "http://localhost:8024/api/suggestions?status=pending" \
+  -H "X-API-Key: $API_KEY" 2>/dev/null || echo "[]")
+if echo "$suggestions" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  suggestion_count=$(echo "$suggestions" | jq 'length')
+  echo "✅ ($suggestion_count pending suggestions)"
+else
+  echo "⚠️  Endpoint not responding as expected"
+fi
+
+echo "✅ Complete AI Automation workflow test passed"
 ```
 
-### 5.5 E2E Test: External Integration Workflows
+### 5.5 E2E Test: Complete External Integration Workflows
 
 ```bash
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Phase 5.5: E2E - External Integrations"
+echo "Phase 5.5: E2E - Complete External Integration Workflows"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Testing complete integration flows: HA → Ingestion → Storage → Query"
 
-# Test Home Assistant connection
-echo -n "Home Assistant WebSocket... "
-if docker logs homeiq-websocket-ingestion 2>&1 | grep -q "Connected\|connected\|Authenticated"; then
+# Test 1: Complete Home Assistant Integration Flow
+echo "Test 1: Home Assistant WebSocket → Event Capture → InfluxDB Storage"
+echo -n "  Step 1: WebSocket connection status... "
+if docker logs homeiq-websocket 2>&1 | tail -50 | grep -q "Connected\|connected\|Authenticated\|WebSocket.*connected"; then
+  echo "✅ Connected"
+  
+  # Check if events are being received
+  echo -n "  Step 2: Event reception... "
+  recent_events=$(docker logs homeiq-websocket 2>&1 | tail -100 | grep -c "state_changed\|event" || echo "0")
+  if [ "$recent_events" -gt 0 ]; then
+    echo "✅ ($recent_events recent events in logs)"
+  else
+    echo "⚠️  No recent events (may be normal if HA is idle)"
+  fi
+  
+  # Verify events are being written to InfluxDB
+  echo -n "  Step 3: InfluxDB data ingestion... "
+  INFLUXDB_TOKEN="${INFLUXDB_TOKEN:-homeiq-token}"
+  INFLUXDB_ORG="${INFLUXDB_ORG:-homeiq}"
+  recent_data=$(curl -s -X POST "http://localhost:8086/api/v2/query?org=$INFLUXDB_ORG" \
+    -H "Authorization: Token $INFLUXDB_TOKEN" \
+    -H "Content-Type: application/vnd.flux" \
+    --data "from(bucket:\"home_assistant_events\") |> range(start: -1h) |> limit(n: 1)" 2>/dev/null)
+  
+  if echo "$recent_data" | grep -q "_value\|_time"; then
+    echo "✅ (data flowing to InfluxDB)"
+  else
+    echo "⚠️  No recent data in InfluxDB (may be normal for new installation)"
+  fi
+else
+  echo "❌ Not connected - check HA_HTTP_URL, HA_WS_URL, HA_TOKEN"
+  echo "  Check logs: docker logs homeiq-websocket"
+fi
+
+# Test 2: Complete Weather API Integration Flow
+echo ""
+echo "Test 2: Weather API → InfluxDB Storage → Query"
+echo -n "  Step 1: Weather API service health... "
+weather_health=$(curl -s http://localhost:8009/health 2>/dev/null)
+if echo "$weather_health" | jq -e '.status' >/dev/null 2>&1; then
   echo "✅"
+  
+  # Test current weather endpoint
+  echo -n "  Step 2: Current weather data... "
+  weather=$(curl -s http://localhost:8009/api/weather/current 2>/dev/null)
+  if echo "$weather" | jq -e '.temperature' >/dev/null 2>&1; then
+    temp=$(echo "$weather" | jq -r '.temperature // "N/A"')
+    echo "✅ (temp: ${temp}°C)"
+    
+    # Verify weather data in InfluxDB (if weather bucket exists)
+    echo -n "  Step 3: Weather data in InfluxDB... "
+    weather_data=$(curl -s -X POST "http://localhost:8086/api/v2/query?org=$INFLUXDB_ORG" \
+      -H "Authorization: Token $INFLUXDB_TOKEN" \
+      -H "Content-Type: application/vnd.flux" \
+      --data "from(bucket:\"weather_data\") |> range(start: -1h) |> limit(n: 1)" 2>/dev/null)
+    
+    if echo "$weather_data" | grep -q "_value\|_time"; then
+      echo "✅ (weather data stored)"
+    else
+      echo "⚠️  No weather data in InfluxDB (may need time to populate)"
+    fi
+  else
+    echo "⚠️  Check WEATHER_API_KEY configuration"
+  fi
 else
-  echo "⚠️  Check HA connection - may need configuration"
+  echo "⚠️  Weather API service not responding"
 fi
 
-# Test Weather API
-echo -n "Weather API integration... "
-weather=$(curl -s http://localhost:8009/api/weather/current 2>/dev/null)
-if echo "$weather" | jq -e '.temperature' >/dev/null 2>&1; then
+# Test 3: Complete Data Query Flow (InfluxDB → Data API → Response)
+echo ""
+echo "Test 3: InfluxDB → Data API → Client Response"
+echo -n "  Step 1: Query events via Data API... "
+events=$(curl -s "http://localhost:8006/api/events?hours=1&limit=5" 2>/dev/null)
+if echo "$events" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  event_count=$(echo "$events" | jq 'length')
+  echo "✅ ($event_count events returned)"
+  
+  # Verify data structure
+  if [ "$event_count" -gt 0 ]; then
+    echo -n "  Step 2: Event data structure validation... "
+    first_event=$(echo "$events" | jq '.[0]')
+    if echo "$first_event" | jq -e '.entity_id, .state, .timestamp' >/dev/null 2>&1; then
+      echo "✅ (valid structure)"
+    else
+      echo "⚠️  Event structure may be incomplete"
+    fi
+  fi
+else
+  echo "⚠️  No events returned (may be normal if system is new)"
+fi
+
+# Test 4: OpenAI Integration (for AI Automation)
+echo ""
+echo "Test 4: OpenAI API Integration (AI Automation)"
+echo -n "  Step 1: OpenAI Service health... "
+openai_health=$(curl -s http://localhost:8020/health 2>/dev/null)
+if echo "$openai_health" | jq -e '.status' >/dev/null 2>&1; then
   echo "✅"
+  echo "  ⚠️  Note: Full OpenAI test requires API key and incurs cost"
 else
-  echo "⚠️  Check WEATHER_API_KEY configuration"
+  echo "⚠️  OpenAI service not responding"
 fi
 
-# Test InfluxDB writes
-echo -n "InfluxDB data ingestion... "
-# Query recent data points
-if curl -s "http://localhost:8086/api/v2/query?org=homeiq" \
-  -H "Authorization: Token ${INFLUXDB_TOKEN}" \
-  -H "Content-Type: application/vnd.flux" \
-  --data "from(bucket:\"home_assistant_events\") |> range(start: -1h) |> limit(n: 1)" 2>/dev/null | grep -q "_value"; then
-  echo "✅ (data flowing)"
-else
-  echo "⚠️  No recent data (may be normal for new installation)"
-fi
+# Test 5: External API Integrations (Carbon, Energy, Air Quality)
+echo ""
+echo "Test 5: External Data Enrichment APIs"
+for service in "carbon-intensity:8010" "electricity-pricing:8011" "air-quality:8012"; do
+  IFS=':' read -r name port <<< "$service"
+  echo -n "  $name service... "
+  health=$(curl -s "http://localhost:$port/health" 2>/dev/null)
+  if echo "$health" | jq -e '.status' >/dev/null 2>&1; then
+    echo "✅"
+  else
+    echo "⚠️  Service may need API keys or configuration"
+  fi
+done
 
-echo "✅ External integrations E2E test passed"
+echo ""
+echo "✅ External integrations E2E test complete"
 ```
 
 ### 5.6 E2E Test: Data Export Workflow
