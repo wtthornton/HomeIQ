@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add AI automation learning features and QA improvements** (3f89d58) - wtthornton
+- **Standardize fuzzy matching with rapidfuzz best practices** (8d2f9a8) - wtthornton
+- **feat(validation): add comprehensive validation command** (fafb163) - Claude
+- **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (be51b74) - wtthornton
+- **Implement token optimization for Ask AI clarification flow** (31c4dc2) - wtthornton
+- **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (c796c8d) - wtthornton
+- **Implement confidence algorithm improvements (Phase 1 & 2)** (d0cd84d) - wtthornton
+- **Add AI Model Comparison feature with side-by-side metrics and recommendations** (9bf590c) - wtthornton
+- **Implement quality-focused improvements for pattern and synergy detection** (39129fa) - wtthornton
+- **Implement shared base classes and observability infrastructure** (5a80b2d) - wtthornton
+- **Add approval success indicators with particle celebration and deployed badge** (463237a) - wtthornton
+- **Implement Action Execution Engine and major system improvements** (f6fd9a7) - wtthornton
+- **Complete HA Conversation v2 API implementation** (e462b6c) - wtthornton
+
+### Changed
+
+- **Improve error handling for clarification suggestion generation failures - Add tracking for skipped suggestions with detailed reasons - Improve error messages when entity mapping fails - Add better diagnostics for why suggestions are skipped - Log specific reasons when suggestions fail entity validation - Provide helpful error messages indicating device name mismatches - Deployed and tested successfully** (0ba4927) - wtthornton
+- **Update AskAI UI components** (349230a) - wtthornton
+
+### Fixed
+
+- **Fix device filtering: Use fuzzy matching instead of hardcoded lists** (0dc415c) - wtthornton
+- **Fix ASK AI clarification flow: resolve NameError and location expansion** (f1e69ee) - wtthornton
+- **Implement context-aware entity mapping for clarification flow** (98c398e) - wtthornton
+- **Fix critical log issues and update documentation (November 2025)** (b62e615) - wtthornton
+- **Fix game timeline display: add missing API method and period breakdown** (d0ed6cf) - wtthornton
+- **Fix weather-dev service: network connectivity and health check port** (d6f0b5f) - wtthornton
+- **Fix healthcheck port and import path in ai-automation-service** (f8b6dbc) - wtthornton
+- **Fix quality metrics endpoint and adjust analysis lookback period** (170d50b) - wtthornton
+- **Fix event details loading stuck issue** (4a085d6) - wtthornton
+- **Ensure unique automation IDs to prevent duplicate updates** (6ec6471) - wtthornton
+
+
+### Added
+
 - **Standardize fuzzy matching with rapidfuzz best practices** (8d2f9a8) - wtthornton
 - **feat(validation): add comprehensive validation command** (fafb163) - Claude
 - **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (be51b74) - wtthornton
