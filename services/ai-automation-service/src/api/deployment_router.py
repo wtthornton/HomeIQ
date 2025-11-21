@@ -206,7 +206,7 @@ async def deploy_suggestion(
         raise
     except Exception as e:
         logger.error(f"Error deploying suggestion {suggestion_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/batch")
@@ -253,7 +253,7 @@ async def batch_deploy_suggestions(suggestion_ids: list[int]):
 
     except Exception as e:
         logger.error(f"Batch deployment error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/automations")
@@ -275,7 +275,7 @@ async def list_deployed_automations():
 
     except Exception as e:
         logger.error(f"Error listing automations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/automations/{automation_id}")
@@ -304,7 +304,7 @@ async def get_automation_status(automation_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting automation {automation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/automations/{automation_id}/enable")
@@ -333,7 +333,7 @@ async def enable_automation(automation_id: str):
         raise
     except Exception as e:
         logger.error(f"Error enabling automation {automation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/automations/{automation_id}/disable")
@@ -362,7 +362,7 @@ async def disable_automation(automation_id: str):
         raise
     except Exception as e:
         logger.error(f"Error disabling automation {automation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/automations/{automation_id}/trigger")
@@ -391,7 +391,7 @@ async def trigger_automation(automation_id: str):
         raise
     except Exception as e:
         logger.error(f"Error triggering automation {automation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/test-connection")
@@ -421,7 +421,7 @@ async def test_ha_connection():
         raise
     except Exception as e:
         logger.error(f"HA connection test failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -460,10 +460,10 @@ async def rollback_automation(automation_id: str):
     except ValueError as e:
         # Expected errors (no previous version, safety failure)
         logger.warning(f"Rollback rejected: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Rollback failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{automation_id}/versions")
@@ -500,5 +500,5 @@ async def get_version_history(automation_id: str):
 
     except Exception as e:
         logger.error(f"Error getting versions for {automation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
