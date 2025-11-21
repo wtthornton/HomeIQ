@@ -975,6 +975,7 @@ class EntityValidator:
         """
         Find binary sensor with fuzzy matching for presence/motion/occupancy patterns.
         
+        Uses rapidfuzz base score combined with domain-specific bonuses for binary sensors.
         Handles common binary sensor naming variations:
         - {location}_{type} (e.g., office_desk_presence)
         - {type}_{location} (e.g., presence_office_desk)
@@ -988,6 +989,8 @@ class EntityValidator:
         Returns:
             Best matching binary sensor entity or None
         """
+        from ..utils.fuzzy import fuzzy_match_with_context
+        
         query_lower = query_term.lower()
         query_words = set(re.findall(r'\w+', query_lower))
 
@@ -1009,35 +1012,24 @@ class EntityValidator:
             entity_name = entity_id.replace('binary_sensor.', '').lower()
             entity_words = set(re.findall(r'\w+', entity_name))
 
-            # Calculate multiple similarity scores
-            scores = []
+            # Build context bonuses for domain-specific scoring
+            context_bonuses = {}
 
-            # Score 1: Exact substring match
-            if query_lower in entity_name or entity_name in query_lower:
-                scores.append(1.0)
-
-            # Score 2: Word overlap
-            common_words = query_words.intersection(entity_words)
-            if common_words:
-                word_score = len(common_words) / max(len(query_words), len(entity_words))
-                scores.append(word_score)
-
-            # Score 3: Location words match
+            # Location words match bonus
             if location_words:
                 location_match = location_words.intersection(entity_words)
                 if location_match:
                     location_score = len(location_match) / len(location_words)
-                    scores.append(location_score * 0.8)
+                    context_bonuses['location'] = location_score * 0.1  # 0-0.1 bonus
 
-            # Score 4: Sensor type match (important for binary sensors)
+            # Sensor type match bonus (important for binary sensors)
             if query_has_sensor_type and sensor_type_words:
                 type_match = sensor_type_words.intersection(entity_words)
                 if type_match:
                     type_score = len(type_match) / len(sensor_type_words)
-                    scores.append(type_score * 0.9)  # High weight for sensor type
+                    context_bonuses['sensor_type'] = type_score * 0.15  # 0-0.15 bonus (higher weight)
 
-            # Score 5: Pattern matching for common binary sensor patterns
-            # Check if entity follows common patterns
+            # Pattern matching bonus for common binary sensor patterns
             if location_words and sensor_type_words:
                 # Pattern: location_type or type_location
                 for loc_word in location_words:
@@ -1045,13 +1037,22 @@ class EntityValidator:
                         pattern1 = f"{loc_word}_{type_word}"
                         pattern2 = f"{type_word}_{loc_word}"
                         if pattern1 in entity_name or pattern2 in entity_name:
-                            scores.append(0.85)
+                            context_bonuses['pattern'] = 0.1  # Pattern match bonus
+                            break
 
-            # Use highest score
-            if scores:
-                final_score = max(scores)
-                if final_score > 0.5:  # Threshold for fuzzy match
-                    candidates.append((entity, final_score))
+            # Use rapidfuzz base score with domain-specific context bonuses
+            base_score = fuzzy_match_with_context(
+                query_term,
+                entity_name,
+                context_bonuses if context_bonuses else None
+            )
+
+            # Also check exact substring match for high confidence
+            if query_lower in entity_name or entity_name in query_lower:
+                base_score = max(base_score, 1.0)
+
+            if base_score > 0.5:  # Threshold for fuzzy match
+                candidates.append((entity, base_score))
 
         # Return best match
         if candidates:
@@ -1812,11 +1813,16 @@ class EntityValidator:
         """
         Calculate fuzzy string similarity score (0.0-1.0) for typo and abbreviation handling.
         
-        Uses rapidfuzz token_sort_ratio for order-independent matching.
+        Uses rapidfuzz WRatio (weighted ratio) which combines multiple algorithms:
+        - token_sort_ratio (order-independent)
+        - partial_ratio (substring matching)
+        - token_set_ratio (set-based matching)
+        
         Handles:
         - Typos: "office lite" vs "office light"
         - Abbreviations: "LR light" vs "Living Room Light"
         - Partial matches: "kitchen" vs "Kitchen Light"
+        - Word order: "light living room" vs "living room light"
         
         Args:
             query: Query string to match
@@ -1825,18 +1831,11 @@ class EntityValidator:
         Returns:
             Similarity score between 0.0 (no match) and 1.0 (perfect match)
         """
-        if not candidate:
-            return 0.0
-
-        try:
-            from rapidfuzz import fuzz
-            # Use token_sort_ratio for order-independent matching
-            # This handles "living room light" vs "light living room"
-            score = fuzz.token_sort_ratio(query.lower(), candidate.lower()) / 100.0
-            return score
-        except ImportError:
-            logger.warning("rapidfuzz not available, fuzzy matching disabled")
-            return 0.0
+        from ..utils.fuzzy import fuzzy_score
+        
+        # Use centralized fuzzy_score utility with WRatio for best accuracy
+        # threshold=0.0 to get raw score without filtering
+        return fuzzy_score(query, candidate, threshold=0.0)
 
     def _is_group_entity(self, entity: dict[str, Any]) -> bool:
         """

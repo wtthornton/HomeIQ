@@ -15,12 +15,8 @@ from typing import Any
 
 import yaml
 
-RAPIDFUZZ_AVAILABLE = False
-try:
-    from rapidfuzz import fuzz
-    RAPIDFUZZ_AVAILABLE = True
-except ImportError:
-    logging.warning("rapidfuzz not available, fuzzy matching disabled")
+from ..utils.fuzzy import RAPIDFUZZ_AVAILABLE, fuzzy_score
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +45,10 @@ class ComponentDetector:
 
     def __init__(self):
         """Initialize component detector"""
-        self.use_fuzzy = RAPIDFUZZ_AVAILABLE
-        if not self.use_fuzzy:
+        self.use_fuzzy = RAPIDFUZZ_AVAILABLE and settings.fuzzy_matching_enabled
+        if not self.use_fuzzy and RAPIDFUZZ_AVAILABLE:
+            logger.warning("⚠️ Fuzzy matching disabled in settings, using exact matching only")
+        elif not RAPIDFUZZ_AVAILABLE:
             logger.warning("⚠️ rapidfuzz not available, using exact matching only")
 
         # Pattern definitions for exact matching
@@ -229,9 +227,10 @@ class ComponentDetector:
 
                         max_score = 0.0
                         best_match = None
+                        threshold = max(settings.fuzzy_matching_threshold - 0.1, 0.6)  # Lower threshold for component detection
                         for phrase in delay_phrases:
-                            score = fuzz.token_sort_ratio(context, phrase) / 100.0
-                            if score > max_score and score > 0.6:  # 60% threshold
+                            score = fuzzy_score(context, phrase, threshold=0.0)  # Get raw score
+                            if score > max_score and score > threshold:
                                 max_score = score
                                 best_match = phrase
 
@@ -279,12 +278,13 @@ class ComponentDetector:
                         ]
 
                         max_score = 0.0
+                        threshold = max(settings.fuzzy_matching_threshold - 0.1, 0.6)  # Lower threshold for component detection
                         for phrase in repeat_phrases:
-                            score = fuzz.token_sort_ratio(context, phrase) / 100.0
-                            if score > max_score and score > 0.6:
+                            score = fuzzy_score(context, phrase, threshold=0.0)  # Get raw score
+                            if score > max_score and score > threshold:
                                 max_score = score
 
-                        if max_score > 0.6:
+                        if max_score > threshold:
                             detected.append(DetectedComponent(
                                 component_type='repeat',
                                 original_value=context.strip(),

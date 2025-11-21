@@ -66,6 +66,7 @@ from ..services.safety_validator import SafetyValidator
 from ..services.service_container import ServiceContainer
 from ..services.yaml_self_correction import YAMLSelfCorrectionService
 from ..utils.capability_utils import format_capability_for_display, normalize_capability
+from ..utils.fuzzy import fuzzy_match_with_context, fuzzy_score
 
 # Use service logger instead of module logger for proper JSON logging
 logger = logging.getLogger("ai-automation-service")
@@ -1080,21 +1081,23 @@ async def verify_entities_exist_in_ha(
 def detect_device_types_fuzzy(
     text: str,
     device_type_aliases: dict[str, list[str]] | None = None,
-    threshold: float = 0.7
+    threshold: float | None = None
 ) -> list[tuple[str, float]]:
     """
     Detect device types in text using fuzzy matching with rapidfuzz.
     
-    Uses rapidfuzz for flexible matching that handles:
+    Uses rapidfuzz process.extract() for efficient batch matching that handles:
     - Typos: "wled" vs "wled" 
     - Variations: "philips hue" vs "hue"
     - Partial matches: "led strip" contains "led"
+    - Word order: "hue philips" vs "philips hue"
     
     Args:
         text: Text to search for device types
         device_type_aliases: Optional dict mapping device_type -> list of aliases.
                            If None, uses default device type aliases.
-        threshold: Minimum fuzzy match score (0.0-1.0) to consider a match. Default 0.7.
+        threshold: Minimum fuzzy match score (0.0-1.0) to consider a match.
+                  If None, uses settings.fuzzy_matching_threshold.
     
     Returns:
         List of tuples: (device_type, confidence_score) sorted by confidence (highest first)
@@ -1105,6 +1108,8 @@ def detect_device_types_fuzzy(
         >>> detect_device_types_fuzzy("turn on philips hue lights")
         [('hue', 0.92)]
     """
+    from ..utils.fuzzy import fuzzy_match_best, RAPIDFUZZ_AVAILABLE
+    
     if not text:
         return []
     
@@ -1118,56 +1123,54 @@ def detect_device_types_fuzzy(
             'tp-link': ['tp-link', 'kasa', 'tplink']
         }
     
-    text_lower = text.lower()
+    # Use configured threshold if not provided
+    if threshold is None:
+        threshold = settings.fuzzy_matching_threshold
+    
     matches = []
     
-    try:
-        from rapidfuzz import fuzz, process
-        
-        # Extract words from text for better matching
-        text_words = set(text_lower.split())
+    if RAPIDFUZZ_AVAILABLE:
+        # Build flat list of all aliases with device type mapping
+        all_aliases = []
+        alias_to_device_type = {}
         
         for device_type, aliases in device_type_aliases.items():
-            best_score = 0.0
-            best_alias = None
-            
-            # Try fuzzy matching against each alias
             for alias in aliases:
-                # Use token_sort_ratio for order-independent matching
-                # This handles "philips hue" vs "hue philips"
-                score = fuzz.token_sort_ratio(text_lower, alias) / 100.0
-                
-                # Also check partial ratio for substring matches (e.g., "led" in "wled strip")
-                partial_score = fuzz.partial_ratio(alias, text_lower) / 100.0
-                
-                # Use the better of the two scores
-                score = max(score, partial_score)
-                
-                # Bonus for word boundary matches (exact word match)
-                if alias in text_words:
-                    score = max(score, 0.95)  # High confidence for exact word match
-                
-                if score > best_score:
-                    best_score = score
-                    best_alias = alias
-            
-            # Only include matches above threshold
-            if best_score >= threshold:
-                matches.append((device_type, best_score))
-                logger.debug(f"🔍 Fuzzy device type match: '{device_type}' (via '{best_alias}') in text with score {best_score:.2f}")
+                all_aliases.append(alias)
+                alias_to_device_type[alias] = device_type
         
-        # Sort by confidence (highest first)
+        # Use process.extract() for efficient batch matching
+        # This is faster than manual loops for large alias lists
+        alias_matches = fuzzy_match_best(
+            text,
+            all_aliases,
+            threshold=threshold,
+            limit=len(all_aliases)  # Get all matches above threshold
+        )
+        
+        # Group matches by device type and keep best score per device type
+        device_type_scores = {}
+        for alias, score in alias_matches:
+            device_type = alias_to_device_type[alias]
+            if device_type not in device_type_scores or score > device_type_scores[device_type]:
+                device_type_scores[device_type] = score
+        
+        # Convert to list of tuples and sort by score
+        matches = [(device_type, score) for device_type, score in device_type_scores.items()]
         matches.sort(key=lambda x: x[1], reverse=True)
-        return matches
         
-    except ImportError:
-        logger.warning("rapidfuzz not available, falling back to substring matching")
+        if matches:
+            logger.debug(f"🔍 Fuzzy device type matches: {[(dt, f'{s:.2f}') for dt, s in matches]}")
+    else:
         # Fallback to simple substring matching if rapidfuzz unavailable
+        text_lower = text.lower()
         for device_type, aliases in device_type_aliases.items():
             for alias in aliases:
                 if alias in text_lower:
-                    return [(device_type, 0.8)]  # Lower confidence for substring match
-        return []
+                    matches.append((device_type, 0.8))  # Lower confidence for substring match
+                    break  # Only one match per device type in fallback
+    
+    return matches
 
 
 async def map_devices_to_entities(
@@ -1276,10 +1279,10 @@ async def map_devices_to_entities(
                 logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{entity_id}' (exact match by {name_type})")
                 break
 
-        # Strategy 2: Fuzzy matching (case-insensitive substring) - context-aware for 2025
-        if not matched_entity_id and fuzzy_match:
+        # Strategy 2: Fuzzy matching with rapidfuzz - context-aware for 2025
+        if not matched_entity_id and fuzzy_match and settings.fuzzy_matching_enabled:
             best_fuzzy_match = None
-            best_fuzzy_score = 0
+            best_fuzzy_score = 0.0
 
             # Extract location and device hints from clarification context (2025: context-aware)
             context_location = query_location
@@ -1313,46 +1316,59 @@ async def map_devices_to_entities(
                 name_to_check = friendly_name if friendly_name else device_name_from_enriched
                 if not name_to_check:
                     continue
-                name_to_check = name_to_check.lower()
                 entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
                 area_name = enriched.get('area_name', '').lower() if enriched.get('area_name') else ''
 
-                # Calculate fuzzy match score (higher = better) - 2025: context-aware scoring
-                score = 0
-                if device_name_lower in name_to_check or name_to_check in device_name_lower:
-                    score += 2  # Strong match
-                if device_name_lower in entity_name_part:
-                    score += 1  # Weak match
+                # Build context bonuses for enhanced scoring
+                context_bonuses = {}
+                
                 # Area context bonus for single-home scenarios
                 if area_name and device_name_lower in area_name:
-                    score += 1  # Area context bonus
+                    context_bonuses['area'] = 0.1
                 
                 # 2025 ENHANCEMENT: Context-aware location matching
                 if context_location:
                     location_lower = context_location.lower()
-                    if location_lower in area_name or location_lower in name_to_check:
-                        score += 2  # Strong location match bonus
+                    if location_lower in area_name or location_lower in name_to_check.lower():
+                        context_bonuses['location'] = 0.2  # Strong location match bonus
                         logger.debug(f"📍 Location match bonus: '{device_name_lower}' matches location '{context_location}' for entity '{entity_id}'")
                 
                 # 2025 ENHANCEMENT: Context-aware device type matching
                 if context_device_hints:
                     for hint in context_device_hints:
-                        if hint in name_to_check or hint in entity_name_part:
-                            score += 2  # Strong device type match bonus
+                        if hint in name_to_check.lower() or hint in entity_name_part:
+                            context_bonuses['device_type'] = 0.2  # Strong device type match bonus
                             logger.debug(f"🔧 Device type match bonus: '{device_name_lower}' matches hint '{hint}' for entity '{entity_id}'")
+                            break
+
+                # Use fuzzy_match_with_context() for base similarity + context bonuses
+                # Check both friendly_name and entity_name_part for better matching
+                score1 = fuzzy_match_with_context(
+                    device_name,
+                    name_to_check,
+                    context_bonuses if context_bonuses else None
+                )
+                score2 = fuzzy_match_with_context(
+                    device_name,
+                    entity_name_part,
+                    context_bonuses if context_bonuses else None
+                ) if entity_name_part else 0.0
+                
+                # Use the better of the two scores
+                score = max(score1, score2)
 
                 if score > best_fuzzy_score:
                     best_fuzzy_score = score
                     best_fuzzy_match = entity_id
 
-            if best_fuzzy_match and best_fuzzy_score > 0:
+            if best_fuzzy_match and best_fuzzy_score >= settings.fuzzy_matching_threshold:
                 matched_entity_id = best_fuzzy_match
                 match_quality = 2
                 # Determine which name type was used for the match
                 best_enriched = enriched_data.get(best_fuzzy_match, {})
                 best_friendly_name = best_enriched.get('friendly_name', '')
                 name_type = 'friendly_name' if best_friendly_name else 'device_name'
-                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score})")
+                logger.debug(f"✅ Mapped device '{device_name}' → entity_id '{matched_entity_id}' (fuzzy match by {name_type}, score: {best_fuzzy_score:.2f})")
 
         # Strategy 3: Match by device type/integration (e.g., "WLED", "Hue") - NEW for 2025
         if not matched_entity_id and fuzzy_match:
@@ -8622,8 +8638,29 @@ async def approve_suggestion_from_query(
                     
                     # Extract scenes created dynamically by scene.create service calls (2025 Home Assistant pattern)
                     created_scenes = entity_id_extractor.extract_scenes_created(parsed_yaml)
+                    
+                    # Also check for scene entities in the YAML that might be created
+                    scene_entities_in_yaml = [eid for eid in unique_entity_ids if eid.startswith('scene.')]
+                    
                     if created_scenes:
                         logger.info(f"🔍 Found {len(created_scenes)} dynamically created scenes (will exclude from validation): {', '.join(sorted(created_scenes))}")
+                    
+                    if scene_entities_in_yaml:
+                        logger.info(f"🔍 Found {len(scene_entities_in_yaml)} scene entities in YAML: {', '.join(sorted(scene_entities_in_yaml))}")
+                        
+                        # Check if any scene entities are not in created_scenes - these need to exist in HA
+                        scenes_not_created = [eid for eid in scene_entities_in_yaml if eid not in created_scenes]
+                        if scenes_not_created:
+                            logger.warning(f"⚠️ Scene entities found in YAML but not detected as created dynamically: {', '.join(sorted(scenes_not_created))}")
+                            logger.info(f"🔍 These will be validated against HA (they should exist as static scenes)")
+                            
+                            # Debug: Check if scene.create calls exist in the YAML
+                            actions = parsed_yaml.get('action', parsed_yaml.get('actions', []))
+                            if actions:
+                                import json
+                                actions_str = json.dumps(actions, indent=2)
+                                if 'scene.create' in actions_str:
+                                    logger.debug(f"🔍 scene.create found in actions, but extraction didn't match. Actions structure: {actions_str[:500]}")
                     
                     # Filter out dynamically created scenes from validation (they don't exist until runtime)
                     entities_to_validate = [eid for eid in unique_entity_ids if eid not in created_scenes]

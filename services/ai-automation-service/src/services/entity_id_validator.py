@@ -158,14 +158,16 @@ class EntityIDValidator:
                         if candidates:
                             logger.debug(f"🔍 Strategy 4 (substring): Found {len(candidates)} candidates: {candidates}")
 
-                    # Strategy 5: Fuzzy matching with simple distance (Levenshtein-like)
+                    # Strategy 5: Fuzzy matching with rapidfuzz
                     if not candidates:
-                        # Simple fuzzy match: check character similarity
+                        # Use rapidfuzz for better typo and abbreviation handling
                         for valid_id in validated_entities:
                             if isinstance(valid_id, str) and '.' in valid_id:
                                 domain, name = valid_id.split('.', 1)
                                 # Check if entity_id is similar to domain or name (at least 70% match)
-                                if self._fuzzy_match(entity_id_lower, domain.lower(), threshold=0.7) or self._fuzzy_match(entity_id_lower, name.lower(), threshold=0.7):
+                                domain_score = self._fuzzy_match(entity_id_lower, domain.lower(), threshold=0.7)
+                                name_score = self._fuzzy_match(entity_id_lower, name.lower(), threshold=0.7)
+                                if domain_score > 0.0 or name_score > 0.0:
                                     candidates.append(valid_id)
 
                         if candidates:
@@ -334,6 +336,31 @@ class EntityIDValidator:
         actions = yaml_data.get('action', yaml_data.get('actions', []))
         if actions:
             self._extract_scenes_created(actions, created_scenes)
+        
+        # Also extract all scene entities from the YAML to help with matching
+        # This helps us identify if a scene entity is referenced but not created
+        all_scene_entities = set()
+        entity_id_tuples = self._extract_all_entity_ids(yaml_data)
+        for entity_id, _ in entity_id_tuples:
+            if entity_id and entity_id.startswith('scene.'):
+                all_scene_entities.add(entity_id)
+        
+        # If we found scene entities but didn't find them in created_scenes,
+        # try to match them by checking if the scene_id (without scene. prefix) matches
+        if all_scene_entities and created_scenes:
+            # Check for potential matches (scene.entity_name might be created as scene_id: entity_name)
+            for scene_entity in all_scene_entities:
+                if scene_entity not in created_scenes:
+                    # Try to find a match by removing the scene. prefix
+                    scene_name = scene_entity.replace('scene.', '', 1)
+                    # Check if any created scene matches (with or without scene. prefix)
+                    for created in created_scenes:
+                        created_name = created.replace('scene.', '', 1)
+                        if scene_name == created_name:
+                            logger.info(f"🔍 Matched scene entity {scene_entity} to created scene {created}")
+                            created_scenes.add(scene_entity)
+                            break
+        
         return created_scenes
 
     def _extract_scenes_created(self, actions: Any, created_scenes: set[str]) -> None:
@@ -350,20 +377,31 @@ class EntityIDValidator:
             created_scenes: Set to populate with created scene entity IDs
         """
         if isinstance(actions, list):
-            for action in actions:
+            for i, action in enumerate(actions):
                 if isinstance(action, dict):
                     # Check for scene.create service (2025 format: service: field)
                     service = action.get('service')
                     if service == 'scene.create':
-                        scene_id = action.get('data', {}).get('scene_id')
+                        data = action.get('data', {})
+                        scene_id = data.get('scene_id')
+                        
                         if scene_id:
+                            # Handle template variables - if scene_id contains {{ }}, skip it
+                            # (can't validate template variables at validation time)
+                            if isinstance(scene_id, str) and '{{' in scene_id:
+                                logger.warning(f"⚠️ Scene ID contains template variable, skipping: {scene_id}")
+                                continue
+                            
                             # Convert scene_id to entity_id format (Home Assistant 2025 pattern)
                             if not scene_id.startswith('scene.'):
                                 scene_entity_id = f"scene.{scene_id}"
                             else:
                                 scene_entity_id = scene_id
+                            
                             created_scenes.add(scene_entity_id)
-                            logger.debug(f"🔍 Found dynamically created scene: {scene_entity_id}")
+                            logger.info(f"🔍 Found dynamically created scene: {scene_entity_id} (from scene_id: {scene_id})")
+                        else:
+                            logger.warning(f"⚠️ scene.create service found but no scene_id in data: {action}")
                     
                     # Recursively check nested structures (sequence, repeat.sequence, choose)
                     if 'sequence' in action:
@@ -387,14 +425,25 @@ class EntityIDValidator:
             # Handle single action dict
             service = actions.get('service')
             if service == 'scene.create':
-                scene_id = actions.get('data', {}).get('scene_id')
+                data = actions.get('data', {})
+                scene_id = data.get('scene_id')
+                
                 if scene_id:
+                    # Handle template variables
+                    if isinstance(scene_id, str) and '{{' in scene_id:
+                        logger.warning(f"⚠️ Scene ID contains template variable, skipping: {scene_id}")
+                        return
+                    
+                    # Convert scene_id to entity_id format
                     if not scene_id.startswith('scene.'):
                         scene_entity_id = f"scene.{scene_id}"
                     else:
                         scene_entity_id = scene_id
+                    
                     created_scenes.add(scene_entity_id)
-                    logger.debug(f"🔍 Found dynamically created scene: {scene_entity_id}")
+                    logger.info(f"🔍 Found dynamically created scene: {scene_entity_id} (from scene_id: {scene_id})")
+                else:
+                    logger.warning(f"⚠️ scene.create service found but no scene_id in data: {actions}")
 
     def _extract_from_actions(self, actions: Any, base_path: str) -> list[tuple[str, str]]:
         """Recursively extract entity_ids from action structures"""
@@ -480,43 +529,28 @@ class EntityIDValidator:
 
         return entity_ids
 
-    def _fuzzy_match(self, str1: str, str2: str, threshold: float = 0.7) -> bool:
-        """Simple fuzzy matching based on character similarity
+    def _fuzzy_match(self, str1: str, str2: str, threshold: float = 0.7) -> float:
+        """
+        Calculate fuzzy similarity score using rapidfuzz.
+        
+        Uses fuzzy_score() utility for typo handling, abbreviation matching,
+        and word order independence. Returns confidence score instead of boolean.
         
         Args:
             str1: First string to compare
             str2: Second string to compare
-            threshold: Minimum similarity ratio (0.0 to 1.0)
+            threshold: Minimum similarity ratio (0.0 to 1.0) - used for filtering
             
         Returns:
-            True if strings are similar enough (above threshold)
+            Similarity score 0.0-1.0 (0.0 if below threshold)
         """
+        from ..utils.fuzzy import fuzzy_score
+        
         if not str1 or not str2:
-            return False
+            return 0.0
 
-        # Exact match
-        if str1 == str2:
-            return True
-
-        # Substring match (one contains the other)
-        if str1 in str2 or str2 in str1:
-            return True
-
-        # Simple character overlap check
-        chars1 = set(str1.lower())
-        chars2 = set(str2.lower())
-
-        if not chars1 or not chars2:
-            return False
-
-        intersection = chars1.intersection(chars2)
-        union = chars1.union(chars2)
-
-        if not union:
-            return False
-
-        similarity = len(intersection) / len(union)
-        return similarity >= threshold
+        # Use rapidfuzz-based fuzzy_score for better accuracy
+        return fuzzy_score(str1, str2, threshold=threshold)
 
     def _apply_fix_to_yaml(self, yaml_data: dict, location: str, old_id: str, new_id: str) -> bool:
         """Apply a fix to the YAML data structure by updating entity_id at the given location
