@@ -7,6 +7,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from ..utils.fuzzy import fuzzy_match_best
+from ..config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -168,13 +171,21 @@ class EntityResolver:
         user_text: str,
         domain_hint: str | None = None
     ) -> ResolutionResult:
-        """Resolve via fuzzy matching on friendly names"""
+        """
+        Resolve via fuzzy matching on friendly names using rapidfuzz.
+        
+        Uses fuzzy_match_best() for typo handling, abbreviation matching,
+        and word order independence. Handles cases like:
+        - Typos: "office lite" → "office light"
+        - Abbreviations: "LR light" → "Living Room Light"
+        - Word order: "light living room" → "living room light"
+        """
         await self._ensure_entity_cache()
 
-        user_text_lower = user_text.lower()
-        candidates = []
-
-        # Search through entity cache
+        # Build candidate mapping: friendly_name -> entity_id
+        candidate_names = []
+        name_to_entity = {}
+        
         for entity_id, entity_data in self._entity_cache.items():
             # Apply domain filter if hint provided
             if domain_hint:
@@ -184,27 +195,28 @@ class EntityResolver:
             # Check friendly name
             friendly_name = entity_data.get('friendly_name', '')
             if friendly_name:
-                friendly_lower = friendly_name.lower()
-                # Exact match
-                if friendly_lower == user_text_lower:
-                    candidates.append((entity_id, 1.0))
-                # Contains match
-                elif user_text_lower in friendly_lower or friendly_lower in user_text_lower:
-                    candidates.append((entity_id, 0.7))
-                # Word overlap
-                elif any(word in friendly_lower for word in user_text_lower.split()):
-                    candidates.append((entity_id, 0.5))
+                candidate_names.append(friendly_name)
+                name_to_entity[friendly_name] = entity_id
 
-        if candidates:
-            # Sort by confidence
-            candidates.sort(key=lambda x: x[1], reverse=True)
-            best_match = candidates[0]
-            entity_id = best_match[0]
-            confidence = best_match[1]
+        if not candidate_names:
+            return ResolutionResult(resolved=False)
+
+        # Use fuzzy_match_best() for efficient batch matching with rapidfuzz
+        # Lower threshold (0.6) for fuzzy matching to catch typos
+        threshold = settings.fuzzy_matching_threshold - 0.1 if settings.fuzzy_matching_enabled else 0.0
+        matches = fuzzy_match_best(
+            user_text,
+            candidate_names,
+            threshold=max(threshold, 0.5),  # Minimum 0.5 threshold
+            limit=6  # Top 5 alternatives + best match
+        )
+
+        if matches:
+            best_match_name, confidence = matches[0]
+            entity_id = name_to_entity[best_match_name]
+            alternatives = [name_to_entity[name] for name, _ in matches[1:6] if name in name_to_entity]
 
             entity = self._entity_cache[entity_id]
-            alternatives = [c[0] for c in candidates[1:6]]  # Top 5 alternatives
-
             return ResolutionResult(
                 canonical_entity_id=entity_id,
                 resolved=True,

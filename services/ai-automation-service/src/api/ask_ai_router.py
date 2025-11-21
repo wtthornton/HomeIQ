@@ -1077,6 +1077,99 @@ async def verify_entities_exist_in_ha(
     return verified
 
 
+def detect_device_types_fuzzy(
+    text: str,
+    device_type_aliases: dict[str, list[str]] | None = None,
+    threshold: float = 0.7
+) -> list[tuple[str, float]]:
+    """
+    Detect device types in text using fuzzy matching with rapidfuzz.
+    
+    Uses rapidfuzz for flexible matching that handles:
+    - Typos: "wled" vs "wled" 
+    - Variations: "philips hue" vs "hue"
+    - Partial matches: "led strip" contains "led"
+    
+    Args:
+        text: Text to search for device types
+        device_type_aliases: Optional dict mapping device_type -> list of aliases.
+                           If None, uses default device type aliases.
+        threshold: Minimum fuzzy match score (0.0-1.0) to consider a match. Default 0.7.
+    
+    Returns:
+        List of tuples: (device_type, confidence_score) sorted by confidence (highest first)
+    
+    Example:
+        >>> detect_device_types_fuzzy("I want to control the wled in the office")
+        [('wled', 0.95)]
+        >>> detect_device_types_fuzzy("turn on philips hue lights")
+        [('hue', 0.92)]
+    """
+    if not text:
+        return []
+    
+    # Use default device type aliases if not provided
+    if device_type_aliases is None:
+        device_type_aliases = {
+            'wled': ['wled', 'led', 'leds'],
+            'hue': ['hue', 'philips hue'],
+            'sonoff': ['sonoff', 'tasmota'],
+            'tuya': ['tuya', 'smart life'],
+            'tp-link': ['tp-link', 'kasa', 'tplink']
+        }
+    
+    text_lower = text.lower()
+    matches = []
+    
+    try:
+        from rapidfuzz import fuzz, process
+        
+        # Extract words from text for better matching
+        text_words = set(text_lower.split())
+        
+        for device_type, aliases in device_type_aliases.items():
+            best_score = 0.0
+            best_alias = None
+            
+            # Try fuzzy matching against each alias
+            for alias in aliases:
+                # Use token_sort_ratio for order-independent matching
+                # This handles "philips hue" vs "hue philips"
+                score = fuzz.token_sort_ratio(text_lower, alias) / 100.0
+                
+                # Also check partial ratio for substring matches (e.g., "led" in "wled strip")
+                partial_score = fuzz.partial_ratio(alias, text_lower) / 100.0
+                
+                # Use the better of the two scores
+                score = max(score, partial_score)
+                
+                # Bonus for word boundary matches (exact word match)
+                if alias in text_words:
+                    score = max(score, 0.95)  # High confidence for exact word match
+                
+                if score > best_score:
+                    best_score = score
+                    best_alias = alias
+            
+            # Only include matches above threshold
+            if best_score >= threshold:
+                matches.append((device_type, best_score))
+                logger.debug(f"🔍 Fuzzy device type match: '{device_type}' (via '{best_alias}') in text with score {best_score:.2f}")
+        
+        # Sort by confidence (highest first)
+        matches.sort(key=lambda x: x[1], reverse=True)
+        return matches
+        
+    except ImportError:
+        logger.warning("rapidfuzz not available, falling back to substring matching")
+        # Fallback to simple substring matching if rapidfuzz unavailable
+        for device_type, aliases in device_type_aliases.items():
+            for alias in aliases:
+                if alias in text_lower:
+                    return [(device_type, 0.8)]  # Lower confidence for substring match
+        return []
+
+
 async def map_devices_to_entities(
     devices_involved: list[str],
     enriched_data: dict[str, dict[str, Any]],
@@ -3857,20 +3950,44 @@ async def generate_suggestions_from_query(
                                     mentioned_locations.add(normalized)
                                     mentioned_locations.add(keyword)
 
-                    # Extract device domain/type from query and entities
+                    # Extract device domain/type from query and entities using fuzzy matching
                     mentioned_domains = set()
+                    
+                    # Device types that map to light domain
+                    light_device_types = {'wled', 'hue', 'lifx', 'tp-link', 'ikea', 'nanoleaf'}
+                    
+                    # Use fuzzy matching to detect device types in query
+                    detected_device_types = detect_device_types_fuzzy(query, threshold=0.7)
+                    for device_type, confidence in detected_device_types:
+                        if device_type in light_device_types:
+                            mentioned_domains.add('light')
+                            logger.info(f"🔍 Detected light device type '{device_type}' in query (confidence: {confidence:.2f}), adding 'light' domain")
+                            break  # Only need to find one light device type
+                    
                     if entities:
                         for entity in entities:
                             domain = entity.get('domain', '').lower()
                             if domain and domain != 'unknown':
                                 mentioned_domains.add(domain)
-                            # Also check name for domain hints
-                            name = entity.get('name', '').lower()
-                            if 'light' in name or 'lamp' in name:
+                            # Also check name for domain hints using fuzzy matching
+                            name = entity.get('name', '')
+                            name_lower = name.lower()
+                            
+                            if 'light' in name_lower or 'lamp' in name_lower or 'bulb' in name_lower:
                                 mentioned_domains.add('light')
-                            elif 'sensor' in name:
+                            # Check for specific device types using fuzzy matching
+                            else:
+                                detected_device_types = detect_device_types_fuzzy(name, threshold=0.7)
+                                for device_type, confidence in detected_device_types:
+                                    if device_type in light_device_types:
+                                        mentioned_domains.add('light')
+                                        logger.info(f"🔍 Detected light device type '{device_type}' in entity name '{name}' (confidence: {confidence:.2f}), adding 'light' domain")
+                                        break
+                            
+                            # Check for other domain hints
+                            if 'sensor' in name_lower:
                                 mentioned_domains.add('binary_sensor')
-                            elif 'switch' in name:
+                            if 'switch' in name_lower:
                                 mentioned_domains.add('switch')
 
                     # Expand entities by location if location is mentioned
@@ -3908,32 +4025,71 @@ async def generate_suggestions_from_query(
                                     logger.warning(f"⚠️ Error expanding entities for location '{location}' + domain '{domain}': {e}")
 
                             # If no specific domain, try to get all entities in the area
+                            # BUT: Skip this if query mentions specific device types (e.g., "wled", "led")
+                            # This prevents over-selection when user wants a specific device type
+                            # Use fuzzy matching instead of hardcoded keywords
                             if not mentioned_domains:
-                                try:
-                                    area_entities = await ha_client.get_entities_by_area_and_domain(
-                                        area_id=location,
-                                        domain=None
-                                    )
-                                    if area_entities:
-                                        area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
-                                        location_expanded_entity_ids.update(area_entity_ids)
-                                        logger.info(f"✅ Expanded by location '{location}' (all domains): Added {len(area_entity_ids)} entities")
+                                # Use fuzzy matching to detect any specific device types in query
+                                detected_device_types = detect_device_types_fuzzy(query, threshold=0.7)
+                                specific_device_types_in_query = len(detected_device_types) > 0
+                                
+                                if specific_device_types_in_query:
+                                    device_type_names = [dt[0] for dt in detected_device_types]
+                                    logger.info(f"🔍 Detected specific device types in query using fuzzy matching: {device_type_names}")
+                                    logger.info(f"🔍 Query mentions specific device types, skipping expansion to all entities in '{location}' to avoid over-selection")
+                                    # Still try to get light entities since device types like "wled", "led" are lights
+                                    try:
+                                        area_entities = await ha_client.get_entities_by_area_and_domain(
+                                            area_id=location,
+                                            domain='light'  # Filter to light domain only
+                                        )
+                                        if area_entities:
+                                            area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
+                                            location_expanded_entity_ids.update(area_entity_ids)
+                                            logger.info(f"✅ Expanded by location '{location}' + domain 'light' (device type detected): Added {len(area_entity_ids)} entities")
+                                            
+                                            # Enrich new entities
+                                            for area_entity in area_entities:
+                                                entity_id = area_entity.get('entity_id')
+                                                if entity_id and entity_id not in enriched_data:
+                                                    enriched_data[entity_id] = {
+                                                        'entity_id': entity_id,
+                                                        'friendly_name': area_entity.get('friendly_name', entity_id),
+                                                        'area_id': area_entity.get('area_id'),
+                                                        'area_name': area_entity.get('area_id'),
+                                                        'domain': 'light',
+                                                        'state': area_entity.get('state'),
+                                                        'attributes': area_entity.get('attributes', {})
+                                                    }
+                                    except Exception as e:
+                                        logger.warning(f"⚠️ Error expanding light entities for location '{location}': {e}")
+                                else:
+                                    # No specific device types mentioned, safe to get all entities
+                                    try:
+                                        area_entities = await ha_client.get_entities_by_area_and_domain(
+                                            area_id=location,
+                                            domain=None
+                                        )
+                                        if area_entities:
+                                            area_entity_ids = [e.get('entity_id') for e in area_entities if e.get('entity_id')]
+                                            location_expanded_entity_ids.update(area_entity_ids)
+                                            logger.info(f"✅ Expanded by location '{location}' (all domains): Added {len(area_entity_ids)} entities")
 
-                                        # Enrich new entities
-                                        for area_entity in area_entities:
-                                            entity_id = area_entity.get('entity_id')
-                                            if entity_id and entity_id not in enriched_data:
-                                                enriched_data[entity_id] = {
-                                                    'entity_id': entity_id,
-                                                    'friendly_name': area_entity.get('friendly_name', entity_id),
-                                                    'area_id': area_entity.get('area_id'),
-                                                    'area_name': area_entity.get('area_id'),
-                                                    'domain': area_entity.get('domain', 'unknown'),
-                                                    'state': area_entity.get('state'),
-                                                    'attributes': area_entity.get('attributes', {})
-                                                }
-                                except Exception as e:
-                                    logger.warning(f"⚠️ Error expanding entities for location '{location}': {e}")
+                                            # Enrich new entities
+                                            for area_entity in area_entities:
+                                                entity_id = area_entity.get('entity_id')
+                                                if entity_id and entity_id not in enriched_data:
+                                                    enriched_data[entity_id] = {
+                                                        'entity_id': entity_id,
+                                                        'friendly_name': area_entity.get('friendly_name', entity_id),
+                                                        'area_id': area_entity.get('area_id'),
+                                                        'area_name': area_entity.get('area_id'),
+                                                        'domain': area_entity.get('domain', 'unknown'),
+                                                        'state': area_entity.get('state'),
+                                                        'attributes': area_entity.get('attributes', {})
+                                                    }
+                                    except Exception as e:
+                                        logger.warning(f"⚠️ Error expanding entities for location '{location}': {e}")
 
                         # Re-enrich all expanded entities comprehensively
                         if location_expanded_entity_ids != set(resolved_entity_ids):
@@ -4427,8 +4583,57 @@ async def generate_suggestions_from_query(
                     # 2025 ENHANCEMENT: Expand location names to entity friendly names before mapping
                     # This handles cases where OpenAI returns location names (e.g., "office") instead of device names
                     # Follows existing pattern for entity ID expansion (lines 4473-4522)
+                    # FIX: Don't expand location names if specific device types are mentioned (e.g., "wled", "led")
                     expanded_devices_involved = []
                     location_names_expanded = []
+                    
+                    # Check if there are specific device types mentioned using fuzzy matching
+                    # Check both devices_involved AND the original query (OpenAI might not include device type in devices_involved)
+                    has_specific_device_type_in_query = False
+                    has_specific_device_type_in_devices = False
+                    
+                    # Check query using fuzzy matching
+                    if query:
+                        detected_in_query = detect_device_types_fuzzy(query, threshold=0.7)
+                        if detected_in_query:
+                            has_specific_device_type_in_query = True
+                            device_type_names = [dt[0] for dt in detected_in_query]
+                            logger.debug(f"🔍 Detected device types in query using fuzzy matching: {device_type_names}")
+                    
+                    # Check devices_involved using fuzzy matching
+                    for device_name in devices_involved:
+                        detected_in_device = detect_device_types_fuzzy(device_name, threshold=0.7)
+                        if detected_in_device:
+                            has_specific_device_type_in_devices = True
+                            device_type_names = [dt[0] for dt in detected_in_device]
+                            logger.debug(f"🔍 Detected device types in devices_involved '{device_name}' using fuzzy matching: {device_type_names}")
+                            break
+                    
+                    has_specific_device_type = has_specific_device_type_in_query or has_specific_device_type_in_devices
+                    
+                    # Also check if there are multiple non-location device names (indicates specific selection)
+                    non_location_device_names = []
+                    for device_name in devices_involved:
+                        device_name_normalized = device_name.lower().strip().replace(' ', '_')
+                        query_location_normalized = query_location.lower().strip().replace(' ', '_') if query_location else None
+                        is_location = (
+                            query_location_normalized and
+                            (device_name_normalized == query_location_normalized or
+                             device_name_normalized in query_location_normalized or
+                             query_location_normalized in device_name_normalized)
+                        )
+                        if not is_location:
+                            non_location_device_names.append(device_name)
+                    
+                    # Only expand location names if:
+                    # 1. No specific device types are mentioned (e.g., "wled", "led")
+                    # 2. No other specific device names exist (only location name in list)
+                    should_expand_locations = not has_specific_device_type and len(non_location_device_names) == 0
+                    
+                    if has_specific_device_type:
+                        logger.info(f"🔍 Specific device type detected in devices_involved, skipping location expansion to avoid over-selection")
+                    elif len(non_location_device_names) > 0:
+                        logger.info(f"🔍 Specific device names found ({non_location_device_names}), skipping location expansion")
                     
                     for device_name in devices_involved:
                         # Normalize location name for comparison (handle spaces, underscores)
@@ -4444,7 +4649,7 @@ async def generate_suggestions_from_query(
                              query_location_normalized in device_name_normalized)
                         )
                         
-                        if is_location_name and resolved_entity_ids and enriched_data:
+                        if is_location_name and should_expand_locations and resolved_entity_ids and enriched_data:
                             # Expand location to entities (similar to entity ID expansion at lines 4490-4522)
                             logger.info(f"📍 Expanding location '{device_name}' to {len(resolved_entity_ids)} entities from resolved_entity_ids")
                             location_entities_added = 0
@@ -4474,8 +4679,10 @@ async def generate_suggestions_from_query(
                                 logger.warning(f"⚠️ Failed to expand location '{device_name}', keeping original")
                                 expanded_devices_involved.append(device_name)
                         else:
-                            # Not a location name, use as-is (existing behavior)
+                            # Not a location name, or expansion skipped due to specific device types, use as-is
                             expanded_devices_involved.append(device_name)
+                            if is_location_name and not should_expand_locations:
+                                logger.info(f"🔍 Skipped expanding location '{device_name}' because specific device types/names are mentioned")
                     
                     # Use expanded list for mapping (replace devices_involved with expanded_devices_involved)
                     if location_names_expanded:

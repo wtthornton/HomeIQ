@@ -323,6 +323,31 @@ class Settings(BaseSettings):
     training_script_path: str = "scripts/train_soft_prompt.py"
     training_script_sha256: str | None = None
 
+    # Fuzzy Matching Configuration
+    fuzzy_matching_enabled: bool = True
+    """Enable fuzzy matching for entity resolution and device mapping (default: True)
+    
+    When enabled, uses rapidfuzz for typo handling, abbreviation matching,
+    and word order independence. Improves user experience by handling:
+    - Typos: "office lite" → "office light"
+    - Abbreviations: "LR light" → "Living Room Light"
+    - Word order: "light living room" → "living room light"
+    """
+    
+    fuzzy_matching_threshold: float = 0.7
+    """Minimum fuzzy match score threshold (0.0-1.0) for entity resolution (default: 0.7)
+    
+    Threshold selection rationale:
+    - 0.6: More permissive, catches more typos but may have false positives
+    - 0.7: Balanced (recommended) - good accuracy with reasonable typo tolerance
+    - 0.8: Stricter, fewer false positives but may miss some valid matches
+    - 0.9: Very strict, only high-confidence matches
+    
+    Lower thresholds (0.6-0.7) are recommended for entity resolution where
+    user intent is clear from context. Higher thresholds (0.8-0.9) may be
+    used for critical operations where precision is paramount.
+    """
+
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",
         case_sensitive=False,
