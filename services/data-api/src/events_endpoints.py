@@ -95,7 +95,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get events statistics"
-                )
+                ) from e
 
         @self.router.post("/events/search", response_model=list[EventData])
         async def search_events(search: EventSearch):
@@ -109,7 +109,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to search events"
-                )
+                ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
         async def get_events_stream(
@@ -131,7 +131,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get events stream"
-                )
+                ) from e
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
@@ -152,7 +152,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get active entities"
-                )
+                ) from e
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
@@ -173,7 +173,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get event types"
-                )
+                ) from e
 
         # Epic 23.1: Automation Trace Endpoint
         @self.router.get("/events/automation-trace/{context_id}", response_model=list[dict[str, Any]])
@@ -207,7 +207,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to trace automation chain: {str(e)}"
-                )
+                ) from e
 
         # General /events route - should come after specific routes
         @self.router.get("/events", response_model=list[EventData])
@@ -264,7 +264,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get recent events"
-                )
+                ) from e
 
         # Parameterized route MUST be last to avoid matching specific routes
         @self.router.get("/events/{event_id}", response_model=EventData)
@@ -287,7 +287,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get event"
-                )
+                ) from e
 
     async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """Get events from InfluxDB directly"""
@@ -303,7 +303,7 @@ class EventsEndpoints:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"InfluxDB service unavailable: {str(e)}"
-            )
+            ) from e
 
     async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """Get events from a specific service"""
