@@ -1,6 +1,6 @@
 # Ask AI Continuous Improvement Summary
 
-Generated: 2025-11-21T09:47:42.105952
+Generated: 2025-11-21T15:12:10.138604
 Total Cycles: 1
 
 ## Cycle Results
@@ -10,6 +10,6 @@ Total Cycles: 1
 - **Total Score**: 0.00/100
 - **Automation Score**: 0.00/100
 - **YAML Score**: 0.00/100
-- **Clarification Rounds**: 3
-- **Timestamp**: 2025-11-21T09:46:18.840770
-- **Error**: Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: scene.office_wled_before_show
+- **Clarification Rounds**: 0
+- **Timestamp**: 2025-11-21T15:11:51.957650
+- **Error**: Clarification failed with status 500: {"detail":{"error":"internal_error","message":"Failed to generate suggestions: cannot access local variable 'ha_client_for_mapping' where it is not associated with a value"}}
