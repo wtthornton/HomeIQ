@@ -132,11 +132,14 @@ class ServiceContainer:
             from .entity.extractor import EntityExtractor
             self._entity_extractor = EntityExtractor(
                 device_intelligence_client=self.device_intelligence,
+                ha_client=self.ha_client,
+                openai_client=self.openai_client,
+                # Keep deprecated params for backward compatibility
                 openai_api_key=settings.openai_api_key,
                 ner_model=settings.ner_model,
                 openai_model=settings.openai_model
             )
-            logger.info("✅ EntityExtractor initialized")
+            logger.info("✅ EntityExtractor initialized (using UnifiedExtractionPipeline)")
         return self._entity_extractor
 
     @property
