@@ -42,14 +42,11 @@ from ..services.automation.yaml_generation_service import (
     generate_automation_yaml,
     pre_validate_suggestion_for_yaml,
 )
-from ..entity_extraction import (
-    EnhancedEntityExtractor,
-    MultiModelEntityExtractor,
-    extract_entities_from_query,
-)
+# Unified Extraction Pipeline (2025)
+from ..extraction.pipeline import UnifiedExtractionPipeline
+from ..extraction.models import AutomationContext
 from ..guardrails.hf_guardrails import get_guardrail_checker
 from ..llm.openai_client import OpenAIClient
-from ..model_services.orchestrator import ModelOrchestrator
 from ..model_services.soft_prompt_adapter import SoftPromptAdapter, get_soft_prompt_adapter
 from ..prompt_building.entity_context_builder import EntityContextBuilder
 from ..services.clarification import (
@@ -326,9 +323,9 @@ def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> 
 
 # Global device intelligence client and extractors
 _device_intelligence_client: DeviceIntelligenceClient | None = None
-_enhanced_extractor: EnhancedEntityExtractor | None = None
-_multi_model_extractor: MultiModelEntityExtractor | None = None
-_model_orchestrator: ModelOrchestrator | None = None
+_enhanced_extractor = None  # Deprecated
+_multi_model_extractor = None  # Deprecated
+_model_orchestrator = None  # Deprecated
 _self_correction_service: YAMLSelfCorrectionService | None = None
 _soft_prompt_adapter_initialized = False
 _guardrail_checker_initialized = False
@@ -352,28 +349,15 @@ def get_self_correction_service() -> YAMLSelfCorrectionService | None:
 
 def set_device_intelligence_client(client: DeviceIntelligenceClient):
     """Set device intelligence client for enhanced extraction"""
-    global _device_intelligence_client, _enhanced_extractor, _multi_model_extractor, _model_orchestrator
+    global _device_intelligence_client
     _device_intelligence_client = client
-    if client:
-        _enhanced_extractor = EnhancedEntityExtractor(client)
-        _multi_model_extractor = MultiModelEntityExtractor(
-            openai_api_key=settings.openai_api_key,
-            device_intelligence_client=client,
-            ner_model=settings.ner_model,
-            openai_model=getattr(settings, 'entity_extraction_model', settings.openai_model)
-        )
-        # Initialize model orchestrator for containerized approach
-        _model_orchestrator = ModelOrchestrator(
-            ner_service_url=os.getenv("NER_SERVICE_URL", "http://ner-service:8031"),
-            openai_service_url=os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
-        )
     logger.info("Device Intelligence client set for Ask AI router")
 
-def get_multi_model_extractor() -> MultiModelEntityExtractor | None:
+def get_multi_model_extractor() -> Any | None:
     """Get multi-model extractor instance"""
     return _multi_model_extractor
 
-def get_model_orchestrator() -> ModelOrchestrator | None:
+def get_model_orchestrator() -> Any | None:
     """Get model orchestrator instance"""
     return _model_orchestrator
 
@@ -2138,40 +2122,7 @@ def fallback_simplify(description: str) -> str:
     return re.sub(r'\s+', ' ', simplified).strip()
 
 
-async def extract_entities_with_ha(query: str) -> list[dict[str, Any]]:
-    """
-    Extract entities from query using multi-model approach.
-    
-    Strategy:
-    1. Multi-Model Extractor (NER -> OpenAI -> Pattern) - 90% of queries
-    2. Enhanced Extractor (Device Intelligence) - Fallback
-    3. Basic Pattern Matching - Emergency fallback
-    
-    CRITICAL: We DO NOT use HA Conversation API here because it EXECUTES commands immediately!
-    Instead, we use intelligent entity extraction with device intelligence for rich context.
-    
-    Example: "Turn on the office lights" extracts rich device data including capabilities
-    without actually turning on the lights.
-    """
-    # Try multi-model extraction first (if configured)
-    if settings.entity_extraction_method == "multi_model" and _multi_model_extractor:
-        try:
-            logger.info("🔍 Using multi-model entity extraction (NER -> OpenAI -> Pattern)")
-            return await _multi_model_extractor.extract_entities(query)
-        except Exception as e:
-            logger.error(f"Multi-model extraction failed, falling back to enhanced: {e}")
 
-    # Try enhanced extraction (device intelligence)
-    if _enhanced_extractor:
-        try:
-            logger.info("🔍 Using enhanced entity extraction with device intelligence")
-            return await _enhanced_extractor.extract_entities_with_intelligence(query)
-        except Exception as e:
-            logger.error(f"Enhanced extraction failed, falling back to basic: {e}")
-
-    # Fallback to basic pattern matching
-    logger.info("🔍 Using basic pattern matching fallback")
-    return extract_entities_from_query(query)
 
 
 async def resolve_entities_to_specific_devices(
@@ -2847,6 +2798,67 @@ async def _score_entities_by_relevance(
     
     return scores
 
+
+async def _run_unified_pipeline(
+    query: str, 
+    ha_client: HomeAssistantClient,
+    openai_client: OpenAIClient,
+    device_client: DeviceIntelligenceClient = None
+) -> AutomationContext:
+    """
+    Run the new unified extraction pipeline.
+    
+    This is a temporary helper to bridge the old router logic with the new pipeline.
+    """
+    pipeline = UnifiedExtractionPipeline(ha_client, openai_client, device_client)
+    return await pipeline.process(query)
+
+
+def _convert_unified_context_to_entities(context: AutomationContext) -> list[dict[str, Any]]:
+    """
+    Convert AutomationContext to legacy entities list shape used by existing flows.
+    
+    Produces:
+    - Area entities: {'name': <area>, 'type': 'area', ...}
+    - Device entities (action/trigger): {'entity_id': <id>, 'name': <id>, 'type': 'device', 'domain': <domain>, ...}
+    """
+    entities: list[dict[str, Any]] = []
+
+    # Areas
+    for area in context.spatial.areas or []:
+        entities.append({
+            'name': area,
+            'type': 'area',
+            'domain': 'unknown',
+            'confidence': 0.9,
+            'extraction_method': 'unified_pipeline'
+        })
+
+    # Helper to add device entities
+    def _add_device_entity(entity_id: str, role: str):
+        domain = entity_id.split('.')[0] if entity_id and '.' in entity_id else 'unknown'
+        entities.append({
+            'entity_id': entity_id,
+            'name': entity_id,  # Back-compat: some code reads 'name'
+            'friendly_name': entity_id,
+            'type': 'device',
+            'domain': domain,
+            'role': role,
+            'confidence': 0.95,
+            'extraction_method': 'unified_pipeline'
+        })
+
+    # Action devices
+    for eid in context.devices.action_entities or []:
+        if isinstance(eid, str) and eid:
+            _add_device_entity(eid, role='action')
+
+    # Trigger devices
+    for eid in context.devices.trigger_entities or []:
+        if isinstance(eid, str) and eid:
+            _add_device_entity(eid, role='trigger')
+
+    return entities
 
 async def generate_suggestions_from_query(
     query: str,
@@ -4429,20 +4441,19 @@ async def process_natural_language_query(
         logger.info(f"📍 Detected area filter in clarification phase: '{area_filter}'")
 
     try:
-        # Step 1: Extract entities using Home Assistant
-        entities = await extract_entities_with_ha(request.query)
-
-        # Step 1.5: Resolve generic device entities to specific devices BEFORE ambiguity detection
-        # This ensures the ambiguity prompt shows specific device names (e.g., "Office Front Left")
-        # instead of generic types (e.g., "hue lights")
-        try:
-            ha_client_for_resolution = get_ha_client()
-            if ha_client_for_resolution:
-                entities = await resolve_entities_to_specific_devices(entities, ha_client_for_resolution)
-                logger.info(f"✅ Early device resolution completed: {len(entities)} entities (including specific devices)")
-        except (HTTPException, Exception) as e:
-            # HA client not available or resolution failed - continue with generic entities
-            logger.debug(f"ℹ️ Early device resolution skipped (HA client unavailable or failed): {e}")
+        # Step 1: Unified Extraction Pipeline (primary)
+        ha_client_for_extraction = get_ha_client()
+        unified_context = await _run_unified_pipeline(
+            request.query,
+            ha_client_for_extraction,
+            openai_client,
+            _device_intelligence_client
+        )
+        entities = _convert_unified_context_to_entities(unified_context)
+        logger.info(f"✅ Unified extraction produced {len(entities)} entities "
+                    f"(areas={len(unified_context.spatial.areas)}, "
+                    f"action={len(unified_context.devices.action_entities)}, "
+                    f"trigger={len(unified_context.devices.trigger_entities)})")
 
         # Step 1.6: Check for clarification needs (NEW)
         clarification_detector, question_generator, _, confidence_calculator = await get_clarification_services(db)
@@ -5770,14 +5781,23 @@ async def provide_clarification(
                     detail=f"Failed to rebuild enriched query: {str(e)}"
                 ) from e
 
-            # NEW: Re-extract entities from enriched query (original + Q&A)
-            logger.info("🔧 Step 2: Extracting entities from enriched query (timeout: 30s)")
+            # NEW: Re-extract entities from enriched query (original + Q&A) using unified pipeline
+            logger.info("🔧 Step 2: Extracting entities from enriched query using unified pipeline (timeout: 30s)")
             try:
-                entities = await asyncio.wait_for(
-                    extract_entities_with_ha(enriched_query),
+                unified_context = await asyncio.wait_for(
+                    _run_unified_pipeline(
+                        enriched_query,
+                        ha_client,
+                        openai_client,
+                        _device_intelligence_client
+                    ),
                     timeout=30.0
                 )
-                logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
+                entities = _convert_unified_context_to_entities(unified_context)
+                logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query "
+                           f"(areas={len(unified_context.spatial.areas)}, "
+                           f"action={len(unified_context.devices.action_entities)}, "
+                           f"trigger={len(unified_context.devices.trigger_entities)})")
                 if not entities:
                     logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
             except asyncio.TimeoutError as e:
@@ -6373,14 +6393,23 @@ async def provide_clarification(
                         detail=f"Failed to rebuild enriched query: {str(e)}"
                     ) from e
 
-                # Re-extract entities from enriched query
-                logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities (timeout: 60s - allows for OpenAI calls)")
+                # Re-extract entities from enriched query using unified pipeline
+                logger.info("🔧 Step 2 (all-ambiguities-resolved): Extracting entities using unified pipeline (timeout: 60s - allows for OpenAI calls)")
                 try:
-                    entities = await asyncio.wait_for(
-                        extract_entities_with_ha(enriched_query),
+                    unified_context = await asyncio.wait_for(
+                        _run_unified_pipeline(
+                            enriched_query,
+                            ha_client,
+                            openai_client,
+                            _device_intelligence_client
+                        ),
                         timeout=60.0  # Increased to 60s to handle OpenAI API calls which can take longer
                     )
-                    logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query")
+                    entities = _convert_unified_context_to_entities(unified_context)
+                    logger.info(f"🔍 Step 2 complete: Re-extracted {len(entities)} entities from enriched query "
+                               f"(areas={len(unified_context.spatial.areas)}, "
+                               f"action={len(unified_context.devices.action_entities)}, "
+                               f"trigger={len(unified_context.devices.trigger_entities)})")
                     if not entities:
                         logger.warning("⚠️ No entities extracted from enriched query - continuing with empty list")
                 except asyncio.TimeoutError as e:
