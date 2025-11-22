@@ -472,9 +472,13 @@ IMPORTANT:
 Write as if explaining to a user who asked for this automation."""
 
         try:
-            response = await self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=[
+            from ...utils.gpt51_params import is_gpt51_model, get_gpt51_params_for_use_case, merge_gpt51_params
+            from ...config import settings
+            
+            # Build base parameters
+            api_params = {
+                "model": self.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a Home Assistant expert who explains automations clearly in plain English using friendly device names."
@@ -484,9 +488,20 @@ Write as if explaining to a user who asked for this automation."""
                         "content": reverse_engineering_prompt
                     }
                 ],
-                temperature=0.1,  # Very low temperature for deterministic syntax error detection (2025 best practice)
-                max_completion_tokens=300  # Use max_completion_tokens for newer models
-            )
+                "temperature": 0.1,  # Very low temperature for deterministic syntax error detection (2025 best practice)
+                "max_completion_tokens": 300  # Use max_completion_tokens for newer models
+            }
+            
+            # Add GPT-5.1 parameters if applicable
+            if is_gpt51_model(self.model):
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.model,
+                    use_case="deterministic",  # Deterministic explanation generation
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+                )
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
+            response = await self.openai_client.chat.completions.create(**api_params)
 
             # Track tokens
             usage = response.usage
@@ -569,9 +584,13 @@ ACTION 2: [specific change needed]
 ..."""
 
         try:
-            response = await self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=[
+            from ...utils.gpt51_params import is_gpt51_model, get_gpt51_params_for_use_case, merge_gpt51_params
+            from ...config import settings
+            
+            # Build base parameters
+            api_params = {
+                "model": self.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are an expert at identifying discrepancies in automation logic and providing precise corrections."
@@ -581,9 +600,20 @@ ACTION 2: [specific change needed]
                         "content": feedback_prompt
                     }
                 ],
-                temperature=0.2,  # Low temperature for precise YAML error fixing (2025 best practice: 0.2-0.5 for structured output, use lower end for YAML)
-                max_completion_tokens=1000  # Increased from 400 to 1000 for multiple error fixes (2025 best practice)
-            )
+                "temperature": 0.2,  # Low temperature for precise YAML error fixing (2025 best practice: 0.2-0.5 for structured output, use lower end for YAML)
+                "max_completion_tokens": 1000  # Increased from 400 to 1000 for multiple error fixes (2025 best practice)
+            }
+            
+            # Add GPT-5.1 parameters if applicable
+            if is_gpt51_model(self.model):
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.model,
+                    use_case="structured",  # Structured feedback output
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+                )
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
+            response = await self.openai_client.chat.completions.create(**api_params)
 
             # Track tokens (will be added to total_tokens by caller)
             usage = response.usage
@@ -660,9 +690,13 @@ Required Changes:
 Generate the improved YAML that addresses these issues while maintaining valid Home Assistant syntax."""
 
         try:
-            response = await self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=[
+            from ...utils.gpt51_params import is_gpt51_model, get_gpt51_params_for_use_case, merge_gpt51_params
+            from ...config import settings
+            
+            # Build base parameters
+            api_params = {
+                "model": self.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a Home Assistant expert who refines YAML automations based on feedback."
@@ -672,9 +706,20 @@ Generate the improved YAML that addresses these issues while maintaining valid H
                         "content": refinement_prompt
                     }
                 ],
-                temperature=0.2,  # Low temperature for consistency
-                max_completion_tokens=3000  # Increased from 1500 to 3000 for complex YAML restoration (2025 best practice)
-            )
+                "temperature": 0.2,  # Low temperature for consistency
+                "max_completion_tokens": 3000  # Increased from 1500 to 3000 for complex YAML restoration (2025 best practice)
+            }
+            
+            # Add GPT-5.1 parameters if applicable
+            if is_gpt51_model(self.model):
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.model,
+                    use_case="deterministic",  # Deterministic YAML refinement
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+                )
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
+            response = await self.openai_client.chat.completions.create(**api_params)
 
             # Track tokens
             usage = response.usage

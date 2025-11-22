@@ -419,7 +419,8 @@ actions:
         temperature: float = 0.7,
         max_tokens: int = 600,
         output_format: str = "yaml",  # "yaml" | "description" | "json"
-        endpoint: str | None = None  # Phase 5: Track which endpoint made the call
+        endpoint: str | None = None,  # Phase 5: Track which endpoint made the call
+        gpt51_use_case: str | None = None  # GPT-5.1 use case: "deterministic", "creative", "structured", "extraction"
     ) -> dict:
         """
         Generate automation suggestion using unified prompt format.
@@ -500,9 +501,42 @@ actions:
                 "max_completion_tokens": max_tokens  # Use max_completion_tokens for newer models (gpt-4o+)
             }
 
+            # Add GPT-5.1 parameters if applicable
+            from ..utils.gpt51_params import (
+                is_gpt51_model, 
+                get_gpt51_params_for_use_case, 
+                merge_gpt51_params,
+                remove_unsupported_gpt51_params
+            )
+            
+            if is_gpt51_model(self.model):
+                # Determine use case if not specified
+                if gpt51_use_case is None:
+                    # Infer from output_format and temperature
+                    if output_format == "json" or output_format == "yaml":
+                        gpt51_use_case = "structured" if temperature < 0.5 else "creative"
+                    else:
+                        gpt51_use_case = "deterministic" if temperature < 0.5 else "creative"
+                
+                # Get GPT-5.1 parameters
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.model,
+                    use_case=gpt51_use_case,
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True) if settings else True
+                )
+                
+                # Merge GPT-5.1 parameters (handles temperature conflict automatically)
+                # Note: merge_gpt51_params() already removes temperature/top_p/logprobs
+                # when reasoning.effort != 'none', so no additional check needed
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
             # NOTE: cache_control parameter is not supported in OpenAI Python SDK
             # Remove if present to avoid TypeError
             api_params.pop("cache_control", None)
+            
+            # Remove GPT-5.1 parameters that may not be supported by the SDK
+            # TODO: Re-enable when OpenAI SDK fully supports GPT-5.1 parameters
+            api_params = remove_unsupported_gpt51_params(api_params)
 
             response = await self.client.chat.completions.create(**api_params)
 

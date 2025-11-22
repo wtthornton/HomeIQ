@@ -578,9 +578,13 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
             Raw response content from OpenAI
         """
         try:
-            response = await self.openai_client.client.chat.completions.create(
-                model=self.openai_client.model,
-                messages=[
+            from .utils.gpt51_params import is_gpt51_model, get_gpt51_params_for_use_case, merge_gpt51_params
+            from ...config import settings
+            
+            # Build base parameters
+            api_params = {
+                "model": self.openai_client.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a Home Assistant automation expert. Generate valid YAML automations from natural language requests. Respond ONLY with JSON, no markdown formatting."
@@ -590,10 +594,23 @@ Generate the automation now (respond ONLY with JSON, no other text):"""
                         "content": prompt
                     }
                 ],
-                temperature=temperature,
-                max_completion_tokens=1500,  # Use max_completion_tokens for newer models
-                response_format={"type": "json_object"}  # Force JSON output
-            )
+                "temperature": temperature,
+                "max_completion_tokens": 1500,  # Use max_completion_tokens for newer models
+                "response_format": {"type": "json_object"}  # Force JSON output
+            }
+            
+            # Add GPT-5.1 parameters if applicable
+            if is_gpt51_model(self.openai_client.model):
+                # Use "structured" for deterministic JSON output
+                use_case = "deterministic" if temperature < 0.5 else "structured"
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.openai_client.model,
+                    use_case=use_case,
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+                )
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
+            response = await self.openai_client.client.chat.completions.create(**api_params)
 
             # Track token usage
             if hasattr(response, 'usage'):

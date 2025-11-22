@@ -87,45 +87,34 @@ def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> 
     if not 0.0 <= desired_temperature <= 2.0:
         raise ValueError(f"Temperature must be between 0.0 and 2.0, got {desired_temperature}")
     
-    # GPT-5.1: Optimized for low temperature (0.1) for deterministic YAML generation
-    # GPT-5.1 has better reasoning capabilities, so lower temperature works better
-    if model.startswith('gpt-5'):
-        logger.debug(f"Using temperature={desired_temperature} for {model} (GPT-5.1 optimized for precise YAML)")
-        return desired_temperature
-    
-    # Legacy models with fixed temperature requirements
-    models_with_fixed_temperature: list[str] = []
-    if model in models_with_fixed_temperature:
-        logger.debug(f"Using temperature=1.0 for {model} (model only supports default temperature)")
-        return 1.0
-    
-    return desired_temperature
+    # TEMPORARY FIX: Always return 1.0 to avoid temperature compatibility issues
+    # Some models only support default temperature (1.0)
+    logger.info(f"Using temperature=1.0 for {model} (temporary fix for compatibility)")
+    return 1.0
 
 
 def _get_gpt51_parameters(model: str) -> dict[str, Any]:
     """
     Get GPT-5.1 specific parameters for optimal YAML generation.
     
-    GPT-5.1 features:
-    - reasoning_effort: Control thinking time ('low', 'medium', 'high', 'none')
-    - verbosity: Control response length ('low', 'medium', 'high')
+    Uses the utility function with proper nested structure:
+    - reasoning: { effort: 'none' } - Enable temperature control for deterministic YAML
+    - text: { verbosity: 'low' } - Concise YAML-only output
     
     Args:
         model: The model name (e.g., 'gpt-5.1')
     
     Returns:
-        Dictionary of GPT-5.1 specific parameters
+        Dictionary of GPT-5.1 specific parameters with nested structure
     """
-    if not model or not model.startswith('gpt-5'):
-        return {}
+    from ...utils.gpt51_params import get_gpt51_params_for_use_case
     
-    # GPT-5.1 optimizations for YAML generation:
-    # - reasoning_effort='medium': Balance between quality and latency for YAML
-    # - verbosity='low': Keep responses concise (just YAML, no explanations)
-    return {
-        'reasoning_effort': 'medium',  # Medium reasoning for accurate YAML structure
-        'verbosity': 'low'  # Low verbosity - just return YAML, no explanations
-    }
+    # YAML generation is deterministic - needs temperature control, so reasoning='none'
+    return get_gpt51_params_for_use_case(
+        model=model,
+        use_case="deterministic",  # Needs temperature=0.1 for deterministic YAML
+        enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+    )
 
 
 def _is_entity_id(mention: str) -> bool:
@@ -1084,7 +1073,8 @@ Generate ONLY the YAML content:
             }
 
             # Determine temperature based on model capabilities
-            yaml_temperature = _get_temperature_for_model(models[0], desired_temperature=0.1)
+            # TEMPORARY FIX: Use 1.0 directly to avoid compatibility issues
+            yaml_temperature = 1.0  # _get_temperature_for_model(models[0], desired_temperature=0.1)
             
             # Get GPT-5.1 specific parameters if using GPT-5.1
             gpt51_params = _get_gpt51_parameters(models[0])
@@ -1164,7 +1154,8 @@ Generate ONLY the YAML content:
                 yaml_client = openai_client
 
             # Determine temperature based on model capabilities
-            yaml_temperature = _get_temperature_for_model(yaml_model, desired_temperature=0.1)
+            # TEMPORARY FIX: Use 1.0 directly to avoid compatibility issues
+            yaml_temperature = 1.0  # _get_temperature_for_model(yaml_model, desired_temperature=0.1)
             
             # Get GPT-5.1 specific parameters if using GPT-5.1
             gpt51_params = _get_gpt51_parameters(yaml_model)
@@ -1204,12 +1195,63 @@ Generate ONLY the YAML content:
             }
             
             # Add GPT-5.1 specific parameters if using GPT-5.1
+            # Use merge function to properly handle nested structure
             if gpt51_params:
-                api_params.update(gpt51_params)
+                from ...utils.gpt51_params import merge_gpt51_params
+                api_params = merge_gpt51_params(api_params, gpt51_params)
                 logger.debug(f"Using GPT-5.1 optimizations: {gpt51_params}")
 
             # Call OpenAI to generate YAML using configured model
-            response = await yaml_client.client.chat.completions.create(**api_params)
+            # Handle models that only support default temperature (1.0)
+            try:
+                response = await yaml_client.client.chat.completions.create(**api_params)
+            except Exception as e:
+                error_str = str(e).lower()
+                error_repr = repr(e).lower()
+                full_error = f"{error_str} {error_repr}".lower()
+                
+                # Log the error for debugging
+                logger.warning(f"OpenAI API error caught (model={yaml_client.model}, temp={yaml_temperature}): {error_str[:300]}")
+                
+                # Check if error is about temperature not being supported
+                # Be very lenient - check for any mention of temperature + unsupported/error
+                is_temperature_error = (
+                    'temperature' in full_error and 
+                    ('unsupported' in full_error or 'does not support' in full_error or 
+                     'only the default' in full_error or 'default (1)' in full_error or
+                     'unsupported_value' in full_error or 'invalid_request_error' in full_error or
+                     '400' in error_str)
+                )
+                
+                # If it looks like a temperature error OR if temperature is not 1.0, try retry with 1.0
+                if is_temperature_error or yaml_temperature != 1.0:
+                    logger.warning(f"Retrying with temperature=1.0 (original={yaml_temperature}, model={yaml_client.model})")
+                    # Retry with default temperature
+                    api_params['temperature'] = 1.0
+                    # Also remove GPT-5.1 specific params if present (they might conflict)
+                    # Handle nested structure
+                    if 'reasoning' in api_params:
+                        del api_params['reasoning']
+                    if 'text' in api_params:
+                        del api_params['text']
+                    if 'prompt_cache_retention' in api_params:
+                        del api_params['prompt_cache_retention']
+                    # Also handle legacy flat keys (for backward compatibility)
+                    if 'reasoning_effort' in api_params:
+                        del api_params['reasoning_effort']
+                    if 'verbosity' in api_params:
+                        del api_params['verbosity']
+                    try:
+                        response = await yaml_client.client.chat.completions.create(**api_params)
+                        logger.info(f"Successfully retried with temperature=1.0")
+                    except Exception as retry_error:
+                        # If retry also fails, log and re-raise original error
+                        logger.error(f"Retry with temperature=1.0 also failed: {retry_error}")
+                        raise e  # Re-raise original error
+                else:
+                    # Re-raise if it's a different error
+                    logger.error(f"YAML generation error (not temperature-related): {e}")
+                    raise
 
             # Phase 5: Track endpoint-level stats for YAML generation
             if hasattr(response, 'usage') and response.usage:

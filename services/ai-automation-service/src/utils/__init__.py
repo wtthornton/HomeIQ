@@ -16,6 +16,12 @@ from .fuzzy import (
     fuzzy_match_with_context,
     fuzzy_score,
 )
+from .gpt51_params import (
+    can_use_temperature,
+    get_gpt51_params_for_use_case,
+    is_gpt51_model,
+    merge_gpt51_params,
+)
 
 __all__ = [
     'extract_area_from_request',
@@ -28,5 +34,9 @@ __all__ = [
     'fuzzy_match_best',
     'fuzzy_match_with_context',
     'RAPIDFUZZ_AVAILABLE',
+    'is_gpt51_model',
+    'get_gpt51_params_for_use_case',
+    'merge_gpt51_params',
+    'can_use_temperature',
 ]
 

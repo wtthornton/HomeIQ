@@ -1,8 +1,8 @@
 {
   "automation_score": 0.0,
   "yaml_score": 0.0,
-  "clarification_rounds": 3,
+  "clarification_rounds": 0,
   "total_score": 0.0,
   "success": false,
-  "error": "Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: scene.office_wled_before_show"
+  "error": "Clarification failed with status 500: {\"detail\":{\"error\":\"internal_error\",\"message\":\"Failed to generate suggestions: cannot access local variable 'ha_client_for_mapping' where it is not associated with a value\"}}"
 }

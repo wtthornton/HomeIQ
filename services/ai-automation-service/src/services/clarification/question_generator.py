@@ -63,10 +63,12 @@ class QuestionGenerator:
         )
 
         try:
-            # Call OpenAI
-            response = await self.openai_client.client.chat.completions.create(
-                model=self.openai_client.model,
-                messages=[
+            from ...utils.gpt51_params import is_gpt51_model, get_gpt51_params_for_use_case, merge_gpt51_params
+            
+            # Build base parameters
+            api_params = {
+                "model": self.openai_client.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a Home Assistant automation assistant helping users clarify their automation requests. Generate natural, helpful clarification questions. Respond ONLY with JSON, no markdown formatting."
@@ -76,10 +78,23 @@ class QuestionGenerator:
                         "content": prompt
                     }
                 ],
-                temperature=0.2,  # Low temperature for consistent structured question generation (2025 best practice: 0.2-0.5 for structured output)
-                max_completion_tokens=1000,  # Increased from 400 to 1000 for multiple questions + JSON overhead (2025 best practice)
-                response_format={"type": "json_object"}
-            )
+                "temperature": 0.2,  # Low temperature for consistent structured question generation (2025 best practice: 0.2-0.5 for structured output)
+                "max_completion_tokens": 1000,  # Increased from 400 to 1000 for multiple questions + JSON overhead (2025 best practice)
+                "response_format": {"type": "json_object"}
+            }
+            
+            # Add GPT-5.1 parameters if applicable
+            if is_gpt51_model(self.openai_client.model):
+                from ...config import settings
+                gpt51_params = get_gpt51_params_for_use_case(
+                    model=self.openai_client.model,
+                    use_case="structured",  # Structured JSON output for questions
+                    enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
+                )
+                api_params = merge_gpt51_params(api_params, gpt51_params)
+            
+            # Call OpenAI
+            response = await self.openai_client.client.chat.completions.create(**api_params)
 
             content = response.choices[0].message.content
             questions_data = json.loads(content)
