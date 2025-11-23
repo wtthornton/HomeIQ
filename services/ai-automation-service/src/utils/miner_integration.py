@@ -224,6 +224,62 @@ class MinerIntegration:
         else:
             return base_prompt + examples_section
 
+    async def search_blueprints(
+        self,
+        device: str | None = None,
+        use_case: str | None = None,
+        min_quality: float = 0.7,
+        limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """
+        Search for Home Assistant blueprints from automation-miner.
+
+        Args:
+            device: Filter by device type (e.g., 'light', 'motion_sensor')
+            use_case: Filter by use case (energy, comfort, security, convenience)
+            min_quality: Minimum quality score (0.0-1.0)
+            limit: Maximum results (1-500)
+
+        Returns:
+            List of blueprint metadata dictionaries with _blueprint_metadata and _blueprint_variables
+        """
+        if not await self.is_available():
+            logger.warning("Automation miner not available for blueprint search")
+            return []
+
+        try:
+            params = {
+                "min_quality": min_quality,
+                "limit": limit
+            }
+
+            if device:
+                params["device"] = device
+
+            if use_case:
+                params["use_case"] = use_case
+
+            response = await self.client.get(
+                f"{self.miner_url}/api/automation-miner/corpus/blueprints",
+                params=params
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            # Return only blueprints (those with _blueprint_metadata)
+            blueprints = []
+            for automation in data.get("automations", []):
+                metadata = automation.get("metadata", {})
+                if "_blueprint_metadata" in metadata:
+                    blueprints.append(automation)
+
+            return blueprints
+
+        except Exception as e:
+            logger.error(f"Failed to search blueprints: {e}")
+            return []
+
     async def get_corpus_stats(self) -> dict[str, Any]:
         """
         Get overall corpus statistics.

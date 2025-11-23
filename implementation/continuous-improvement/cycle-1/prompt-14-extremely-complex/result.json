@@ -1,0 +1,18 @@
+{
+  "prompt_id": "prompt-14-extremely-complex",
+  "prompt_name": "Complex Conditional Logic",
+  "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
+  "complexity": "Extremely Complex",
+  "query_id": "query-d6e76391",
+  "suggestion_id": null,
+  "automation_id": null,
+  "automation_yaml": null,
+  "clarification_rounds": 0,
+  "clarification_log": [],
+  "automation_score": 0.0,
+  "yaml_score": 0.0,
+  "total_score": 0.0,
+  "error": "Clarification failed: {'error': 'timeout', 'message': 'The request is taking longer than expected. This may be due to a complex query or high system load. Please try again with a simpler request or wait a moment.', 'retry_after': 30}",
+  "success": false,
+  "timestamp": "2025-11-23T15:44:46.984743"
+}

@@ -1,29 +1,22 @@
 {
-  "query_id": "query-26f1927b",
+  "query_id": "query-80aa8042",
   "original_query": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
   "parsed_intent": "general",
   "extracted_entities": [
     {
-      "name": "light",
-      "type": "device",
+      "name": "office",
+      "type": "area",
       "domain": "unknown",
       "confidence": 0.9,
-      "extraction_method": "openai"
-    },
-    {
-      "name": "WLED device",
-      "type": "device",
-      "domain": "unknown",
-      "confidence": 0.9,
-      "extraction_method": "openai"
+      "extraction_method": "unified_pipeline"
     }
   ],
   "suggestions": [],
-  "confidence": 0.34677722906303554,
-  "processing_time_ms": 7448,
-  "created_at": "2025-11-21T15:11:59.471399",
+  "confidence": 0.43135593941213346,
+  "processing_time_ms": 5698,
+  "created_at": "2025-11-23T12:25:36.574312",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-13a48174",
+  "clarification_session_id": "clarify-a00b6266",
   "questions": [
     {
       "id": "q1",
@@ -41,23 +34,6 @@
     },
     {
       "id": "q2",
-      "category": "device",
-      "question_text": "Which device did you mean? Multiple devices match 'device' (2 found)",
-      "question_type": "multiple_choice",
-      "options": [
-        "WLED device",
-        "Tapps iPhone"
-      ],
-      "priority": 1,
-      "related_entities": [
-        "device_tracker.tapps_iphone"
-      ],
-      "cached_answer": null,
-      "cached_entities": null,
-      "cached_similarity": null
-    },
-    {
-      "id": "q3",
       "category": "action",
       "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
       "question_type": "text",
@@ -69,5 +45,5 @@
       "cached_similarity": null
     }
   ],
-  "message": "I found some ambiguities in your request. I detected these devices: light, WLED device. Please answer 3 question(s) to help me create the automation accurately."
+  "message": "I found some ambiguities in your request. I detected these locations: office. Please answer 2 question(s) to help me create the automation accurately."
 }

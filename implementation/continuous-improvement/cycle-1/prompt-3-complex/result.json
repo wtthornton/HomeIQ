@@ -1,0 +1,80 @@
+{
+  "prompt_id": "prompt-3-complex",
+  "prompt_name": "Multi-Trigger with Delays",
+  "prompt_text": "When the front door opens and it's after sunset, turn on the hallway light for 2 minutes, then turn on the living room light, wait 30 seconds, and send a notification to my phone",
+  "complexity": "Complex",
+  "query_id": "query-ac55064a",
+  "suggestion_id": "ask-ai-bfde3497",
+  "automation_id": "automation.door_living_room_notification_1763932839_b7d1bf41",
+  "automation_yaml": "id: 'door_living_room_notification'\nalias: Door Open Living Room Power Notification\ndescription: \"When door (garage binary sensor) opens after sunset and living room current > 50 mA, send phone notification after 30 seconds\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: binary_sensor.garage\n    to: 'on'\nconditions:\n  - condition: sun\n    after: sunset\naction:\n  - delay: '00:00:30'\n  - condition: template\n    value_template: \"{{ states('sensor.living_room_max_current')|float(0) > 50 }}\"\n  - service: notify.mobile_app_tapps_iphone\n    data:\n      title: \"Door Open - Living Room Active\"\n      message: \"The front door opened after sunset and the Living Room circuit current is above 50 mA (light likely on).\"",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living_room, hallway, living",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "trigger",
+          "question_text": "Could you clarify the trigger? Sensor mentioned but not found: door",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q3",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: off, dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Living Room Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q3",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T13:20:11.828801"
+    }
+  ],
+  "automation_score": 80.0,
+  "yaml_score": 90.0,
+  "total_score": 85.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T13:20:10.655214"
+}

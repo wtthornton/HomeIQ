@@ -1,0 +1,11 @@
+Cycle 2 Execution Log
+================================================================================
+
+Timestamp: 2025-11-23T12:26:03.585624
+Status: Failed
+Total Score: 0.00/100
+Automation Score: 0.00/100
+YAML Score: 0.00/100
+Clarification Rounds: 1
+
+Error: Approval failed: Failed to validate entities in automation YAML (Type: validation_error). Details: Entity validation failed: Scene entities referenced but not created via scene.create: scene.wled_office_pre_burst". All scene entities must be created using the scene.create service before they can be used. Example: Use 'service: scene.create' with 'data.scene_id' before referencing the scene entity.

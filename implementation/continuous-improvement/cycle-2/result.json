@@ -1,0 +1,60 @@
+{
+  "cycle_number": 2,
+  "query_id": "query-865dd3ea",
+  "suggestion_id": "ask-ai-4fed96a8",
+  "automation_id": null,
+  "automation_yaml": null,
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: end of, office",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "WLED Office Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T12:26:05.480891"
+    }
+  ],
+  "automation_score": 0.0,
+  "yaml_score": 0.0,
+  "total_score": 0.0,
+  "error": "Approval failed: Failed to validate entities in automation YAML (Type: validation_error). Details: Entity validation failed: Scene entities referenced but not created via scene.create: scene.wled_office_pre_burst\". All scene entities must be created using the scene.create service before they can be used. Example: Use 'service: scene.create' with 'data.scene_id' before referencing the scene entity.",
+  "success": false,
+  "timestamp": "2025-11-23T12:26:03.585624"
+}

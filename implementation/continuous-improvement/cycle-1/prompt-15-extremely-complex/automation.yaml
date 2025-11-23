@@ -1,0 +1,42 @@
+id: 'office_wled_day_night_follow_living_room'
+alias: Office WLED reacts to living room lights by time of day
+description: "Automation 1 – Core brightness logic for Office WLED based on living room light changes and time."
+mode: restart
+trigger:
+  - platform: state
+    entity_id:
+      - light.wled
+conditions: []
+action:
+  - delay: "00:00:02"
+  - variables:
+      office_brightness: "{{ state_attr('light.wled', 'brightness') | int(0) }}"
+      office_percent: "{{ (office_brightness / 255 * 100) | round(0) }}"
+      now_hour: "{{ now().hour }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ 6 <= now_hour < 18 }}"
+          - condition: template
+            value_template: "{{ office_percent < 50 }}"
+        sequence:
+          - condition: template
+            value_template: "{{ office_percent != 70 }}"
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: 178
+      - conditions:
+          - condition: template
+            value_template: "{{ now_hour >= 18 or now_hour < 6 }}"
+          - condition: template
+            value_template: "{{ office_percent > 60 }}"
+        sequence:
+          - condition: template
+            value_template: "{{ office_percent != 30 }}"
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: 77

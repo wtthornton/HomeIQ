@@ -384,6 +384,24 @@ class Settings(BaseSettings):
     prevent performance degradation with large entity sets.
     """
 
+    # Blueprint Integration
+    automation_miner_url: str = "http://automation-miner:8029"
+    """Base URL for automation-miner service (default: http://automation-miner:8029)"""
+
+    blueprint_match_threshold: float = 0.8
+    """Minimum fit score to use blueprint instead of AI generation (default: 0.8)
+    
+    Only blueprints with fit_score >= this threshold will be used.
+    Lower scores fall back to AI generation.
+    """
+
+    blueprint_enabled: bool = True
+    """Enable blueprint integration for YAML generation (default: True)
+    
+    When enabled, the service will attempt to match suggestions to blueprints
+    before falling back to AI generation. Set to False to disable blueprint matching.
+    """
+
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",
         case_sensitive=False,

@@ -1,11 +1,23 @@
 Cycle 1 Execution Log
 ================================================================================
 
-Timestamp: 2025-11-21T15:11:51.957650
-Status: Failed
-Total Score: 0.00/100
-Automation Score: 0.00/100
-YAML Score: 0.00/100
-Clarification Rounds: 0
+Timestamp: 2025-11-23T15:39:36.624401
+Overall Score: 86.86/100
+All Successful: False
+Number of Prompts: 15
 
-Error: Clarification failed with status 500: {"detail":{"error":"internal_error","message":"Failed to generate suggestions: cannot access local variable 'ha_client_for_mapping' where it is not associated with a value"}}
+  Simple Time-Based Light (Simple): ✓ 89.00/100
+  Simple Light Control (Simple): ✓ 89.00/100
+  Basic Schedule (Simple): ✓ 89.00/100
+  Time-Based Conditional Lighting (Medium): ✓ 89.00/100
+  Time-Based Multi-Light (Medium): ✓ 89.00/100
+  Conditional Brightness (Medium): ✓ 79.00/100
+  Multi-Area Lighting (Medium): ✓ 91.50/100
+  Sunset-Based Multi-Device Sequence (Complex): ✓ 91.50/100
+  Sequential Actions (Complex): ✓ 81.50/100
+  Time-Based Sequence (Complex): ✓ 91.50/100
+  Conditional Chain (Complex): ✓ 81.50/100
+  State Restoration with Conditions (Very Complex): ✓ 81.50/100
+  Complex State Management (Very Complex): ✓ 81.50/100
+  Complex Conditional Logic (Extremely Complex): ✗ Failed: Clarification failed: {'error': 'timeout', 'message': 'The request is taking longer than expected. This may be due to a complex query or high system load. Please try again with a simpler request or wait a moment.', 'retry_after': 30}
+  Multi-Conditional with Choose (Extremely Complex): ✓ 91.50/100

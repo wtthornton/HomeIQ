@@ -1,15 +1,60 @@
 {
   "cycle_number": 1,
-  "query_id": "query-26f1927b",
-  "suggestion_id": null,
-  "automation_id": null,
-  "automation_yaml": null,
-  "clarification_rounds": 0,
-  "clarification_log": [],
-  "automation_score": 0.0,
-  "yaml_score": 0.0,
-  "total_score": 0.0,
-  "error": "Clarification failed with status 500: {\"detail\":{\"error\":\"internal_error\",\"message\":\"Failed to generate suggestions: cannot access local variable 'ha_client_for_mapping' where it is not associated with a value\"}}",
-  "success": false,
-  "timestamp": "2025-11-21T15:11:51.957650"
+  "query_id": "query-80aa8042",
+  "suggestion_id": "ask-ai-53cd7f5d",
+  "automation_id": "automation.office_wled_random_effect_every_15_min_1763929561_506d2957",
+  "automation_yaml": "id: 'office_wled_random_effect_every_15_min'\nalias: Office WLED - Random Effect Every 15 Minutes\ndescription: \"Every 15 minutes play a random 15-second show on Office WLED, then restore previous state\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_show\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n      effect: random\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_show",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: end of, office",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "WLED Office Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T12:25:36.589466"
+    }
+  ],
+  "automation_score": 100.0,
+  "yaml_score": 100.0,
+  "total_score": 98.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T12:25:30.820740"
 }

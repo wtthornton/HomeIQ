@@ -1,8 +1,8 @@
 # Error Report - Cycle 1
 
-**Timestamp**: 2025-11-21T15:11:51.957650
+**Timestamp**: 2025-11-23T12:24:19.698902
 
-**Error**: Clarification failed with status 500: {"detail":{"error":"internal_error","message":"Failed to generate suggestions: cannot access local variable 'ha_client_for_mapping' where it is not associated with a value"}}
+**Error**: Approval failed with status 500: {"detail":"Approval failed: Unexpected error during YAML generation: AsyncCompletions.create() got an unexpected keyword argument 'reasoning'"}
 
 ## Next Steps
 

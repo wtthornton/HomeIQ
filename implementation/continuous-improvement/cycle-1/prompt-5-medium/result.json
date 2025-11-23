@@ -1,0 +1,61 @@
+{
+  "prompt_id": "prompt-5-medium",
+  "prompt_name": "Time-Based Multi-Light",
+  "prompt_text": "At sunset, turn on the Office WLED to 60% brightness and set it to a warm white color",
+  "complexity": "Medium",
+  "query_id": "query-5e625c7a",
+  "suggestion_id": "ask-ai-2fd41199",
+  "automation_id": "automation.office_wled_sunset_warm_60_1763941289_39f9b458",
+  "automation_yaml": "id: 'office_wled_sunset_warm_60'\nalias: Office WLED Sunset Warm 60%\ndescription: \"At sunset, smoothly dim the Office WLED strip to 60% brightness and set it to a warm white tone.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 153\n      rgb_color:\n        - 255\n        - 180\n        - 120",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "timing",
+          "question_text": "Could you clarify: Timing sequence is unclear - should actions happen simultaneously or sequentially?",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Yes",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T15:41:08.255395"
+    }
+  ],
+  "automation_score": 80.0,
+  "yaml_score": 100.0,
+  "total_score": 89.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T15:41:07.072428"
+}
