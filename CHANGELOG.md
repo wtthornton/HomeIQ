@@ -5,7 +5,40 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-22
+## [Unreleased] - 2025-11-23
+
+### Added
+
+- **Add implementation docs and update service files** (2b25be1) - wtthornton
+- **Implement device detection enhancement with two-stage matching** (1021133) - wtthornton
+- **Enhanced YAML validation with multi-stage pipeline** (de8497c) - wtthornton
+- **Add AI automation learning features and QA improvements** (3f89d58) - wtthornton
+- **Standardize fuzzy matching with rapidfuzz best practices** (8d2f9a8) - wtthornton
+- **feat(validation): add comprehensive validation command** (fafb163) - Claude
+- **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (be51b74) - wtthornton
+- **Implement token optimization for Ask AI clarification flow** (31c4dc2) - wtthornton
+- **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (c796c8d) - wtthornton
+- **Implement confidence algorithm improvements (Phase 1 & 2)** (d0cd84d) - wtthornton
+- **Add AI Model Comparison feature with side-by-side metrics and recommendations** (9bf590c) - wtthornton
+
+### Changed
+
+- **Improve Ask AI continuous improvement: fix entity ID quote stripping, improve clarification detection, refine scoring, add retry logic** (a10342c) - wtthornton
+- **Update dependencies and Dockerfiles across all services** (2f9a7a8) - wtthornton
+- **Update validate command and YAML generation service** (0379e9f) - wtthornton
+- **Improve error handling for clarification suggestion generation failures - Add tracking for skipped suggestions with detailed reasons - Improve error messages when entity mapping fails - Add better diagnostics for why suggestions are skipped - Log specific reasons when suggestions fail entity validation - Provide helpful error messages indicating device name mismatches - Deployed and tested successfully** (0ba4927) - wtthornton
+
+### Fixed
+
+- **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (943b6e5) - wtthornton
+- **Remove emojis and special characters from ask_ai_router.py prompt strings** (b6e37b8) - wtthornton
+- **Remove all emoji characters from yaml_generation_service.py** (216091d) - wtthornton
+- **Remove emojis from logger statements and fix f-string escaping** (ddd0067) - wtthornton
+- **Fix device filtering: Use fuzzy matching instead of hardcoded lists** (0dc415c) - wtthornton
+- **Fix ASK AI clarification flow: resolve NameError and location expansion** (f1e69ee) - wtthornton
+- **Implement context-aware entity mapping for clarification flow** (98c398e) - wtthornton
+- **Fix critical log issues and update documentation (November 2025)** (b62e615) - wtthornton
+
 
 ### Added
 
