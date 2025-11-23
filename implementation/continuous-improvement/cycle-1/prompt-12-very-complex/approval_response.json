@@ -1,0 +1,46 @@
+{
+  "suggestion_id": "ask-ai-2fdacf1b",
+  "query_id": "clarify-f983f661",
+  "status": "approved",
+  "automation_id": "automation.office_wled_random_burst_1763941450_9f20476f",
+  "automation_yaml": "id: 'office_wled_random_burst'\nalias: Office WLED Random Burst Every 15 Minutes\ndescription: \"Every 15 minutes, run a 15-second random WLED effect burst at full brightness, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_burst\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n      effect: random\n      rgb_color:\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_burst",
+  "ready_to_deploy": true,
+  "warnings": [
+    "Entity not found: scene.office_wled_before_random_burst"
+  ],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_random_burst",
+        "details": {
+          "entity_id": "scene.office_wled_before_random_burst",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_random_burst exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
+    "critical_issues": [],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_random_burst",
+        "details": {
+          "entity_id": "scene.office_wled_before_random_burst",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_random_burst exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed with warnings"
+  },
+  "safe": true
+}

@@ -1,0 +1,51 @@
+id: 'time_based_office_wled_automation'
+alias: Time-based Office WLED
+description: "Time-based office-only automation using Office Wled"
+mode: single
+trigger:
+  - platform: time
+    at: '06:00:00'
+  - platform: time
+    at: '17:00:00'
+  - platform: time
+    at: '21:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      transition: 1
+  - choose:
+      - conditions:
+          - condition: time
+            after: '06:00:00'
+            before: '09:00:00'
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness_pct: 50
+              rgb_color: [255, 180, 100]
+      - conditions:
+          - condition: time
+            after: '17:00:00'
+            before: '20:00:00'
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness_pct: 100
+              rgb_color: [180, 220, 255]
+      - conditions:
+          - condition: time
+            after: '21:00:00'
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness_pct: 20
+              rgb_color: [255, 160, 80]
+  - delay: '00:00:05'

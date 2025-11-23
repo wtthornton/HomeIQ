@@ -3752,6 +3752,7 @@ async def generate_suggestions_from_query(
             # suggestions_data is already parsed JSON from unified prompt method
             parsed = suggestions_data
             logger.info(f"🔍 [CONSOLIDATION DEBUG] Processing {len(parsed)} suggestions from OpenAI")
+            
             for i, suggestion in enumerate(parsed):
                 # Map devices_involved to entity IDs using enriched_data (if available)
                 validated_entities = {}
@@ -3764,7 +3765,7 @@ async def generate_suggestions_from_query(
                 # This handles cases where OpenAI includes generic terms like "light", "wled", domain names, etc.
                 if devices_involved:
                     # Use DeviceMatchingService for pre-consolidation (moved from router)
-                    device_matching_service = DeviceMatchingService(ha_client=ha_client_for_mapping)
+                    device_matching_service = DeviceMatchingService(ha_client=ha_client)
                     devices_involved = device_matching_service._pre_consolidate_device_names(
                         devices_involved, 
                         enriched_data,
@@ -3806,22 +3807,15 @@ async def generate_suggestions_from_query(
                     original_devices_count = len(devices_involved)  # Update for next consolidation
 
                 if enriched_data and devices_involved:
-                    # Initialize HA client for verification if needed
-                    ha_client_for_mapping = ha_client if 'ha_client' in locals() else (
-                        HomeAssistantClient(
-                            ha_url=settings.ha_url,
-                            access_token=settings.ha_token
-                        ) if settings.ha_url and settings.ha_token else None
-                    )
                     # 2025 ENHANCEMENT: Pass clarification context and location for context-aware mapping
                     # query_location is initialized at function level (line 3491), so it's always accessible here
                     # If not already extracted, try to extract from query as fallback
-                    if not query_location and ha_client_for_mapping:
+                    if not query_location and ha_client:
                         try:
                             from ..clients.data_api_client import DataAPIClient
                             from ..services.entity_validator import EntityValidator
                             data_api_client = DataAPIClient()
-                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_for_mapping)
+                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
                             query_location = entity_validator._extract_location_from_query(query)
                             logger.debug(f"🔍 Extracted query_location='{query_location}' as fallback for entity mapping")
                         except Exception as e:
@@ -3938,7 +3932,7 @@ async def generate_suggestions_from_query(
                     
                     # Use DeviceMatchingService for two-stage matching (2025 best practice)
                     device_matching_service = DeviceMatchingService(
-                        ha_client=ha_client_for_mapping,
+                        ha_client=ha_client,
                         auto_select_threshold=settings.device_matching_auto_select_threshold,
                         high_confidence_threshold=settings.device_matching_high_confidence_threshold,
                         minimum_threshold=settings.device_matching_minimum_threshold,
@@ -4009,7 +4003,7 @@ async def generate_suggestions_from_query(
                             from ..clients.data_api_client import DataAPIClient
                             from ..services.entity_validator import EntityValidator
                             data_api_client = DataAPIClient()
-                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_for_mapping)
+                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client)
                             query_location = entity_validator._extract_location_from_query(query)
                             logger.info(f"🔍 [LOCATION VALIDATION] Extracted query_location: '{query_location}' from query: '{query}'")
 
@@ -4162,7 +4156,7 @@ async def generate_suggestions_from_query(
                 if devices_involved and validated_entities:
                     before_consolidation_count = len(devices_involved)
                     # Use DeviceMatchingService for consolidation (moved from router)
-                    device_matching_service = DeviceMatchingService(ha_client=ha_client_for_mapping)
+                    device_matching_service = DeviceMatchingService(ha_client=ha_client)
                     consolidated_devices = device_matching_service.consolidate_devices_involved(devices_involved, validated_entities)
                     if len(consolidated_devices) < before_consolidation_count:
                         logger.info(
@@ -8273,8 +8267,13 @@ async def approve_suggestion_from_query(
                         # Try to fix invalid entity IDs by matching them to validated entities
                         logger.warning(f"⚠️ Found {len(invalid_entities)} invalid entity IDs, attempting to fix...")
                         entity_replacements = {}
-
+                        
                         for invalid_entity_id in invalid_entities:
+                            # Clean entity ID: strip quotes and whitespace
+                            cleaned_invalid_id = invalid_entity_id.strip().strip('\'"')
+                            if cleaned_invalid_id != invalid_entity_id:
+                                logger.info(f"🔧 Cleaning entity ID: '{invalid_entity_id}' -> '{cleaned_invalid_id}'")
+                                invalid_entity_id = cleaned_invalid_id
                             # Try to find a matching validated entity ID
                             best_match = None
                             best_score = 0.0

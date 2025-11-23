@@ -1,0 +1,12 @@
+id: 'office_wled_7am_on'
+alias: Turn On Office WLED at 7 AM
+description: "Turn the Office WLED strip on every day at 7:00 AM."
+mode: single
+trigger:
+  - platform: time
+    at: '07:00:00'
+conditions: []
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.wled

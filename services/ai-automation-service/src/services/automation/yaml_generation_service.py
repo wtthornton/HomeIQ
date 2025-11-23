@@ -767,6 +767,60 @@ Use this entity information to:
         # This should not happen - validated_entities check above should catch this
         raise ValueError("No validated entities available - cannot generate YAML")
 
+    # NEW: Try blueprint matching first (if enabled)
+    if settings.blueprint_enabled:
+        try:
+            from ..blueprints.matcher import BlueprintMatcher
+            from ..blueprints.filler import BlueprintInputFiller
+            from ..blueprints.renderer import BlueprintRenderer
+            from ...utils.miner_integration import get_miner_integration
+
+            miner = get_miner_integration(settings.automation_miner_url)
+            matcher = BlueprintMatcher(miner)
+
+            # Search for matching blueprints
+            matching_blueprint = await matcher.find_best_match(
+                suggestion=suggestion,
+                validated_entities=validated_entities,
+                devices_involved=suggestion.get('devices_involved', [])
+            )
+
+            if matching_blueprint and matching_blueprint['fit_score'] >= settings.blueprint_match_threshold:
+                # Use blueprint (fast, reliable)
+                logger.info(
+                    f"Using blueprint for YAML generation (fit_score: {matching_blueprint['fit_score']:.2f})"
+                )
+
+                filler = BlueprintInputFiller()
+                inputs = await filler.fill_blueprint_inputs(
+                    blueprint=matching_blueprint['blueprint'],
+                    suggestion=suggestion,
+                    validated_entities=validated_entities
+                )
+
+                renderer = BlueprintRenderer()
+                yaml = await renderer.render_blueprint(
+                    blueprint_yaml=matching_blueprint['blueprint_yaml'],
+                    inputs=inputs,
+                    suggestion=suggestion
+                )
+
+                logger.info(f"Generated YAML from blueprint ({len(yaml)} chars)")
+                return yaml
+            else:
+                if matching_blueprint:
+                    logger.info(
+                        f"Blueprint match found but score too low "
+                        f"({matching_blueprint['fit_score']:.2f} < {settings.blueprint_match_threshold}), "
+                        f"falling back to AI generation"
+                    )
+                else:
+                    logger.debug("No matching blueprint found, using AI generation")
+
+        except Exception as e:
+            # Fallback to AI on any blueprint error
+            logger.warning(f"Blueprint matching failed, falling back to AI generation: {e}")
+
     # Check if test mode
     is_test = 'TEST_MODE' in suggestion.get('description', '') or suggestion.get('trigger_summary', '') == 'Manual trigger (test mode)'
 
@@ -1200,6 +1254,11 @@ Generate ONLY the YAML content:
                 from ...utils.gpt51_params import merge_gpt51_params
                 api_params = merge_gpt51_params(api_params, gpt51_params)
                 logger.debug(f"Using GPT-5.1 optimizations: {gpt51_params}")
+
+            # Remove unsupported GPT-5.1 parameters before API call
+            # The OpenAI SDK may not support reasoning, text, prompt_cache_retention in all versions
+            from ...utils.gpt51_params import remove_unsupported_gpt51_params
+            api_params = remove_unsupported_gpt51_params(api_params)
 
             # Call OpenAI to generate YAML using configured model
             # Handle models that only support default temperature (1.0)

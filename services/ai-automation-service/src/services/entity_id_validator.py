@@ -269,11 +269,11 @@ class EntityIDValidator:
         entity_ids = []
 
         def _clean_entity_id(eid: Any) -> str | None:
-            """Clean entity ID by removing trailing commas and whitespace"""
+            """Clean entity ID by removing trailing commas, quotes, and whitespace"""
             if not isinstance(eid, str):
                 return str(eid) if eid is not None else None
-            # Remove trailing commas and whitespace
-            cleaned = eid.rstrip(', ').strip()
+            # Remove trailing commas, quotes (single and double), and whitespace
+            cleaned = eid.rstrip(', \'"').strip().strip('\'"')
             # Filter out Jinja2 template variables ({{ ... }}, {% ... %})
             if cleaned and ('{{' in cleaned or '{%' in cleaned):
                 return None  # Skip Jinja2 template variables - they're not entity IDs
@@ -469,11 +469,11 @@ class EntityIDValidator:
             return entity_ids
 
         def _clean_entity_id(eid: Any) -> str | None:
-            """Clean entity ID by removing trailing commas and whitespace"""
+            """Clean entity ID by removing trailing commas, quotes, and whitespace"""
             if not isinstance(eid, str):
                 return str(eid) if eid is not None else None
-            # Remove trailing commas and whitespace
-            cleaned = eid.rstrip(', ').strip()
+            # Remove trailing commas, quotes (single and double), and whitespace
+            cleaned = eid.rstrip(', \'"').strip().strip('\'"')
             return cleaned if cleaned else None
 
         # Check target.entity_id (single or list)

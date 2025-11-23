@@ -1,0 +1,28 @@
+id: 'office_wled_temporary_living_room_focus'
+alias: Office WLED → Temporary Living Room Focus
+description: "When Office WLED turns on, shift focus to Living Room light at 80% for 10 minutes, then restore Office WLED and turn off Living Room"
+mode: restart
+trigger:
+  - platform: state
+    entity_id: light.wled
+    from: 'off'
+    to: 'on'
+conditions: []
+action:
+  - service: scene.create
+    data:
+      scene_id: office_wled_pre_living_room
+      snapshot_entities:
+        - light.wled
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_2
+    data:
+      brightness_pct: 80
+  - delay: "00:10:00"
+  - service: scene.turn_on
+    target:
+      entity_id: scene.office_wled_pre_living_room
+  - service: light.turn_off
+    target:
+      entity_id: light.living_room_2

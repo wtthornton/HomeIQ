@@ -1,0 +1,56 @@
+{
+  "query_id": "query-035f589d",
+  "original_query": "Every day at 5:00 PM, turn on the Office WLED to 80%, wait 1 minute, turn on all living room lights to 60%, wait 30 seconds, and dim the Office WLED to 40%",
+  "parsed_intent": "control",
+  "extracted_entities": [
+    {
+      "name": "living_room",
+      "type": "area",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "unified_pipeline"
+    },
+    {
+      "name": "office",
+      "type": "area",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "unified_pipeline"
+    }
+  ],
+  "suggestions": [],
+  "confidence": 0.4164999999999999,
+  "processing_time_ms": 1394,
+  "created_at": "2025-11-23T15:42:53.281519",
+  "clarification_needed": true,
+  "clarification_session_id": "clarify-48dc01f0",
+  "questions": [
+    {
+      "id": "q1",
+      "category": "device",
+      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+      "question_type": "text",
+      "options": null,
+      "priority": 1,
+      "related_entities": [
+        "c0070ae3ca3271e5c18c37fc1beaf0e8"
+      ],
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    },
+    {
+      "id": "q2",
+      "category": "action",
+      "question_text": "Could you clarify: Action 'turn' is vague - missing details: brighten",
+      "question_type": "text",
+      "options": null,
+      "priority": 2,
+      "related_entities": null,
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    }
+  ],
+  "message": "I found some ambiguities in your request. I detected these locations: living_room, office. Please answer 2 question(s) to help me create the automation accurately."
+}

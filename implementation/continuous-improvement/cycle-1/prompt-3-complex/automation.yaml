@@ -1,0 +1,19 @@
+id: 'door_living_room_notification'
+alias: Door Open Living Room Power Notification
+description: "When door (garage binary sensor) opens after sunset and living room current > 50 mA, send phone notification after 30 seconds"
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.garage
+    to: 'on'
+conditions:
+  - condition: sun
+    after: sunset
+action:
+  - delay: '00:00:30'
+  - condition: template
+    value_template: "{{ states('sensor.living_room_max_current')|float(0) > 50 }}"
+  - service: notify.mobile_app_tapps_iphone
+    data:
+      title: "Door Open - Living Room Active"
+      message: "The front door opened after sunset and the Living Room circuit current is above 50 mA (light likely on)."

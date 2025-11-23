@@ -1,0 +1,44 @@
+[
+  {
+    "round": 1,
+    "questions": [
+      {
+        "id": "q1",
+        "category": "action",
+        "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+        "question_type": "text",
+        "options": null,
+        "priority": 2,
+        "related_entities": null,
+        "cached_answer": null,
+        "cached_entities": null,
+        "cached_similarity": null
+      },
+      {
+        "id": "q2",
+        "category": "timing",
+        "question_text": "Could you clarify: Timing sequence is unclear - should actions happen simultaneously or sequentially?",
+        "question_type": "text",
+        "options": null,
+        "priority": 2,
+        "related_entities": null,
+        "cached_answer": null,
+        "cached_entities": null,
+        "cached_similarity": null
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "q1",
+        "answer_text": "Yes",
+        "selected_entities": null
+      },
+      {
+        "question_id": "q2",
+        "answer_text": "Yes",
+        "selected_entities": null
+      }
+    ],
+    "timestamp": "2025-11-23T15:41:08.255395"
+  }
+]

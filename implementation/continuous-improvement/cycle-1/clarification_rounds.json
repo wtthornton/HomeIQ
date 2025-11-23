@@ -5,19 +5,12 @@
       {
         "id": "q1",
         "category": "device",
-        "question_text": "Which device should this WLED effect run on? I don\u2019t see a clearly named WLED light in your devices list\u2014did you mean one of these, or is the WLED light missing from Home Assistant?",
-        "question_type": "multiple_choice",
-        "options": [
-          "Office Front Left",
-          "Porch",
-          "Garage",
-          "It\u2019s a different WLED light that isn\u2019t in this list (I\u2019ll add/confirm it in Home Assistant)"
-        ],
+        "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: end of, office",
+        "question_type": "text",
+        "options": null,
         "priority": 1,
         "related_entities": [
-          "Office Front Left",
-          "Porch",
-          "Garage"
+          "c0070ae3ca3271e5c18c37fc1beaf0e8"
         ],
         "cached_answer": null,
         "cached_entities": null,
@@ -26,15 +19,11 @@
       {
         "id": "q2",
         "category": "action",
-        "question_text": "When the 15-second random WLED effect ends, do you want the light to fully restore all previous settings (effect, color, brightness, speed, intensity, and power state), or only color/brightness?",
-        "question_type": "multiple_choice",
-        "options": [
-          "Restore everything exactly (effect, color, brightness, speed, intensity, and whether it was on or off)",
-          "Only restore color and brightness",
-          "Only restore brightness and on/off state"
-        ],
+        "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+        "question_type": "text",
+        "options": null,
         "priority": 2,
-        "related_entities": [],
+        "related_entities": null,
         "cached_answer": null,
         "cached_entities": null,
         "cached_similarity": null
@@ -43,15 +32,15 @@
     "answers": [
       {
         "question_id": "q1",
-        "answer_text": "It\u2019s a different WLED light that isn\u2019t in this list (I\u2019ll add/confirm it in Home Assistant)",
+        "answer_text": "WLED Office Light",
         "selected_entities": null
       },
       {
         "question_id": "q2",
-        "answer_text": "Restore everything exactly (effect, color, brightness, speed, intensity, and whether it was on or off)",
+        "answer_text": "Yes",
         "selected_entities": null
       }
     ],
-    "timestamp": "2025-11-21T14:32:35.146450"
+    "timestamp": "2025-11-23T12:25:36.589466"
   }
 ]

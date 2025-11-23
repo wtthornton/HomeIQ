@@ -1,0 +1,31 @@
+id: 'living_room_lights_office_wled_cue'
+alias: Living Room Lights Office WLED Cue
+description: "Between 9:00 PM and 11:00 PM, when any living room light turns on, briefly turn on Office WLED dim as a cue, then turn it back off."
+mode: restart
+trigger:
+  - platform: state
+    entity_id:
+      - light.hue_office_back_left
+      - light.hue_color_downlight_2_2
+      - light.hue_color_downlight_1_7
+    from: 'off'
+    to: 'on'
+conditions:
+  - condition: time
+    after: '21:00:00'
+    before: '23:00:00'
+action:
+  - service: scene.create
+    data:
+      scene_id: office_wled_before_living_room_cue
+      snapshot_entities:
+        - light.wled
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      brightness_pct: 20
+  - delay: '00:00:10'
+  - service: scene.turn_on
+    target:
+      entity_id: scene.office_wled_before_living_room_cue

@@ -1,0 +1,24 @@
+id: 'office_wled_random_effect_every_15_min'
+alias: Office WLED - Random Effect Every 15 Minutes
+description: "Every 15 minutes play a random 15-second show on Office WLED, then restore previous state"
+mode: single
+trigger:
+  - platform: time_pattern
+    minutes: '/15'
+conditions: []
+action:
+  - service: scene.create
+    data:
+      scene_id: office_wled_before_random_show
+      snapshot_entities:
+        - light.wled
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      brightness_pct: 100
+      effect: random
+  - delay: '00:00:15'
+  - service: scene.turn_on
+    target:
+      entity_id: scene.office_wled_before_random_show

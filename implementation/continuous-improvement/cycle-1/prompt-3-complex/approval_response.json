@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-bfde3497",
+  "query_id": "clarify-75e6a66e",
+  "status": "approved",
+  "automation_id": "automation.door_living_room_notification_1763932839_b7d1bf41",
+  "automation_yaml": "id: 'door_living_room_notification'\nalias: Door Open Living Room Power Notification\ndescription: \"When door (garage binary sensor) opens after sunset and living room current > 50 mA, send phone notification after 30 seconds\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: binary_sensor.garage\n    to: 'on'\nconditions:\n  - condition: sun\n    after: sunset\naction:\n  - delay: '00:00:30'\n  - condition: template\n    value_template: \"{{ states('sensor.living_room_max_current')|float(0) > 50 }}\"\n  - service: notify.mobile_app_tapps_iphone\n    data:\n      title: \"Door Open - Living Room Active\"\n      message: \"The front door opened after sunset and the Living Room circuit current is above 50 mA (light likely on).\"",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

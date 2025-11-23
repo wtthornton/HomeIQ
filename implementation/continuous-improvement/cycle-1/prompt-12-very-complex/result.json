@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-12-very-complex",
+  "prompt_name": "State Restoration with Conditions",
+  "prompt_text": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
+  "complexity": "Very Complex",
+  "query_id": "query-6b0ae12c",
+  "suggestion_id": "ask-ai-2fdacf1b",
+  "automation_id": "automation.office_wled_random_burst_1763941450_9f20476f",
+  "automation_yaml": "id: 'office_wled_random_burst'\nalias: Office WLED Random Burst Every 15 Minutes\ndescription: \"Every 15 minutes, run a 15-second random WLED effect burst at full brightness, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_burst\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n      effect: random\n      rgb_color:\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_burst",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: office, end of",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Office Wled",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T15:43:47.579490"
+    }
+  ],
+  "automation_score": 65.0,
+  "yaml_score": 100.0,
+  "total_score": 81.5,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T15:43:46.124895"
+}
