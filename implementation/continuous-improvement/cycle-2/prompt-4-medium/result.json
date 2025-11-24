@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Conditional Lighting",
   "prompt_text": "Between 6 PM and 11 PM every day, turn on the living room lights to 80% brightness",
   "complexity": "Medium",
-  "query_id": "query-bdb23e46",
-  "suggestion_id": "ask-ai-5aa4e236",
-  "automation_id": "automation.evening_living_room_80_1763972980_32b4d683",
-  "automation_yaml": "id: 'evening_living_room_80'\nalias: Evening Living Room 80%\ndescription: \"Turn on Living Room light to 80% at 6 PM every day\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80",
+  "query_id": "query-1f11191b",
+  "suggestion_id": "ask-ai-f6de2ae3",
+  "automation_id": "automation.living_room_evening_lights_80_brightness_1763979236_c1501d2a",
+  "automation_yaml": "id: 'living_room_evening_lights_80_brightness'\nalias: Living Room Evening Lights 80% Brightness\ndescription: \"Between 6:00 PM and 11:00 PM, set LR Back Right and LR Front Right Ceiling to 80% brightness\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_color_downlight_1\n        - light.hue_color_downlight_1_4\n    data:\n      brightness: 204",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -68,7 +68,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T00:29:20.699188"
+      "timestamp": "2025-11-24T02:13:19.934128"
     }
   ],
   "automation_score": 80.0,
@@ -76,5 +76,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T00:29:19.524463"
+  "timestamp": "2025-11-24T02:13:18.629388"
 }

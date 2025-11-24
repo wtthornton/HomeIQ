@@ -1,5 +1,5 @@
 {
-  "query_id": "query-7fda3652",
+  "query_id": "query-e4ab47df",
   "original_query": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
   "parsed_intent": "general",
   "extracted_entities": [
@@ -19,16 +19,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.4877278030751539,
-  "processing_time_ms": 1363,
-  "created_at": "2025-11-23T17:34:45.754027",
+  "confidence": 0.5173917046127309,
+  "processing_time_ms": 1515,
+  "created_at": "2025-11-24T02:24:55.032003",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-5eb2fcd3",
+  "clarification_session_id": "clarify-2efe996a",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, target brightness, office wled, office, living_room",
+      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: target brightness, living_room, office wled, office, living",
       "question_type": "text",
       "options": null,
       "priority": 1,

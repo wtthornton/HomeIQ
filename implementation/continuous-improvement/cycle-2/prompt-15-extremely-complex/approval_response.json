@@ -1,12 +1,11 @@
 {
-  "suggestion_id": "ask-ai-ba56352d",
-  "query_id": "clarify-bc73a96f",
-  "status": "approved",
-  "automation_id": "automation.living_office_wled_brightness_follow_1763973187_e317e273",
-  "automation_yaml": "id: 'living_office_wled_brightness_follow'\nalias: Living Room to Office WLED Brightness Follow\ndescription: \"Basic brightness-following automation between the Living Room and the Office WLED.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\naction:\n  - delay: '00:00:02'\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '18:00:00'\n        sequence:\n          - variables:\n              office_brightness_pct: >-\n                {{ 0 if states('light.wled') != 'on'\n                   else ((state_attr('light.wled','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 70 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: '18:00:00'\n              - condition: time\n                before: '06:00:00'\n        sequence:\n          - condition: state\n            entity_id: light.living_room_2\n            state: 'on'\n          - variables:\n              living_room_brightness_pct: >-\n                {{ ((state_attr('light.living_room_2','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ living_room_brightness_pct > 60 }}\"\n          - variables:\n              office_brightness_pct: >-\n                {{ 0 if states('light.wled') != 'on'\n                   else ((state_attr('light.wled','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ office_brightness_pct != 30 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
-  "ready_to_deploy": true,
-  "warnings": [],
-  "message": "Automation created and enabled successfully",
+  "suggestion_id": "ask-ai-90399a3e",
+  "query_id": "clarify-4494b2ea",
+  "status": "yaml_generated",
+  "automation_id": null,
+  "automation_yaml": "id: 'office_wled_follow_living_room_brightness_time_based'\nalias: Office WLED \u2013 Follow Living Room Brightness by Time\ndescription: \"Straightforward brightness control for the Office WLED based on time of day and living room light state changes.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id:\n      # Replace these with your actual living room light entities, for example:\n      # - light.living_room_main\n      # - light.living_room_lamp\nconditions: []\naction:\n  - delay: \"00:00:02\"\n  - variables:\n      is_daytime: \"{{ 6 <= now().hour < 18 }}\"\n      office_bright_pct: >-\n        {% set b = state_attr('light.wled', 'brightness') %}\n        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}\n      trigger_bright_pct: >-\n        {% set b = state_attr(trigger.entity_id, 'brightness') %}\n        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_daytime | bool }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct < 50 }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct != 70 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: template\n            value_template: \"{{ not (is_daytime | bool) }}\"\n          - condition: template\n            value_template: \"{{ trigger_bright_pct > 60 }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct != 30 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+  "ready_to_deploy": false,
+  "safe": true,
   "safety_report": {
     "safe": true,
     "issues": [],
@@ -16,5 +15,12 @@
     "coverage": 1.0,
     "message": "Validation passed"
   },
-  "safe": true
+  "message": "YAML generated but deployment failed: HTTP 400: Message malformed: Entity IDs cannot be None for dictionary value @ data['entity_id']",
+  "error_details": {
+    "type": "deployment_error",
+    "message": "HTTP 400: Message malformed: Entity IDs cannot be None for dictionary value @ data['entity_id']"
+  },
+  "warnings": [
+    "Deployment failed: HTTP 400: Message malformed: Entity IDs cannot be None for dictionary value @ data['entity_id']"
+  ]
 }

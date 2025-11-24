@@ -1,10 +1,10 @@
-id: 'office_wled_weekday_morning_on'
-alias: Office WLED Weekday 8 AM On
-description: "Turn on the Office WLED at 8:00 AM on weekdays"
+id: 'office_wled_weekday_on_8am'
+alias: Office WLED Weekday On at 8am
+description: "Turn on the Office WLED at 8:00 AM on weekdays only"
 mode: single
 trigger:
   - platform: time
-    at: '08:00:00'
+    at: "08:00:00"
 conditions:
   - condition: time
     weekday:

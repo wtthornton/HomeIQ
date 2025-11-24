@@ -1,27 +1,24 @@
 {
-  "suggestion_id": "ask-ai-afc84a65",
-  "query_id": "clarify-6d8e98eb",
-  "status": "approved",
-  "automation_id": "automation.office_wled_living_room_focus_10min_1763948057_2286a359",
-  "automation_yaml": "id: 'office_wled_living_room_focus_10min'\nalias: Office WLED \u2192 Temporary Living Room Focus (10 min)\ndescription: \"When Office WLED turns on, snapshot its state, focus Living Room at 80% for 10 minutes, then restore Office and turn Living Room off\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: \"on\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_focus\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: \"00:10:00\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_focus\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
-  "ready_to_deploy": true,
-  "warnings": [
-    "Entity not found: scene.office_wled_before_living_room_focus"
-  ],
-  "message": "Automation created and enabled successfully",
+  "suggestion_id": "ask-ai-65df1a9d",
+  "query_id": "clarify-2f3e93c2",
+  "status": "yaml_generated",
+  "automation_id": null,
+  "automation_yaml": "id: 'office_wled_living_room_focus_then_restore'\nalias: Office WLED \u2013 Living Room focus then restore\ndescription: \"When Office WLED turns on, save its state, set Living Room light to 80%, then after 10 minutes restore WLED and turn off Living Room light.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_saved_state\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_saved_state\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2'",
+  "ready_to_deploy": false,
+  "safe": true,
   "safety_report": {
     "safe": true,
     "issues": [
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_living_room_focus",
+        "message": "Entity not found: light.living_room_2'",
         "details": {
-          "entity_id": "scene.office_wled_before_living_room_focus",
+          "entity_id": "light.living_room_2'",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_living_room_focus exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "critical_issues": [],
@@ -29,18 +26,25 @@
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_living_room_focus",
+        "message": "Entity not found: light.living_room_2'",
         "details": {
-          "entity_id": "scene.office_wled_before_living_room_focus",
+          "entity_id": "light.living_room_2'",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_living_room_focus exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "info": [],
     "coverage": 1.0,
     "message": "Validation passed with warnings"
   },
-  "safe": true
+  "message": "YAML generated but deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']",
+  "error_details": {
+    "type": "deployment_error",
+    "message": "HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
+  },
+  "warnings": [
+    "Deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
+  ]
 }

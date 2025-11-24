@@ -1,10 +1,11 @@
-id: 'living_room_wled_night_pulse'
-alias: Living Room Night WLED Pulse
-description: "When the Living Room light is turned on between 21:00 and 23:00, briefly turn on the Office WLED at low brightness, wait 10 seconds, then turn it off."
-mode: single
+id: 'living_room_on_office_wled_pulse'
+alias: Living room on → Office WLED 20% pulse
+description: "When any living room light is turned on between 9 PM and 11 PM, briefly activate the Office WLED at low brightness, then turn it off."
+mode: restart
 trigger:
   - platform: state
-    entity_id: light.living_room_2
+    # NOTE: Select your actual living room light entities in the UI for this trigger.
+    entity_id: []
     from: 'off'
     to: 'on'
 conditions:
@@ -12,20 +13,12 @@ conditions:
     after: '21:00:00'
     before: '23:00:00'
 action:
-  - service: scene.create
-    data:
-      scene_id: office_wled_before_pulse
-      snapshot_entities:
-        - light.wled
   - service: light.turn_on
     target:
       entity_id: light.wled
     data:
-      rgb_color:
-        - 51
-        - 51
-        - 51
+      brightness_pct: 20
   - delay: '00:00:10'
-  - service: scene.turn_on
+  - service: light.turn_off
     target:
-      entity_id: scene.office_wled_before_pulse
+      entity_id: light.wled

@@ -1,0 +1,128 @@
+{
+  "cycle_number": 4,
+  "overall_score": 85.96428571428571,
+  "all_successful": false,
+  "timestamp": "2025-11-24T02:25:39.369731",
+  "prompt_results": [
+    {
+      "prompt_id": "prompt-1-simple",
+      "prompt_name": "Simple Time-Based Light",
+      "complexity": "Simple",
+      "total_score": 89.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-2-simple",
+      "prompt_name": "Simple Light Control",
+      "complexity": "Simple",
+      "total_score": 89.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-3-simple",
+      "prompt_name": "Basic Schedule",
+      "complexity": "Simple",
+      "total_score": 89.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-4-medium",
+      "prompt_name": "Time-Based Conditional Lighting",
+      "complexity": "Medium",
+      "total_score": 89.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-5-medium",
+      "prompt_name": "Time-Based Multi-Light",
+      "complexity": "Medium",
+      "total_score": 89.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-6-medium",
+      "prompt_name": "Conditional Brightness",
+      "complexity": "Medium",
+      "total_score": 79.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-7-medium",
+      "prompt_name": "Multi-Area Lighting",
+      "complexity": "Medium",
+      "total_score": 91.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-8-complex",
+      "prompt_name": "Sunset-Based Multi-Device Sequence",
+      "complexity": "Complex",
+      "total_score": 91.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-9-complex",
+      "prompt_name": "Sequential Actions",
+      "complexity": "Complex",
+      "total_score": 81.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-10-complex",
+      "prompt_name": "Time-Based Sequence",
+      "complexity": "Complex",
+      "total_score": 91.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-11-complex",
+      "prompt_name": "Conditional Chain",
+      "complexity": "Complex",
+      "total_score": 81.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-12-very-complex",
+      "prompt_name": "State Restoration with Conditions",
+      "complexity": "Very Complex",
+      "total_score": 84.0,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-13-very-complex",
+      "prompt_name": "Complex State Management",
+      "complexity": "Very Complex",
+      "total_score": 81.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-14-extremely-complex",
+      "prompt_name": "Complex Conditional Logic",
+      "complexity": "Extremely Complex",
+      "total_score": 76.5,
+      "success": true,
+      "error": null
+    },
+    {
+      "prompt_id": "prompt-15-extremely-complex",
+      "prompt_name": "Multi-Conditional with Choose",
+      "complexity": "Extremely Complex",
+      "total_score": 0.0,
+      "success": false,
+      "error": "Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: light.living_room_light_2, light.living_room_light_1"
+    }
+  ]
+}

@@ -1,11 +1,10 @@
-id: 'office_wled_living_room_sequence'
-alias: Office WLED → Living Room 70% → Office 100%
-description: "When Office WLED is turned on, wait 2 seconds, set Living Room to ~70% brightness, wait 3 more seconds, then set Office WLED to 100% brightness."
-mode: single
+id: 'office_wled_living_room_70_office_100'
+alias: Office WLED → Living Room 70% → Office WLED 100%
+description: "When Office WLED turns on, set Living Room to 70%, then Office WLED to 100%"
+mode: restart
 trigger:
   - platform: state
     entity_id: light.wled
-    from: 'off'
     to: 'on'
 conditions: []
 action:

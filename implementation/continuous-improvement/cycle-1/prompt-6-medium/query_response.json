@@ -1,5 +1,5 @@
 {
-  "query_id": "query-4e974428",
+  "query_id": "query-72610ced",
   "original_query": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
   "parsed_intent": "automation",
   "extracted_entities": [
@@ -12,16 +12,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.39215545459402207,
-  "processing_time_ms": 1299,
-  "created_at": "2025-11-24T00:25:07.763877",
+  "confidence": 0.42583318189103303,
+  "processing_time_ms": 1394,
+  "created_at": "2025-11-24T02:07:49.046485",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-f0199749",
+  "clarification_session_id": "clarify-2d881075",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living",
+      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room",
       "question_type": "text",
       "options": null,
       "priority": 1,

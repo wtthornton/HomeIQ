@@ -1,44 +1,61 @@
-id: 'living_room_wled_day_night_adjust'
-alias: Living Room - Adjust Office WLED by Time of Day
-description: "When Living Room light changes, adjust Office WLED brightness by time of day with 2s debounce"
+id: 'office_wled_follow_living_room_brightness_by_time'
+alias: Office WLED – Follow Living Room Brightness by Time
+description: "Adjust Office WLED brightness by time of day when living room lights change"
 mode: restart
 trigger:
   - platform: state
-    entity_id: light.living_room_2
+    entity_id:
+      - light.wled
+conditions: []
 action:
-  - delay: '00:00:02'
-  - variables:
-      office_brightness: "{{ state_attr('light.wled', 'brightness') | int(0) }}"
-      office_brightness_pct: "{{ (office_brightness / 255 * 100) | round(0) if office_brightness > 0 else 0 }}"
-      living_brightness: "{{ state_attr('light.living_room_2', 'brightness') | int(0) }}"
-      living_brightness_pct: "{{ (living_brightness / 255 * 100) | round(0) if living_brightness > 0 else 0 }}"
-      now_hour: "{{ now().hour }}"
-      is_daytime: "{{ 6 <= now_hour < 18 }}"
-      is_nighttime: "{{ now_hour >= 18 or now_hour < 6 }}"
   - choose:
+      # Daytime behavior: 06:00–18:00
       - conditions:
+          - condition: time
+            after: '06:00:00'
+            before: '18:00:00'
           - condition: template
-            value_template: "{{ is_daytime }}"
+            value_template: "{{ not is_state('light.wled', 'unavailable') }}"
           - condition: template
-            value_template: "{{ office_brightness_pct < 50 }}"
-          - condition: template
-            value_template: "{{ office_brightness_pct != 70 }}"
+            value_template: >-
+              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}
+              {{ bri == 0 or (bri > 0 and (bri / 255) < 0.5) }}
         sequence:
+          - delay: '00:00:02'
+          - condition: template
+            value_template: >-
+              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}
+              {% set perc = (bri / 255 * 100) | round(0) if bri > 0 else 0 %}
+              {{ perc != 70 }}
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: 70
+              brightness: 178
+      # Nighttime behavior: 18:00–06:00
       - conditions:
+          - condition: or
+            conditions:
+              - condition: time
+                after: '18:00:00'
+              - condition: time
+                before: '06:00:00'
           - condition: template
-            value_template: "{{ is_nighttime }}"
+            value_template: "{{ not is_state('light.wled', 'unavailable') }}"
           - condition: template
-            value_template: "{{ living_brightness_pct > 60 }}"
-          - condition: template
-            value_template: "{{ office_brightness_pct != 30 }}"
+            value_template: >-
+              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}
+              {{ bri > 0 and (bri / 255) > 0.3 }}
         sequence:
+          - delay: '00:00:02'
+          - condition: template
+            value_template: >-
+              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}
+              {% set perc = (bri / 255 * 100) | round(0) if bri > 0 else 0 %}
+              {{ perc != 30 }}
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: 30
+              brightness: 77
+    default: []

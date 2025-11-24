@@ -3,10 +3,10 @@
   "prompt_name": "Sequential Actions",
   "prompt_text": "When the Office WLED is turned on, wait 2 seconds, then turn on all living room lights to 70%, wait another 3 seconds, and set the Office WLED to 100% brightness",
   "complexity": "Complex",
-  "query_id": "query-b6ade00b",
-  "suggestion_id": "ask-ai-33e7c4fb",
-  "automation_id": "automation.office_wled_living_room_sequence_1763972785_cf8dbaf0",
-  "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2192 Living Room 70% \u2192 Office 100%\ndescription: \"When Office WLED is turned on, wait 2 seconds, set Living Room to ~70% brightness, wait 3 more seconds, then set Office WLED to 100% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
+  "query_id": "query-b1a3514e",
+  "suggestion_id": "ask-ai-3d95efc9",
+  "automation_id": "automation.office_wled_living_room_70_office_100_1763978974_af14bcff",
+  "automation_yaml": "id: 'office_wled_living_room_70_office_100'\nalias: Office WLED \u2192 Living Room 70% \u2192 Office WLED 100%\ndescription: \"When Office WLED turns on, set Living Room to 70%, then Office WLED to 100%\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room, office",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T00:26:13.741466"
+      "timestamp": "2025-11-24T02:09:12.197315"
     }
   ],
   "automation_score": 65.0,
@@ -59,5 +59,5 @@
   "total_score": 81.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T00:26:12.399154"
+  "timestamp": "2025-11-24T02:09:10.519239"
 }

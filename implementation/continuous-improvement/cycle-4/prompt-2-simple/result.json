@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-2-simple",
+  "prompt_name": "Simple Light Control",
+  "prompt_text": "Turn off all living room lights at 11:00 PM every night",
+  "complexity": "Simple",
+  "query_id": "query-1e65fae4",
+  "suggestion_id": "ask-ai-68499423",
+  "automation_id": "automation.living_room_lights_off_2300_1763979967_0a84aa2b",
+  "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Turn Off Living Room Ceiling Lights at 11 PM\ndescription: \"Turn off LR Back Left Ceiling, LR Front Right Ceiling, and LR Back Right Ceiling every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Living Room Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-24T02:25:54.484543"
+    }
+  ],
+  "automation_score": 80.0,
+  "yaml_score": 100.0,
+  "total_score": 89.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-24T02:25:53.305487"
+}

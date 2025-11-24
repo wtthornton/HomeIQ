@@ -1,5 +1,5 @@
 {
-  "query_id": "query-d2b80b9a",
+  "query_id": "query-c15e9543",
   "original_query": "When any living room light is turned on between 9 PM and 11 PM, turn on the Office WLED to 20% brightness, wait 10 seconds, then turn off the Office WLED",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -19,16 +19,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.48495753513403633,
-  "processing_time_ms": 1367,
-  "created_at": "2025-11-23T17:33:06.214781",
+  "confidence": 0.5209736361671619,
+  "processing_time_ms": 1434,
+  "created_at": "2025-11-24T02:23:02.385636",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-abc2b8a2",
+  "clarification_session_id": "clarify-6c76989c",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living_room, office, living",
+      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, living_room, office",
       "question_type": "text",
       "options": null,
       "priority": 1,

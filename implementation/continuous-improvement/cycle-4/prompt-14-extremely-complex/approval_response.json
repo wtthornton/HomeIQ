@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-1ce50380",
+  "query_id": "clarify-f6cdc375",
+  "status": "approved",
+  "automation_id": "automation.office_wled_time_routine_1763980289_09af2679",
+  "automation_yaml": "id: 'office_wled_time_routine'\nalias: Office WLED Time Routine\ndescription: \"Time-based Office WLED brightness and color routine with 5-second wait after actions\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/5'\n  - platform: event\n    event_type: office_wled_time_routine_manual\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color: [255, 180, 120]\n          - delay: '00:00:05'\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color: [200, 230, 255]\n          - delay: '00:00:05'\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n              rgb_color: [255, 140, 60]\n          - delay: '00:00:05'",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

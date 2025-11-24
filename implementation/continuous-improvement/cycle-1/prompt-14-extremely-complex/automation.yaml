@@ -1,10 +1,12 @@
-id: 'time_based_office_living_room_wled_routine'
-alias: Time-Based Office and Living Room Lighting Routine
-description: "Time-based office and living room lighting routine using Office WLED as the primary focus"
+id: 'office_wled_living_room_time_routine'
+alias: Office WLED and Living Room Time Routine
+description: "Time-based Office WLED and living room routine exactly matching your schedule. Living room actions are TODO placeholders."
 mode: single
 trigger:
-  - platform: event
-    event_type: time_based_office_living_room_wled_routine_trigger
+  - platform: time_pattern
+    minutes: "/1"
+  - platform: homeassistant
+    event: start
 conditions: []
 action:
   - choose:
@@ -18,21 +20,27 @@ action:
               entity_id: light.wled
             data:
               brightness_pct: 50
-              rgb_color: [255, 180, 100]
+              rgb_color: [255, 180, 110]
+          # TODO: Turn OFF all living room lights here, e.g.:
+          # - service: light.turn_off
+          #   target:
+          #     entity_id:
+          #       - light.living_room_main
+          #       - light.living_room_lamp
           - delay: "00:00:05"
-          - service: light.turn_off
-            target:
-              entity_id: light.living_room_2
       - conditions:
           - condition: time
             after: "17:00:00"
             before: "20:00:00"
         sequence:
-          - service: light.turn_on
-            target:
-              entity_id: light.living_room_2
-            data:
-              brightness_pct: 80
+          # TODO: Turn ON all living room lights to 80% brightness here, e.g.:
+          # - service: light.turn_on
+          #   target:
+          #     entity_id:
+          #       - light.living_room_main
+          #       - light.living_room_lamp
+          #   data:
+          #     brightness_pct: 80
           - service: light.turn_on
             target:
               entity_id: light.wled
@@ -49,9 +57,12 @@ action:
               entity_id: light.wled
             data:
               brightness_pct: 20
-              rgb_color: [255, 210, 160]
+              rgb_color: [255, 180, 110]
+          # TODO: Turn OFF all living room lights here, e.g.:
+          # - service: light.turn_off
+          #   target:
+          #     entity_id:
+          #       - light.living_room_main
+          #       - light.living_room_lamp
           - delay: "00:00:05"
-          - service: light.turn_off
-            target:
-              entity_id: light.living_room_2
     default: []

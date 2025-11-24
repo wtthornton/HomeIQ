@@ -1,6 +1,6 @@
 id: 'office_wled_7am_on'
-alias: Office WLED on at 7 AM
-description: "Turn on the Office WLED every day at 7:00 AM"
+alias: Turn On Office WLED at 7 AM
+description: "Turn on the Office WLED strip every day at 7:00 AM at ~70% brightness"
 mode: single
 trigger:
   - platform: time
@@ -10,3 +10,5 @@ action:
   - service: light.turn_on
     target:
       entity_id: light.wled
+    data:
+      brightness_pct: 70

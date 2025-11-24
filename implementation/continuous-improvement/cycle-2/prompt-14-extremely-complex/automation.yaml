@@ -1,86 +1,44 @@
-id: 'time_based_office_living_room_lighting'
-alias: Time-based Office WLED and Living Room
-description: "Time-based office and living room routine centered around Office WLED with cleanup of unused lights"
+id: 'time_based_office_wled_routine'
+alias: Time-Based Office WLED Routine
+description: "Time-based Office WLED brightness and color routine with 5-second pause"
 mode: single
 trigger:
-  - platform: event
-    event_type: my_custom_time_lighting_trigger
+  - platform: time_pattern
+    minutes: '/1'
 conditions: []
 action:
   - choose:
       - conditions:
           - condition: time
-            after: "06:00:00"
-            before: "09:00:00"
+            after: '06:00:00'
+            before: '09:00:00'
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 50
-              rgb_color:
-                - 255
-                - 200
-                - 150
-          - delay: "00:00:05"
-          - service: light.turn_off
-            target:
-              entity_id:
-                - light.living_room_2
-                - light.hue_office_back_left
-                - light.hue_color_downlight_1_6
-                - light.hue_color_downlight_1_7
-                - light.hue_color_downlight_2_2
+              rgb_color: [255, 200, 150]
+          - delay: '00:00:05'
       - conditions:
           - condition: time
-            after: "17:00:00"
-            before: "20:00:00"
+            after: '17:00:00'
+            before: '20:00:00'
         sequence:
-          - service: light.turn_on
-            target:
-              entity_id: light.living_room_2
-            data:
-              brightness_pct: 80
-              rgb_color:
-                - 200
-                - 220
-                - 255
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 100
-              rgb_color:
-                - 200
-                - 220
-                - 255
-          - delay: "00:00:05"
-          - service: light.turn_off
-            target:
-              entity_id:
-                - light.hue_office_back_left
-                - light.hue_color_downlight_1_6
-                - light.hue_color_downlight_1_7
-                - light.hue_color_downlight_2_2
+              rgb_color: [200, 220, 255]
+          - delay: '00:00:05'
       - conditions:
           - condition: time
-            after: "21:00:00"
+            after: '21:00:00'
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 20
-              rgb_color:
-                - 255
-                - 160
-                - 100
-          - delay: "00:00:05"
-          - service: light.turn_off
-            target:
-              entity_id:
-                - light.living_room_2
-                - light.hue_office_back_left
-                - light.hue_color_downlight_1_6
-                - light.hue_color_downlight_1_7
-                - light.hue_color_downlight_2_2
+          - delay: '00:00:05'
