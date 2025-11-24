@@ -442,6 +442,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
 - **Fix admin-api service startup errors** (November 24, 2025)
 - **Implement comprehensive suggestions engine improvements (Phase 1-3)** (November 24, 2025)
 - **Add implementation docs and update service files** (November 23, 2025)
