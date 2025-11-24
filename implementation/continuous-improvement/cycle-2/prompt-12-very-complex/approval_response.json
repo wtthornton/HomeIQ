@@ -1,20 +1,46 @@
 {
-  "suggestion_id": "ask-ai-27788dff",
-  "query_id": "clarify-12abe1ac",
+  "suggestion_id": "ask-ai-cd375ef8",
+  "query_id": "clarify-42120bb5",
   "status": "approved",
-  "automation_id": "automation.office_wled_random_effect_15min_1763945189_e8289b3a",
-  "automation_yaml": "id: 'office_wled_random_effect_15min'\nalias: Office WLED \u2013 Random effect every 15 minutes (with state restore)\ndescription: \"Every 15 minutes play a 15s random WLED effect on Office, then restore original Office state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_effect\n      snapshot_entities:\n        - light.wled\n  - variables:\n      rand_r: \"{{ range(0, 256) | random }}\"\n      rand_g: \"{{ range(0, 256) | random }}\"\n      rand_b: \"{{ range(0, 256) | random }}\"\n      rand_effect: >-\n        {{ [\n          'Solid', 'Blink', 'Breathe', 'Android', 'Aurora', 'Bee', 'Blends',\n          'Blink Rainbow', 'Bouncing Balls', 'Bpm', 'Candle', 'Candle Multi',\n          'Chase', 'Chase 2', 'Chase 3', 'Chase Rainbow', 'Chunchun',\n          'Colorloop', 'Colorful', 'Colorwaves', 'Dancing Shadows', 'DNA',\n          'Dissolve', 'Dissolve Rnd', 'Drip', 'Drip Rainbow', 'Dynamic',\n          'Fairy', 'Fill Noise', 'Fire 2012', 'Fire Flicker', 'Fireworks 1D',\n          'Fireworks Starburst', 'Flow', 'Funky Plank', 'Glitter', 'Gradient',\n          'Gravcenter', 'Gravcentric', 'Heartbeat', 'ICU', 'Juggle', 'Lake',\n          'Lighthouse', 'Lightning', 'Matrix', 'Meteor', 'Meteor Smooth',\n          'Noise 1', 'Noise 2', 'Noise 3', 'Noise 4', 'Oscillate', 'Pianola',\n          'Pride 2015', 'Rain', 'Railway', 'Rainbow', 'Rainbow Runner',\n          'Ripple', 'Running', 'Running 2', 'Scanner', 'Scanner Dual',\n          'Scan', 'Sinelon', 'Sinelon Dual', 'Sinelon Rainbow', 'Slope',\n          'Sparkle', 'Sparkle Dark', 'Spots', 'Spots Fade', 'Stream',\n          'Strobe', 'Strobe Mega', 'Strobe Rainbow', 'Sunrise',\n          'Sweep', 'Sweep Random', 'Theater', 'Theater Rainbow', 'Traffic Light',\n          'Tri Chase', 'Tri Fade', 'Tri Wipe', 'Twinkle', 'Twinklecat',\n          'Twinklefox', 'Waterfall', 'Wipe', 'Wipe Random'\n        ] | random }}\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      effect: \"{{ rand_effect }}\"\n      brightness: 255\n      rgb_color:\n        - \"{{ rand_r }}\"\n        - \"{{ rand_g }}\"\n        - \"{{ rand_b }}\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_effect",
+  "automation_id": "automation.office_wled_15min_random_burst_then_restore_1763947765_42cd4de6",
+  "automation_yaml": "id: 'office_wled_15min_random_burst_then_restore'\nalias: Office WLED - 15min Random Burst Then Restore\ndescription: \"Every 15 minutes, briefly take the Office WLED on a 15-second random party detour, then restore it exactly to its previous effect, color, and brightness.\"\nmode: restart\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_party_detour\n      snapshot_entities:\n        - light.wled\n  - variables:\n      effect_list: \"{{ state_attr('light.wled', 'effect_list') if state_attr('light.wled', 'effect_list') is not none else ['Solid','Blink','Breathe'] }}\"\n      new_effect: \"{{ effect_list | random }}\"\n      rand_r: \"{{ range(0, 256) | random }}\"\n      rand_g: \"{{ range(0, 256) | random }}\"\n      rand_b: \"{{ range(0, 256) | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      effect: \"{{ new_effect }}\"\n      rgb_color:\n        - \"{{ rand_r | int }}\"\n        - \"{{ rand_g | int }}\"\n        - \"{{ rand_b | int }}\"\n      brightness_pct: 100\n  - delay:\n      seconds: 15\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_party_detour",
   "ready_to_deploy": true,
-  "warnings": [],
+  "warnings": [
+    "Entity not found: scene.office_wled_before_party_detour"
+  ],
   "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [],
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_party_detour",
+        "details": {
+          "entity_id": "scene.office_wled_before_party_detour",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_party_detour exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "critical_issues": [],
-    "warnings": [],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_party_detour",
+        "details": {
+          "entity_id": "scene.office_wled_before_party_detour",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_party_detour exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed"
+    "message": "Validation passed with warnings"
   },
   "safe": true
 }

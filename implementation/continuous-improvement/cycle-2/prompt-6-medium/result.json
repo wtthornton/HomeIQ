@@ -3,10 +3,10 @@
   "prompt_name": "Conditional Brightness",
   "prompt_text": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
   "complexity": "Medium",
-  "query_id": "query-65fe21b8",
-  "suggestion_id": "ask-ai-df889d59",
-  "automation_id": "automation.living_room_light_auto_dim_after_8pm_1763945059_b3784af8",
-  "automation_yaml": "id: 'living_room_light_auto_dim_after_8pm'\nalias: Living Room Light - Auto dim after 8 PM\ndescription: \"When the Living Room light is turned on after 8:00 PM, automatically dim it to 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\ncondition:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
+  "query_id": "query-c70f8268",
+  "suggestion_id": "ask-ai-68f30f79",
+  "automation_id": "automation.living_room_light_dim_after_8pm_1763947652_3d800ae4",
+  "automation_yaml": "id: 'living_room_light_dim_after_8pm'\nalias: Living Room Light Dim After 8 PM\ndescription: \"When the Living Room Light is turned on after 8:00 PM, dim it to 40% brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -68,7 +68,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T16:43:57.919903"
+      "timestamp": "2025-11-23T17:27:20.303116"
     }
   ],
   "automation_score": 60.0,
@@ -76,5 +76,5 @@
   "total_score": 79.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T16:43:56.603921"
+  "timestamp": "2025-11-23T17:27:18.877034"
 }

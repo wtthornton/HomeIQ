@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-70f8fbb4",
-  "query_id": "clarify-1b444485",
+  "suggestion_id": "ask-ai-88b2a454",
+  "query_id": "clarify-ecf6d2b5",
   "status": "approved",
-  "automation_id": "automation.living_room_light_1800_2300_80pct_1763945325_816992bb",
-  "automation_yaml": "id: 'living_room_light_1800_2300_80pct'\nalias: Evening Living Room Light to 80%\ndescription: \"Between 6:00 PM and 11:00 PM every day, automatically turn on the Living Room Light to 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80",
+  "automation_id": "automation.living_room_evening_brightness_80_1763947902_d693072e",
+  "automation_yaml": "id: 'living_room_evening_brightness_80'\nalias: Living Room Evening Auto Brightness 80%\ndescription: \"Between 6:00 PM and 11:00 PM, set Living Room light to 80% brightness whenever it turns on.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 204",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

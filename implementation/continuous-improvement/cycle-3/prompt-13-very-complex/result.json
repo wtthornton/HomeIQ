@@ -3,10 +3,10 @@
   "prompt_name": "Complex State Management",
   "prompt_text": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
   "complexity": "Very Complex",
-  "query_id": "query-48b6fa14",
-  "suggestion_id": "ask-ai-be88190f",
-  "automation_id": null,
-  "automation_yaml": null,
+  "query_id": "query-b7ff8a22",
+  "suggestion_id": "ask-ai-afc84a65",
+  "automation_id": "automation.office_wled_living_room_focus_10min_1763948057_2286a359",
+  "automation_yaml": "id: 'office_wled_living_room_focus_10min'\nalias: Office WLED \u2192 Temporary Living Room Focus (10 min)\ndescription: \"When Office WLED turns on, snapshot its state, focus Living Room at 80% for 10 minutes, then restore Office and turn Living Room off\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: \"on\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_focus\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: \"00:10:00\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_focus\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,13 +51,13 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T16:51:32.661745"
+      "timestamp": "2025-11-23T17:33:47.653578"
     }
   ],
-  "automation_score": 0.0,
-  "yaml_score": 0.0,
-  "total_score": 0.0,
-  "error": "Approval failed: Automation contains invalid entity IDs that could not be auto-fixed (Type: invalid_entities). Details: Invalid entity IDs in YAML (after auto-fix attempt): light.living_room_2'",
-  "success": false,
-  "timestamp": "2025-11-23T16:51:31.206412"
+  "automation_score": 65.0,
+  "yaml_score": 100.0,
+  "total_score": 81.5,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T17:33:45.939850"
 }

@@ -1,7 +1,7 @@
-id: 'office_wled_random_effect_15min'
-alias: Office WLED – Random effect every 15 minutes (with state restore)
-description: "Every 15 minutes play a 15s random WLED effect on Office, then restore original Office state."
-mode: single
+id: 'office_wled_15min_random_burst_then_restore'
+alias: Office WLED - 15min Random Burst Then Restore
+description: "Every 15 minutes, briefly take the Office WLED on a 15-second random party detour, then restore it exactly to its previous effect, color, and brightness."
+mode: restart
 trigger:
   - platform: time_pattern
     minutes: "/15"
@@ -9,45 +9,27 @@ conditions: []
 action:
   - service: scene.create
     data:
-      scene_id: office_wled_before_random_effect
+      scene_id: office_wled_before_party_detour
       snapshot_entities:
         - light.wled
   - variables:
+      effect_list: "{{ state_attr('light.wled', 'effect_list') if state_attr('light.wled', 'effect_list') is not none else ['Solid','Blink','Breathe'] }}"
+      new_effect: "{{ effect_list | random }}"
       rand_r: "{{ range(0, 256) | random }}"
       rand_g: "{{ range(0, 256) | random }}"
       rand_b: "{{ range(0, 256) | random }}"
-      rand_effect: >-
-        {{ [
-          'Solid', 'Blink', 'Breathe', 'Android', 'Aurora', 'Bee', 'Blends',
-          'Blink Rainbow', 'Bouncing Balls', 'Bpm', 'Candle', 'Candle Multi',
-          'Chase', 'Chase 2', 'Chase 3', 'Chase Rainbow', 'Chunchun',
-          'Colorloop', 'Colorful', 'Colorwaves', 'Dancing Shadows', 'DNA',
-          'Dissolve', 'Dissolve Rnd', 'Drip', 'Drip Rainbow', 'Dynamic',
-          'Fairy', 'Fill Noise', 'Fire 2012', 'Fire Flicker', 'Fireworks 1D',
-          'Fireworks Starburst', 'Flow', 'Funky Plank', 'Glitter', 'Gradient',
-          'Gravcenter', 'Gravcentric', 'Heartbeat', 'ICU', 'Juggle', 'Lake',
-          'Lighthouse', 'Lightning', 'Matrix', 'Meteor', 'Meteor Smooth',
-          'Noise 1', 'Noise 2', 'Noise 3', 'Noise 4', 'Oscillate', 'Pianola',
-          'Pride 2015', 'Rain', 'Railway', 'Rainbow', 'Rainbow Runner',
-          'Ripple', 'Running', 'Running 2', 'Scanner', 'Scanner Dual',
-          'Scan', 'Sinelon', 'Sinelon Dual', 'Sinelon Rainbow', 'Slope',
-          'Sparkle', 'Sparkle Dark', 'Spots', 'Spots Fade', 'Stream',
-          'Strobe', 'Strobe Mega', 'Strobe Rainbow', 'Sunrise',
-          'Sweep', 'Sweep Random', 'Theater', 'Theater Rainbow', 'Traffic Light',
-          'Tri Chase', 'Tri Fade', 'Tri Wipe', 'Twinkle', 'Twinklecat',
-          'Twinklefox', 'Waterfall', 'Wipe', 'Wipe Random'
-        ] | random }}
   - service: light.turn_on
     target:
       entity_id: light.wled
     data:
-      effect: "{{ rand_effect }}"
-      brightness: 255
+      effect: "{{ new_effect }}"
       rgb_color:
-        - "{{ rand_r }}"
-        - "{{ rand_g }}"
-        - "{{ rand_b }}"
-  - delay: "00:00:15"
+        - "{{ rand_r | int }}"
+        - "{{ rand_g | int }}"
+        - "{{ rand_b | int }}"
+      brightness_pct: 100
+  - delay:
+      seconds: 15
   - service: scene.turn_on
     target:
-      entity_id: scene.office_wled_before_random_effect
+      entity_id: scene.office_wled_before_party_detour

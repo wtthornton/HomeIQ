@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-e0b90bbf",
-  "query_id": "clarify-ea46e33e",
+  "suggestion_id": "ask-ai-215860af",
+  "query_id": "clarify-60e021e5",
   "status": "approved",
-  "automation_id": "automation.living_room_lights_off_2300_1763944995_ceeb215a",
-  "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Turn Off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room Light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "automation_id": "automation.living_room_lights_off_2300_1763947593_dcf17a51",
+  "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Turn Off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

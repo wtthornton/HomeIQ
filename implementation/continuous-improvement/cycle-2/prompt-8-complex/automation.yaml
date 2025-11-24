@@ -1,6 +1,6 @@
-id: 'after_sunset_living_room_office_wled'
-alias: After sunset – Living Room then Office WLED
-description: "After sunset every day, turn on the Living Room light, wait 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light."
+id: 'after_sunset_living_room_office_sequence'
+alias: After Sunset Living Room and Office Sequence
+description: "After sunset every day, turn on Living Room for 5 minutes, then turn on Office WLED, wait 30 seconds, and finally turn off Living Room."
 mode: single
 trigger:
   - platform: sun
@@ -10,11 +10,11 @@ action:
   - service: light.turn_on
     target:
       entity_id: light.living_room_2
-  - delay: "00:05:00"
+  - delay: '00:05:00'
   - service: light.turn_on
     target:
       entity_id: light.wled
-  - delay: "00:00:30"
+  - delay: '00:00:30'
   - service: light.turn_off
     target:
       entity_id: light.living_room_2

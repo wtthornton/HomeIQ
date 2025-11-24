@@ -1,10 +1,11 @@
-id: 'living_room_light_1800_2300_80pct'
-alias: Evening Living Room Light to 80%
-description: "Between 6:00 PM and 11:00 PM every day, automatically turn on the Living Room Light to 80% brightness."
+id: 'living_room_evening_brightness_80'
+alias: Living Room Evening Auto Brightness 80%
+description: "Between 6:00 PM and 11:00 PM, set Living Room light to 80% brightness whenever it turns on."
 mode: single
 trigger:
-  - platform: time
-    at: '18:00:00'
+  - platform: state
+    entity_id: light.living_room_2
+    to: 'on'
 conditions:
   - condition: time
     after: '18:00:00'
@@ -12,6 +13,6 @@ conditions:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.wled
+      entity_id: light.living_room_2
     data:
-      brightness_pct: 80
+      brightness: 204

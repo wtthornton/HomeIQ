@@ -18,6 +18,43 @@ export interface SuggestionConversationEntry {
   validation?: Record<string, any> | null;
 }
 
+export interface EnergySavings {
+  daily_savings_kwh?: number;
+  daily_savings_usd?: number;
+  monthly_savings_usd?: number;
+  currency?: string;
+  device_power_watts?: number;
+  cheapest_hours?: number[];
+  optimization_potential?: 'high' | 'medium' | 'low';
+}
+
+export interface SuggestionContext {
+  energy?: {
+    current_price?: number;
+    currency?: string;
+    peak_period?: boolean;
+    cheapest_hours?: number[];
+  };
+  historical?: {
+    total_events?: number;
+    usage_frequency?: number;
+    avg_daily_usage?: number;
+    most_common_hour?: number;
+    most_common_day?: string;
+    avg_duration_minutes?: number;
+    usage_trend?: 'increasing' | 'decreasing' | 'stable';
+  };
+  weather?: {
+    temperature?: number;
+    humidity?: number;
+    condition?: string;
+  };
+  carbon?: {
+    current_intensity?: number;
+    is_low_carbon?: boolean;
+  };
+}
+
 export interface Suggestion {
   id: number;
   pattern_id?: number | null;
@@ -29,6 +66,14 @@ export interface Suggestion {
   confidence: number;
   category?: 'energy' | 'comfort' | 'security' | 'convenience';
   priority?: 'high' | 'medium' | 'low';
+  source_type?: 'pattern' | 'predictive' | 'cascade' | 'feature' | 'synergy'; // Phase 1 improvement
+  energy_savings?: EnergySavings; // Phase 2 - Energy savings data
+  estimated_monthly_savings?: number; // Phase 2 - Quick access to monthly savings
+  context?: SuggestionContext; // Phase 2 - Full context data
+  user_preference_match?: number; // Phase 3 - User preference score (0.0-1.0)
+  user_preference_badge?: { score: number; label: string }; // Phase 3 - Badge data
+  weighted_score?: number; // Phase 3 - Final weighted score
+  metadata?: Record<string, any>; // Full metadata for advanced features
   created_at?: string;
   updated_at?: string;
   deployed_at?: string | null;

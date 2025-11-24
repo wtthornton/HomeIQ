@@ -306,9 +306,9 @@ class Scorer:
         
         # Use prompt-specific scorer if available (Python 3.10+ match/case)
         match prompt_id:
-            case "prompt-4-very-complex":
+            case "prompt-12-very-complex":  # FIXED: Correct prompt ID for WLED state restoration prompt
                 return Scorer._score_wled_prompt(yaml_data, yaml_str)
-            case "prompt-5-extremely-complex":
+            case "prompt-14-extremely-complex":  # FIXED: Correct prompt ID for complex conditional logic prompt
                 return Scorer._score_complex_logic_prompt(yaml_data, yaml_str, prompt)
             case _:
                 # Generic scoring for other prompts
@@ -322,10 +322,10 @@ class Scorer:
         checks = []
         prompt_lower = prompt.lower()
         
-        # Check 1: Has valid trigger (25 points) - INCREASED from 20
+        # Check 1: Has valid trigger (20 points) - FIXED: Reduced to prevent score overflow
         trigger = yaml_data.get('trigger', [])
         if isinstance(trigger, list) and len(trigger) > 0:
-            score += 25.0
+            score += 20.0
             checks.append("✓ Valid trigger found")
             # Bonus: Multiple triggers (5 points)
             if len(trigger) > 1:
@@ -334,10 +334,10 @@ class Scorer:
         else:
             checks.append("✗ No trigger found")
         
-        # Check 2: Has valid actions (25 points) - INCREASED from 20
+        # Check 2: Has valid actions (20 points) - FIXED: Reduced to prevent score overflow
         action = yaml_data.get('action', [])
         if isinstance(action, list) and len(action) > 0:
-            score += 25.0
+            score += 20.0
             checks.append("✓ Valid actions found")
             # Bonus: Multiple actions (5 points)
             if len(action) > 1:
@@ -362,14 +362,16 @@ class Scorer:
             else:
                 checks.append("✗ Time-based trigger not found")
         
-        # Check 4: Device/entity usage (20 points) - IMPROVED detection
+        # Check 4: Device/entity usage (20 points) - FIXED: Correctly detects all valid HA entity IDs
         device_keywords = ['light', 'lights', 'wled', 'thermostat', 'speaker', 'door', 'motion']
         if any(word in prompt_lower for word in device_keywords):
-            # Check for entity IDs in format domain.entity
-            entity_pattern = r'\b\w+\.\w+\b'
-            entities_found = re.findall(entity_pattern, yaml_str)
-            # Filter out non-entity patterns (like "scene.create", "light.turn_on")
-            valid_entities = [e for e in entities_found if not e.startswith(('scene.', 'light.', 'service:'))]
+            # Check for entity IDs in format domain.entity - FIXED: Include all valid HA domains
+            # Valid HA entity domains: light, switch, sensor, binary_sensor, climate, media_player,
+            # cover, fan, lock, vacuum, camera, device_tracker, person, zone, input_*, automation, script, scene
+            valid_entity_pattern = r'\b(light|switch|sensor|binary_sensor|climate|media_player|cover|fan|lock|vacuum|camera|device_tracker|person|zone|input_|automation|script|scene)\.\w+\b'
+            entities_found = re.findall(valid_entity_pattern, yaml_str)
+            # Filter out service calls only (light.* entities are VALID!)
+            valid_entities = [e for e in entities_found if not e.startswith('service:')]
             if valid_entities:
                 score += 20.0
                 checks.append(f"✓ Entity IDs found ({len(valid_entities)} entities)")
@@ -399,7 +401,7 @@ class Scorer:
     
     @staticmethod
     def _score_wled_prompt(yaml_data: dict, yaml_str: str) -> float:
-        """Score the WLED prompt (prompt-4-very-complex)"""
+        """Score the WLED prompt (prompt-12-very-complex) - FIXED: Updated comment to match actual prompt ID"""
         score = 0.0
         max_score = 100.0
         checks = []
@@ -413,7 +415,8 @@ class Scorer:
             for t in trigger:
                 if isinstance(t, dict) and t.get('platform') == 'time_pattern':
                     minutes = str(t.get('minutes', ''))
-                    if '/15' in minutes:
+                    # Check for '/15' or '*/15' pattern (every 15 minutes)
+                    if '/15' in minutes or '*/15' in minutes or minutes == '*/15':
                         score += 20.0
                         checks.append("✓ 15-minute interval trigger")
                         trigger_found = True
@@ -442,7 +445,8 @@ class Scorer:
         def check_duration(action_item):
             if 'delay' in action_item:
                 delay = str(action_item['delay'])
-                return '15' in delay or '00:00:15' in delay
+                # Check for exactly 15 seconds: '00:00:15' or '15' (seconds) or 15.0 (float)
+                return '00:00:15' in delay or delay.strip() == '15' or delay.strip() == '15.0'
             return False
         
         if Scorer._find_in_actions(action, check_duration):
@@ -454,7 +458,9 @@ class Scorer:
         # Check 4: Brightness 100% (15 points)
         def check_brightness(action_item):
             data = action_item.get('data', {})
-            return str(data.get('brightness_pct', '')) == '100'
+            brightness = data.get('brightness_pct', '')
+            # Handle both string '100' and int 100
+            return str(brightness) == '100' or brightness == 100
         
         if Scorer._find_in_actions(action, check_brightness):
             score += 15.0
@@ -495,7 +501,7 @@ class Scorer:
     
     @staticmethod
     def _score_complex_logic_prompt(yaml_data: dict, yaml_str: str, prompt: str) -> float:
-        """Score the extremely complex prompt (prompt-5-extremely-complex)"""
+        """Score the extremely complex prompt (prompt-14-extremely-complex) - FIXED: Updated comment to match actual prompt ID"""
         score = 0.0
         max_score = 100.0
         checks = []
@@ -509,7 +515,15 @@ class Scorer:
         for t in trigger:
             if isinstance(t, dict):
                 platform = t.get('platform', '')
-                if platform in ['device_tracker', 'zone'] or 'wifi' in str(t).lower():
+                # Check platform field first (most reliable)
+                if platform in ['device_tracker', 'zone']:
+                    has_wifi_trigger = True
+                    break
+                # Only check entity_id field for 'wifi', not entire dict (avoids matching comments)
+                entity_id = t.get('entity_id', '')
+                if isinstance(entity_id, str) and 'wifi' in entity_id.lower():
+                    has_wifi_trigger = True
+                    break
                     has_wifi_trigger = True
                     break
         if has_wifi_trigger:
@@ -645,7 +659,9 @@ class Scorer:
         
         # Check 4: Valid entity IDs format (10 points)
         yaml_str_lower = yaml_str.lower()
-        if re.search(r'light\.\w+|entity_id:\s*light\.\w+', yaml_str):
+        # Check for all valid Home Assistant entity domains
+        entity_pattern = r'\b(light|switch|sensor|binary_sensor|climate|media_player|cover|fan|lock|vacuum|camera|device_tracker|person|zone|input_|automation|script|scene)\.\w+\b'
+        if re.search(entity_pattern, yaml_str):
             score += 10.0
             checks.append("✓ Valid entity ID format")
         else:

@@ -1,15 +1,15 @@
-id: 'living_room_light_auto_dim_after_8_pm'
-alias: Living Room Light - Auto Dim After 8 PM
-description: "Dim the Living Room Light to 40% brightness when turned on after 8 PM"
-mode: restart
+id: 'living_room_auto_dim_after_8pm'
+alias: Living Room Auto Dim After 8 PM
+description: "Automatically dim the Living Room light to 40% brightness whenever it is turned on after 8 PM."
+mode: single
 trigger:
   - platform: state
     entity_id: light.living_room_2
-    from: "off"
-    to: "on"
-condition:
+    from: 'off'
+    to: 'on'
+conditions:
   - condition: time
-    after: "20:00:00"
+    after: '20:00:00'
 action:
   - service: light.turn_on
     target:

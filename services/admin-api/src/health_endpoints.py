@@ -5,6 +5,7 @@ Epic 17.2: Enhanced Service Health Monitoring
 
 import asyncio
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path

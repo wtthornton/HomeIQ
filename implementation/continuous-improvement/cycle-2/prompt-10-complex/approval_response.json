@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-c872868b",
-  "query_id": "clarify-821d396c",
+  "suggestion_id": "ask-ai-e03f0973",
+  "query_id": "clarify-9b8b7cdc",
   "status": "approved",
-  "automation_id": "automation.daily_office_wled_1700_brightness_sequence_1763945133_41e4f346",
-  "automation_yaml": "id: 'daily_office_wled_1700_brightness_sequence'\nalias: Daily 5 PM Office WLED Brighten Then Dim\ndescription: \"At 5:00 PM, set Office WLED to ~80%, wait 1 minute, then dim to ~40%\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
+  "automation_id": "automation.office_livingroom_evening_routine_1763947715_73e02aeb",
+  "automation_yaml": "id: 'office_livingroom_evening_routine'\nalias: Evening Office and Living Room Lighting Routine\ndescription: \"At 5:00 PM brighten Office WLED to 80%, then Living Room to 60%, then dim Office to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 153\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

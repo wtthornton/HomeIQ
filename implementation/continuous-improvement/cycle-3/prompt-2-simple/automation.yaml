@@ -1,6 +1,6 @@
 id: 'living_room_lights_off_2300'
-alias: Living Room Lights Off at 11 PM
-description: "Turn off the Living Room Light every night at 11:00 PM."
+alias: Turn Off Living Room Light at 11 PM
+description: "Turn off Living Room light every night at exactly 11:00 PM."
 mode: single
 trigger:
   - platform: time
@@ -9,5 +9,4 @@ conditions: []
 action:
   - service: light.turn_off
     target:
-      entity_id:
-        - light.living_room_2
+      entity_id: light.living_room_2

@@ -130,10 +130,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const { dataSources } = useDataSources(30000);
   
   // RAG Status calculation
+  // Only show loading if we're actively loading AND haven't received any data yet
+  // Once loading completes (even if data is null), stop showing loading spinner
+  // This prevents infinite loading when APIs fail or return null
+  const isActivelyLoading = (enhancedHealthLoading || statsLoading) && !enhancedHealth && !statistics;
   const { ragStatus, loading: ragLoading } = useRAGStatus({
     enhancedHealth,
     statistics,
-    loading: enhancedHealthLoading || statsLoading
+    loading: isActivelyLoading
   });
   
   // Devices & Integrations data (for HA Integration section)

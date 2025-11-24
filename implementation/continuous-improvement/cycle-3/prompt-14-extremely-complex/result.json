@@ -3,10 +3,10 @@
   "prompt_name": "Complex Conditional Logic",
   "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
   "complexity": "Extremely Complex",
-  "query_id": "query-363bbd13",
-  "suggestion_id": "ask-ai-d139c8a5",
-  "automation_id": "automation.office_wled_time_based_routine_1763945547_101a080d",
-  "automation_yaml": "id: 'office_wled_time_based_routine'\nalias: Office WLED Time-Based Routine\ndescription: \"Time-based Office WLED routine that adjusts brightness and color temperature throughout the day, then turns off unrelated lights after 5 seconds.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\n  - platform: time\n    at: '17:00:00'\n  - platform: time\n    at: '21:00:00'\n  - platform: time_pattern\n    minutes: '/10'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 128\n              rgb_color:\n                - 255\n                - 200\n                - 150\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 255\n              rgb_color:\n                - 200\n                - 220\n                - 255\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 51\n              rgb_color:\n                - 255\n                - 170\n                - 120\n    default: []\n  - delay: '00:00:05'\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.hue_go_1\n        - light.hue_color_downlight_1_6\n        - light.hue_color_downlight_1_7\n        - light.hue_office_back_left\n        - light.hue_color_downlight_2_2\n        - light.living_room_2",
+  "query_id": "query-7aea3a3e",
+  "suggestion_id": "ask-ai-ca5265ea",
+  "automation_id": "automation.office_wled_time_based_routine_1763948084_a9464ccb",
+  "automation_yaml": "id: 'office_wled_time_based_routine'\nalias: Office WLED Time-Based Routine\ndescription: \"Time-based Office WLED routine that sets different brightness and white tones depending on morning, evening, or late night, then turns off all other lights after 5 seconds.\"\nmode: single\ntrigger:\n  - platform: event\n    event_type: office_wled_time_based_routine_run\nconditions: []\naction:\n  - variables:\n      current_time: \"{{ now().strftime('%H:%M:%S') }}\"\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color: [255, 200, 150]\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color: [200, 220, 255]\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n    default: []\n  - delay: '00:00:05'\n  - variables:\n      is_morning: \"{{ now().hour >= 6 and now().hour < 9 }}\"\n      is_evening: \"{{ now().hour >= 17 and now().hour < 20 }}\"\n      is_late: \"{{ now().hour >= 21 }}\"\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_morning }}\"\n        sequence:\n          - service: light.turn_off\n            target:\n              entity_id:\n                - light.living_room_2\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_evening }}\"\n        sequence: []\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_late }}\"\n        sequence:\n          - service: light.turn_off\n            target:\n              entity_id:\n                - light.living_room_2\n    default:\n      - service: light.turn_off\n        target:\n          entity_id:\n            - light.living_room_2\n            - light.wled",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office, selected time",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: selected time, living_room, office, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,13 +51,13 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T16:51:55.512692"
+      "timestamp": "2025-11-23T17:34:18.613834"
     }
   ],
-  "automation_score": 100.0,
+  "automation_score": 85.0,
   "yaml_score": 100.0,
-  "total_score": 99.0,
+  "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T16:51:53.794536"
+  "timestamp": "2025-11-23T17:34:17.426105"
 }

@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-6d6bcf38",
-  "query_id": "clarify-4c53a157",
+  "suggestion_id": "ask-ai-d4ce0331",
+  "query_id": "clarify-27e0c0aa",
   "status": "approved",
-  "automation_id": "automation.living_room_evening_80_brightness_1763944674_4c03000a",
-  "automation_yaml": "id: 'living_room_evening_80_brightness'\nalias: Living Room Evening 80 Percent\ndescription: \"Between 6:00 PM and 11:00 PM every day, set Living Room light to 80% brightness at 6 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80",
+  "automation_id": "automation.living_room_80pct_evening_1763947356_d55985f0",
+  "automation_yaml": "id: 'living_room_80pct_evening'\nalias: Living Room 80% Between 6 PM and 11 PM\ndescription: \"Turn on Living Room light to 80% at 18:00 and turn off at 23:00 daily\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\n    id: start\n  - platform: time\n    at: '23:00:00'\n    id: end\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: trigger\n            id: start\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n      - conditions:\n          - condition: trigger\n            id: end\n        sequence:\n          - service: light.turn_off\n            target:\n              entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

@@ -1,8 +1,8 @@
 {
-  "automation_score": 0.0,
-  "yaml_score": 0.0,
+  "automation_score": 85.0,
+  "yaml_score": 100.0,
   "clarification_rounds": 1,
-  "total_score": 0.0,
-  "success": false,
-  "error": "Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: {{ office_entity }}"
+  "total_score": 91.5,
+  "success": true,
+  "error": null
 }

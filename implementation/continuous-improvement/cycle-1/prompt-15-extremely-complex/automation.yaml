@@ -1,40 +1,45 @@
-id: 'office_wled_living_room_time_sync'
-alias: Office WLED - Sync Brightness with Time and Living Room Activity
-description: "Keep the Office WLED brightness aligned with living room activity and time of day."
+id: 'office_wled_living_room_time_based_brightness'
+alias: Office WLED – Time-based brightness from Living Room
+description: "Keeps the Office WLED at a comfortable brightness based on time of day whenever the Living Room light changes."
 mode: restart
 trigger:
   - platform: state
-    entity_id: light.wled
+    entity_id: light.living_room_2
+conditions: []
 action:
   - delay: '00:00:02'
-  - variables:
-      office_brightness: "{{ state_attr('light.wled', 'brightness') | int(0) }}"
-      office_brightness_pct: "{{ (office_brightness / 255 * 100) | round(0) if office_brightness > 0 else 0 }}"
-      is_daytime: "{{ now().hour >= 6 and now().hour < 18 }}"
-      office_target_day: 70
-      office_target_night: 30
   - choose:
       - conditions:
-          - condition: template
-            value_template: "{{ is_daytime }}"
-          - condition: template
-            value_template: "{{ office_brightness_pct < 50 }}"
+          - condition: time
+            after: '06:00:00'
+            before: '18:00:00'
         sequence:
+          - variables:
+              office_brightness_pct: "{{ iif(is_state('light.wled','on') and state_attr('light.wled','brightness') is not none, (state_attr('light.wled','brightness') | float(0) / 255 * 100), 0) }}"
           - condition: template
-            value_template: "{{ office_brightness_pct != office_target_day }}"
+            value_template: "{{ office_brightness_pct < 50 and (office_brightness_pct | round(0)) != 70 }}"
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: "{{ office_target_day }}"
+              brightness_pct: 70
       - conditions:
-          - condition: template
-            value_template: "{{ not is_daytime }}"
+          - condition: or
+            conditions:
+              - condition: time
+                after: '18:00:00'
+                before: '23:59:59'
+              - condition: time
+                after: '00:00:00'
+                before: '06:00:00'
         sequence:
+          - variables:
+              living_room_brightness_pct: "{{ iif(is_state('light.living_room_2','on') and state_attr('light.living_room_2','brightness') is not none, (state_attr('light.living_room_2','brightness') | float(0) / 255 * 100), 0) }}"
+              office_brightness_pct: "{{ iif(is_state('light.wled','on') and state_attr('light.wled','brightness') is not none, (state_attr('light.wled','brightness') | float(0) / 255 * 100), 0) }}"
           - condition: template
-            value_template: "{{ office_brightness_pct != office_target_night }}"
+            value_template: "{{ living_room_brightness_pct > 60 and (office_brightness_pct | round(0)) != 30 }}"
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: "{{ office_target_night }}"
+              brightness_pct: 30
