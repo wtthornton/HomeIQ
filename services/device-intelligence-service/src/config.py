@@ -122,6 +122,20 @@ class Settings(BaseSettings):
         description="Maximum cache size"
     )
 
+    # Name Enhancement Configuration
+    AUTO_GENERATE_NAME_SUGGESTIONS: bool = Field(
+        default=False,
+        description="Automatically generate name suggestions during device discovery"
+    )
+    OPENAI_API_KEY: str | None = Field(
+        default=None,
+        description="OpenAI API key for AI name generation (optional)"
+    )
+    ENABLE_LOCAL_LLM: bool = Field(
+        default=False,
+        description="Enable local LLM (Ollama) for name generation (optional)"
+    )
+
     # HTTP Configuration
     ALLOWED_ORIGINS: list[str] = Field(
         default_factory=lambda: [

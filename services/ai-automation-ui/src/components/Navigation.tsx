@@ -19,6 +19,7 @@ export const Navigation: React.FC = () => {
     { path: '/synergies', label: '🔮 Synergies', icon: '🔮' },  // Epic AI-3, Story AI3.8
     { path: '/deployed', label: '🚀 Deployed', icon: '🚀' },
     { path: '/discovery', label: '🔍 Discovery', icon: '🔍' },  // Epic AI-4, Story AI4.3
+    { path: '/name-enhancement', label: '✏️ Names', icon: '✏️' },  // Device Name Enhancement
     { path: '/settings', label: '⚙️ Settings', icon: '⚙️' },
     { path: '/admin', label: '🔧 Admin', icon: '🔧' },
   ];

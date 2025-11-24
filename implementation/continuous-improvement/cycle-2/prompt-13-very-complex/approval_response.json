@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-4b2dc40b",
-  "query_id": "clarify-84517d3e",
+  "suggestion_id": "ask-ai-ead5f668",
+  "query_id": "clarify-ebb368e2",
   "status": "approved",
-  "automation_id": "automation.office_wled_living_room_linked_scene_restore_1763947781_ceb0ab53",
-  "automation_yaml": "id: 'office_wled_living_room_linked_scene_restore'\nalias: Office WLED \u2013 Living Room 10 Minute Scene Restore\ndescription: \"When Office WLED turns on, snapshot it, set Living Room to 80%, then after 10 minutes restore Office WLED and turn off Living Room\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_show\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_show\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "automation_id": "automation.office_wled_living_room_linked_lighting_1763973140_b80a6414",
+  "automation_yaml": "id: 'office_wled_living_room_linked_lighting'\nalias: Office WLED Snapshot with Living Room Lighting\ndescription: \"When Office WLED turns on, snapshot its state, set Living Room to 80% for 10 minutes, then restore Office WLED and turn off Living Room\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_scene\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_scene\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

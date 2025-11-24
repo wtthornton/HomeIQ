@@ -4,6 +4,12 @@
  * Enhanced Dependencies tab showing animated data flow in real-time.
  * Uses SVG animations and CSS for smooth, performant visualizations.
  * 
+ * Architecture: Epic 31 (October 2025)
+ * - enrichment-pipeline DEPRECATED - all normalization now inline in websocket-ingestion
+ * - Direct write path: websocket-ingestion → InfluxDB
+ * - External services write directly to InfluxDB
+ * - AI Automation reads from InfluxDB (via data-api or direct query)
+ * 
  * Research from Context7 KB:
  * - React Flow (/websites/reactflow_dev) - Animated edges and nodes
  * - Framer Motion (/grx7/framer-motion) - Smooth animations
@@ -133,12 +139,12 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '📡', type: 'processor', position: { x: 320, y: 180 }, layer: 2, description: 'Event capture + inline weather' },
     
     // Layer 3: Processing (Center, better horizontal spacing)
-    { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'processor', position: { x: 500, y: 180 }, layer: 3, description: 'Data normalization' },
-    { id: 'ai-automation-service', name: 'AI Automation', icon: '🤖', type: 'processor', position: { x: 650, y: 180 }, layer: 3, description: 'Pattern detection + suggestions' },
+    // NOTE: enrichment-pipeline removed (deprecated in Epic 31 - all normalization now inline in websocket-ingestion)
+    { id: 'ai-automation-service', name: 'AI Automation', icon: '🤖', type: 'processor', position: { x: 500, y: 180 }, layer: 3, description: 'Pattern detection + suggestions' },
     
     // Layer 4: AI Models (Right side, better vertical spacing for arcs)
-    { id: 'openai-gpt4', name: 'OpenAI GPT-4o-mini', icon: '🧠', type: 'external', position: { x: 650, y: 300 }, layer: 4, description: 'Natural language generation' },
-    { id: 'openvino-models', name: 'OpenVINO Models', icon: '⚡', type: 'processor', position: { x: 650, y: 420 }, layer: 4, description: 'Local ML: embeddings, reranking, classification' },
+    { id: 'openai-gpt4', name: 'OpenAI GPT-4o-mini', icon: '🧠', type: 'external', position: { x: 500, y: 300 }, layer: 4, description: 'Natural language generation' },
+    { id: 'openvino-models', name: 'OpenVINO Models', icon: '⚡', type: 'processor', position: { x: 500, y: 420 }, layer: 4, description: 'Local ML: embeddings, reranking, classification' },
     
     // Layer 5: Storage (Spread horizontally across bottom)
     { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'storage', position: { x: 200, y: 380 }, layer: 5, description: 'Time-series events' },
@@ -152,19 +158,15 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     { id: 'health-dashboard', name: 'Dashboard', icon: '📊', type: 'ui', position: { x: 300, y: 580 }, layer: 7, description: 'You are here!' },
   ];
 
-  // Define data flow paths with AI automation integration
+  // Define data flow paths with AI automation integration (Epic 31 Architecture)
   const dataFlows: DataFlowPath[] = [
     // ===== LEFT SIDE: PRIMARY DATA FLOWS (Non-AI) =====
-    // Primary HA Event Flow (Always Active)
+    // Primary HA Event Flow (Epic 31: Direct write, no enrichment-pipeline)
     { id: 'ha-ws', from: 'home-assistant', to: 'websocket-ingestion', type: 'websocket', active: true, throughput: realTimeData?.eventsPerHour || 0, color: '#3B82F6' },
     { id: 'ws-direct-influx', from: 'websocket-ingestion', to: 'influxdb', type: 'storage', active: true, color: '#10B981' },
     
-    // Enhancement Path (Optional)
-    { id: 'ws-enrich', from: 'websocket-ingestion', to: 'enrichment-pipeline', type: 'api', active: true, color: '#F59E0B' },
-    { id: 'enrich-db', from: 'enrichment-pipeline', to: 'influxdb', type: 'storage', active: true, color: '#F59E0B' },
-    
-    // Inline Weather Enrichment
-    { id: 'weather-inline', from: 'openweather', to: 'websocket-ingestion', type: 'api', active: true, color: '#06B6D4' },
+    // External Services: Direct writes to InfluxDB (Epic 31 pattern)
+    { id: 'weather-influx', from: 'openweather', to: 'influxdb', type: 'storage', active: true, color: '#06B6D4' },
     
     // Sports Data Flow (Hybrid Pattern)
     { id: 'espn-sports', from: 'espn-api', to: 'sports-data', type: 'api', active: realTimeData?.dataSourcesActive?.includes('sports') || false, throughput: 0.5, color: '#8B5CF6' },
@@ -176,8 +178,9 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     { id: 'external-influx', from: 'external-services', to: 'influxdb', type: 'storage', active: true, color: '#6B7280' },
     
     // ===== RIGHT SIDE: AI PATTERN ANALYSIS FLOWS =====
-    // AI Pattern Analysis Flow
-    { id: 'ws-ai-analysis', from: 'websocket-ingestion', to: 'ai-automation-service', type: 'api', active: true, color: '#8B5CF6' },
+    // AI Automation reads from InfluxDB (Epic 31: Direct query or via data-api)
+    { id: 'influx-ai', from: 'influxdb', to: 'ai-automation-service', type: 'query', active: true, color: '#8B5CF6' },
+    { id: 'data-api-ai', from: 'data-api', to: 'ai-automation-service', type: 'api', active: true, color: '#8B5CF6' },
     { id: 'ai-openvino', from: 'ai-automation-service', to: 'openvino-models', type: 'api', active: true, color: '#8B5CF6' },
     { id: 'openvino-ai', from: 'openvino-models', to: 'ai-automation-service', type: 'api', active: true, color: '#8B5CF6' },
     { id: 'ai-openai', from: 'ai-automation-service', to: 'openai-gpt4', type: 'api', active: true, color: '#FF6B6B' },
@@ -257,7 +260,9 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     
     // For AI automation bidirectional flows, use arc routing
     if ((fromId === 'ai-automation-service' && (toId === 'openai-gpt4' || toId === 'openvino-models')) ||
-        ((fromId === 'openai-gpt4' || fromId === 'openvino-models') && toId === 'ai-automation-service')) {
+        ((fromId === 'openai-gpt4' || fromId === 'openvino-models') && toId === 'ai-automation-service') ||
+        (fromId === 'influxdb' && toId === 'ai-automation-service') ||
+        (fromId === 'data-api' && toId === 'ai-automation-service')) {
       const midX = (startX + endX) / 2;
       const arcHeight = Math.abs(dy) * 0.6; // Increased arc height for better visibility
       const arcY = dy > 0 ? startY + arcHeight : startY - arcHeight;
@@ -559,15 +564,11 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
                 <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
               </div>
               
-              {/* Ingestion Layer */}
-              <div className="flex justify-center space-x-2">
+              {/* Ingestion Layer (Epic 31: Direct write, no enrichment-pipeline) */}
+              <div className="flex justify-center">
                 <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></span>
-                  WS
-                </div>
-                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></span>
-                  Enrich
+                  WS Ingestion
                 </div>
               </div>
               

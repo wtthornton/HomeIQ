@@ -23,7 +23,7 @@ const SERVICE_NODES: ServiceNode[] = [
   { id: 'smart-meter-service', name: 'Smart Meter', icon: '📈', type: 'external', layer: 3, position: 6 },
   
   // Layer 4: Processing
-  { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', layer: 4, position: 1 },
+  // NOTE: enrichment-pipeline removed (deprecated in Epic 31 - all normalization now inline in websocket-ingestion)
   
   // Layer 5: Storage & Services
   { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'storage', layer: 5, position: 1 },
@@ -32,20 +32,19 @@ const SERVICE_NODES: ServiceNode[] = [
   { id: 'health-dashboard', name: 'Health Dashboard', icon: '📊', type: 'ui', layer: 5, position: 4 },
 ];
 
-// Define service dependencies
+// Define service dependencies (Epic 31 Architecture)
 const SERVICE_DEPENDENCIES: ServiceDependency[] = [
-  // Main data flow
+  // Main data flow (Epic 31: Direct write, no enrichment-pipeline)
   { from: 'home-assistant', to: 'websocket-ingestion', type: 'data_flow', description: 'WebSocket events' },
-  { from: 'websocket-ingestion', to: 'enrichment-pipeline', type: 'data_flow', description: 'Raw events' },
-  { from: 'enrichment-pipeline', to: 'influxdb', type: 'storage', description: 'Enriched data' },
+  { from: 'websocket-ingestion', to: 'influxdb', type: 'storage', description: 'Direct write (inline normalization)' },
   
-  // External data sources
-  { from: 'weather-api', to: 'enrichment-pipeline', type: 'api_call', description: 'Weather data' },
-  { from: 'carbon-intensity-service', to: 'enrichment-pipeline', type: 'api_call', description: 'Carbon data' },
-  { from: 'electricity-pricing-service', to: 'enrichment-pipeline', type: 'api_call', description: 'Pricing data' },
-  { from: 'air-quality-service', to: 'enrichment-pipeline', type: 'api_call', description: 'Air quality' },
-  { from: 'calendar-service', to: 'enrichment-pipeline', type: 'api_call', description: 'Calendar events' },
-  { from: 'smart-meter-service', to: 'enrichment-pipeline', type: 'api_call', description: 'Energy data' },
+  // External data sources (Epic 31: Direct writes to InfluxDB)
+  { from: 'weather-api', to: 'influxdb', type: 'storage', description: 'Weather data' },
+  { from: 'carbon-intensity-service', to: 'influxdb', type: 'storage', description: 'Carbon data' },
+  { from: 'electricity-pricing-service', to: 'influxdb', type: 'storage', description: 'Pricing data' },
+  { from: 'air-quality-service', to: 'influxdb', type: 'storage', description: 'Air quality' },
+  { from: 'calendar-service', to: 'influxdb', type: 'storage', description: 'Calendar events' },
+  { from: 'smart-meter-service', to: 'influxdb', type: 'storage', description: 'Energy data' },
   
   // Storage and admin
   { from: 'data-retention', to: 'influxdb', type: 'api_call', description: 'Data management' },

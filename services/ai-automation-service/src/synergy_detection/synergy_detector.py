@@ -156,7 +156,8 @@ class DeviceSynergyDetector:
         ha_client=None,
         influxdb_client=None,
         min_confidence: float = 0.7,
-        same_area_required: bool = True
+        same_area_required: bool = True,
+        enrichment_fetcher=None
     ):
         """
         Initialize synergy detector.
@@ -173,6 +174,7 @@ class DeviceSynergyDetector:
         self.influxdb_client = influxdb_client
         self.min_confidence = min_confidence
         self.same_area_required = same_area_required
+        self.enrichment_fetcher = enrichment_fetcher  # 2025 Enhancement: Multi-modal context
 
         # Cache for performance (with TTL)
         self._device_cache = None
@@ -270,8 +272,15 @@ class DeviceSynergyDetector:
             logger.info(f"🆕 Found {len(synergies)} new synergy opportunities (no existing automation)")
 
             # Step 5: Rank opportunities (with advanced scoring if available)
+            # 2025 Enhancement: Get enrichment fetcher for multi-modal context
+            enrichment_fetcher = None
+            if hasattr(self, 'enrichment_fetcher'):
+                enrichment_fetcher = self.enrichment_fetcher
+            
             if self.pair_analyzer:
-                ranked_synergies = await self._rank_opportunities_advanced(synergies, entities)
+                ranked_synergies = await self._rank_opportunities_advanced(
+                    synergies, entities, enrichment_fetcher=enrichment_fetcher
+                )
             else:
                 ranked_synergies = self._rank_opportunities(synergies)
 
@@ -667,16 +676,19 @@ class DeviceSynergyDetector:
     async def _rank_opportunities_advanced(
         self,
         synergies: list[dict],
-        entities: list[dict]
+        entities: list[dict],
+        enrichment_fetcher=None
     ) -> list[dict]:
         """
         Rank opportunities with advanced impact scoring using usage data.
         
         Story AI3.2: Same-Area Device Pair Detection
+        2025 Enhancement: Multi-modal context integration
         
         Args:
             synergies: List of synergy opportunities
             entities: List of entities for area lookup
+            enrichment_fetcher: Optional enrichment context fetcher for multi-modal scoring
         
         Returns:
             List of ranked synergies with advanced scores
@@ -700,10 +712,12 @@ class DeviceSynergyDetector:
                 area_synergies = synergies_by_area.get(area, [synergy])
 
                 # Get advanced impact score from DevicePairAnalyzer with area context
+                # 2025 Enhancement: Include enrichment fetcher for multi-modal context
                 advanced_impact = await self.pair_analyzer.calculate_advanced_impact_score(
                     synergy,
                     entities,
-                    all_synergies_in_area=area_synergies if len(area_synergies) > 1 else None
+                    all_synergies_in_area=area_synergies if len(area_synergies) > 1 else None,
+                    enrichment_fetcher=enrichment_fetcher
                 )
 
                 # Create scored synergy with advanced impact

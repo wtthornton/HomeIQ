@@ -1,6 +1,6 @@
-id: 'living_room_evening_auto_dim_40'
+id: 'living_room_evening_dim_40'
 alias: Living Room - Dim to 40% After 8 PM
-description: "When the Living Room Light is turned on after 8:00 PM, automatically dim it to 40% brightness."
+description: "Dim the Living Room light to 40% brightness whenever it is turned on after 20:00."
 mode: single
 trigger:
   - platform: state

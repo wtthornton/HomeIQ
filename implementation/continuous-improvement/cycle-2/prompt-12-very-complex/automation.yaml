@@ -1,7 +1,7 @@
-id: 'office_wled_15min_random_burst_then_restore'
-alias: Office WLED - 15min Random Burst Then Restore
-description: "Every 15 minutes, briefly take the Office WLED on a 15-second random party detour, then restore it exactly to its previous effect, color, and brightness."
-mode: restart
+id: office_wled_random_burst_every_15
+alias: Office WLED - Random Burst Every 15 Minutes
+description: "Every 15 minutes, temporarily take over the Office WLED for a 15-second random show at 100% brightness, then restore its previous state."
+mode: single
 trigger:
   - platform: time_pattern
     minutes: "/15"
@@ -9,27 +9,20 @@ conditions: []
 action:
   - service: scene.create
     data:
-      scene_id: office_wled_before_party_detour
+      scene_id: office_wled_before_burst
       snapshot_entities:
         - light.wled
-  - variables:
-      effect_list: "{{ state_attr('light.wled', 'effect_list') if state_attr('light.wled', 'effect_list') is not none else ['Solid','Blink','Breathe'] }}"
-      new_effect: "{{ effect_list | random }}"
-      rand_r: "{{ range(0, 256) | random }}"
-      rand_g: "{{ range(0, 256) | random }}"
-      rand_b: "{{ range(0, 256) | random }}"
   - service: light.turn_on
     target:
       entity_id: light.wled
     data:
-      effect: "{{ new_effect }}"
-      rgb_color:
-        - "{{ rand_r | int }}"
-        - "{{ rand_g | int }}"
-        - "{{ rand_b | int }}"
       brightness_pct: 100
-  - delay:
-      seconds: 15
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      effect: "Random"
+  - delay: "00:00:15"
   - service: scene.turn_on
     target:
-      entity_id: scene.office_wled_before_party_detour
+      entity_id: scene.office_wled_before_burst

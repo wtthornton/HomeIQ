@@ -1,9 +1,9 @@
 Cycle 2 Execution Log
 ================================================================================
 
-Timestamp: 2025-11-23T17:26:06.449074
-Overall Score: 87.00/100
-All Successful: True
+Timestamp: 2025-11-24T00:28:39.354543
+Overall Score: 88.11/100
+All Successful: False
 Number of Prompts: 15
 
   Simple Time-Based Light (Simple): ✓ 89.00/100
@@ -17,7 +17,7 @@ Number of Prompts: 15
   Sequential Actions (Complex): ✓ 81.50/100
   Time-Based Sequence (Complex): ✓ 91.50/100
   Conditional Chain (Complex): ✓ 81.50/100
-  State Restoration with Conditions (Very Complex): ✓ 81.50/100
+  State Restoration with Conditions (Very Complex): ✓ 99.00/100
   Complex State Management (Very Complex): ✓ 81.50/100
-  Complex Conditional Logic (Extremely Complex): ✓ 89.00/100
+  Complex Conditional Logic (Extremely Complex): ✗ Failed: Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: {{ entities_to_turn_off }}
   Multi-Conditional with Choose (Extremely Complex): ✓ 91.50/100

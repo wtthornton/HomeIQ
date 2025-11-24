@@ -16,6 +16,7 @@ from ..config import Settings
 from ..core.database import get_db_session
 from ..services.device_service import DeviceService
 from ..services.hygiene_analyzer import DeviceHygieneAnalyzer
+from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
 from .cache import get_device_cache
 from .device_parser import DeviceParser, UnifiedDevice
 
@@ -51,6 +52,20 @@ class DiscoveryService:
 
         # Parser
         self.device_parser = DeviceParser()
+
+        # Name enhancement components (optional, can be disabled)
+        self.auto_generate_name_suggestions = getattr(settings, 'AUTO_GENERATE_NAME_SUGGESTIONS', False)
+        self.name_generator = None
+        self.name_validator = None
+        self.batch_processor = None
+        if self.auto_generate_name_suggestions:
+            from ..services.name_enhancement import PreferenceLearner
+            from ..services.name_enhancement.batch_processor import NameEnhancementBatchProcessor
+            
+            self.name_generator = DeviceNameGenerator(settings)
+            self.name_validator = NameUniquenessValidator()
+            self.preference_learner = PreferenceLearner()
+            self.batch_processor = NameEnhancementBatchProcessor(self.name_generator, settings)
 
         # State
         self.running = False
@@ -104,6 +119,14 @@ class DiscoveryService:
             self.running = True
             self.discovery_task = asyncio.create_task(self._discovery_loop())
 
+            # Start batch processor if enabled
+            if self.batch_processor:
+                try:
+                    self.batch_processor.start()
+                    logger.info("✅ Name enhancement batch processor started")
+                except Exception as e:
+                    logger.warning(f"Failed to start batch processor: {e}")
+
             logger.info("✅ Discovery service started successfully")
             return True
 
@@ -125,6 +148,10 @@ class DiscoveryService:
                 await self.discovery_task
             except asyncio.CancelledError:
                 pass
+
+        # Stop batch processor
+        if self.batch_processor:
+            self.batch_processor.stop()
 
         # Disconnect clients
         if self.ha_client:
@@ -413,6 +440,17 @@ class DiscoveryService:
                 if capabilities_data:
                     await device_service.bulk_upsert_capabilities(capabilities_data)
 
+                # NEW: Generate name suggestions (optional, non-blocking)
+                if self.auto_generate_name_suggestions and self.name_generator:
+                    # Load validator cache if needed
+                    if self.name_validator and not self.name_validator._cache_loaded:
+                        await self.name_validator.load_cache(session)
+                    
+                    # Generate suggestions in background (don't block discovery)
+                    asyncio.create_task(
+                        self._generate_name_suggestions_async(unified_devices, session)
+                    )
+
                 break  # Only need one session
 
             logger.info(f"✅ Stored {len(devices_data)} devices and {len(capabilities_data)} capabilities in database")
@@ -518,3 +556,107 @@ class DiscoveryService:
     def get_zigbee_groups(self) -> list[ZigbeeGroup]:
         """Get all discovered Zigbee groups."""
         return list(self.zigbee_groups.values())
+
+    async def _generate_name_suggestions_async(
+        self,
+        unified_devices: list[UnifiedDevice],
+        db_session: AsyncSession
+    ):
+        """Generate name suggestions asynchronously (non-blocking)"""
+        if not self.name_generator or not self.name_validator:
+            return
+
+        try:
+            from ..models.database import Device, DeviceEntity, NameSuggestion
+            from sqlalchemy import select
+
+            suggestions_created = 0
+            
+            for unified_device in unified_devices:
+                try:
+                    # Get device from database
+                    result = await db_session.execute(
+                        select(Device).where(Device.id == unified_device.id)
+                    )
+                    device = result.scalar_one_or_none()
+                    
+                    if not device:
+                        continue
+
+                    # Skip if device already has name_by_user (user customized)
+                    if device.name_by_user:
+                        continue
+
+                    # Get primary entity for this device
+                    entity_result = await db_session.execute(
+                        select(DeviceEntity).where(
+                            DeviceEntity.device_id == device.id
+                        ).limit(1)
+                    )
+                    entity = entity_result.scalar_one_or_none()
+
+                    # Generate suggestion
+                    suggestion = await self.name_generator.generate_suggested_name(
+                        device, entity
+                    )
+
+                    # Only store high-confidence suggestions
+                    if suggestion.confidence >= 0.7:
+                        # Validate uniqueness
+                        validation = await self.name_validator.validate_uniqueness(
+                            suggestion.name,
+                            device_id=device.id,
+                            entity_id=entity.entity_id if entity else None,
+                            db_session=db_session
+                        )
+
+                        if not validation.is_unique:
+                            # Generate unique variant
+                            unique_name = await self.name_validator.generate_unique_variant(
+                                suggestion.name,
+                                device,
+                                db_session=db_session
+                            )
+                            suggestion.name = unique_name
+
+                        # Check if suggestion already exists
+                        existing_result = await db_session.execute(
+                            select(NameSuggestion).where(
+                                NameSuggestion.device_id == device.id,
+                                NameSuggestion.suggested_name == suggestion.name,
+                                NameSuggestion.status == "pending"
+                            )
+                        )
+                        if existing_result.scalar_one_or_none():
+                            continue  # Already exists
+
+                        # Store suggestion
+                        name_suggestion = NameSuggestion(
+                            device_id=device.id,
+                            entity_id=entity.entity_id if entity else None,
+                            original_name=device.name or "Unknown",
+                            suggested_name=suggestion.name,
+                            confidence_score=suggestion.confidence,
+                            suggestion_source=suggestion.source,
+                            status="pending",
+                            reasoning=suggestion.reasoning
+                        )
+                        db_session.add(name_suggestion)
+                        suggestions_created += 1
+
+                        # Add to validator cache
+                        self.name_validator.name_cache.add(
+                            self.name_validator._normalize_name(suggestion.name)
+                        )
+
+                except Exception as e:
+                    logger.warning(f"Failed to generate name suggestion for device {unified_device.id}: {e}")
+                    continue
+
+            if suggestions_created > 0:
+                await db_session.commit()
+                logger.info(f"✅ Generated {suggestions_created} name suggestions")
+
+        except Exception as e:
+            logger.warning(f"Name suggestion generation failed: {e}")
+            # Graceful degradation: continue without suggestions

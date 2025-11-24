@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Sequence",
   "prompt_text": "Every day at 5:00 PM, turn on the Office WLED to 80%, wait 1 minute, turn on all living room lights to 60%, wait 30 seconds, and dim the Office WLED to 40%",
   "complexity": "Complex",
-  "query_id": "query-a0f88a85",
-  "suggestion_id": "ask-ai-0a7e0490",
-  "automation_id": "automation.office_wled_evening_sequence_1700000000_1763947451_42bb5c73",
-  "automation_yaml": "id: 'office_wled_evening_sequence_1700000000'\nalias: Office WLED and Living Room Evening Sequence\ndescription: \"At 5:00 PM, set Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.wled\n    data:\n      brightness_pct: 80\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.living_room_2\n    data:\n      brightness_pct: 60\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.wled\n    data:\n      brightness_pct: 40",
+  "query_id": "query-fe12320a",
+  "suggestion_id": "ask-ai-37019cf9",
+  "automation_id": "automation.daily_office_livingroom_routine_1700_1763972799_6ad9c8bc",
+  "automation_yaml": "id: 'daily_office_livingroom_routine_1700'\nalias: Daily 5 PM Office and Living Room Routine\ndescription: \"Daily at 5:00 PM, gently brighten the Office WLED, then bring up the Living Room light, and finally dim the Office WLED.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 153\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:23:56.622182"
+      "timestamp": "2025-11-24T00:26:27.025393"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:23:54.902993"
+  "timestamp": "2025-11-24T00:26:25.727533"
 }

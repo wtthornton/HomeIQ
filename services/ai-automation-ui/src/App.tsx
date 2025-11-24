@@ -16,6 +16,7 @@ import { Deployed } from './pages/Deployed';
 import { Settings } from './pages/Settings';
 import { DiscoveryPage } from './pages/Discovery';  // Epic AI-4, Story AI4.3
 import { Admin } from './pages/Admin';
+import { NameEnhancementDashboard } from './components/name-enhancement';  // Device Name Enhancement
 import { useAppStore } from './store';
 
 export const App: React.FC = () => {
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
             <Route path="/synergies" element={<Synergies />} />
             <Route path="/deployed" element={<Deployed />} />
             <Route path="/discovery" element={<DiscoveryPage />} />
+            <Route path="/name-enhancement" element={<NameEnhancementDashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>

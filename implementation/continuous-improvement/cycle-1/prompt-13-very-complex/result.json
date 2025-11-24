@@ -3,10 +3,10 @@
   "prompt_name": "Complex State Management",
   "prompt_text": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
   "complexity": "Very Complex",
-  "query_id": "query-bcb63577",
-  "suggestion_id": "ask-ai-3733ad46",
-  "automation_id": "automation.office_wled_living_room_boost_restore_1763947512_9ee11452",
-  "automation_yaml": "id: 'office_wled_living_room_boost_restore'\nalias: Office WLED \u2013 Temporary Living Room Boost\ndescription: \"When Office WLED turns on, boost Living Room light for 10 minutes, then restore Office WLED and turn Living Room off\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_boost\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_boost\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "query_id": "query-89b64ce0",
+  "suggestion_id": "ask-ai-76d3cc18",
+  "automation_id": "automation.office_wled_living_room_linked_lighting_1763972875_31a350d4",
+  "automation_yaml": "id: 'office_wled_living_room_linked_lighting'\nalias: Office WLED Linked Living Room Lights\ndescription: \"When Office WLED turns on, save its state, set Living Room to 80%, then after 10 minutes restore Office WLED and turn off Living Room\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_80\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_80\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:24:55.948785"
+      "timestamp": "2025-11-24T00:27:38.965565"
     }
   ],
   "automation_score": 65.0,
@@ -59,5 +59,5 @@
   "total_score": 81.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:24:54.375183"
+  "timestamp": "2025-11-24T00:27:37.183734"
 }

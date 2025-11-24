@@ -193,7 +193,8 @@ class DevicePairAnalyzer:
         synergy: dict,
         entities: list[dict],
         all_synergies_in_area: list[dict] | None = None,
-        days: int = 30
+        days: int = 30,
+        enrichment_fetcher=None
     ) -> float:
         """
         Calculate advanced impact score using usage and area data.
@@ -353,7 +354,40 @@ class DevicePairAnalyzer:
 
             # Round to 4 decimals for more precision (handles floating-point precision issues)
             # Increased from 3 to 4 decimals to show more distinction
-            final_impact = round(impact + micro_adjust, 4)
+            base_final_impact = round(impact + micro_adjust, 4)
+            
+            # NEW: Apply multi-modal context enhancement (2025 improvement)
+            if enrichment_fetcher:
+                try:
+                    from .multimodal_context import MultiModalContextEnhancer
+                    context_enhancer = MultiModalContextEnhancer(enrichment_fetcher)
+                    enhanced_result = await context_enhancer.enhance_synergy_score(
+                        {**synergy, 'impact_score': base_final_impact}
+                    )
+                    final_impact = enhanced_result['enhanced_score']
+                    
+                    # Store context breakdown in synergy for explainability
+                    synergy['context_breakdown'] = enhanced_result['context_breakdown']
+                    synergy['context_metadata'] = enhanced_result.get('context_metadata', {})
+                    
+                    logger.debug(
+                        f"Multi-modal enhancement for synergy {synergy.get('synergy_id', 'unknown')} "
+                        f"({trigger_entity[:30]} → {action_entity[:30]}): "
+                        f"{base_final_impact:.4f} → {final_impact:.4f} "
+                        f"(temporal={enhanced_result['context_breakdown'].get('temporal_boost', 1.0):.2f}, "
+                        f"weather={enhanced_result['context_breakdown'].get('weather_boost', 1.0):.2f}, "
+                        f"energy={enhanced_result['context_breakdown'].get('energy_boost', 1.0):.2f}, "
+                        f"area={synergy.get('area', 'unknown')})"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Multi-modal context enhancement failed for synergy {synergy.get('synergy_id', 'unknown')} "
+                        f"({trigger_entity[:30]} → {action_entity[:30]}): {e}, using base score",
+                        exc_info=True
+                    )
+                    final_impact = base_final_impact
+            else:
+                final_impact = base_final_impact
 
             # Log final score with tie-breaker for debugging (first 5 only)
             if hasattr(self, '_debug_count') and self._debug_count <= 5:

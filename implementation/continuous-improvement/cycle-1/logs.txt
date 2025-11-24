@@ -1,15 +1,15 @@
 Cycle 1 Execution Log
 ================================================================================
 
-Timestamp: 2025-11-23T17:21:30.336333
-Overall Score: 88.33/100
+Timestamp: 2025-11-24T00:23:55.011740
+Overall Score: 85.83/100
 All Successful: True
 Number of Prompts: 15
 
   Simple Time-Based Light (Simple): ✓ 89.00/100
   Simple Light Control (Simple): ✓ 89.00/100
   Basic Schedule (Simple): ✓ 89.00/100
-  Time-Based Conditional Lighting (Medium): ✓ 99.00/100
+  Time-Based Conditional Lighting (Medium): ✓ 89.00/100
   Time-Based Multi-Light (Medium): ✓ 89.00/100
   Conditional Brightness (Medium): ✓ 79.00/100
   Multi-Area Lighting (Medium): ✓ 91.50/100
@@ -17,7 +17,7 @@ Number of Prompts: 15
   Sequential Actions (Complex): ✓ 81.50/100
   Time-Based Sequence (Complex): ✓ 91.50/100
   Conditional Chain (Complex): ✓ 81.50/100
-  State Restoration with Conditions (Very Complex): ✓ 81.50/100
+  State Restoration with Conditions (Very Complex): ✓ 76.50/100
   Complex State Management (Very Complex): ✓ 81.50/100
-  Complex Conditional Logic (Extremely Complex): ✓ 99.00/100
+  Complex Conditional Logic (Extremely Complex): ✓ 76.50/100
   Multi-Conditional with Choose (Extremely Complex): ✓ 91.50/100

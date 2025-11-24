@@ -1,5 +1,5 @@
 {
-  "query_id": "query-eeabce3d",
+  "query_id": "query-94e8e3f7",
   "original_query": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
   "parsed_intent": "general",
   "extracted_entities": [
@@ -20,10 +20,10 @@
   ],
   "suggestions": [],
   "confidence": 0.4877278030751539,
-  "processing_time_ms": 1481,
-  "created_at": "2025-11-23T17:30:23.712431",
+  "processing_time_ms": 1342,
+  "created_at": "2025-11-24T00:32:45.435391",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-8ddb5a26",
+  "clarification_session_id": "clarify-bc73a96f",
   "questions": [
     {
       "id": "q1",

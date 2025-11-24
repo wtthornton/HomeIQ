@@ -1,30 +1,17 @@
-id: 'living_room_80pct_evening'
-alias: Living Room 80% Between 6 PM and 11 PM
-description: "Turn on Living Room light to 80% at 18:00 and turn off at 23:00 daily"
+id: 'living_room_evening_18_00'
+alias: Living Room Evening Lights
+description: "Between 6 PM and 11 PM every day, turn on the Living Room light to 80% brightness at 6 PM"
 mode: single
 trigger:
   - platform: time
     at: '18:00:00'
-    id: start
-  - platform: time
-    at: '23:00:00'
-    id: end
-conditions: []
+conditions:
+  - condition: time
+    after: '18:00:00'
+    before: '23:00:00'
 action:
-  - choose:
-      - conditions:
-          - condition: trigger
-            id: start
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: light.living_room_2
-            data:
-              brightness_pct: 80
-      - conditions:
-          - condition: trigger
-            id: end
-        sequence:
-          - service: light.turn_off
-            target:
-              entity_id: light.living_room_2
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_2
+    data:
+      brightness_pct: 80

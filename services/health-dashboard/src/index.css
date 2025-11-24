@@ -130,4 +130,78 @@ code {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;  /* Chrome, Safari, Opera */
   }
+  
+  /* Modern CSS Features for 2025 */
+  
+  /* Container Queries Support */
+  @container (min-width: 768px) {
+    .container-responsive {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  /* View Transitions API (2025) */
+  @supports (view-transition-name: none) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 0.3s;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+  
+  /* :has() selector for modern browsers */
+  .card:has(.status-healthy) {
+    border-left: 4px solid #10b981;
+  }
+  
+  .card:has(.status-warning) {
+    border-left: 4px solid #f59e0b;
+  }
+  
+  .card:has(.status-error) {
+    border-left: 4px solid #ef4444;
+  }
+  
+  /* Improved focus visible for accessibility */
+  *:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .card-base {
+      border: 2px solid currentColor;
+    }
+    
+    .btn-primary {
+      border: 2px solid currentColor;
+    }
+  }
+  
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    body {
+      background: white;
+      color: black;
+    }
+  }
 }

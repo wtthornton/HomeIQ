@@ -1,5 +1,5 @@
 {
-  "query_id": "query-9cdf9b72",
+  "query_id": "query-eb3472b3",
   "original_query": "At 6:00 AM, turn on the Office WLED to 50% and turn on all living room lights to 30%",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -20,10 +20,10 @@
   ],
   "suggestions": [],
   "confidence": 0.4164999999999999,
-  "processing_time_ms": 1423,
-  "created_at": "2025-11-23T17:23:08.065844",
+  "processing_time_ms": 1123,
+  "created_at": "2025-11-24T00:25:23.098556",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-5375b4d4",
+  "clarification_session_id": "clarify-aff6fac2",
   "questions": [
     {
       "id": "q1",

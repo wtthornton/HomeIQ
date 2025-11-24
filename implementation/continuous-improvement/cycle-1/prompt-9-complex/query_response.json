@@ -1,5 +1,5 @@
 {
-  "query_id": "query-e56f4f06",
+  "query_id": "query-b6ade00b",
   "original_query": "When the Office WLED is turned on, wait 2 seconds, then turn on all living room lights to 70%, wait another 3 seconds, and set the Office WLED to 100% brightness",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -20,10 +20,10 @@
   ],
   "suggestions": [],
   "confidence": 0.4875600568786568,
-  "processing_time_ms": 1530,
-  "created_at": "2025-11-23T17:23:40.696956",
+  "processing_time_ms": 1323,
+  "created_at": "2025-11-24T00:26:13.724050",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-a30237e2",
+  "clarification_session_id": "clarify-91e9fad0",
   "questions": [
     {
       "id": "q1",

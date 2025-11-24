@@ -1,6 +1,6 @@
 id: 'office_wled_weekday_morning_on'
-alias: Office WLED Weekday 8AM On
-description: "At 8:00 AM on weekdays, turn on the Office WLED at a consistent brightness."
+alias: Office WLED Weekday 8 AM On
+description: "Turn on the Office WLED at 8:00 AM on weekdays"
 mode: single
 trigger:
   - platform: time
@@ -17,5 +17,3 @@ action:
   - service: light.turn_on
     target:
       entity_id: light.wled
-    data:
-      brightness_pct: 70

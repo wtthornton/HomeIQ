@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-c40ffd78",
-  "query_id": "clarify-a30237e2",
+  "suggestion_id": "ask-ai-33e7c4fb",
+  "query_id": "clarify-91e9fad0",
   "status": "approved",
-  "automation_id": "automation.office_wled_living_room_sequence_1763947434_438cc5a2",
-  "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2013 Living Room Sequence\ndescription: \"When Office WLED turns on, sequence living room and office brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 179\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255",
+  "automation_id": "automation.office_wled_living_room_sequence_1763972785_cf8dbaf0",
+  "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2192 Living Room 70% \u2192 Office 100%\ndescription: \"When Office WLED is turned on, wait 2 seconds, set Living Room to ~70% brightness, wait 3 more seconds, then set Office WLED to 100% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",
