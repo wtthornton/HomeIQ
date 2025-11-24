@@ -458,6 +458,77 @@ class DataAPIClient:
             logger.error(f"Failed to fetch device metadata for {device_id}: {e}")
             return None
 
+    @retry(
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=3),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=False  # Don't raise on failure - health scores are optional
+    )
+    async def get_device_health_score(self, device_id: str) -> dict[str, Any] | None:
+        """
+        Fetch device health score from Device Intelligence Service.
+        
+        Phase 4.1 Enhancement: Device Health Integration
+        Queries Device Intelligence Service for device health metrics to filter
+        suggestions for devices with poor health.
+        
+        Args:
+            device_id: Device ID to check (e.g., "abc123" or "light.office")
+        
+        Returns:
+            Health score dict with overall_score, health_status, factor_scores, etc.
+            Returns None if health score is not available or on error.
+        
+        Example:
+            >>> health = await client.get_device_health_score("light.office")
+            >>> print(health)
+            {
+                "overall_score": 85,
+                "health_status": "good",
+                "factor_scores": {...},
+                "recommendations": [...]
+            }
+        """
+        try:
+            # Device Intelligence Service runs on port 8028 (from device-intelligence-service)
+            device_intel_url = os.getenv(
+                "DEVICE_INTELLIGENCE_URL",
+                os.getenv("DEVICE_INTELLIGENCE_SERVICE_URL", "http://device-intelligence-service:8028")
+            )
+            
+            # Build health endpoint URL
+            health_url = f"{device_intel_url}/api/health/scores/{device_id}"
+            
+            logger.debug(f"Fetching device health score for {device_id} from {health_url}")
+            
+            # Use separate timeout for health checks (shorter, less critical)
+            response = await self.client.get(
+                health_url,
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                health_data = response.json()
+                overall_score = health_data.get('overall_score', 100)
+                logger.debug(f"Retrieved health score for {device_id}: {overall_score}/100")
+                return health_data
+            elif response.status_code == 404:
+                logger.debug(f"Health score not available for {device_id} (device not found)")
+                return None
+            else:
+                logger.debug(f"Unexpected status {response.status_code} fetching health score for {device_id}")
+                return None
+                
+        except httpx.TimeoutException:
+            logger.debug(f"Timeout fetching health score for {device_id} - continuing without health check")
+            return None
+        except httpx.HTTPError as e:
+            logger.debug(f"HTTP error fetching health score for {device_id}: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to fetch health score for {device_id}: {e}")
+            return None
+
     def extract_friendly_name(self, entity_id: str, metadata: dict | None = None) -> str:
         """
         Extract friendly name from entity metadata or generate from entity_id.

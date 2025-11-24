@@ -214,6 +214,18 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
                   AI Service Telemetry
                 </h4>
                 
+                {/* Error Message */}
+                {aiStats.error && (
+                  <div className={`mb-4 p-3 rounded-lg ${darkMode ? 'bg-red-900/30 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
+                      Error Loading Stats
+                    </div>
+                    <div className={`text-xs mt-1 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                      {aiStats.error}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Call Patterns */}
                 <div className="mb-6">
                   <h5 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -237,6 +249,12 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
                       </div>
                     </div>
                   </div>
+                  {/* Helpful message when no calls yet */}
+                  {(!aiStats.error && (aiStats.call_patterns?.direct_calls || 0) === 0 && (aiStats.call_patterns?.orchestrated_calls || 0) === 0) && (
+                    <div className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Service is running but hasn't processed any queries yet. Try making a query to the AI Automation Service.
+                    </div>
+                  )}
                 </div>
 
                 {/* Performance */}

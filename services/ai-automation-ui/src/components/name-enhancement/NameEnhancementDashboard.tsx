@@ -5,7 +5,6 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../../store';
 import { NameSuggestionCard } from './NameSuggestionCard';
@@ -26,7 +25,6 @@ export const NameEnhancementDashboard: React.FC = () => {
   const { darkMode } = useAppStore();
   const [devices, setDevices] = useState<DeviceSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadPendingSuggestions();
@@ -54,32 +52,22 @@ export const NameEnhancementDashboard: React.FC = () => {
   };
 
   const handleAccept = async (deviceId: string, suggestedName: string) => {
-    setProcessing(prev => new Set(prev).add(deviceId));
     try {
       await api.acceptNameSuggestion(deviceId, suggestedName, false);
       // Reload suggestions
       await loadPendingSuggestions();
-    } finally {
-      setProcessing(prev => {
-        const next = new Set(prev);
-        next.delete(deviceId);
-        return next;
-      });
+    } catch (error) {
+      toast.error(`Failed to accept suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const handleReject = async (deviceId: string, suggestedName: string) => {
-    setProcessing(prev => new Set(prev).add(deviceId));
     try {
       await api.rejectNameSuggestion(deviceId, suggestedName);
       // Reload suggestions
       await loadPendingSuggestions();
-    } finally {
-      setProcessing(prev => {
-        const next = new Set(prev);
-        next.delete(deviceId);
-        return next;
-      });
+    } catch (error) {
+      toast.error(`Failed to reject suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

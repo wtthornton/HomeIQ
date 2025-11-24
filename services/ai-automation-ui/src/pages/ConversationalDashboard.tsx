@@ -18,6 +18,8 @@ export const ConversationalDashboard: React.FC = () => {
   
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ message: string; code?: string; retryable?: boolean } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<'draft' | 'refining' | 'yaml_generated' | 'deployed'>('draft');
   const [processingRedeploy, setProcessingRedeploy] = useState<number | null>(null);
   const [refreshAllowed, setRefreshAllowed] = useState(true);
@@ -30,9 +32,13 @@ export const ConversationalDashboard: React.FC = () => {
     duration_seconds?: number | null;
   } | null>(null);
 
-  const loadSuggestions = async () => {
+  const loadSuggestions = async (retryAttempt = 0): Promise<void> => {
+    const maxRetries = 3;
+    const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 5000); // Exponential backoff, max 5s
+    
     try {
       setLoading(true);
+      setError(null);
       console.log('🔄 Loading suggestions with device name mapping...');
       // Load all suggestions, filter on frontend
       const response = await api.getSuggestions();
@@ -101,12 +107,46 @@ export const ConversationalDashboard: React.FC = () => {
       });
       console.log('All mapped suggestions:', mappedSuggestions);
       setSuggestions(mappedSuggestions);
-    } catch (error) {
+      setRetryCount(0); // Reset retry count on success
+    } catch (error: any) {
       console.error('Failed to load suggestions:', error);
-      toast.error('Failed to load suggestions');
+      
+      // Extract error details from API response
+      const errorDetail = error?.response?.data?.detail;
+      const errorCode = typeof errorDetail === 'object' ? errorDetail?.error_code : undefined;
+      const errorMessage = typeof errorDetail === 'object' ? errorDetail?.message : (typeof errorDetail === 'string' ? errorDetail : error?.message || 'Failed to load suggestions');
+      
+      // Determine if error is retryable (5xx errors, network errors)
+      const isRetryable = error?.status >= 500 || error?.status === 0 || !error?.status;
+      
+      // Auto-retry for retryable errors
+      if (isRetryable && retryAttempt < maxRetries) {
+        console.log(`Retrying in ${retryDelay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return loadSuggestions(retryAttempt + 1);
+      }
+      
+      // Set error state for UI display
+      setError({
+        message: errorMessage,
+        code: errorCode,
+        retryable: isRetryable && retryAttempt < maxRetries
+      });
+      setRetryCount(retryAttempt);
+      
+      // Show user-friendly error message
+      const userMessage = errorCode === 'SUGGESTIONS_LIST_ERROR' 
+        ? 'Unable to load suggestions. Please try again.'
+        : errorMessage;
+      toast.error(userMessage);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleRetry = () => {
+    setRetryCount(0);
+    loadSuggestions(0);
   };
 
   const loadRefreshStatus = async () => {
@@ -114,8 +154,13 @@ export const ConversationalDashboard: React.FC = () => {
       const status = await api.getRefreshStatus();
       setRefreshAllowed(status.allowed);
       setNextRefreshAt(status.next_allowed_at);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load refresh status', error);
+      // Non-critical error, don't show toast but log it
+      const errorDetail = error?.response?.data?.detail;
+      if (typeof errorDetail === 'object' && errorDetail?.error_code === 'REFRESH_STATUS_ERROR') {
+        console.warn('Refresh status unavailable, continuing without cooldown info');
+      }
     }
   };
 
@@ -123,8 +168,13 @@ export const ConversationalDashboard: React.FC = () => {
     try {
       const status = await api.getAnalysisStatus();
       setAnalysisRun(status.analysis_run ?? null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load analysis status', error);
+      // Non-critical error, don't show toast but log it
+      const errorDetail = error?.response?.data?.detail;
+      if (typeof errorDetail === 'object' && errorDetail?.error_code === 'ANALYSIS_STATUS_ERROR') {
+        console.warn('Analysis status unavailable, continuing without run info');
+      }
     }
   };
 
@@ -446,6 +496,44 @@ export const ConversationalDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Display */}
+      {error && !loading && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`rounded-lg p-6 border ${
+            darkMode 
+              ? 'bg-red-900/20 border-red-800 text-red-200' 
+              : 'bg-red-50 border-red-200 text-red-900'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h3 className={`font-semibold mb-1 ${darkMode ? 'text-red-200' : 'text-red-900'}`}>
+                Failed to Load Suggestions
+              </h3>
+              <p className={`text-sm mb-4 ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
+                {error.message}
+              </p>
+              {error.retryable && (
+                <button
+                  onClick={handleRetry}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    darkMode
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                  }`}
+                >
+                  🔄 Retry {retryCount > 0 && `(Attempt ${retryCount + 1})`}
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Suggestions List */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -457,12 +545,46 @@ export const ConversationalDashboard: React.FC = () => {
               />
             ))}
           </div>
+        ) : error ? (
+          // Show empty state when there's an error and no suggestions
+          suggestions.length === 0 ? (
+            <motion.div
+              key="error-empty-state"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`text-center py-16 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+            >
+              <div className="text-6xl mb-4">⚠️</div>
+              <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Unable to Load Suggestions
+              </h3>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
+                {error.message || 'An error occurred while loading suggestions. Please check your connection and try again.'}
+              </p>
+              {error.retryable && (
+                <button
+                  onClick={handleRetry}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                    darkMode
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                >
+                  🔄 Retry Loading
+                </button>
+              )}
+            </motion.div>
+          ) : null
         ) : (() => {
           // Filter suggestions by selected status
           const filteredSuggestions = suggestions.filter(suggestion => suggestion.status === selectedStatus);
           
           // Show empty state if no suggestions match the selected status
           if (filteredSuggestions.length === 0) {
+            const totalSuggestions = suggestions.length;
+            const hasOtherStatuses = totalSuggestions > 0;
+            
             return (
               <motion.div
                 key="empty-state"
@@ -473,27 +595,95 @@ export const ConversationalDashboard: React.FC = () => {
               >
                 <div className="text-6xl mb-4">🤖</div>
                 <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  No {selectedStatus} suggestions
+                  {selectedStatus === 'draft' && totalSuggestions === 0
+                    ? 'No draft suggestions'
+                    : `No ${selectedStatus} suggestions`}
                 </h3>
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
-                  {selectedStatus === 'draft'
-                    ? 'Generate a sample suggestion to try the conversational automation flow'
-                    : suggestions.length > 0
-                    ? `You have ${suggestions.length} suggestion(s) with other statuses. Switch tabs to view them.`
-                    : `No ${selectedStatus} suggestions found`}
+                  {selectedStatus === 'draft' && totalSuggestions === 0 ? (
+                    <>
+                      Generate a sample suggestion to try the conversational automation flow.
+                      <br />
+                      <span className="text-xs opacity-70 mt-2 block">
+                        AI will analyze your Home Assistant usage patterns and suggest automations in plain English.
+                      </span>
+                    </>
+                  ) : hasOtherStatuses ? (
+                    <>
+                      You have {totalSuggestions} suggestion{totalSuggestions !== 1 ? 's' : ''} with other statuses.
+                      <br />
+                      <span className="text-xs opacity-70 mt-2 block">
+                        Switch to another tab above to view them, or generate a new suggestion.
+                      </span>
+                    </>
+                  ) : (
+                    `No ${selectedStatus} suggestions found. Try generating a new suggestion or refreshing.`
+                  )}
                 </p>
-                {selectedStatus === 'draft' && (
-                  <button
-                    onClick={generateSampleSuggestion}
-                    disabled={loading}
-                    className={`px-4 py-2 text-xs rounded-lg font-medium transition-colors ${
-                      darkMode
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300'
-                    }`}
-                  >
-                    {loading ? 'Generating...' : '🎯 Generate Sample Suggestion'}
-                  </button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                  {selectedStatus === 'draft' && (
+                    <button
+                      onClick={generateSampleSuggestion}
+                      disabled={loading}
+                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                        darkMode
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700 disabled:text-gray-400'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:text-gray-500'
+                      }`}
+                    >
+                      {loading ? '⏳ Generating...' : '🎯 Generate Sample Suggestion'}
+                    </button>
+                  )}
+                  {hasOtherStatuses && (
+                    <button
+                      onClick={() => {
+                        // Find first tab with suggestions
+                        const statuses: Array<'draft' | 'refining' | 'yaml_generated' | 'deployed'> = ['draft', 'refining', 'yaml_generated', 'deployed'];
+                        const firstWithSuggestions = statuses.find(s => 
+                          suggestions.some(sugg => sugg.status === s)
+                        );
+                        if (firstWithSuggestions) {
+                          setSelectedStatus(firstWithSuggestions);
+                        }
+                      }}
+                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      }`}
+                    >
+                      📋 View Other Suggestions
+                    </button>
+                  )}
+                  {!hasOtherStatuses && (
+                    <button
+                      onClick={handleRefreshClick}
+                      disabled={refreshLoading || !refreshAllowed}
+                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                        refreshLoading || !refreshAllowed
+                          ? darkMode
+                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                          : darkMode
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
+                    >
+                      {refreshLoading ? '⏳ Refreshing...' : '🔄 Refresh Suggestions'}
+                    </button>
+                  )}
+                </div>
+                {selectedStatus === 'draft' && totalSuggestions === 0 && (
+                  <div className={`mt-8 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} max-w-lg mx-auto`}>
+                    <p className="mb-2">
+                      <strong>💡 How it works:</strong> The AI analyzes your Home Assistant event history to detect patterns
+                      and suggests automations that match your usage.
+                    </p>
+                    <p>
+                      <strong>⚡ Quick start:</strong> Click "Generate Sample Suggestion" above to see how the conversational
+                      editing flow works, or wait for automatic suggestions from your usage patterns.
+                    </p>
+                  </div>
                 )}
               </motion.div>
             );

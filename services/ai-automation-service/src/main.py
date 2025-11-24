@@ -180,13 +180,23 @@ async def lifespan(app: FastAPI):
 
     # Set extractor references for stats endpoint
     try:
-        from .api.health import set_model_orchestrator, set_multi_model_extractor
+        from .api.health import set_model_orchestrator, set_multi_model_extractor, set_entity_extractor
+        from .services.service_container import get_service_container
 
-        # Try multi-model extractor first (currently active)
+        # Try EntityExtractor first (currently active - uses UnifiedExtractionPipeline)
+        container = get_service_container()
+        entity_extractor = container.entity_extractor
+        if entity_extractor:
+            set_entity_extractor(entity_extractor)
+            logger.info(f"✅ EntityExtractor registered for stats endpoint (type: {type(entity_extractor).__name__})")
+            if hasattr(entity_extractor, 'call_stats'):
+                logger.info(f"   Call stats initialized: {entity_extractor.call_stats}")
+
+        # Fallback to multi-model extractor (deprecated)
         extractor = get_multi_model_extractor()
         if extractor:
             set_multi_model_extractor(extractor)
-            logger.info("✅ Multi-model extractor set for stats endpoint")
+            logger.info("✅ Multi-model extractor set for stats endpoint (deprecated)")
 
         # Fallback to orchestrator (if configured)
         orchestrator = get_model_orchestrator()
@@ -194,10 +204,10 @@ async def lifespan(app: FastAPI):
             set_model_orchestrator(orchestrator)
             logger.info("✅ Model orchestrator set for stats endpoint")
 
-        if not extractor and not orchestrator:
+        if not entity_extractor and not extractor and not orchestrator:
             logger.warning("⚠️ No extractor available for stats endpoint")
     except Exception as e:
-        logger.error(f"❌ Failed to set extractor for stats: {e}")
+        logger.error(f"❌ Failed to set extractor for stats: {e}", exc_info=True)
 
     # Initialize ActionExecutor (start worker tasks)
     try:

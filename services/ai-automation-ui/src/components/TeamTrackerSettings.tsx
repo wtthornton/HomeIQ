@@ -124,7 +124,11 @@ const detectTeams = async () => {
     method: 'POST',
     headers,
   });
-  if (!response.ok) throw new Error('Failed to detect teams');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || `Failed to detect teams (${response.status})`;
+    throw new Error(errorMessage);
+  }
   return response.json();
 };
 
@@ -179,7 +183,11 @@ const syncFromHA = async () => {
     method: 'POST',
     headers,
   });
-  if (!response.ok) throw new Error('Failed to sync from Home Assistant');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || `Failed to sync from Home Assistant (${response.status})`;
+    throw new Error(errorMessage);
+  }
   return response.json();
 };
 
@@ -206,22 +214,40 @@ export const TeamTrackerSettings: React.FC = () => {
   // Mutations
   const detectMutation = useMutation({
     mutationFn: detectTeams,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['teamTrackerStatus'] });
       queryClient.invalidateQueries({ queryKey: ['teamTrackerTeams'] });
-      toast.success('✅ Team Tracker entities detected!');
+      const count = data.detected_count || 0;
+      if (count > 0) {
+        toast.success(`✅ Detected ${count} Team Tracker ${count === 1 ? 'entity' : 'entities'}!`);
+      } else {
+        toast('⚠️ No Team Tracker entities found. Make sure Team Tracker is installed in Home Assistant.', { icon: '⚠️' });
+      }
     },
-    onError: () => toast.error('❌ Failed to detect Team Tracker entities'),
+    onError: (error: Error) => {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to detect Team Tracker entities';
+      console.error('Team Tracker detection error:', error);
+      toast.error(`❌ ${errorMessage}`);
+    },
   });
 
   const syncMutation = useMutation({
     mutationFn: syncFromHA,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['teamTrackerStatus'] });
       queryClient.invalidateQueries({ queryKey: ['teamTrackerTeams'] });
-      toast.success('✅ Teams synchronized from Home Assistant!');
+      const count = data.detected_count || 0;
+      toast.success(`✅ Synchronized ${count} ${count === 1 ? 'team' : 'teams'} from Home Assistant!`);
     },
-    onError: () => toast.error('❌ Failed to sync teams'),
+    onError: (error: Error) => {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to sync teams';
+      console.error('Team Tracker sync error:', error);
+      toast.error(`❌ ${errorMessage}`);
+    },
   });
 
   const addMutation = useMutation({
@@ -322,7 +348,7 @@ export const TeamTrackerSettings: React.FC = () => {
                 : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300'
             }`}
           >
-            {detectMutation.isPending ? 'Detecting...' : 'Detect Teams'}
+            {detectMutation.isPending ? '🔍 Detecting...' : 'Detect Teams'}
           </button>
           {status?.is_installed && (
             <button
@@ -334,7 +360,7 @@ export const TeamTrackerSettings: React.FC = () => {
                   : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-gray-300'
               }`}
             >
-              {syncMutation.isPending ? 'Syncing...' : 'Sync from HA'}
+              {syncMutation.isPending ? '🔄 Syncing...' : 'Sync from HA'}
             </button>
           )}
         </div>
@@ -355,6 +381,12 @@ export const TeamTrackerSettings: React.FC = () => {
           <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             {status?.configured_teams_count || 0} teams configured • {status?.active_teams_count || 0} active
           </span>
+          {(detectMutation.isPending || syncMutation.isPending) && (
+            <span className={`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+              {detectMutation.isPending && '🔍 Scanning for entities...'}
+              {syncMutation.isPending && '🔄 Synchronizing...'}
+            </span>
+          )}
         </div>
 
         {!status?.is_installed && (

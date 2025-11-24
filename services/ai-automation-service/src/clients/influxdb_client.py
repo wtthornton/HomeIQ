@@ -78,18 +78,8 @@ class InfluxDBEventClient:
                   |> range(start: {start_time.isoformat()}, stop: {end_time.isoformat()})
                   |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
                   |> filter(fn: (r) => r["_field"] == "context_id")
-            '''
-
-            # Add event_type filter if needed (it's a tag)
-            if not event_type:
-                # Default to state_changed for pattern detection
-                flux_query += '''
                   |> filter(fn: (r) => r["event_type"] == "state_changed")
-                '''
-            else:
-                flux_query += f'''
-                  |> filter(fn: (r) => r["event_type"] == "{event_type}")
-                '''
+            '''
 
             # Add entity_id filter
             if entity_id:
@@ -166,6 +156,103 @@ class InfluxDBEventClient:
             logger.error(f"❌ Failed to fetch events from InfluxDB: {e}", exc_info=True)
             raise
 
+    async def fetch_entity_attributes(
+        self,
+        entity_id: str,
+        attributes: list[str],
+        start_time: datetime | None = None,
+        end_time: datetime | None = None
+    ) -> dict[str, bool]:
+        """
+        Check which attributes have been set/changed for an entity in the last 30 days.
+        
+        Phase 4.1 Enhancement: InfluxDB Attribute Querying
+        Queries InfluxDB for attribute fields (attr_brightness, attr_color_temp, etc.)
+        to detect feature usage patterns.
+        
+        Args:
+            entity_id: Entity ID to check (e.g., "light.office")
+            attributes: List of attribute names to check (e.g., ["brightness", "color_temp", "led_effect"])
+            start_time: Start of time range (default: 30 days ago)
+            end_time: End of time range (default: now)
+        
+        Returns:
+            Dictionary mapping attribute names to boolean (True if attribute was used):
+            {"brightness": True, "color_temp": False, "led_effect": True}
+        
+        Example:
+            >>> usage = await client.fetch_entity_attributes(
+            ...     "light.office",
+            ...     ["brightness", "color_temp", "led_effect"]
+            ... )
+            >>> print(usage)
+            {"brightness": True, "color_temp": False, "led_effect": True}
+        """
+        try:
+            # Default time range: last 30 days
+            if start_time is None:
+                start_time = datetime.now(timezone.utc) - timedelta(days=30)
+            if end_time is None:
+                end_time = datetime.now(timezone.utc)
+            
+            # Build attribute usage map (default False)
+            attribute_usage = {attr: False for attr in attributes}
+            
+            if not attributes:
+                return attribute_usage
+            
+            # Build Flux query for each attribute field
+            # Attributes are stored as fields with "attr_" prefix in InfluxDB
+            attribute_fields = [f"attr_{attr}" for attr in attributes]
+            
+            # Query multiple fields using union approach
+            flux_query = f'''
+                from(bucket: "{self.bucket}")
+                  |> range(start: {start_time.isoformat()}, stop: {end_time.isoformat()})
+                  |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
+                  |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
+                  |> filter(fn: (r) => r["_field"] == "state_value" or {self._build_field_filter(attribute_fields)})
+                  |> filter(fn: (r) => exists r["_value"] and r["_value"] != null)
+                  |> limit(n: 1000)
+            '''
+            
+            logger.debug(f"Querying InfluxDB for entity attributes: {entity_id}, attributes={attributes}")
+            
+            # Execute query
+            tables = self.query_api.query(flux_query, org=self.org)
+            
+            # Process results - check which attribute fields have values
+            found_fields = set()
+            for table in tables:
+                for record in table.records:
+                    field_name = record.get_field()
+                    # Remove "attr_" prefix if present
+                    if field_name.startswith("attr_"):
+                        attr_name = field_name[5:]  # Remove "attr_" prefix
+                        if attr_name in attributes:
+                            found_fields.add(attr_name)
+                            attribute_usage[attr_name] = True
+                    elif field_name == "state_value":
+                        # State value changes indicate basic usage
+                        continue
+            
+            logger.debug(f"Entity {entity_id} attribute usage: {dict(attribute_usage)}")
+            
+            return attribute_usage
+            
+        except Exception as e:
+            logger.warning(f"Failed to fetch entity attributes for {entity_id}: {e}")
+            # Return default (all False) on error
+            return {attr: False for attr in attributes}
+    
+    def _build_field_filter(self, field_names: list[str]) -> str:
+        """Build Flux filter expression for multiple field names."""
+        if not field_names:
+            return 'false'
+        
+        conditions = ' or '.join([f'r["_field"] == "{field}"' for field in field_names])
+        return f'({conditions})'
+    
     def close(self):
         """Close the InfluxDB client connection"""
         if self.client:

@@ -419,15 +419,10 @@ class FeatureAnalyzer:
         """
         Determine which features are configured for a device.
         
-        **SIMPLIFIED APPROACH FOR STORY 2.3:**
-        - Check entity type (light, switch, climate)
-        - Assume only basic features are configured
-        - Mark advanced features as unconfigured
-        
-        **STORY 2.4 WILL ENHANCE:**
-        - Query HA entity attributes
-        - Check automation triggers
-        - Analyze historical usage patterns
+        Phase 4.1 Enhancement: InfluxDB Attribute Querying
+        - Check entity type (light, switch, climate) - basic features
+        - Query InfluxDB for attribute history to detect advanced feature usage
+        - Analyze historical usage patterns for feature detection
         
         Args:
             device_id: Device entity ID
@@ -437,8 +432,8 @@ class FeatureAnalyzer:
             List of feature names that appear to be configured
             
         Example:
-            For "light.kitchen_switch" → ["light_control"]
-            For "climate.thermostat" → ["climate_control"]
+            For "light.kitchen_switch" with brightness changes → ["light_control", "dimming"]
+            For "light.office" with color_temp changes → ["light_control", "color_temperature"]
         """
         configured = []
         entity_id = device.get('entity_id', device_id)
@@ -457,13 +452,60 @@ class FeatureAnalyzer:
             if 'motion' in entity_id.lower():
                 configured.append('occupancy')
 
-        logger.debug(f"Device {device_id}: {len(configured)} configured features detected (simplified)")
+        # Phase 4.1: Query InfluxDB for attribute usage history
+        if self.influxdb and entity_id:
+            try:
+                # Check common attributes for lights
+                if entity_id.startswith('light.'):
+                    attribute_usage = await self.influxdb.fetch_entity_attributes(
+                        entity_id=entity_id,
+                        attributes=['brightness', 'color_temp', 'rgb_color', 'effect', 'led_effect']
+                    )
+                    
+                    if attribute_usage.get('brightness', False):
+                        configured.append('dimming')
+                    if attribute_usage.get('color_temp', False):
+                        configured.append('color_temperature')
+                    if attribute_usage.get('rgb_color', False):
+                        configured.append('color_control')
+                    if attribute_usage.get('effect', False) or attribute_usage.get('led_effect', False):
+                        configured.append('led_notifications')
+                
+                # Check attributes for switches
+                elif entity_id.startswith('switch.'):
+                    attribute_usage = await self.influxdb.fetch_entity_attributes(
+                        entity_id=entity_id,
+                        attributes=['brightness', 'led_effect', 'smart_bulb_mode']
+                    )
+                    
+                    if attribute_usage.get('brightness', False):
+                        configured.append('dimming')
+                    if attribute_usage.get('led_effect', False):
+                        configured.append('led_notifications')
+                    if attribute_usage.get('smart_bulb_mode', False):
+                        configured.append('smart_bulb_mode')
+                
+                # Check attributes for climate
+                elif entity_id.startswith('climate.'):
+                    attribute_usage = await self.influxdb.fetch_entity_attributes(
+                        entity_id=entity_id,
+                        attributes=['preset_mode', 'fan_mode', 'swing_mode', 'hvac_modes']
+                    )
+                    
+                    if attribute_usage.get('preset_mode', False):
+                        configured.append('preset_modes')
+                    if attribute_usage.get('fan_mode', False):
+                        configured.append('fan_control')
+                    if attribute_usage.get('swing_mode', False):
+                        configured.append('swing_control')
+                
+                logger.debug(f"Device {device_id}: Attribute analysis found {len(configured)} configured features")
+                
+            except Exception as e:
+                logger.warning(f"Failed to query attribute usage for {entity_id}: {e}")
+                # Continue with basic features only
 
-        # Story 2.4 will add:
-        # - Query HA for entity attributes
-        # - Check if 'smartBulbMode' attribute exists → smart_bulb_mode configured
-        # - Check if 'led_effect' attribute exists → led_notifications configured
-        # - etc.
+        logger.debug(f"Device {device_id}: {len(configured)} configured features detected (basic + attributes)")
 
         return configured
 

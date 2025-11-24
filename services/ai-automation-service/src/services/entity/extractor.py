@@ -9,6 +9,7 @@ Updated: 2025 - Migrated to UnifiedExtractionPipeline
 """
 
 import logging
+import time
 from typing import Any
 
 from ...clients.device_intelligence_client import DeviceIntelligenceClient
@@ -16,7 +17,7 @@ from ...clients.ha_client import HomeAssistantClient
 from ...llm.openai_client import OpenAIClient
 from ...extraction.pipeline import UnifiedExtractionPipeline
 from ...extraction.models import AutomationContext
-from ..config import settings
+from ...config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,25 @@ class EntityExtractor:
         # Pipeline will be initialized lazily when clients are available
         self._pipeline: UnifiedExtractionPipeline | None = None
 
+        # Performance tracking
+        self.stats = {
+            'total_queries': 0,
+            'successful_extractions': 0,
+            'failed_extractions': 0,
+            'avg_processing_time': 0.0,
+            'total_processing_time': 0.0
+        }
+
+        # Call pattern tracking
+        self.call_stats = {
+            'direct_calls': 0,  # All extractions are direct calls
+            'orchestrated_calls': 0,  # Reserved for future orchestrated workflows
+            'avg_direct_latency': 0.0,
+            'avg_orch_latency': 0.0,
+            'total_direct_time': 0.0,
+            'total_orch_time': 0.0
+        }
+
         logger.info("EntityExtractor initialized (using UnifiedExtractionPipeline)")
 
     def _get_pipeline(self) -> UnifiedExtractionPipeline | None:
@@ -141,10 +161,14 @@ class EntityExtractor:
         Returns:
             List of extracted entities with metadata (legacy format for backward compatibility)
         """
+        start_time = time.time()
+        self.stats['total_queries'] += 1
+        
         try:
             pipeline = self._get_pipeline()
             if not pipeline:
                 logger.warning(f"⚠️ Unified pipeline not available, returning empty entities for: {query[:50]}...")
+                self.stats['failed_extractions'] += 1
                 return []
 
             # Run unified extraction pipeline
@@ -153,18 +177,44 @@ class EntityExtractor:
             # Convert to legacy format
             entities = _convert_unified_context_to_entities(automation_context)
             
+            # Calculate processing time
+            processing_time = time.time() - start_time
+            processing_time_ms = processing_time * 1000
+            
+            # Update stats
+            self.stats['total_processing_time'] += processing_time
+            self.stats['avg_processing_time'] = (
+                self.stats['total_processing_time'] / self.stats['total_queries']
+            )
+            
+            # Track call pattern (all extractions are direct calls)
+            self.call_stats['direct_calls'] += 1
+            self.call_stats['total_direct_time'] += processing_time_ms
+            self.call_stats['avg_direct_latency'] = (
+                self.call_stats['total_direct_time'] / self.call_stats['direct_calls']
+            )
+            
             if entities:
+                self.stats['successful_extractions'] += 1
                 logger.info(f"✅ Extracted {len(entities)} entities using UnifiedExtractionPipeline "
                            f"(areas={len(automation_context.spatial.areas)}, "
                            f"action={len(automation_context.devices.action_entities)}, "
-                           f"trigger={len(automation_context.devices.trigger_entities)})")
+                           f"trigger={len(automation_context.devices.trigger_entities)}) "
+                           f"in {processing_time_ms:.2f}ms")
+                logger.debug(f"SERVICE_CALL: pattern=direct, service=unified_pipeline, "
+                           f"latency={processing_time_ms:.2f}ms, success=True")
                 return entities
 
+            self.stats['failed_extractions'] += 1
             logger.warning(f"⚠️ No entities extracted from query: {query[:50]}...")
             return []
 
         except Exception as e:
+            self.stats['failed_extractions'] += 1
+            processing_time_ms = (time.time() - start_time) * 1000
             logger.error(f"❌ Entity extraction failed: {e}", exc_info=True)
+            logger.debug(f"SERVICE_CALL: pattern=direct, service=unified_pipeline, "
+                        f"latency={processing_time_ms:.2f}ms, success=False")
             # Return empty list on error
             return []
 
